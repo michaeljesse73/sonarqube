@@ -11,11 +11,11 @@ exports[`test should render correctly with email instead of hash 1`] = `
       size={20} />
     <strong
       className="spacer-left">
-      admin
+      Administrator
     </strong>
     <span
       className="note little-spacer-left">
-      Administrator
+      admin
     </span>
   </div>
 </div>
@@ -34,11 +34,11 @@ exports[`test should render correctly without all parameters 1`] = `
       size={20} />
     <strong
       className="spacer-left">
-      admin
+      Administrator
     </strong>
     <span
       className="note little-spacer-left">
-      Administrator
+      admin
     </span>
   </div>
 </div>

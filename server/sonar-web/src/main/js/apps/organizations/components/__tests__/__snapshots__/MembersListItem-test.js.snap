@@ -9,11 +9,11 @@ exports[`test should groups at 0 if the groupCount field is not defined (just ad
   <td
     className="nowrap text-middle">
     <strong>
-      john
+      John Doe
     </strong>
     <span
       className="note little-spacer-left">
-      John Doe
+      john
     </span>
   </td>
   <td
@@ -89,11 +89,11 @@ exports[`test should not render actions and groups for non admin 1`] = `
   <td
     className="nowrap text-middle">
     <strong>
-      admin
+      Admin Istrator
     </strong>
     <span
       className="note little-spacer-left">
-      Admin Istrator
+      admin
     </span>
   </td>
 </tr>
@@ -110,11 +110,11 @@ exports[`test should render actions and groups for admin 1`] = `
   <td
     className="nowrap text-middle">
     <strong>
-      admin
+      Admin Istrator
     </strong>
     <span
       className="note little-spacer-left">
-      Admin Istrator
+      admin
     </span>
   </td>
   <td
