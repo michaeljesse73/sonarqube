@@ -29,11 +29,14 @@ import org.sonar.api.web.page.Page;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
 import org.sonar.db.organization.OrganizationDto;
-import org.sonar.db.permission.OrganizationPermission;
+import org.sonar.server.organization.BillingValidations;
+import org.sonar.server.organization.BillingValidationsProxy;
 import org.sonar.server.organization.DefaultOrganizationProvider;
 import org.sonar.server.ui.PageRepository;
 import org.sonar.server.user.UserSession;
 
+import static org.sonar.db.permission.OrganizationPermission.ADMINISTER;
+import static org.sonar.db.permission.OrganizationPermission.PROVISION_PROJECTS;
 import static org.sonar.server.ws.KeyExamples.KEY_ORG_EXAMPLE_001;
 import static org.sonar.server.ws.WsUtils.checkFoundWithOptional;
 
@@ -46,12 +49,15 @@ public class OrganizationAction implements NavigationWsAction {
   private final DefaultOrganizationProvider defaultOrganizationProvider;
   private final UserSession userSession;
   private final PageRepository pageRepository;
+  private final BillingValidationsProxy billingValidations;
 
-  public OrganizationAction(DbClient dbClient, DefaultOrganizationProvider defaultOrganizationProvider, UserSession userSession, PageRepository pageRepository) {
+  public OrganizationAction(DbClient dbClient, DefaultOrganizationProvider defaultOrganizationProvider, UserSession userSession, PageRepository pageRepository,
+    BillingValidationsProxy billingValidations) {
     this.dbClient = dbClient;
     this.defaultOrganizationProvider = defaultOrganizationProvider;
     this.userSession = userSession;
     this.pageRepository = pageRepository;
+    this.billingValidations = billingValidations;
   }
 
   @Override
@@ -88,14 +94,17 @@ public class OrganizationAction implements NavigationWsAction {
   private void writeOrganization(JsonWriter json, OrganizationDto organization) {
     json.name("organization")
       .beginObject()
-      .prop("canAdmin", userSession.hasPermission(OrganizationPermission.ADMINISTER, organization))
-      .prop("canProvisionProjects", userSession.hasPermission(OrganizationPermission.PROVISION_PROJECTS, organization))
-      .prop("canDelete", organization.isGuarded() ? userSession.isSystemAdministrator() : userSession.hasPermission(OrganizationPermission.ADMINISTER, organization))
-      .prop("isDefault", organization.getKey().equals(defaultOrganizationProvider.get().getKey()));
+      .prop("canAdmin", userSession.hasPermission(ADMINISTER, organization))
+      .prop("canProvisionProjects", userSession.hasPermission(PROVISION_PROJECTS, organization))
+      .prop("canDelete", organization.isGuarded() ? userSession.isSystemAdministrator() : userSession.hasPermission(ADMINISTER, organization))
+      .prop("isDefault", organization.getKey().equals(defaultOrganizationProvider.get().getKey()))
+      .prop("canUpdateProjectsVisibilityToPrivate",
+        userSession.hasPermission(ADMINISTER, organization) &&
+          billingValidations.canUpdateProjectsVisibilityToPrivate(new BillingValidations.Organization(organization.getKey(), organization.getUuid())));
     List<Page> pages = pageRepository.getOrganizationPages(false);
     json.name("pages");
     writePages(json, pages);
-    if (userSession.hasPermission(OrganizationPermission.ADMINISTER, organization)) {
+    if (userSession.hasPermission(ADMINISTER, organization)) {
       List<Page> adminPages = pageRepository.getOrganizationPages(true);
       json.name("adminPages");
       writePages(json, adminPages);

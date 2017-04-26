@@ -29,7 +29,9 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.sonarqube.ws.client.GetRequest;
 import org.sonarqube.ws.client.WsClient;
+import org.sonarqube.ws.client.WsResponse;
 import org.sonarqube.ws.client.organization.CreateWsRequest;
 import util.ItUtils;
 import util.user.UserRule;
@@ -90,6 +92,21 @@ public class BillingTest {
     TaskResponse taskResponse = adminClient.ce().task(taskUuid);
     assertThat(taskResponse.getTask().hasErrorMessage()).isTrue();
     assertThat(taskResponse.getTask().getErrorMessage()).contains(format("Organization %s cannot perform analysis", organizationKey));
+  }
+
+  @Test
+  public void api_navigation_organization_return_canUpdateProjectsVisibilityToPrivate() {
+    String organizationKey = createOrganization();
+
+    setServerProperty(orchestrator, "sonar.billing.preventUpdatingProjectsVisibilityToPrivate", "false");
+    WsResponse response = adminClient.wsConnector().call(new GetRequest("api/navigation/organization").setParam("organization", organizationKey)).failIfNotSuccessful();
+    assertThat(response.content()).contains("\"canUpdateProjectsVisibilityToPrivate\":true");
+
+    setServerProperty(orchestrator, "sonar.billing.preventUpdatingProjectsVisibilityToPrivate", "true");
+    response = adminClient.wsConnector().call(new GetRequest("api/navigation/organization").setParam("organization", organizationKey)).failIfNotSuccessful();
+    assertThat(response.content()).contains("\"canUpdateProjectsVisibilityToPrivate\":false");
+
+    // TODO test with non admin user
   }
 
   private static String createOrganization() {
