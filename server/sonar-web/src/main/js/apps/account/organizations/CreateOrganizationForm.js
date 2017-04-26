@@ -229,7 +229,7 @@ class CreateOrganizationForm extends React.PureComponent {
           </div>
 
           <footer className="modal-foot">
-            {this.state.processing
+            {this.state.loading
               ? <i className="spinner" />
               : <div>
                   <button type="submit">{translate('create')}</button>
