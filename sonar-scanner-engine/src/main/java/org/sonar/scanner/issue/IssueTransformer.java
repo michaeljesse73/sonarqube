@@ -52,7 +52,8 @@ public class IssueTransformer {
     issue.setEndLine(serverIssue.hasLine() ? serverIssue.getLine() : null);
     issue.setSeverity(serverIssue.getSeverity().name());
     issue.setAssignee(serverIssue.hasAssigneeLogin() ? serverIssue.getAssigneeLogin() : null);
-    issue.setComponentKey(ComponentKeys.createEffectiveKey(serverIssue.getModuleKey(), serverIssue.hasPath() ? serverIssue.getPath() : null));
+    String keyWithoutBranch = StringUtils.substringBefore(serverIssue.getModuleKey(), ":");
+    issue.setComponentKey(ComponentKeys.createEffectiveKey(keyWithoutBranch, serverIssue.hasPath() ? serverIssue.getPath() : null));
     issue.setCreationDate(new Date(serverIssue.getCreationDate()));
     issue.setRuleKey(RuleKey.of(serverIssue.getRuleRepository(), serverIssue.getRuleKey()));
     issue.setNew(false);

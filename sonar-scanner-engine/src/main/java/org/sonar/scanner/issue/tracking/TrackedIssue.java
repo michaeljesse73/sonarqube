@@ -24,6 +24,8 @@ import java.io.Serializable;
 import java.util.Date;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
+
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.builder.ToStringBuilder;
 import org.apache.commons.lang.builder.ToStringStyle;
 import org.sonar.api.rule.RuleKey;
@@ -81,11 +83,20 @@ public class TrackedIssue implements Trackable, Serializable {
     return this;
   }
 
+  /**
+   * Component key shared by all part of SonarQube (batch, server, WS...). 
+   * It doesn't include the branch.
+   */
   public String componentKey() {
     return componentKey;
   }
 
+  /**
+   * Component key shared by all part of SonarQube (batch, server, WS...). 
+   * It doesn't include the branch.
+   */
   public TrackedIssue setComponentKey(String componentKey) {
+    Preconditions.checkArgument(StringUtils.countMatches(componentKey, ":") <= 1, "componentKey should not have branch");
     this.componentKey = componentKey;
     return this;
   }
