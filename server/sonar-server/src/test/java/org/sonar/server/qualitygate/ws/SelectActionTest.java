@@ -63,7 +63,7 @@ public class SelectActionTest {
     ComponentFinder componentFinder = new ComponentFinder(dbClient);
     underTest = new SelectAction(dbClient, userSession, componentFinder);
     ws = new WsActionTester(underTest);
-    project = db.components().insertProject();
+    project = db.components().insertPrivateProject();
     gate = insertQualityGate();
   }
 
@@ -99,7 +99,7 @@ public class SelectActionTest {
 
   @Test
   public void project_admin() throws Exception {
-    userSession.logIn().addProjectUuidPermissions(UserRole.ADMIN, project.uuid());
+    userSession.logIn().addProjectPermission(UserRole.ADMIN, project);
     String gateId = String.valueOf(gate.getId());
 
     callByKey(gateId, project.getKey());
@@ -153,7 +153,7 @@ public class SelectActionTest {
   public void fail_when_not_project_admin() throws Exception {
     String gateId = String.valueOf(gate.getId());
 
-    userSession.logIn().addProjectUuidPermissions(UserRole.ISSUE_ADMIN, project.uuid());
+    userSession.logIn().addProjectPermission(UserRole.ISSUE_ADMIN, project);
 
     expectedException.expect(ForbiddenException.class);
     callByKey(gateId, project.getKey());

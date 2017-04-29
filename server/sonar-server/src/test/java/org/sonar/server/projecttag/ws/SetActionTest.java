@@ -67,7 +67,7 @@ public class SetActionTest {
 
   @Before
   public void setUp() {
-    project = db.components().insertProject();
+    project = db.components().insertPrivateProject();
   }
 
   @Test
@@ -81,7 +81,7 @@ public class SetActionTest {
 
   @Test
   public void reset_tags() {
-    project = db.components().insertProject(p -> p.setTagsString("platform,scanner"));
+    project = db.components().insertPrivateProject(p -> p.setTagsString("platform,scanner"));
 
     call(project.key(), "");
 
@@ -90,7 +90,7 @@ public class SetActionTest {
 
   @Test
   public void override_existing_tags() {
-    project = db.components().insertProject(p -> p.setTagsString("marketing,languages"));
+    project = db.components().insertPrivateProject(p -> p.setTagsString("marketing,languages"));
 
     call(project.key(), "finance,offshore,platform");
 
@@ -99,7 +99,7 @@ public class SetActionTest {
 
   @Test
   public void set_tags_as_project_admin() {
-    userSession.logIn().addProjectUuidPermissions(UserRole.ADMIN, project.uuid());
+    userSession.logIn().addProjectPermission(UserRole.ADMIN, project);
 
     call(project.key(), "platform, lambda");
 
@@ -123,7 +123,7 @@ public class SetActionTest {
 
   @Test
   public void fail_if_not_project_admin() {
-    userSession.logIn().addProjectUuidPermissions(UserRole.USER, project.key());
+    userSession.logIn().addProjectPermission(UserRole.USER, project);
 
     expectedException.expect(ForbiddenException.class);
 

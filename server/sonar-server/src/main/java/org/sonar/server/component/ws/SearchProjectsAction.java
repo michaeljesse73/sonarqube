@@ -54,6 +54,7 @@ import org.sonar.server.es.SearchOptions;
 import org.sonar.server.exceptions.NotFoundException;
 import org.sonar.server.measure.index.ProjectMeasuresIndex;
 import org.sonar.server.measure.index.ProjectMeasuresQuery;
+import org.sonar.server.project.Visibility;
 import org.sonar.server.user.UserSession;
 import org.sonarqube.ws.Common;
 import org.sonarqube.ws.WsComponents.Component;
@@ -106,7 +107,9 @@ public class SearchProjectsAction implements ComponentsWsAction {
       .addPagingParams(DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE)
       .setInternal(true)
       .setResponseExample(getClass().getResource("search_projects-example.json"))
-      .setChangelog(new Change("6.4", format("The '%s' parameter accepts '%s' to filter by language", FILTER_LANGUAGES, PARAM_FILTER)))
+      .setChangelog(
+        new Change("6.4", format("The '%s' parameter accepts '%s' to filter by language", FILTER_LANGUAGES, PARAM_FILTER)),
+        new Change("6.4", "The 'visibility' field is added"))
       .setHandler(this);
 
     action.createFieldsParam(POSSIBLE_FIELDS)
@@ -409,7 +412,8 @@ public class SearchProjectsAction implements ComponentsWsAction {
         .setOrganization(organizationDto.getKey())
         .setId(dbComponent.uuid())
         .setKey(dbComponent.key())
-        .setName(dbComponent.name());
+        .setName(dbComponent.name())
+        .setVisibility(Visibility.getLabel(dbComponent.isPrivate()));
       wsComponent.getTagsBuilder().addAllTags(dbComponent.getTags());
 
       SnapshotDto snapshotDto = analysisByProjectUuid.get(dbComponent.uuid());

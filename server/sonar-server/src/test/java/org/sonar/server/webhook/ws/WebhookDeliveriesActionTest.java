@@ -29,6 +29,7 @@ import org.sonar.api.web.UserRole;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbTester;
 import org.sonar.db.component.ComponentDto;
+import org.sonar.db.component.ComponentTesting;
 import org.sonar.db.webhook.WebhookDeliveryDto;
 import org.sonar.server.component.ComponentFinder;
 import org.sonar.server.exceptions.ForbiddenException;
@@ -38,7 +39,6 @@ import org.sonar.server.ws.WsActionTester;
 import org.sonarqube.ws.Webhooks;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.sonar.db.component.ComponentTesting.newProjectDto;
 import static org.sonar.db.webhook.WebhookDbTesting.newWebhookDeliveryDto;
 import static org.sonar.test.JsonAssert.assertJson;
 
@@ -62,7 +62,7 @@ public class WebhookDeliveriesActionTest {
     ComponentFinder componentFinder = new ComponentFinder(dbClient);
     WebhookDeliveriesAction underTest = new WebhookDeliveriesAction(dbClient, userSession, componentFinder);
     ws = new WsActionTester(underTest);
-    project = db.components().insertComponent(newProjectDto(db.organizations().insert()).setKey("my-project"));
+    project = db.components().insertComponent(ComponentTesting.newPrivateProjectDto(db.organizations().insert()).setKey("my-project"));
   }
 
   @Test
@@ -82,7 +82,7 @@ public class WebhookDeliveriesActionTest {
 
   @Test
   public void search_by_component_and_return_no_records() throws Exception {
-    userSession.logIn().addProjectUuidPermissions(project.uuid(), UserRole.ADMIN);
+    userSession.logIn().addProjectPermission(UserRole.ADMIN, project);
 
     Webhooks.DeliveriesWsResponse response = ws.newRequest()
       .setParam("componentKey", project.getKey())
@@ -93,7 +93,7 @@ public class WebhookDeliveriesActionTest {
 
   @Test
   public void search_by_task_and_return_no_records() throws Exception {
-    userSession.logIn().addProjectUuidPermissions(project.uuid(), UserRole.ADMIN);
+    userSession.logIn().addProjectPermission(UserRole.ADMIN, project);
 
     Webhooks.DeliveriesWsResponse response = ws.newRequest()
       .setParam("ceTaskId", "t1")
@@ -116,7 +116,7 @@ public class WebhookDeliveriesActionTest {
       .setHttpStatus(200);
     dbClient.webhookDeliveryDao().insert(db.getSession(), dto);
     db.commit();
-    userSession.logIn().addProjectUuidPermissions(UserRole.ADMIN, project.uuid());
+    userSession.logIn().addProjectPermission(UserRole.ADMIN, project);
 
     String json = ws.newRequest()
       .setParam("componentKey", project.getKey())
@@ -135,7 +135,7 @@ public class WebhookDeliveriesActionTest {
     dbClient.webhookDeliveryDao().insert(db.getSession(), dto2);
     dbClient.webhookDeliveryDao().insert(db.getSession(), dto3);
     db.commit();
-    userSession.logIn().addProjectUuidPermissions(UserRole.ADMIN, project.uuid());
+    userSession.logIn().addProjectPermission(UserRole.ADMIN, project);
 
     Webhooks.DeliveriesWsResponse response = ws.newRequest()
       .setParam("ceTaskId", "t1")
@@ -150,7 +150,7 @@ public class WebhookDeliveriesActionTest {
       .setComponentUuid(project.uuid());
     dbClient.webhookDeliveryDao().insert(db.getSession(), dto);
     db.commit();
-    userSession.logIn().addProjectUuidPermissions(UserRole.USER, project.uuid());
+    userSession.logIn().addProjectPermission(UserRole.USER, project);
 
     expectedException.expect(ForbiddenException.class);
     expectedException.expectMessage("Insufficient privileges");
@@ -166,7 +166,7 @@ public class WebhookDeliveriesActionTest {
       .setComponentUuid(project.uuid());
     dbClient.webhookDeliveryDao().insert(db.getSession(), dto);
     db.commit();
-    userSession.logIn().addProjectUuidPermissions(UserRole.USER, project.uuid());
+    userSession.logIn().addProjectPermission(UserRole.USER, project);
 
     expectedException.expect(ForbiddenException.class);
     expectedException.expectMessage("Insufficient privileges");

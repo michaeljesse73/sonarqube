@@ -75,8 +75,8 @@ public class ProjectsActionTest {
 
   @Test
   public void should_list_authorized_projects_only() throws Exception {
-    project1 = newProject("ABCD", "Project One");
-    project2 = newProject("BCDE", "Project Two");
+    project1 = newPrivateProject("ABCD", "Project One");
+    project2 = newPrivateProject("BCDE", "Project Two");
     db.components().insertComponents(project1, project2);
 
     // user only sees project1
@@ -91,13 +91,11 @@ public class ProjectsActionTest {
 
   @Test
   public void should_paginate() throws Exception {
-    project1 = newProject("ABCD", "Project One");
-    project2 = newProject("BCDE", "Project Two");
-    project3 = newProject("CDEF", "Project Three");
-    project4 = newProject("DEFA", "Project Four");
+    project1 = newPublicProject("ABCD", "Project One");
+    project2 = newPublicProject("BCDE", "Project Two");
+    project3 = newPublicProject("CDEF", "Project Three");
+    project4 = newPublicProject("DEFA", "Project Four");
     dbClient.componentDao().insert(dbSession, project1, project2, project3, project4);
-
-    addBrowsePermissionToAnyone(project1, project2, project3, project4);
 
     associateProjectsWithProfile(dbSession, xooP1, project1, project2, project3, project4);
 
@@ -122,13 +120,11 @@ public class ProjectsActionTest {
 
   @Test
   public void should_show_unselected() throws Exception {
-    project1 = newProject("ABCD", "Project One");
-    project2 = newProject("BCDE", "Project Two");
-    project3 = newProject("CDEF", "Project Three");
-    project4 = newProject("DEFA", "Project Four");
+    project1 = newPublicProject("ABCD", "Project One");
+    project2 = newPublicProject("BCDE", "Project Two");
+    project3 = newPublicProject("CDEF", "Project Three");
+    project4 = newPublicProject("DEFA", "Project Four");
     dbClient.componentDao().insert(dbSession, project1, project2, project3, project4);
-
-    addBrowsePermissionToAnyone(project1, project2, project3, project4);
 
     associateProjectsWithProfile(dbSession, xooP1, project1, project2);
 
@@ -139,13 +135,11 @@ public class ProjectsActionTest {
 
   @Test
   public void should_show_all() throws Exception {
-    project1 = newProject("ABCD", "Project One");
-    project2 = newProject("BCDE", "Project Two");
-    project3 = newProject("CDEF", "Project Three");
-    project4 = newProject("DEFA", "Project Four");
+    project1 = newPublicProject("ABCD", "Project One");
+    project2 = newPublicProject("BCDE", "Project Two");
+    project3 = newPublicProject("CDEF", "Project Three");
+    project4 = newPublicProject("DEFA", "Project Four");
     dbClient.componentDao().insert(dbSession, project1, project2, project3, project4);
-
-    addBrowsePermissionToAnyone(project1, project2, project3, project4);
 
     associateProjectsWithProfile(dbSession, xooP1, project1, project2);
     // project3 is associated with P2, must appear as not associated with xooP1
@@ -158,13 +152,11 @@ public class ProjectsActionTest {
 
   @Test
   public void should_filter_on_name() throws Exception {
-    project1 = newProject("ABCD", "Project One");
-    project2 = newProject("BCDE", "Project Two");
-    project3 = newProject("CDEF", "Project Three");
-    project4 = newProject("DEFA", "Project Four");
+    project1 = newPublicProject("ABCD", "Project One");
+    project2 = newPublicProject("BCDE", "Project Two");
+    project3 = newPublicProject("CDEF", "Project Three");
+    project4 = newPublicProject("DEFA", "Project Four");
     dbClient.componentDao().insert(dbSession, project1, project2, project3, project4);
-
-    addBrowsePermissionToAnyone(project1, project2, project3, project4);
 
     associateProjectsWithProfile(dbSession, xooP1, project1, project2);
 
@@ -180,13 +172,11 @@ public class ProjectsActionTest {
 
   @Test
   public void return_deprecated_uuid_field() throws Exception {
-    project1 = newProject("ABCD", "Project One");
-    project2 = newProject("BCDE", "Project Two");
-    project3 = newProject("CDEF", "Project Three");
-    project4 = newProject("DEFA", "Project Four");
+    project1 = newPublicProject("ABCD", "Project One");
+    project2 = newPublicProject("BCDE", "Project Two");
+    project3 = newPublicProject("CDEF", "Project Three");
+    project4 = newPublicProject("DEFA", "Project Four");
     dbClient.componentDao().insert(dbSession, project1, project2, project3, project4);
-
-    addBrowsePermissionToAnyone(project1, project2, project3, project4);
 
     associateProjectsWithProfile(dbSession, xooP1, project1, project2);
     // project3 is associated with P2, must appear as not associated with xooP1
@@ -207,14 +197,12 @@ public class ProjectsActionTest {
     return wsTester.newGetRequest("api/qualityprofiles", "projects");
   }
 
-  private ComponentDto newProject(String uuid, String name) {
-    return ComponentTesting.newProjectDto(organizationDto, uuid).setName(name);
+  private ComponentDto newPublicProject(String uuid, String name) {
+    return ComponentTesting.newPublicProjectDto(organizationDto, uuid).setName(name);
   }
 
-  private void addBrowsePermissionToAnyone(ComponentDto... projects) {
-    for (ComponentDto project : projects) {
-      db.users().insertProjectPermissionOnAnyone(UserRole.USER, project);
-    }
+  private ComponentDto newPrivateProject(String uuid, String name) {
+    return ComponentTesting.newPrivateProjectDto(organizationDto, uuid).setName(name);
   }
 
   private void associateProjectsWithProfile(DbSession session, QualityProfileDto profile, ComponentDto... projects) {

@@ -34,6 +34,7 @@ import org.sonar.db.DbClient;
 import org.sonar.db.DbTester;
 import org.sonar.db.component.ComponentDbTester;
 import org.sonar.db.component.ComponentDto;
+import org.sonar.db.component.ComponentTesting;
 import org.sonar.db.organization.OrganizationDto;
 import org.sonar.server.component.ComponentFinder;
 import org.sonar.server.exceptions.ForbiddenException;
@@ -54,7 +55,6 @@ import static org.sonar.api.resources.Qualifiers.PROJECT;
 import static org.sonar.api.web.UserRole.ADMIN;
 import static org.sonar.api.web.UserRole.CODEVIEWER;
 import static org.sonar.api.web.UserRole.USER;
-import static org.sonar.db.component.ComponentTesting.newProjectDto;
 import static org.sonar.db.permission.OrganizationPermission.ADMINISTER;
 import static org.sonar.db.permission.OrganizationPermission.SCAN;
 import static org.sonarqube.ws.MediaTypes.JSON;
@@ -92,7 +92,7 @@ public class ListDefinitionsActionTest {
 
   @Before
   public void setUp() throws Exception {
-    project = componentDb.insertComponent(newProjectDto(db.organizations().insert()));
+    project = componentDb.insertComponent(ComponentTesting.newPrivateProjectDto(db.organizations().insert()));
   }
 
   @Test
@@ -383,7 +383,7 @@ public class ListDefinitionsActionTest {
 
   @Test
   public void fail_when_user_has_not_project_browse_permission() throws Exception {
-    userSession.logIn("project-admin").addProjectUuidPermissions(CODEVIEWER, project.uuid());
+    userSession.logIn("project-admin").addProjectPermission(CODEVIEWER, project);
     propertyDefinitions.addComponent(PropertyDefinition.builder("foo").build());
 
     expectedException.expect(ForbiddenException.class);
@@ -469,7 +469,7 @@ public class ListDefinitionsActionTest {
   }
 
   private void logInAsProjectUser() {
-    userSession.logIn().addProjectUuidPermissions(USER, project.uuid());
+    userSession.logIn().addProjectPermission(USER, project);
   }
 
   private void logInAsAdmin(OrganizationDto org) {
@@ -478,8 +478,8 @@ public class ListDefinitionsActionTest {
 
   private void logInAsProjectAdmin() {
     userSession.logIn()
-      .addProjectUuidPermissions(ADMIN, project.uuid())
-      .addProjectUuidPermissions(USER, project.uuid());
+      .addProjectPermission(ADMIN, project)
+      .addProjectPermission(USER, project);
   }
 
 }

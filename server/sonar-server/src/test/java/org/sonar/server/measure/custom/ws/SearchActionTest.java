@@ -81,7 +81,7 @@ public class SearchActionTest {
     CustomMeasureJsonWriter customMeasureJsonWriter = new CustomMeasureJsonWriter(new UserJsonWriter(userSessionRule));
     ws = new WsTester(new CustomMeasuresWs(new SearchAction(dbClient, customMeasureJsonWriter, userSessionRule, new ComponentFinder(dbClient))));
     defaultProject = insertDefaultProject();
-    userSessionRule.logIn().addProjectUuidPermissions(UserRole.ADMIN, defaultProject.uuid());
+    userSessionRule.logIn().addProjectPermission(UserRole.ADMIN, defaultProject);
 
     db.getDbClient().userDao().insert(dbSession, new UserDto()
       .setLogin("login")
@@ -200,7 +200,7 @@ public class SearchActionTest {
 
   @Test
   public void search_as_project_admin() throws Exception {
-    userSessionRule.logIn("login").addProjectUuidPermissions(UserRole.ADMIN, DEFAULT_PROJECT_UUID);
+    userSessionRule.logIn("login").addProjectPermission(UserRole.ADMIN, defaultProject);
     MetricDto metric1 = insertCustomMetric(1);
     insertCustomMeasure(1, metric1);
 
@@ -265,7 +265,7 @@ public class SearchActionTest {
   }
 
   private ComponentDto insertProject(String projectUuid, String projectKey) {
-    ComponentDto project = ComponentTesting.newProjectDto(db.organizations().insert(), projectUuid)
+    ComponentDto project = ComponentTesting.newPrivateProjectDto(db.organizations().insert(), projectUuid)
       .setKey(projectKey);
     dbClient.componentDao().insert(dbSession, project);
     dbSession.commit();

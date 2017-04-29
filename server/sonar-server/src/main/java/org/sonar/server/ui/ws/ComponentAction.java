@@ -31,6 +31,7 @@ import javax.annotation.Nullable;
 import org.sonar.api.resources.Qualifiers;
 import org.sonar.api.resources.ResourceType;
 import org.sonar.api.resources.ResourceTypes;
+import org.sonar.api.server.ws.Change;
 import org.sonar.api.server.ws.Request;
 import org.sonar.api.server.ws.Response;
 import org.sonar.api.server.ws.WebService.NewAction;
@@ -51,6 +52,9 @@ import org.sonar.db.property.PropertyDto;
 import org.sonar.db.property.PropertyQuery;
 import org.sonar.db.qualitygate.QualityGateDto;
 import org.sonar.server.component.ComponentFinder;
+import org.sonar.server.organization.BillingValidations;
+import org.sonar.server.organization.BillingValidationsProxy;
+import org.sonar.server.project.Visibility;
 import org.sonar.server.qualitygate.QualityGateFinder;
 import org.sonar.server.qualityprofile.QPMeasureData;
 import org.sonar.server.qualityprofile.QualityProfile;
@@ -67,7 +71,7 @@ import static org.sonar.server.ws.KeyExamples.KEY_PROJECT_EXAMPLE_001;
 
 public class ComponentAction implements NavigationWsAction {
 
-  private static final String PARAM_COMPONENT_KEY = "componentKey";
+  static final String PARAM_COMPONENT = "component";
 
   private static final String PROPERTY_CONFIGURABLE = "configurable";
   private static final String PROPERTY_HAS_ROLE_POLICY = "hasRolePolicy";
@@ -80,15 +84,17 @@ public class ComponentAction implements NavigationWsAction {
   private final UserSession userSession;
   private final ComponentFinder componentFinder;
   private final QualityGateFinder qualityGateFinder;
+  private final BillingValidationsProxy billingValidations;
 
   public ComponentAction(DbClient dbClient, PageRepository pageRepository, ResourceTypes resourceTypes, UserSession userSession,
-    ComponentFinder componentFinder, QualityGateFinder qualityGateFinder) {
+    ComponentFinder componentFinder, QualityGateFinder qualityGateFinder, BillingValidationsProxy billingValidations) {
     this.dbClient = dbClient;
     this.pageRepository = pageRepository;
     this.resourceTypes = resourceTypes;
     this.userSession = userSession;
     this.componentFinder = componentFinder;
     this.qualityGateFinder = qualityGateFinder;
+    this.billingValidations = billingValidations;
   }
 
   private static Consumer<QualityProfile> writeToJson(JsonWriter json) {
@@ -118,16 +124,19 @@ public class ComponentAction implements NavigationWsAction {
       .setHandler(this)
       .setInternal(true)
       .setResponseExample(getClass().getResource("component-example.json"))
-      .setSince("5.2");
+      .setSince("5.2")
+      .setChangelog(
+        new Change("6.4", "The 'visibility' field is added"));
 
-    projectNavigation.createParam(PARAM_COMPONENT_KEY)
+    projectNavigation.createParam(PARAM_COMPONENT)
       .setDescription("A component key.")
+      .setDeprecatedKey("componentKey", "6.4")
       .setExampleValue(KEY_PROJECT_EXAMPLE_001);
   }
 
   @Override
   public void handle(Request request, Response response) throws Exception {
-    String componentKey = request.mandatoryParam(PARAM_COMPONENT_KEY);
+    String componentKey = request.mandatoryParam(PARAM_COMPONENT);
     try (DbSession session = dbClient.openSession(false)) {
       ComponentDto component = componentFinder.getByKey(session, componentKey);
       if (!userSession.hasComponentPermission(USER, component) &&
@@ -146,7 +155,7 @@ public class ComponentAction implements NavigationWsAction {
       if (userSession.hasComponentPermission(ADMIN, component) ||
         userSession.hasPermission(ADMINISTER_QUALITY_PROFILES, org) ||
         userSession.hasPermission(ADMINISTER_QUALITY_GATES, org)) {
-        writeConfiguration(json, component);
+        writeConfiguration(json, component, org);
       }
       writeBreadCrumbs(json, session, component);
       json.endObject().close();
@@ -160,6 +169,9 @@ public class ComponentAction implements NavigationWsAction {
       .prop("name", component.name())
       .prop("description", component.description())
       .prop("isFavorite", isFavourite(session, component));
+    if (Qualifiers.PROJECT.equals(component.qualifier())) {
+      json.prop("visibility", Visibility.getLabel(component.isPrivate()));
+    }
     List<Page> pages = pageRepository.getComponentPages(false, component.qualifier());
     writeExtensions(json, component, pages);
     if (analysis != null) {
@@ -211,11 +223,11 @@ public class ComponentAction implements NavigationWsAction {
     json.endArray();
   }
 
-  private void writeConfiguration(JsonWriter json, ComponentDto component) {
+  private void writeConfiguration(JsonWriter json, ComponentDto component, OrganizationDto organization) {
     boolean isProjectAdmin = userSession.hasComponentPermission(ADMIN, component);
 
     json.name("configuration").beginObject();
-    writeConfigPageAccess(json, isProjectAdmin, component);
+    writeConfigPageAccess(json, isProjectAdmin, component, organization);
 
     if (isProjectAdmin) {
       json.name("extensions").beginArray();
@@ -226,7 +238,7 @@ public class ComponentAction implements NavigationWsAction {
     json.endObject();
   }
 
-  private void writeConfigPageAccess(JsonWriter json, boolean isProjectAdmin, ComponentDto component) {
+  private void writeConfigPageAccess(JsonWriter json, boolean isProjectAdmin, ComponentDto component, OrganizationDto organization) {
     boolean isProject = Qualifiers.PROJECT.equals(component.qualifier());
     boolean showManualMeasures = isProjectAdmin && !Qualifiers.DIRECTORY.equals(component.qualifier());
     boolean isQualityProfileAdmin = userSession.hasPermission(OrganizationPermission.ADMINISTER_QUALITY_PROFILES, component.getOrganizationUuid());
@@ -243,6 +255,8 @@ public class ComponentAction implements NavigationWsAction {
     json.prop("showUpdateKey", isProjectAdmin && componentTypeHasProperty(component, PROPERTY_UPDATABLE_KEY));
     json.prop("showBackgroundTasks", isProjectAdmin);
     json.prop("canApplyPermissionTemplate", isOrganizationAdmin);
+    json.prop("canUpdateProjectVisibilityToPrivate", isProjectAdmin &&
+      billingValidations.canUpdateProjectVisibilityToPrivate(new BillingValidations.Organization(organization.getKey(), organization.getUuid())));
   }
 
   private boolean componentTypeHasProperty(ComponentDto component, String resourceTypeProperty) {

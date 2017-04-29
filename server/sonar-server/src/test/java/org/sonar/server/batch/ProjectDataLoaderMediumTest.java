@@ -86,9 +86,9 @@ public class ProjectDataLoaderMediumTest {
   @Test
   public void return_project_settings_with_global_scan_permission() {
     OrganizationDto organizationDto = OrganizationTesting.newOrganizationDto();
-    dbClient.organizationDao().insert(dbSession, organizationDto);
-    ComponentDto project = ComponentTesting.newProjectDto(organizationDto);
-    userSessionRule.logIn().addProjectUuidPermissions(SCAN_EXECUTION, project.uuid());
+    dbClient.organizationDao().insert(dbSession, organizationDto, false);
+    ComponentDto project = ComponentTesting.newPrivateProjectDto(organizationDto);
+    userSessionRule.logIn().addProjectPermission(SCAN_EXECUTION, project);
     dbClient.componentDao().insert(dbSession, project);
     addDefaultProfile();
 
@@ -110,9 +110,9 @@ public class ProjectDataLoaderMediumTest {
   @Test
   public void return_project_settings_with_project_scan_permission() {
     OrganizationDto organizationDto = OrganizationTesting.newOrganizationDto();
-    dbClient.organizationDao().insert(dbSession, organizationDto);
-    ComponentDto project = ComponentTesting.newProjectDto(organizationDto);
-    userSessionRule.logIn("john").addProjectUuidPermissions(SCAN_EXECUTION, project.projectUuid());
+    dbClient.organizationDao().insert(dbSession, organizationDto, false);
+    ComponentDto project = ComponentTesting.newPrivateProjectDto(organizationDto);
+    userSessionRule.logIn("john").addProjectPermission(SCAN_EXECUTION, project);
     dbClient.componentDao().insert(dbSession, project);
     addDefaultProfile();
 
@@ -134,9 +134,9 @@ public class ProjectDataLoaderMediumTest {
   @Test
   public void not_returned_secured_settings_when_lgged_but_no_scan_permission() {
     OrganizationDto organizationDto = OrganizationTesting.newOrganizationDto();
-    dbClient.organizationDao().insert(dbSession, organizationDto);
-    ComponentDto project = ComponentTesting.newProjectDto(organizationDto);
-    userSessionRule.logIn("john").addProjectUuidPermissions(UserRole.USER, project.uuid());
+    dbClient.organizationDao().insert(dbSession, organizationDto, false);
+    ComponentDto project = ComponentTesting.newPrivateProjectDto(organizationDto);
+    userSessionRule.logIn("john").addProjectPermission(UserRole.USER, project);
     dbClient.componentDao().insert(dbSession, project);
     addDefaultProfile();
 
@@ -156,9 +156,9 @@ public class ProjectDataLoaderMediumTest {
   @Test
   public void return_project_with_module_settings() {
     OrganizationDto organizationDto = OrganizationTesting.newOrganizationDto();
-    dbClient.organizationDao().insert(dbSession, organizationDto);
-    ComponentDto project = ComponentTesting.newProjectDto(organizationDto);
-    userSessionRule.logIn().addProjectUuidPermissions(SCAN_EXECUTION, project.uuid());
+    dbClient.organizationDao().insert(dbSession, organizationDto, false);
+    ComponentDto project = ComponentTesting.newPrivateProjectDto(organizationDto);
+    userSessionRule.logIn().addProjectPermission(SCAN_EXECUTION, project);
     dbClient.componentDao().insert(dbSession, project);
     addDefaultProfile();
 
@@ -192,9 +192,9 @@ public class ProjectDataLoaderMediumTest {
   @Test
   public void return_project_with_module_settings_inherited_from_project() {
     OrganizationDto organizationDto = OrganizationTesting.newOrganizationDto();
-    dbClient.organizationDao().insert(dbSession, organizationDto);
-    ComponentDto project = ComponentTesting.newProjectDto(organizationDto);
-    userSessionRule.logIn().addProjectUuidPermissions(SCAN_EXECUTION, project.uuid());
+    dbClient.organizationDao().insert(dbSession, organizationDto, false);
+    ComponentDto project = ComponentTesting.newPrivateProjectDto(organizationDto);
+    userSessionRule.logIn().addProjectPermission(SCAN_EXECUTION, project);
     dbClient.componentDao().insert(dbSession, project);
     addDefaultProfile();
 
@@ -223,9 +223,9 @@ public class ProjectDataLoaderMediumTest {
   @Test
   public void return_project_with_module_with_sub_module() {
     OrganizationDto organizationDto = OrganizationTesting.newOrganizationDto();
-    dbClient.organizationDao().insert(dbSession, organizationDto);
-    ComponentDto project = ComponentTesting.newProjectDto(organizationDto);
-    userSessionRule.logIn().addProjectUuidPermissions(SCAN_EXECUTION, project.uuid());
+    dbClient.organizationDao().insert(dbSession, organizationDto, false);
+    ComponentDto project = ComponentTesting.newPrivateProjectDto(organizationDto);
+    userSessionRule.logIn().addProjectPermission(SCAN_EXECUTION, project);
     dbClient.componentDao().insert(dbSession, project);
     addDefaultProfile();
 
@@ -270,9 +270,9 @@ public class ProjectDataLoaderMediumTest {
   @Test
   public void return_project_with_two_modules() {
     OrganizationDto organizationDto = OrganizationTesting.newOrganizationDto();
-    dbClient.organizationDao().insert(dbSession, organizationDto);
-    ComponentDto project = ComponentTesting.newProjectDto(organizationDto);
-    userSessionRule.logIn().addProjectUuidPermissions(SCAN_EXECUTION, project.uuid());
+    dbClient.organizationDao().insert(dbSession, organizationDto, false);
+    ComponentDto project = ComponentTesting.newPrivateProjectDto(organizationDto);
+    userSessionRule.logIn().addProjectPermission(SCAN_EXECUTION, project);
     dbClient.componentDao().insert(dbSession, project);
     addDefaultProfile();
 
@@ -315,10 +315,10 @@ public class ProjectDataLoaderMediumTest {
   @Test
   public void return_provisioned_project_settings() {
     OrganizationDto organizationDto = OrganizationTesting.newOrganizationDto();
-    dbClient.organizationDao().insert(dbSession, organizationDto);
+    dbClient.organizationDao().insert(dbSession, organizationDto, false);
     // No snapshot attached on the project -> provisioned project
-    ComponentDto project = ComponentTesting.newProjectDto(organizationDto);
-    userSessionRule.logIn().addProjectUuidPermissions(SCAN_EXECUTION, project.uuid());
+    ComponentDto project = ComponentTesting.newPrivateProjectDto(organizationDto);
+    userSessionRule.logIn().addProjectPermission(SCAN_EXECUTION, project);
     dbClient.componentDao().insert(dbSession, project);
     addDefaultProfile();
 
@@ -337,8 +337,8 @@ public class ProjectDataLoaderMediumTest {
   @Test
   public void return_sub_module_settings() {
     OrganizationDto organizationDto = OrganizationTesting.newOrganizationDto();
-    dbClient.organizationDao().insert(dbSession, organizationDto);
-    ComponentDto project = ComponentTesting.newProjectDto(organizationDto);
+    dbClient.organizationDao().insert(dbSession, organizationDto, false);
+    ComponentDto project = ComponentTesting.newPrivateProjectDto(organizationDto);
     dbClient.componentDao().insert(dbSession, project);
     addDefaultProfile();
     // No project properties
@@ -348,7 +348,7 @@ public class ProjectDataLoaderMediumTest {
     // No module properties
 
     ComponentDto subModule = ComponentTesting.newModuleDto(module);
-    userSessionRule.logIn().addProjectUuidPermissions(SCAN_EXECUTION, project.uuid());
+    userSessionRule.logIn().addProjectPermission(SCAN_EXECUTION, project);
     dbClient.componentDao().insert(dbSession, subModule);
 
     // Sub module properties
@@ -371,8 +371,8 @@ public class ProjectDataLoaderMediumTest {
   @Test
   public void return_sub_module_settings_including_settings_from_parent_modules() {
     OrganizationDto organizationDto = OrganizationTesting.newOrganizationDto();
-    dbClient.organizationDao().insert(dbSession, organizationDto);
-    ComponentDto project = ComponentTesting.newProjectDto(organizationDto);
+    dbClient.organizationDao().insert(dbSession, organizationDto, false);
+    ComponentDto project = ComponentTesting.newPrivateProjectDto(organizationDto);
     dbClient.componentDao().insert(dbSession, project);
     addDefaultProfile();
 
@@ -386,7 +386,7 @@ public class ProjectDataLoaderMediumTest {
     dbClient.propertiesDao().saveProperty(dbSession, new PropertyDto().setKey("sonar.jira.login.secured").setValue("john").setResourceId(module.getId()));
 
     ComponentDto subModule = ComponentTesting.newModuleDto(module);
-    userSessionRule.logIn().addProjectUuidPermissions(SCAN_EXECUTION, project.uuid());
+    userSessionRule.logIn().addProjectPermission(SCAN_EXECUTION, project);
     dbClient.componentDao().insert(dbSession, subModule);
 
     // Sub module properties
@@ -407,8 +407,8 @@ public class ProjectDataLoaderMediumTest {
   @Test
   public void return_sub_module_settings_only_inherited_from_project() {
     OrganizationDto organizationDto = OrganizationTesting.newOrganizationDto();
-    dbClient.organizationDao().insert(dbSession, organizationDto);
-    ComponentDto project = ComponentTesting.newProjectDto(organizationDto);
+    dbClient.organizationDao().insert(dbSession, organizationDto, false);
+    ComponentDto project = ComponentTesting.newPrivateProjectDto(organizationDto);
     dbClient.componentDao().insert(dbSession, project);
     addDefaultProfile();
 
@@ -423,7 +423,7 @@ public class ProjectDataLoaderMediumTest {
     // No module property
 
     ComponentDto subModule = ComponentTesting.newModuleDto(module);
-    userSessionRule.logIn().addProjectUuidPermissions(SCAN_EXECUTION, project.uuid());
+    userSessionRule.logIn().addProjectPermission(SCAN_EXECUTION, project);
     dbClient.componentDao().insert(dbSession, subModule);
     // No sub module property
 
@@ -441,8 +441,8 @@ public class ProjectDataLoaderMediumTest {
   @Test
   public void return_sub_module_settings_inherited_from_project_and_module() {
     OrganizationDto organizationDto = OrganizationTesting.newOrganizationDto();
-    dbClient.organizationDao().insert(dbSession, organizationDto);
-    ComponentDto project = ComponentTesting.newProjectDto(organizationDto);
+    dbClient.organizationDao().insert(dbSession, organizationDto, false);
+    ComponentDto project = ComponentTesting.newPrivateProjectDto(organizationDto);
     dbClient.componentDao().insert(dbSession, project);
     addDefaultProfile();
 
@@ -458,7 +458,7 @@ public class ProjectDataLoaderMediumTest {
     dbClient.propertiesDao().saveProperty(dbSession, new PropertyDto().setKey("sonar.jira.project.key").setValue("SONAR-SERVER").setResourceId(module.getId()));
 
     ComponentDto subModule = ComponentTesting.newModuleDto(module);
-    userSessionRule.logIn().addProjectUuidPermissions(SCAN_EXECUTION, project.uuid());
+    userSessionRule.logIn().addProjectPermission(SCAN_EXECUTION, project);
     dbClient.componentDao().insert(dbSession, subModule);
     // No sub module property
 
@@ -478,8 +478,8 @@ public class ProjectDataLoaderMediumTest {
     userSessionRule.logIn();
 
     OrganizationDto organizationDto = OrganizationTesting.newOrganizationDto();
-    dbClient.organizationDao().insert(dbSession, organizationDto);
-    ComponentDto project = ComponentTesting.newProjectDto(organizationDto);
+    dbClient.organizationDao().insert(dbSession, organizationDto, false);
+    ComponentDto project = ComponentTesting.newPrivateProjectDto(organizationDto);
     dbClient.componentDao().insert(dbSession, project);
     dbSession.commit();
 
@@ -494,12 +494,12 @@ public class ProjectDataLoaderMediumTest {
   @Test
   public void fail_when_not_preview_and_only_browse_permission_without_scan_permission() {
     OrganizationDto organizationDto = OrganizationTesting.newOrganizationDto();
-    dbClient.organizationDao().insert(dbSession, organizationDto);
-    ComponentDto project = ComponentTesting.newProjectDto(organizationDto);
+    dbClient.organizationDao().insert(dbSession, organizationDto, false);
+    ComponentDto project = ComponentTesting.newPrivateProjectDto(organizationDto);
     dbClient.componentDao().insert(dbSession, project);
     dbSession.commit();
 
-    userSessionRule.logIn("john").addProjectUuidPermissions(UserRole.USER, project.projectUuid());
+    userSessionRule.logIn("john").addProjectPermission(UserRole.USER, project);
 
     thrown.expect(ForbiddenException.class);
     thrown.expectMessage("You're only authorized to execute a local (preview) SonarQube analysis without pushing the results to the SonarQube server. " +
@@ -510,12 +510,12 @@ public class ProjectDataLoaderMediumTest {
   @Test
   public void fail_when_preview_and_only_scan_permission_without_browse_permission() {
     OrganizationDto organizationDto = OrganizationTesting.newOrganizationDto();
-    dbClient.organizationDao().insert(dbSession, organizationDto);
-    ComponentDto project = ComponentTesting.newProjectDto(organizationDto);
+    dbClient.organizationDao().insert(dbSession, organizationDto, false);
+    ComponentDto project = ComponentTesting.newPrivateProjectDto(organizationDto);
     dbClient.componentDao().insert(dbSession, project);
     dbSession.commit();
 
-    userSessionRule.logIn("john").addProjectUuidPermissions(GlobalPermissions.SCAN_EXECUTION, project.projectUuid());
+    userSessionRule.logIn("john").addProjectPermission(GlobalPermissions.SCAN_EXECUTION, project);
 
     thrown.expect(ForbiddenException.class);
     thrown.expectMessage("You don't have the required permissions to access this project. Please contact your SonarQube administrator.");
@@ -525,9 +525,9 @@ public class ProjectDataLoaderMediumTest {
   @Test
   public void return_file_data_from_single_project() {
     OrganizationDto organizationDto = OrganizationTesting.newOrganizationDto();
-    dbClient.organizationDao().insert(dbSession, organizationDto);
-    ComponentDto project = ComponentTesting.newProjectDto(organizationDto);
-    userSessionRule.logIn().addProjectUuidPermissions(SCAN_EXECUTION, project.uuid());
+    dbClient.organizationDao().insert(dbSession, organizationDto, false);
+    ComponentDto project = ComponentTesting.newPrivateProjectDto(organizationDto);
+    userSessionRule.logIn().addProjectPermission(SCAN_EXECUTION, project);
     dbClient.componentDao().insert(dbSession, project);
     addDefaultProfile();
 
@@ -545,9 +545,9 @@ public class ProjectDataLoaderMediumTest {
   @Test
   public void return_file_data_from_multi_modules() {
     OrganizationDto organizationDto = OrganizationTesting.newOrganizationDto();
-    dbClient.organizationDao().insert(dbSession, organizationDto);
-    ComponentDto project = ComponentTesting.newProjectDto(organizationDto);
-    userSessionRule.logIn().addProjectUuidPermissions(SCAN_EXECUTION, project.uuid());
+    dbClient.organizationDao().insert(dbSession, organizationDto, false);
+    ComponentDto project = ComponentTesting.newPrivateProjectDto(organizationDto);
+    userSessionRule.logIn().addProjectPermission(SCAN_EXECUTION, project);
     dbClient.componentDao().insert(dbSession, project);
     addDefaultProfile();
 
@@ -574,8 +574,8 @@ public class ProjectDataLoaderMediumTest {
   @Test
   public void return_file_data_from_module() {
     OrganizationDto organizationDto = OrganizationTesting.newOrganizationDto();
-    dbClient.organizationDao().insert(dbSession, organizationDto);
-    ComponentDto project = ComponentTesting.newProjectDto(organizationDto);
+    dbClient.organizationDao().insert(dbSession, organizationDto, false);
+    ComponentDto project = ComponentTesting.newPrivateProjectDto(organizationDto);
     dbClient.componentDao().insert(dbSession, project);
     addDefaultProfile();
 
@@ -585,7 +585,7 @@ public class ProjectDataLoaderMediumTest {
     tester.get(FileSourceDao.class).insert(dbSession, newFileSourceDto(projectFile).setSrcHash("123456").setRevision("987654321"));
 
     ComponentDto module = ComponentTesting.newModuleDto(project);
-    userSessionRule.logIn().addProjectUuidPermissions(SCAN_EXECUTION, project.uuid());
+    userSessionRule.logIn().addProjectPermission(SCAN_EXECUTION, project);
     dbClient.componentDao().insert(dbSession, module);
 
     // File on module
@@ -603,7 +603,7 @@ public class ProjectDataLoaderMediumTest {
 
   private void addDefaultProfile() {
     OrganizationDto organizationDto = OrganizationTesting.newOrganizationDto();
-    dbClient.organizationDao().insert(dbSession, organizationDto);
+    dbClient.organizationDao().insert(dbSession, organizationDto, false);
     QualityProfileDto profileDto = newQProfileDto(organizationDto, QProfileName.createFor(ServerTester.Xoo.KEY, "SonarQube way"), "abcd").setRulesUpdatedAt(
       formatDateTime(new Date())).setDefault(true);
     dbClient.qualityProfileDao().insert(dbSession, profileDto);

@@ -206,14 +206,14 @@ public class TagsActionTest {
   }
 
   private IssueDto insertIssue(RuleDefinitionDto rule, String... tags) {
-    ComponentDto project = db.components().insertProject(organization);
+    ComponentDto project = db.components().insertPrivateProject(organization);
     ComponentDto file = db.components().insertComponent(newFileDto(project));
     IssueDto issueDto = IssueTesting.newIssue(rule, file, project).setTags(asList(tags));
     return db.issues().insertIssue(issueDto);
   }
 
   private void setUserWithBrowsePermission(IssueDto issue) {
-    userSession.logIn("john").addProjectUuidPermissions(USER, issue.getProjectUuid());
+    userSession.logIn("john").addProjectPermission(USER, db.getDbClient().componentDao().selectByUuid(db.getSession(), issue.getProjectUuid()).get());
   }
 
   private IssueDto insertIssueWithBrowsePermission(RuleDefinitionDto rule, String... tags) {

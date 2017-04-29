@@ -37,6 +37,7 @@ import org.sonar.db.component.SnapshotTesting;
 import org.sonar.db.organization.OrganizationDto;
 import org.sonar.server.exceptions.ForbiddenException;
 import org.sonar.server.exceptions.NotFoundException;
+import org.sonar.server.organization.BillingValidationsProxy;
 import org.sonar.server.organization.TestDefaultOrganizationProvider;
 import org.sonar.server.tester.UserSessionRule;
 import org.sonar.server.ws.TestRequest;
@@ -45,6 +46,7 @@ import org.sonar.server.ws.WsActionTester;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
+import static org.mockito.Mockito.mock;
 import static org.sonar.db.permission.OrganizationPermission.PROVISION_PROJECTS;
 import static org.sonar.db.permission.OrganizationPermission.SCAN;
 import static org.sonar.test.JsonAssert.assertJson;
@@ -62,7 +64,8 @@ public class ProvisionedActionTest {
 
   private TestDefaultOrganizationProvider defaultOrganizationProvider = TestDefaultOrganizationProvider.from(db);
   private DbClient dbClient = db.getDbClient();
-  private WsActionTester underTest = new WsActionTester(new ProvisionedAction(new ProjectsWsSupport(dbClient), dbClient, userSessionRule, defaultOrganizationProvider));
+  private WsActionTester underTest = new WsActionTester(new ProvisionedAction(new ProjectsWsSupport(dbClient, mock(BillingValidationsProxy.class)),
+    dbClient, userSessionRule, defaultOrganizationProvider));
 
   @Test
   public void verify_definition() {
@@ -73,8 +76,7 @@ public class ProvisionedActionTest {
     assertThat(action.since()).isEqualTo("5.2");
     assertThat(action.changelog()).extracting(Change::getVersion, Change::getDescription).containsExactlyInAnyOrder(
       tuple("6.4", "The 'uuid' field is deprecated in the response"),
-      tuple("6.4", "Paging response fields is now in a Paging object")
-    );
+      tuple("6.4", "Paging response fields is now in a Paging object"));
 
     assertThat(action.params()).hasSize(5);
 
@@ -88,7 +90,7 @@ public class ProvisionedActionTest {
   @Test
   public void all_provisioned_projects_without_analyzed_projects() throws Exception {
     OrganizationDto org = db.organizations().insert();
-    ComponentDto analyzedProject = ComponentTesting.newProjectDto(org, "analyzed-uuid-1");
+    ComponentDto analyzedProject = ComponentTesting.newPrivateProjectDto(org, "analyzed-uuid-1");
     db.components().insertComponents(newProvisionedProject(org, "1"), newProvisionedProject(org, "2"), analyzedProject);
     db.components().insertSnapshot(SnapshotTesting.newAnalysis(analyzedProject));
     userSessionRule.logIn().addPermission(PROVISION_PROJECTS, org);
@@ -169,11 +171,11 @@ public class ProvisionedActionTest {
   @Test
   public void provisioned_projects_as_defined_in_the_example() throws Exception {
     OrganizationDto org = db.organizations().insert();
-    ComponentDto hBaseProject = ComponentTesting.newProjectDto(org, "ce4c03d6-430f-40a9-b777-ad877c00aa4d")
+    ComponentDto hBaseProject = ComponentTesting.newPrivateProjectDto(org, "ce4c03d6-430f-40a9-b777-ad877c00aa4d")
       .setKey("org.apache.hbas:hbase")
       .setName("HBase")
       .setCreatedAt(DateUtils.parseDateTime("2015-03-04T23:03:44+0100"));
-    ComponentDto roslynProject = ComponentTesting.newProjectDto(org, "c526ef20-131b-4486-9357-063fa64b5079")
+    ComponentDto roslynProject = ComponentTesting.newPrivateProjectDto(org, "c526ef20-131b-4486-9357-063fa64b5079")
       .setKey("com.microsoft.roslyn:roslyn")
       .setName("Roslyn")
       .setCreatedAt(DateUtils.parseDateTime("2013-03-04T23:03:44+0100"));
@@ -213,7 +215,7 @@ public class ProvisionedActionTest {
 
   private static ComponentDto newProvisionedProject(OrganizationDto organizationDto, String uuid) {
     return ComponentTesting
-      .newProjectDto(organizationDto, "provisioned-uuid-" + uuid)
+      .newPrivateProjectDto(organizationDto, "provisioned-uuid-" + uuid)
       .setName("provisioned-name-" + uuid)
       .setKey("provisioned-key-" + uuid);
   }

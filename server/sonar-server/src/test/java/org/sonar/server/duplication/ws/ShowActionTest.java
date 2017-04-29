@@ -79,11 +79,11 @@ public class ShowActionTest {
 
   @Test
   public void return_file_with_missing_duplication_data() throws Exception {
-    ComponentDto project = db.components().insertProject();
+    ComponentDto project = db.components().insertPrivateProject();
     ComponentDto file = db.components().insertComponent(newFileDto(project).setKey("foo.js"));
     db.components().insertSnapshot(newAnalysis(project));
 
-    userSessionRule.addProjectUuidPermissions(UserRole.CODEVIEWER, project.uuid());
+    userSessionRule.addProjectPermission(UserRole.CODEVIEWER, project);
 
     WsTester.Result result = newBaseRequest().setParam("key", file.key()).execute();
 
@@ -102,7 +102,7 @@ public class ShowActionTest {
 
   @Test
   public void return_403_if_user_is_not_allowed_to_access_project() throws Exception {
-    ComponentDto project = db.components().insertProject();
+    ComponentDto project = db.components().insertPrivateProject();
     ComponentDto file = db.components().insertComponent(newFileDto(project));
 
     expectedException.expect(ForbiddenException.class);
@@ -115,7 +115,7 @@ public class ShowActionTest {
   }
 
   private void verifyCallToFileWithDuplications(Function<ComponentDto, WsTester.TestRequest> requestFactory) throws Exception {
-    ComponentDto project = db.components().insertProject();
+    ComponentDto project = db.components().insertPrivateProject();
     ComponentDto file = db.components().insertComponent(newFileDto(project).setKey("foo.js"));
     SnapshotDto snapshot = db.components().insertSnapshot(newAnalysis(project));
     String xml = "<duplications>\n" +
@@ -127,7 +127,7 @@ public class ShowActionTest {
     db.getDbClient().measureDao().insert(db.getSession(), newMeasureDto(dataMetric, file, snapshot).setData(xml));
     db.commit();
 
-    userSessionRule.addProjectUuidPermissions(UserRole.CODEVIEWER, project.uuid());
+    userSessionRule.addProjectPermission(UserRole.CODEVIEWER, project);
 
     WsTester.TestRequest request = requestFactory.apply(file);
     WsTester.Result result = request.execute();

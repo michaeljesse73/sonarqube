@@ -21,6 +21,7 @@ package org.sonar.db.permission;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.ibatis.session.RowBounds;
 import org.sonar.core.util.stream.MoreCollectors;
@@ -99,6 +100,10 @@ public class UserPermissionDao implements Dao {
     return mapper(dbSession).selectProjectPermissionsOfUser(userId, projectId);
   }
 
+  public Set<Integer> selectUserIdsWithPermissionOnProjectBut(DbSession session, long projectId, String permission) {
+    return mapper(session).selectUserIdsWithPermissionOnProjectBut(projectId, permission);
+  }
+
   public void insert(DbSession dbSession, UserPermissionDto dto) {
     ensureComponentPermissionConsistency(dbSession, dto);
     mapper(dbSession).insert(dto);
@@ -134,6 +139,13 @@ public class UserPermissionDao implements Dao {
    */
   public void deleteProjectPermissions(DbSession dbSession, long projectId) {
     mapper(dbSession).deleteProjectPermissions(projectId);
+  }
+
+  /**
+   * Deletes the specified permission on the specified project for any user.
+   */
+  public int deleteProjectPermissionOfAnyUser(DbSession dbSession, long projectId, String permission) {
+    return mapper(dbSession).deleteProjectPermissionOfAnyUser(projectId, permission);
   }
 
   public void deleteByOrganization(DbSession dbSession, String organizationUuid) {

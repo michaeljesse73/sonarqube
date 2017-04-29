@@ -26,11 +26,14 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.sonar.api.resources.Qualifiers;
+import org.sonar.api.server.ws.Change;
+import org.sonar.api.server.ws.WebService;
 import org.sonar.api.utils.System2;
 import org.sonar.api.web.UserRole;
 import org.sonar.db.DbTester;
 import org.sonar.db.component.ComponentDbTester;
 import org.sonar.db.component.ComponentDto;
+import org.sonar.db.component.ComponentTesting;
 import org.sonar.db.organization.OrganizationDto;
 import org.sonar.server.component.ComponentFinder;
 import org.sonar.server.exceptions.ForbiddenException;
@@ -42,12 +45,13 @@ import org.sonarqube.ws.WsComponents;
 import org.sonarqube.ws.WsComponents.ShowWsResponse;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.sonar.api.utils.DateUtils.formatDateTime;
 import static org.sonar.api.utils.DateUtils.parseDateTime;
 import static org.sonar.db.component.ComponentTesting.newDirectory;
 import static org.sonar.db.component.ComponentTesting.newFileDto;
 import static org.sonar.db.component.ComponentTesting.newModuleDto;
-import static org.sonar.db.component.ComponentTesting.newProjectDto;
+import static org.sonar.db.component.ComponentTesting.newPrivateProjectDto;
 import static org.sonar.db.component.SnapshotTesting.newAnalysis;
 import static org.sonar.test.JsonAssert.assertJson;
 import static org.sonarqube.ws.client.component.ComponentsWsParameters.PARAM_COMPONENT;
@@ -64,6 +68,35 @@ public class ShowActionTest {
   private ComponentDbTester componentDb = new ComponentDbTester(db);
 
   private WsActionTester ws = new WsActionTester(new ShowAction(userSession, db.getDbClient(), new ComponentFinder(db.getDbClient())));
+
+  @Test
+  public void verify_definition() throws Exception {
+    WebService.Action action = ws.getDef();
+
+    assertThat(action.since()).isEqualTo("5.4");
+    assertThat(action.description()).isNotNull();
+    assertThat(action.responseExample()).isNotNull();
+    assertThat(action.changelog()).extracting(Change::getVersion, Change::getDescription).containsExactlyInAnyOrder(
+      tuple("6.4", "Analysis date has been added to the response"),
+      tuple("6.4", "The field 'id' is deprecated in the response"),
+      tuple("6.4", "The 'visibility' field is added")
+    );
+
+    WebService.Param componentId = action.param(PARAM_COMPONENT_ID);
+    assertThat(componentId.isRequired()).isFalse();
+    assertThat(componentId.description()).isNotNull();
+    assertThat(componentId.exampleValue()).isNotNull();
+    assertThat(componentId.deprecatedSince()).isEqualTo("6.4");
+    assertThat(componentId.deprecatedKey()).isEqualTo("id");
+    assertThat(componentId.deprecatedKeySince()).isEqualTo("6.4");
+
+    WebService.Param component = action.param(PARAM_COMPONENT);
+    assertThat(component.isRequired()).isFalse();
+    assertThat(component.description()).isNotNull();
+    assertThat(component.exampleValue()).isNotNull();
+    assertThat(component.deprecatedKey()).isEqualTo("key");
+    assertThat(component.deprecatedKeySince()).isEqualTo("6.4");
+  }
 
   @Test
   public void json_example() throws IOException {
@@ -93,8 +126,9 @@ public class ShowActionTest {
 
   @Test
   public void show_with_browse_permission() {
-    userSession.logIn().addProjectUuidPermissions(UserRole.USER, "project-uuid");
-    componentDb.insertProjectAndSnapshot(newProjectDto(db.organizations().insert(), "project-uuid"));
+    ComponentDto project = newPrivateProjectDto(db.organizations().insert(), "project-uuid");
+    componentDb.insertProjectAndSnapshot(project);
+    userSession.logIn().addProjectPermission(UserRole.USER, project);
 
     ShowWsResponse response = newRequest("project-uuid", null);
 
@@ -104,7 +138,7 @@ public class ShowActionTest {
   @Test
   public void show_provided_project() {
     userSession.logIn().setRoot();
-    componentDb.insertComponent(newProjectDto(db.organizations().insert(), "project-uuid").setEnabled(false));
+    componentDb.insertComponent(newPrivateProjectDto(db.organizations().insert(), "project-uuid").setEnabled(false));
 
     ShowWsResponse response = newRequest("project-uuid", null);
 
@@ -114,11 +148,11 @@ public class ShowActionTest {
 
   @Test
   public void show_with_ancestors_when_not_project() throws Exception {
-    ComponentDto project = componentDb.insertProject();
+    ComponentDto project = componentDb.insertPrivateProject();
     ComponentDto module = componentDb.insertComponent(newModuleDto(project));
     ComponentDto directory = componentDb.insertComponent(newDirectory(module, "dir"));
     ComponentDto file = componentDb.insertComponent(newFileDto(directory));
-    userSession.addProjectUuidPermissions(UserRole.USER, project.uuid());
+    userSession.addProjectPermission(UserRole.USER, project);
 
     ShowWsResponse response = newRequest(null, file.key());
 
@@ -128,9 +162,9 @@ public class ShowActionTest {
 
   @Test
   public void show_without_ancestors_when_project() throws Exception {
-    ComponentDto project = componentDb.insertProject();
+    ComponentDto project = componentDb.insertPrivateProject();
     componentDb.insertComponent(newModuleDto(project));
-    userSession.addProjectUuidPermissions(UserRole.USER, project.uuid());
+    userSession.addProjectPermission(UserRole.USER, project);
 
     ShowWsResponse response = newRequest(null, project.key());
 
@@ -140,11 +174,11 @@ public class ShowActionTest {
 
   @Test
   public void show_with_last_analysis_date() throws Exception {
-    ComponentDto project = componentDb.insertProject();
+    ComponentDto project = componentDb.insertPrivateProject();
     componentDb.insertSnapshot(newAnalysis(project).setCreatedAt(1_000_000_000L).setLast(false));
     componentDb.insertSnapshot(newAnalysis(project).setCreatedAt(2_000_000_000L).setLast(false));
     componentDb.insertSnapshot(newAnalysis(project).setCreatedAt(3_000_000_000L).setLast(true));
-    userSession.addProjectUuidPermissions(UserRole.USER, project.uuid());
+    userSession.addProjectPermission(UserRole.USER, project);
 
     ShowWsResponse response = newRequest(null, project.key());
 
@@ -153,12 +187,12 @@ public class ShowActionTest {
 
   @Test
   public void show_with_ancestors_and_analysis_date() throws Exception {
-    ComponentDto project = componentDb.insertProject();
+    ComponentDto project = componentDb.insertPrivateProject();
     componentDb.insertSnapshot(newAnalysis(project).setCreatedAt(3_000_000_000L).setLast(true));
     ComponentDto module = componentDb.insertComponent(newModuleDto(project));
     ComponentDto directory = componentDb.insertComponent(newDirectory(module, "dir"));
     ComponentDto file = componentDb.insertComponent(newFileDto(directory));
-    userSession.addProjectUuidPermissions(UserRole.USER, project.uuid());
+    userSession.addProjectPermission(UserRole.USER, project);
 
     ShowWsResponse response = newRequest(null, file.key());
 
@@ -168,11 +202,50 @@ public class ShowActionTest {
   }
 
   @Test
+  public void should_return_visibility_for_private_project() throws Exception {
+    userSession.logIn().setRoot();
+    ComponentDto privateProject = db.components().insertPrivateProject();
+
+    ShowWsResponse result = newRequest(null, privateProject.key());
+    assertThat(result.getComponent().hasVisibility()).isTrue();
+    assertThat(result.getComponent().getVisibility()).isEqualTo("private");
+  }
+
+  @Test
+  public void should_return_visibility_for_public_project() throws Exception {
+    userSession.logIn().setRoot();
+    ComponentDto publicProject = db.components().insertPublicProject();
+
+    ShowWsResponse result = newRequest(null, publicProject.key());
+    assertThat(result.getComponent().hasVisibility()).isTrue();
+    assertThat(result.getComponent().getVisibility()).isEqualTo("public");
+  }
+
+  @Test
+  public void should_return_visibility_for_view() throws Exception {
+    userSession.logIn().setRoot();
+    ComponentDto view = db.components().insertView();
+
+    ShowWsResponse result = newRequest(null, view.key());
+    assertThat(result.getComponent().hasVisibility()).isTrue();
+  }
+
+  @Test
+  public void should_not_return_visibility_for_module() throws Exception {
+    userSession.logIn().setRoot();
+    ComponentDto privateProject = db.components().insertPrivateProject();
+    ComponentDto module = db.components().insertComponent(ComponentTesting.newModuleDto(privateProject));
+
+    ShowWsResponse result = newRequest(null, module.key());
+    assertThat(result.getComponent().hasVisibility()).isFalse();
+  }
+
+  @Test
   public void throw_ForbiddenException_if_user_doesnt_have_browse_permission_on_project() {
     userSession.logIn();
 
     expectedException.expect(ForbiddenException.class);
-    componentDb.insertProjectAndSnapshot(newProjectDto(db.organizations().insert(), "project-uuid"));
+    componentDb.insertProjectAndSnapshot(newPrivateProjectDto(db.organizations().insert(), "project-uuid"));
 
     newRequest("project-uuid", null);
   }
@@ -198,7 +271,7 @@ public class ShowActionTest {
 
   private void insertJsonExampleComponentsAndSnapshots() {
     OrganizationDto organizationDto = db.organizations().insertForKey("my-org-1");
-    ComponentDto project = componentDb.insertComponent(newProjectDto(organizationDto, "AVIF98jgA3Ax6PH2efOW")
+    ComponentDto project = componentDb.insertComponent(newPrivateProjectDto(organizationDto, "AVIF98jgA3Ax6PH2efOW")
       .setKey("com.sonarsource:java-markdown")
       .setName("Java Markdown")
       .setDescription("Java Markdown Project")

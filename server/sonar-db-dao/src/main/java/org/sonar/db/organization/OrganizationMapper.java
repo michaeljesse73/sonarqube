@@ -25,7 +25,7 @@ import org.apache.ibatis.annotations.Param;
 import org.sonar.db.Pagination;
 
 public interface OrganizationMapper {
-  void insert(@Param("organization") OrganizationDto organization);
+  void insert(@Param("organization") OrganizationDto organization, @Param("newProjectPrivate") boolean newProjectPrivate);
 
   int countByQuery(@Param("query") OrganizationQuery organizationQuery);
 
@@ -53,6 +53,8 @@ public interface OrganizationMapper {
 
   Integer selectDefaultGroupIdByUuid(@Param("uuid") String uuid);
 
+  boolean selectNewProjectPrivateByUuid(@Param("uuid") String uuid);
+
   /**
    * Update the organization with UUID specified by {@link OrganizationDto#getUuid()}.
    * <p>
@@ -67,6 +69,8 @@ public interface OrganizationMapper {
 
   void updateDefaultGroupId(@Param("organizationUuid") String organizationUuid,
     @Param("defaultGroupId") int defaultGroupId, @Param("now") long now);
+
+  void updateNewProjectPrivate(@Param("organizationUuid") String organizationUuid, @Param("newProjectPrivate") boolean newProjectPrivate, @Param("now") long now);
 
   int deleteByUuid(@Param("uuid") String uuid);
 }

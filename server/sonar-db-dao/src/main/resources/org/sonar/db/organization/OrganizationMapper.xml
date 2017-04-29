@@ -181,13 +181,20 @@
   </sql>
 
   <select id="selectDefaultGroupIdByUuid" resultType="Integer">
-    select org.default_group_id as "defaultGroupId"
+    select org.default_group_id
     from organizations org
     where
     org.uuid = #{uuid, jdbcType=VARCHAR}
   </select>
 
-  <insert id="insert" parameterType="Organization" useGeneratedKeys="false">
+  <select id="selectNewProjectPrivateByUuid" resultType="Boolean">
+    select org.new_project_private
+    from organizations org
+    where
+    org.uuid = #{uuid, jdbcType=VARCHAR}
+  </select>
+
+  <insert id="insert" parameterType="map" useGeneratedKeys="false">
     insert into organizations
     (
       uuid,
@@ -197,6 +204,7 @@
       url,
       avatar_url,
       guarded,
+      new_project_private,
       user_id,
       created_at,
       updated_at
@@ -210,6 +218,7 @@
       #{organization.url, jdbcType=VARCHAR},
       #{organization.avatarUrl, jdbcType=VARCHAR},
       #{organization.guarded, jdbcType=BOOLEAN},
+      #{newProjectPrivate, jdbcType=BOOLEAN},
       #{organization.userId, jdbcType=INTEGER},
       #{organization.createdAt, jdbcType=BIGINT},
       #{organization.updatedAt, jdbcType=BIGINT}
@@ -242,6 +251,15 @@
     update organizations
     set
       default_group_id = #{defaultGroupId, jdbcType=INTEGER},
+      updated_at = #{now, jdbcType=BIGINT}
+    where
+      uuid = #{organizationUuid, jdbcType=VARCHAR}
+  </update>
+
+  <update id="updateNewProjectPrivate">
+    update organizations
+    set
+      new_project_private = #{newProjectPrivate, jdbcType=INTEGER},
       updated_at = #{now, jdbcType=BIGINT}
     where
       uuid = #{organizationUuid, jdbcType=VARCHAR}

@@ -76,7 +76,7 @@ public class MetricsActionTest {
       .setActive(true));
     ws = new WsTester(new CustomMeasuresWs(new MetricsAction(dbClient, userSession, new ComponentFinder(dbClient))));
     defaultProject = insertDefaultProject();
-    userSession.logIn().addProjectUuidPermissions(UserRole.ADMIN, defaultProject.uuid());
+    userSession.logIn().addProjectPermission(UserRole.ADMIN, defaultProject);
   }
 
   @Test
@@ -145,7 +145,7 @@ public class MetricsActionTest {
   @Test
   public void list_metrics_as_a_project_admin() throws Exception {
     insertCustomMetric("metric-key-1");
-    userSession.logIn("login").addProjectUuidPermissions(UserRole.ADMIN, defaultProject.uuid());
+    userSession.logIn("login").addProjectPermission(UserRole.ADMIN, defaultProject);
 
     String response = newRequest().outputAsString();
 
@@ -227,7 +227,7 @@ public class MetricsActionTest {
   }
 
   private ComponentDto insertProject(String projectUuid, String projectKey) {
-    ComponentDto project = ComponentTesting.newProjectDto(db.getDefaultOrganization(), projectUuid)
+    ComponentDto project = ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization(), projectUuid)
       .setKey(projectKey);
     dbClient.componentDao().insert(dbSession, project);
     dbSession.commit();

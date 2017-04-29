@@ -39,7 +39,7 @@ import org.sonarqube.ws.MediaTypes;
 import org.sonarqube.ws.WsCe;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.sonar.db.component.ComponentTesting.newProjectDto;
+import static org.sonar.db.component.ComponentTesting.newPrivateProjectDto;
 import static org.sonar.server.ce.ws.ComponentAction.PARAM_COMPONENT_ID;
 import static org.sonar.server.ce.ws.ComponentAction.PARAM_COMPONENT_KEY;
 
@@ -60,8 +60,8 @@ public class ComponentActionTest {
 
   @Test
   public void empty_queue_and_empty_activity() {
-    dbTester.components().insertComponent(newProjectDto(dbTester.organizations().insert(), "PROJECT_1"));
-    userSession.addComponentUuidPermission(UserRole.USER, "PROJECT_1", "PROJECT_1");
+    ComponentDto project = dbTester.components().insertComponent(newPrivateProjectDto(dbTester.organizations().insert(), "PROJECT_1"));
+    userSession.addProjectPermission(UserRole.USER, project);
 
     WsCe.ProjectResponse response = ws.newRequest()
       .setParam("componentId", "PROJECT_1")
@@ -74,8 +74,8 @@ public class ComponentActionTest {
   @Test
   public void project_tasks() {
     OrganizationDto organizationDto = dbTester.organizations().insert();
-    dbTester.components().insertComponent(newProjectDto(organizationDto, "PROJECT_1"));
-    userSession.addComponentUuidPermission(UserRole.USER, "PROJECT_1", "PROJECT_1");
+    ComponentDto project = dbTester.components().insertComponent(newPrivateProjectDto(organizationDto, "PROJECT_1"));
+    userSession.addProjectPermission(UserRole.USER, project);
     insertActivity("T1", "PROJECT_1", CeActivityDto.Status.SUCCESS);
     insertActivity("T2", "PROJECT_2", CeActivityDto.Status.FAILED);
     insertActivity("T3", "PROJECT_1", CeActivityDto.Status.FAILED);
@@ -99,7 +99,7 @@ public class ComponentActionTest {
 
   @Test
   public void search_tasks_by_component_key() {
-    ComponentDto project = dbTester.components().insertProject();
+    ComponentDto project = dbTester.components().insertPrivateProject();
     logInWithBrowsePermission(project);
     insertActivity("T1", project.uuid(), CeActivityDto.Status.SUCCESS);
 
@@ -111,8 +111,8 @@ public class ComponentActionTest {
 
   @Test
   public void canceled_tasks_must_not_be_picked_as_current_analysis() {
-    dbTester.components().insertComponent(newProjectDto(dbTester.getDefaultOrganization(), "PROJECT_1"));
-    userSession.addComponentUuidPermission(UserRole.USER, "PROJECT_1", "PROJECT_1");
+    ComponentDto project = dbTester.components().insertComponent(newPrivateProjectDto(dbTester.getDefaultOrganization(), "PROJECT_1"));
+    userSession.addProjectPermission(UserRole.USER, project);
     insertActivity("T1", "PROJECT_1", CeActivityDto.Status.SUCCESS);
     insertActivity("T2", "PROJECT_2", CeActivityDto.Status.FAILED);
     insertActivity("T3", "PROJECT_1", CeActivityDto.Status.SUCCESS);
@@ -130,8 +130,6 @@ public class ComponentActionTest {
 
   @Test
   public void fail_with_404_when_component_does_not_exist() throws Exception {
-    userSession.addComponentUuidPermission(UserRole.USER, "PROJECT_1", "PROJECT_1");
-
     expectedException.expect(NotFoundException.class);
     ws.newRequest()
       .setParam("componentId", "UNKNOWN")
@@ -141,7 +139,7 @@ public class ComponentActionTest {
 
   @Test
   public void throw_ForbiddenException_if_user_cant_access_project() {
-    ComponentDto project = dbTester.components().insertProject();
+    ComponentDto project = dbTester.components().insertPrivateProject();
     userSession.logIn();
 
     expectedException.expect(ForbiddenException.class);
@@ -155,13 +153,13 @@ public class ComponentActionTest {
   @Test
   public void fail_when_no_component_parameter() {
     expectedException.expect(IllegalArgumentException.class);
-    logInWithBrowsePermission(dbTester.components().insertProject());
+    logInWithBrowsePermission(dbTester.components().insertPrivateProject());
 
     ws.newRequest().execute();
   }
 
   private void logInWithBrowsePermission(ComponentDto project) {
-    userSession.logIn().addProjectUuidPermissions(UserRole.USER, project.uuid());
+    userSession.logIn().addProjectPermission(UserRole.USER, project);
   }
 
   private CeQueueDto insertQueue(String taskUuid, String componentUuid, CeQueueDto.Status status) {

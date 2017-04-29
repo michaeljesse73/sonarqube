@@ -20,8 +20,6 @@
 package org.sonar.db.permission;
 
 import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.sonar.db.Dao;
@@ -56,16 +54,22 @@ public class AuthorizationDao implements Dao {
   }
 
   /**
-   * Loads all the permissions granted to logged-in user for the specified project.
+   * Loads all the permissions granted to logged-in user for the specified project <strong>stored in *_ROLES
+   * tables</strong>.
    * An empty Set is returned if user has no permissions on the project.
+   *
+   * <strong>This method does not support public components</strong>
    */
   public Set<String> selectProjectPermissions(DbSession dbSession, String projectUuid, long userId) {
     return mapper(dbSession).selectProjectPermissions(projectUuid, userId);
   }
 
   /**
-   * Loads all the permissions granted to anonymous for the specified project.
+   * Loads all the permissions granted to anonymous for the specified project <strong>stored in *_ROLES
+   * tables</strong>.
    * An empty Set is returned if anonymous user has no permissions on the project.
+   *
+   * <strong>This method does not support public components</strong>
    */
   public Set<String> selectProjectPermissionsOfAnonymous(DbSession dbSession, String projectUuid) {
     return mapper(dbSession).selectProjectPermissionsOfAnonymous(projectUuid);
@@ -134,22 +138,8 @@ public class AuthorizationDao implements Dao {
   }
 
   /**
-   * @deprecated it loads too many results and there's no functional need.
-   */
-  @Deprecated
-  public Collection<String> selectAuthorizedRootProjectsUuids(DbSession dbSession, @Nullable Integer userId, String role) {
-    String sql;
-    Map<String, Object> params = new HashMap<>(2);
-    sql = "selectAuthorizedRootProjectsUuids";
-    params.put(USER_ID_PARAM, userId);
-    params.put("role", role);
-
-    return dbSession.selectList(sql, params);
-  }
-
-  /**
    * Keep only authorized user that have the given permission on a given project.
-   * Please Note that if the permission is 'Anyone' is NOT taking into account by thie method.
+   * Please Note that if the permission is 'Anyone' is NOT taking into account by this method.
    */
   public Collection<Integer> keepAuthorizedUsersForRoleAndProject(DbSession dbSession, Collection<Integer> userIds, String role, long projectId) {
     return executeLargeInputs(
