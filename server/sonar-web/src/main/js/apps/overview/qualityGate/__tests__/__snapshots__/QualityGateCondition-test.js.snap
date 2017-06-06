@@ -1,11 +1,21 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`new_open_issues 1`] = `
-<DrilldownLink
-  className="overview-quality-gate-condition overview-quality-gate-condition-error"
-  component="abcd-key"
-  metric="new_open_issues"
-  periodDate={null}
+exports[`new_maintainability_rating 1`] = `
+<Link
+  className="overview-quality-gate-condition overview-quality-gate-condition-error overview-quality-gate-condition-leak"
+  onlyActiveOnIndex={false}
+  style={Object {}}
+  to={
+    Object {
+      "pathname": "/project/issues",
+      "query": Object {
+        "id": "abcd-key",
+        "resolved": "false",
+        "sinceLeakPeriod": "true",
+        "types": "CODE_SMELL",
+      },
+    }
+  }
 >
   <div
     className="overview-quality-gate-condition-container"
@@ -14,6 +24,59 @@ exports[`new_open_issues 1`] = `
       className="overview-quality-gate-condition-value"
     >
       <Measure
+        decimals={null}
+        measure={
+          Object {
+            "leak": "3",
+            "value": "3",
+          }
+        }
+        metric={
+          Object {
+            "key": "new_maintainability_rating",
+            "name": "new_maintainability_rating",
+            "type": "RATING",
+          }
+        }
+      />
+    </div>
+    <div>
+      <div
+        className="overview-quality-gate-condition-metric"
+      >
+        <IssueTypeIcon
+          className="little-spacer-right"
+          query="new_maintainability_rating"
+        />
+        new_maintainability_rating
+      </div>
+      <div
+        className="overview-quality-gate-threshold"
+      >
+        quality_gates.operator.GT.rating
+         
+        A
+      </div>
+    </div>
+  </div>
+</Link>
+`;
+
+exports[`new_open_issues 1`] = `
+<DrilldownLink
+  className="overview-quality-gate-condition overview-quality-gate-condition-error overview-quality-gate-condition-leak"
+  component="abcd-key"
+  metric="new_open_issues"
+  sinceLeakPeriod={true}
+>
+  <div
+    className="overview-quality-gate-condition-container"
+  >
+    <div
+      className="overview-quality-gate-condition-value"
+    >
+      <Measure
+        decimals={null}
         measure={
           Object {
             "leak": "10",
@@ -53,7 +116,7 @@ exports[`new_open_issues 1`] = `
 
 exports[`new_reliability_rating 1`] = `
 <Link
-  className="overview-quality-gate-condition overview-quality-gate-condition-error"
+  className="overview-quality-gate-condition overview-quality-gate-condition-error overview-quality-gate-condition-leak"
   onlyActiveOnIndex={false}
   style={Object {}}
   to={
@@ -76,6 +139,7 @@ exports[`new_reliability_rating 1`] = `
       className="overview-quality-gate-condition-value"
     >
       <Measure
+        decimals={null}
         measure={
           Object {
             "leak": "3",
@@ -115,7 +179,7 @@ exports[`new_reliability_rating 1`] = `
 
 exports[`new_security_rating 1`] = `
 <Link
-  className="overview-quality-gate-condition overview-quality-gate-condition-error"
+  className="overview-quality-gate-condition overview-quality-gate-condition-error overview-quality-gate-condition-leak"
   onlyActiveOnIndex={false}
   style={Object {}}
   to={
@@ -138,6 +202,7 @@ exports[`new_security_rating 1`] = `
       className="overview-quality-gate-condition-value"
     >
       <Measure
+        decimals={null}
         measure={
           Object {
             "leak": "3",
@@ -175,73 +240,12 @@ exports[`new_security_rating 1`] = `
 </Link>
 `;
 
-exports[`new_sqale_rating 1`] = `
-<Link
-  className="overview-quality-gate-condition overview-quality-gate-condition-error"
-  onlyActiveOnIndex={false}
-  style={Object {}}
-  to={
-    Object {
-      "pathname": "/project/issues",
-      "query": Object {
-        "id": "abcd-key",
-        "resolved": "false",
-        "sinceLeakPeriod": "true",
-        "types": "CODE_SMELL",
-      },
-    }
-  }
->
-  <div
-    className="overview-quality-gate-condition-container"
-  >
-    <div
-      className="overview-quality-gate-condition-value"
-    >
-      <Measure
-        measure={
-          Object {
-            "leak": "3",
-            "value": "3",
-          }
-        }
-        metric={
-          Object {
-            "key": "new_sqale_rating",
-            "name": "new_sqale_rating",
-            "type": "RATING",
-          }
-        }
-      />
-    </div>
-    <div>
-      <div
-        className="overview-quality-gate-condition-metric"
-      >
-        <IssueTypeIcon
-          className="little-spacer-right"
-          query="new_sqale_rating"
-        />
-        new_sqale_rating
-      </div>
-      <div
-        className="overview-quality-gate-threshold"
-      >
-        quality_gates.operator.GT.rating
-         
-        A
-      </div>
-    </div>
-  </div>
-</Link>
-`;
-
 exports[`open_issues 1`] = `
 <DrilldownLink
   className="overview-quality-gate-condition overview-quality-gate-condition-error"
   component="abcd-key"
   metric="open_issues"
-  periodDate={null}
+  sinceLeakPeriod={false}
 >
   <div
     className="overview-quality-gate-condition-container"
@@ -250,6 +254,7 @@ exports[`open_issues 1`] = `
       className="overview-quality-gate-condition-value"
     >
       <Measure
+        decimals={null}
         measure={
           Object {
             "leak": "10",
@@ -311,6 +316,7 @@ exports[`reliability_rating 1`] = `
       className="overview-quality-gate-condition-value"
     >
       <Measure
+        decimals={null}
         measure={
           Object {
             "leak": "3",
@@ -372,6 +378,7 @@ exports[`security_rating 1`] = `
       className="overview-quality-gate-condition-value"
     >
       <Measure
+        decimals={null}
         measure={
           Object {
             "leak": "3",
@@ -432,6 +439,7 @@ exports[`sqale_rating 1`] = `
       className="overview-quality-gate-condition-value"
     >
       <Measure
+        decimals={null}
         measure={
           Object {
             "leak": "3",

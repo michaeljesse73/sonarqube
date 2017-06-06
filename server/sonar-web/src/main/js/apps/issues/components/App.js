@@ -40,7 +40,8 @@ import {
   getOpen,
   serializeQuery,
   parseFacets,
-  mapFacet
+  mapFacet,
+  saveMyIssues
 } from '../utils';
 import type {
   Query,
@@ -346,12 +347,17 @@ export default class App extends React.PureComponent {
 
     const parameters = {
       componentKeys: component && component.key,
-      ...serializeQuery(query),
       s: 'FILE_LINE',
+      ...serializeQuery(query),
       ps: 100,
       facets,
       ...additional
     };
+
+    // only sorting by CREATION_DATE is allowed, so let's sort DESC
+    if (query.sort) {
+      Object.assign(parameters, { asc: 'false' });
+    }
 
     if (myIssues) {
       Object.assign(parameters, { assignees: '__me__' });
@@ -361,7 +367,7 @@ export default class App extends React.PureComponent {
   };
 
   fetchFirstIssues() {
-    this.setState({ loading: true });
+    this.setState({ checked: [], loading: true });
     return this.fetchIssues({}, true).then(({ facets, issues, paging, ...other }) => {
       if (this.mounted) {
         const openIssue = this.getOpenIssue(this.props, issues);
@@ -447,7 +453,7 @@ export default class App extends React.PureComponent {
       if (lastIssue.component !== openIssue.component) {
         return true;
       }
-      return lastIssue.line != null && lastIssue.line > to;
+      return lastIssue.textRange != null && lastIssue.textRange.endLine > to;
     };
 
     if (done(issues, paging)) {
@@ -519,6 +525,9 @@ export default class App extends React.PureComponent {
 
   handleMyIssuesChange = (myIssues: boolean) => {
     this.closeFacet('assignees');
+    if (!this.props.component) {
+      saveMyIssues(myIssues);
+    }
     this.props.router.push({
       pathname: this.props.location.pathname,
       query: {
@@ -784,16 +793,13 @@ export default class App extends React.PureComponent {
       </div>
     );
   }
-
   render() {
     const { component } = this.props;
     const { openIssue, paging } = this.state;
-
     const selectedIndex = this.getSelectedIndex();
-
     return (
       <div className="layout-page issues" id="issues-page">
-        <Helmet title={translate('issues.page')} titleTemplate="%s - SonarQube" />
+        <Helmet title={translate('issues.page')} />
 
         {this.renderSide(openIssue)}
 

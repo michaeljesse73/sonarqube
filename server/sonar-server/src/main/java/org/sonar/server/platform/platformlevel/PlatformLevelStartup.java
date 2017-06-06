@@ -25,9 +25,11 @@ import org.sonar.server.organization.DefaultOrganizationEnforcer;
 import org.sonar.server.platform.ServerLifecycleNotifier;
 import org.sonar.server.platform.web.RegisterServletFilters;
 import org.sonar.server.qualitygate.RegisterQualityGates;
+import org.sonar.server.qualityprofile.CachingDefinedQProfileCreationImpl;
 import org.sonar.server.qualityprofile.CachingRuleActivator;
 import org.sonar.server.qualityprofile.CachingRuleActivatorContextFactory;
 import org.sonar.server.qualityprofile.DefinedQProfileLoader;
+import org.sonar.server.qualityprofile.MassRegisterQualityProfiles;
 import org.sonar.server.qualityprofile.RegisterQualityProfiles;
 import org.sonar.server.rule.RegisterRules;
 import org.sonar.server.startup.DeleteOldAnalysisReportsFromFs;
@@ -57,8 +59,10 @@ public class PlatformLevelStartup extends PlatformLevel {
       RegisterRules.class);
     add(DefinedQProfileLoader.class);
     addIfStartupLeader(
+      MassRegisterQualityProfiles.class,
       CachingRuleActivatorContextFactory.class,
       CachingRuleActivator.class,
+      CachingDefinedQProfileCreationImpl.class,
       RegisterQualityProfiles.class,
       RegisterPermissionTemplates.class,
       RenameDeprecatedPropertyKeys.class,

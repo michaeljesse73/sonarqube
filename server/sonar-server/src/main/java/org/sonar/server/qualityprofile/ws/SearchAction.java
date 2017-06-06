@@ -23,6 +23,7 @@ import com.google.common.annotations.VisibleForTesting;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 import org.sonar.api.resources.Languages;
 import org.sonar.api.rule.RuleStatus;
 import org.sonar.api.server.ws.Request;
@@ -31,16 +32,19 @@ import org.sonar.api.server.ws.WebService;
 import org.sonar.api.server.ws.WebService.NewAction;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
+import org.sonar.db.component.ComponentDto;
 import org.sonar.db.organization.OrganizationDto;
 import org.sonar.db.qualityprofile.QualityProfileDto;
 import org.sonar.server.util.LanguageParamUtils;
 import org.sonarqube.ws.QualityProfiles.SearchWsResponse;
 import org.sonarqube.ws.QualityProfiles.SearchWsResponse.QualityProfile;
+import org.sonarqube.ws.client.component.ComponentsWsParameters;
 import org.sonarqube.ws.client.qualityprofile.SearchWsRequest;
 
 import static java.lang.String.format;
 import static java.util.function.Function.identity;
 import static org.sonar.api.utils.DateUtils.formatDateTime;
+import static org.sonar.server.ws.WsUtils.checkFoundWithOptional;
 import static org.sonar.server.ws.WsUtils.checkRequest;
 import static org.sonar.server.ws.WsUtils.writeProtobuf;
 import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.ACTION_SEARCH;
@@ -72,7 +76,13 @@ public class SearchAction implements QProfileWsAction {
       .setHandler(this)
       .setResponseExample(getClass().getResource("search-example.json"));
 
-    QProfileWsSupport.createOrganizationParam(action)
+    action
+      .createParam(ComponentsWsParameters.PARAM_ORGANIZATION)
+      .setDescription("Organization key. If no organization key is provided, this defaults to the organization of the specified project. If neither organization nor project are" +
+        "specified, the default organization will be used.")
+      .setRequired(false)
+      .setInternal(true)
+      .setExampleValue("my-org")
       .setSince("6.4");
 
     action
@@ -90,8 +100,7 @@ public class SearchAction implements QProfileWsAction {
 
     action
       .createParam(PARAM_DEFAULTS)
-      .setDescription(format("Return the quality profile marked as default for each language. " +
-        "If provided, then the parameters '%s', '%s' must not be set.",
+      .setDescription(format("If set to true, return only the quality profile marked as default for each language, '%s' and '%s' parameters must not be set.",
         PARAM_LANGUAGE, PARAM_PROJECT_KEY))
       .setDefaultValue(false)
       .setBooleanPossibleValues();
@@ -126,14 +135,41 @@ public class SearchAction implements QProfileWsAction {
 
   private SearchData load(SearchWsRequest request) {
     try (DbSession dbSession = dbClient.openSession(false)) {
-      OrganizationDto organization = wsSupport.getOrganizationByKey(dbSession, request.getOrganizationKey());
+
+      @Nullable ComponentDto project;
+      OrganizationDto organization;
+      if (request.getProjectKey() == null) {
+        project = null;
+        organization = wsSupport.getOrganizationByKey(dbSession, request.getOrganizationKey());
+      } else {
+        project = getProject(request.getProjectKey(), dbSession);
+        organization = dbClient.organizationDao().selectByUuid(dbSession, project.getOrganizationUuid())
+          .orElseThrow(() -> new IllegalStateException(
+            String.format("Organization with uuid '%s' is referenced by project '%s' but could not be found", project.getOrganizationUuid(), project.getKey())));
+        if (request.getOrganizationKey() != null && !request.getOrganizationKey().equals(organization.getKey())) {
+          throw new IllegalArgumentException(String.format("The provided organization key '%s' does not match the organization key '%s' of the component '%s'",
+            request.getOrganizationKey(),
+            organization.getKey(),
+            project.getKey()
+            ));
+        }
+      }
+
       return new SearchData()
         .setOrganization(organization)
-        .setProfiles(dataLoader.findProfiles(dbSession, request, organization))
+        .setProfiles(dataLoader.findProfiles(dbSession, request, organization, project))
         .setActiveRuleCountByProfileKey(dbClient.activeRuleDao().countActiveRulesByProfileKey(dbSession, organization))
         .setActiveDeprecatedRuleCountByProfileKey(dbClient.activeRuleDao().countActiveRulesForRuleStatusByProfileKey(dbSession, organization, RuleStatus.DEPRECATED))
         .setProjectCountByProfileKey(dbClient.qualityProfileDao().countProjectsByProfileKey(dbSession, organization));
     }
+  }
+
+  private ComponentDto getProject(String moduleKey, DbSession dbSession) {
+    ComponentDto module = checkFoundWithOptional(dbClient.componentDao().selectByKey(dbSession, moduleKey), "Component key '%s' not found", moduleKey);
+    if (module.isRootProject()) {
+      return module;
+    }
+    return dbClient.componentDao().selectOrFailByUuid(dbSession, module.projectUuid());
   }
 
   private static void validateRequest(SearchWsRequest request) {

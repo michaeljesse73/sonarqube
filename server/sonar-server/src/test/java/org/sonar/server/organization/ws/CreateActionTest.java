@@ -55,7 +55,7 @@ import org.sonar.server.organization.OrganizationCreationImpl;
 import org.sonar.server.organization.OrganizationValidation;
 import org.sonar.server.organization.OrganizationValidationImpl;
 import org.sonar.server.organization.TestOrganizationFlags;
-import org.sonar.server.qualityprofile.DefinedQProfileCreation;
+import org.sonar.server.qualityprofile.DefinedQProfileInsert;
 import org.sonar.server.qualityprofile.DefinedQProfileRepository;
 import org.sonar.server.qualityprofile.index.ActiveRuleIndexer;
 import org.sonar.server.tester.UserSessionRule;
@@ -101,8 +101,9 @@ public class CreateActionTest {
   private OrganizationValidation organizationValidation = new OrganizationValidationImpl();
   private UserIndexer userIndexer = new UserIndexer(dbClient, es.client());
   private UserIndex userIndex = new UserIndex(es.client());
+  private ActiveRuleIndexer activeRuleIndexer = mock(ActiveRuleIndexer.class);
   private OrganizationCreation organizationCreation = new OrganizationCreationImpl(dbClient, system2, uuidFactory, organizationValidation, settings, userIndexer,
-    mock(DefinedQProfileRepository.class), mock(DefinedQProfileCreation.class), new DefaultGroupCreatorImpl(dbClient), mock(ActiveRuleIndexer.class));
+    mock(DefinedQProfileRepository.class), mock(DefinedQProfileInsert.class), new DefaultGroupCreatorImpl(dbClient), activeRuleIndexer);
   private TestOrganizationFlags organizationFlags = TestOrganizationFlags.standalone().setEnabled(true);
 
   private UserDto user;

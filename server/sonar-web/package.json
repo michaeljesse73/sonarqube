@@ -89,6 +89,7 @@
     "path-exists": "2.1.0",
     "postcss-loader": "0.8.0",
     "prettier": "1.2.2",
+    "prettier-css": "0.0.7",
     "prettier-eslint": "5.1.0",
     "prettier-eslint-cli": "3.4.1",
     "react-addons-test-utils": "15.4.2",
@@ -96,7 +97,6 @@
     "react-transform-hmr": "1.0.4",
     "recursive-readdir": "2.1.0",
     "rimraf": "2.5.4",
-    "script-loader": "0.6.1",
     "strip-ansi": "3.0.1",
     "style-loader": "0.13.0",
     "webpack": "1.13.2",
@@ -110,6 +110,7 @@
     "test": "node scripts/test.js",
     "coverage": "npm test -- --coverage",
     "format": "prettier-eslint --write \"src/main/js/!(libs)/**/*.js\"",
+    "format-css": "prettier-css \"src/main/js/**/*.css\"",
     "lint": "eslint src/main/js",
     "typecheck": "flow src/main/js",
     "validate": "eslint src/main/js && flow check src/main/js && NODE_ENV=test jest --runInBand"

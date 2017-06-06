@@ -19,6 +19,7 @@
  */
 import moment from 'moment';
 import * as ReactRedux from 'react-redux';
+import * as ReactRouter from 'react-router';
 import Select from 'react-select';
 import Modal from 'react-modal';
 import * as measures from '../../helpers/measures';
@@ -26,10 +27,12 @@ import * as request from '../../helpers/request';
 import FavoriteContainer from '../../components/controls/FavoriteContainer';
 import ListFooter from '../../components/controls/ListFooter';
 import Tooltip from '../../components/controls/Tooltip';
+import ModalForm from '../../components/common/modal-form';
 
 const exposeLibraries = () => {
   window.moment = moment;
   window.ReactRedux = ReactRedux;
+  window.ReactRouter = ReactRouter;
   window.SonarMeasures = measures;
   window.SonarRequest = request;
   window.SonarComponents = {
@@ -37,7 +40,9 @@ const exposeLibraries = () => {
     ListFooter,
     Modal,
     Tooltip,
-    Select
+    Select,
+    // deprecated, used in Governance
+    ModalForm_deprecated: ModalForm
   };
 };
 

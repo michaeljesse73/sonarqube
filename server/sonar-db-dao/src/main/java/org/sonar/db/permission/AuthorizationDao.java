@@ -37,8 +37,6 @@ import static org.sonar.db.DatabaseUtils.executeLargeInputsIntoSet;
  */
 public class AuthorizationDao implements Dao {
 
-  private static final String USER_ID_PARAM = "userId";
-
   /**
   * Loads all the permissions granted to logged-in user for the specified organization
   */
@@ -126,15 +124,32 @@ public class AuthorizationDao implements Dao {
     return mapper(dbSession).selectOrganizationUuidsOfUserWithGlobalPermission(userId, permission);
   }
 
-  public Set<Long> keepAuthorizedProjectIds(DbSession dbSession, Collection<Long> componentIds, @Nullable Integer userId, String role) {
+  /**
+   * @deprecated replaced by {@link #keepAuthorizedProjectUuids(DbSession, Collection, Integer, String)}
+   */
+  @Deprecated
+  public Set<Long> keepAuthorizedProjectIds(DbSession dbSession, Collection<Long> componentIds, @Nullable Integer userId, String permission) {
     return executeLargeInputsIntoSet(
       componentIds,
       partition -> {
         if (userId == null) {
-          return mapper(dbSession).keepAuthorizedProjectIdsForAnonymous(role, componentIds);
+          return mapper(dbSession).keepAuthorizedProjectIdsForAnonymous(permission, partition);
         }
-        return mapper(dbSession).keepAuthorizedProjectIdsForUser(userId, role, componentIds);
-      });
+        return mapper(dbSession).keepAuthorizedProjectIdsForUser(userId, permission, partition);
+      },
+      partitionSize -> partitionSize / 2);
+  }
+
+  public Set<String> keepAuthorizedProjectUuids(DbSession dbSession, Collection<String> projectUuids, @Nullable Integer userId, String permission) {
+    return executeLargeInputsIntoSet(
+      projectUuids,
+      partition -> {
+        if (userId == null) {
+          return mapper(dbSession).keepAuthorizedProjectUuidsForAnonymous(permission, partition);
+        }
+        return mapper(dbSession).keepAuthorizedProjectUuidsForUser(userId, permission, partition);
+      },
+      partitionSize -> partitionSize / 2);
   }
 
   /**
@@ -144,7 +159,8 @@ public class AuthorizationDao implements Dao {
   public Collection<Integer> keepAuthorizedUsersForRoleAndProject(DbSession dbSession, Collection<Integer> userIds, String role, long projectId) {
     return executeLargeInputs(
       userIds,
-      partitionOfIds -> mapper(dbSession).keepAuthorizedUsersForRoleAndProject(role, projectId, partitionOfIds));
+      partitionOfIds -> mapper(dbSession).keepAuthorizedUsersForRoleAndProject(role, projectId, partitionOfIds),
+      partitionSize -> partitionSize / 3);
   }
 
   private static AuthorizationMapper mapper(DbSession dbSession) {

@@ -10,17 +10,18 @@ exports[`should render correctly with a user 1`] = `
   >
     <Connect(Avatar)
       hash="7daf6c79d4802916d83f6266e24850af"
+      name="Administrator"
       size={20}
     />
     <strong
       className="spacer-left"
     >
-      admin
+      Administrator
     </strong>
     <span
       className="note little-spacer-left"
     >
-      Administrator
+      admin
     </span>
   </div>
 </div>
@@ -36,17 +37,18 @@ exports[`should render correctly with email instead of hash 1`] = `
   >
     <Connect(Avatar)
       email="admin@admin.ch"
+      name="Administrator"
       size={20}
     />
     <strong
       className="spacer-left"
     >
-      admin
+      Administrator
     </strong>
     <span
       className="note little-spacer-left"
     >
-      Administrator
+      admin
     </span>
   </div>
 </div>

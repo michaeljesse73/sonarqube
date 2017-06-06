@@ -36,10 +36,10 @@ import org.sonar.api.CoreProperties;
 import org.sonar.api.database.DatabaseProperties;
 import org.sonar.api.utils.DateUtils;
 import org.sonar.api.utils.System2;
-import org.sonar.ce.cluster.HazelcastClientWrapperImpl;
-import org.sonar.ce.cluster.HazelcastTestHelper;
 import org.sonar.ce.CeDistributedInformationImpl;
 import org.sonar.ce.StandaloneCeDistributedInformation;
+import org.sonar.ce.cluster.HazelcastClientWrapperImpl;
+import org.sonar.ce.cluster.HazelcastTestHelper;
 import org.sonar.db.DbTester;
 import org.sonar.db.property.PropertyDto;
 import org.sonar.process.NetworkUtils;
@@ -93,10 +93,8 @@ public class ComputeEngineContainerImplTest {
     assertThat(
       picoContainer.getComponentAdapters().stream()
         .map(ComponentAdapter::getComponentImplementation)
-        .collect(Collectors.toList())
-    ).contains((Class) HazelcastClientWrapperImpl.class,
-      (Class) CeDistributedInformationImpl.class
-    );
+        .collect(Collectors.toList())).contains((Class) HazelcastClientWrapperImpl.class,
+          (Class) CeDistributedInformationImpl.class);
     underTest.stop();
   }
 
@@ -115,7 +113,7 @@ public class ComputeEngineContainerImplTest {
     assertThat(picoContainer.getComponentAdapters())
       .hasSize(
         CONTAINER_ITSELF
-          + 74 // level 4
+          + 73 // level 4
           + 4 // content of CeConfigurationModule
           + 4 // content of CeQueueModule
           + 3 // content of CeHttpModule
@@ -131,25 +129,22 @@ public class ComputeEngineContainerImplTest {
     );
     assertThat(picoContainer.getParent().getParent().getComponentAdapters()).hasSize(
       CONTAINER_ITSELF
-        + 10 // MigrationConfigurationModule
+        + 11 // MigrationConfigurationModule
         + 17 // level 2
     );
     assertThat(picoContainer.getParent().getParent().getParent().getComponentAdapters()).hasSize(
       COMPONENTS_IN_LEVEL_1_AT_CONSTRUCTION
         + 23 // level 1
-        + 46 // content of DaoModule
+        + 45 // content of DaoModule
         + 3 // content of EsSearchModule
-        + 57 // content of CorePropertyDefinitions
+        + 56 // content of CorePropertyDefinitions
     );
     assertThat(
       picoContainer.getComponentAdapters().stream()
         .map(ComponentAdapter::getComponentImplementation)
-        .collect(Collectors.toList())
-    ).doesNotContain((Class) HazelcastClientWrapperImpl.class,
-      (Class) CeDistributedInformationImpl.class
-    ).contains(
-      (Class) StandaloneCeDistributedInformation.class
-    );
+        .collect(Collectors.toList())).doesNotContain((Class) HazelcastClientWrapperImpl.class,
+          (Class) CeDistributedInformationImpl.class).contains(
+            (Class) StandaloneCeDistributedInformation.class);
     assertThat(picoContainer.getParent().getParent().getParent().getParent()).isNull();
     underTest.stop();
 
