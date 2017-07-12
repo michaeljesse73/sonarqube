@@ -23,29 +23,27 @@ import org.junit.Before;
 import org.junit.Test;
 import org.sonar.api.batch.fs.InputFile;
 import org.sonar.api.batch.fs.internal.TestInputFileBuilder;
-import org.sonar.api.config.MapSettings;
 import org.sonar.api.config.PropertyDefinitions;
-import org.sonar.api.config.Settings;
+import org.sonar.api.config.internal.MapSettings;
 import org.sonar.core.config.ExclusionProperties;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class CoverageExclusionsTest {
 
-  private Settings settings;
+  private MapSettings settings;
   private CoverageExclusions coverageExclusions;
 
   @Before
   public void prepare() {
     settings = new MapSettings(new PropertyDefinitions(ExclusionProperties.all()));
-    coverageExclusions = new CoverageExclusions(settings);
   }
 
   @Test
   public void shouldExcludeFileBasedOnPattern() {
     InputFile file = new TestInputFileBuilder("foo", "src/org/polop/File.php").build();
     settings.setProperty("sonar.coverage.exclusions", "src/org/polop/*");
-    coverageExclusions.initPatterns();
+    coverageExclusions = new CoverageExclusions(settings.asConfig());
     assertThat(coverageExclusions.isExcluded(file)).isTrue();
   }
 
@@ -53,7 +51,7 @@ public class CoverageExclusionsTest {
   public void shouldNotExcludeFileBasedOnPattern() {
     InputFile file = new TestInputFileBuilder("foo", "src/org/polop/File.php").build();
     settings.setProperty("sonar.coverage.exclusions", "src/org/other/*");
-    coverageExclusions.initPatterns();
+    coverageExclusions = new CoverageExclusions(settings.asConfig());
     assertThat(coverageExclusions.isExcluded(file)).isFalse();
   }
 }

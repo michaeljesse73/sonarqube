@@ -20,79 +20,114 @@
 // @flow
 import React from 'react';
 import Helmet from 'react-helmet';
-import { connect } from 'react-redux';
+import moment from 'moment';
 import ProjectActivityPageHeader from './ProjectActivityPageHeader';
 import ProjectActivityAnalysesList from './ProjectActivityAnalysesList';
-import ProjectActivityPageFooter from './ProjectActivityPageFooter';
-import { fetchProjectActivity } from '../actions';
-import { getComponent } from '../../../store/rootReducer';
+import ProjectActivityGraphs from './ProjectActivityGraphs';
+import { GRAPHS_METRICS, activityQueryChanged } from '../utils';
 import { translate } from '../../../helpers/l10n';
 import './projectActivity.css';
+import type { Analysis, MeasureHistory, Metric, Query } from '../types';
 
 type Props = {
-  location: { query: { id: string } },
-  fetchProjectActivity: (project: string) => void,
-  project: { configuration?: { showHistory: boolean } }
+  addCustomEvent: (analysis: string, name: string, category?: string) => Promise<*>,
+  addVersion: (analysis: string, version: string) => Promise<*>,
+  analyses: Array<Analysis>,
+  analysesLoading: boolean,
+  changeEvent: (event: string, name: string) => Promise<*>,
+  deleteAnalysis: (analysis: string) => Promise<*>,
+  deleteEvent: (analysis: string, event: string) => Promise<*>,
+  graphLoading: boolean,
+  loading: boolean,
+  project: { configuration?: { showHistory: boolean }, key: string, leakPeriodDate: string },
+  metrics: Array<Metric>,
+  measuresHistory: Array<MeasureHistory>,
+  query: Query,
+  updateQuery: (newQuery: Query) => void
 };
 
 type State = {
-  filter: ?string
+  filteredAnalyses: Array<Analysis>
 };
 
-class ProjectActivityApp extends React.PureComponent {
+export default class ProjectActivityApp extends React.PureComponent {
   props: Props;
+  state: State;
 
-  state: State = {
-    filter: null
+  constructor(props: Props) {
+    super(props);
+    this.state = { filteredAnalyses: this.filterAnalyses(props.analyses, props.query) };
+  }
+
+  componentWillReceiveProps(nextProps: Props) {
+    if (
+      nextProps.analyses !== this.props.analyses ||
+      activityQueryChanged(this.props.query, nextProps.query)
+    ) {
+      this.setState({ filteredAnalyses: this.filterAnalyses(nextProps.analyses, nextProps.query) });
+    }
+  }
+
+  filterAnalyses = (analyses: Array<Analysis>, query: Query): Array<Analysis> => {
+    if (!query.category && !query.from && !query.to) {
+      return analyses;
+    }
+    return analyses.filter(analysis => {
+      const isAfterFrom = !query.from || analysis.date >= query.from;
+      const isBeforeTo = !query.to || analysis.date <= query.to;
+      const hasSelectedCategoryEvents =
+        !query.category || analysis.events.find(event => event.category === query.category) != null;
+      return isAfterFrom && isBeforeTo && hasSelectedCategoryEvents;
+    });
   };
 
-  componentDidMount() {
-    const html = document.querySelector('html');
-    if (html) {
-      html.classList.add('dashboard-page');
-    }
-    this.props.fetchProjectActivity(this.props.location.query.id);
-  }
-
-  componentWillUnmount() {
-    const html = document.querySelector('html');
-    if (html) {
-      html.classList.remove('dashboard-page');
-    }
-  }
-
-  handleFilter = (filter: ?string) => {
-    this.setState({ filter });
-    this.props.fetchProjectActivity(this.props.location.query.id, filter);
+  getMetricType = () => {
+    const metricKey = GRAPHS_METRICS[this.props.query.graph][0];
+    const metric = this.props.metrics.find(metric => metric.key === metricKey);
+    return metric ? metric.type : 'INT';
   };
 
   render() {
-    const project = this.props.location.query.id;
+    const { measuresHistory, query } = this.props;
+    const { filteredAnalyses } = this.state;
     const { configuration } = this.props.project;
     const canAdmin = configuration ? configuration.showHistory : false;
-
     return (
       <div id="project-activity" className="page page-limited">
         <Helmet title={translate('project_activity.page')} />
 
-        <ProjectActivityPageHeader
-          project={project}
-          filter={this.state.filter}
-          changeFilter={this.handleFilter}
-        />
+        <ProjectActivityPageHeader category={query.category} updateQuery={this.props.updateQuery} />
 
-        <ProjectActivityAnalysesList project={project} canAdmin={canAdmin} />
-
-        <ProjectActivityPageFooter project={project} />
+        <div className="layout-page project-activity-page">
+          <div className="layout-page-side-outer project-activity-page-side-outer boxed-group">
+            <ProjectActivityAnalysesList
+              addCustomEvent={this.props.addCustomEvent}
+              addVersion={this.props.addVersion}
+              analysesLoading={this.props.analysesLoading}
+              analyses={filteredAnalyses}
+              canAdmin={canAdmin}
+              className="boxed-group-inner"
+              changeEvent={this.props.changeEvent}
+              deleteAnalysis={this.props.deleteAnalysis}
+              deleteEvent={this.props.deleteEvent}
+              loading={this.props.loading}
+              query={this.props.query}
+            />
+          </div>
+          <div className="project-activity-layout-page-main">
+            <ProjectActivityGraphs
+              analyses={filteredAnalyses}
+              leakPeriodDate={moment(this.props.project.leakPeriodDate).toDate()}
+              loading={this.props.graphLoading}
+              measuresHistory={measuresHistory}
+              metricsType={this.getMetricType()}
+              project={this.props.project.key}
+              query={query}
+              updateQuery={this.props.updateQuery}
+            />
+          </div>
+        </div>
       </div>
     );
   }
 }
-
-const mapStateToProps = (state, ownProps: Props) => ({
-  project: getComponent(state, ownProps.location.query.id)
-});
-
-const mapDispatchToProps = { fetchProjectActivity };
-
-export default connect(mapStateToProps, mapDispatchToProps)(ProjectActivityApp);

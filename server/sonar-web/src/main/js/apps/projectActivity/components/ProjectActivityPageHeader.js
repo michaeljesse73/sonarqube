@@ -20,42 +20,47 @@
 // @flow
 import React from 'react';
 import Select from 'react-select';
+import ProjectActivityEventSelectOption from './ProjectActivityEventSelectOption';
+import ProjectActivityEventSelectValue from './ProjectActivityEventSelectValue';
+import { EVENT_TYPES } from '../utils';
 import { translate } from '../../../helpers/l10n';
+import type { RawQuery } from '../../../helpers/query';
 
 type Props = {
-  changeFilter: (filter: ?string) => void,
-  filter: ?string
+  updateQuery: RawQuery => void,
+  category?: string
 };
 
 export default class ProjectActivityPageHeader extends React.PureComponent {
+  options: Array<{ label: string, value: string }>;
   props: Props;
 
-  handleChange = (option: null | { value: string }) => {
-    this.props.changeFilter(option && option.value);
-  };
-  render() {
-    const selectOptions = ['VERSION', 'QUALITY_GATE', 'QUALITY_PROFILE', 'OTHER'].map(category => ({
+  constructor(props: Props) {
+    super(props);
+    this.options = EVENT_TYPES.map(category => ({
       label: translate('event.category', category),
       value: category
     }));
+  }
 
+  handleCategoryChange = (option: ?{ value: string }) => {
+    this.props.updateQuery({ category: option ? option.value : '' });
+  };
+
+  render() {
     return (
       <header className="page-header">
-        <div className="page-actions">
-          <Select
-            className="input-medium"
-            placeholder={translate('filter_verb') + '...'}
-            clearable={true}
-            searchable={false}
-            value={this.props.filter}
-            options={selectOptions}
-            onChange={this.handleChange}
-          />
-        </div>
-
-        <div className="page-description">
-          {translate('project_activity.page.description')}
-        </div>
+        <Select
+          className="input-medium"
+          placeholder={translate('project_activity.filter_events') + '...'}
+          clearable={true}
+          searchable={false}
+          value={this.props.category}
+          optionComponent={ProjectActivityEventSelectOption}
+          valueComponent={ProjectActivityEventSelectValue}
+          options={this.options}
+          onChange={this.handleCategoryChange}
+        />
       </header>
     );
   }

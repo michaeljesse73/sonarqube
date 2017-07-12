@@ -27,7 +27,7 @@ import org.assertj.core.groups.Tuple;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.sonar.api.config.MapSettings;
+import org.sonar.api.config.internal.MapSettings;
 import org.sonar.api.resources.Qualifiers;
 import org.sonar.api.server.ws.Change;
 import org.sonar.api.server.ws.WebService;
@@ -53,6 +53,8 @@ import org.sonar.server.ws.WsActionTester;
 import org.sonar.test.JsonAssert;
 import org.sonarqube.ws.MediaTypes;
 import org.sonarqube.ws.WsComponents.SuggestionsWsResponse;
+import org.sonarqube.ws.WsComponents.SuggestionsWsResponse.Category;
+import org.sonarqube.ws.WsComponents.SuggestionsWsResponse.Organization;
 import org.sonarqube.ws.WsComponents.SuggestionsWsResponse.Project;
 import org.sonarqube.ws.WsComponents.SuggestionsWsResponse.Suggestion;
 
@@ -62,7 +64,7 @@ import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.joining;
 import static java.util.stream.IntStream.range;
 import static java.util.stream.Stream.of;
-import static org.apache.commons.lang.RandomStringUtils.random;
+import static org.apache.commons.lang.RandomStringUtils.randomAlphabetic;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.groups.Tuple.tuple;
 import static org.mockito.Mockito.doReturn;
@@ -80,8 +82,6 @@ import static org.sonar.server.component.ws.SuggestionsAction.PARAM_MORE;
 import static org.sonar.server.component.ws.SuggestionsAction.PARAM_QUERY;
 import static org.sonar.server.component.ws.SuggestionsAction.PARAM_RECENTLY_BROWSED;
 import static org.sonar.server.component.ws.SuggestionsAction.SHORT_INPUT_WARNING;
-import static org.sonarqube.ws.WsComponents.SuggestionsWsResponse.Category;
-import static org.sonarqube.ws.WsComponents.SuggestionsWsResponse.Organization;
 
 public class SuggestionsActionTest {
   private static final String[] SUGGESTION_QUALIFIERS = Stream.of(SuggestionCategory.values())
@@ -91,7 +91,7 @@ public class SuggestionsActionTest {
   @Rule
   public DbTester db = DbTester.create(System2.INSTANCE);
   @Rule
-  public EsTester es = new EsTester(new ComponentIndexDefinition(new MapSettings()));
+  public EsTester es = new EsTester(new ComponentIndexDefinition(new MapSettings().asConfig()));
   @Rule
   public UserSessionRule userSessionRule = UserSessionRule.standalone();
   public ResourceTypesRule resourceTypes = new ResourceTypesRule();
@@ -570,7 +570,7 @@ public class SuggestionsActionTest {
 
   @Test
   public void should_only_provide_project_for_certain_qualifiers() throws Exception {
-    String query = random(10);
+    String query = randomAlphabetic(10);
 
     ComponentDto view = db.components().insertView(organization, v -> v.setName(query));
     ComponentDto subView = db.components().insertComponent(ComponentTesting.newSubView(view).setName(query));

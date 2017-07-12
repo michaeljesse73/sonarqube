@@ -19,6 +19,12 @@
  */
 package org.sonar.scanner.scan.report;
 
+import static net.javacrumbs.jsonunit.assertj.JsonAssert.assertThatJson;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyZeroInteractions;
+import static org.mockito.Mockito.when;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.StringWriter;
@@ -26,6 +32,7 @@ import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.TimeZone;
+
 import org.apache.commons.io.IOUtils;
 import org.junit.Before;
 import org.junit.Rule;
@@ -41,8 +48,7 @@ import org.sonar.api.batch.fs.internal.InputModuleHierarchy;
 import org.sonar.api.batch.fs.internal.TestInputFileBuilder;
 import org.sonar.api.batch.rule.Rules;
 import org.sonar.api.batch.rule.internal.RulesBuilder;
-import org.sonar.api.config.MapSettings;
-import org.sonar.api.config.Settings;
+import org.sonar.api.config.internal.MapSettings;
 import org.sonar.api.issue.Issue;
 import org.sonar.api.platform.Server;
 import org.sonar.api.rule.RuleKey;
@@ -52,12 +58,6 @@ import org.sonar.scanner.issue.tracking.TrackedIssue;
 import org.sonar.scanner.scan.DefaultComponentTree;
 import org.sonar.scanner.scan.filesystem.InputComponentStore;
 
-import static net.javacrumbs.jsonunit.assertj.JsonAssert.assertThatJson;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verifyZeroInteractions;
-import static org.mockito.Mockito.when;
-
 public class JSONReportTest {
 
   private SimpleDateFormat SIMPLE_DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd");
@@ -65,12 +65,12 @@ public class JSONReportTest {
   @Rule
   public TemporaryFolder temp = new TemporaryFolder();
 
-  JSONReport jsonReport;
-  DefaultFileSystem fs;
-  Server server = mock(Server.class);
-  Rules rules = mock(Rules.class);
-  Settings settings = new MapSettings();
-  IssueCache issueCache = mock(IssueCache.class);
+  private JSONReport jsonReport;
+  private DefaultFileSystem fs;
+  private Server server = mock(Server.class);
+  private Rules rules = mock(Rules.class);
+  private MapSettings settings = new MapSettings();
+  private IssueCache issueCache = mock(IssueCache.class);
   private InputModuleHierarchy moduleHierarchy;
 
   @Before
@@ -81,10 +81,11 @@ public class JSONReportTest {
     SIMPLE_DATE_FORMAT.setTimeZone(TimeZone.getTimeZone("GMT+02:00"));
     when(server.getVersion()).thenReturn("3.6");
 
-    InputComponentStore inputComponentStore = new InputComponentStore(new PathResolver());
     DefaultComponentTree inputComponentTree = new DefaultComponentTree();
-    DefaultInputModule rootModule = new DefaultInputModule(ProjectDefinition.create().setBaseDir(projectBaseDir).setKey("struts"), 1);
-    inputComponentStore.put(rootModule);
+    ProjectDefinition def = ProjectDefinition.create().setBaseDir(projectBaseDir).setKey("struts");
+    DefaultInputModule rootModule = new DefaultInputModule(def, 1);
+    InputComponentStore inputComponentStore = new InputComponentStore(new PathResolver(), rootModule);
+
     DefaultInputModule moduleA = new DefaultInputModule("struts-core");
     inputComponentTree.index(moduleA, rootModule);
     DefaultInputModule moduleB = new DefaultInputModule("struts-ui");
@@ -111,7 +112,7 @@ public class JSONReportTest {
     RulesBuilder builder = new RulesBuilder();
     builder.add(RuleKey.of("squid", "AvoidCycles")).setName("Avoid Cycles");
     rules = builder.build();
-    jsonReport = new JSONReport(moduleHierarchy, settings, fs, server, rules, issueCache, rootModule, inputComponentStore, inputComponentTree);
+    jsonReport = new JSONReport(moduleHierarchy, settings.asConfig(), fs, server, rules, issueCache, rootModule, inputComponentStore, inputComponentTree);
   }
 
   @Test

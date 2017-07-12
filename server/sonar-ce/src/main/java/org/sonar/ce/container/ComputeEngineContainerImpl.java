@@ -22,6 +22,7 @@ package org.sonar.ce.container;
 import com.google.common.annotations.VisibleForTesting;
 import java.util.List;
 import javax.annotation.CheckForNull;
+import org.sonar.db.DBSessionsImpl;
 import org.sonar.api.SonarQubeSide;
 import org.sonar.api.SonarQubeVersion;
 import org.sonar.api.config.EmailSettings;
@@ -52,10 +53,11 @@ import org.sonar.ce.log.CeProcessLogging;
 import org.sonar.ce.platform.ComputeEngineExtensionInstaller;
 import org.sonar.ce.queue.CeQueueCleaner;
 import org.sonar.ce.queue.PurgeCeActivities;
-import org.sonar.ce.settings.ProjectSettingsFactory;
+import org.sonar.ce.settings.ProjectConfigurationFactory;
 import org.sonar.ce.taskprocessor.CeTaskProcessorModule;
 import org.sonar.ce.user.CeUserSession;
 import org.sonar.core.component.DefaultResourceTypes;
+import org.sonar.core.config.ConfigurationProvider;
 import org.sonar.core.config.CorePropertyDefinitions;
 import org.sonar.core.i18n.DefaultI18n;
 import org.sonar.core.i18n.RuleI18nManager;
@@ -181,12 +183,10 @@ public class ComputeEngineContainerImpl implements ComputeEngineContainer {
     if (props.valueAsBoolean("sonar.cluster.enabled")) {
       this.level4.add(
         HazelcastClientWrapperImpl.class,
-        CeDistributedInformationImpl.class
-      );
+        CeDistributedInformationImpl.class);
     } else {
       this.level4.add(
-        StandaloneCeDistributedInformation.class
-      );
+        StandaloneCeDistributedInformation.class);
     }
     configureFromModules(this.level4);
     ServerExtensionInstaller extensionInstaller = this.level4.getComponentByType(ServerExtensionInstaller.class);
@@ -225,6 +225,7 @@ public class ComputeEngineContainerImpl implements ComputeEngineContainer {
     Version apiVersion = ApiVersion.load(System2.INSTANCE);
     return new Object[] {
       ThreadLocalSettings.class,
+      new ConfigurationProvider(),
       new SonarQubeVersion(apiVersion),
       SonarRuntimeImpl.forSonarQube(ApiVersion.load(System2.INSTANCE), SonarQubeSide.COMPUTE_ENGINE),
       CeProcessLogging.class,
@@ -247,6 +248,7 @@ public class ComputeEngineContainerImpl implements ComputeEngineContainer {
       // DB
       DaoModule.class,
       ReadOnlyPropertiesDao.class,
+      DBSessionsImpl.class,
       DbClient.class,
 
       // Elasticsearch
@@ -406,7 +408,7 @@ public class ComputeEngineContainerImpl implements ComputeEngineContainer {
       CeTaskProcessorModule.class,
 
       InternalPropertiesImpl.class,
-      ProjectSettingsFactory.class,
+      ProjectConfigurationFactory.class,
 
       // cleaning
       CeCleaningModule.class

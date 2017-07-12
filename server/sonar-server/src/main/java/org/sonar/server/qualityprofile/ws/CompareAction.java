@@ -35,11 +35,10 @@ import org.sonar.api.server.ws.Response;
 import org.sonar.api.server.ws.WebService.NewAction;
 import org.sonar.api.server.ws.WebService.NewController;
 import org.sonar.api.utils.text.JsonWriter;
-import org.sonar.core.util.Uuids;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
 import org.sonar.db.qualityprofile.ActiveRuleDto;
-import org.sonar.db.qualityprofile.QualityProfileDto;
+import org.sonar.db.qualityprofile.QProfileDto;
 import org.sonar.db.rule.RuleDefinitionDto;
 import org.sonar.db.rule.RuleRepositoryDto;
 import org.sonar.server.qualityprofile.QProfileComparison;
@@ -47,6 +46,8 @@ import org.sonar.server.qualityprofile.QProfileComparison.ActiveRuleDiff;
 import org.sonar.server.qualityprofile.QProfileComparison.QProfileComparisonResult;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.sonar.core.util.Uuids.UUID_EXAMPLE_01;
+import static org.sonar.core.util.Uuids.UUID_EXAMPLE_02;
 
 public class CompareAction implements QProfileWsAction {
 
@@ -84,17 +85,17 @@ public class CompareAction implements QProfileWsAction {
       .setDescription("Compare two quality profiles.")
       .setHandler(this)
       .setInternal(true)
-      .setResponseExample(getClass().getResource("example-compare.json"))
+      .setResponseExample(getClass().getResource("compare-example.json"))
       .setSince("5.2");
 
     compare.createParam(PARAM_LEFT_KEY)
-      .setDescription("A profile key.")
-      .setExampleValue(Uuids.UUID_EXAMPLE_01)
+      .setDescription("Profile key.")
+      .setExampleValue(UUID_EXAMPLE_01)
       .setRequired(true);
 
     compare.createParam(PARAM_RIGHT_KEY)
       .setDescription("Another profile key.")
-      .setExampleValue(Uuids.UUID_EXAMPLE_02)
+      .setExampleValue(UUID_EXAMPLE_02)
       .setRequired(true);
   }
 
@@ -104,9 +105,9 @@ public class CompareAction implements QProfileWsAction {
     String rightKey = request.mandatoryParam(PARAM_RIGHT_KEY);
 
     try (DbSession dbSession = dbClient.openSession(false)) {
-      QualityProfileDto left = dbClient.qualityProfileDao().selectByKey(dbSession, leftKey);
+      QProfileDto left = dbClient.qualityProfileDao().selectByUuid(dbSession, leftKey);
       checkArgument(left != null, "Could not find left profile '%s'", leftKey);
-      QualityProfileDto right = dbClient.qualityProfileDao().selectByKey(dbSession, rightKey);
+      QProfileDto right = dbClient.qualityProfileDao().selectByUuid(dbSession, rightKey);
       checkArgument(right != null, "Could not find right profile '%s'", rightKey);
 
       checkArgument(Objects.equals(left.getOrganizationUuid(), right.getOrganizationUuid()),
@@ -148,8 +149,8 @@ public class CompareAction implements QProfileWsAction {
     json.endObject().close();
   }
 
-  private void writeProfile(JsonWriter json, QualityProfileDto profile) {
-    json.prop(ATTRIBUTE_KEY, profile.getKey())
+  private static void writeProfile(JsonWriter json, QProfileDto profile) {
+    json.prop(ATTRIBUTE_KEY, profile.getKee())
       .prop(ATTRIBUTE_NAME, profile.getName());
   }
 

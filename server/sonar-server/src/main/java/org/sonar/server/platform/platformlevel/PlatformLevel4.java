@@ -30,7 +30,7 @@ import org.sonar.api.rules.AnnotationRuleParser;
 import org.sonar.api.rules.XMLRuleParser;
 import org.sonar.api.server.rule.RulesDefinitionXmlLoader;
 import org.sonar.ce.CeModule;
-import org.sonar.ce.settings.ProjectSettingsFactory;
+import org.sonar.ce.settings.ProjectConfigurationFactory;
 import org.sonar.core.component.DefaultResourceTypes;
 import org.sonar.core.timemachine.Periods;
 import org.sonar.server.authentication.AuthenticationModule;
@@ -47,12 +47,13 @@ import org.sonar.server.component.ws.ComponentsWsModule;
 import org.sonar.server.debt.DebtModelPluginRepository;
 import org.sonar.server.debt.DebtModelXMLExporter;
 import org.sonar.server.debt.DebtRulesXMLImporter;
-import org.sonar.server.duplication.ws.DuplicationsJsonWriter;
 import org.sonar.server.duplication.ws.DuplicationsParser;
 import org.sonar.server.duplication.ws.DuplicationsWs;
+import org.sonar.server.duplication.ws.ShowResponseBuilder;
 import org.sonar.server.email.ws.EmailsWsModule;
 import org.sonar.server.es.IndexCreator;
 import org.sonar.server.es.IndexDefinitions;
+import org.sonar.server.es.RecoveryIndexer;
 import org.sonar.server.event.NewAlerts;
 import org.sonar.server.favorite.FavoriteModule;
 import org.sonar.server.issue.AddTagsAction;
@@ -84,6 +85,7 @@ import org.sonar.server.metric.CoreCustomMetrics;
 import org.sonar.server.metric.DefaultMetricFinder;
 import org.sonar.server.metric.ws.MetricsWsModule;
 import org.sonar.server.notification.NotificationModule;
+import org.sonar.server.notification.ws.NotificationWsModule;
 import org.sonar.server.organization.BillingValidationsProxyImpl;
 import org.sonar.server.organization.OrganizationCreationImpl;
 import org.sonar.server.organization.OrganizationValidationImpl;
@@ -141,15 +143,12 @@ import org.sonar.server.projecttag.ws.ProjectTagsWsModule;
 import org.sonar.server.property.InternalPropertiesImpl;
 import org.sonar.server.property.ws.PropertiesWs;
 import org.sonar.server.qualitygate.QualityGateModule;
-import org.sonar.server.qualityprofile.DefinedQProfileCreationImpl;
-import org.sonar.server.qualityprofile.DefinedQProfileInsertImpl;
-import org.sonar.server.qualityprofile.DefinedQProfileRepositoryImpl;
+import org.sonar.server.qualityprofile.BuiltInQProfileRepositoryImpl;
 import org.sonar.server.qualityprofile.QProfileBackuperImpl;
 import org.sonar.server.qualityprofile.QProfileComparison;
 import org.sonar.server.qualityprofile.QProfileCopier;
 import org.sonar.server.qualityprofile.QProfileExporters;
-import org.sonar.server.qualityprofile.QProfileFactory;
-import org.sonar.server.qualityprofile.QProfileLookup;
+import org.sonar.server.qualityprofile.QProfileFactoryImpl;
 import org.sonar.server.qualityprofile.QProfileResetImpl;
 import org.sonar.server.qualityprofile.RuleActivator;
 import org.sonar.server.qualityprofile.RuleActivatorContextFactory;
@@ -157,14 +156,13 @@ import org.sonar.server.qualityprofile.index.ActiveRuleIndexer;
 import org.sonar.server.qualityprofile.ws.OldRestoreAction;
 import org.sonar.server.qualityprofile.ws.ProfilesWs;
 import org.sonar.server.qualityprofile.ws.QProfilesWsModule;
-import org.sonar.server.qualityprofile.ws.SearchDataLoader;
 import org.sonar.server.root.ws.RootWsModule;
 import org.sonar.server.rule.CommonRuleDefinitionsImpl;
-import org.sonar.server.rule.DefaultRuleFinder;
 import org.sonar.server.rule.DeprecatedRulesDefinitionLoader;
 import org.sonar.server.rule.RuleCreator;
 import org.sonar.server.rule.RuleDefinitionsLoader;
 import org.sonar.server.rule.RuleUpdater;
+import org.sonar.server.rule.WebServerRuleFinderImpl;
 import org.sonar.server.rule.index.RuleIndexDefinition;
 import org.sonar.server.rule.index.RuleIndexer;
 import org.sonar.server.rule.ws.ActiveRuleCompleter;
@@ -260,25 +258,21 @@ public class PlatformLevel4 extends PlatformLevel {
       BillingValidationsProxyImpl.class,
 
       // quality profile
-      DefinedQProfileRepositoryImpl.class,
-      DefinedQProfileInsertImpl.class,
+      BuiltInQProfileRepositoryImpl.class,
       ActiveRuleIndexer.class,
       XMLProfileParser.class,
       XMLProfileSerializer.class,
       AnnotationProfileParser.class,
-      QProfileLookup.class,
       QProfileComparison.class,
-      SearchDataLoader.class,
       ProfilesWs.class,
       OldRestoreAction.class,
       RuleActivator.class,
       QProfileExporters.class,
       RuleActivatorContextFactory.class,
-      QProfileFactory.class,
+      QProfileFactoryImpl.class,
       QProfileCopier.class,
       QProfileBackuperImpl.class,
       QProfileResetImpl.class,
-      DefinedQProfileCreationImpl.class,
       QProfilesWsModule.class,
 
       // rule
@@ -286,7 +280,7 @@ public class PlatformLevel4 extends PlatformLevel {
       RuleIndexer.class,
       AnnotationRuleParser.class,
       XMLRuleParser.class,
-      DefaultRuleFinder.class,
+      WebServerRuleFinderImpl.class,
       DeprecatedRulesDefinitionLoader.class,
       RuleDefinitionsLoader.class,
       CommonRuleDefinitionsImpl.class,
@@ -432,7 +426,7 @@ public class PlatformLevel4 extends PlatformLevel {
       // Duplications
       DuplicationsParser.class,
       DuplicationsWs.class,
-      DuplicationsJsonWriter.class,
+      ShowResponseBuilder.class,
       org.sonar.server.duplication.ws.ShowAction.class,
 
       // text
@@ -440,6 +434,7 @@ public class PlatformLevel4 extends PlatformLevel {
 
       // Notifications
       NotificationModule.class,
+      NotificationWsModule.class,
       EmailsWsModule.class,
 
       // Tests
@@ -512,7 +507,7 @@ public class PlatformLevel4 extends PlatformLevel {
       CeWsModule.class,
 
       InternalPropertiesImpl.class,
-      ProjectSettingsFactory.class,
+      ProjectConfigurationFactory.class,
 
       // UI
       NavigationWsModule.class,
@@ -524,7 +519,9 @@ public class PlatformLevel4 extends PlatformLevel {
       WebhooksWsModule.class,
 
       // Http Request ID
-      HttpRequestIdModule.class);
+      HttpRequestIdModule.class,
+
+      RecoveryIndexer.class);
     addAll(level4AddedComponents);
   }
 

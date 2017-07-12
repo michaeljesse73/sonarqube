@@ -20,62 +20,86 @@
 // @flow
 import React from 'react';
 import Events from './Events';
-import AddVersionForm from './forms/AddVersionForm';
-import AddCustomEventForm from './forms/AddCustomEventForm';
+import AddEventForm from './forms/AddEventForm';
 import RemoveAnalysisForm from './forms/RemoveAnalysisForm';
 import FormattedDate from '../../../components/ui/FormattedDate';
-import type { Analysis } from '../../../store/projectActivity/duck';
 import { translate } from '../../../helpers/l10n';
+import type { Analysis } from '../types';
 
 type Props = {
+  addCustomEvent: (analysis: string, name: string, category?: string) => Promise<*>,
+  addVersion: (analysis: string, version: string) => Promise<*>,
   analysis: Analysis,
-  isFirst: boolean,
-  project: string,
-  canAdmin: boolean
+  canAdmin: boolean,
+  changeEvent: (event: string, name: string) => Promise<*>,
+  deleteAnalysis: (analysis: string) => Promise<*>,
+  deleteEvent: (analysis: string, event: string) => Promise<*>,
+  isFirst: boolean
 };
 
 export default function ProjectActivityAnalysis(props: Props) {
   const { date, events } = props.analysis;
   const { isFirst, canAdmin } = props;
-
-  const version = events.find(event => event.category === 'VERSION');
-
+  const analysisTitle = translate('project_activity.analysis');
+  const hasVersion = events.find(event => event.category === 'VERSION') != null;
   return (
     <li className="project-activity-analysis clearfix">
-      {canAdmin &&
-        <div className="project-activity-analysis-actions">
-          <div className="dropdown display-inline-block">
-            <button className="js-create button-small" data-toggle="dropdown">
-              {translate('create')} <i className="icon-dropdown" />
-            </button>
-            <ul className="dropdown-menu dropdown-menu-right">
-              {version == null &&
-                <li>
-                  <AddVersionForm analysis={props.analysis} />
-                </li>}
-              <li>
-                <AddCustomEventForm analysis={props.analysis} />
-              </li>
-            </ul>
-          </div>
-
-          {!isFirst &&
-            <div className="display-inline-block little-spacer-left">
-              <RemoveAnalysisForm analysis={props.analysis} project={props.project} />
-            </div>}
-        </div>}
-
-      <div className="project-activity-time">
+      <div className="project-activity-time spacer-right">
         <FormattedDate date={date} format="LT" tooltipFormat="LTS" />
       </div>
+      <div
+        className="project-activity-analysis-icon little-spacer-top big-spacer-right"
+        title={analysisTitle}
+      />
+
+      {canAdmin &&
+        <div className="project-activity-analysis-actions spacer-left">
+          <div className="dropdown display-inline-block">
+            <button
+              className="js-analysis-actions button-small button-compact dropdown-toggle"
+              data-toggle="dropdown">
+              <i className="icon-settings" />
+              {' '}
+              <i className="icon-dropdown" />
+            </button>
+            <ul className="dropdown-menu dropdown-menu-right">
+              {!hasVersion &&
+                <li>
+                  <AddEventForm
+                    addEvent={props.addVersion}
+                    analysis={props.analysis}
+                    addEventButtonText="project_activity.add_version"
+                  />
+                </li>}
+              <li>
+                <AddEventForm
+                  addEvent={props.addCustomEvent}
+                  analysis={props.analysis}
+                  addEventButtonText="project_activity.add_custom_event"
+                />
+              </li>
+              {!isFirst && <li role="separator" className="divider" />}
+              {!isFirst &&
+                <li>
+                  <RemoveAnalysisForm
+                    analysis={props.analysis}
+                    deleteAnalysis={props.deleteAnalysis}
+                  />
+                </li>}
+            </ul>
+          </div>
+        </div>}
 
       {events.length > 0 &&
         <Events
           analysis={props.analysis.key}
+          canAdmin={canAdmin}
+          changeEvent={props.changeEvent}
+          deleteEvent={props.deleteEvent}
           events={events}
           isFirst={props.isFirst}
-          canAdmin={canAdmin}
         />}
+
     </li>
   );
 }

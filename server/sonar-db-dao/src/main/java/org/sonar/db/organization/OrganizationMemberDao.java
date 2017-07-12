@@ -20,8 +20,7 @@
 
 package org.sonar.db.organization;
 
-import com.google.common.collect.ImmutableMultiset;
-import com.google.common.collect.Multiset;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -68,21 +67,11 @@ public class OrganizationMemberDao implements Dao {
     return mapper(dbSession).selectOrganizationUuidsByUser(userId);
   }
 
-  public Multiset<String> countByOrganizationUuids(DbSession dbSession, List<String> organizationUuids) {
-    ImmutableMultiset.Builder<String> counts = ImmutableMultiset.builder();
-    executeLargeInputsWithoutOutput(organizationUuids, list -> mapper(dbSession).countByOrganizationUuids(list, result -> {
-      OrganizationCount organizationUuidCount = (OrganizationCount) result.getResultObject();
-      counts.setCount(organizationUuidCount.getOrganizationUuid(), organizationUuidCount.getMemberCount());
-    }));
-
-    return counts.build();
-  }
-
   /**
    *
    * @param loginOrganizationConsumer {@link BiConsumer}<String,String> (login, organization uuid)
    */
-  public void selectForUserIndexing(DbSession dbSession, List<String> logins, BiConsumer<String, String> loginOrganizationConsumer) {
+  public void selectForUserIndexing(DbSession dbSession, Collection<String> logins, BiConsumer<String, String> loginOrganizationConsumer) {
     executeLargeInputsWithoutOutput(logins, list -> mapper(dbSession).selectForIndexing(list)
       .forEach(row -> loginOrganizationConsumer.accept(row.get("login"), row.get("organizationUuid"))));
   }

@@ -25,7 +25,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.mockito.ArgumentCaptor;
-import org.mockito.Mockito;
 import org.sonar.api.rule.RuleKey;
 import org.sonar.api.server.ws.WebService;
 import org.sonar.db.DbClient;
@@ -33,9 +32,9 @@ import org.sonar.db.DbSession;
 import org.sonar.db.DbTester;
 import org.sonar.db.organization.OrganizationDto;
 import org.sonar.db.permission.OrganizationPermission;
-import org.sonar.db.qualityprofile.ActiveRuleKey;
-import org.sonar.db.qualityprofile.QualityProfileDto;
+import org.sonar.db.qualityprofile.QProfileDto;
 import org.sonar.db.rule.RuleTesting;
+import org.sonar.server.exceptions.BadRequestException;
 import org.sonar.server.exceptions.ForbiddenException;
 import org.sonar.server.exceptions.UnauthorizedException;
 import org.sonar.server.organization.TestDefaultOrganizationProvider;
@@ -49,20 +48,22 @@ import static org.apache.commons.lang.RandomStringUtils.randomAlphanumeric;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.sonar.server.platform.db.migration.def.VarcharColumnDef.UUID_SIZE;
+import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.PARAM_PROFILE;
+import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.PARAM_RULE;
 
 public class DeactivateRuleActionTest {
-
   @Rule
-  public DbTester dbTester = DbTester.create();
+  public DbTester db = DbTester.create();
   @Rule
   public UserSessionRule userSession = UserSessionRule.standalone();
   @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  public ExpectedException expectedException = ExpectedException.none();
 
-  private DbClient dbClient = dbTester.getDbClient();
+  private DbClient dbClient = db.getDbClient();
   private RuleActivator ruleActivator = mock(RuleActivator.class);
-  private QProfileWsSupport wsSupport = new QProfileWsSupport(dbClient, userSession, TestDefaultOrganizationProvider.from(dbTester));
+  private QProfileWsSupport wsSupport = new QProfileWsSupport(dbClient, userSession, TestDefaultOrganizationProvider.from(db));
   private DeactivateRuleAction underTest = new DeactivateRuleAction(dbClient, ruleActivator, userSession, wsSupport);
   private WsActionTester wsActionTester = new WsActionTester(underTest);
   private OrganizationDto defaultOrganization;
@@ -70,8 +71,8 @@ public class DeactivateRuleActionTest {
 
   @Before
   public void before() {
-    defaultOrganization = dbTester.getDefaultOrganization();
-    organization = dbTester.organizations().insert();
+    defaultOrganization = db.getDefaultOrganization();
+    organization = db.organizations().insert();
   }
 
   @Test
@@ -79,69 +80,92 @@ public class DeactivateRuleActionTest {
     WebService.Action definition = wsActionTester.getDef();
     assertThat(definition).isNotNull();
     assertThat(definition.isPost()).isTrue();
-    assertThat(definition.params()).extracting(WebService.Param::key).containsExactlyInAnyOrder("profile_key", "rule_key");
+    assertThat(definition.params()).extracting(WebService.Param::key).containsExactlyInAnyOrder("profile", "rule");
+    WebService.Param profileKey = definition.param("profile");
+    assertThat(profileKey.deprecatedKey()).isEqualTo("profile_key");
+    WebService.Param ruleKey = definition.param("rule");
+    assertThat(ruleKey.deprecatedKey()).isEqualTo("rule_key");
   }
 
   @Test
   public void should_fail_if_not_logged_in() {
     TestRequest request = wsActionTester.newRequest()
       .setMethod("POST")
-      .setParam("rule_key", RuleTesting.newRuleDto().getKey().toString())
-      .setParam("profile_key", randomAlphanumeric(UUID_SIZE));
+      .setParam(PARAM_RULE, RuleTesting.newRuleDto().getKey().toString())
+      .setParam(PARAM_PROFILE, randomAlphanumeric(UUID_SIZE));
 
-    thrown.expect(UnauthorizedException.class);
+    expectedException.expect(UnauthorizedException.class);
+
     request.execute();
   }
 
   @Test
   public void should_fail_if_not_organization_quality_profile_administrator() {
     userSession.logIn().addPermission(OrganizationPermission.ADMINISTER_QUALITY_PROFILES, defaultOrganization);
-    QualityProfileDto qualityProfile = dbTester.qualityProfiles().insert(organization);
+    QProfileDto qualityProfile = db.qualityProfiles().insert(organization);
     TestRequest request = wsActionTester.newRequest()
       .setMethod("POST")
-      .setParam("rule_key", RuleTesting.newRuleDto().getKey().toString())
-      .setParam("profile_key", qualityProfile.getKey());
+      .setParam(PARAM_RULE, RuleTesting.newRuleDto().getKey().toString())
+      .setParam(PARAM_PROFILE, qualityProfile.getKee());
 
-    thrown.expect(ForbiddenException.class);
+    expectedException.expect(ForbiddenException.class);
+
+    request.execute();
+  }
+
+  @Test
+  public void fail_deactivate_if_built_in_profile() {
+    userSession.logIn().addPermission(OrganizationPermission.ADMINISTER_QUALITY_PROFILES, defaultOrganization);
+
+    QProfileDto qualityProfile = db.qualityProfiles().insert(defaultOrganization, profile -> profile.setIsBuiltIn(true));
+    TestRequest request = wsActionTester.newRequest()
+      .setMethod("POST")
+      .setParam(PARAM_RULE, RuleTesting.newRuleDto().getKey().toString())
+      .setParam(PARAM_PROFILE, qualityProfile.getKee());
+
+    expectedException.expect(BadRequestException.class);
+
     request.execute();
   }
 
   @Test
   public void deactivate_rule_in_default_organization() {
     userSession.logIn().addPermission(OrganizationPermission.ADMINISTER_QUALITY_PROFILES, defaultOrganization);
-    QualityProfileDto qualityProfile = dbTester.qualityProfiles().insert(defaultOrganization);
+    QProfileDto qualityProfile = db.qualityProfiles().insert(defaultOrganization);
     RuleKey ruleKey = RuleTesting.randomRuleKey();
     TestRequest request = wsActionTester.newRequest()
       .setMethod("POST")
-      .setParam("rule_key", ruleKey.toString())
-      .setParam("profile_key", qualityProfile.getKey());
+      .setParam(PARAM_RULE, ruleKey.toString())
+      .setParam(PARAM_PROFILE, qualityProfile.getKee());
 
     TestResponse response = request.execute();
 
     assertThat(response.getStatus()).isEqualTo(HttpURLConnection.HTTP_NO_CONTENT);
-    ArgumentCaptor<ActiveRuleKey> captor = ArgumentCaptor.forClass(ActiveRuleKey.class);
-    Mockito.verify(ruleActivator).deactivateAndUpdateIndex(any(DbSession.class), captor.capture());
-    assertThat(captor.getValue().ruleKey()).isEqualTo(ruleKey);
-    assertThat(captor.getValue().qProfile()).isEqualTo(qualityProfile.getKey());
+    ArgumentCaptor<RuleKey> ruleKeyCaptor = ArgumentCaptor.forClass(RuleKey.class);
+    ArgumentCaptor<QProfileDto> qProfileDtoCaptor = ArgumentCaptor.forClass(QProfileDto.class);
+    verify(ruleActivator).deactivateAndCommit(any(DbSession.class), qProfileDtoCaptor.capture(), ruleKeyCaptor.capture());
+    assertThat(ruleKeyCaptor.getValue()).isEqualTo(ruleKey);
+    assertThat(qProfileDtoCaptor.getValue().getKee()).isEqualTo(qualityProfile.getKee());
   }
 
   @Test
   public void deactivate_rule_in_specific_organization() {
     userSession.logIn().addPermission(OrganizationPermission.ADMINISTER_QUALITY_PROFILES, organization);
-    QualityProfileDto qualityProfile = dbTester.qualityProfiles().insert(organization);
+    QProfileDto qualityProfile = db.qualityProfiles().insert(organization);
     RuleKey ruleKey = RuleTesting.randomRuleKey();
     TestRequest request = wsActionTester.newRequest()
       .setMethod("POST")
       .setParam("organization", organization.getKey())
-      .setParam("rule_key", ruleKey.toString())
-      .setParam("profile_key", qualityProfile.getKey());
+      .setParam(PARAM_RULE, ruleKey.toString())
+      .setParam(PARAM_PROFILE, qualityProfile.getKee());
 
     TestResponse response = request.execute();
 
     assertThat(response.getStatus()).isEqualTo(HttpURLConnection.HTTP_NO_CONTENT);
-    ArgumentCaptor<ActiveRuleKey> captor = ArgumentCaptor.forClass(ActiveRuleKey.class);
-    Mockito.verify(ruleActivator).deactivateAndUpdateIndex(any(DbSession.class), captor.capture());
-    assertThat(captor.getValue().ruleKey()).isEqualTo(ruleKey);
-    assertThat(captor.getValue().qProfile()).isEqualTo(qualityProfile.getKey());
+    ArgumentCaptor<RuleKey> captor = ArgumentCaptor.forClass(RuleKey.class);
+    ArgumentCaptor<QProfileDto> qProfileDtoCaptor = ArgumentCaptor.forClass(QProfileDto.class);
+    verify(ruleActivator).deactivateAndCommit(any(DbSession.class), qProfileDtoCaptor.capture(), captor.capture());
+    assertThat(captor.getValue()).isEqualTo(ruleKey);
+    assertThat(qProfileDtoCaptor.getValue().getKee()).isEqualTo(qualityProfile.getKee());
   }
 }

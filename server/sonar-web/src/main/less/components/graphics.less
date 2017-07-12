@@ -106,20 +106,82 @@
 /*
  * Line Chart
  */
+@defaultSerieColor: @darkBlue;
+@serieColor1: @blue;
+@serieColor2: #24c6e0;
 
 .line-chart {
 }
 
 .line-chart-path {
   fill: none;
-  stroke: @blue;
+  stroke: @defaultSerieColor;
   stroke-width: 2px;
+
+  &.line-chart-path-1 {
+    stroke: @serieColor1;
+  }
+
+  &.line-chart-path-2 {
+    stroke: @serieColor2;
+  }
+
+  &:hover {
+    z-index: 120;
+  }
+}
+
+.line-chart-area {
+  fill: fade(@defaultSerieColor, 30%);
+  stroke-width: 0;
+
+  &.line-chart-area-1 {
+    fill: fade(@serieColor1, 30%);
+  }
+
+  &.line-chart-area-2 {
+    fill: fade(@serieColor2, 30%);
+  }
+}
+
+.line-chart-legend {
+  color: @defaultSerieColor;
+
+  &.line-chart-legend-1 {
+    color: @serieColor1;
+  }
+
+  &.line-chart-legend-2 {
+    color: @serieColor2;
+  }
 }
 
 .line-chart-point {
   fill: #fff;
-  stroke: @darkBlue;
+  stroke: @defaultSerieColor;
   stroke-width: 2px;
+}
+
+.line-chart-event {
+  fill: #fff;
+  stroke: @defaultSerieColor;
+  stroke-width: 2px;
+
+  &.VERSION {
+    stroke: @blue;
+  }
+
+  &.QUALITY_GATE {
+    stroke: @green;
+  }
+
+  &.QUALITY_PROFILE {
+    stroke: @orange;
+  }
+
+  &.OTHER {
+    stroke: @purple;
+  }
 }
 
 .line-chart-backdrop {
@@ -200,4 +262,58 @@
 
 .histogram-value {
   text-anchor: start;
+}
+
+/*
+ * Charts zooming
+ */
+
+.chart-zoomed {
+  .line-chart-area {
+    clip-path: url(#chart-clip);
+  }
+
+  .line-chart-path {
+    clip-path: url(#chart-clip);
+  }
+
+  .leak-chart-rect {
+    clip-path: url(#chart-clip);
+  }
+}
+
+.chart-zoom-tick {
+  fill: @secondFontColor;
+  font-size: 10px;
+  text-anchor: middle;
+}
+
+.chart-wheel-zoom-overlay {
+  fill: none;
+  stroke: none;
+  pointer-events: all;
+}
+
+.chart-zoom {
+
+  .zoom-overlay{
+    fill: none;
+    stroke: none;
+    cursor: crosshair;;
+    pointer-events: all;
+  }
+
+  .zoom-selection {
+    fill: @secondFontColor;
+    fill-opacity: 0.2;
+    stroke: @secondFontColor;
+    shape-rendering: crispEdges;
+    cursor: move;
+  }
+
+  .zoom-selection-handle {
+    cursor: ew-resize;
+    fill-opacity: 0;
+    stroke: none;
+  }
 }

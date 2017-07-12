@@ -35,6 +35,7 @@ import org.sonar.db.duplication.DuplicationDao;
 import org.sonar.db.event.EventDao;
 import org.sonar.db.issue.IssueChangeDao;
 import org.sonar.db.issue.IssueDao;
+import org.sonar.db.es.EsQueueDao;
 import org.sonar.db.loadedtemplate.LoadedTemplateDao;
 import org.sonar.db.measure.MeasureDao;
 import org.sonar.db.measure.custom.CustomMeasureDao;
@@ -54,6 +55,7 @@ import org.sonar.db.qualitygate.ProjectQgateAssociationDao;
 import org.sonar.db.qualitygate.QualityGateConditionDao;
 import org.sonar.db.qualitygate.QualityGateDao;
 import org.sonar.db.qualityprofile.ActiveRuleDao;
+import org.sonar.db.qualityprofile.DefaultQProfileDao;
 import org.sonar.db.qualityprofile.QProfileChangeDao;
 import org.sonar.db.qualityprofile.QualityProfileDao;
 import org.sonar.db.rule.RuleDao;
@@ -83,7 +85,9 @@ public class DaoModule extends Module {
     ComponentKeyUpdaterDao.class,
     ComponentLinkDao.class,
     CustomMeasureDao.class,
+    DefaultQProfileDao.class,
     DuplicationDao.class,
+    EsQueueDao.class,
     EventDao.class,
     FileSourceDao.class,
     GroupDao.class,

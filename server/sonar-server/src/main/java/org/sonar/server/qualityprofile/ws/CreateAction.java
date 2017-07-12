@@ -29,7 +29,7 @@ import org.sonar.api.server.ws.WebService.NewAction;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
 import org.sonar.db.organization.OrganizationDto;
-import org.sonar.db.qualityprofile.QualityProfileDto;
+import org.sonar.db.qualityprofile.QProfileDto;
 import org.sonar.server.qualityprofile.QProfileExporters;
 import org.sonar.server.qualityprofile.QProfileFactory;
 import org.sonar.server.qualityprofile.QProfileName;
@@ -41,6 +41,7 @@ import org.sonarqube.ws.QualityProfiles.CreateWsResponse;
 import org.sonarqube.ws.client.qualityprofile.CreateRequest;
 
 import static org.sonar.db.permission.OrganizationPermission.ADMINISTER_QUALITY_PROFILES;
+import static org.sonar.server.qualityprofile.ws.QProfileWsSupport.createOrganizationParam;
 import static org.sonar.server.ws.WsUtils.writeProtobuf;
 import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.ACTION_CREATE;
 import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.PARAM_LANGUAGE;
@@ -49,7 +50,6 @@ import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.
 
 public class CreateAction implements QProfileWsAction {
 
-  private static final String DEPRECATED_PARAM_PROFILE_NAME = "name";
   private static final String PARAM_BACKUP_FORMAT = "backup_%s";
 
   private final DbClient dbClient;
@@ -82,20 +82,19 @@ public class CreateAction implements QProfileWsAction {
   public void define(WebService.NewController controller) {
     NewAction create = controller.createAction(ACTION_CREATE)
       .setSince("5.2")
-      .setDescription("Create a quality profile.<br/>" +
-        "Require Administer Quality Profiles permission.")
+      .setDescription("Create a quality profile.<br>" +
+        "Requires to be logged in and the 'Administer Quality Profiles' permission.")
       .setPost(true)
-      .setResponseExample(getClass().getResource("example-create.json"))
+      .setResponseExample(getClass().getResource("create-example.json"))
       .setHandler(this);
 
-    QProfileWsSupport
-      .createOrganizationParam(create)
+    createOrganizationParam(create)
       .setSince("6.4");
 
     create.createParam(PARAM_PROFILE_NAME)
-      .setDescription("The name for the new quality profile. Since 6.1, this parameter has been renamed from '%s' to '%s'", DEPRECATED_PARAM_PROFILE_NAME, PARAM_PROFILE_NAME)
+      .setDescription("Name for the new quality profile")
       .setExampleValue("My Sonar way")
-      .setDeprecatedKey(DEPRECATED_PARAM_PROFILE_NAME, "6.3")
+      .setDeprecatedKey("name", "6.1")
       .setRequired(true);
 
     create.createParam(PARAM_LANGUAGE)
@@ -123,7 +122,7 @@ public class CreateAction implements QProfileWsAction {
 
   private CreateWsResponse doHandle(DbSession dbSession, CreateRequest createRequest, Request request, OrganizationDto organization) {
     QProfileResult result = new QProfileResult();
-    QualityProfileDto profile = profileFactory.checkAndCreate(dbSession, organization,
+    QProfileDto profile = profileFactory.checkAndCreateCustom(dbSession, organization,
       QProfileName.createFor(createRequest.getLanguage(), createRequest.getProfileName()));
     result.setProfile(profile);
     for (ProfileImporter importer : importers) {
@@ -133,8 +132,7 @@ public class CreateAction implements QProfileWsAction {
         result.add(exporters.importXml(profile, importerKey, contentToImport, dbSession));
       }
     }
-    dbSession.commit();
-    activeRuleIndexer.index(result.getChanges());
+    activeRuleIndexer.commitAndIndex(dbSession, result.getChanges());
     return buildResponse(result, organization);
   }
 
@@ -150,7 +148,7 @@ public class CreateAction implements QProfileWsAction {
     String language = result.profile().getLanguage();
     CreateWsResponse.QualityProfile.Builder builder = CreateWsResponse.QualityProfile.newBuilder()
       .setOrganization(organization.getKey())
-      .setKey(result.profile().getKey())
+      .setKey(result.profile().getKee())
       .setName(result.profile().getName())
       .setLanguage(language)
       .setLanguageName(languages.get(result.profile().getLanguage()).getName())

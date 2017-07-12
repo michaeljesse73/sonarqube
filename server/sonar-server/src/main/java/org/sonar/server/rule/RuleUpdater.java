@@ -32,7 +32,6 @@ import java.util.Set;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import org.apache.commons.lang.builder.EqualsBuilder;
-import org.sonar.api.rule.RuleKey;
 import org.sonar.api.rule.RuleStatus;
 import org.sonar.api.rule.Severity;
 import org.sonar.api.server.ServerSide;
@@ -43,6 +42,7 @@ import org.sonar.db.DbSession;
 import org.sonar.db.organization.OrganizationDto;
 import org.sonar.db.qualityprofile.ActiveRuleDto;
 import org.sonar.db.qualityprofile.ActiveRuleParamDto;
+import org.sonar.db.qualityprofile.OrgActiveRuleDto;
 import org.sonar.db.rule.RuleDefinitionDto;
 import org.sonar.db.rule.RuleDto;
 import org.sonar.db.rule.RuleParamDto;
@@ -81,11 +81,8 @@ public class RuleUpdater {
     apply(update, rule, userSession);
     update(dbSession, rule);
     updateParameters(dbSession, organization, update, rule);
-    dbSession.commit();
+    ruleIndexer.commitAndIndex(dbSession, rule.getKey(), organization);
 
-    RuleKey ruleKey = rule.getKey();
-    ruleIndexer.indexRuleDefinition(ruleKey);
-    ruleIndexer.indexRuleExtension(organization, ruleKey);
     return true;
   }
 
@@ -232,8 +229,8 @@ public class RuleUpdater {
   }
 
   private Multimap<ActiveRuleDto, ActiveRuleParamDto> getActiveRuleParamsByActiveRule(DbSession dbSession, OrganizationDto organization, RuleDto customRule) {
-    List<ActiveRuleDto> activeRuleDtos = dbClient.activeRuleDao().selectByRuleId(dbSession, organization, customRule.getId());
-    Map<Integer, ActiveRuleDto> activeRuleById = from(activeRuleDtos).uniqueIndex(ActiveRuleDto::getId);
+    List<OrgActiveRuleDto> activeRuleDtos = dbClient.activeRuleDao().selectByRuleId(dbSession, organization, customRule.getId());
+    Map<Integer, OrgActiveRuleDto> activeRuleById = from(activeRuleDtos).uniqueIndex(ActiveRuleDto::getId);
     List<Integer> activeRuleIds = Lists.transform(activeRuleDtos, ActiveRuleDto::getId);
     List<ActiveRuleParamDto> activeRuleParamDtos = dbClient.activeRuleDao().selectParamsByActiveRuleIds(dbSession, activeRuleIds);
     return from(activeRuleParamDtos)
@@ -272,14 +269,14 @@ public class RuleUpdater {
   }
 
   private static class ActiveRuleParamToActiveRule implements Function<ActiveRuleParamDto, ActiveRuleDto> {
-    private final Map<Integer, ActiveRuleDto> activeRuleById;
+    private final Map<Integer, OrgActiveRuleDto> activeRuleById;
 
-    private ActiveRuleParamToActiveRule(Map<Integer, ActiveRuleDto> activeRuleById) {
+    private ActiveRuleParamToActiveRule(Map<Integer, OrgActiveRuleDto> activeRuleById) {
       this.activeRuleById = activeRuleById;
     }
 
     @Override
-    public ActiveRuleDto apply(@Nonnull ActiveRuleParamDto input) {
+    public OrgActiveRuleDto apply(@Nonnull ActiveRuleParamDto input) {
       return activeRuleById.get(input.getActiveRuleId());
     }
   }
@@ -303,7 +300,7 @@ public class RuleUpdater {
         .uniqueIndex(ActiveRuleParamDto::getKey);
       ActiveRuleParamDto activeRuleParamDto = activeRuleParamByKey.get(ruleParamDto.getName());
       if (activeRuleParamDto != null) {
-        dbClient.activeRuleDao().updateParam(dbSession, activeRuleDto, activeRuleParamDto.setValue(ruleParamDto.getDefaultValue()));
+        dbClient.activeRuleDao().updateParam(dbSession, activeRuleParamDto.setValue(ruleParamDto.getDefaultValue()));
       } else {
         dbClient.activeRuleDao().insertParam(dbSession, activeRuleDto, ActiveRuleParamDto.createFor(ruleParamDto).setValue(ruleParamDto.getDefaultValue()));
       }

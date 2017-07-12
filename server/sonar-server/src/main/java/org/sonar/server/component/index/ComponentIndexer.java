@@ -59,7 +59,7 @@ public class ComponentIndexer implements ProjectIndexer, NeedAuthorizationIndexe
   }
 
   @Override
-  public void indexOnStartup(Set<IndexType> emptyIndexTypes) {
+  public void indexOnStartup(Set<IndexType> uninitializedIndexTypes) {
     doIndexByProjectUuid(null, Size.LARGE);
   }
 
@@ -95,7 +95,7 @@ public class ComponentIndexer implements ProjectIndexer, NeedAuthorizationIndexe
     try (DbSession dbSession = dbClient.openSession(false)) {
       dbClient.componentDao()
         .selectForIndexing(dbSession, projectUuid, context -> {
-          ComponentDto dto = (ComponentDto) context.getResultObject();
+          ComponentDto dto = context.getResultObject();
           bulk.add(newIndexRequest(toDocument(dto)));
         });
     }

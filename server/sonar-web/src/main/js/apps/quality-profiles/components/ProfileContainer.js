@@ -34,7 +34,7 @@ type Props = {
   onRequestFail: Object => void,
   organization: ?string,
   profiles: Array<Profile>,
-  router: { replace: () => void },
+  router: { replace: ({}) => void },
   updateProfiles: () => Promise<*>
 };
 
@@ -87,7 +87,7 @@ export default class ProfileContainer extends React.PureComponent {
     });
 
     return (
-      <div>
+      <div id="quality-profile">
         <Helmet title={profile.name} />
         <ProfileHeader
           canAdmin={this.props.canAdmin}

@@ -19,6 +19,7 @@
  */
 package org.sonar.scanner.scan.filesystem;
 
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.FileSystemLoopException;
@@ -40,23 +41,20 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.sonar.api.batch.ScannerSide;
 import org.sonar.api.batch.fs.IndexedFile;
 import org.sonar.api.batch.fs.InputFile;
 import org.sonar.api.batch.fs.InputFile.Type;
+import org.sonar.api.batch.fs.InputFileFilter;
 import org.sonar.api.batch.fs.internal.DefaultInputDir;
 import org.sonar.api.batch.fs.internal.DefaultInputFile;
 import org.sonar.api.batch.fs.internal.DefaultInputModule;
 import org.sonar.api.scan.filesystem.PathResolver;
-import org.sonar.api.batch.fs.InputFileFilter;
 import org.sonar.api.utils.MessageException;
 import org.sonar.scanner.scan.DefaultComponentTree;
 import org.sonar.scanner.util.ProgressReport;
-
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 /**
  * Index input files into {@link InputComponentStore}.
@@ -159,9 +157,10 @@ public class FileIndexer {
     DefaultInputFile inputFile = inputFileBuilder.create(realFile, type, fileSystem.encoding());
     if (inputFile != null) {
       if (exclusionFilters.accept(inputFile, type) && accept(inputFile)) {
+        String parentRelativePath = getParentRelativePath(fileSystem, inputFile);
         synchronized (this) {
           fileSystem.add(inputFile);
-          indexParentDir(fileSystem, inputFile);
+          indexParentDir(fileSystem, inputFile, parentRelativePath);
           progress.markAsIndexed(inputFile);
         }
         LOG.debug("'{}' indexed {}with language '{}'", inputFile.relativePath(), type == Type.TEST ? "as test " : "", inputFile.language());
@@ -173,16 +172,19 @@ public class FileIndexer {
     return null;
   }
 
-  private void indexParentDir(DefaultModuleFileSystem fileSystem, InputFile inputFile) {
+  private static String getParentRelativePath(DefaultModuleFileSystem fileSystem, InputFile inputFile) {
     Path parentDir = inputFile.path().getParent();
     String relativePath = new PathResolver().relativePath(fileSystem.baseDirPath(), parentDir);
     if (relativePath == null) {
       throw new IllegalStateException("Failed to compute relative path of file: " + inputFile);
     }
+    return relativePath;
+  }
 
-    DefaultInputDir inputDir = (DefaultInputDir) componentStore.getDir(module.key(), relativePath);
+  private void indexParentDir(DefaultModuleFileSystem fileSystem, InputFile inputFile, String parentRelativePath) {
+    DefaultInputDir inputDir = (DefaultInputDir) componentStore.getDir(module.key(), parentRelativePath);
     if (inputDir == null) {
-      inputDir = new DefaultInputDir(fileSystem.moduleKey(), relativePath, batchIdGenerator.get());
+      inputDir = new DefaultInputDir(fileSystem.moduleKey(), parentRelativePath, batchIdGenerator.get());
       inputDir.setModuleBaseDir(fileSystem.baseDirPath());
       fileSystem.add(inputDir);
       componentTree.index(inputDir, module);

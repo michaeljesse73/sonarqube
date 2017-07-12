@@ -34,6 +34,7 @@ import org.sonar.db.duplication.DuplicationDao;
 import org.sonar.db.event.EventDao;
 import org.sonar.db.issue.IssueChangeDao;
 import org.sonar.db.issue.IssueDao;
+import org.sonar.db.es.EsQueueDao;
 import org.sonar.db.loadedtemplate.LoadedTemplateDao;
 import org.sonar.db.measure.MeasureDao;
 import org.sonar.db.measure.custom.CustomMeasureDao;
@@ -53,6 +54,7 @@ import org.sonar.db.qualitygate.ProjectQgateAssociationDao;
 import org.sonar.db.qualitygate.QualityGateConditionDao;
 import org.sonar.db.qualitygate.QualityGateDao;
 import org.sonar.db.qualityprofile.ActiveRuleDao;
+import org.sonar.db.qualityprofile.DefaultQProfileDao;
 import org.sonar.db.qualityprofile.QProfileChangeDao;
 import org.sonar.db.qualityprofile.QualityProfileDao;
 import org.sonar.db.rule.RuleDao;
@@ -71,6 +73,7 @@ public class DbClient {
 
   private final Database database;
   private final MyBatis myBatis;
+  private final DBSessions dbSessions;
   private final SchemaMigrationDao schemaMigrationDao;
   private final AuthorizationDao authorizationDao;
   private final OrganizationDao organizationDao;
@@ -116,10 +119,13 @@ public class DbClient {
   private final QProfileChangeDao qProfileChangeDao;
   private final UserPermissionDao userPermissionDao;
   private final WebhookDeliveryDao webhookDeliveryDao;
+  private final DefaultQProfileDao defaultQProfileDao;
+  private final EsQueueDao esQueueDao;
 
-  public DbClient(Database database, MyBatis myBatis, Dao... daos) {
+  public DbClient(Database database, MyBatis myBatis, DBSessions dbSessions, Dao... daos) {
     this.database = database;
     this.myBatis = myBatis;
+    this.dbSessions = dbSessions;
 
     Map<Class, Dao> map = new IdentityHashMap<>();
     for (Dao dao : daos) {
@@ -170,10 +176,12 @@ public class DbClient {
     qProfileChangeDao = getDao(map, QProfileChangeDao.class);
     userPermissionDao = getDao(map, UserPermissionDao.class);
     webhookDeliveryDao = getDao(map, WebhookDeliveryDao.class);
+    defaultQProfileDao = getDao(map, DefaultQProfileDao.class);
+    esQueueDao = getDao(map, EsQueueDao.class);
   }
 
   public DbSession openSession(boolean batch) {
-    return myBatis.openSession(batch);
+    return dbSessions.openSession(batch);
   }
 
   public Database getDatabase() {
@@ -358,6 +366,14 @@ public class DbClient {
 
   public WebhookDeliveryDao webhookDeliveryDao() {
     return webhookDeliveryDao;
+  }
+
+  public DefaultQProfileDao defaultQProfileDao() {
+    return defaultQProfileDao;
+  }
+
+  public EsQueueDao esQueueDao() {
+    return esQueueDao;
   }
 
   protected <K extends Dao> K getDao(Map<Class, Dao> map, Class<K> clazz) {

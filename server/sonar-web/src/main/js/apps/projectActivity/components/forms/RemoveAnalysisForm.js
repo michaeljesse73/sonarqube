@@ -19,16 +19,13 @@
  */
 // @flow
 import React from 'react';
-import { connect } from 'react-redux';
 import Modal from 'react-modal';
-import type { Analysis } from '../../../../store/projectActivity/duck';
 import { translate } from '../../../../helpers/l10n';
-import { deleteAnalysis } from '../../actions';
+import type { Analysis } from '../../types';
 
 type Props = {
   analysis: Analysis,
-  deleteAnalysis: () => Promise<*>,
-  project: string
+  deleteAnalysis: (analysis: string) => Promise<*>
 };
 
 type State = {
@@ -36,10 +33,9 @@ type State = {
   processing: boolean
 };
 
-class RemoveAnalysisForm extends React.PureComponent {
+export default class RemoveAnalysisForm extends React.PureComponent {
   mounted: boolean;
   props: Props;
-
   state: State = {
     open: false,
     processing: false
@@ -53,7 +49,8 @@ class RemoveAnalysisForm extends React.PureComponent {
     this.mounted = false;
   }
 
-  openForm = () => {
+  openForm = (evt: Event) => {
+    evt.preventDefault();
     if (this.mounted) {
       this.setState({ open: true });
     }
@@ -81,7 +78,7 @@ class RemoveAnalysisForm extends React.PureComponent {
     e.preventDefault();
     this.setState({ processing: true });
     this.props
-      .deleteAnalysis(this.props.project, this.props.analysis.key)
+      .deleteAnalysis(this.props.analysis.key)
       .then(this.stopProcessingAndClose, this.stopProcessing);
   };
 
@@ -114,23 +111,16 @@ class RemoveAnalysisForm extends React.PureComponent {
                 </div>}
           </footer>
         </form>
-
       </Modal>
     );
   }
 
   render() {
     return (
-      <button className="js-delete-analysis button-small button-red" onClick={this.openForm}>
-        {translate('delete')}
+      <a className="js-delete-analysis" href="#" onClick={this.openForm}>
+        {translate('project_activity.delete_analysis')}
         {this.state.open && this.renderModal()}
-      </button>
+      </a>
     );
   }
 }
-
-const mapStateToProps = null;
-
-const mapDispatchToProps = { deleteAnalysis };
-
-export default connect(mapStateToProps, mapDispatchToProps)(RemoveAnalysisForm);

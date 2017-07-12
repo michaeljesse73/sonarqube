@@ -19,16 +19,10 @@
  */
 package org.sonar.scanner.scan.filesystem;
 
-import static org.apache.commons.codec.digest.DigestUtils.md5Hex;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-
 import org.apache.commons.io.FileUtils;
 import org.junit.Assert;
 import org.junit.Before;
@@ -46,6 +40,11 @@ import org.sonar.api.utils.PathUtils;
 import org.sonar.scanner.issue.ignore.pattern.IssueExclusionPatternInitializer;
 import org.sonar.scanner.issue.ignore.pattern.PatternMatcher;
 import org.sonar.scanner.issue.ignore.scanner.IssueExclusionsLoader;
+
+import static org.apache.commons.codec.digest.DigestUtils.md5Hex;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class MetadataGeneratorTest {
   @Rule
@@ -112,7 +111,8 @@ public class MetadataGeneratorTest {
   @Test
   public void use_default_charset_if_detection_fails() throws IOException {
     Path tempFile = temp.newFile().toPath();
-    byte[] b = {(byte) 0xDF, (byte) 0xFF, (byte) 0xFF};
+    byte invalidWindows1252 = (byte) 129;
+    byte[] b = {(byte) 0xDF, (byte) 0xFF, (byte) 0xFF, invalidWindows1252};
     FileUtils.writeByteArrayToFile(tempFile.toFile(), b);
     DefaultInputFile inputFile = createInputFileWithMetadata(tempFile);
     assertThat(inputFile.charset()).isEqualTo(StandardCharsets.US_ASCII);

@@ -23,7 +23,7 @@ package org.sonar.server.rule.ws;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.sonar.api.config.MapSettings;
+import org.sonar.api.config.internal.MapSettings;
 import org.sonar.api.server.ws.WebService;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbTester;
@@ -50,7 +50,7 @@ public class TagsActionTest {
   @Rule
   public DbTester dbTester = DbTester.create();
   @Rule
-  public EsTester esTester = new EsTester(new RuleIndexDefinition(new MapSettings()));
+  public EsTester esTester = new EsTester(new RuleIndexDefinition(new MapSettings().asConfig()));
 
   private DbClient dbClient = dbTester.getDbClient();
   private EsClient esClient = esTester.client();
@@ -99,7 +99,7 @@ public class TagsActionTest {
   @Test
   public void return_system_tag() throws Exception {
     RuleDefinitionDto r = dbTester.rules().insert(setSystemTags("tag"));
-    ruleIndexer.indexRuleDefinition(r.getKey());
+    ruleIndexer.commitAndIndex(dbTester.getSession(), r.getKey());
 
     String result = tester.newRequest().execute().getInput();
     assertJson(result).isSimilarTo("{\"tags\":[\"tag\"]}");
@@ -108,9 +108,9 @@ public class TagsActionTest {
   @Test
   public void return_tag() throws Exception {
     RuleDefinitionDto r = dbTester.rules().insert(setSystemTags());
-    ruleIndexer.indexRuleDefinition(r.getKey());
+    ruleIndexer.commitAndIndex(dbTester.getSession(), r.getKey());
     dbTester.rules().insertOrUpdateMetadata(r, organization, setTags("tag"));
-    ruleIndexer.indexRuleExtension(organization, r.getKey());
+    ruleIndexer.commitAndIndex(dbTester.getSession(), r.getKey(), organization);
 
     String result = tester.newRequest().setParam("organization", organization.getKey()).execute().getInput();
     assertJson(result).isSimilarTo("{\"tags\":[\"tag\"]}");

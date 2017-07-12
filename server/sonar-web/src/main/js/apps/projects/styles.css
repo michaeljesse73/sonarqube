@@ -1,9 +1,59 @@
-.projects-page-actions {
-  margin-bottom: 0;
+.projects-page-side {
+  transition: top 150ms ease-out;
 }
 
-.projects-sidebar {
-  width: 260px;
+.projects-page-content {
+  transition: padding-top 150ms ease-out;
+}
+
+.projects-topbar-items {
+  display: flex;
+  align-items: center;
+  flex-grow: 1;
+}
+
+.projects-topbar-item + .projects-topbar-item {
+  padding-left: 24px;
+}
+
+.projects-topbar-item .spinner {
+  top: -1px;
+}
+
+.projects-topbar-item.is-last {
+  margin-left: auto;
+  padding-left: 32px;
+}
+
+.projects-topbar-item.is-loading {
+  padding-left: 0;
+}
+
+.projects-topbar-item.disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.projects-topbar-item.disabled * {
+  pointer-events: none !important;
+}
+
+.projects-topbar-item-search {
+  position: relative;
+  flex: 1;
+}
+
+.projects-topbar-item-search input {
+  width: 100%;
+  max-width: 300px;
+}
+
+.projects-topbar-item-search .note {
+  position: absolute;
+  top: 1px;
+  left: 80px;
+  line-height: 24px;
+  pointer-events: none;
 }
 
 .projects-list .page-actions {
@@ -12,7 +62,7 @@
 
 .project-card {
   position: relative;
-  min-height: 121px;
+  min-height: 114px;
   box-sizing: border-box;
 }
 
@@ -20,17 +70,45 @@
   font-weight: 600;
 }
 
+.project-card-dates {
+  width: 100%;
+  margin-top: 10px;
+  margin-bottom: -10px;
+}
+
+.project-card-leak-date {
+  padding: 4px 8px;
+  margin: -5px -4px -5px 24px;
+  background-color: #fbf3d5;
+  border: 1px solid #eae3c7;
+}
+
 .project-card-measures {
+  padding-top: 8px;
   margin: 0 -15px;
 }
 
-.project-card-measures .project-card-measure {
-  width: 120px;
-  box-sizing: border-box;
-  padding: 0 15px;
+.project-card-leak-measures {
+  padding: 8px 0;
+  margin: 4px -4px;
+  background-color: #fbf3d5;
+  border: 1px solid #eae3c7;
 }
 
-.project-card-measures .project-card-measure:nth-child(-n+2) {
+.projects-leak-sorting-option {
+  background-color: #fbf3d5;
+  margin-bottom: 2px;
+}
+
+.projects-leak-sorting-option.is-focused {
+  background-color: #eae3c7;
+}
+
+.project-card-measure {
+  width: 130px;
+}
+
+.project-card-measure.smaller-card {
   width: 90px;
 }
 
@@ -39,6 +117,8 @@
   display: inline-block;
   vertical-align: top;
   text-align: center;
+  box-sizing: border-box;
+  padding: 0 15px;
 }
 
 .project-card-measure + .project-card-measure:before {
@@ -52,8 +132,16 @@
   content: "";
 }
 
+.project-card-measure.pull-right {
+  text-align: right;
+}
+
 .project-card-measure.pull-right:before {
   display: none;
+}
+
+.project-card-measure.pull-right .project-card-measure-inner {
+  text-align: right;
 }
 
 .project-card-measure .level {
@@ -68,12 +156,17 @@
 }
 
 .project-card-measure-number {
-  line-height: 24px;
+  line-height: 25px;
   font-size: 18px;
 }
 
 .project-card-measure-label {
   margin-top: 4px;
+  font-size: 12px;
+}
+
+.project-card-measure-label-with-icon {
+  margin-top: 2px;
   font-size: 12px;
 }
 
@@ -87,13 +180,6 @@
 
 .project-card-quality-gate {
   line-height: 24px;
-}
-
-.project-card-analysis-date {
-  margin-top: -15px;
-  padding-bottom: 5px;
-  padding-right: 20px;
-  text-align: right;
 }
 
 .project-card-not-analyzed {
@@ -130,29 +216,12 @@
   border-bottom: 1px solid #e6e6e6;
 }
 
-.projects-facet-search {
-  position: relative;
-  padding-top: 10px;
-  padding-bottom: 10px;
-}
-
-.projects-facet-search .note {
-  position: absolute;
-  opacity: 0;
-  left: 0;
-  bottom: -7px;
-  transition: opacity 0.3s ease;
-}
-
-.projects-facet-search input.touched ~ .note {
-  opacity: 1;
-}
-
 .projects-facets-reset {
   float: right;
 }
 
-.projects-facets-reset .button {}
+.projects-facets-reset .button {
+}
 
 .projects-facet-bar {
   display: inline-block;
@@ -168,15 +237,14 @@
 }
 
 .search-navigator-facet.active .projects-facet-bar-inner,
-.search-navigator-facet-highlight-under.active ~ .search-navigator-facet .projects-facet-bar-inner {
+.search-navigator-facet-highlight-under-container .search-navigator-facet.active
+  ~ .search-navigator-facet .projects-facet-bar-inner {
   background-color: #4b9fd5;
 }
 
 .projects-visualization {
   position: relative;
   height: 600px;
-  margin-top: 15px;
-  border-top: 1px solid #e6e6e6;
 }
 
 .projects-visualization .measure-details-bubble-chart-axis.y {

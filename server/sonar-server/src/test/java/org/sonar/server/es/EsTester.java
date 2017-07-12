@@ -45,7 +45,8 @@ import org.elasticsearch.node.Node;
 import org.elasticsearch.node.NodeBuilder;
 import org.elasticsearch.search.SearchHit;
 import org.junit.rules.ExternalResource;
-import org.sonar.api.config.MapSettings;
+import org.sonar.api.config.internal.MapSettings;
+import org.sonar.core.config.ConfigurationProvider;
 import org.sonar.core.platform.ComponentContainer;
 
 import static com.google.common.base.Preconditions.checkState;
@@ -64,11 +65,12 @@ public class EsTester extends ExternalResource {
 
   @Override
   protected void before() throws Throwable {
-    truncateIndices();
+    deleteIndices();
 
     if (!indexDefinitions.isEmpty()) {
       container = new ComponentContainer();
       container.addSingleton(new MapSettings());
+      container.addSingleton(new ConfigurationProvider());
       container.addSingletons(indexDefinitions);
       container.addSingleton(client);
       container.addSingleton(IndexDefinitions.class);
@@ -87,8 +89,12 @@ public class EsTester extends ExternalResource {
     }
   }
 
-  private void truncateIndices() {
+  private void deleteIndices() {
     client.nativeClient().admin().indices().prepareDelete("_all").get();
+  }
+
+  public void deleteIndex(String indexName) {
+    client.nativeClient().admin().indices().prepareDelete(indexName).get();
   }
 
   public void putDocuments(String index, String type, BaseDoc... docs) {
@@ -124,14 +130,11 @@ public class EsTester extends ExternalResource {
    */
   public <E extends BaseDoc> List<E> getDocuments(IndexType indexType, final Class<E> docClass) {
     List<SearchHit> hits = getDocuments(indexType);
-    return newArrayList(Collections2.transform(hits, new Function<SearchHit, E>() {
-      @Override
-      public E apply(SearchHit input) {
-        try {
-          return (E) ConstructorUtils.invokeConstructor(docClass, input.getSource());
-        } catch (Exception e) {
-          throw Throwables.propagate(e);
-        }
+    return newArrayList(Collections2.transform(hits, input -> {
+      try {
+        return (E) ConstructorUtils.invokeConstructor(docClass, input.getSource());
+      } catch (Exception e) {
+        throw Throwables.propagate(e);
       }
     }));
   }

@@ -27,6 +27,8 @@ import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.junit.Rule;
 import org.junit.Test;
+import org.sonar.api.utils.internal.TestSystem2;
+import org.sonar.db.DbTester;
 import org.sonar.server.es.BulkIndexer.Size;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -35,8 +37,12 @@ import static org.sonar.server.es.FakeIndexDefinition.INDEX_TYPE_FAKE;
 
 public class BulkIndexerTest {
 
+  private TestSystem2 testSystem2 = new TestSystem2().setNow(1_000L);
+
   @Rule
   public EsTester esTester = new EsTester(new FakeIndexDefinition().setReplicas(1));
+  @Rule
+  public DbTester dbTester = DbTester.create(testSystem2);
 
   @Test
   public void index_nothing() {
@@ -76,10 +82,13 @@ public class BulkIndexerTest {
     for (int i = 0; i < 10; i++) {
       indexer.add(newIndexRequest(i));
     }
-    indexer.stop();
+    IndexingResult result = indexer.stop();
 
+    assertThat(result.isSuccess()).isTrue();
+    assertThat(result.getSuccess()).isEqualTo(10);
+    assertThat(result.getFailures()).isEqualTo(0);
+    assertThat(result.getTotal()).isEqualTo(10);
     assertThat(count()).isEqualTo(10);
-
     // replicas are re-enabled
     assertThat(replicas()).isEqualTo(1);
   }

@@ -19,8 +19,6 @@
  */
 package org.sonar.scanner.scan.filesystem;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
@@ -35,11 +33,12 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
-
 import org.apache.commons.lang.StringUtils;
 import org.junit.Before;
 import org.junit.Test;
 import org.sonar.scanner.scan.filesystem.CharsetValidation.Validation;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class CharsetValidationTest {
   private CharsetValidation charsets;
@@ -147,6 +146,17 @@ public class CharsetValidationTest {
     // we reject nulls (mainly to reject UTF-16)
     byte[] b3 = {(byte) 0};
     assertThat(charsets.isUTF8(b3, true).valid()).isEqualTo(Validation.NO);
+  }
+
+  @Test
+  public void windows_1252() {
+    assertThat(charsets.isValidWindows1252(new byte[]{(byte) 129}).valid()).isEqualTo(Validation.NO);
+    assertThat(charsets.isValidWindows1252(new byte[]{(byte) 141}).valid()).isEqualTo(Validation.NO);
+    assertThat(charsets.isValidWindows1252(new byte[]{(byte) 143}).valid()).isEqualTo(Validation.NO);
+    assertThat(charsets.isValidWindows1252(new byte[]{(byte) 144}).valid()).isEqualTo(Validation.NO);
+    assertThat(charsets.isValidWindows1252(new byte[]{(byte) 157}).valid()).isEqualTo(Validation.NO);
+    assertThat(charsets.isValidWindows1252(new byte[]{(byte) 189}).valid()).isEqualTo(Validation.MAYBE);
+    assertThat(charsets.isUTF8(new byte[]{(byte) 189}, true).valid()).isEqualTo(Validation.NO);
   }
 
   @Test

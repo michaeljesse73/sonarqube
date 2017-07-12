@@ -82,15 +82,13 @@ public class DeleteAction implements RulesWsAction {
 
       // For custom rule, first deactivate the rule on all profiles
       if (rule.isCustomRule()) {
-        ruleActivator.deactivateOfAllOrganizations(dbSession, rule);
+        ruleActivator.delete(dbSession, rule);
       }
 
       rule.setStatus(RuleStatus.REMOVED);
       rule.setUpdatedAt(system2.now());
       dbClient.ruleDao().update(dbSession, rule);
-
-      dbSession.commit();
-      ruleIndexer.indexRuleDefinition(ruleKey);
+      ruleIndexer.commitAndIndex(dbSession, ruleKey);
     }
   }
 }

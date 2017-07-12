@@ -28,14 +28,13 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
-import org.sonar.api.config.MapSettings;
+import org.sonar.api.config.internal.MapSettings;
 import org.sonar.api.resources.Languages;
-import org.sonar.api.utils.System2;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
 import org.sonar.db.DbTester;
 import org.sonar.db.organization.OrganizationDto;
-import org.sonar.db.qualityprofile.QualityProfileDto;
+import org.sonar.db.qualityprofile.QProfileDto;
 import org.sonar.db.rule.RuleDefinitionDto;
 import org.sonar.db.rule.RuleMetadataDto;
 import org.sonar.server.es.EsClient;
@@ -72,7 +71,7 @@ public class ShowActionTest {
   public DbTester dbTester = DbTester.create();
   @org.junit.Rule
   public EsTester esTester = new EsTester(
-    new RuleIndexDefinition(new MapSettings()));
+    new RuleIndexDefinition(new MapSettings().asConfig()));
   @org.junit.Rule
   public ExpectedException thrown = ExpectedException.none();
 
@@ -134,7 +133,7 @@ public class ShowActionTest {
   public void show_rule_with_activation() throws Exception {
     OrganizationDto organization = dbTester.organizations().insert();
 
-    QualityProfileDto profile = QProfileTesting.newXooP1(organization);
+    QProfileDto profile = QProfileTesting.newXooP1(organization);
     dbClient.qualityProfileDao().insert(dbTester.getSession(), profile);
     dbTester.commit();
 
@@ -150,7 +149,8 @@ public class ShowActionTest {
       .build();
     Mockito.doReturn(singletonList(active)).when(activeRuleCompleter).completeShow(any(DbSession.class), orgCaptor.capture(), ruleCaptor.capture());
 
-    new ActiveRuleIndexer(System2.INSTANCE, dbClient, esClient).index();
+    ActiveRuleIndexer activeRuleIndexer = new ActiveRuleIndexer(dbClient, esClient);
+    activeRuleIndexer.indexOnStartup(activeRuleIndexer.getIndexTypes());
 
     TestResponse response = actionTester.newRequest().setMethod("GET")
       .setMediaType(PROTOBUF)
@@ -176,7 +176,7 @@ public class ShowActionTest {
   public void show_rule_without_activation() throws Exception {
     OrganizationDto organization = dbTester.organizations().insert();
 
-    QualityProfileDto profile = QProfileTesting.newXooP1(organization);
+    QProfileDto profile = QProfileTesting.newXooP1(organization);
     dbClient.qualityProfileDao().insert(dbTester.getSession(), profile);
     dbTester.commit();
 
@@ -184,7 +184,8 @@ public class ShowActionTest {
     RuleMetadataDto ruleMetadata = dbTester.rules().insertOrUpdateMetadata(rule, organization);
 
     dbTester.qualityProfiles().activateRule(profile, rule, a -> a.setSeverity("BLOCKER"));
-    new ActiveRuleIndexer(System2.INSTANCE, dbClient, esClient).index();
+    ActiveRuleIndexer activeRuleIndexer = new ActiveRuleIndexer(dbClient, esClient);
+    activeRuleIndexer.indexOnStartup(activeRuleIndexer.getIndexTypes());
 
     TestResponse response = actionTester.newRequest().setMethod("GET")
       .setParam(ShowAction.PARAM_KEY, rule.getKey().toString())
@@ -228,14 +229,14 @@ public class ShowActionTest {
 
   private RuleDefinitionDto insertRule() {
     RuleDefinitionDto rule = dbTester.rules().insert();
-    ruleIndexer.indexRuleDefinition(rule.getKey());
+    ruleIndexer.commitAndIndex(dbTester.getSession(), rule.getKey());
     return rule;
   }
 
   @SafeVarargs
   private final RuleMetadataDto insertMetadata(OrganizationDto organization, RuleDefinitionDto rule, Consumer<RuleMetadataDto>... populaters) {
     RuleMetadataDto metadata = dbTester.rules().insertOrUpdateMetadata(rule, organization, populaters);
-    ruleIndexer.indexRuleExtension(organization, rule.getKey());
+    ruleIndexer.commitAndIndex(dbTester.getSession(), rule.getKey(), organization);
     return metadata;
   }
 }

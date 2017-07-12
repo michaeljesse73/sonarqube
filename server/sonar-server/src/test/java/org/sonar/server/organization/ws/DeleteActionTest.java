@@ -20,13 +20,12 @@
 
 package org.sonar.server.organization.ws;
 
-import java.util.Arrays;
 import java.util.List;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.mockito.ArgumentCaptor;
-import org.sonar.api.config.MapSettings;
+import org.sonar.api.config.internal.MapSettings;
 import org.sonar.api.server.ws.WebService;
 import org.sonar.api.utils.System2;
 import org.sonar.core.util.UuidFactory;
@@ -37,7 +36,7 @@ import org.sonar.db.component.ComponentDto;
 import org.sonar.db.component.ComponentTesting;
 import org.sonar.db.organization.OrganizationDto;
 import org.sonar.db.permission.template.PermissionTemplateDto;
-import org.sonar.db.qualityprofile.QualityProfileDto;
+import org.sonar.db.qualityprofile.QProfileDto;
 import org.sonar.db.user.GroupDto;
 import org.sonar.db.user.UserDto;
 import org.sonar.server.component.ComponentCleanerService;
@@ -49,6 +48,7 @@ import org.sonar.server.exceptions.UnauthorizedException;
 import org.sonar.server.organization.TestDefaultOrganizationProvider;
 import org.sonar.server.organization.TestOrganizationFlags;
 import org.sonar.server.qualityprofile.QProfileFactory;
+import org.sonar.server.qualityprofile.QProfileFactoryImpl;
 import org.sonar.server.qualityprofile.index.ActiveRuleIndexer;
 import org.sonar.server.tester.UserSessionRule;
 import org.sonar.server.user.index.UserIndex;
@@ -58,6 +58,7 @@ import org.sonar.server.user.index.UserQuery;
 import org.sonar.server.ws.WsActionTester;
 
 import static com.google.common.collect.ImmutableList.of;
+import static java.util.Arrays.asList;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
@@ -70,7 +71,7 @@ public class DeleteActionTest {
   @Rule
   public DbTester db = DbTester.create(System2.INSTANCE);
   @Rule
-  public EsTester es = new EsTester(new UserIndexDefinition(new MapSettings()));
+  public EsTester es = new EsTester(new UserIndexDefinition(new MapSettings().asConfig()));
   @Rule
   public UserSessionRule userSession = UserSessionRule.standalone();
   @Rule
@@ -81,7 +82,7 @@ public class DeleteActionTest {
   private ComponentCleanerService componentCleanerService = mock(ComponentCleanerService.class);
   private TestOrganizationFlags organizationFlags = TestOrganizationFlags.standalone().setEnabled(true);
   private TestDefaultOrganizationProvider defaultOrganizationProvider = TestDefaultOrganizationProvider.from(db);
-  private QProfileFactory qProfileFactory = new QProfileFactory(dbClient, mock(UuidFactory.class), System2.INSTANCE, mock(ActiveRuleIndexer.class));
+  private QProfileFactory qProfileFactory = new QProfileFactoryImpl(dbClient, mock(UuidFactory.class), System2.INSTANCE, mock(ActiveRuleIndexer.class));
   private UserIndex userIndex = new UserIndex(es.client());
   private UserIndexer userIndexer = new UserIndexer(dbClient, es.client());
 
@@ -304,7 +305,7 @@ public class DeleteActionTest {
     db.organizations().addMember(org, user1);
     db.organizations().addMember(otherOrg, user1);
     db.organizations().addMember(org, user2);
-    userIndexer.index(Arrays.asList(user1.getLogin(), user2.getLogin()));
+    userIndexer.commitAndIndex(db.getSession(), asList(user1, user2));
     logInAsAdministrator(org);
 
     sendRequest(org);
@@ -321,17 +322,17 @@ public class DeleteActionTest {
   public void request_also_deletes_quality_profiles_of_specified_organization() {
     OrganizationDto org = db.organizations().insert();
     OrganizationDto otherOrg = db.organizations().insert();
-    QualityProfileDto profileInOrg = db.qualityProfiles().insert(org);
-    QualityProfileDto profileInOtherOrg = db.qualityProfiles().insert(otherOrg);
+    QProfileDto profileInOrg = db.qualityProfiles().insert(org);
+    QProfileDto profileInOtherOrg = db.qualityProfiles().insert(otherOrg);
 
     logInAsAdministrator(org);
 
     sendRequest(org);
 
     verifyOrganizationDoesNotExist(org);
-    assertThat(db.select("select kee as \"profileKey\" from rules_profiles"))
+    assertThat(db.select("select uuid as \"profileKey\" from org_qprofiles"))
       .extracting(row -> (String) row.get("profileKey"))
-      .containsOnly(profileInOtherOrg.getKey());
+      .containsOnly(profileInOtherOrg.getKee());
   }
 
   private void verifyOrganizationDoesNotExist(OrganizationDto organization) {

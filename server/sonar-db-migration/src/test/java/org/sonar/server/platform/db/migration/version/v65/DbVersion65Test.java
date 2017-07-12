@@ -29,12 +29,12 @@ public class DbVersion65Test {
   private DbVersion65 underTest = new DbVersion65();
 
   @Test
-  public void migrationNumber_starts_at_1600() {
+  public void migrationNumber_starts_at_1700() {
     verifyMinimumMigrationNumber(underTest, 1700);
   }
 
   @Test
   public void verify_migration_count() {
-    verifyMigrationCount(underTest, 14);
+    verifyMigrationCount(underTest, 35);
   }
 }

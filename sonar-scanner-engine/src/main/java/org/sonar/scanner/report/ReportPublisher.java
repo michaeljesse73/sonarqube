@@ -19,8 +19,8 @@
  */
 package org.sonar.scanner.report;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Throwables;
+import static org.sonar.core.util.FileUtils.deleteQuietly;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -31,14 +31,15 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.Map;
+
 import javax.annotation.Nullable;
-import okhttp3.HttpUrl;
+
 import org.apache.commons.io.FileUtils;
 import org.picocontainer.Startable;
 import org.sonar.api.CoreProperties;
 import org.sonar.api.batch.ScannerSide;
-import org.sonar.api.batch.bootstrap.ProjectDefinition;
-import org.sonar.api.config.Settings;
+import org.sonar.api.batch.fs.internal.InputModuleHierarchy;
+import org.sonar.api.config.Configuration;
 import org.sonar.api.platform.Server;
 import org.sonar.api.utils.MessageException;
 import org.sonar.api.utils.TempFolder;
@@ -48,14 +49,16 @@ import org.sonar.api.utils.log.Loggers;
 import org.sonar.scanner.analysis.DefaultAnalysisMode;
 import org.sonar.scanner.bootstrap.ScannerWsClient;
 import org.sonar.scanner.protocol.output.ScannerReportWriter;
-import org.sonar.scanner.scan.ImmutableProjectReactor;
 import org.sonarqube.ws.MediaTypes;
 import org.sonarqube.ws.WsCe;
 import org.sonarqube.ws.client.HttpException;
 import org.sonarqube.ws.client.PostRequest;
 import org.sonarqube.ws.client.WsResponse;
 
-import static org.sonar.core.util.FileUtils.deleteQuietly;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Throwables;
+
+import okhttp3.HttpUrl;
 
 @ScannerSide
 public class ReportPublisher implements Startable {
@@ -66,10 +69,10 @@ public class ReportPublisher implements Startable {
   public static final String VERBOSE_KEY = "sonar.verbose";
   public static final String METADATA_DUMP_FILENAME = "report-task.txt";
 
-  private final Settings settings;
+  private final Configuration settings;
   private final ScannerWsClient wsClient;
   private final AnalysisContextReportPublisher contextPublisher;
-  private final ImmutableProjectReactor projectReactor;
+  private final InputModuleHierarchy moduleHierarchy;
   private final DefaultAnalysisMode analysisMode;
   private final TempFolder temp;
   private final ReportPublisherStep[] publishers;
@@ -78,13 +81,13 @@ public class ReportPublisher implements Startable {
   private File reportDir;
   private ScannerReportWriter writer;
 
-  public ReportPublisher(Settings settings, ScannerWsClient wsClient, Server server, AnalysisContextReportPublisher contextPublisher,
-    ImmutableProjectReactor projectReactor, DefaultAnalysisMode analysisMode, TempFolder temp, ReportPublisherStep[] publishers) {
+  public ReportPublisher(Configuration settings, ScannerWsClient wsClient, Server server, AnalysisContextReportPublisher contextPublisher,
+    InputModuleHierarchy moduleHierarchy, DefaultAnalysisMode analysisMode, TempFolder temp, ReportPublisherStep[] publishers) {
     this.settings = settings;
     this.wsClient = wsClient;
     this.server = server;
     this.contextPublisher = contextPublisher;
-    this.projectReactor = projectReactor;
+    this.moduleHierarchy = moduleHierarchy;
     this.analysisMode = analysisMode;
     this.temp = temp;
     this.publishers = publishers;
@@ -92,7 +95,7 @@ public class ReportPublisher implements Startable {
 
   @Override
   public void start() {
-    reportDir = new File(projectReactor.getRoot().getWorkDir(), "batch-report");
+    reportDir = new File(moduleHierarchy.root().getWorkDir(), "batch-report");
     writer = new ScannerReportWriter(reportDir);
     contextPublisher.init(writer);
 
@@ -135,7 +138,7 @@ public class ReportPublisher implements Startable {
   }
 
   private boolean shouldKeepReport() {
-    return settings.getBoolean(KEEP_REPORT_PROP_KEY) || settings.getBoolean(VERBOSE_KEY);
+    return settings.getBoolean(KEEP_REPORT_PROP_KEY).orElse(false) || settings.getBoolean(VERBOSE_KEY).orElse(false);
   }
 
   private File generateReportFile() {
@@ -165,14 +168,13 @@ public class ReportPublisher implements Startable {
   String upload(File report) {
     LOG.debug("Upload report");
     long startTime = System.currentTimeMillis();
-    ProjectDefinition projectDefinition = projectReactor.getRoot();
     PostRequest.Part filePart = new PostRequest.Part(MediaTypes.ZIP, report);
     PostRequest post = new PostRequest("api/ce/submit")
       .setMediaType(MediaTypes.PROTOBUF)
-      .setParam("organization", settings.getString(CoreProperties.PROJECT_ORGANIZATION_PROPERTY))
-      .setParam("projectKey", projectDefinition.getKey())
-      .setParam("projectName", projectDefinition.getOriginalName())
-      .setParam("projectBranch", projectDefinition.getBranch())
+      .setParam("organization", settings.get(CoreProperties.PROJECT_ORGANIZATION_PROPERTY).orElse(null))
+      .setParam("projectKey", moduleHierarchy.root().key())
+      .setParam("projectName", moduleHierarchy.root().getOriginalName())
+      .setParam("projectBranch", moduleHierarchy.root().getBranch())
       .setPart("report", filePart);
 
     WsResponse response;
@@ -201,10 +203,8 @@ public class ReportPublisher implements Startable {
       HttpUrl httpUrl = HttpUrl.parse(publicUrl);
 
       Map<String, String> metadata = new LinkedHashMap<>();
-      String effectiveKey = projectReactor.getRoot().getKeyWithBranch();
-      if (settings.hasKey(CoreProperties.PROJECT_ORGANIZATION_PROPERTY)) {
-        metadata.put("organization", settings.getString(CoreProperties.PROJECT_ORGANIZATION_PROPERTY));
-      }
+      String effectiveKey = moduleHierarchy.root().getKeyWithBranch();
+      settings.get(CoreProperties.PROJECT_ORGANIZATION_PROPERTY).ifPresent(org -> metadata.put("organization", org));
       metadata.put("projectKey", effectiveKey);
       metadata.put("serverUrl", publicUrl);
       metadata.put("serverVersion", server.getVersion());
@@ -232,7 +232,7 @@ public class ReportPublisher implements Startable {
   }
 
   private void dumpMetadata(Map<String, String> metadata) {
-    Path file = projectReactor.getRoot().getWorkDir().toPath().resolve(METADATA_DUMP_FILENAME);
+    Path file = moduleHierarchy.root().getWorkDir().toPath().resolve(METADATA_DUMP_FILENAME);
     try (Writer output = Files.newBufferedWriter(file, StandardCharsets.UTF_8)) {
       for (Map.Entry<String, String> entry : metadata.entrySet()) {
         output.write(entry.getKey());

@@ -17,15 +17,22 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
+//@flow
 import React from 'react';
 
 export default class App extends React.PureComponent {
   componentDidMount() {
-    document.querySelector('html').classList.add('dashboard-page');
+    const elem = document.querySelector('html');
+    if (elem) {
+      elem.classList.add('dashboard-page');
+    }
   }
 
   componentWillUnmount() {
-    document.querySelector('html').classList.remove('dashboard-page');
+    const elem = document.querySelector('html');
+    if (elem) {
+      elem.classList.remove('dashboard-page');
+    }
   }
 
   render() {

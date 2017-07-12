@@ -19,8 +19,6 @@
  */
 package org.sonar.api.batch.sensor.internal;
 
-import com.google.common.collect.ImmutableMap;
-
 import java.io.File;
 import java.io.Serializable;
 import java.nio.file.Path;
@@ -66,14 +64,18 @@ import org.sonar.api.batch.sensor.measure.NewMeasure;
 import org.sonar.api.batch.sensor.measure.internal.DefaultMeasure;
 import org.sonar.api.batch.sensor.symbol.NewSymbolTable;
 import org.sonar.api.batch.sensor.symbol.internal.DefaultSymbolTable;
-import org.sonar.api.config.MapSettings;
+import org.sonar.api.config.Configuration;
 import org.sonar.api.config.Settings;
+import org.sonar.api.config.internal.ConfigurationBridge;
+import org.sonar.api.config.internal.MapSettings;
 import org.sonar.api.internal.ApiVersion;
 import org.sonar.api.internal.SonarRuntimeImpl;
 import org.sonar.api.measures.Metric;
 import org.sonar.api.utils.System2;
 import org.sonar.api.utils.Version;
 import org.sonar.duplications.internal.pmd.TokensLine;
+
+import static java.util.Collections.unmodifiableMap;
 
 /**
  * Utility class to help testing {@link Sensor}. This is not an API and method signature may evolve.
@@ -120,6 +122,11 @@ public class SensorContextTester implements SensorContext {
   @Override
   public Settings settings() {
     return settings;
+  }
+
+  @Override
+  public Configuration config() {
+    return new ConfigurationBridge(settings);
   }
 
   public SensorContextTester setSettings(Settings settings) {
@@ -269,7 +276,7 @@ public class SensorContextTester implements SensorContext {
 
   @Override
   public NewCpdTokens newCpdTokens() {
-    return new DefaultCpdTokens(settings, sensorStorage);
+    return new DefaultCpdTokens(config(), sensorStorage);
   }
 
   @Override
@@ -337,7 +344,7 @@ public class SensorContextTester implements SensorContext {
    * @since 6.1
    */
   public Map<String, String> getContextProperties() {
-    return ImmutableMap.copyOf(sensorStorage.contextProperties);
+    return unmodifiableMap(sensorStorage.contextProperties);
   }
 
   @Override

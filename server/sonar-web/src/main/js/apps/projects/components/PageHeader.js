@@ -19,27 +19,89 @@
  */
 // @flow
 import React from 'react';
-import ViewSelect from './ViewSelect';
+import classNames from 'classnames';
+import SearchFilterContainer from '../filters/SearchFilterContainer';
+import Tooltip from '../../../components/controls/Tooltip';
+import PerspectiveSelect from './PerspectiveSelect';
+import ProjectsSortingSelect from './ProjectsSortingSelect';
 import { translate } from '../../../helpers/l10n';
+import type { RawQuery } from '../../../helpers/query';
 
-type Props = {
-  loading: boolean,
-  onViewChange: string => void,
-  total?: number,
-  view: string
-};
+type Props = {|
+  currentUser?: { isLoggedIn: boolean },
+  isFavorite?: boolean,
+  onPerspectiveChange: ({ view: string, visualization?: string }) => void,
+  organization?: { key: string },
+  projects: Array<*>,
+  projectsAppState: { loading: boolean, total?: number },
+  query: RawQuery,
+  onSortChange: (sort: string, desc: boolean) => void,
+  selectedSort: string,
+  view: string,
+  visualization?: string
+|};
 
 export default function PageHeader(props: Props) {
+  const renderSortingSelect = () => {
+    const { projectsAppState, projects, currentUser, view } = props;
+    const limitReached =
+      projects != null &&
+      projectsAppState.total != null &&
+      projects.length < projectsAppState.total;
+    const defaultOption = currentUser && currentUser.isLoggedIn ? 'name' : 'analysis_date';
+    if (view === 'visualizations' && !limitReached) {
+      return (
+        <Tooltip overlay={translate('projects.sort.disabled')}>
+          <div className="projects-topbar-item disabled">
+            <ProjectsSortingSelect
+              className="js-projects-sorting-select"
+              defaultOption={defaultOption}
+              onChange={props.onSortChange}
+              selectedSort={props.selectedSort}
+              view={props.view}
+            />
+          </div>
+        </Tooltip>
+      );
+    }
+    return (
+      <ProjectsSortingSelect
+        className="projects-topbar-item js-projects-sorting-select"
+        defaultOption={defaultOption}
+        onChange={props.onSortChange}
+        selectedSort={props.selectedSort}
+        view={props.view}
+      />
+    );
+  };
+
   return (
-    <header className="page-header">
-      <ViewSelect onChange={props.onViewChange} view={props.view} />
+    <header className="page-header projects-topbar-items">
+      <PerspectiveSelect
+        className="projects-topbar-item js-projects-perspective-select"
+        onChange={props.onPerspectiveChange}
+        view={props.view}
+        visualization={props.visualization}
+      />
 
-      <div className="page-actions projects-page-actions">
-        {!!props.loading && <i className="spinner spacer-right" />}
+      {renderSortingSelect()}
 
-        {props.total != null &&
+      <SearchFilterContainer
+        className="projects-topbar-item projects-topbar-item-search"
+        isFavorite={props.isFavorite}
+        organization={props.organization}
+        query={props.query}
+      />
+
+      <div
+        className={classNames('projects-topbar-item', 'is-last', {
+          'is-loading': props.projectsAppState.loading
+        })}>
+        {!!props.projectsAppState.loading && <i className="spinner spacer-right" />}
+
+        {props.projectsAppState.total != null &&
           <span>
-            <strong id="projects-total">{props.total}</strong>
+            <strong id="projects-total">{props.projectsAppState.total}</strong>
             {' '}
             {translate('projects._projects')}
           </span>}

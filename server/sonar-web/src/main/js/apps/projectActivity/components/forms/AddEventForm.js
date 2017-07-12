@@ -20,11 +20,11 @@
 // @flow
 import React from 'react';
 import Modal from 'react-modal';
-import type { Analysis } from '../../../../store/projectActivity/duck';
 import { translate } from '../../../../helpers/l10n';
+import type { Analysis } from '../../types';
 
 type Props = {
-  addEvent: () => Promise<*>,
+  addEvent: (analysis: string, name: string, category?: string) => Promise<*>,
   analysis: Analysis,
   addEventButtonText: string
 };
@@ -38,7 +38,6 @@ type State = {
 export default class AddEventForm extends React.PureComponent {
   mounted: boolean;
   props: Props;
-
   state: State = {
     open: false,
     processing: false,
@@ -131,14 +130,13 @@ export default class AddEventForm extends React.PureComponent {
                 </div>}
           </footer>
         </form>
-
       </Modal>
     );
   }
 
   render() {
     return (
-      <a className="js-add-event button-small" href="#" onClick={this.openForm}>
+      <a className="js-add-event" href="#" onClick={this.openForm}>
         {translate(this.props.addEventButtonText)}
         {this.state.open && this.renderModal()}
       </a>

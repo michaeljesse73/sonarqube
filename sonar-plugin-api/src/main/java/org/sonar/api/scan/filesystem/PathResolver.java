@@ -19,21 +19,25 @@
  */
 package org.sonar.api.scan.filesystem;
 
-import com.google.common.base.Joiner;
 import java.io.File;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import javax.annotation.CheckForNull;
+import javax.annotation.concurrent.Immutable;
+
 import org.apache.commons.io.FilenameUtils;
 import org.sonar.api.batch.ScannerSide;
 import org.sonar.api.utils.PathUtils;
+
+import static java.util.stream.Collectors.joining;
 
 /**
  * @since 3.5
  */
 @ScannerSide
+@Immutable
 public class PathResolver {
 
   public File relativeFile(File dir, String path) {
@@ -59,7 +63,7 @@ public class PathResolver {
     while (cursor != null) {
       File parentDir = parentDir(dirs, cursor);
       if (parentDir != null) {
-        return new RelativePath(parentDir, Joiner.on("/").join(stack));
+        return new RelativePath(parentDir, stack.stream().collect(joining("/")));
       }
       stack.add(0, cursor.getName());
       cursor = cursor.getParentFile();

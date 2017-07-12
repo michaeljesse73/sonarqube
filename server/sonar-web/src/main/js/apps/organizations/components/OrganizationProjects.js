@@ -19,14 +19,12 @@
  */
 // @flow
 import React from 'react';
-import { connect } from 'react-redux';
 import AllProjectsContainer from '../../projects/components/AllProjectsContainer';
-import { getOrganizationByKey } from '../../../store/rootReducer';
-import { updateOrganization } from '../actions';
 
-class OrganizationProjects extends React.PureComponent {
+export default class OrganizationProjects extends React.PureComponent {
   props: {
     children?: React.Element<*>,
+    currentUser: { isLoggedIn: boolean },
     location: Object,
     organization: {
       key: string
@@ -51,6 +49,7 @@ class OrganizationProjects extends React.PureComponent {
     return (
       <div id="projects-page">
         <AllProjectsContainer
+          currentUser={this.props.currentUser}
           isFavorite={false}
           location={this.props.location}
           organization={this.props.organization}
@@ -59,11 +58,3 @@ class OrganizationProjects extends React.PureComponent {
     );
   }
 }
-
-const mapStateToProps = (state, ownProps) => ({
-  organization: getOrganizationByKey(state, ownProps.params.organizationKey)
-});
-
-const mapDispatchToProps = { updateOrganization };
-
-export default connect(mapStateToProps, mapDispatchToProps)(OrganizationProjects);

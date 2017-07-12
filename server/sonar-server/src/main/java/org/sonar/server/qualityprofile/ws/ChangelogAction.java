@@ -32,16 +32,15 @@ import org.sonar.api.utils.text.JsonWriter;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
 import org.sonar.db.qualityprofile.QProfileChangeQuery;
-import org.sonar.db.qualityprofile.QualityProfileDto;
+import org.sonar.db.qualityprofile.QProfileDto;
 
 import static org.sonar.api.utils.DateUtils.parseEndingDateOrDateTime;
 import static org.sonar.api.utils.DateUtils.parseStartingDateOrDateTime;
 import static org.sonar.server.es.SearchOptions.MAX_LIMIT;
+import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.PARAM_SINCE;
+import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.PARAM_TO;
 
 public class ChangelogAction implements QProfileWsAction {
-
-  static final String PARAM_SINCE = "since";
-  static final String PARAM_TO = "to";
 
   private final ChangelogLoader changelogLoader;
   private final QProfileWsSupport wsSupport;
@@ -62,7 +61,7 @@ public class ChangelogAction implements QProfileWsAction {
       .setDescription("Get the history of changes on a quality profile: rule activation/deactivation, change in parameters/severity. " +
         "Events are ordered by date in descending order (most recent first).")
       .setHandler(this)
-      .setResponseExample(getClass().getResource("example-changelog.json"));
+      .setResponseExample(getClass().getResource("changelog-example.json"));
 
     QProfileWsSupport.createOrganizationParam(wsAction)
       .setSince("6.4");
@@ -84,9 +83,9 @@ public class ChangelogAction implements QProfileWsAction {
   public void handle(Request request, Response response) throws Exception {
     QProfileReference reference = QProfileReference.from(request);
     try (DbSession dbSession = dbClient.openSession(false)) {
-      QualityProfileDto profile = wsSupport.getProfile(dbSession, reference);
+      QProfileDto profile = wsSupport.getProfile(dbSession, reference);
 
-      QProfileChangeQuery query = new QProfileChangeQuery(profile.getKey());
+      QProfileChangeQuery query = new QProfileChangeQuery(profile.getKee());
       Date since = parseStartingDateOrDateTime(request.param(PARAM_SINCE));
       if (since != null) {
         query.setFromIncluded(since.getTime());
@@ -104,7 +103,7 @@ public class ChangelogAction implements QProfileWsAction {
     }
   }
 
-  private void writeResponse(JsonWriter json, int page, int pageSize, ChangelogLoader.Changelog changelog) {
+  private static void writeResponse(JsonWriter json, int page, int pageSize, ChangelogLoader.Changelog changelog) {
     json.beginObject();
     json.prop("total", changelog.getTotal());
     json.prop(Param.PAGE, page);
@@ -125,7 +124,7 @@ public class ChangelogAction implements QProfileWsAction {
     json.endObject().close();
   }
 
-  private void writeParameters(JsonWriter json, ChangelogLoader.Change change) {
+  private static void writeParameters(JsonWriter json, ChangelogLoader.Change change) {
     json.name("params").beginObject()
       .prop("severity", change.getSeverity());
     for (Map.Entry<String, String> param : change.getParams().entrySet()) {

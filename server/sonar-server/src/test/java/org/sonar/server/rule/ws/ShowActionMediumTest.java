@@ -35,7 +35,7 @@ import org.sonar.db.qualityprofile.ActiveRuleDao;
 import org.sonar.db.qualityprofile.ActiveRuleDto;
 import org.sonar.db.qualityprofile.ActiveRuleParamDto;
 import org.sonar.db.qualityprofile.QualityProfileDao;
-import org.sonar.db.qualityprofile.QualityProfileDto;
+import org.sonar.db.qualityprofile.QProfileDto;
 import org.sonar.db.rule.RuleDao;
 import org.sonar.db.rule.RuleDefinitionDto;
 import org.sonar.db.rule.RuleDto;
@@ -271,11 +271,13 @@ public class ShowActionMediumTest {
       .setUpdatedAt(new Date().getTime());
     ruleDao.insert(session, ruleDto);
     session.commit();
-    ruleIndexer.indexRuleDefinition(ruleDto.getKey());
+    ruleIndexer.commitAndIndex(session, ruleDto.getKey());
     RuleParamDto regexParam = RuleParamDto.createFor(ruleDto).setName("regex").setType("STRING").setDescription("Reg *exp*").setDefaultValue(".*");
     ruleDao.insertRuleParam(session, ruleDto, regexParam);
 
-    QualityProfileDto profile = QualityProfileDto.createFor("profile")
+    QProfileDto profile = new QProfileDto()
+      .setRulesProfileUuid("profile")
+      .setKee("profile")
       .setOrganizationUuid(defaultOrganizationProvider.get().getUuid())
       .setName("Profile")
       .setLanguage("xoo");
@@ -293,7 +295,8 @@ public class ShowActionMediumTest {
       .setValue(".*?"));
     session.commit();
 
-    tester.get(ActiveRuleIndexer.class).index();
+    ActiveRuleIndexer activeRuleIndexer = tester.get(ActiveRuleIndexer.class);
+    activeRuleIndexer.indexOnStartup(activeRuleIndexer.getIndexTypes());
 
     WsTester.TestRequest request = wsTester.newGetRequest("api/rules", "show")
       .setParam("key", ruleDto.getKey().toString())

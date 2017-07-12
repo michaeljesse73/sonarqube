@@ -76,7 +76,7 @@ export default class MeasureHistory extends React.PureComponent {
       if (r.measures.length === 0) {
         return [];
       }
-      return r.measures[0].history.map(analysis => ({
+      return r.measures[0].history.filter(analysis => analysis.value != null).map(analysis => ({
         date: moment(analysis.date).toDate(),
         value: analysis.value
       }));
@@ -88,7 +88,8 @@ export default class MeasureHistory extends React.PureComponent {
       return Promise.resolve([]);
     }
 
-    return getProjectActivity(this.props.component.key, {
+    return getProjectActivity({
+      project: this.props.component.key,
       category: 'VERSION'
     }).then(({ analyses }) => {
       const events = analyses.map(analysis => {

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 
-<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "mybatis-3-mapper.dtd">
 
 <mapper namespace="org.sonar.db.organization.OrganizationMemberMapper">
   <sql id="selectColumns">
@@ -50,17 +50,6 @@
     select u.login as "login", om.organization_uuid as "organizationUuid"
     from organization_members om
     inner join users u on om.user_id=u.id
-  </select>
-
-  <select id="countByOrganizationUuids" resultType="org.sonar.db.organization.OrganizationCount">
-    select om.organization_uuid as "organizationUuid", count(om.user_id) as "memberCount"
-    from organization_members om
-    where
-      om.organization_uuid in
-      <foreach collection="organizationUuids" open="(" close=")" item="organizationUuid" separator=",">
-        #{organizationUuid, jdbcType=VARCHAR}
-      </foreach>
-    group by om.organization_uuid
   </select>
 
   <insert id="insert" parameterType="OrganizationMember" useGeneratedKeys="false">

@@ -19,12 +19,10 @@
  */
 package org.sonar.api.profiles;
 
-import com.google.common.base.Function;
-import com.google.common.base.Predicate;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 import org.apache.commons.lang.StringUtils;
@@ -64,7 +62,6 @@ public class RulesProfile implements Cloneable {
   private String name;
   private Boolean defaultProfile = Boolean.FALSE;
   private String language;
-  private String parentName;
   private List<ActiveRule> activeRules = new ArrayList<>();
 
   /**
@@ -217,22 +214,25 @@ public class RulesProfile implements Cloneable {
   }
 
   /**
-   * For internal use only.
+   * Does nothing.
    *
-   * @since 2.5
+   * @return {@code null}
+   * @deprecated in 6.5
    */
+  @Deprecated
   @CheckForNull
   public String getParentName() {
-    return parentName;
+    return null;
   }
 
   /**
-   * For internal use only.
+   * Does nothing.
    *
-   * @since 2.5
+   * @deprecated in 6.5
    */
+  @Deprecated
   public void setParentName(String parentName) {
-    this.parentName = parentName;
+    // does nothing
   }
 
   /**
@@ -304,7 +304,7 @@ public class RulesProfile implements Cloneable {
    * @param optionalSeverity if null, then the default rule severity is used
    */
   public ActiveRule activateRule(final Rule rule, @Nullable RulePriority optionalSeverity) {
-    if (Iterables.any(activeRules, new MatchRule(rule))) {
+    if (activeRules.stream().anyMatch(ar -> ar.getRule().equals(rule))) {
       throw MessageException.of(String.format(
         "The definition of the profile '%s' (language '%s') contains multiple occurrences of the '%s:%s' rule. The plugin which declares this profile should fix this.",
         getName(), getLanguage(), rule.getRepositoryKey(), rule.getKey()));
@@ -338,9 +338,10 @@ public class RulesProfile implements Cloneable {
   public Object clone() {
     RulesProfile clone = RulesProfile.create(getName(), getLanguage());
     clone.setDefaultProfile(getDefaultProfile());
-    clone.setParentName(getParentName());
     if (activeRules != null && !activeRules.isEmpty()) {
-      clone.setActiveRules(Lists.transform(activeRules, CloneFunction.INSTANCE));
+      clone.setActiveRules(activeRules.stream()
+        .map(ar -> (ActiveRule) ar.clone())
+        .collect(Collectors.toList()));
     }
     return clone;
   }
@@ -366,16 +367,8 @@ public class RulesProfile implements Cloneable {
     }
 
     @Override
-    public boolean apply(ActiveRule input) {
+    public boolean test(ActiveRule input) {
       return input.getRule().equals(rule);
-    }
-  }
-
-  private enum CloneFunction implements Function<ActiveRule, ActiveRule> {
-    INSTANCE;
-    @Override
-    public ActiveRule apply(ActiveRule input) {
-      return (ActiveRule) input.clone();
     }
   }
 }

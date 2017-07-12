@@ -58,15 +58,19 @@ import EmptySearch from '../../../components/common/EmptySearch';
 import { translate, translateWithParameters } from '../../../helpers/l10n';
 import { scrollToElement } from '../../../helpers/scrolling';
 import type { Issue } from '../../../components/issue/types';
+import type { RawQuery } from '../../../helpers/query';
 import '../styles.css';
 
 export type Props = {
   component?: Component,
   currentUser: CurrentUser,
-  fetchIssues: () => Promise<*>,
-  location: { pathname: string, query: { [string]: string } },
+  fetchIssues: (query: RawQuery) => Promise<*>,
+  location: { pathname: string, query: RawQuery },
   onRequestFail: Error => void,
-  router: { push: () => void, replace: () => void }
+  router: {
+    push: ({ pathname: string, query?: RawQuery }) => void,
+    replace: ({ pathname: string, query?: RawQuery }) => void
+  }
 };
 
 export type State = {
@@ -804,8 +808,8 @@ export default class App extends React.PureComponent {
         {this.renderSide(openIssue)}
 
         <div className="layout-page-main">
-          <div className="issues-header-panel issues-main-header">
-            <div className="issues-header-panel-inner issues-main-header-inner">
+          <div className="layout-page-header-panel layout-page-main-header issues-main-header">
+            <div className="layout-page-header-panel-inner layout-page-main-header-inner">
               <div className="layout-page-main-inner">
                 {this.renderBulkChange(openIssue)}
                 {openIssue != null

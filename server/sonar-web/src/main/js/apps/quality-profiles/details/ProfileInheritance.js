@@ -37,6 +37,7 @@ type Props = {
 
 type ProfileInheritanceDetails = {
   activeRuleCount: number,
+  isBuiltIn: boolean,
   key: string,
   language: string,
   name: string,
@@ -104,15 +105,19 @@ export default class ProfileInheritance extends React.PureComponent {
 
   render() {
     const { profile, profiles } = this.props;
+    const { ancestors } = this.state;
 
     const highlightCurrent =
       !this.state.loading &&
-      this.state.ancestors != null &&
+      ancestors != null &&
       this.state.children != null &&
-      (this.state.ancestors.length > 0 || this.state.children.length > 0);
+      (ancestors.length > 0 || this.state.children.length > 0);
+
     const currentClassName = classNames('js-inheritance-current', {
       selected: highlightCurrent
     });
+
+    const extendsBuiltIn = ancestors != null && ancestors.some(profile => profile.isBuiltIn);
 
     return (
       <div className="quality-profile-inheritance">
@@ -121,6 +126,7 @@ export default class ProfileInheritance extends React.PureComponent {
             {translate('quality_profiles.profile_inheritance')}
           </h2>
           {this.props.canAdmin &&
+            !this.props.profile.isBuiltIn &&
             <button className="pull-right js-change-parent" onClick={this.handleChangeParentClick}>
               {translate('quality_profiles.change_parent')}
             </button>}
@@ -129,8 +135,8 @@ export default class ProfileInheritance extends React.PureComponent {
         {!this.state.loading &&
           <table className="data zebra">
             <tbody>
-              {this.state.ancestors != null &&
-                this.state.ancestors.map((ancestor, index) => (
+              {ancestors != null &&
+                ancestors.map((ancestor, index) => (
                   <ProfileInheritanceBox
                     className="js-inheritance-ancestor"
                     depth={index}
@@ -143,8 +149,9 @@ export default class ProfileInheritance extends React.PureComponent {
 
               <ProfileInheritanceBox
                 className={currentClassName}
-                depth={this.state.ancestors ? this.state.ancestors.length : 0}
+                depth={ancestors ? ancestors.length : 0}
                 displayLink={false}
+                extendsBuiltIn={extendsBuiltIn}
                 language={profile.language}
                 organization={this.props.organization}
                 profile={this.state.profile}
@@ -154,7 +161,7 @@ export default class ProfileInheritance extends React.PureComponent {
                 this.state.children.map(child => (
                   <ProfileInheritanceBox
                     className="js-inheritance-child"
-                    depth={this.state.ancestors ? this.state.ancestors.length + 1 : 0}
+                    depth={ancestors ? ancestors.length + 1 : 0}
                     key={child.key}
                     language={profile.language}
                     organization={this.props.organization}

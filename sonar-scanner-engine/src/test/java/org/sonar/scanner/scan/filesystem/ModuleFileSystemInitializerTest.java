@@ -19,8 +19,12 @@
  */
 package org.sonar.scanner.scan.filesystem;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+
 import java.io.File;
 import java.io.IOException;
+
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.junit.Rule;
@@ -29,9 +33,6 @@ import org.junit.rules.TemporaryFolder;
 import org.sonar.api.batch.bootstrap.ProjectDefinition;
 import org.sonar.api.scan.filesystem.PathResolver;
 import org.sonar.api.utils.TempFolder;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
 
 public class ModuleFileSystemInitializerTest {
 
@@ -76,6 +77,28 @@ public class ModuleFileSystemInitializerTest {
     assertThat(path(initializer.sources().get(0))).endsWith("src/main/java");
     assertThat(initializer.tests()).hasSize(1);
     assertThat(path(initializer.tests().get(0))).endsWith("src/test/java");
+  }
+
+  @Test
+  public void supportFilenamesWithComma() throws IOException {
+    File baseDir = temp.newFolder("base");
+    File sourceFile = new File(baseDir, "my,File.cs");
+    sourceFile.createNewFile();
+    File testFile = new File(baseDir, "my,TestFile.cs");
+    testFile.createNewFile();
+
+    ProjectDefinition project = ProjectDefinition.create()
+      .setBaseDir(baseDir)
+      .addSources("\"my,File.cs\"")
+      .addTests("\"my,TestFile.cs\"");
+
+    ModuleFileSystemInitializer initializer = new ModuleFileSystemInitializer(project, mock(TempFolder.class), pathResolver);
+
+    assertThat(initializer.baseDir().getCanonicalPath()).isEqualTo(baseDir.getCanonicalPath());
+    assertThat(initializer.sources()).hasSize(1);
+    assertThat(initializer.sources().get(0)).isEqualTo(sourceFile);
+    assertThat(initializer.tests()).hasSize(1);
+    assertThat(initializer.tests().get(0)).isEqualTo(testFile);
   }
 
   private String path(File f) throws IOException {

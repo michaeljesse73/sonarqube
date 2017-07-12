@@ -20,10 +20,12 @@
 package org.sonar.server.es;
 
 import com.google.common.annotations.VisibleForTesting;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
+import javax.annotation.Nullable;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.admin.indices.settings.get.GetSettingsResponse;
 import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsRequestBuilder;
@@ -43,7 +45,6 @@ import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHitField;
 import org.elasticsearch.search.sort.SortOrder;
-import org.picocontainer.Startable;
 import org.sonar.api.utils.log.Logger;
 import org.sonar.api.utils.log.Loggers;
 import org.sonar.core.util.ProgressLogger;
@@ -57,7 +58,7 @@ import static java.lang.String.format;
  *   <li>on large table indexing, replicas and automatic refresh can be temporarily disabled</li>
  * </ul>
  */
-public class BulkIndexer implements Startable {
+public class BulkIndexer {
 
   private static final Logger LOGGER = Loggers.get(BulkIndexer.class);
   private static final ByteSizeValue FLUSH_BYTE_SIZE = new ByteSizeValue(1, ByteSizeUnit.MB);
@@ -68,14 +69,21 @@ public class BulkIndexer implements Startable {
   private final EsClient client;
   private final String indexName;
   private final BulkProcessor bulkProcessor;
-  private final AtomicLong counter = new AtomicLong(0L);
+  private final IndexingResult result = new IndexingResult();
+  private final IndexingListener indexingListener;
   private final SizeHandler sizeHandler;
 
   public BulkIndexer(EsClient client, String indexName, Size size) {
+    this(client, indexName, size, IndexingListener.noop());
+  }
+
+  public BulkIndexer(EsClient client, String indexName, Size size, IndexingListener indexingListener) {
     this.client = client;
     this.indexName = indexName;
     this.sizeHandler = size.createHandler(Runtime2.INSTANCE);
-    this.bulkProcessor = BulkProcessor.builder(client.nativeClient(), new BulkProcessorListener())
+    this.indexingListener = indexingListener;
+    BulkProcessorListener bulkProcessorListener = new BulkProcessorListener();
+    this.bulkProcessor = BulkProcessor.builder(client.nativeClient(), bulkProcessorListener)
       .setBackoffPolicy(BackoffPolicy.exponentialBackoff())
       .setBulkSize(FLUSH_BYTE_SIZE)
       .setBulkActions(FLUSH_ACTIONS)
@@ -83,29 +91,33 @@ public class BulkIndexer implements Startable {
       .build();
   }
 
-  @Override
   public void start() {
+    result.clear();
     sizeHandler.beforeStart(this);
-    counter.set(0L);
   }
 
-  @Override
-  public void stop() {
+  /**
+   * @return the number of documents successfully indexed
+   */
+  public IndexingResult stop() {
     try {
-      bulkProcessor.awaitClose(10, TimeUnit.MINUTES);
+      bulkProcessor.awaitClose(1, TimeUnit.MINUTES);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
-      throw new IllegalStateException("Elasticsearch bulk requests still being executed after 10 minutes", e);
+      throw new IllegalStateException("Elasticsearch bulk requests still being executed after 1 minute", e);
     }
     client.prepareRefresh(indexName).get();
     sizeHandler.afterStop(this);
+    return result;
   }
 
   public void add(ActionRequest<?> request) {
+    result.incrementRequests();
     bulkProcessor.add(request);
   }
 
   public void addDeletion(SearchRequestBuilder searchRequest) {
+    // TODO to be replaced by delete_by_query that is back in ES5
     searchRequest
       .addSort("_doc", SortOrder.ASC)
       .setScroll(TimeValue.timeValueMinutes(5))
@@ -143,7 +155,7 @@ public class BulkIndexer implements Startable {
     add(client.prepareDelete(indexType, id).request());
   }
 
-  public void addDeletion(IndexType indexType, String id, String routing) {
+  public void addDeletion(IndexType indexType, String id, @Nullable String routing) {
     add(client.prepareDelete(indexType, id).setRouting(routing).request());
   }
 
@@ -153,15 +165,14 @@ public class BulkIndexer implements Startable {
    *
    * Note that the parameter indexName could be removed if progress logs are not needed.
    */
-  public static void delete(EsClient client, String indexName, SearchRequestBuilder searchRequest) {
+  public static IndexingResult delete(EsClient client, String indexName, SearchRequestBuilder searchRequest) {
     BulkIndexer bulk = new BulkIndexer(client, indexName, Size.REGULAR);
     bulk.start();
     bulk.addDeletion(searchRequest);
-    bulk.stop();
+    return bulk.stop();
   }
 
   private final class BulkProcessorListener implements Listener {
-
     @Override
     public void beforeBulk(long executionId, BulkRequest request) {
       // no action required
@@ -169,13 +180,17 @@ public class BulkIndexer implements Startable {
 
     @Override
     public void afterBulk(long executionId, BulkRequest request, BulkResponse response) {
-      counter.addAndGet(response.getItems().length);
-
+      List<String> successDocIds = new ArrayList<>();
       for (BulkItemResponse item : response.getItems()) {
         if (item.isFailed()) {
           LOGGER.error("index [{}], type [{}], id [{}], message [{}]", item.getIndex(), item.getType(), item.getId(), item.getFailureMessage());
+        } else {
+          result.incrementSuccess();
+          successDocIds.add(item.getId());
         }
       }
+
+      indexingListener.onSuccess(successDocIds);
     }
 
     @Override
@@ -255,7 +270,7 @@ public class BulkIndexer implements Startable {
 
     @Override
     void beforeStart(BulkIndexer bulkIndexer) {
-      this.progress = new ProgressLogger(format("Progress[BulkIndexer[%s]]", bulkIndexer.indexName), bulkIndexer.counter, LOGGER)
+      this.progress = new ProgressLogger(format("Progress[BulkIndexer[%s]]", bulkIndexer.indexName), bulkIndexer.result.total, LOGGER)
         .setPluralLabel("requests");
       this.progress.start();
       Map<String, Object> temporarySettings = new HashMap<>();
@@ -293,5 +308,4 @@ public class BulkIndexer implements Startable {
       req.get();
     }
   }
-
 }

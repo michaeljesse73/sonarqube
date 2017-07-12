@@ -23,7 +23,7 @@ import java.util.Date;
 import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.junit.Rule;
 import org.junit.Test;
-import org.sonar.api.config.MapSettings;
+import org.sonar.api.config.internal.MapSettings;
 import org.sonar.api.utils.System2;
 import org.sonar.db.DbTester;
 import org.sonar.db.component.ComponentDbTester;
@@ -49,14 +49,12 @@ import static org.sonar.server.measure.index.ProjectMeasuresIndexDefinition.FIEL
 import static org.sonar.server.measure.index.ProjectMeasuresIndexDefinition.FIELD_TAGS;
 import static org.sonar.server.measure.index.ProjectMeasuresIndexDefinition.INDEX_TYPE_PROJECT_MEASURES;
 
-;
-
 public class ProjectMeasuresIndexerTest {
 
   private System2 system2 = System2.INSTANCE;
 
   @Rule
-  public EsTester esTester = new EsTester(new ProjectMeasuresIndexDefinition(new MapSettings()));
+  public EsTester esTester = new EsTester(new ProjectMeasuresIndexDefinition(new MapSettings().asConfig()));
 
   @Rule
   public DbTester dbTester = DbTester.create(system2);

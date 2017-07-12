@@ -24,12 +24,13 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.sonar.api.resources.Languages;
+import org.sonar.api.server.ws.WebService;
 import org.sonar.api.utils.System2;
 import org.sonar.db.DbSession;
 import org.sonar.db.DbTester;
 import org.sonar.db.organization.OrganizationDto;
 import org.sonar.db.qualityprofile.QProfileChangeDto;
-import org.sonar.db.qualityprofile.QualityProfileDto;
+import org.sonar.db.qualityprofile.QProfileDto;
 import org.sonar.db.qualityprofile.QualityProfileTesting;
 import org.sonar.server.exceptions.NotFoundException;
 import org.sonar.server.organization.DefaultOrganizationProvider;
@@ -39,6 +40,10 @@ import org.sonar.server.ws.TestRequest;
 import org.sonar.server.ws.WsActionTester;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.PARAM_LANGUAGE;
+import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.PARAM_ORGANIZATION;
+import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.PARAM_PROFILE;
+import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.PARAM_PROFILE_NAME;
 
 public class ChangelogActionDatabaseTest {
 
@@ -49,7 +54,7 @@ public class ChangelogActionDatabaseTest {
   @Rule
   public ExpectedException thrown = ExpectedException.none();
 
-  private WsActionTester wsTester;
+  private WsActionTester ws;
   private ChangelogLoader changelogLoader;
   private QProfileWsSupport wsSupport;
   private OrganizationDto organization;
@@ -60,18 +65,33 @@ public class ChangelogActionDatabaseTest {
     defaultOrganizationProvider = TestDefaultOrganizationProvider.from(dbTester);
     wsSupport = new QProfileWsSupport(dbTester.getDbClient(), userSession, defaultOrganizationProvider);
     changelogLoader = new ChangelogLoader(dbTester.getDbClient());
-    wsTester = new WsActionTester(
+    ws = new WsActionTester(
       new ChangelogAction(changelogLoader, wsSupport, new Languages(), dbTester.getDbClient()));
     organization = dbTester.organizations().insert();
   }
 
   @Test
-  public void find_changelog_by_profileKey() throws Exception {
-    QualityProfileDto qualityProfile = dbTester.qualityProfiles().insert(organization);
+  public void definition() {
+    WebService.Action definition = ws.getDef();
 
-    String response = wsTester.newRequest()
+    assertThat(definition.responseExampleAsString()).isNotEmpty();
+    assertThat(definition.params()).extracting(WebService.Param::key)
+      .containsExactlyInAnyOrder("profile", "profileName", "language", "organization", "since", "to", "p", "ps");
+    WebService.Param profile = definition.param("profile");
+    assertThat(profile.deprecatedKey()).isEqualTo("profileKey");
+    WebService.Param profileName = definition.param("profileName");
+    assertThat(profileName.deprecatedSince()).isEqualTo("6.5");
+    WebService.Param language = definition.param("language");
+    assertThat(language.deprecatedSince()).isEqualTo("6.5");
+  }
+
+  @Test
+  public void find_changelog_by_profile_key() throws Exception {
+    QProfileDto profile = dbTester.qualityProfiles().insert(organization);
+
+    String response = ws.newRequest()
       .setMethod("GET")
-      .setParam("profileKey", qualityProfile.getKey())
+      .setParam(PARAM_PROFILE, profile.getKee())
       .execute()
       .getInput();
 
@@ -80,12 +100,12 @@ public class ChangelogActionDatabaseTest {
 
   @Test
   public void find_changelog_by_language_and_name() throws Exception {
-    QualityProfileDto qualityProfile = dbTester.qualityProfiles().insert(dbTester.getDefaultOrganization());
+    QProfileDto qualityProfile = dbTester.qualityProfiles().insert(dbTester.getDefaultOrganization());
 
-    String response = wsTester.newRequest()
+    String response = ws.newRequest()
       .setMethod("GET")
-      .setParam("language", qualityProfile.getLanguage())
-      .setParam("profileName", qualityProfile.getName())
+      .setParam(PARAM_LANGUAGE, qualityProfile.getLanguage())
+      .setParam(PARAM_PROFILE_NAME, qualityProfile.getName())
       .execute()
       .getInput();
 
@@ -94,13 +114,13 @@ public class ChangelogActionDatabaseTest {
 
   @Test
   public void find_changelog_by_organization_and_language_and_name() throws Exception {
-    QualityProfileDto qualityProfile = dbTester.qualityProfiles().insert(organization);
+    QProfileDto qualityProfile = dbTester.qualityProfiles().insert(organization);
 
-    String response = wsTester.newRequest()
+    String response = ws.newRequest()
       .setMethod("GET")
-      .setParam("language", qualityProfile.getLanguage())
-      .setParam("profileName", qualityProfile.getName())
-      .setParam("organization", organization.getKey())
+      .setParam(PARAM_LANGUAGE, qualityProfile.getLanguage())
+      .setParam(PARAM_PROFILE_NAME, qualityProfile.getName())
+      .setParam(PARAM_ORGANIZATION, organization.getKey())
       .execute()
       .getInput();
 
@@ -112,13 +132,13 @@ public class ChangelogActionDatabaseTest {
     OrganizationDto organization1 = dbTester.organizations().insert();
     OrganizationDto organization2 = dbTester.organizations().insert();
 
-    QualityProfileDto qualityProfile = dbTester.qualityProfiles().insert(organization1);
+    QProfileDto qualityProfile = dbTester.qualityProfiles().insert(organization1);
 
-    TestRequest request = wsTester.newRequest()
+    TestRequest request = ws.newRequest()
       .setMethod("GET")
-      .setParam("language", qualityProfile.getLanguage())
-      .setParam("profileName", qualityProfile.getName())
-      .setParam("organization", organization2.getKey());
+      .setParam(PARAM_LANGUAGE, qualityProfile.getLanguage())
+      .setParam(PARAM_PROFILE_NAME, qualityProfile.getName())
+      .setParam(PARAM_ORGANIZATION, organization2.getKey());
 
     thrown.expect(NotFoundException.class);
 
@@ -127,11 +147,11 @@ public class ChangelogActionDatabaseTest {
 
   @Test
   public void changelog_empty() throws Exception {
-    QualityProfileDto qualityProfile = dbTester.qualityProfiles().insert(organization);
+    QProfileDto qualityProfile = dbTester.qualityProfiles().insert(organization);
 
-    String response = wsTester.newRequest()
+    String response = ws.newRequest()
       .setMethod("GET")
-      .setParam("profileKey", qualityProfile.getKey())
+      .setParam(PARAM_PROFILE, qualityProfile.getKee())
       .execute()
       .getInput();
 
@@ -141,18 +161,18 @@ public class ChangelogActionDatabaseTest {
 
   @Test
   public void changelog_not_empty() throws Exception {
-    QualityProfileDto qualityProfile = dbTester.qualityProfiles().insert(organization);
+    QProfileDto qualityProfile = dbTester.qualityProfiles().insert(organization);
     QProfileChangeDto change = QualityProfileTesting.newQProfileChangeDto()
-      .setKey(null)
+      .setUuid(null)
       .setCreatedAt(0)
-      .setProfileKey(qualityProfile.getKey());
+      .setRulesProfileUuid(qualityProfile.getRulesProfileUuid());
     DbSession session = dbTester.getSession();
     dbTester.getDbClient().qProfileChangeDao().insert(session, change);
     session.commit();
 
-    String response = wsTester.newRequest()
+    String response = ws.newRequest()
       .setMethod("GET")
-      .setParam("profileKey", qualityProfile.getKey())
+      .setParam(PARAM_PROFILE, qualityProfile.getKee())
       .execute()
       .getInput();
 

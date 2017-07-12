@@ -19,27 +19,25 @@
  */
 package org.sonar.scanner.scan.filesystem;
 
-import static java.nio.charset.StandardCharsets.UTF_16;
-import static java.nio.charset.StandardCharsets.UTF_16LE;
-import static java.nio.charset.StandardCharsets.UTF_16BE;
-import static java.nio.charset.StandardCharsets.UTF_8;
-
 import java.nio.charset.Charset;
 import java.util.Arrays;
-
 import javax.annotation.CheckForNull;
-
 import org.apache.commons.io.ByteOrderMark;
 import org.sonar.scanner.scan.filesystem.CharsetValidation.Result;
 import org.sonar.scanner.scan.filesystem.CharsetValidation.Validation;
+
+import static java.nio.charset.StandardCharsets.UTF_16;
+import static java.nio.charset.StandardCharsets.UTF_16BE;
+import static java.nio.charset.StandardCharsets.UTF_16LE;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class ByteCharsetDetector {
   // these needs to be sorted by longer first!
   private static final ByteOrderMark[] boms = {ByteOrderMark.UTF_8, ByteOrderMark.UTF_32LE, ByteOrderMark.UTF_32BE,
     ByteOrderMark.UTF_16LE, ByteOrderMark.UTF_16BE};
 
-  private Charset userConfiguration;
-  private CharsetValidation validator;
+  private final Charset userConfiguration;
+  private final CharsetValidation validator;
 
   public ByteCharsetDetector(CharsetValidation validator, Charset userConfiguration) {
     this.validator = validator;
@@ -67,6 +65,11 @@ public class ByteCharsetDetector {
     Charset c = userConfiguration;
     if (!UTF_8.equals(c) && (!isUtf16(c) || utf16.valid() == Validation.MAYBE) && validator.tryDecode(buf, c)) {
       return c;
+    }
+
+    Result windows1252 = validator.isValidWindows1252(buf);
+    if (windows1252.valid() == Validation.MAYBE) {
+      return windows1252.charset();
     }
 
     return null;

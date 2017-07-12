@@ -36,7 +36,6 @@ import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
 import org.sonar.db.DbTester;
 import org.sonar.db.component.ComponentDto;
-import org.sonar.db.component.ComponentTesting;
 import org.sonar.db.component.SnapshotDto;
 import org.sonar.db.metric.MetricDto;
 import org.sonar.server.component.TestComponentFinder;
@@ -59,6 +58,7 @@ import static org.sonar.api.utils.DateUtils.formatDateTime;
 import static org.sonar.api.utils.DateUtils.parseDateTime;
 import static org.sonar.core.util.Protobuf.setNullable;
 import static org.sonar.db.component.ComponentTesting.newFileDto;
+import static org.sonar.db.component.ComponentTesting.newPrivateProjectDto;
 import static org.sonar.db.component.SnapshotDto.STATUS_UNPROCESSED;
 import static org.sonar.db.component.SnapshotTesting.newAnalysis;
 import static org.sonar.db.measure.MeasureTesting.newMeasureDto;
@@ -93,7 +93,7 @@ public class SearchHistoryActionTest {
 
   @Before
   public void setUp() {
-    project = ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization());
+    project = newPrivateProjectDto(db.getDefaultOrganization());
     analysis = db.components().insertProjectAndSnapshot(project);
     userSession.addProjectPermission(UserRole.USER, project);
     nclocMetric = insertNclocMetric();
@@ -119,6 +119,22 @@ public class SearchHistoryActionTest {
     assertThat(result.getPaging()).extracting(Paging::getPageIndex, Paging::getPageSize, Paging::getTotal)
       // pagination is applied to the number of analyses
       .containsExactly(1, 100, 0);
+  }
+
+  @Test
+  public void analyses_but_no_measure() {
+    project = db.components().insertPrivateProject();
+    analysis = db.components().insertSnapshot(project);
+    userSession.addProjectPermission(UserRole.USER, project);
+    wsRequest
+      .setComponent(project.getKey())
+      .setMetrics(singletonList(complexityMetric.getKey()));
+
+    SearchHistoryResponse result = call();
+
+    assertThat(result.getPaging()).extracting(Paging::getPageIndex, Paging::getPageSize, Paging::getTotal).containsExactly(1, 100, 1);
+    assertThat(result.getMeasuresList()).hasSize(1);
+    assertThat(result.getMeasures(0).getHistoryList()).extracting(HistoryValue::hasDate, HistoryValue::hasValue).containsExactly(tuple(true, false));
   }
 
   @Test
@@ -162,8 +178,8 @@ public class SearchHistoryActionTest {
     // ncloc measures
     HistoryMeasure nclocMeasures = result.getMeasures(1);
     assertThat(nclocMeasures.getMetric()).isEqualTo(nclocMetric.getKey());
-    assertThat(nclocMeasures.getHistoryList()).extracting(HistoryValue::getDate, HistoryValue::getValue)
-      .containsExactly(tuple(analysisDate, "201"));
+    assertThat(nclocMeasures.getHistoryList()).extracting(HistoryValue::getDate, HistoryValue::getValue, HistoryValue::hasValue).containsExactly(
+      tuple(analysisDate, "201", true), tuple(laterAnalysisDate, "", false));
     // new_violation measures
     HistoryMeasure newViolationMeasures = result.getMeasures(2);
     assertThat(newViolationMeasures.getMetric()).isEqualTo(newViolationMetric.getKey());
@@ -226,7 +242,9 @@ public class SearchHistoryActionTest {
     // Best value is not applied to project
     wsRequest.setComponent(project.getKey());
     result = call();
-    assertThat(result.getMeasuresList().get(0).getHistoryCount()).isEqualTo(0);
+    assertThat(result.getMeasuresList().get(0).getHistoryCount()).isEqualTo(1);
+    assertThat(result.getMeasuresList().get(0).getHistory(0).hasDate()).isTrue();
+    assertThat(result.getMeasuresList().get(0).getHistory(0).hasValue()).isFalse();
   }
 
   @Test
@@ -249,7 +267,9 @@ public class SearchHistoryActionTest {
     SearchHistoryResponse result = call();
 
     assertThat(result.getMeasuresCount()).isEqualTo(1);
-    assertThat(result.getMeasures(0).getHistoryCount()).isEqualTo(0);
+    assertThat(result.getMeasures(0).getHistoryCount()).isEqualTo(1);
+    assertThat(result.getMeasures(0).getHistory(0).hasDate()).isTrue();
+    assertThat(result.getMeasures(0).getHistory(0).hasValue()).isFalse();
   }
 
   @Test
@@ -278,6 +298,21 @@ public class SearchHistoryActionTest {
     expectedException.expect(NotFoundException.class);
 
     call();
+  }
+
+  @Test
+  public void fail_when_component_is_removed() {
+    ComponentDto project = db.components().insertComponent(newPrivateProjectDto(db.getDefaultOrganization()));
+    db.components().insertComponent(newFileDto(project).setKey("file-key").setEnabled(false));
+    userSession.addProjectPermission(UserRole.USER, project);
+
+    expectedException.expect(NotFoundException.class);
+    expectedException.expectMessage("Component key 'file-key' not found");
+
+    ws.newRequest()
+      .setParam(PARAM_COMPONENT, "file-key")
+      .setParam(PARAM_METRICS, "ncloc")
+      .execute();
   }
 
   @Test

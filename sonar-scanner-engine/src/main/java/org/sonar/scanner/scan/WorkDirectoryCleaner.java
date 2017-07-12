@@ -19,21 +19,21 @@
  */
 package org.sonar.scanner.scan;
 
-import org.sonar.api.batch.bootstrap.ProjectReactor;
-import org.sonar.core.util.FileUtils;
-import org.sonar.home.cache.DirectoryLock;
-
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Iterator;
 
-public class WorkDirectoryCleaner {
-  private Path workDir;
+import org.sonar.api.batch.fs.internal.InputModuleHierarchy;
+import org.sonar.core.util.FileUtils;
+import org.sonar.home.cache.DirectoryLock;
 
-  public WorkDirectoryCleaner(ProjectReactor projectReactor) {
-    workDir = projectReactor.getRoot().getWorkDir().toPath();
+public class WorkDirectoryCleaner {
+  private final Path workDir;
+
+  public WorkDirectoryCleaner(InputModuleHierarchy moduleHierarchy) {
+    workDir = moduleHierarchy.root().getWorkDir().toPath();
   }
 
   public void execute() {

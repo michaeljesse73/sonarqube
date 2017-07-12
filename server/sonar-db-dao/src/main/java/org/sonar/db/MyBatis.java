@@ -55,6 +55,7 @@ import org.sonar.db.issue.IssueChangeDto;
 import org.sonar.db.issue.IssueChangeMapper;
 import org.sonar.db.issue.IssueDto;
 import org.sonar.db.issue.IssueMapper;
+import org.sonar.db.es.EsQueueMapper;
 import org.sonar.db.loadedtemplate.LoadedTemplateDto;
 import org.sonar.db.loadedtemplate.LoadedTemplateMapper;
 import org.sonar.db.measure.MeasureDto;
@@ -95,8 +96,8 @@ import org.sonar.db.qualitygate.QualityGateMapper;
 import org.sonar.db.qualityprofile.ActiveRuleDto;
 import org.sonar.db.qualityprofile.ActiveRuleMapper;
 import org.sonar.db.qualityprofile.ActiveRuleParamDto;
+import org.sonar.db.qualityprofile.DefaultQProfileMapper;
 import org.sonar.db.qualityprofile.QProfileChangeMapper;
-import org.sonar.db.qualityprofile.QualityProfileDto;
 import org.sonar.db.qualityprofile.QualityProfileMapper;
 import org.sonar.db.rule.RuleDto;
 import org.sonar.db.rule.RuleMapper;
@@ -165,7 +166,6 @@ public class MyBatis implements Startable {
     confBuilder.loadAlias("PurgeableAnalysis", PurgeableAnalysisDto.class);
     confBuilder.loadAlias("QualityGateCondition", QualityGateConditionDto.class);
     confBuilder.loadAlias("QualityGate", QualityGateDto.class);
-    confBuilder.loadAlias("QualityProfile", QualityProfileDto.class);
     confBuilder.loadAlias("RequirementMigration", RequirementMigrationDto.class);
     confBuilder.loadAlias("Resource", ResourceDto.class);
     confBuilder.loadAlias("RuleParam", RuleParamDto.class);
@@ -196,7 +196,9 @@ public class MyBatis implements Startable {
       ComponentLinkMapper.class,
       ComponentMapper.class,
       CustomMeasureMapper.class,
+      DefaultQProfileMapper.class,
       DuplicationMapper.class,
+      EsQueueMapper.class,
       EventMapper.class,
       FileSourceMapper.class,
       GroupMapper.class,
@@ -253,7 +255,7 @@ public class MyBatis implements Startable {
       return new BatchSession(session);
     }
     SqlSession session = sessionFactory.openSession(ExecutorType.REUSE);
-    return new DbSession(session);
+    return new DbSessionImpl(session);
   }
 
   /**

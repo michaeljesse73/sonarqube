@@ -41,11 +41,10 @@ type Props = {
 const LIST_SIZE = 10;
 
 export default class LanguagesFilter extends React.PureComponent {
-  getSearchOptions: () => [{ label: string, value: string }];
   props: Props;
   property = 'languages';
 
-  getSearchOptions(facet: {}, languages: {}) {
+  getSearchOptions(facet?: {}, languages: {}): Array<{ label: string, value: string }> {
     let languageKeys = Object.keys(languages);
     if (facet) {
       languageKeys = difference(languageKeys, Object.keys(facet));
@@ -81,7 +80,6 @@ export default class LanguagesFilter extends React.PureComponent {
         isFavorite={this.props.isFavorite}
         organization={this.props.organization}
         getFacetValueForOption={this.getFacetValueForOption}
-        highlightUnder={1}
         header={<FilterHeader name={translate('projects.facets.languages')} />}
         footer={
           <SearchableFilterFooter
