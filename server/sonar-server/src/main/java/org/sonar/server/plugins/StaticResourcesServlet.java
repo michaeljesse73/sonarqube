@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -23,7 +23,6 @@ import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -47,7 +46,7 @@ public class StaticResourcesServlet extends HttpServlet {
   private static final long serialVersionUID = -2577454614650178426L;
 
   @Override
-  public void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+  public void doGet(HttpServletRequest request, HttpServletResponse response) {
     String pluginKey = getPluginKey(request);
     String resource = getResourcePath(request);
     InputStream in = null;
@@ -69,7 +68,7 @@ public class StaticResourcesServlet extends HttpServlet {
         silentlySendError(response, SC_NOT_FOUND);
       }
     } catch (ClientAbortException e) {
-      LOG.trace(format("Client canceled loading resource [%s] from plugin [%s]", resource, pluginKey), e);
+      LOG.trace("Client canceled loading resource [{}] from plugin [{}]: {}", resource, pluginKey, e);
     } catch (Exception e) {
       LOG.error(format("Unable to load resource [%s] from plugin [%s]", resource, pluginKey), e);
       silentlySendError(response, SC_INTERNAL_SERVER_ERROR);
@@ -92,7 +91,7 @@ public class StaticResourcesServlet extends HttpServlet {
     try {
       response.sendError(error);
     } catch (IOException e) {
-      LOG.trace(format("Failed to send error code %s", error), e);
+      LOG.trace("Failed to send error code {}: {}", error, e);
     }
   }
 

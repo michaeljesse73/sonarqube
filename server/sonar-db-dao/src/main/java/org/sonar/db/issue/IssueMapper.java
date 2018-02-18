@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,24 +19,37 @@
  */
 package org.sonar.db.issue;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.session.ResultHandler;
+import org.sonar.db.component.ComponentDto;
 
 public interface IssueMapper {
 
   IssueDto selectByKey(String key);
 
-  void selectNonClosedByComponentUuid(@Param("componentUuid") String componentUuid, ResultHandler<IssueDto> resultHandler);
-
   Set<String> selectComponentUuidsOfOpenIssuesForProjectUuid(String projectUuid);
 
   List<IssueDto> selectByKeys(List<String> keys);
+
+  List<ShortBranchIssueDto> selectOpenByComponentUuids(List<String> componentUuids);
 
   void insert(IssueDto issue);
 
   int update(IssueDto issue);
 
   int updateIfBeforeSelectedDate(IssueDto issue);
+
+  void scrollNonClosedByComponentUuid(@Param("componentUuid") String componentUuid, ResultHandler<IssueDto> handler);
+
+  void scrollNonClosedByModuleOrProject(
+    @Param("projectUuid") String projectUuid,
+    @Param("likeModuleUuidPath") String likeModuleUuidPath,
+    ResultHandler<IssueDto> handler);
+
+  Collection<IssueGroupDto> selectIssueGroupsByBaseComponent(
+    @Param("baseComponent") ComponentDto baseComponent,
+    @Param("leakPeriodBeginningDate") long leakPeriodBeginningDate);
 }

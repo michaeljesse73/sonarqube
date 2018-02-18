@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -31,7 +31,7 @@ import org.sonar.server.ws.WsTester;
 public class MeasuresWsTest {
   WsTester ws = new WsTester(
     new MeasuresWs(
-      new ComponentTreeAction(mock(ComponentTreeDataLoader.class), mock(I18n.class), mock(ResourceTypes.class))));
+      new ComponentAction(null, null, null)));
 
   @Test
   public void define_ws() {

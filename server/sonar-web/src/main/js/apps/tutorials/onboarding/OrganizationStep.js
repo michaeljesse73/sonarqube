@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,14 +19,15 @@
  */
 // @flow
 import React from 'react';
-import Select from 'react-select';
 import classNames from 'classnames';
 import { sortBy } from 'lodash';
 import Step from './Step';
 import NewOrganizationForm from './NewOrganizationForm';
-import { getMyOrganizations } from '../../../api/organizations';
+import { getOrganizations } from '../../../api/organizations';
+import Select from '../../../components/controls/Select';
 import { translate } from '../../../helpers/l10n';
 
+/*::
 type Props = {|
   currentUser: { login: string, isLoggedIn: boolean },
   finished: boolean,
@@ -35,19 +36,23 @@ type Props = {|
   open: boolean,
   stepNumber: number
 |};
+*/
 
+/*::
 type State = {
   loading: boolean,
   newOrganization?: string,
   existingOrganization?: string,
   existingOrganizations: Array<string>,
+  personalOrganization?: string,
   selection: 'personal' | 'existing' | 'new'
 };
+*/
 
 export default class OrganizationStep extends React.PureComponent {
-  mounted: boolean;
-  props: Props;
-  state: State = {
+  /*:: mounted: boolean; */
+  /*:: props: Props; */
+  state /*: State */ = {
     loading: true,
     existingOrganizations: [],
     selection: 'personal'
@@ -63,14 +68,23 @@ export default class OrganizationStep extends React.PureComponent {
   }
 
   fetchOrganizations = () => {
-    getMyOrganizations().then(
-      organizations => {
+    getOrganizations({ member: true }).then(
+      ({ organizations }) => {
         if (this.mounted) {
+          const organizationKeys = organizations.filter(o => o.isAdmin).map(o => o.key);
+          // best guess: if there is only one organization, then it is personal
+          // otherwise, we can't guess, let's display them all as just "existing organizations"
+          const personalOrganization =
+            organizationKeys.length === 1 ? organizationKeys[0] : undefined;
+          const existingOrganizations = organizationKeys.length > 1 ? sortBy(organizationKeys) : [];
+          const selection = personalOrganization
+            ? 'personal'
+            : existingOrganizations.length > 0 ? 'existing' : 'new';
           this.setState({
             loading: false,
-            existingOrganizations: sortBy(
-              organizations.filter(organization => organization !== this.props.currentUser.login)
-            )
+            existingOrganizations,
+            personalOrganization,
+            selection
           });
         }
       },
@@ -85,7 +99,7 @@ export default class OrganizationStep extends React.PureComponent {
   getSelectedOrganization = () => {
     switch (this.state.selection) {
       case 'personal':
-        return this.props.currentUser.login;
+        return this.state.personalOrganization;
       case 'existing':
         return this.state.existingOrganization;
       case 'new':
@@ -95,22 +109,22 @@ export default class OrganizationStep extends React.PureComponent {
     }
   };
 
-  handlePersonalClick = (event: Event) => {
+  handlePersonalClick = (event /*: Event */) => {
     event.preventDefault();
     this.setState({ selection: 'personal' });
   };
 
-  handleExistingClick = (event: Event) => {
+  handleExistingClick = (event /*: Event */) => {
     event.preventDefault();
     this.setState({ selection: 'existing' });
   };
 
-  handleNewClick = (event: Event) => {
+  handleNewClick = (event /*: Event */) => {
     event.preventDefault();
     this.setState({ selection: 'new' });
   };
 
-  handleOrganizationCreate = (newOrganization: string) => {
+  handleOrganizationCreate = (newOrganization /*: string */) => {
     this.setState({ newOrganization });
   };
 
@@ -118,11 +132,11 @@ export default class OrganizationStep extends React.PureComponent {
     this.setState({ newOrganization: undefined });
   };
 
-  handleExistingOrganizationSelect = ({ value }: { value: string }) => {
+  handleExistingOrganizationSelect = ({ value } /*: { value: string } */) => {
     this.setState({ existingOrganization: value });
   };
 
-  handleContinueClick = (event: Event) => {
+  handleContinueClick = (event /*: Event */) => {
     event.preventDefault();
     const organization = this.getSelectedOrganization();
     if (organization) {
@@ -139,7 +153,7 @@ export default class OrganizationStep extends React.PureComponent {
           })}
         />
         {translate('onboarding.organization.my_personal_organization')}
-        <span className="note spacer-left">{this.props.currentUser.login}</span>
+        <span className="note spacer-left">{this.state.personalOrganization}</span>
       </a>
     </div>
   );
@@ -157,7 +171,7 @@ export default class OrganizationStep extends React.PureComponent {
         />
         {translate('onboarding.organization.exising_organization')}
       </a>
-      {this.state.selection === 'existing' &&
+      {this.state.selection === 'existing' && (
         <div className="big-spacer-top">
           <Select
             className="input-super-large"
@@ -169,7 +183,8 @@ export default class OrganizationStep extends React.PureComponent {
             }))}
             value={this.state.existingOrganization}
           />
-        </div>}
+        </div>
+      )}
     </div>
   );
 
@@ -186,14 +201,15 @@ export default class OrganizationStep extends React.PureComponent {
         />
         {translate('onboarding.organization.create_another_organization')}
       </a>
-      {this.state.selection === 'new' &&
+      {this.state.selection === 'new' && (
         <div className="big-spacer-top">
           <NewOrganizationForm
             onDelete={this.handleOrganizationDelete}
             onDone={this.handleOrganizationCreate}
             organization={this.state.newOrganization}
           />
-        </div>}
+        </div>
+      )}
     </div>
   );
 
@@ -204,16 +220,24 @@ export default class OrganizationStep extends React.PureComponent {
           {translate('onboarding.organization.text')}
         </div>
 
-        {this.renderPersonalOrganizationOption()}
-        {this.state.existingOrganizations.length > 0 && this.renderExistingOrganizationOption()}
-        {this.renderNewOrganizationOption()}
+        {this.state.loading ? (
+          <i className="spinner" />
+        ) : (
+          <div>
+            {this.state.personalOrganization && this.renderPersonalOrganizationOption()}
+            {this.state.existingOrganizations.length > 0 && this.renderExistingOrganizationOption()}
+            {this.renderNewOrganizationOption()}
+          </div>
+        )}
 
         {this.getSelectedOrganization() != null &&
-          <div className="big-spacer-top">
-            <button className="js-continue" onClick={this.handleContinueClick}>
-              {translate('continue')}
-            </button>
-          </div>}
+          !this.state.loading && (
+            <div className="big-spacer-top">
+              <button className="js-continue" onClick={this.handleContinueClick}>
+                {translate('continue')}
+              </button>
+            </div>
+          )}
       </div>
     );
   };
@@ -221,12 +245,12 @@ export default class OrganizationStep extends React.PureComponent {
   renderResult = () => {
     const result = this.getSelectedOrganization();
 
-    return result != null
-      ? <div className="boxed-group-actions">
-          <i className="icon-check spacer-right" />
-          <strong>{result}</strong>
-        </div>
-      : null;
+    return result != null ? (
+      <div className="boxed-group-actions">
+        <i className="icon-check spacer-right" />
+        <strong>{result}</strong>
+      </div>
+    ) : null;
   };
 
   render() {

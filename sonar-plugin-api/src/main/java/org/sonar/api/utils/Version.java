@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -218,7 +218,7 @@ public class Version implements Comparable<Version> {
         c = patch - other.patch;
         if (c == 0) {
           long diff = buildNumber - other.buildNumber;
-          c = diff > 0 ? 1 : (diff < 0 ? -1 : 0);
+          c = (diff > 0) ? 1 : ((diff < 0) ? -1 : 0);
         }
       }
     }

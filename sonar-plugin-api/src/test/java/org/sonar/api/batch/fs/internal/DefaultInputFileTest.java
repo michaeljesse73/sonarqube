@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -34,6 +34,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.stream.Collectors;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -46,34 +47,56 @@ import static org.mockito.Mockito.mock;
 
 public class DefaultInputFileTest {
 
+  private static final String PROJECT_RELATIVE_PATH = "module1/src/Foo.php";
+  private static final String MODULE_RELATIVE_PATH = "src/Foo.php";
+
   @Rule
   public TemporaryFolder temp = new TemporaryFolder();
 
+  private DefaultIndexedFile indexedFile;
+
+  private Path baseDir;
+  private SensorStrategy sensorStrategy;
+
+  @Before
+  public void prepare() throws IOException {
+    baseDir = temp.newFolder().toPath();
+    sensorStrategy = new SensorStrategy();
+    indexedFile = new DefaultIndexedFile(baseDir.resolve(PROJECT_RELATIVE_PATH), "ABCDE", PROJECT_RELATIVE_PATH, MODULE_RELATIVE_PATH, InputFile.Type.TEST, "php", 0,
+      sensorStrategy);
+  }
+
   @Test
   public void test() throws Exception {
-    Path baseDir = temp.newFolder().toPath();
 
     Metadata metadata = new Metadata(42, 42, "", new int[0], 0);
-    DefaultIndexedFile indexedFile = new DefaultIndexedFile("ABCDE", baseDir, "src/Foo.php", InputFile.Type.TEST, "php", 0);
     DefaultInputFile inputFile = new DefaultInputFile(indexedFile, (f) -> f.setMetadata(metadata))
       .setStatus(InputFile.Status.ADDED)
       .setCharset(StandardCharsets.ISO_8859_1);
 
-    assertThat(inputFile.relativePath()).isEqualTo("src/Foo.php");
-    assertThat(new File(inputFile.relativePath())).isRelative();
     assertThat(inputFile.absolutePath()).endsWith("Foo.php");
+    assertThat(inputFile.filename()).isEqualTo("Foo.php");
+    assertThat(inputFile.uri()).hasPath(baseDir.resolve(PROJECT_RELATIVE_PATH).toUri().getPath());
     assertThat(new File(inputFile.absolutePath())).isAbsolute();
     assertThat(inputFile.language()).isEqualTo("php");
     assertThat(inputFile.status()).isEqualTo(InputFile.Status.ADDED);
     assertThat(inputFile.type()).isEqualTo(InputFile.Type.TEST);
     assertThat(inputFile.lines()).isEqualTo(42);
     assertThat(inputFile.charset()).isEqualTo(StandardCharsets.ISO_8859_1);
+
+    assertThat(inputFile.getModuleRelativePath()).isEqualTo(MODULE_RELATIVE_PATH);
+    assertThat(inputFile.getProjectRelativePath()).isEqualTo(PROJECT_RELATIVE_PATH);
+
+    assertThat(inputFile.relativePath()).isEqualTo(MODULE_RELATIVE_PATH);
+    assertThat(new File(inputFile.relativePath())).isRelative();
+    sensorStrategy.setGlobal(true);
+    assertThat(inputFile.relativePath()).isEqualTo(PROJECT_RELATIVE_PATH);
+    assertThat(new File(inputFile.relativePath())).isRelative();
   }
 
   @Test
   public void test_content() throws IOException {
-    Path baseDir = temp.newFolder().toPath();
-    Path testFile = baseDir.resolve("src").resolve("Foo.php");
+    Path testFile = baseDir.resolve(PROJECT_RELATIVE_PATH);
     Files.createDirectories(testFile.getParent());
     String content = "test é string";
     Files.write(testFile, content.getBytes(StandardCharsets.ISO_8859_1));
@@ -82,7 +105,7 @@ public class DefaultInputFileTest {
 
     Metadata metadata = new Metadata(42, 30, "", new int[0], 0);
 
-    DefaultInputFile inputFile = new DefaultInputFile(new DefaultIndexedFile("ABCDE", baseDir, "src/Foo.php", InputFile.Type.TEST, "php", 0), f -> f.setMetadata(metadata))
+    DefaultInputFile inputFile = new DefaultInputFile(indexedFile, f -> f.setMetadata(metadata))
       .setStatus(InputFile.Status.ADDED)
       .setCharset(StandardCharsets.ISO_8859_1);
 
@@ -96,8 +119,7 @@ public class DefaultInputFileTest {
 
   @Test
   public void test_content_exclude_bom() throws IOException {
-    Path baseDir = temp.newFolder().toPath();
-    Path testFile = baseDir.resolve("src").resolve("Foo.php");
+    Path testFile = baseDir.resolve(PROJECT_RELATIVE_PATH);
     Files.createDirectories(testFile.getParent());
     try (BufferedWriter out = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(testFile.toFile()), StandardCharsets.UTF_8))) {
       out.write('\ufeff');
@@ -109,7 +131,7 @@ public class DefaultInputFileTest {
 
     Metadata metadata = new Metadata(42, 30, "", new int[0], 0);
 
-    DefaultInputFile inputFile = new DefaultInputFile(new DefaultIndexedFile("ABCDE", baseDir, "src/Foo.php", InputFile.Type.TEST, "php", 0), f -> f.setMetadata(metadata))
+    DefaultInputFile inputFile = new DefaultInputFile(indexedFile, f -> f.setMetadata(metadata))
       .setStatus(InputFile.Status.ADDED)
       .setCharset(StandardCharsets.UTF_8);
 
@@ -123,8 +145,8 @@ public class DefaultInputFileTest {
 
   @Test
   public void test_equals_and_hashcode() throws Exception {
-    DefaultInputFile f1 = new DefaultInputFile(new DefaultIndexedFile("ABCDE", Paths.get("module"), "src/Foo.php", null), (f) -> mock(Metadata.class));
-    DefaultInputFile f1a = new DefaultInputFile(new DefaultIndexedFile("ABCDE", Paths.get("module"), "src/Foo.php", null), (f) -> mock(Metadata.class));
+    DefaultInputFile f1 = new DefaultInputFile(new DefaultIndexedFile("ABCDE", Paths.get("module"), MODULE_RELATIVE_PATH, null), (f) -> mock(Metadata.class));
+    DefaultInputFile f1a = new DefaultInputFile(new DefaultIndexedFile("ABCDE", Paths.get("module"), MODULE_RELATIVE_PATH, null), (f) -> mock(Metadata.class));
     DefaultInputFile f2 = new DefaultInputFile(new DefaultIndexedFile("ABCDE", Paths.get("module"), "src/Bar.php", null), (f) -> mock(Metadata.class));
 
     assertThat(f1).isEqualTo(f1);
@@ -139,14 +161,14 @@ public class DefaultInputFileTest {
 
   @Test
   public void test_toString() throws Exception {
-    DefaultInputFile file = new DefaultInputFile(new DefaultIndexedFile("ABCDE", Paths.get("module"), "src/Foo.php", null), (f) -> mock(Metadata.class));
-    assertThat(file.toString()).isEqualTo("[moduleKey=ABCDE, relative=src/Foo.php, basedir=module]");
+    DefaultInputFile file = new DefaultInputFile(new DefaultIndexedFile("ABCDE", Paths.get("module"), MODULE_RELATIVE_PATH, null), (f) -> mock(Metadata.class));
+    assertThat(file.toString()).isEqualTo(MODULE_RELATIVE_PATH);
   }
 
   @Test
   public void checkValidPointer() {
     Metadata metadata = new Metadata(2, 2, "", new int[] {0, 10}, 15);
-    DefaultInputFile file = new DefaultInputFile(new DefaultIndexedFile("ABCDE", Paths.get("module"), "src/Foo.php", null), f -> f.setMetadata(metadata));
+    DefaultInputFile file = new DefaultInputFile(new DefaultIndexedFile("ABCDE", Paths.get("module"), MODULE_RELATIVE_PATH, null), f -> f.setMetadata(metadata));
     assertThat(file.newPointer(1, 0).line()).isEqualTo(1);
     assertThat(file.newPointer(1, 0).lineOffset()).isEqualTo(0);
     // Don't fail
@@ -164,7 +186,7 @@ public class DefaultInputFileTest {
       file.newPointer(3, 1);
       fail();
     } catch (Exception e) {
-      assertThat(e).hasMessage("3 is not a valid line for pointer. File [moduleKey=ABCDE, relative=src/Foo.php, basedir=module] has 2 line(s)");
+      assertThat(e).hasMessage("3 is not a valid line for pointer. File src/Foo.php has 2 line(s)");
     }
     try {
       file.newPointer(1, -1);
@@ -176,14 +198,14 @@ public class DefaultInputFileTest {
       file.newPointer(1, 10);
       fail();
     } catch (Exception e) {
-      assertThat(e).hasMessage("10 is not a valid line offset for pointer. File [moduleKey=ABCDE, relative=src/Foo.php, basedir=module] has 9 character(s) at line 1");
+      assertThat(e).hasMessage("10 is not a valid line offset for pointer. File src/Foo.php has 9 character(s) at line 1");
     }
   }
 
   @Test
   public void checkValidPointerUsingGlobalOffset() {
     Metadata metadata = new Metadata(2, 2, "", new int[] {0, 10}, 15);
-    DefaultInputFile file = new DefaultInputFile(new DefaultIndexedFile("ABCDE", Paths.get("module"), "src/Foo.php", null), f -> f.setMetadata(metadata));
+    DefaultInputFile file = new DefaultInputFile(new DefaultIndexedFile("ABCDE", Paths.get("module"), MODULE_RELATIVE_PATH, null), f -> f.setMetadata(metadata));
     assertThat(file.newPointer(0).line()).isEqualTo(1);
     assertThat(file.newPointer(0).lineOffset()).isEqualTo(0);
 
@@ -207,14 +229,14 @@ public class DefaultInputFileTest {
       file.newPointer(16);
       fail();
     } catch (Exception e) {
-      assertThat(e).hasMessage("16 is not a valid offset for file [moduleKey=ABCDE, relative=src/Foo.php, basedir=module]. Max offset is 15");
+      assertThat(e).hasMessage("16 is not a valid offset for file src/Foo.php. Max offset is 15");
     }
   }
 
   @Test
   public void checkValidRange() {
     Metadata metadata = new FileMetadata().readMetadata(new StringReader("bla bla a\nabcde"));
-    DefaultInputFile file = new DefaultInputFile(new DefaultIndexedFile("ABCDE", Paths.get("module"), "src/Foo.php", null), f -> f.setMetadata(metadata));
+    DefaultInputFile file = new DefaultInputFile(new DefaultIndexedFile("ABCDE", Paths.get("module"), MODULE_RELATIVE_PATH, null), f -> f.setMetadata(metadata));
 
     assertThat(file.newRange(file.newPointer(1, 0), file.newPointer(2, 1)).start().line()).isEqualTo(1);
     // Don't fail
@@ -233,14 +255,14 @@ public class DefaultInputFileTest {
       file.newRange(file.newPointer(1, 0), file.newPointer(1, 10));
       fail();
     } catch (Exception e) {
-      assertThat(e).hasMessage("10 is not a valid line offset for pointer. File [moduleKey=ABCDE, relative=src/Foo.php, basedir=module] has 9 character(s) at line 1");
+      assertThat(e).hasMessage("10 is not a valid line offset for pointer. File src/Foo.php has 9 character(s) at line 1");
     }
   }
 
   @Test
   public void selectLine() {
     Metadata metadata = new FileMetadata().readMetadata(new StringReader("bla bla a\nabcde\n\nabc"));
-    DefaultInputFile file = new DefaultInputFile(new DefaultIndexedFile("ABCDE", Paths.get("module"), "src/Foo.php", null), f -> f.setMetadata(metadata));
+    DefaultInputFile file = new DefaultInputFile(new DefaultIndexedFile("ABCDE", Paths.get("module"), MODULE_RELATIVE_PATH, null), f -> f.setMetadata(metadata));
 
     assertThat(file.selectLine(1).start().line()).isEqualTo(1);
     assertThat(file.selectLine(1).start().lineOffset()).isEqualTo(0);
@@ -257,14 +279,14 @@ public class DefaultInputFileTest {
       file.selectLine(5);
       fail();
     } catch (Exception e) {
-      assertThat(e).hasMessage("5 is not a valid line for pointer. File [moduleKey=ABCDE, relative=src/Foo.php, basedir=module] has 4 line(s)");
+      assertThat(e).hasMessage("5 is not a valid line for pointer. File src/Foo.php has 4 line(s)");
     }
   }
 
   @Test
   public void checkValidRangeUsingGlobalOffset() {
     Metadata metadata = new Metadata(2, 2, "", new int[] {0, 10}, 15);
-    DefaultInputFile file = new DefaultInputFile(new DefaultIndexedFile("ABCDE", Paths.get("module"), "src/Foo.php", null), f -> f.setMetadata(metadata));
+    DefaultInputFile file = new DefaultInputFile(new DefaultIndexedFile("ABCDE", Paths.get("module"), MODULE_RELATIVE_PATH, null), f -> f.setMetadata(metadata));
     TextRange newRange = file.newRange(10, 13);
     assertThat(newRange.start().line()).isEqualTo(2);
     assertThat(newRange.start().lineOffset()).isEqualTo(0);
@@ -275,7 +297,7 @@ public class DefaultInputFileTest {
   @Test
   public void testRangeOverlap() {
     Metadata metadata = new Metadata(2, 2, "", new int[] {0, 10}, 15);
-    DefaultInputFile file = new DefaultInputFile(new DefaultIndexedFile("ABCDE", Paths.get("module"), "src/Foo.php", null), f -> f.setMetadata(metadata));
+    DefaultInputFile file = new DefaultInputFile(new DefaultIndexedFile("ABCDE", Paths.get("module"), MODULE_RELATIVE_PATH, null), f -> f.setMetadata(metadata));
     // Don't fail
     assertThat(file.newRange(file.newPointer(1, 0), file.newPointer(1, 1)).overlap(file.newRange(file.newPointer(1, 0), file.newPointer(1, 1)))).isTrue();
     assertThat(file.newRange(file.newPointer(1, 0), file.newPointer(1, 1)).overlap(file.newRange(file.newPointer(1, 0), file.newPointer(1, 2)))).isTrue();

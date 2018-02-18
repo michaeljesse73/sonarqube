@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -72,7 +72,7 @@ public class HttpsTrustTest {
   }
 
   @Test
-  public void testAlwaysTrustManager() throws Exception {
+  public void testAlwaysTrustManager() {
     HttpsTrust.AlwaysTrustManager manager = new HttpsTrust.AlwaysTrustManager();
     assertThat(manager.getAcceptedIssuers()).isEmpty();
     // does nothing

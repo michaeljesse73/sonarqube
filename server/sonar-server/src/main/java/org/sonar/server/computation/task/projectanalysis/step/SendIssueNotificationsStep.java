@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,15 +19,26 @@
  */
 package org.sonar.server.computation.task.projectanalysis.step;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Date;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.function.Predicate;
+import org.sonar.api.issue.Issue;
+import org.sonar.api.utils.Duration;
 import org.sonar.core.issue.DefaultIssue;
 import org.sonar.core.util.CloseableIterator;
 import org.sonar.server.computation.task.projectanalysis.analysis.AnalysisMetadataHolder;
+import org.sonar.server.computation.task.projectanalysis.analysis.Branch;
 import org.sonar.server.computation.task.projectanalysis.component.Component;
+import org.sonar.server.computation.task.projectanalysis.component.CrawlerDepthLimit;
+import org.sonar.server.computation.task.projectanalysis.component.DepthTraversalTypeAwareCrawler;
 import org.sonar.server.computation.task.projectanalysis.component.TreeRootHolder;
+import org.sonar.server.computation.task.projectanalysis.component.TypeAwareVisitorAdapter;
 import org.sonar.server.computation.task.projectanalysis.issue.IssueCache;
 import org.sonar.server.computation.task.projectanalysis.issue.RuleRepository;
 import org.sonar.server.computation.task.step.ComputationStep;
@@ -37,6 +48,8 @@ import org.sonar.server.issue.notification.NewIssuesNotification;
 import org.sonar.server.issue.notification.NewIssuesNotificationFactory;
 import org.sonar.server.issue.notification.NewIssuesStatistics;
 import org.sonar.server.notification.NotificationService;
+
+import static org.sonar.server.computation.task.projectanalysis.component.ComponentVisitor.Order.POST_ORDER;
 
 /**
  * Reads issues from disk cache and send related notifications. For performance reasons,
@@ -54,7 +67,8 @@ public class SendIssueNotificationsStep implements ComputationStep {
   private final TreeRootHolder treeRootHolder;
   private final NotificationService service;
   private final AnalysisMetadataHolder analysisMetadataHolder;
-  private NewIssuesNotificationFactory newIssuesNotificationFactory;
+  private final NewIssuesNotificationFactory newIssuesNotificationFactory;
+  private Map<String, Component> componentsByDbKey;
 
   public SendIssueNotificationsStep(IssueCache issueCache, RuleRepository rules, TreeRootHolder treeRootHolder,
     NotificationService service, AnalysisMetadataHolder analysisMetadataHolder,
@@ -76,18 +90,26 @@ public class SendIssueNotificationsStep implements ComputationStep {
   }
 
   private void doExecute(Component project) {
-    NewIssuesStatistics newIssuesStats = new NewIssuesStatistics();
-    CloseableIterator<DefaultIssue> issues = issueCache.traverse();
-    try {
+    long analysisDate = analysisMetadataHolder.getAnalysisDate();
+    Predicate<DefaultIssue> isOnLeakPredicate = i -> i.isNew() && i.creationDate().getTime() >= truncateToSeconds(analysisDate);
+    NewIssuesStatistics newIssuesStats = new NewIssuesStatistics(isOnLeakPredicate);
+    try (CloseableIterator<DefaultIssue> issues = issueCache.traverse()) {
       processIssues(newIssuesStats, issues, project);
-    } finally {
-      issues.close();
     }
-    if (newIssuesStats.hasIssues()) {
-      long analysisDate = analysisMetadataHolder.getAnalysisDate();
+    if (newIssuesStats.hasIssuesOnLeak()) {
       sendNewIssuesNotification(newIssuesStats, project, analysisDate);
       sendNewIssuesNotificationToAssignees(newIssuesStats, project, analysisDate);
     }
+  }
+
+  /**
+   * Truncated the analysis date to seconds before comparing it to {@link Issue#creationDate()} is required because
+   * {@link DefaultIssue#setCreationDate(Date)} does it.
+   */
+  private static long truncateToSeconds(long analysisDate) {
+    Instant instant = new Date(analysisDate).toInstant();
+    instant = instant.truncatedTo(ChronoUnit.SECONDS);
+    return Date.from(instant).getTime();
   }
 
   private void processIssues(NewIssuesStatistics newIssuesStats, CloseableIterator<DefaultIssue> issues, Component project) {
@@ -105,7 +127,8 @@ public class SendIssueNotificationsStep implements ComputationStep {
     IssueChangeNotification changeNotification = new IssueChangeNotification();
     changeNotification.setRuleName(rules.getByKey(issue.ruleKey()).getName());
     changeNotification.setIssue(issue);
-    changeNotification.setProject(project.getKey(), project.getName());
+    changeNotification.setProject(project.getPublicKey(), project.getName(), getBranchName());
+    getComponentKey(issue).ifPresent(c -> changeNotification.setComponent(c.getPublicKey(), c.getName()));
     service.deliver(changeNotification);
   }
 
@@ -113,34 +136,58 @@ public class SendIssueNotificationsStep implements ComputationStep {
     NewIssuesStatistics.Stats globalStatistics = statistics.globalStatistics();
     NewIssuesNotification notification = newIssuesNotificationFactory
       .newNewIssuesNotication()
-      .setProject(project.getKey(), project.getUuid(), project.getName())
+      .setProject(project.getPublicKey(), project.getName(), getBranchName())
+      .setProjectVersion(project.getReportAttributes().getVersion())
       .setAnalysisDate(new Date(analysisDate))
       .setStatistics(project.getName(), globalStatistics)
-      .setDebt(globalStatistics.debt());
+      .setDebt(Duration.create(globalStatistics.effort().getOnLeak()));
     service.deliver(notification);
   }
 
   private void sendNewIssuesNotificationToAssignees(NewIssuesStatistics statistics, Component project, long analysisDate) {
-    // send email to each user having issues
-    for (Map.Entry<String, NewIssuesStatistics.Stats> assigneeAndStatisticsTuple : statistics.assigneesStatistics().entrySet()) {
-      String assignee = assigneeAndStatisticsTuple.getKey();
-      NewIssuesStatistics.Stats assigneeStatistics = assigneeAndStatisticsTuple.getValue();
-      MyNewIssuesNotification myNewIssuesNotification = newIssuesNotificationFactory
-        .newMyNewIssuesNotification()
-        .setAssignee(assignee);
-      myNewIssuesNotification
-        .setProject(project.getKey(), project.getUuid(), project.getName())
-        .setAnalysisDate(new Date(analysisDate))
-        .setStatistics(project.getName(), assigneeStatistics)
-        .setDebt(assigneeStatistics.debt());
+    statistics.getAssigneesStatistics().entrySet()
+      .stream()
+      .filter(e -> e.getValue().hasIssuesOnLeak())
+      .forEach(e -> {
+        String assignee = e.getKey();
+        NewIssuesStatistics.Stats assigneeStatistics = e.getValue();
+        MyNewIssuesNotification myNewIssuesNotification = newIssuesNotificationFactory
+          .newMyNewIssuesNotification()
+          .setAssignee(assignee);
+        myNewIssuesNotification
+          .setProject(project.getPublicKey(), project.getName(), getBranchName())
+          .setProjectVersion(project.getReportAttributes().getVersion())
+          .setAnalysisDate(new Date(analysisDate))
+          .setStatistics(project.getName(), assigneeStatistics)
+          .setDebt(Duration.create(assigneeStatistics.effort().getOnLeak()));
 
-      service.deliver(myNewIssuesNotification);
+        service.deliver(myNewIssuesNotification);
+      });
+  }
+
+  private Optional<Component> getComponentKey(DefaultIssue issue) {
+    if (componentsByDbKey == null) {
+      final ImmutableMap.Builder<String, Component> builder = ImmutableMap.builder();
+      new DepthTraversalTypeAwareCrawler(
+        new TypeAwareVisitorAdapter(CrawlerDepthLimit.LEAVES, POST_ORDER) {
+          @Override
+          public void visitAny(Component component) {
+            builder.put(component.getKey(), component);
+          }
+        }).visit(this.treeRootHolder.getRoot());
+      this.componentsByDbKey = builder.build();
     }
+    return Optional.ofNullable(componentsByDbKey.get(issue.componentKey()));
   }
 
   @Override
   public String getDescription() {
     return "Send issue notifications";
+  }
+
+  private String getBranchName() {
+    Branch branch = analysisMetadataHolder.getBranch();
+    return branch.isMain() ? null : branch.getName();
   }
 
 }

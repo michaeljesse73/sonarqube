@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,7 +24,6 @@ import com.sonar.orchestrator.build.BuildResult;
 import com.sonar.orchestrator.build.SonarScanner;
 import com.sonar.orchestrator.locator.FileLocation;
 import com.sonar.orchestrator.locator.ResourceLocation;
-import org.sonarqube.tests.Category3Suite;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -36,12 +35,13 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
-import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.skyscreamer.jsonassert.JSONAssert;
+import org.sonarqube.qa.util.Tester;
+import org.sonarqube.tests.Category3Suite;
 import org.sonarqube.ws.client.GetRequest;
 import org.sonarqube.ws.client.WsResponse;
 import util.ItUtils;
@@ -60,23 +60,21 @@ public class IssueJsonReportTest {
   @Rule
   public TemporaryFolder temp = new TemporaryFolder();
 
-  @Before
-  public void resetData() {
-    orchestrator.resetData();
-  }
+  @Rule
+  public Tester tester = new Tester(orchestrator).disableOrganizations();
 
   @Test
-  public void issue_line() throws IOException {
+  public void issue_line() {
     ItUtils.restoreProfile(orchestrator, getClass().getResource(RESOURCE_PATH + "one-issue-per-line.xml"));
     orchestrator.getServer().provisionProject("sample", "xoo-sample");
     orchestrator.getServer().associateProjectToQualityProfile("sample", "xoo", "one-issue-per-line");
 
     File projectDir = ItUtils.projectDir("shared/xoo-sample");
-    SonarScanner runner = SonarScanner.create(projectDir,
+    SonarScanner scanner = SonarScanner.create(projectDir,
       "sonar.analysis.mode", "issues",
       "sonar.verbose", "true",
       "sonar.report.export.path", "sonar-report.json");
-    BuildResult result = orchestrator.executeBuild(runner);
+    BuildResult result = orchestrator.executeBuild(scanner);
     assertThat(ItUtils.countIssuesInJsonReport(result, true)).isEqualTo(17);
 
     JSONObject obj = ItUtils.getJSONReport(result);
@@ -100,17 +98,17 @@ public class IssueJsonReportTest {
   }
 
   @Test
-  public void precise_issue_location() throws IOException {
+  public void precise_issue_location() {
     ItUtils.restoreProfile(orchestrator, getClass().getResource(RESOURCE_PATH + "multiline.xml"));
     orchestrator.getServer().provisionProject("sample-multiline", "xoo-sample");
     orchestrator.getServer().associateProjectToQualityProfile("sample-multiline", "xoo", "multiline");
 
     File projectDir = ItUtils.projectDir("shared/xoo-precise-issues");
-    SonarScanner runner = SonarScanner.create(projectDir,
+    SonarScanner scanner = SonarScanner.create(projectDir,
       "sonar.analysis.mode", "issues",
       "sonar.verbose", "true",
       "sonar.report.export.path", "sonar-report.json");
-    BuildResult result = orchestrator.executeBuild(runner);
+    BuildResult result = orchestrator.executeBuild(scanner);
     assertThat(ItUtils.countIssuesInJsonReport(result, true)).isEqualTo(2);
 
     JSONObject obj = ItUtils.getJSONReport(result);
@@ -301,7 +299,7 @@ public class IssueJsonReportTest {
     return ItUtils.sanitizeTimezones(s);
   }
 
-  private InputStream getResourceInputStream(String resource) throws FileNotFoundException {
+  private InputStream getResourceInputStream(String resource) {
     ResourceLocation res = getResource(resource);
     return getClass().getResourceAsStream(res.getPath());
   }

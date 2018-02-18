@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,7 +20,6 @@
 package org.sonar.server.user;
 
 import java.util.Arrays;
-import java.util.Random;
 import javax.annotation.Nullable;
 import org.junit.Before;
 import org.junit.Rule;
@@ -40,9 +39,12 @@ import org.sonar.server.exceptions.ForbiddenException;
 import org.sonar.server.organization.TestDefaultOrganizationProvider;
 import org.sonar.server.organization.TestOrganizationFlags;
 
+import static com.google.common.base.Preconditions.checkState;
+import static java.util.Arrays.asList;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonar.core.permission.GlobalPermissions.PROVISIONING;
 import static org.sonar.core.permission.GlobalPermissions.SYSTEM_ADMIN;
+import static org.sonar.db.component.ComponentTesting.newChildComponent;
 import static org.sonar.db.permission.OrganizationPermission.ADMINISTER;
 import static org.sonar.db.permission.OrganizationPermission.PROVISION_PROJECTS;
 import static org.sonar.db.permission.OrganizationPermission.SCAN;
@@ -50,8 +52,8 @@ import static org.sonar.db.permission.OrganizationPermission.SCAN;
 public class ServerUserSessionTest {
   private static final String LOGIN = "marius";
 
-  private static final String PUBLIC_PROJECT_UUID = "public project";
-  private static final String PRIVATE_PROJECT_UUID = "private project";
+  private static final String PUBLIC_PROJECT_UUID = "public_project";
+  private static final String PRIVATE_PROJECT_UUID = "private_project";
   private static final String FILE_KEY = "com.foo:Bar:BarFile.xoo";
   private static final String FILE_UUID = "BCDE";
   private static final UserDto ROOT_USER_DTO = new UserDto() {
@@ -84,13 +86,13 @@ public class ServerUserSessionTest {
     organization = db.organizations().insert();
     publicProject = db.components().insertPublicProject(organization, PUBLIC_PROJECT_UUID);
     privateProject = db.components().insertPrivateProject(organization, dto -> dto.setUuid(PRIVATE_PROJECT_UUID).setProjectUuid(PRIVATE_PROJECT_UUID).setPrivate(true));
-    db.components().insertComponent(ComponentTesting.newFileDto(publicProject, null, FILE_UUID).setKey(FILE_KEY));
+    db.components().insertComponent(ComponentTesting.newFileDto(publicProject, null, FILE_UUID).setDbKey(FILE_KEY));
     user = db.users().insertUser(LOGIN);
     groupOfUser = db.users().insertGroup(organization);
   }
 
   @Test
-  public void anonymous_is_not_logged_in_and_does_not_have_login() throws Exception {
+  public void anonymous_is_not_logged_in_and_does_not_have_login() {
     UserSession session = newAnonymousSession();
 
     assertThat(session.getLogin()).isNull();
@@ -135,6 +137,22 @@ public class ServerUserSessionTest {
   public void isRoot_is_false_is_flag_root_is_false_on_UserDto() {
     assertThat(newUserSession(ROOT_USER_DTO).isRoot()).isTrue();
     assertThat(newUserSession(NON_ROOT_USER_DTO).isRoot()).isFalse();
+  }
+
+  @Test
+  public void checkIsRoot_throws_IPFE_if_flag_root_is_false_on_UserDto() {
+    UserSession underTest = newUserSession(NON_ROOT_USER_DTO);
+
+    expectInsufficientPrivilegesForbiddenException();
+
+    underTest.checkIsRoot();
+  }
+
+  @Test
+  public void checkIsRoot_does_not_fail_if_flag_root_is_true_on_UserDto() {
+    UserSession underTest = newUserSession(ROOT_USER_DTO);
+
+    assertThat(underTest.checkIsRoot()).isSameAs(underTest);
   }
 
   @Test
@@ -390,7 +408,10 @@ public class ServerUserSessionTest {
   }
 
   private boolean hasComponentPermissionByDtoOrUuid(UserSession underTest, String permission, ComponentDto component) {
-    return new Random().nextBoolean() ? underTest.hasComponentPermission(permission, component) : underTest.hasComponentUuidPermission(permission, component.uuid());
+    boolean b1 = underTest.hasComponentPermission(permission, component);
+    boolean b2 = underTest.hasComponentUuidPermission(permission, component.uuid());
+    checkState(b1 == b2, "Different behaviors");
+    return b1;
   }
 
   @Test
@@ -425,6 +446,17 @@ public class ServerUserSessionTest {
 
     assertThat(underTest.keepAuthorizedComponents(UserRole.ADMIN, Arrays.asList(privateProject, publicProject)))
       .containsExactly(privateProject, publicProject);
+  }
+
+  @Test
+  public void keepAuthorizedComponents_on_branches() {
+    user = db.users().insertUser();
+    db.users().insertProjectPermissionOnUser(user, UserRole.ADMIN, privateProject);
+    ComponentDto privateBranchProject = db.components().insertProjectBranch(privateProject);
+    UserSession underTest = newUserSession(user);
+
+    assertThat(underTest.keepAuthorizedComponents(UserRole.ADMIN, asList(privateProject, privateBranchProject)))
+      .containsExactlyInAnyOrder(privateProject, privateBranchProject);
   }
 
   @Test
@@ -510,6 +542,20 @@ public class ServerUserSessionTest {
     expectedException.expectMessage("Insufficient privileges");
 
     session.checkIsSystemAdministrator();
+  }
+
+  @Test
+  public void hasComponentPermission_on_branch_checks_permissions_of_its_project() {
+    ComponentDto branch = db.components().insertProjectBranch(privateProject, b -> b.setKey("feature/foo"));
+    ComponentDto fileInBranch = db.components().insertComponent(newChildComponent("fileUuid", branch, branch));
+
+    // permissions are defined on the project, not on the branch
+    db.users().insertProjectPermissionOnUser(user, "p1", privateProject);
+
+    UserSession underTest = newUserSession(user);
+    assertThat(hasComponentPermissionByDtoOrUuid(underTest, "p1", privateProject)).isTrue();
+    assertThat(hasComponentPermissionByDtoOrUuid(underTest, "p1", branch)).isTrue();
+    assertThat(hasComponentPermissionByDtoOrUuid(underTest, "p1", fileInBranch)).isTrue();
   }
 
   private ServerUserSession newUserSession(@Nullable UserDto userDto) {

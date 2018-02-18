@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -60,7 +60,7 @@ public class DeprecatedPropertiesWsFilterTest {
   }
 
   @Test
-  public void do_get_pattern() throws Exception {
+  public void do_get_pattern() {
     assertThat(underTest.doGetPattern().matches("/api/properties")).isTrue();
     assertThat(underTest.doGetPattern().matches("/api/properties/")).isTrue();
     assertThat(underTest.doGetPattern().matches("/api/properties/my.property")).isTrue();
@@ -305,7 +305,7 @@ public class DeprecatedPropertiesWsFilterTest {
     }
 
     @Override
-    public int read() throws IOException {
+    public int read() {
       return byteArrayInputStream.read();
     }
   }

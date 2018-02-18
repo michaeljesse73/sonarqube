@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,9 +22,11 @@ import React from 'react';
 import { Link } from 'react-router';
 import { translate } from '../../../helpers/l10n';
 
+/*::
 type Props = { onClose: () => void };
+*/
 
-export default function LinksHelpSonarCloud({ onClose }: Props) {
+export default function LinksHelpSonarCloud({ onClose } /*: Props */) {
   return (
     <div>
       <h2 className="spacer-top spacer-bottom">{translate('help.section.links')}</h2>
@@ -50,11 +52,13 @@ export default function LinksHelpSonarCloud({ onClose }: Props) {
       </p>
 
       <p className="spacer-bottom">
-        <Link to="/web_api" onClick={onClose}>{translate('footer.web_api')}</Link>
+        <Link to="/web_api" onClick={onClose}>
+          {translate('footer.web_api')}
+        </Link>
       </p>
 
       <p>
-        <Link to="/about" onClick={onClose}>{translate('footer.about')}</Link>
+        <a href="https://about.sonarcloud.io/">{translate('footer.about')}</a>
       </p>
     </div>
   );

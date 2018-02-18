@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,7 +21,7 @@ package org.sonar.scanner.rule;
 
 import org.sonar.api.utils.DateUtils;
 
-import org.sonarqube.ws.QualityProfiles.SearchWsResponse.QualityProfile;
+import org.sonarqube.ws.Qualityprofiles.SearchWsResponse.QualityProfile;
 import org.sonar.api.batch.ScannerSide;
 
 import javax.annotation.CheckForNull;

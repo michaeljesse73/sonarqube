@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -87,7 +87,7 @@ public class GroupMembershipDaoTest {
   }
 
   @Test
-  public void count_groups_only_from_given_organization() throws Exception {
+  public void count_groups_only_from_given_organization() {
     OrganizationDto otherOrganization = db.organizations().insert();
     GroupDto otherGroup = db.users().insertGroup(otherOrganization, "sonar-administrators-other_orga");
     db.users().insertMember(group1, user1);

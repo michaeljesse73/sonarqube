@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,16 +21,17 @@ package org.sonar.db.rule;
 
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 import org.apache.commons.lang.StringUtils;
-import org.apache.commons.lang.builder.EqualsBuilder;
 import org.apache.commons.lang.builder.HashCodeBuilder;
 import org.sonar.api.rule.RuleKey;
 import org.sonar.api.rule.RuleStatus;
 import org.sonar.api.rules.RuleType;
+import org.sonar.db.rule.RuleDto.Scope;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
@@ -54,8 +55,11 @@ public class RuleDefinitionDto {
   private String gapDescription;
   private String systemTags;
   private int type;
+  private Scope scope;
 
   private RuleKey key;
+
+  private String pluginKey;
 
   private long createdAt;
   private long updatedAt;
@@ -103,6 +107,7 @@ public class RuleDefinitionDto {
   public RuleDefinitionDto setRuleKey(RuleKey ruleKey) {
     this.repositoryKey = ruleKey.repository();
     this.ruleKey = ruleKey.rule();
+    this.key = ruleKey;
     return this;
   }
 
@@ -293,31 +298,47 @@ public class RuleDefinitionDto {
     return this;
   }
 
+  public Scope getScope() {
+    return this.scope;
+  }
+
+  public RuleDefinitionDto setScope(Scope scope) {
+    this.scope = scope;
+    return this;
+  }
+
+  @CheckForNull
+  public String getPluginKey() {
+    return pluginKey;
+  }
+
+  public RuleDefinitionDto setPluginKey(@Nullable String pluginKey) {
+    this.pluginKey = pluginKey;
+    return this;
+  }
+
   @Override
   public boolean equals(Object obj) {
-    if (!(obj instanceof RuleDto)) {
+    if (!(obj instanceof RuleDefinitionDto)) {
       return false;
     }
     if (this == obj) {
       return true;
     }
-    RuleDto other = (RuleDto) obj;
-    return new EqualsBuilder()
-      .append(repositoryKey, other.getRepositoryKey())
-      .append(ruleKey, other.getRuleKey())
-      .isEquals();
+    RuleDefinitionDto other = (RuleDefinitionDto) obj;
+    return Objects.equals(id, other.id);
   }
 
   @Override
   public int hashCode() {
     return new HashCodeBuilder(17, 37)
-      .append(repositoryKey)
-      .append(ruleKey)
+      .append(id)
       .toHashCode();
   }
 
   public static RuleDto createFor(RuleKey key) {
     return new RuleDto()
+      .setId(new HashCodeBuilder(17, 37).append(key.rule()).append(key.repository()).toHashCode())
       .setRepositoryKey(key.repository())
       .setRuleKey(key.rule());
   }
@@ -346,6 +367,7 @@ public class RuleDefinitionDto {
       ", key=" + key +
       ", createdAt=" + createdAt +
       ", updatedAt=" + updatedAt +
+      ", scope=" + scope +
       '}';
   }
 }

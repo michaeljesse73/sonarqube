@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -26,7 +26,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.CheckForNull;
-import org.sonarqube.ws.client.issue.SearchWsRequest;
+import org.sonar.server.issue.SearchRequest;
 
 public enum SearchAdditionalField {
 
@@ -38,7 +38,8 @@ public enum SearchAdditionalField {
   DEPRECATED_ACTION_PLANS("actionPlans"),
   COMMENTS("comments"),
   LANGUAGES("languages"),
-  RULES("rules"),
+  // may contain strings representing rule ids (from ES facets) or string representing ruleKeys (from HTTP request)
+  RULE_IDS_AND_KEYS("rules"),
   TRANSITIONS("transitions"),
   USERS("users");
 
@@ -68,7 +69,7 @@ public enum SearchAdditionalField {
     return possibles;
   }
 
-  public static EnumSet<SearchAdditionalField> getFromRequest(SearchWsRequest request) {
+  public static EnumSet<SearchAdditionalField> getFromRequest(SearchRequest request) {
     List<String> labels = request.getAdditionalFields();
     if (labels == null) {
       return EnumSet.noneOf(SearchAdditionalField.class);

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -81,6 +81,7 @@ public final class Page {
   public enum Qualifier {
     PROJECT(org.sonar.api.resources.Qualifiers.PROJECT),
     MODULE(org.sonar.api.resources.Qualifiers.MODULE),
+    APP(org.sonar.api.resources.Qualifiers.APP),
     VIEW(org.sonar.api.resources.Qualifiers.VIEW),
     SUB_VIEW(org.sonar.api.resources.Qualifiers.SUBVIEW);
 

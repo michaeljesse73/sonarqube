@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -29,16 +29,16 @@ import java.util.Optional;
 import java.util.function.BinaryOperator;
 import javax.annotation.Nullable;
 import org.apache.commons.io.IOUtils;
-import org.sonar.api.CoreProperties;
 import org.sonar.api.config.Configuration;
 import org.sonar.api.utils.MessageException;
 import org.sonar.scanner.bootstrap.ScannerWsClient;
-import org.sonarqube.ws.QualityProfiles.SearchWsResponse;
-import org.sonarqube.ws.QualityProfiles.SearchWsResponse.QualityProfile;
+import org.sonarqube.ws.Qualityprofiles.SearchWsResponse;
+import org.sonarqube.ws.Qualityprofiles.SearchWsResponse.QualityProfile;
 import org.sonarqube.ws.client.GetRequest;
 
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toMap;
+import static org.sonar.core.config.ScannerProperties.ORGANIZATION;
 import static org.sonar.scanner.util.ScannerUtils.encodeForUrl;
 
 public class DefaultQualityProfileLoader implements QualityProfileLoader {
@@ -82,7 +82,7 @@ public class DefaultQualityProfileLoader implements QualityProfileLoader {
   }
 
   private Optional<String> getOrganizationKey() {
-    return settings.get(CoreProperties.PROJECT_ORGANIZATION_PROPERTY);
+    return settings.get(ORGANIZATION);
   }
 
   private Map<String, QualityProfile> call(String url) {

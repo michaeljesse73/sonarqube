@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,22 +19,26 @@
  */
 // @flow
 import React from 'react';
-import Select from 'react-select';
 import { connect } from 'react-redux';
+import Select from '../../../components/controls/Select';
 import { translate } from '../../../helpers/l10n';
 import { getLanguages } from '../../../store/rootReducer';
 
+/*::
 type Option = { label: string, value: string };
+*/
 
+/*::
 type Props = {|
   languages: Array<{ key: string, name: string }>,
   onSelect: (value: string) => void
 |};
+*/
 
 class LanguageFacetFooter extends React.PureComponent {
-  props: Props;
+  /*:: props: Props; */
 
-  handleChange = (option: Option) => {
+  handleChange = (option /*: Option */) => {
     this.props.onSelect(option.value);
   };
 
@@ -52,7 +56,7 @@ class LanguageFacetFooter extends React.PureComponent {
           noResultsText={translate('select2.noMatches')}
           onChange={this.handleChange}
           options={options}
-          placeholder={translate('search_verb')}
+          placeholder={translate('search.search_for_languages')}
           searchable={true}
         />
       </div>

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -32,9 +32,7 @@ export default function FineGrainedUpdate(props) {
           {components.map(component => (
             <tr key={component.key}>
               <td className="width-40">
-                <QualifierIcon qualifier={component.qualifier} />
-                {' '}
-                {component.name}
+                <QualifierIcon qualifier={component.qualifier} /> {component.name}
               </td>
               <td>
                 <UpdateKeyForm component={component} onKeyChange={props.onKeyChange} />

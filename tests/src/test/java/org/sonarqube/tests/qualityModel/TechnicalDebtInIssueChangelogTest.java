@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,21 +21,18 @@ package org.sonarqube.tests.qualityModel;
 
 import com.sonar.orchestrator.Orchestrator;
 import com.sonar.orchestrator.build.SonarScanner;
-import org.sonarqube.tests.Category2Suite;
 import java.util.List;
-import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
-import org.sonar.wsclient.issue.Issue;
-import org.sonar.wsclient.issue.IssueClient;
-import org.sonar.wsclient.issue.IssueQuery;
+import org.sonarqube.qa.util.Tester;
 import org.sonarqube.ws.Issues;
+import org.sonarqube.ws.client.issues.ChangelogRequest;
+import org.sonarqube.ws.client.issues.SearchRequest;
 import util.ItUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
-import static util.ItUtils.newAdminWsClient;
 import static util.ItUtils.projectDir;
 
 /**
@@ -44,18 +41,13 @@ import static util.ItUtils.projectDir;
 public class TechnicalDebtInIssueChangelogTest {
 
   @ClassRule
-  public static Orchestrator orchestrator = Category2Suite.ORCHESTRATOR;
+  public static Orchestrator orchestrator = QualityModelSuite.ORCHESTRATOR;
 
   @Rule
-  public DebtConfigurationRule debtConfiguration = DebtConfigurationRule.create(orchestrator);
-
-  @Before
-  public void deleteAnalysisData() {
-    orchestrator.resetData();
-  }
+  public Tester tester = new Tester(orchestrator);
 
   @Test
-  public void display_debt_in_issue_changelog() throws Exception {
+  public void display_debt_in_issue_changelog() {
     ItUtils.restoreProfile(orchestrator, getClass().getResource("/qualityModel/one-issue-per-file.xml"));
     orchestrator.getServer().provisionProject("sample", "sample");
     orchestrator.getServer().associateProjectToQualityProfile("sample", "xoo", "one-issue-per-file");
@@ -67,18 +59,17 @@ public class TechnicalDebtInIssueChangelogTest {
     orchestrator.executeBuild(SonarScanner.create(projectDir("shared/xoo-sample"))
       .setProperties("sonar.oneIssuePerFile.effortToFix", "10"));
 
-    IssueClient issueClient = orchestrator.getServer().wsClient().issueClient();
-    Issue issue = issueClient.find(IssueQuery.create()).list().get(0);
+    Issues.Issue firstIssue = tester.wsClient().issues().search(new SearchRequest()).getIssues(0);
 
-    List<Issues.ChangelogWsResponse.Changelog> changes = changelog(issue.key()).getChangelogList();
+    List<Issues.ChangelogWsResponse.Changelog> changes = changelog(firstIssue.getKey()).getChangelogList();
     assertThat(changes).hasSize(1);
     assertThat(changes.get(0).getDiffsList())
       .extracting(Issues.ChangelogWsResponse.Changelog.Diff::getKey, Issues.ChangelogWsResponse.Changelog.Diff::getOldValue, Issues.ChangelogWsResponse.Changelog.Diff::getNewValue)
       .containsOnly(tuple("effort", "10", "100"));
   }
 
-  private static Issues.ChangelogWsResponse changelog(String issueKey) {
-    return newAdminWsClient(orchestrator).issues().changelog(issueKey);
+  private Issues.ChangelogWsResponse changelog(String issueKey) {
+    return tester.wsClient().issues().changelog(new ChangelogRequest().setIssue(issueKey));
   }
 
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,7 +19,6 @@
  */
 package org.sonar.api.rules;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
 import com.google.common.collect.ImmutableMap;
@@ -113,7 +112,6 @@ public final class AnnotationRuleParser {
       .build(),
     PropertyType.STRING);
 
-  @VisibleForTesting
   static PropertyType guessType(Class<?> type) {
     return TYPE_FOR_CLASS.apply(type);
   }

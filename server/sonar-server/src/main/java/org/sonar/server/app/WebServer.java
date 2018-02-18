@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,7 +21,7 @@ package org.sonar.server.app;
 
 import com.google.common.collect.ImmutableMap;
 import java.io.File;
-import org.sonar.process.DefaultProcessCommands;
+import org.sonar.process.sharedmemoryfile.DefaultProcessCommands;
 import org.sonar.process.MinimumViableSystem;
 import org.sonar.process.Monitored;
 import org.sonar.process.ProcessEntryPoint;

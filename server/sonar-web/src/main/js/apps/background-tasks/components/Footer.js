@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,12 +19,12 @@
  */
 /* @flow */
 import React from 'react';
-import { Task } from '../types';
+/*:: import type { Task } from '../types'; */
 import { translateWithParameters } from '../../../helpers/l10n';
 
 const LIMIT = 1000;
 
-const Footer = ({ tasks }: { tasks: Task[] }) => {
+const Footer = ({ tasks } /*: { tasks: Task[] } */) => {
   if (tasks.length < LIMIT) {
     return null;
   }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,6 +22,7 @@ import React from 'react';
 import LocationIndex from '../../../components/common/LocationIndex';
 import LocationMessage from '../../../components/common/LocationMessage';
 
+/*::
 type Props = {
   index: number,
   message: string,
@@ -29,10 +30,11 @@ type Props = {
   scroll: HTMLElement => void,
   selected: boolean
 };
+*/
 
 export default class ConciseIssueLocationsNavigatorLocation extends React.PureComponent {
-  node: HTMLElement;
-  props: Props;
+  /*:: node: HTMLElement; */
+  /*:: props: Props; */
 
   componentDidMount() {
     if (this.props.selected) {
@@ -40,13 +42,13 @@ export default class ConciseIssueLocationsNavigatorLocation extends React.PureCo
     }
   }
 
-  componentDidUpdate(prevProps: Props) {
+  componentDidUpdate(prevProps /*: Props */) {
     if (this.props.selected && prevProps.selected !== this.props.selected) {
       this.props.scroll(this.node);
     }
   }
 
-  handleClick = (event: Event) => {
+  handleClick = (event /*: Event */) => {
     event.preventDefault();
     this.props.onClick(this.props.index);
   };
@@ -58,12 +60,8 @@ export default class ConciseIssueLocationsNavigatorLocation extends React.PureCo
           className="consice-issue-locations-navigator-location"
           href="#"
           onClick={this.handleClick}>
-          <LocationIndex selected={this.props.selected}>
-            {this.props.index + 1}
-          </LocationIndex>
-          <LocationMessage selected={this.props.selected}>
-            {this.props.message}
-          </LocationMessage>
+          <LocationIndex selected={this.props.selected}>{this.props.index + 1}</LocationIndex>
+          <LocationMessage selected={this.props.selected}>{this.props.message}</LocationMessage>
         </a>
       </div>
     );

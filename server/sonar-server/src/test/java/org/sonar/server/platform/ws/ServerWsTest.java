@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -52,7 +52,7 @@ public class ServerWsTest {
   }
 
   @Test
-  public void test_example_of_version() throws Exception {
+  public void test_example_of_version() {
     WebService.Action versionAction = tester.action("api/server", "version");
     assertThat(versionAction.responseExampleAsString()).isEqualTo("6.3.0.1234");
   }

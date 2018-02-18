@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,58 +21,51 @@
 import React from 'react';
 import classNames from 'classnames';
 import { Link } from 'react-router';
-import { DrilldownLink } from '../../../components/shared/drilldown-link';
-import Measure from '../../component-measures/components/Measure';
+import DrilldownLink from '../../../components/shared/DrilldownLink';
+import Measure from '../../../components/measure/Measure';
+import IssueTypeIcon from '../../../components/ui/IssueTypeIcon';
 import { getPeriodValue, isDiffMetric, formatMeasure } from '../../../helpers/measures';
 import { translate } from '../../../helpers/l10n';
 import { getComponentIssuesUrl } from '../../../helpers/urls';
-import IssueTypeIcon from '../../../components/ui/IssueTypeIcon';
-import type { Component } from '../types';
+/*:: import type { Component } from '../types'; */
+/*:: import type { MeasureEnhanced } from '../../../components/measure/types'; */
 
 export default class QualityGateCondition extends React.PureComponent {
-  props: {
+  /*:: props: {
+    branch?: string,
     component: Component,
     condition: {
       level: string,
-      measure: {
-        metric: {
-          key: string,
-          name: string,
-          type: string
-        },
-        value: string
-      },
+      measure: MeasureEnhanced,
       op: string,
       period: number,
       error: string,
       warning: string
     }
   };
+*/
 
-  getDecimalsNumber(threshold: number, value: number) {
+  getDecimalsNumber(threshold /*: number */, value /*: number */) /*: ?number */ {
     const delta = Math.abs(threshold - value);
     if (delta < 0.1 && delta > 0) {
-      //$FlowFixMe The matching result can't null because of the previous check
-      return delta.toFixed(20).match('[^0\.]').index - 1;
+      //$FlowFixMe The matching result can't be null because of the previous check
+      return delta.toFixed(20).match('[^0.]').index - 1;
     }
   }
 
-  getIssuesUrl(sinceLeakPeriod: boolean, customQuery: {}) {
-    const query: Object = {
-      resolved: 'false',
-      ...customQuery
-    };
+  getIssuesUrl = (sinceLeakPeriod /*: boolean */, customQuery /*: {} */) => {
+    const query /*: Object */ = { resolved: 'false', branch: this.props.branch, ...customQuery };
     if (sinceLeakPeriod) {
       Object.assign(query, { sinceLeakPeriod: 'true' });
     }
     return getComponentIssuesUrl(this.props.component.key, query);
-  }
+  };
 
-  getUrlForCodeSmells(sinceLeakPeriod: boolean) {
+  getUrlForCodeSmells(sinceLeakPeriod /*: boolean */) {
     return this.getIssuesUrl(sinceLeakPeriod, { types: 'CODE_SMELL' });
   }
 
-  getUrlForBugsOrVulnerabilities(type: string, sinceLeakPeriod: boolean) {
+  getUrlForBugsOrVulnerabilities(type /*: string */, sinceLeakPeriod /*: boolean */) {
     const RATING_TO_SEVERITIES_MAPPING = [
       'BLOCKER,CRITICAL,MAJOR,MINOR',
       'BLOCKER,CRITICAL,MAJOR',
@@ -89,14 +82,14 @@ export default class QualityGateCondition extends React.PureComponent {
     });
   }
 
-  getUrlForType(type: string, sinceLeakPeriod: boolean) {
+  getUrlForType(type /*: string */, sinceLeakPeriod /*: boolean */) {
     return type === 'CODE_SMELL'
       ? this.getUrlForCodeSmells(sinceLeakPeriod)
       : this.getUrlForBugsOrVulnerabilities(type, sinceLeakPeriod);
   }
 
-  wrapWithLink(children: React.Element<*>) {
-    const { component, condition } = this.props;
+  wrapWithLink(children /*: React.Element<*> */) {
+    const { branch, component, condition } = this.props;
 
     const className = classNames(
       'overview-quality-gate-condition',
@@ -115,22 +108,24 @@ export default class QualityGateCondition extends React.PureComponent {
       new_maintainability_rating: ['CODE_SMELL', true]
     };
 
-    return RATING_METRICS_MAPPING[metricKey]
-      ? <Link to={this.getUrlForType(...RATING_METRICS_MAPPING[metricKey])} className={className}>
-          {children}
-        </Link>
-      : <DrilldownLink
-          className={className}
-          component={component.key}
-          metric={condition.measure.metric.key}
-          sinceLeakPeriod={condition.period != null}>
-          {children}
-        </DrilldownLink>;
+    return RATING_METRICS_MAPPING[metricKey] ? (
+      <Link to={this.getUrlForType(...RATING_METRICS_MAPPING[metricKey])} className={className}>
+        {children}
+      </Link>
+    ) : (
+      <DrilldownLink
+        branch={branch}
+        className={className}
+        component={component.key}
+        metric={condition.measure.metric.key}
+        sinceLeakPeriod={condition.period != null}>
+        {children}
+      </DrilldownLink>
+    );
   }
 
   render() {
     const { condition } = this.props;
-
     const { measure } = condition;
     const { metric } = measure;
 
@@ -151,7 +146,12 @@ export default class QualityGateCondition extends React.PureComponent {
     return this.wrapWithLink(
       <div className="overview-quality-gate-condition-container">
         <div className="overview-quality-gate-condition-value">
-          <Measure measure={{ value: actual, leak: actual }} metric={metric} decimals={decimals} />
+          <Measure
+            decimals={decimals}
+            value={actual}
+            metricKey={measure.metric.key}
+            metricType={measure.metric.type}
+          />
         </div>
 
         <div>
@@ -160,10 +160,11 @@ export default class QualityGateCondition extends React.PureComponent {
             {metric.name}
           </div>
           {!isDiff &&
-            condition.period != null &&
-            <div className="overview-quality-gate-condition-period">
-              {translate('quality_gates.conditions.leak')}
-            </div>}
+            condition.period != null && (
+              <div className="overview-quality-gate-condition-period">
+                {translate('quality_gates.conditions.leak')}
+              </div>
+            )}
           <div className="overview-quality-gate-threshold">
             {operator} {formatMeasure(threshold, metric.type)}
           </div>

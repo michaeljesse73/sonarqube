@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -34,32 +34,31 @@ public class ComponentTextSearchQueryFactoryTest {
   public ExpectedException expectedException = ExpectedException.none();
 
   @Test
-  public void create_query() throws Exception {
+  public void create_query() {
     QueryBuilder result = createQuery(ComponentTextSearchQuery.builder()
       .setQueryText("SonarQube").setFieldKey("key").setFieldName("name").build(),
       ComponentTextSearchFeatureRepertoire.KEY);
 
     assertJson(result.toString()).isSimilarTo("{" +
       "  \"bool\" : {" +
-      "    \"must\" : {" +
+      "    \"must\" : [{" +
       "      \"bool\" : {" +
-      "        \"should\" : {" +
+      "        \"should\" : [{" +
       "          \"match\" : {" +
       "            \"key.sortable_analyzer\" : {" +
       "              \"query\" : \"SonarQube\"," +
-      "              \"type\" : \"boolean\"," +
       "              \"boost\" : 50.0\n" +
       "            }" +
       "          }" +
-      "        }" +
+      "        }]" +
       "      }" +
-      "    }" +
+      "    }]" +
       "  }" +
       "}");
   }
 
   @Test
-  public void fail_to_create_query_when_no_feature() throws Exception {
+  public void fail_to_create_query_when_no_feature() {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("features cannot be empty");
 
@@ -68,7 +67,7 @@ public class ComponentTextSearchQueryFactoryTest {
   }
 
   @Test
-  public void fail_to_create_query_when_no_query_text() throws Exception {
+  public void fail_to_create_query_when_no_query_text() {
     expectedException.expect(NullPointerException.class);
     expectedException.expectMessage("query text cannot be null");
 
@@ -76,7 +75,7 @@ public class ComponentTextSearchQueryFactoryTest {
   }
 
   @Test
-  public void fail_to_create_query_when_no_field_key() throws Exception {
+  public void fail_to_create_query_when_no_field_key() {
     expectedException.expect(NullPointerException.class);
     expectedException.expectMessage("field key cannot be null");
 
@@ -84,7 +83,7 @@ public class ComponentTextSearchQueryFactoryTest {
   }
 
   @Test
-  public void fail_to_create_query_when_no_field_name() throws Exception {
+  public void fail_to_create_query_when_no_field_name() {
     expectedException.expect(NullPointerException.class);
     expectedException.expectMessage("field name cannot be null");
 

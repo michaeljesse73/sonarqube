@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -27,18 +27,22 @@ import BugIcon from '../../../components/icons-components/BugIcon';
 import VulnerabilityIcon from '../../../components/icons-components/VulnerabilityIcon';
 import CodeSmellIcon from '../../../components/icons-components/CodeSmellIcon';
 
+/*::
 type Props = {
   bugs: ?number,
   codeSmells: ?number,
   loading: boolean,
   vulnerabilities: ?number
 };
+*/
 
-export default function EntryIssueTypes({ bugs, codeSmells, loading, vulnerabilities }: Props) {
+export default function EntryIssueTypes(
+  { bugs, codeSmells, loading, vulnerabilities } /*: Props */
+) {
   return (
     <div className="about-page-projects">
       {loading && <i className="spinner" />}
-      {!loading &&
+      {!loading && (
         <table className="about-page-issue-types">
           <tbody>
             <tr>
@@ -50,7 +54,9 @@ export default function EntryIssueTypes({ bugs, codeSmells, loading, vulnerabili
                 </Link>
               </td>
               <td>
-                <span className="little-spacer-right"><BugIcon /></span>
+                <span className="little-spacer-right">
+                  <BugIcon />
+                </span>
                 {translate('issue.type.BUG.plural')}
               </td>
             </tr>
@@ -67,7 +73,9 @@ export default function EntryIssueTypes({ bugs, codeSmells, loading, vulnerabili
                 </Link>
               </td>
               <td>
-                <span className="little-spacer-right"><VulnerabilityIcon /></span>
+                <span className="little-spacer-right">
+                  <VulnerabilityIcon />
+                </span>
                 {translate('issue.type.VULNERABILITY.plural')}
               </td>
             </tr>
@@ -80,12 +88,15 @@ export default function EntryIssueTypes({ bugs, codeSmells, loading, vulnerabili
                 </Link>
               </td>
               <td>
-                <span className="little-spacer-right"><CodeSmellIcon /></span>
+                <span className="little-spacer-right">
+                  <CodeSmellIcon />
+                </span>
                 {translate('issue.type.CODE_SMELL.plural')}
               </td>
             </tr>
           </tbody>
-        </table>}
+        </table>
+      )}
     </div>
   );
 }

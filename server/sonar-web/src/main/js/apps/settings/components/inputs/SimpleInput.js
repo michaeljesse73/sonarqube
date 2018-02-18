@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,19 +18,34 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import React from 'react';
+import PropTypes from 'prop-types';
 import { defaultInputPropTypes } from '../../propTypes';
 
 export default class SimpleInput extends React.PureComponent {
   static propTypes = {
     ...defaultInputPropTypes,
-    value: React.PropTypes.oneOfType([React.PropTypes.string, React.PropTypes.number]),
-    type: React.PropTypes.string.isRequired,
-    className: React.PropTypes.string.isRequired
+    value: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    type: PropTypes.string.isRequired,
+    className: PropTypes.string.isRequired,
+    onCancel: PropTypes.func,
+    onSave: PropTypes.func
   };
 
-  handleInputChange(e) {
-    this.props.onChange(e.target.value);
-  }
+  handleInputChange = event => {
+    this.props.onChange(event.currentTarget.value);
+  };
+
+  handleKeyDown = event => {
+    if (event.keyCode === 13) {
+      if (this.props.onSave) {
+        this.props.onSave();
+      }
+    } else if (event.keyCode === 27) {
+      if (this.props.onCancel) {
+        this.props.onCancel();
+      }
+    }
+  };
 
   render() {
     return (
@@ -39,7 +54,8 @@ export default class SimpleInput extends React.PureComponent {
         className={this.props.className + ' text-top'}
         type={this.props.type}
         value={this.props.value || ''}
-        onChange={e => this.handleInputChange(e)}
+        onChange={this.handleInputChange}
+        onKeyDown={this.handleKeyDown}
       />
     );
   }

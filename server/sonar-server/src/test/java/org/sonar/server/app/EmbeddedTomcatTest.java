@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -28,7 +28,7 @@ import org.apache.commons.io.FileUtils;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.sonar.process.NetworkUtils;
+import org.sonar.process.NetworkUtilsImpl;
 import org.sonar.process.Props;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -55,7 +55,7 @@ public class EmbeddedTomcatTest {
 
     // start server on a random port
     InetAddress address = InetAddress.getLoopbackAddress();
-    int httpPort = NetworkUtils.getNextAvailablePort(address);
+    int httpPort = NetworkUtilsImpl.INSTANCE.getNextAvailablePort(address);
     props.set("sonar.web.host", address.getHostAddress());
     props.set("sonar.web.port", String.valueOf(httpPort));
     EmbeddedTomcat tomcat = new EmbeddedTomcat(props);

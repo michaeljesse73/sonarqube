@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,24 +19,27 @@
  */
 package org.sonar.db;
 
-import com.google.common.collect.ImmutableList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import org.sonar.core.platform.Module;
 import org.sonar.db.ce.CeActivityDao;
 import org.sonar.db.ce.CeQueueDao;
 import org.sonar.db.ce.CeScannerContextDao;
+import org.sonar.db.ce.CeTaskCharacteristicDao;
 import org.sonar.db.ce.CeTaskInputDao;
+import org.sonar.db.component.AnalysisPropertiesDao;
+import org.sonar.db.component.BranchDao;
 import org.sonar.db.component.ComponentDao;
 import org.sonar.db.component.ComponentKeyUpdaterDao;
 import org.sonar.db.component.ComponentLinkDao;
-import org.sonar.db.component.ResourceDao;
 import org.sonar.db.component.SnapshotDao;
 import org.sonar.db.duplication.DuplicationDao;
+import org.sonar.db.es.EsQueueDao;
 import org.sonar.db.event.EventDao;
 import org.sonar.db.issue.IssueChangeDao;
 import org.sonar.db.issue.IssueDao;
-import org.sonar.db.es.EsQueueDao;
-import org.sonar.db.loadedtemplate.LoadedTemplateDao;
+import org.sonar.db.measure.LiveMeasureDao;
 import org.sonar.db.measure.MeasureDao;
 import org.sonar.db.measure.custom.CustomMeasureDao;
 import org.sonar.db.metric.MetricDao;
@@ -48,6 +51,7 @@ import org.sonar.db.permission.GroupPermissionDao;
 import org.sonar.db.permission.UserPermissionDao;
 import org.sonar.db.permission.template.PermissionTemplateCharacteristicDao;
 import org.sonar.db.permission.template.PermissionTemplateDao;
+import org.sonar.db.plugin.PluginDao;
 import org.sonar.db.property.InternalPropertiesDao;
 import org.sonar.db.property.PropertiesDao;
 import org.sonar.db.purge.PurgeDao;
@@ -57,6 +61,8 @@ import org.sonar.db.qualitygate.QualityGateDao;
 import org.sonar.db.qualityprofile.ActiveRuleDao;
 import org.sonar.db.qualityprofile.DefaultQProfileDao;
 import org.sonar.db.qualityprofile.QProfileChangeDao;
+import org.sonar.db.qualityprofile.QProfileEditGroupsDao;
+import org.sonar.db.qualityprofile.QProfileEditUsersDao;
 import org.sonar.db.qualityprofile.QualityProfileDao;
 import org.sonar.db.rule.RuleDao;
 import org.sonar.db.rule.RuleRepositoryDao;
@@ -71,19 +77,23 @@ import org.sonar.db.user.UserTokenDao;
 import org.sonar.db.webhook.WebhookDeliveryDao;
 
 public class DaoModule extends Module {
-  private static final List<Class<? extends Dao>> classes = ImmutableList.<Class<? extends Dao>>builder().add(
+  private static final List<Class<? extends Dao>> classes = Collections.unmodifiableList(Arrays.asList(
     // =====================================================================
     // for readability and easier merge, keep list ordered alphabetically
     // =====================================================================
     ActiveRuleDao.class,
+    AnalysisPropertiesDao.class,
     AuthorizationDao.class,
+    BranchDao.class,
     CeActivityDao.class,
     CeQueueDao.class,
     CeScannerContextDao.class,
+    CeTaskCharacteristicDao.class,
     CeTaskInputDao.class,
     ComponentDao.class,
     ComponentKeyUpdaterDao.class,
     ComponentLinkDao.class,
+    LiveMeasureDao.class,
     CustomMeasureDao.class,
     DefaultQProfileDao.class,
     DuplicationDao.class,
@@ -96,7 +106,6 @@ public class DaoModule extends Module {
     InternalPropertiesDao.class,
     IssueChangeDao.class,
     IssueDao.class,
-    LoadedTemplateDao.class,
     MeasureDao.class,
     MetricDao.class,
     NotificationQueueDao.class,
@@ -104,14 +113,16 @@ public class DaoModule extends Module {
     OrganizationMemberDao.class,
     PermissionTemplateCharacteristicDao.class,
     PermissionTemplateDao.class,
+    PluginDao.class,
     ProjectQgateAssociationDao.class,
     PropertiesDao.class,
     PurgeDao.class,
     QProfileChangeDao.class,
+    QProfileEditGroupsDao.class,
+    QProfileEditUsersDao.class,
     QualityGateConditionDao.class,
     QualityGateDao.class,
     QualityProfileDao.class,
-    ResourceDao.class,
     RoleDao.class,
     RuleDao.class,
     RuleRepositoryDao.class,
@@ -121,8 +132,7 @@ public class DaoModule extends Module {
     UserGroupDao.class,
     UserPermissionDao.class,
     UserTokenDao.class,
-    WebhookDeliveryDao.class)
-    .build();
+    WebhookDeliveryDao.class));
 
   @Override
   protected void configureModule() {

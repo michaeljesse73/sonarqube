@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -17,12 +17,10 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-
 package org.sonar.db.component;
 
 import java.util.Collection;
 import java.util.List;
-import java.util.Set;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 import org.apache.ibatis.annotations.Param;
@@ -33,6 +31,9 @@ public interface ComponentMapper {
 
   @CheckForNull
   ComponentDto selectByKey(String key);
+
+  @CheckForNull
+  ComponentDto selectByKeyAndBranch(@Param("key") String key, @Param("dbKey") String dbKey, @Param("branch") String branch);
 
   @CheckForNull
   ComponentDto selectById(long id);
@@ -46,6 +47,8 @@ public interface ComponentMapper {
   List<ComponentDto> selectSubProjectsByComponentUuids(@Param("uuids") Collection<String> uuids);
 
   List<ComponentDto> selectByKeys(@Param("keys") Collection<String> keys);
+
+  List<ComponentDto> selectByKeysAndBranch(@Param("keys") Collection<String> keys, @Param("branch") String branch);
 
   List<ComponentDto> selectByIds(@Param("ids") Collection<Long> ids);
 
@@ -113,14 +116,14 @@ public interface ComponentMapper {
     @Param(value = "excludeDisabled") boolean excludeDisabled);
 
   /**
+   * Return keys and UUIDs of all components belonging to a project
+   */
+  List<KeyWithUuidDto> selectUuidsByKeyFromProjectKey(@Param("projectKey") String projectKey);
+
+  /**
    * Return technical projects from a view or a sub-view
    */
   List<String> selectProjectsFromView(@Param("viewUuidLikeQuery") String viewUuidLikeQuery, @Param("projectViewUuid") String projectViewUuid);
-
-  List<ComponentDto> selectProvisioned(@Param("organizationUuid") String organizationUuid, @Nullable @Param("keyOrNameLike") String keyOrNameLike,
-    @Param("qualifiers") Set<String> qualifiers, RowBounds rowBounds);
-
-  int countProvisioned(@Param("organizationUuid") String organizationUuid, @Nullable @Param("keyOrNameLike") String keyOrNameLike, @Param("qualifiers") Set<String> qualifiers);
 
   List<ComponentDto> selectGhostProjects(@Param("organizationUuid") String organizationUuid, @Nullable @Param("query") String query, RowBounds rowBounds);
 
@@ -130,7 +133,7 @@ public interface ComponentMapper {
 
   List<ComponentDto> selectProjectsByNameQuery(@Param("nameQuery") @Nullable String nameQuery, @Param("includeModules") boolean includeModules);
 
-  void selectForIndexing(@Param("projectUuid") @Nullable String projectUuid, ResultHandler<ComponentDto> handler);
+  void scrollForIndexing(@Param("projectUuid") @Nullable String projectUuid, ResultHandler<ComponentDto> handler);
 
   void insert(ComponentDto componentDto);
 
@@ -147,4 +150,6 @@ public interface ComponentMapper {
   void delete(long componentId);
 
   void updateTags(ComponentDto component);
+
+  List<KeyWithUuidDto> selectComponentKeysHavingIssuesToMerge(@Param("mergeBranchUuid") String mergeBranchUuid);
 }

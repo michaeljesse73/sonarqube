@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -67,15 +67,12 @@ public class LoadDuplicationsFromReportStep implements ComputationStep {
       new TypeAwareVisitorAdapter(CrawlerDepthLimit.FILE, POST_ORDER) {
         @Override
         public void visitFile(Component file) {
-          CloseableIterator<ScannerReport.Duplication> duplications = batchReportReader.readComponentDuplications(file.getReportAttributes().getRef());
-          try {
+          try (CloseableIterator<ScannerReport.Duplication> duplications = batchReportReader.readComponentDuplications(file.getReportAttributes().getRef())) {
             int idGenerator = 1;
             while (duplications.hasNext()) {
               loadDuplications(file, duplications.next(), idGenerator);
               idGenerator++;
             }
-          } finally {
-            duplications.close();
           }
         }
       }).visit(treeRootHolder.getRoot());

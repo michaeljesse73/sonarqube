@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,8 +25,8 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.sonar.scanner.protocol.output.ScannerReport;
 import org.sonar.server.computation.task.projectanalysis.batch.BatchReportReaderRule;
-import org.sonar.server.computation.task.projectanalysis.component.TreeRootHolderRule;
 import org.sonar.server.computation.task.projectanalysis.component.Component;
+import org.sonar.server.computation.task.projectanalysis.component.TreeRootHolderRule;
 import org.sonar.server.computation.task.projectanalysis.component.VisitException;
 import org.sonar.server.computation.task.projectanalysis.duplication.DetailedTextBlock;
 import org.sonar.server.computation.task.projectanalysis.duplication.Duplicate;
@@ -54,10 +54,8 @@ public class LoadDuplicationsFromReportStepTest {
     builder(PROJECT, ROOT_REF)
       .addChildren(
         builder(FILE, FILE_1_REF).build(),
-        builder(FILE, FILE_2_REF).build()
-      )
-      .build()
-    );
+        builder(FILE, FILE_2_REF).build())
+      .build());
   @Rule
   public BatchReportReaderRule reportReader = new BatchReportReaderRule();
   @Rule
@@ -70,13 +68,6 @@ public class LoadDuplicationsFromReportStepTest {
   @Test
   public void verify_description() {
     assertThat(underTest.getDescription()).isEqualTo("Load inner file and in project duplications");
-  }
-
-  @Test
-  public void loads_no_duplications_if_reader_has_no_duplication() {
-    underTest.execute();
-
-    assertNoDuplication(FILE_1_REF);
   }
 
   @Test
@@ -111,8 +102,7 @@ public class LoadDuplicationsFromReportStepTest {
         createInProjectDuplicate(FILE_1_REF, OTHER_LINE)),
       createDuplication(
         singleLineTextRange(OTHER_LINE + 80),
-        createInnerDuplicate(LINE), createInnerDuplicate(LINE + 10))
-      );
+        createInnerDuplicate(LINE), createInnerDuplicate(LINE + 10)));
 
     underTest.execute();
 
@@ -124,13 +114,10 @@ public class LoadDuplicationsFromReportStepTest {
         new InProjectDuplicate(file1Component, singleLineTextBlock(LINE + 10))),
       duplication(
         singleLineDetailedTextBlock(2, OTHER_LINE),
-        new InProjectDuplicate(file1Component, singleLineTextBlock(OTHER_LINE))
-      ),
+        new InProjectDuplicate(file1Component, singleLineTextBlock(OTHER_LINE))),
       duplication(
         singleLineDetailedTextBlock(3, OTHER_LINE + 80),
-        new InnerDuplicate(singleLineTextBlock(LINE)), new InnerDuplicate(singleLineTextBlock(LINE + 10))
-      )
-      );
+        new InnerDuplicate(singleLineTextBlock(LINE)), new InnerDuplicate(singleLineTextBlock(LINE + 10))));
   }
 
   @Test
@@ -142,8 +129,7 @@ public class LoadDuplicationsFromReportStepTest {
         createInnerDuplicate(LINE + 1), createInnerDuplicate(LINE + 2), createInProjectDuplicate(FILE_1_REF, LINE + 2)),
       createDuplication(
         singleLineTextRange(LINE),
-        createInnerDuplicate(LINE + 2), createInnerDuplicate(LINE + 3), createInProjectDuplicate(FILE_1_REF, LINE + 2))
-      );
+        createInnerDuplicate(LINE + 2), createInnerDuplicate(LINE + 3), createInProjectDuplicate(FILE_1_REF, LINE + 2)));
 
     underTest.execute();
 
@@ -152,14 +138,11 @@ public class LoadDuplicationsFromReportStepTest {
       duplication(
         singleLineDetailedTextBlock(1, LINE),
         new InnerDuplicate(singleLineTextBlock(LINE + 1)), new InnerDuplicate(singleLineTextBlock(LINE + 2)),
-        new InProjectDuplicate(file1Component, singleLineTextBlock(LINE + 2))
-      ),
+        new InProjectDuplicate(file1Component, singleLineTextBlock(LINE + 2))),
       duplication(
         singleLineDetailedTextBlock(2, LINE),
         new InnerDuplicate(singleLineTextBlock(LINE + 2)), new InnerDuplicate(singleLineTextBlock(LINE + 3)),
-        new InProjectDuplicate(file1Component, singleLineTextBlock(LINE + 2))
-      )
-      );
+        new InProjectDuplicate(file1Component, singleLineTextBlock(LINE + 2))));
   }
 
   @Test

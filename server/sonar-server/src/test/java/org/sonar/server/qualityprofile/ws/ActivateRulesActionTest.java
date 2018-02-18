@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -23,17 +23,19 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.mockito.Mockito;
 import org.sonar.api.server.ws.WebService;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbTester;
 import org.sonar.db.organization.OrganizationDto;
-import org.sonar.db.permission.OrganizationPermission;
 import org.sonar.db.qualityprofile.QProfileDto;
+import org.sonar.db.user.GroupDto;
+import org.sonar.db.user.UserDto;
 import org.sonar.server.exceptions.BadRequestException;
 import org.sonar.server.exceptions.ForbiddenException;
 import org.sonar.server.exceptions.UnauthorizedException;
 import org.sonar.server.organization.TestDefaultOrganizationProvider;
-import org.sonar.server.qualityprofile.RuleActivator;
+import org.sonar.server.qualityprofile.QProfileRules;
 import org.sonar.server.rule.ws.RuleQueryFactory;
 import org.sonar.server.tester.UserSessionRule;
 import org.sonar.server.ws.TestRequest;
@@ -41,9 +43,13 @@ import org.sonar.server.ws.WsActionTester;
 
 import static org.apache.commons.lang.RandomStringUtils.randomAlphanumeric;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.sonar.db.permission.OrganizationPermission.ADMINISTER_QUALITY_PROFILES;
 import static org.sonar.server.platform.db.migration.def.VarcharColumnDef.UUID_SIZE;
-import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.PARAM_TARGET_PROFILE;
+import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.PARAM_ORGANIZATION;
+import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.PARAM_TARGET_KEY;
 
 public class ActivateRulesActionTest {
 
@@ -55,11 +61,11 @@ public class ActivateRulesActionTest {
   public ExpectedException expectedException = ExpectedException.none();
 
   private DbClient dbClient = db.getDbClient();
-  private RuleActivator ruleActivator = mock(RuleActivator.class);
   private QProfileWsSupport wsSupport = new QProfileWsSupport(dbClient, userSession, TestDefaultOrganizationProvider.from(db));
   private RuleQueryFactory ruleQueryFactory = mock(RuleQueryFactory.class);
 
-  private WsActionTester ws = new WsActionTester(new ActivateRulesAction(ruleQueryFactory, userSession, ruleActivator, wsSupport, dbClient));
+  private QProfileRules qProfileRules = mock(QProfileRules.class, Mockito.RETURNS_DEEP_STUBS);
+  private WsActionTester ws = new WsActionTester(new ActivateRulesAction(ruleQueryFactory, userSession, qProfileRules, wsSupport, dbClient));
 
   private OrganizationDto defaultOrganization;
   private OrganizationDto organization;
@@ -90,24 +96,56 @@ public class ActivateRulesActionTest {
       "active_severities",
       "s",
       "repositories",
-      "targetProfile",
+      "targetKey",
       "statuses",
       "rule_key",
       "available_since",
       "activation",
       "severities",
       "organization");
-    WebService.Param targetProfile = definition.param("targetProfile");
+    WebService.Param targetProfile = definition.param("targetKey");
     assertThat(targetProfile.deprecatedKey()).isEqualTo("profile_key");
     WebService.Param targetSeverity = definition.param("targetSeverity");
     assertThat(targetSeverity.deprecatedKey()).isEqualTo("activation_severity");
   }
 
   @Test
-  public void should_fail_if_not_logged_in() {
+  public void as_global_qprofile_admin() {
+    userSession.logIn(db.users().insertUser()).addPermission(ADMINISTER_QUALITY_PROFILES, organization);
+    QProfileDto qualityProfile = db.qualityProfiles().insert(organization);
+
+    ws.newRequest()
+      .setMethod("POST")
+      .setParam(PARAM_ORGANIZATION, organization.getKey())
+      .setParam(PARAM_TARGET_KEY, qualityProfile.getKee())
+      .execute();
+
+    verify(qProfileRules).bulkActivateAndCommit(any(), any(), any(), any());
+  }
+
+  @Test
+  public void as_qprofile_editor() {
+    UserDto user = db.users().insertUser();
+    GroupDto group = db.users().insertGroup(organization);
+    QProfileDto qualityProfile = db.qualityProfiles().insert(organization);
+    db.organizations().addMember(organization, user);
+    db.qualityProfiles().addGroupPermission(qualityProfile, group);
+    userSession.logIn(user).setGroups(group);
+
+    ws.newRequest()
+      .setMethod("POST")
+      .setParam(PARAM_ORGANIZATION, organization.getKey())
+      .setParam(PARAM_TARGET_KEY, qualityProfile.getKee())
+      .execute();
+
+    verify(qProfileRules).bulkActivateAndCommit(any(), any(), any(), any());
+  }
+
+  @Test
+  public void fail_if_not_logged_in() {
     TestRequest request = ws.newRequest()
       .setMethod("POST")
-      .setParam(PARAM_TARGET_PROFILE, randomAlphanumeric(UUID_SIZE));
+      .setParam(PARAM_TARGET_KEY, randomAlphanumeric(UUID_SIZE));
 
     expectedException.expect(UnauthorizedException.class);
 
@@ -116,11 +154,11 @@ public class ActivateRulesActionTest {
 
   @Test
   public void fail_if_built_in_profile() {
-    userSession.logIn().addPermission(OrganizationPermission.ADMINISTER_QUALITY_PROFILES, defaultOrganization);
+    userSession.logIn().addPermission(ADMINISTER_QUALITY_PROFILES, defaultOrganization);
     QProfileDto qualityProfile = db.qualityProfiles().insert(defaultOrganization, p -> p.setIsBuiltIn(true));
     TestRequest request = ws.newRequest()
       .setMethod("POST")
-      .setParam(PARAM_TARGET_PROFILE, qualityProfile.getKee());
+      .setParam(PARAM_TARGET_KEY, qualityProfile.getKee());
 
     expectedException.expect(BadRequestException.class);
 
@@ -128,15 +166,15 @@ public class ActivateRulesActionTest {
   }
 
   @Test
-  public void should_fail_if_not_organization_quality_profile_administrator() {
-    userSession.logIn().addPermission(OrganizationPermission.ADMINISTER_QUALITY_PROFILES, defaultOrganization);
+  public void fail_if_not_enough_permission() {
+    userSession.logIn(db.users().insertUser());
     QProfileDto qualityProfile = db.qualityProfiles().insert(organization);
-    TestRequest request = ws.newRequest()
-      .setMethod("POST")
-      .setParam(PARAM_TARGET_PROFILE, qualityProfile.getKee());
 
     expectedException.expect(ForbiddenException.class);
 
-    request.execute();
+    ws.newRequest()
+      .setMethod("POST")
+      .setParam(PARAM_TARGET_KEY, qualityProfile.getKee())
+      .execute();
   }
 }

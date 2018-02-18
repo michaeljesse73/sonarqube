@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,9 +19,7 @@
  */
 package org.sonar.server.setting;
 
-import com.google.common.collect.ImmutableMap;
 import org.junit.Test;
-import org.sonar.server.setting.NopSettingLoader;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -33,8 +31,6 @@ public class NopSettingLoaderTest {
   public void do_nothing() {
     assertThat(underTest.load("foo")).isNull();
 
-    ImmutableMap.Builder<String,String> map = ImmutableMap.builder();
-    underTest.loadAll(map);
-    assertThat(map.build()).isEmpty();
+    assertThat(underTest.loadAll()).isEmpty();
   }
 }

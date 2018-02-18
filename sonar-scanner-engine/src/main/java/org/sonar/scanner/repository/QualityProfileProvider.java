@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -28,7 +28,7 @@ import org.sonar.api.utils.log.Loggers;
 import org.sonar.api.utils.log.Profiler;
 import org.sonar.scanner.analysis.AnalysisProperties;
 import org.sonar.scanner.rule.ModuleQProfiles;
-import org.sonarqube.ws.QualityProfiles.SearchWsResponse.QualityProfile;
+import org.sonarqube.ws.Qualityprofiles.SearchWsResponse.QualityProfile;
 
 public class QualityProfileProvider extends ProviderAdapter {
   private static final Logger LOG = Loggers.get(QualityProfileProvider.class);
@@ -53,9 +53,8 @@ public class QualityProfileProvider extends ProviderAdapter {
 
   @CheckForNull
   private static String getSonarProfile(AnalysisProperties props) {
-    String profile = null;
-    if (props.properties().containsKey(ModuleQProfiles.SONAR_PROFILE_PROP)) {
-      profile = props.property(ModuleQProfiles.SONAR_PROFILE_PROP);
+    String profile = props.property(ModuleQProfiles.SONAR_PROFILE_PROP);
+    if (profile != null) {
       LOG.warn("Ability to set quality profile from command line using '" + ModuleQProfiles.SONAR_PROFILE_PROP
         + "' is deprecated and will be dropped in a future SonarQube version. Please configure quality profile used by your project on SonarQube server.");
     }

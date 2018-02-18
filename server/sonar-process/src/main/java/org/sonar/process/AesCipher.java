@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -126,7 +126,7 @@ final class AesCipher implements Cipher {
 
   String getPathToSecretKey() {
     if (StringUtils.isBlank(pathToSecretKey)) {
-      pathToSecretKey = new File(FileUtils.getUserDirectoryPath(), ".sonar/sonar-secret.txt").getPath();
+      pathToSecretKey = new File(System.getProperty("user.home"), ".sonar/sonar-secret.txt").getPath();
     }
     return pathToSecretKey;
   }

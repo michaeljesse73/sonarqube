@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -33,12 +33,12 @@ import org.sonar.api.batch.fs.internal.DefaultInputModule;
 import org.sonar.api.batch.fs.internal.TestInputFileBuilder;
 import org.sonar.api.batch.sensor.measure.internal.DefaultMeasure;
 import org.sonar.api.measures.CoreMetrics;
-import org.sonar.api.scan.filesystem.PathResolver;
 import org.sonar.core.util.CloseableIterator;
 import org.sonar.scanner.deprecated.test.TestPlanBuilder;
 import org.sonar.scanner.protocol.output.ScannerReport;
 import org.sonar.scanner.protocol.output.ScannerReportReader;
 import org.sonar.scanner.protocol.output.ScannerReportWriter;
+import org.sonar.scanner.scan.branch.BranchConfiguration;
 import org.sonar.scanner.scan.filesystem.InputComponentStore;
 import org.sonar.scanner.scan.measure.MeasureCache;
 
@@ -69,7 +69,7 @@ public class MeasuresPublisherTest {
     String moduleKey = "foo";
     inputModule = TestInputFileBuilder.newDefaultInputModule(moduleKey, temp.newFolder());
     inputFile = new TestInputFileBuilder(moduleKey, "src/Foo.php").setPublish(true).build();
-    InputComponentStore componentCache = new InputComponentStore(new PathResolver(), inputModule);
+    InputComponentStore componentCache = new InputComponentStore(inputModule, mock(BranchConfiguration.class));
     componentCache.put(inputFile);
     measureCache = mock(MeasureCache.class);
     when(measureCache.byComponentKey(anyString())).thenReturn(Collections.<DefaultMeasure<?>>emptyList());

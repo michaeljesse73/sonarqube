@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -34,8 +34,7 @@ public interface InternalProperties {
 
   String ORGANIZATION_ENABLED = "organization.enabled";
 
-  String ES_INDEX_INITIALIZING_PREFIX = "es.initializing.";
-
+  String SERVER_ID_CHECKSUM = "server.idChecksum";
   /**
    * Read the value of the specified property.
    *

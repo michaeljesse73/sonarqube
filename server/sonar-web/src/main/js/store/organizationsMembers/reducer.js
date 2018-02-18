@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -28,7 +28,7 @@ export const getOrganizationMembersLogins = (state, organization) => {
 };
 
 export const getOrganizationMembersState = (state, organization) =>
-  (organization && state[organization] ? state[organization] : {});
+  organization && state[organization] ? state[organization] : {};
 
 const organizationMembers = (state = {}, action = {}) => {
   const members = state.members || [];

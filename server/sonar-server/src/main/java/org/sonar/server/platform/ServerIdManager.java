@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,55 +21,103 @@ package org.sonar.server.platform;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import javax.annotation.Nullable;
+import java.util.Optional;
 import org.picocontainer.Startable;
 import org.sonar.api.CoreProperties;
 import org.sonar.api.SonarQubeSide;
 import org.sonar.api.SonarRuntime;
+import org.sonar.api.config.Configuration;
+import org.sonar.api.utils.log.Logger;
+import org.sonar.api.utils.log.Loggers;
 import org.sonar.core.util.UuidFactory;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
 import org.sonar.db.property.PropertyDto;
-import org.sonar.server.platform.cluster.Cluster;
+import org.sonar.server.property.InternalProperties;
 
 import static com.google.common.base.Preconditions.checkState;
-import static org.apache.commons.lang.StringUtils.isBlank;
+import static org.apache.commons.lang.StringUtils.isEmpty;
+import static org.apache.commons.lang.StringUtils.isNotEmpty;
 import static org.sonar.api.CoreProperties.SERVER_ID;
+import static org.sonar.process.ProcessProperties.Property.JDBC_URL;
+import static org.sonar.server.property.InternalProperties.SERVER_ID_CHECKSUM;
 
 public class ServerIdManager implements Startable {
+  private static final Logger LOGGER = Loggers.get(ServerIdManager.class);
+
+  private final Configuration config;
   private final DbClient dbClient;
   private final SonarRuntime runtime;
-  private final Cluster cluster;
+  private final WebServer webServer;
   private final UuidFactory uuidFactory;
 
-  public ServerIdManager(DbClient dbClient, SonarRuntime runtime, Cluster cluster, UuidFactory uuidFactory) {
+  public ServerIdManager(Configuration config, DbClient dbClient, SonarRuntime runtime, WebServer webServer, UuidFactory uuidFactory) {
+    this.config = config;
     this.dbClient = dbClient;
     this.runtime = runtime;
-    this.cluster = cluster;
+    this.webServer = webServer;
     this.uuidFactory = uuidFactory;
   }
 
   @Override
   public void start() {
     try (DbSession dbSession = dbClient.openSession(false)) {
-      PropertyDto dto = dbClient.propertiesDao().selectGlobalProperty(dbSession, SERVER_ID);
-      if (runtime.getSonarQubeSide() == SonarQubeSide.SERVER && cluster.isStartupLeader()) {
-        persistServerIdIfMissingOrOldFormatted(dbSession, dto);
+      if (runtime.getSonarQubeSide() == SonarQubeSide.SERVER && webServer.isStartupLeader()) {
+        if (needsToBeDropped(dbSession)) {
+          dbClient.propertiesDao().deleteGlobalProperty(SERVER_ID, dbSession);
+        }
+        persistServerIdIfMissing(dbSession);
+        dbSession.commit();
       } else {
-        ensureServerIdIsSet(dto);
+        ensureServerIdIsValid(dbSession);
       }
     }
   }
 
-  /**
-   * Insert or update {@link CoreProperties#SERVER_ID} property in DB to a UUID if it doesn't exist or if it's a date
-   * (per the old format of {@link CoreProperties#SERVER_ID} before 6.1).
-   */
-  private void persistServerIdIfMissingOrOldFormatted(DbSession dbSession, @Nullable PropertyDto dto) {
-    if (dto == null || dto.getValue().isEmpty() || isDate(dto.getValue())) {
-      dbClient.propertiesDao().saveProperty(dbSession, new PropertyDto().setKey(SERVER_ID).setValue(uuidFactory.create()));
-      dbSession.commit();
+  private boolean needsToBeDropped(DbSession dbSession) {
+    PropertyDto dto = dbClient.propertiesDao().selectGlobalProperty(dbSession, SERVER_ID);
+    if (dto == null) {
+      // does not exist, no need to drop
+      return false;
     }
+
+    if (isEmpty(dto.getValue())) {
+      return true;
+    }
+
+    if (isDate(dto.getValue())) {
+      LOGGER.info("Server ID is changed to new format.");
+      return true;
+    }
+
+    Optional<String> checksum = dbClient.internalPropertiesDao().selectByKey(dbSession, SERVER_ID_CHECKSUM);
+    if (checksum.isPresent()) {
+      String expectedChecksum = computeChecksum(dto.getValue());
+      if (!expectedChecksum.equals(checksum.get())) {
+        LOGGER.warn("Server ID is reset because it is not valid anymore. Database URL probably changed. The new server ID affects SonarSource licensed products.");
+        return true;
+      }
+    }
+
+    // Existing server ID must be kept when upgrading to 6.7+. In that case the checksum does
+    // not exist.
+
+    return false;
+  }
+
+  private void persistServerIdIfMissing(DbSession dbSession) {
+    String serverId;
+    PropertyDto idDto = dbClient.propertiesDao().selectGlobalProperty(dbSession, SERVER_ID);
+    if (idDto == null) {
+      serverId = uuidFactory.create();
+      dbClient.propertiesDao().saveProperty(dbSession, new PropertyDto().setKey(SERVER_ID).setValue(serverId));
+    } else {
+      serverId = idDto.getValue();
+    }
+
+    // checksum must be generated when it does not exist (upgrading to 6.7 or greater)
+    // or when server ID changed.
+    dbClient.internalPropertiesDao().save(dbSession, InternalProperties.SERVER_ID_CHECKSUM, computeChecksum(serverId));
   }
 
   /**
@@ -84,9 +132,19 @@ public class ServerIdManager implements Startable {
     }
   }
 
-  private static void ensureServerIdIsSet(@Nullable PropertyDto dto) {
-    checkState(dto != null, "Property %s is missing in database", SERVER_ID);
-    checkState(!isBlank(dto.getValue()), "Property %s is set but empty in database", SERVER_ID);
+  private String computeChecksum(String serverId) {
+    String jdbcUrl = config.get(JDBC_URL.getKey()).orElseThrow(() -> new IllegalStateException("Missing JDBC URL"));
+    return ServerIdChecksum.of(serverId, jdbcUrl);
+  }
+
+  private void ensureServerIdIsValid(DbSession dbSession) {
+    PropertyDto id = dbClient.propertiesDao().selectGlobalProperty(dbSession, SERVER_ID);
+    checkState(id != null, "Property %s is missing in database", SERVER_ID);
+    checkState(isNotEmpty(id.getValue()), "Property %s is empty in database", SERVER_ID);
+
+    Optional<String> checksum = dbClient.internalPropertiesDao().selectByKey(dbSession, SERVER_ID_CHECKSUM);
+    checkState(checksum.isPresent(), "Internal property %s is missing in database", SERVER_ID_CHECKSUM);
+    checkState(checksum.get().equals(computeChecksum(id.getValue())), "Server ID is invalid");
   }
 
   @Override

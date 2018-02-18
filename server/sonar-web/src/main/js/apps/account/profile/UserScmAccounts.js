@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,12 +18,13 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import React from 'react';
+import PropTypes from 'prop-types';
 import { translate } from '../../../helpers/l10n';
 
 export default class UserScmAccounts extends React.PureComponent {
   static propTypes = {
-    user: React.PropTypes.object.isRequired,
-    scmAccounts: React.PropTypes.arrayOf(React.PropTypes.string).isRequired
+    user: PropTypes.object.isRequired,
+    scmAccounts: PropTypes.arrayOf(PropTypes.string).isRequired
   };
 
   render() {
@@ -37,10 +38,11 @@ export default class UserScmAccounts extends React.PureComponent {
             {user.login}
           </li>
 
-          {user.email &&
+          {user.email && (
             <li className="little-spacer-bottom text-ellipsis" title={user.email}>
               {user.email}
-            </li>}
+            </li>
+          )}
 
           {scmAccounts.map(scmAccount => (
             <li key={scmAccount} className="little-spacer-bottom" title={scmAccount}>

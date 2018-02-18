@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,6 +19,10 @@
  */
 package org.sonar.api.database;
 
+/**
+ * @deprecated since 7.1, plugins don't connect to database
+ */
+@Deprecated
 public interface DatabaseProperties {
 
   String PROP_URL = "sonar.jdbc.url";

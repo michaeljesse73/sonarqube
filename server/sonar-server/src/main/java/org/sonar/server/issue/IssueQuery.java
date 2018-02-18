@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -23,11 +23,12 @@ import com.google.common.collect.ImmutableSet;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
+import java.util.Map;
 import java.util.Set;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 import org.apache.commons.lang.builder.ReflectionToStringBuilder;
-import org.sonar.api.rule.RuleKey;
+import org.sonar.db.rule.RuleDefinitionDto;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.sonar.server.es.SearchOptions.MAX_LIMIT;
@@ -63,22 +64,25 @@ public class IssueQuery {
   private final Collection<String> directories;
   private final Collection<String> files;
   private final Collection<String> views;
-  private final Collection<RuleKey> rules;
+  private final Collection<RuleDefinitionDto> rules;
   private final Collection<String> assignees;
   private final Collection<String> authors;
   private final Collection<String> languages;
   private final Collection<String> tags;
   private final Collection<String> types;
+  private final Map<String, PeriodStart> createdAfterByProjectUuids;
   private final Boolean onComponentOnly;
   private final Boolean assigned;
   private final Boolean resolved;
   private final Date createdAt;
-  private final Date createdAfter;
+  private final PeriodStart createdAfter;
   private final Date createdBefore;
   private final String sort;
   private final Boolean asc;
   private final String facetMode;
   private final String organizationUuid;
+  private final String branchUuid;
+  private final boolean mainBranch;
   private final boolean checkAuthorization;
 
   private IssueQuery(Builder builder) {
@@ -99,6 +103,7 @@ public class IssueQuery {
     this.languages = defaultCollection(builder.languages);
     this.tags = defaultCollection(builder.tags);
     this.types = defaultCollection(builder.types);
+    this.createdAfterByProjectUuids = defaultMap(builder.createdAfterByProjectUuids);
     this.onComponentOnly = builder.onComponentOnly;
     this.assigned = builder.assigned;
     this.resolved = builder.resolved;
@@ -110,6 +115,8 @@ public class IssueQuery {
     this.checkAuthorization = builder.checkAuthorization;
     this.facetMode = builder.facetMode;
     this.organizationUuid = builder.organizationUuid;
+    this.branchUuid = builder.branchUuid;
+    this.mainBranch = builder.mainBranch;
   }
 
   public Collection<String> issueKeys() {
@@ -156,7 +163,7 @@ public class IssueQuery {
     return views;
   }
 
-  public Collection<RuleKey> rules() {
+  public Collection<RuleDefinitionDto> rules() {
     return rules;
   }
 
@@ -180,6 +187,10 @@ public class IssueQuery {
     return types;
   }
 
+  public Map<String, PeriodStart> createdAfterByProjectUuids() {
+    return createdAfterByProjectUuids;
+  }
+
   @CheckForNull
   public Boolean onComponentOnly() {
     return onComponentOnly;
@@ -196,8 +207,8 @@ public class IssueQuery {
   }
 
   @CheckForNull
-  public Date createdAfter() {
-    return createdAfter == null ? null : new Date(createdAfter.getTime());
+  public PeriodStart createdAfter() {
+    return createdAfter;
   }
 
   @CheckForNull
@@ -229,6 +240,15 @@ public class IssueQuery {
     return organizationUuid;
   }
 
+  @CheckForNull
+  public String branchUuid() {
+    return branchUuid;
+  }
+
+  public boolean isMainBranch() {
+    return mainBranch;
+  }
+
   public String facetMode() {
     return facetMode;
   }
@@ -254,23 +274,26 @@ public class IssueQuery {
     private Collection<String> directories;
     private Collection<String> files;
     private Collection<String> views;
-    private Collection<RuleKey> rules;
+    private Collection<RuleDefinitionDto> rules;
     private Collection<String> assignees;
     private Collection<String> authors;
     private Collection<String> languages;
     private Collection<String> tags;
     private Collection<String> types;
+    private Map<String, PeriodStart> createdAfterByProjectUuids;
     private Boolean onComponentOnly = false;
     private Boolean assigned = null;
     private Boolean resolved = null;
     private Date createdAt;
-    private Date createdAfter;
+    private PeriodStart createdAfter;
     private Date createdBefore;
     private String sort;
     private Boolean asc = false;
     private boolean checkAuthorization = true;
     private String facetMode;
     private String organizationUuid;
+    private String branchUuid;
+    private boolean mainBranch = true;
 
     private Builder() {
 
@@ -331,7 +354,7 @@ public class IssueQuery {
       return this;
     }
 
-    public Builder rules(@Nullable Collection<RuleKey> rules) {
+    public Builder rules(@Nullable Collection<RuleDefinitionDto> rules) {
       this.rules = rules;
       return this;
     }
@@ -358,6 +381,11 @@ public class IssueQuery {
 
     public Builder types(@Nullable Collection<String> t) {
       this.types = t;
+      return this;
+    }
+
+    public Builder createdAfterByProjectUuids(@Nullable Map<String, PeriodStart> createdAfterByProjectUuids) {
+      this.createdAfterByProjectUuids = createdAfterByProjectUuids;
       return this;
     }
 
@@ -394,7 +422,12 @@ public class IssueQuery {
     }
 
     public Builder createdAfter(@Nullable Date d) {
-      this.createdAfter = d == null ? null : new Date(d.getTime());
+      this.createdAfter(d, true);
+      return this;
+    }
+
+    public Builder createdAfter(@Nullable Date d, boolean inclusive) {
+      this.createdAfter = d == null ? null : new PeriodStart(new Date(d.getTime()), inclusive);
       return this;
     }
 
@@ -437,9 +470,44 @@ public class IssueQuery {
       this.organizationUuid = s;
       return this;
     }
+
+    public Builder branchUuid(@Nullable String s) {
+      this.branchUuid = s;
+      return this;
+    }
+
+    public Builder mainBranch(boolean mainBranch) {
+      this.mainBranch = mainBranch;
+      return this;
+    }
   }
 
   private static <T> Collection<T> defaultCollection(@Nullable Collection<T> c) {
     return c == null ? Collections.emptyList() : Collections.unmodifiableCollection(c);
   }
+
+  private static <K, V> Map<K, V> defaultMap(@Nullable Map<K, V> map) {
+    return map == null ? Collections.emptyMap() : Collections.unmodifiableMap(map);
+  }
+
+  public static class PeriodStart {
+    private final Date date;
+    private final boolean inclusive;
+
+    public PeriodStart(Date date, boolean inclusive) {
+      this.date = date;
+      this.inclusive = inclusive;
+
+    }
+
+    public Date date() {
+      return date;
+    }
+
+    public boolean inclusive() {
+      return inclusive;
+    }
+
+  }
+
 }

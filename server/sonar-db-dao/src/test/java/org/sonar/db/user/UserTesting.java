@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -77,6 +77,13 @@ public class UserTesting {
   public static UserDto newDisabledUser(String login) {
     return newUserDto()
       .setLogin(login)
-      .setActive(false);
+      .setActive(false)
+      // All these fields are reset when disabling a user
+      .setScmAccounts((String) null)
+      .setExternalIdentity(null)
+      .setExternalIdentityProvider(null)
+      .setEmail(null)
+      .setCryptedPassword(null)
+      .setSalt(null);
   }
 }

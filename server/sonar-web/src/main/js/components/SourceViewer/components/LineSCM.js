@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,23 +19,25 @@
  */
 // @flow
 import React from 'react';
-import type { SourceLine } from '../types';
+/*:: import type { SourceLine } from '../types'; */
 
+/*::
 type Props = {
   line: SourceLine,
   previousLine?: SourceLine,
   onClick: (SourceLine, HTMLElement) => void
 };
+*/
 
 export default class LineSCM extends React.PureComponent {
-  props: Props;
+  /*:: props: Props; */
 
-  handleClick = (e: SyntheticInputEvent) => {
+  handleClick = (e /*: SyntheticInputEvent */) => {
     e.preventDefault();
     this.props.onClick(this.props.line, e.target);
   };
 
-  isSCMChanged(s: SourceLine, p?: SourceLine) {
+  isSCMChanged(s /*: SourceLine */, p /*: ?SourceLine */) {
     let changed = true;
     if (p != null && s.scmAuthor != null && p.scmAuthor != null) {
       changed = s.scmAuthor !== p.scmAuthor || s.scmDate !== p.scmDate;
@@ -53,8 +55,9 @@ export default class LineSCM extends React.PureComponent {
         role={clickable ? 'button' : undefined}
         tabIndex={clickable ? 0 : undefined}
         onClick={clickable ? this.handleClick : undefined}>
-        {this.isSCMChanged(line, previousLine) &&
-          <div className="source-line-scm-inner" data-author={line.scmAuthor} />}
+        {this.isSCMChanged(line, previousLine) && (
+          <div className="source-line-scm-inner" data-author={line.scmAuthor} />
+        )}
       </td>
     );
   }

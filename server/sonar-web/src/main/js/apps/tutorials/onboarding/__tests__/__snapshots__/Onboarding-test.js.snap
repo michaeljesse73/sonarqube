@@ -5,6 +5,8 @@ exports[`guides for on-premise 1`] = `
   className="modal-container"
 >
   <HelmetWrapper
+    defer={true}
+    encodeSpecialCharacters={true}
     title="onboarding.header"
     titleTemplate="%s"
   />
@@ -29,14 +31,25 @@ exports[`guides for on-premise 1`] = `
         >
           tutorials.skip
         </a>
+        <p
+          className="note"
+        >
+          tutorials.find_it_back_in_help
+        </p>
       </div>
       <div
         className="page-description"
       >
-        onboarding.header.description
+        onboarding.header.description.2
       </div>
     </header>
     <TokenStep
+      currentUser={
+        Object {
+          "isLoggedIn": true,
+          "login": "admin",
+        }
+      }
       finished={false}
       onContinue={[Function]}
       onOpen={[Function]}
@@ -59,6 +72,8 @@ exports[`guides for on-premise 2`] = `
   className="modal-container"
 >
   <HelmetWrapper
+    defer={true}
+    encodeSpecialCharacters={true}
     title="onboarding.header"
     titleTemplate="%s"
   />
@@ -83,14 +98,25 @@ exports[`guides for on-premise 2`] = `
         >
           tutorials.skip
         </a>
+        <p
+          className="note"
+        >
+          tutorials.find_it_back_in_help
+        </p>
       </div>
       <div
         className="page-description"
       >
-        onboarding.header.description
+        onboarding.header.description.2
       </div>
     </header>
     <TokenStep
+      currentUser={
+        Object {
+          "isLoggedIn": true,
+          "login": "admin",
+        }
+      }
       finished={true}
       onContinue={[Function]}
       onOpen={[Function]}
@@ -114,6 +140,8 @@ exports[`guides for sonarcloud 1`] = `
   className="modal-container"
 >
   <HelmetWrapper
+    defer={true}
+    encodeSpecialCharacters={true}
     title="onboarding.header.sonarcloud"
     titleTemplate="%s"
   />
@@ -138,11 +166,16 @@ exports[`guides for sonarcloud 1`] = `
         >
           tutorials.skip
         </a>
+        <p
+          className="note"
+        >
+          tutorials.find_it_back_in_plus
+        </p>
       </div>
       <div
         className="page-description"
       >
-        onboarding.header.description
+        onboarding.header.description.3
       </div>
     </header>
     <OrganizationStep
@@ -159,6 +192,12 @@ exports[`guides for sonarcloud 1`] = `
       stepNumber={1}
     />
     <TokenStep
+      currentUser={
+        Object {
+          "isLoggedIn": true,
+          "login": "admin",
+        }
+      }
       finished={false}
       onContinue={[Function]}
       onOpen={[Function]}
@@ -181,6 +220,8 @@ exports[`guides for sonarcloud 2`] = `
   className="modal-container"
 >
   <HelmetWrapper
+    defer={true}
+    encodeSpecialCharacters={true}
     title="onboarding.header.sonarcloud"
     titleTemplate="%s"
   />
@@ -205,11 +246,16 @@ exports[`guides for sonarcloud 2`] = `
         >
           tutorials.skip
         </a>
+        <p
+          className="note"
+        >
+          tutorials.find_it_back_in_plus
+        </p>
       </div>
       <div
         className="page-description"
       >
-        onboarding.header.description
+        onboarding.header.description.3
       </div>
     </header>
     <OrganizationStep
@@ -226,6 +272,12 @@ exports[`guides for sonarcloud 2`] = `
       stepNumber={1}
     />
     <TokenStep
+      currentUser={
+        Object {
+          "isLoggedIn": true,
+          "login": "admin",
+        }
+      }
       finished={false}
       onContinue={[Function]}
       onOpen={[Function]}
@@ -249,6 +301,8 @@ exports[`guides for sonarcloud 3`] = `
   className="modal-container"
 >
   <HelmetWrapper
+    defer={true}
+    encodeSpecialCharacters={true}
     title="onboarding.header.sonarcloud"
     titleTemplate="%s"
   />
@@ -273,11 +327,16 @@ exports[`guides for sonarcloud 3`] = `
         >
           tutorials.skip
         </a>
+        <p
+          className="note"
+        >
+          tutorials.find_it_back_in_plus
+        </p>
       </div>
       <div
         className="page-description"
       >
-        onboarding.header.description
+        onboarding.header.description.3
       </div>
     </header>
     <OrganizationStep
@@ -294,6 +353,12 @@ exports[`guides for sonarcloud 3`] = `
       stepNumber={1}
     />
     <TokenStep
+      currentUser={
+        Object {
+          "isLoggedIn": true,
+          "login": "admin",
+        }
+      }
       finished={true}
       onContinue={[Function]}
       onOpen={[Function]}

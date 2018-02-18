@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -17,7 +17,6 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-
 package org.sonar.server.organization.ws;
 
 import java.util.List;
@@ -28,6 +27,7 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.sonar.api.config.internal.MapSettings;
 import org.sonar.api.server.ws.WebService;
+import org.sonar.api.utils.System2;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
 import org.sonar.db.DbTester;
@@ -68,7 +68,7 @@ public class AddMemberActionTest {
   public UserSessionRule userSession = UserSessionRule.standalone().logIn().setRoot();
   @Rule
   public EsTester es = new EsTester(new UserIndexDefinition(new MapSettings().asConfig()));
-  private UserIndex userIndex = new UserIndex(es.client());
+  private UserIndex userIndex = new UserIndex(es.client(), System2.INSTANCE);
   @Rule
   public DbTester db = DbTester.create();
   private DbClient dbClient = db.getDbClient();
@@ -168,7 +168,7 @@ public class AddMemberActionTest {
   }
 
   @Test
-  public void fail_when_organization_has_no_default_group() throws Exception {
+  public void fail_when_organization_has_no_default_group() {
     OrganizationDto organization = db.organizations().insert();
     UserDto user = db.users().insertUser();
 

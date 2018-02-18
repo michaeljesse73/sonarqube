@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,10 +22,10 @@ import React from 'react';
 import EventInner from './EventInner';
 import ChangeEventForm from './forms/ChangeEventForm';
 import RemoveEventForm from './forms/RemoveEventForm';
-import DeleteIcon from '../../../components/icons-components/DeleteIcon';
-import ChangeIcon from '../../../components/icons-components/ChangeIcon';
-import type { Event as EventType } from '../types';
+import { DeleteButton, EditButton } from '../../../components/ui/buttons';
+/*:: import type { Event as EventType } from '../types'; */
 
+/*::
 type Props = {
   analysis: string,
   canAdmin: boolean,
@@ -34,16 +34,19 @@ type Props = {
   event: EventType,
   isFirst: boolean
 };
+*/
 
+/*::
 type State = {
   changing: boolean,
   deleting: boolean
 };
+*/
 
 export default class Event extends React.PureComponent {
-  mounted: boolean;
-  props: Props;
-  state: State = {
+  /*:: mounted: boolean; */
+  /*:: props: Props; */
+  state /*: State */ = {
     changing: false,
     deleting: false
   };
@@ -88,19 +91,18 @@ export default class Event extends React.PureComponent {
       <div className="project-activity-event">
         <EventInner event={this.props.event} />
 
-        {showActions &&
+        {showActions && (
           <div className="project-activity-event-actions spacer-left">
-            {canChange &&
-              <button className="js-change-event button-clean" onClick={this.startChanging}>
-                <ChangeIcon />
-              </button>}
-            {canDelete &&
-              <button className="js-delete-event button-clean" onClick={this.startDeleting}>
-                <DeleteIcon />
-              </button>}
-          </div>}
+            {canChange && (
+              <EditButton className="js-change-event button-small" onClick={this.startChanging} />
+            )}
+            {canDelete && (
+              <DeleteButton className="js-delete-event button-small" onClick={this.startDeleting} />
+            )}
+          </div>
+        )}
 
-        {this.state.changing &&
+        {this.state.changing && (
           <ChangeEventForm
             changeEventButtonText={
               'project_activity.' + (isVersion ? 'change_version' : 'change_custom_event')
@@ -108,9 +110,10 @@ export default class Event extends React.PureComponent {
             changeEvent={this.props.changeEvent}
             event={this.props.event}
             onClose={this.stopChanging}
-          />}
+          />
+        )}
 
-        {this.state.deleting &&
+        {this.state.deleting && (
           <RemoveEventForm
             analysis={this.props.analysis}
             deleteEvent={this.props.deleteEvent}
@@ -119,12 +122,11 @@ export default class Event extends React.PureComponent {
             removeEventButtonText={
               'project_activity.' + (isVersion ? 'remove_version' : 'remove_custom_event')
             }
-            removeEventQuestion={
-              'project_activity.' +
-                (isVersion ? 'remove_version' : 'remove_custom_event') +
-                '.question'
-            }
-          />}
+            removeEventQuestion={`project_activity.${
+              isVersion ? 'remove_version' : 'remove_custom_event'
+            }.question`}
+          />
+        )}
       </div>
     );
   }

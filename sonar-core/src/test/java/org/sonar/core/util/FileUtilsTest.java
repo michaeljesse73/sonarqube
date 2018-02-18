@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -23,6 +23,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
 import javax.annotation.CheckForNull;
 import org.apache.commons.lang.SystemUtils;
@@ -124,7 +125,8 @@ public class FileUtilsTest {
 
   @Test
   public void deleteQuietly_does_not_fail_if_argument_is_null() {
-    FileUtils.deleteQuietly(null);
+    FileUtils.deleteQuietly((File) null);
+    FileUtils.deleteQuietly((Path) null);
   }
 
   @Test
@@ -178,7 +180,7 @@ public class FileUtilsTest {
   public void deleteDirectory_throws_NPE_if_argument_is_null() throws IOException {
     expectDirectoryCanNotBeNullNPE();
 
-    FileUtils.deleteDirectory(null);
+    FileUtils.deleteDirectory((File) null);
   }
 
   @Test
@@ -235,6 +237,12 @@ public class FileUtilsTest {
     assertThat(childDir1).doesNotExist();
     assertThat(childFile2).doesNotExist();
     assertThat(childDir2).doesNotExist();
+  }
+
+  @Test
+  public void getPack200FilePath_transforms_jar_name() {
+    Path jarPath = Paths.get("plugin.jar");
+    assertThat(FileUtils.getPack200FilePath(jarPath)).isEqualTo(Paths.get("plugin.pack.gz"));
   }
 
   private void expectDirectoryCanNotBeNullNPE() {

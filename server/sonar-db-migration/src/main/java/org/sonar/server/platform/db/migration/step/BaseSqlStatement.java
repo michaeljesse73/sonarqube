@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -47,12 +47,6 @@ class BaseSqlStatement<CHILD extends SqlStatement> implements SqlStatement<CHILD
   }
 
   @Override
-  public CHILD setBytes(int columnIndex, @Nullable byte[] value) throws SQLException {
-    pstmt.setBytes(columnIndex, value);
-    return (CHILD) this;
-  }
-
-  @Override
   public CHILD setInt(int columnIndex, @Nullable Integer value) throws SQLException {
     if (value == null) {
       pstmt.setNull(columnIndex, Types.INTEGER);
@@ -78,6 +72,16 @@ class BaseSqlStatement<CHILD extends SqlStatement> implements SqlStatement<CHILD
       pstmt.setNull(columnIndex, Types.BOOLEAN);
     } else {
       pstmt.setBoolean(columnIndex, value);
+    }
+    return (CHILD) this;
+  }
+
+  @Override
+  public CHILD setBytes(int columnIndex, @Nullable byte[] value) throws SQLException {
+    if (value == null) {
+      pstmt.setNull(columnIndex, Types.BINARY);
+    } else {
+      pstmt.setBytes(columnIndex, value);
     }
     return (CHILD) this;
   }

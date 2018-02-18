@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -28,14 +28,16 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
+import org.sonar.api.resources.Qualifiers;
 import org.sonar.api.resources.ResourceType;
 import org.sonar.api.resources.ResourceTypes;
-import org.sonar.api.resources.Qualifiers;
 import org.sonar.api.server.ws.Change;
 import org.sonar.api.server.ws.Request;
 import org.sonar.api.server.ws.Response;
@@ -49,15 +51,15 @@ import org.sonar.db.organization.OrganizationDto;
 import org.sonar.server.component.index.ComponentHit;
 import org.sonar.server.component.index.ComponentHitsPerQualifier;
 import org.sonar.server.component.index.ComponentIndex;
-import org.sonar.server.component.index.ComponentIndexQuery;
 import org.sonar.server.component.index.ComponentIndexResults;
+import org.sonar.server.component.index.SuggestionQuery;
 import org.sonar.server.es.DefaultIndexSettings;
 import org.sonar.server.favorite.FavoriteFinder;
 import org.sonar.server.user.UserSession;
-import org.sonarqube.ws.WsComponents.SuggestionsWsResponse;
-import org.sonarqube.ws.WsComponents.SuggestionsWsResponse.Category;
-import org.sonarqube.ws.WsComponents.SuggestionsWsResponse.Project;
-import org.sonarqube.ws.WsComponents.SuggestionsWsResponse.Suggestion;
+import org.sonarqube.ws.Components.SuggestionsWsResponse;
+import org.sonarqube.ws.Components.SuggestionsWsResponse.Category;
+import org.sonarqube.ws.Components.SuggestionsWsResponse.Project;
+import org.sonarqube.ws.Components.SuggestionsWsResponse.Suggestion;
 
 import static com.google.common.base.Preconditions.checkState;
 import static java.util.Arrays.stream;
@@ -67,11 +69,11 @@ import static java.util.Collections.singletonList;
 import static org.sonar.api.web.UserRole.USER;
 import static org.sonar.core.util.stream.MoreCollectors.toList;
 import static org.sonar.core.util.stream.MoreCollectors.toSet;
-import static org.sonar.server.component.index.ComponentIndexQuery.DEFAULT_LIMIT;
+import static org.sonar.server.component.index.SuggestionQuery.DEFAULT_LIMIT;
 import static org.sonar.server.es.DefaultIndexSettings.MINIMUM_NGRAM_LENGTH;
 import static org.sonar.server.ws.WsUtils.writeProtobuf;
-import static org.sonarqube.ws.WsComponents.SuggestionsWsResponse.Organization;
-import static org.sonarqube.ws.WsComponents.SuggestionsWsResponse.newBuilder;
+import static org.sonarqube.ws.Components.SuggestionsWsResponse.Organization;
+import static org.sonarqube.ws.Components.SuggestionsWsResponse.newBuilder;
 import static org.sonarqube.ws.client.component.ComponentsWsParameters.ACTION_SUGGESTIONS;
 
 public class SuggestionsAction implements ComponentsWsAction {
@@ -115,13 +117,13 @@ public class SuggestionsAction implements ComponentsWsAction {
       .setSince("4.2")
       .setInternal(true)
       .setHandler(this)
-      .setResponseExample(Resources.getResource(this.getClass(), "components-example-suggestions.json"))
+      .setResponseExample(Resources.getResource(this.getClass(), "suggestions-example.json"))
       .setChangelog(new Change("6.4", "Parameter 's' is optional"));
 
     action.createParam(PARAM_QUERY)
       .setRequired(false)
-      .setDescription("Search query with a minimum of two characters. Can contain several search tokens, separated by spaces. " +
-        "Search tokens with only one character will be ignored.")
+      .setMinimumLength(2)
+      .setDescription("Search query: can contain several search tokens separated by spaces.")
       .setExampleValue("sonar");
 
     action.createParam(PARAM_MORE)
@@ -215,8 +217,8 @@ public class SuggestionsAction implements ComponentsWsAction {
     }
 
     List<ComponentDto> favorites = favoriteFinder.list();
-    Set<String> favoriteKeys = favorites.stream().map(ComponentDto::getKey).collect(MoreCollectors.toSet(favorites.size()));
-    ComponentIndexQuery.Builder queryBuilder = ComponentIndexQuery.builder()
+    Set<String> favoriteKeys = favorites.stream().map(ComponentDto::getDbKey).collect(MoreCollectors.toSet(favorites.size()));
+    SuggestionQuery.Builder queryBuilder = SuggestionQuery.builder()
       .setQuery(query)
       .setRecentlyBrowsedKeys(recentlyBrowsedKeys)
       .setFavoriteKeys(favoriteKeys)
@@ -294,8 +296,8 @@ public class SuggestionsAction implements ComponentsWsAction {
       .collect(MoreCollectors.uniqueIndex(OrganizationDto::getUuid));
   }
 
-  private ComponentIndexResults searchInIndex(ComponentIndexQuery componentIndexQuery) {
-    return index.search(componentIndexQuery);
+  private ComponentIndexResults searchInIndex(SuggestionQuery suggestionQuery) {
+    return index.searchSuggestions(suggestionQuery);
   }
 
   private static SuggestionsWsResponse.Builder toResponse(ComponentIndexResults componentsPerQualifiers, Set<String> recentlyBrowsedKeys, Set<String> favoriteUuids,
@@ -315,6 +317,7 @@ public class SuggestionsAction implements ComponentsWsAction {
 
       List<Suggestion> suggestions = qualifier.getHits().stream()
         .map(hit -> toSuggestion(hit, recentlyBrowsedKeys, favoriteUuids, componentsByUuids, organizationByUuids, projectsByUuids))
+        .filter(Objects::nonNull)
         .collect(toList());
 
       return Category.newBuilder()
@@ -325,23 +328,30 @@ public class SuggestionsAction implements ComponentsWsAction {
     }).collect(toList());
   }
 
+  /**
+   * @return null when the component exists in Elasticsearch but not in database. That
+   * occurs when failed indexing requests are been recovering.
+   */
+  @CheckForNull
   private static Suggestion toSuggestion(ComponentHit hit, Set<String> recentlyBrowsedKeys, Set<String> favoriteUuids, Map<String, ComponentDto> componentsByUuids,
     Map<String, OrganizationDto> organizationByUuids, Map<String, ComponentDto> projectsByUuids) {
     ComponentDto result = componentsByUuids.get(hit.getUuid());
+    if (result == null) {
+      return null;
+    }
     String organizationKey = organizationByUuids.get(result.getOrganizationUuid()).getKey();
     checkState(organizationKey != null, "Organization with uuid '%s' not found", result.getOrganizationUuid());
     Suggestion.Builder builder = Suggestion.newBuilder()
       .setOrganization(organizationKey)
-      .setKey(result.getKey())
+      .setKey(result.getDbKey())
       .setName(result.name())
       .setMatch(hit.getHighlightedText().orElse(HtmlEscapers.htmlEscaper().escape(result.name())))
-      .setIsRecentlyBrowsed(recentlyBrowsedKeys.contains(result.getKey()))
+      .setIsRecentlyBrowsed(recentlyBrowsedKeys.contains(result.getDbKey()))
       .setIsFavorite(favoriteUuids.contains(result.uuid()));
     if (QUALIFIERS_FOR_WHICH_TO_RETURN_PROJECT.contains(result.qualifier())) {
-      builder.setProject(projectsByUuids.get(result.projectUuid()).getKey());
+      builder.setProject(projectsByUuids.get(result.projectUuid()).getDbKey());
     }
-    return builder
-      .build();
+    return builder.build();
   }
 
   private static List<Organization> toOrganizations(Map<String, OrganizationDto> organizationByUuids) {
@@ -356,7 +366,7 @@ public class SuggestionsAction implements ComponentsWsAction {
   private static List<Project> toProjects(Map<String, ComponentDto> projectsByUuids) {
     return projectsByUuids.values().stream()
       .map(p -> Project.newBuilder()
-        .setKey(p.key())
+        .setKey(p.getDbKey())
         .setName(p.longName())
         .build())
       .collect(Collectors.toList());

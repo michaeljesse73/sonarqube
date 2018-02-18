@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -28,10 +28,10 @@ import org.sonar.api.server.ws.WebService.Action;
 import org.sonar.api.server.ws.WebService.Param;
 import org.sonar.server.issue.IssueQuery;
 import org.sonar.server.issue.IssueQueryFactory;
-import org.sonar.server.issue.IssueService;
+import org.sonar.server.issue.index.IssueIndex;
 import org.sonar.server.ws.TestResponse;
 import org.sonar.server.ws.WsActionTester;
-import org.sonarqube.ws.client.issue.SearchWsRequest;
+import org.sonar.server.issue.SearchRequest;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Matchers.any;
@@ -42,7 +42,7 @@ import static org.sonar.test.JsonAssert.assertJson;
 
 public class ComponentTagsActionTest {
 
-  private IssueService service = mock(IssueService.class);
+  private IssueIndex service = mock(IssueIndex.class);
   private IssueQueryFactory issueQueryFactory = mock(IssueQueryFactory.class, Mockito.RETURNS_DEEP_STUBS);
   private ComponentTagsAction underTest = new ComponentTagsAction(service, issueQueryFactory);
   private WsActionTester tester = new WsActionTester(underTest);
@@ -73,7 +73,7 @@ public class ComponentTagsActionTest {
   }
 
   @Test
-  public void should_return_empty_list() throws Exception {
+  public void should_return_empty_list() {
     TestResponse response = tester.newRequest()
       .setParam("componentUuid", "polop")
       .execute();
@@ -81,7 +81,7 @@ public class ComponentTagsActionTest {
   }
 
   @Test
-  public void should_return_tag_list() throws Exception {
+  public void should_return_tag_list() {
     Map<String, Long> tags = ImmutableMap.<String, Long>builder()
       .put("convention", 2771L)
       .put("brain-overload", 998L)
@@ -89,9 +89,9 @@ public class ComponentTagsActionTest {
       .put("bug", 32L)
       .put("cert", 2L)
       .build();
-    ArgumentCaptor<SearchWsRequest> captor = ArgumentCaptor.forClass(SearchWsRequest.class);
+    ArgumentCaptor<SearchRequest> captor = ArgumentCaptor.forClass(SearchRequest.class);
     when(issueQueryFactory.create(captor.capture())).thenReturn(mock(IssueQuery.class));
-    when(service.listTagsForComponent(any(IssueQuery.class), eq(5))).thenReturn(tags);
+    when(service.countTags(any(IssueQuery.class), eq(5))).thenReturn(tags);
 
     TestResponse response = tester.newRequest()
       .setParam("componentUuid", "polop")
@@ -105,7 +105,7 @@ public class ComponentTagsActionTest {
   }
 
   @Test
-  public void should_return_tag_list_with_created_after() throws Exception {
+  public void should_return_tag_list_with_created_after() {
     Map<String, Long> tags = ImmutableMap.<String, Long>builder()
       .put("convention", 2771L)
       .put("brain-overload", 998L)
@@ -113,9 +113,9 @@ public class ComponentTagsActionTest {
       .put("bug", 32L)
       .put("cert", 2L)
       .build();
-    ArgumentCaptor<SearchWsRequest> captor = ArgumentCaptor.forClass(SearchWsRequest.class);
+    ArgumentCaptor<SearchRequest> captor = ArgumentCaptor.forClass(SearchRequest.class);
     when(issueQueryFactory.create(captor.capture())).thenReturn(mock(IssueQuery.class));
-    when(service.listTagsForComponent(any(IssueQuery.class), eq(5))).thenReturn(tags);
+    when(service.countTags(any(IssueQuery.class), eq(5))).thenReturn(tags);
 
     String componentUuid = "polop";
     String createdAfter = "2011-04-25";

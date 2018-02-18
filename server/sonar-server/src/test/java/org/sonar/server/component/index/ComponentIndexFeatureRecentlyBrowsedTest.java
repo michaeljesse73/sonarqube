@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -17,7 +17,6 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-
 package org.sonar.server.component.index;
 
 import java.util.Collections;
@@ -42,17 +41,17 @@ public class ComponentIndexFeatureRecentlyBrowsedTest extends ComponentIndexTest
     ComponentDto project1 = indexProject("sonarqube", "SonarQube");
     ComponentDto project2 = indexProject("recent", "SonarQube Recently");
 
-    ComponentIndexQuery query1 = ComponentIndexQuery.builder()
+    SuggestionQuery query1 = SuggestionQuery.builder()
       .setQuery("SonarQube")
       .setQualifiers(Collections.singletonList(PROJECT))
-      .setRecentlyBrowsedKeys(of(project1.getKey()))
+      .setRecentlyBrowsedKeys(of(project1.getDbKey()))
       .build();
     assertSearch(query1).containsExactly(uuids(project1, project2));
 
-    ComponentIndexQuery query2 = ComponentIndexQuery.builder()
+    SuggestionQuery query2 = SuggestionQuery.builder()
       .setQuery("SonarQube")
       .setQualifiers(Collections.singletonList(PROJECT))
-      .setRecentlyBrowsedKeys(of(project2.getKey()))
+      .setRecentlyBrowsedKeys(of(project2.getDbKey()))
       .build();
     assertSearch(query2).containsExactly(uuids(project2, project1));
   }

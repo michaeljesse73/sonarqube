@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -35,12 +35,14 @@ import org.sonar.db.permission.PermissionQuery;
 import org.sonar.db.permission.template.PermissionTemplateDto;
 import org.sonar.db.permission.template.PermissionTemplateUserDto;
 import org.sonar.db.user.UserDto;
+import org.sonar.server.issue.ws.AvatarResolver;
 import org.sonar.server.permission.ws.PermissionWsSupport;
 import org.sonar.server.permission.ws.PermissionsWsAction;
 import org.sonar.server.user.UserSession;
-import org.sonarqube.ws.WsPermissions;
-import org.sonarqube.ws.WsPermissions.UsersWsResponse;
+import org.sonarqube.ws.Permissions;
+import org.sonarqube.ws.Permissions.UsersWsResponse;
 
+import static com.google.common.base.Strings.emptyToNull;
 import static org.sonar.api.server.ws.WebService.Param.PAGE;
 import static org.sonar.api.server.ws.WebService.Param.PAGE_SIZE;
 import static org.sonar.api.server.ws.WebService.Param.TEXT_QUERY;
@@ -60,11 +62,13 @@ public class TemplateUsersAction implements PermissionsWsAction {
   private final DbClient dbClient;
   private final UserSession userSession;
   private final PermissionWsSupport support;
+  private final AvatarResolver avatarResolver;
 
-  public TemplateUsersAction(DbClient dbClient, UserSession userSession, PermissionWsSupport support) {
+  public TemplateUsersAction(DbClient dbClient, UserSession userSession, PermissionWsSupport support, AvatarResolver avatarResolver) {
     this.dbClient = dbClient;
     this.userSession = userSession;
     this.support = support;
+    this.avatarResolver = avatarResolver;
   }
 
   @Override
@@ -81,8 +85,9 @@ public class TemplateUsersAction implements PermissionsWsAction {
       .setHandler(this);
 
     action.createParam(Param.TEXT_QUERY)
-      .setDescription("Limit search to user names that contain the supplied string. Must have at least %d characters.<br/>" +
-        "When this parameter is not set, only users having at least one permission are returned.", SEARCH_QUERY_MIN_LENGTH)
+      .setMinimumLength(SEARCH_QUERY_MIN_LENGTH)
+      .setDescription("Limit search to user names that contain the supplied string. <br/>" +
+        "When this parameter is not set, only users having at least one permission are returned.")
       .setExampleValue("eri");
     createProjectPermissionParameter(action).setRequired(false);
     createTemplateParameters(action);
@@ -101,7 +106,7 @@ public class TemplateUsersAction implements PermissionsWsAction {
       List<UserDto> users = findUsers(dbSession, query, template);
       List<PermissionTemplateUserDto> permissionTemplateUsers = dbClient.permissionTemplateDao().selectUserPermissionsByTemplateIdAndUserLogins(dbSession, template.getId(),
         users.stream().map(UserDto::getLogin).collect(Collectors.toList()));
-      WsPermissions.UsersWsResponse templateUsersResponse = buildResponse(users, permissionTemplateUsers, paging);
+      Permissions.UsersWsResponse templateUsersResponse = buildResponse(users, permissionTemplateUsers, paging);
       writeProtobuf(templateUsersResponse, wsRequest, wsResponse);
     }
   }
@@ -122,17 +127,18 @@ public class TemplateUsersAction implements PermissionsWsAction {
     return query.build();
   }
 
-  private static WsPermissions.UsersWsResponse buildResponse(List<UserDto> users, List<PermissionTemplateUserDto> permissionTemplateUsers, Paging paging) {
+  private Permissions.UsersWsResponse buildResponse(List<UserDto> users, List<PermissionTemplateUserDto> permissionTemplateUsers, Paging paging) {
     Multimap<Integer, String> permissionsByUserId = TreeMultimap.create();
     permissionTemplateUsers.forEach(userPermission -> permissionsByUserId.put(userPermission.getUserId(), userPermission.getPermission()));
 
     UsersWsResponse.Builder responseBuilder = UsersWsResponse.newBuilder();
     users.forEach(user -> {
-      WsPermissions.User.Builder userResponse = responseBuilder.addUsersBuilder()
+      Permissions.User.Builder userResponse = responseBuilder.addUsersBuilder()
         .setLogin(user.getLogin())
         .addAllPermissions(permissionsByUserId.get(user.getId()));
       setNullable(user.getEmail(), userResponse::setEmail);
       setNullable(user.getName(), userResponse::setName);
+      setNullable(emptyToNull(user.getEmail()), u -> userResponse.setAvatar(avatarResolver.create(user)));
     });
     responseBuilder.getPagingBuilder()
       .setPageIndex(paging.pageIndex())

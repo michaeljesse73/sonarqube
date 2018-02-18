@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,11 +25,15 @@ import IssueActionsBar from './components/IssueActionsBar';
 import IssueCommentLine from './components/IssueCommentLine';
 import { updateIssue } from './actions';
 import { deleteIssueComment, editIssueComment } from '../../api/issues';
-import type { Issue } from './types';
+/*:: import type { Issue } from './types'; */
 
+/*::
 type Props = {|
+  branch?: string,
   checked?: boolean,
-  currentPopup: string,
+  currentPopup: ?string,
+  displayLocationsCount?: boolean;
+  displayLocationsLink?: boolean;
   issue: Issue,
   onAssign: string => void,
   onChange: Issue => void,
@@ -40,11 +44,12 @@ type Props = {|
   selected: boolean,
   togglePopup: (string, boolean | void) => void
 |};
+*/
 
 export default class IssueView extends React.PureComponent {
-  props: Props;
+  /*:: props: Props; */
 
-  handleCheck = (event: Event) => {
+  handleCheck = (event /*: Event */) => {
     event.preventDefault();
     event.stopPropagation();
     if (this.props.onCheck) {
@@ -52,18 +57,18 @@ export default class IssueView extends React.PureComponent {
     }
   };
 
-  handleClick = (event: Event & { target: HTMLElement }) => {
+  handleClick = (event /*: Event & { target: HTMLElement } */) => {
     event.preventDefault();
     if (this.props.onClick) {
       this.props.onClick(this.props.issue.key);
     }
   };
 
-  editComment = (comment: string, text: string) => {
+  editComment = (comment /*: string */, text /*: string */) => {
     updateIssue(this.props.onChange, this.props.onFail, editIssueComment({ comment, text }));
   };
 
-  deleteComment = (comment: string) => {
+  deleteComment = (comment /*: string */) => {
     updateIssue(this.props.onChange, this.props.onFail, deleteIssueComment({ comment }));
   };
 
@@ -85,8 +90,11 @@ export default class IssueView extends React.PureComponent {
         role="listitem"
         tabIndex={0}>
         <IssueTitleBar
-          issue={issue}
+          branch={this.props.branch}
           currentPopup={this.props.currentPopup}
+          displayLocationsCount={this.props.displayLocationsCount}
+          displayLocationsLink={this.props.displayLocationsLink}
+          issue={issue}
           onFail={this.props.onFail}
           onFilter={this.props.onFilter}
           togglePopup={this.props.togglePopup}
@@ -100,29 +108,31 @@ export default class IssueView extends React.PureComponent {
           onChange={this.props.onChange}
         />
         {issue.comments &&
-          issue.comments.length > 0 &&
-          <div className="issue-comments">
-            {issue.comments.map(comment => (
-              <IssueCommentLine
-                comment={comment}
-                key={comment.key}
-                onEdit={this.editComment}
-                onDelete={this.deleteComment}
-              />
-            ))}
-          </div>}
+          issue.comments.length > 0 && (
+            <div className="issue-comments">
+              {issue.comments.map(comment => (
+                <IssueCommentLine
+                  comment={comment}
+                  key={comment.key}
+                  onEdit={this.editComment}
+                  onDelete={this.deleteComment}
+                />
+              ))}
+            </div>
+          )}
         <a className="issue-navigate js-issue-navigate">
           <i className="issue-navigate-to-left icon-chevron-left" />
           <i className="issue-navigate-to-right icon-chevron-right" />
         </a>
-        {hasCheckbox &&
+        {hasCheckbox && (
           <a className="js-toggle issue-checkbox-container" href="#" onClick={this.handleCheck}>
             <i
               className={classNames('issue-checkbox', 'icon-checkbox', {
                 'icon-checkbox-checked': this.props.checked
               })}
             />
-          </a>}
+          </a>
+        )}
       </div>
     );
   }

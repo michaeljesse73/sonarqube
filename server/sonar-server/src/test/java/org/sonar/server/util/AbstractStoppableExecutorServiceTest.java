@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -37,7 +37,7 @@ import static org.mockito.Mockito.when;
 public class AbstractStoppableExecutorServiceTest {
   private static final Callable<String> SOME_CALLABLE = new Callable<String>() {
     @Override
-    public String call() throws Exception {
+    public String call() {
       return null;
     }
   };

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -66,18 +66,10 @@ export function copyQualityGate(qualityGate) {
   };
 }
 
-export const SET_AS_DEFAULT = 'SET_AS_DEFAULT';
+export const SET_AS_DEFAULT = 'qualityGates/SET_AS_DEFAULT';
 export function setQualityGateAsDefault(qualityGate) {
   return {
     type: SET_AS_DEFAULT,
-    qualityGate
-  };
-}
-
-export const UNSET_AS_DEFAULT = 'qualityGates/UNSET_AS_DEFAULT';
-export function unsetQualityGateAsDefault(qualityGate) {
-  return {
-    type: UNSET_AS_DEFAULT,
     qualityGate
   };
 }

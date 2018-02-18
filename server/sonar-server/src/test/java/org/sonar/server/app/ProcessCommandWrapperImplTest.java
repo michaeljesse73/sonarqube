@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,12 +21,13 @@ package org.sonar.server.app;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Random;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.sonar.api.config.internal.MapSettings;
-import org.sonar.process.DefaultProcessCommands;
+import org.sonar.process.sharedmemoryfile.DefaultProcessCommands;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonar.process.ProcessEntryPoint.PROPERTY_PROCESS_INDEX;
@@ -43,7 +44,7 @@ public class ProcessCommandWrapperImplTest {
   private MapSettings settings = new MapSettings();
 
   @Test
-  public void requestSQRestart_throws_IAE_if_process_index_property_not_set() throws Exception {
+  public void requestSQRestart_throws_IAE_if_process_index_property_not_set() {
     ProcessCommandWrapperImpl processCommandWrapper = new ProcessCommandWrapperImpl(settings.asConfig());
 
     expectedException.expect(IllegalArgumentException.class);
@@ -53,7 +54,7 @@ public class ProcessCommandWrapperImplTest {
   }
 
   @Test
-  public void requestSQRestart_throws_IAE_if_process_shared_path_property_not_set() throws Exception {
+  public void requestSQRestart_throws_IAE_if_process_shared_path_property_not_set() {
     settings.setProperty(PROPERTY_PROCESS_INDEX, 1);
     ProcessCommandWrapperImpl processCommandWrapper = new ProcessCommandWrapperImpl(settings.asConfig());
 
@@ -78,7 +79,7 @@ public class ProcessCommandWrapperImplTest {
   }
 
   @Test
-  public void requestSQStop_throws_IAE_if_process_shared_path_property_not_set() throws Exception {
+  public void requestSQStop_throws_IAE_if_process_shared_path_property_not_set() {
     settings.setProperty(PROPERTY_PROCESS_INDEX, 1);
     ProcessCommandWrapperImpl processCommandWrapper = new ProcessCommandWrapperImpl(settings.asConfig());
 
@@ -103,7 +104,7 @@ public class ProcessCommandWrapperImplTest {
   }
 
   @Test
-  public void notifyOperational_throws_IAE_if_process_sharedDir_property_not_set() throws Exception {
+  public void notifyOperational_throws_IAE_if_process_sharedDir_property_not_set() {
     settings.setProperty(PROPERTY_PROCESS_INDEX, 1);
     ProcessCommandWrapperImpl processCommandWrapper = new ProcessCommandWrapperImpl(settings.asConfig());
 
@@ -114,7 +115,7 @@ public class ProcessCommandWrapperImplTest {
   }
 
   @Test
-  public void notifyOperational_throws_IAE_if_process_index_property_not_set() throws Exception {
+  public void notifyOperational_throws_IAE_if_process_index_property_not_set() {
     ProcessCommandWrapperImpl processCommandWrapper = new ProcessCommandWrapperImpl(settings.asConfig());
 
     expectedException.expect(IllegalArgumentException.class);
@@ -135,6 +136,23 @@ public class ProcessCommandWrapperImplTest {
     try (DefaultProcessCommands processCommands = DefaultProcessCommands.secondary(tmpDir, PROCESS_NUMBER)) {
       assertThat(processCommands.isOperational()).isTrue();
     }
+  }
+
+  @Test
+  public void isCeOperational_reads_shared_memory_operational_flag_in_location_3() throws IOException {
+    File tmpDir = temp.newFolder().getAbsoluteFile();
+    settings.setProperty(PROPERTY_SHARED_PATH, tmpDir.getAbsolutePath());
+
+    boolean expected = new Random().nextBoolean();
+    if (expected) {
+      try (DefaultProcessCommands processCommands = DefaultProcessCommands.secondary(tmpDir, 3)) {
+        processCommands.setOperational();
+      }
+    }
+
+    ProcessCommandWrapperImpl underTest = new ProcessCommandWrapperImpl(settings.asConfig());
+
+    assertThat(underTest.isCeOperational()).isEqualTo(expected);
   }
 
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,8 +22,9 @@ import React from 'react';
 import BubblePopupHelper from '../../../components/common/BubblePopupHelper';
 import SimilarIssuesPopup from '../popups/SimilarIssuesPopup';
 import { translate } from '../../../helpers/l10n';
-import type { Issue } from '../types';
+/*:: import type { Issue } from '../types'; */
 
+/*::
 type Props = {|
   isOpen: boolean,
   issue: Issue,
@@ -31,21 +32,22 @@ type Props = {|
   onFail: Error => void,
   onFilter: (property: string, issue: Issue) => void
 |};
+*/
 
 export default class SimilarIssuesFilter extends React.PureComponent {
-  props: Props;
+  /*:: props: Props; */
 
-  handleClick = (evt: SyntheticInputEvent) => {
+  handleClick = (evt /*: SyntheticInputEvent */) => {
     evt.preventDefault();
     this.togglePopup();
   };
 
-  handleFilter = (property: string, issue: Issue) => {
+  handleFilter = (property /*: string */, issue /*: Issue */) => {
     this.togglePopup(false);
     this.props.onFilter(property, issue);
   };
 
-  togglePopup = (open?: boolean) => {
+  togglePopup = (open /*: boolean | void */) => {
     this.props.togglePopup('similarIssues', open);
   };
 
@@ -60,8 +62,7 @@ export default class SimilarIssuesFilter extends React.PureComponent {
           className="js-issue-filter button-link issue-action issue-action-with-options"
           aria-label={translate('issue.filter_similar_issues')}
           onClick={this.handleClick}>
-          <i className="icon-filter icon-half-transparent" />{' '}
-          <i className="icon-dropdown" />
+          <i className="icon-filter icon-half-transparent" /> <i className="icon-dropdown" />
         </button>
       </BubblePopupHelper>
     );

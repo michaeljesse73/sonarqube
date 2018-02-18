@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -17,29 +17,27 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-
 package org.sonarqube.tests.organization;
 
 import com.sonar.orchestrator.Orchestrator;
-import org.sonarqube.tests.Category6Suite;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
-import org.sonarqube.tests.Tester;
+import org.sonarqube.qa.util.Tester;
 import org.sonarqube.ws.Organizations.Organization;
-import org.sonarqube.ws.WsUsers.CreateWsResponse.User;
+import org.sonarqube.ws.Users.CreateWsResponse.User;
 import org.sonarqube.ws.client.HttpException;
-import org.sonarqube.ws.client.permission.AddUserWsRequest;
-
-import static util.ItUtils.setServerProperty;
+import org.sonarqube.ws.client.organizations.RemoveMemberRequest;
+import org.sonarqube.ws.client.permissions.AddUserRequest;
+import org.sonarqube.ws.client.users.DeactivateRequest;
 
 public class OrganizationMembershipTest {
 
   @ClassRule
-  public static Orchestrator orchestrator = Category6Suite.ORCHESTRATOR;
+  public static Orchestrator orchestrator = OrganizationSuite.ORCHESTRATOR;
 
   @Rule
   public Tester tester = new Tester(orchestrator);
@@ -47,14 +45,14 @@ public class OrganizationMembershipTest {
   @Rule
   public ExpectedException expectedException = ExpectedException.none();
 
-  @BeforeClass
-  public static void setUp() {
-    setServerProperty(orchestrator, "sonar.organizations.anyoneCanCreate", "true");
+  @Before
+  public void setUp() {
+    tester.settings().setGlobalSettings("sonar.organizations.anyoneCanCreate", "true");
   }
 
-  @AfterClass
-  public static void tearDown() {
-    setServerProperty(orchestrator, "sonar.organizations.anyoneCanCreate", null);
+  @After
+  public void tearDown() {
+    tester.settings().resetSettings("sonar.organizations.anyoneCanCreate");
   }
 
   @Test
@@ -81,7 +79,7 @@ public class OrganizationMembershipTest {
     User user = tester.users().generate();
     addMembership(organization, user);
 
-    tester.wsClient().permissions().addUser(new AddUserWsRequest().setLogin(user.getLogin()).setPermission("admin").setOrganization(organization.getKey()));
+    tester.wsClient().permissions().addUser(new AddUserRequest().setLogin(user.getLogin()).setPermission("admin").setOrganization(organization.getKey()));
     tester.organizations().assertThatMemberOf(organization, user);
 
     removeMembership(organization, user);
@@ -94,10 +92,10 @@ public class OrganizationMembershipTest {
     User user = tester.users().generate();
     addMembership(organization, user);
 
-    tester.wsClient().permissions().addUser(new AddUserWsRequest().setLogin(user.getLogin()).setPermission("admin").setOrganization(organization.getKey()));
+    tester.wsClient().permissions().addUser(new AddUserRequest().setLogin(user.getLogin()).setPermission("admin").setOrganization(organization.getKey()));
     tester.organizations().assertThatMemberOf(organization, user);
     // Admin is the creator of the organization so he was granted with admin permission
-    tester.wsClient().organizations().removeMember(organization.getKey(), "admin");
+    tester.wsClient().organizations().removeMember(new RemoveMemberRequest().setOrganization(organization.getKey()).setLogin("admin"));
 
     expectedException.expect(HttpException.class);
     expectedException.expectMessage("The last administrator member cannot be removed");
@@ -110,7 +108,7 @@ public class OrganizationMembershipTest {
     User user = tester.users().generate();
     addMembership(organization, user);
 
-    tester.users().service().deactivate(user.getLogin());
+    tester.users().service().deactivate(new DeactivateRequest().setLogin(user.getLogin()));
     tester.organizations().assertThatNotMemberOf(organization, user);
   }
 
@@ -128,6 +126,6 @@ public class OrganizationMembershipTest {
   }
 
   private void removeMembership(Organization organization, User user) {
-    tester.wsClient().organizations().removeMember(organization.getKey(), user.getLogin());
+    tester.wsClient().organizations().removeMember(new RemoveMemberRequest().setOrganization(organization.getKey()).setLogin(user.getLogin()));
   }
 }

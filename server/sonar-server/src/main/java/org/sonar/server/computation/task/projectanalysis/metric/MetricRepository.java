@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,6 +18,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 package org.sonar.server.computation.task.projectanalysis.metric;
+
+import java.util.Optional;
 
 public interface MetricRepository {
 
@@ -38,6 +40,11 @@ public interface MetricRepository {
    * @throws IllegalStateException if no Metric with the specified id is found
    */
   Metric getById(long id);
+
+  /**
+   * Gets the {@link Metric} with the specific id if it exists in the repository.
+   */
+  Optional<Metric> getOptionalById(long id);
 
   /**
    * Get iterable of all {@link Metric}.

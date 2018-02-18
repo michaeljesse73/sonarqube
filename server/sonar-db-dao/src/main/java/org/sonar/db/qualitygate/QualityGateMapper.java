@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,19 +19,41 @@
  */
 package org.sonar.db.qualitygate;
 
+import java.util.Collection;
 import java.util.List;
+import org.apache.ibatis.annotations.Param;
 
 public interface QualityGateMapper {
 
-  void insert(QualityGateDto qualityGate);
+  void insertQualityGate(QualityGateDto qualityGate);
 
-  List<QualityGateDto> selectAll();
+  void insertOrgQualityGate(@Param("uuid") String uuid, @Param("organizationUuid") String organizationUuid, @Param("qualityGateUuid") String qualityGateUuuid);
+
+  List<QualityGateDto> selectAll(@Param("organizationUuid") String organizationUuid);
 
   QualityGateDto selectByName(String name);
 
   QualityGateDto selectById(long id);
 
-  void delete(long id);
+  QGateWithOrgDto selectByUuidAndOrganization(@Param("qualityGateUuid") String qualityGateUuid, @Param("organizationUuid") String organizationUuid);
+
+  QGateWithOrgDto selectByNameAndOrganization(@Param("name") String name, @Param("organizationUuid") String organizationUuid);
+
+  QGateWithOrgDto selectByIdAndOrganization(@Param("id") long id, @Param("organizationUuid") String organizationUuid);
+
+  QGateWithOrgDto selectDefault(@Param("organizationUuid") String organizationUuid);
+
+  QualityGateDto selectBuiltIn();
+
+  void delete(String uuid);
+
+  void deleteByUuids(@Param("uuids") Collection<String> uuids);
+
+  void deleteOrgQualityGatesByQualityGateUuid(String uuid);
+
+  void deleteOrgQualityGatesByOrganization(@Param("organizationUuid") String organizationUuid);
 
   void update(QualityGateDto qGate);
+
+  void ensureOneBuiltInQualityGate(String builtInQualityName);
 }

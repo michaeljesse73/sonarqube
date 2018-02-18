@@ -17,11 +17,11 @@ ORCHESTRATOR_CONFIG_URL=$2
 shift 2
 
 cd tests/plugins
-mvn clean package
+mvn clean package -B -e -V
 
 cd ..
 mvn verify \
-  -Dcategory=$CATEGORY \
+  -Dcategory="$CATEGORY" \
   -Dorchestrator.configUrl=$ORCHESTRATOR_CONFIG_URL \
-  -Dwith-db-drivers \
+  -Pwith-db-drivers \
   -B -e -V $*

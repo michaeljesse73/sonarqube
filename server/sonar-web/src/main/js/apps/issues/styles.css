@@ -1,8 +1,32 @@
+/*
+ * SonarQube
+ * Copyright (C) 2009-2018 SonarSource SA
+ * mailto:info AT sonarsource DOT com
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
 .issues-main-header .component-name {
-  line-height: 24px;
+  line-height: var(--controlHeight);
 }
 
-.concise-issues-list-header, .concise-issues-list-header-inner {
+.issues-main-header-spinner {
+  margin-right: 2px;
+}
+
+.concise-issues-list-header,
+.concise-issues-list-header-inner {
 }
 
 .concise-issues-list-header {
@@ -24,12 +48,12 @@
 }
 
 .concise-issues-list-header-button path {
-  fill: #777;
+  fill: var(--secondFontColor);
   transition: fill 0.3s ease;
 }
 
 .concise-issues-list-header-button:hover path {
-  fill: #4b9fd5;
+  fill: var(--blue);
 }
 
 .concise-issue-component {
@@ -41,10 +65,10 @@
 
 .concise-issue-box {
   position: relative;
-  z-index: 1;
+  z-index: var(--belowNormalZIndex);
   margin-bottom: 4px;
   padding: 8px;
-  border: 1px solid #e6e6e6;
+  border: 1px solid var(--barBorderColor);
   background-color: #fff;
   cursor: pointer;
   transition: background-color 0.3s ease, border-color 0.3s ease;
@@ -59,7 +83,7 @@
 }
 
 .concise-issue-box.selected {
-  z-index: 2;
+  z-index: var(--normalZIndex);
   border-color: #dd4040;
   background-color: #ffeaea;
   cursor: default;
@@ -74,7 +98,7 @@
 .concise-issue-box-attributes {
   margin-top: 8px;
   line-height: 16px;
-  font-size: 12px;
+  font-size: var(--smallFontSize);
 }
 
 .concise-issue-box:not(.selected) .location-index {
@@ -97,12 +121,6 @@
   border: none;
 }
 
-.issues-filters-header {
-  margin-bottom: 12px;
-  padding-bottom: 11px;
-  border-bottom: 1px solid #e6e6e6;
-}
-
 .issues-my-issues-filter {
   margin-bottom: 24px;
   text-align: center;
@@ -114,25 +132,6 @@
   text-align: right;
 }
 
-.issues .search-navigator-facet-header, .issues .search-navigator-facet-list {
-  padding-left: 0;
-  padding-right: 0;
-}
-
-.issues .search-navigator-facet-header {
-  padding-top: 8px;
-  padding-bottom: 8px;
-}
-
-.issues .search-navigator-facet-box:not(.hidden):not(.leak-facet-box)
-  + .search-navigator-facet-box:not(.leak-facet-box) {
-  border-top: none;
-}
-
-.issues .search-navigator-facet-footer {
-  padding: 0 0 10px 0;
-}
-
 .issues .issue-list {
   /* no math, just a good guess */
   min-width: 640px;
@@ -140,11 +139,12 @@
 }
 
 .issues .issue {
+  outline: 1px dashed transparent;
   cursor: pointer;
 }
 
 .issues .issue:hover {
-  border-color: #dd4040;
+  outline-color: #dd4040;
 }
 
 @media (max-width: 1320px) {

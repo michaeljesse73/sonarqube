@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -83,13 +83,13 @@ public class DropTableBuilderTest {
   }
 
   @Test
-  public void fail_when_dialect_is_null() throws Exception {
+  public void fail_when_dialect_is_null() {
     expectedException.expect(NullPointerException.class);
     new DropTableBuilder(null, "issues");
   }
 
   @Test
-  public void fail_when_table_is_null() throws Exception {
+  public void fail_when_table_is_null() {
     expectedException.expect(NullPointerException.class);
     new DropTableBuilder(new PostgreSql(), null);
   }

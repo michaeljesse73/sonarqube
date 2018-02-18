@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -30,7 +30,7 @@ import static org.mockito.Mockito.when;
 public class ScannerPluginPredicateTest {
 
   private MapSettings settings = new MapSettings();
-  private GlobalMode mode = mock(GlobalMode.class);
+  private GlobalAnalysisMode mode = mock(GlobalAnalysisMode.class);
 
   @Test
   public void accept_if_no_inclusions_nor_exclusions() {

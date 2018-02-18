@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,8 +21,12 @@ package org.sonar.server.computation.task.projectanalysis.issue;
 
 import com.google.common.annotations.VisibleForTesting;
 import java.util.Date;
+import java.util.Optional;
 import org.sonar.api.issue.Issue;
+import org.sonar.api.issue.IssueComment;
 import org.sonar.core.issue.DefaultIssue;
+import org.sonar.core.issue.DefaultIssueComment;
+import org.sonar.core.issue.FieldDiffs;
 import org.sonar.core.issue.IssueChangeContext;
 import org.sonar.core.util.Uuids;
 import org.sonar.server.computation.task.projectanalysis.analysis.AnalysisMetadataHolder;
@@ -43,13 +47,16 @@ public class IssueLifecycle {
   private final IssueChangeContext changeContext;
   private final IssueFieldsSetter updater;
   private final DebtCalculator debtCalculator;
+  private final AnalysisMetadataHolder analysisMetadataHolder;
 
   public IssueLifecycle(AnalysisMetadataHolder analysisMetadataHolder, IssueWorkflow workflow, IssueFieldsSetter updater, DebtCalculator debtCalculator) {
-    this(IssueChangeContext.createScan(new Date(analysisMetadataHolder.getAnalysisDate())), workflow, updater, debtCalculator);
+    this(analysisMetadataHolder, IssueChangeContext.createScan(new Date(analysisMetadataHolder.getAnalysisDate())), workflow, updater, debtCalculator);
   }
 
   @VisibleForTesting
-  IssueLifecycle(IssueChangeContext changeContext, IssueWorkflow workflow, IssueFieldsSetter updater, DebtCalculator debtCalculator) {
+  IssueLifecycle(AnalysisMetadataHolder analysisMetadataHolder, IssueChangeContext changeContext, IssueWorkflow workflow, IssueFieldsSetter updater,
+    DebtCalculator debtCalculator) {
+    this.analysisMetadataHolder = analysisMetadataHolder;
     this.workflow = workflow;
     this.updater = updater;
     this.debtCalculator = debtCalculator;
@@ -64,21 +71,69 @@ public class IssueLifecycle {
     issue.setEffort(debtCalculator.calculate(issue));
   }
 
-  public void mergeExistingOpenIssue(DefaultIssue raw, DefaultIssue base) {
+  public void copyExistingOpenIssueFromLongLivingBranch(DefaultIssue raw, DefaultIssue base, String fromLongBranchName) {
+    raw.setKey(Uuids.create());
     raw.setNew(false);
+    copyIssueAttributes(raw, base);
+    raw.setFieldChange(changeContext, IssueFieldsSetter.FROM_LONG_BRANCH, fromLongBranchName, analysisMetadataHolder.getBranch().getName());
+  }
+
+  public void mergeConfirmedOrResolvedFromShortLivingBranch(DefaultIssue raw, DefaultIssue base, String fromShortBranchName) {
+    copyIssueAttributes(raw, base);
+    raw.setFieldChange(changeContext, IssueFieldsSetter.FROM_SHORT_BRANCH, fromShortBranchName, analysisMetadataHolder.getBranch().getName());
+  }
+
+  private void copyIssueAttributes(DefaultIssue to, DefaultIssue from) {
+    to.setCopied(true);
+    copyFields(to, from);
+    if (from.manualSeverity()) {
+      to.setManualSeverity(true);
+      to.setSeverity(from.severity());
+    }
+    copyChanges(to, from);
+  }
+
+  private static void copyChanges(DefaultIssue raw, DefaultIssue base) {
+    base.comments().forEach(c -> raw.addComment(copy(raw.key(), c)));
+    base.changes().forEach(c -> copy(raw.key(), c).ifPresent(raw::addChange));
+  }
+
+  /**
+   * Copy a comment from another issue
+   */
+  private static DefaultIssueComment copy(String issueKey, IssueComment c) {
+    DefaultIssueComment comment = new DefaultIssueComment();
+    comment.setIssueKey(issueKey);
+    comment.setKey(Uuids.create());
+    comment.setUserLogin(c.userLogin());
+    comment.setMarkdownText(c.markdownText());
+    comment.setCreatedAt(c.createdAt()).setUpdatedAt(c.updatedAt());
+    comment.setNew(true);
+    return comment;
+  }
+
+  /**
+   * Copy a diff from another issue
+   */
+  private static Optional<FieldDiffs> copy(String issueKey, FieldDiffs c) {
+    FieldDiffs result = new FieldDiffs();
+    result.setIssueKey(issueKey);
+    result.setUserLogin(c.userLogin());
+    result.setCreationDate(c.creationDate());
+    // Don't copy "file" changelogs as they refer to file uuids that might later be purged
+    c.diffs().entrySet().stream().filter(e -> !e.getKey().equals(IssueFieldsSetter.FILE))
+      .forEach(e -> result.setDiff(e.getKey(), e.getValue().oldValue(), e.getValue().newValue()));
+    if (result.diffs().isEmpty()) {
+      return Optional.empty();
+    }
+    return Optional.of(result);
+  }
+
+  public void mergeExistingOpenIssue(DefaultIssue raw, DefaultIssue base) {
     raw.setKey(base.key());
-    raw.setType(base.type());
-    raw.setCreationDate(base.creationDate());
-    raw.setUpdateDate(base.updateDate());
-    raw.setCloseDate(base.closeDate());
-    raw.setResolution(base.resolution());
-    raw.setStatus(base.status());
-    raw.setAssignee(base.assignee());
-    raw.setAuthorLogin(base.authorLogin());
-    raw.setTags(base.tags());
-    raw.setAttributes(base.attributes());
-    raw.setEffort(debtCalculator.calculate(raw));
-    raw.setOnDisabledRule(base.isOnDisabledRule());
+    raw.setNew(false);
+    copyFields(raw, base);
+
     if (base.manualSeverity()) {
       raw.setManualSeverity(true);
       raw.setSeverity(base.severity());
@@ -98,10 +153,25 @@ public class IssueLifecycle {
     updater.setPastMessage(raw, base.getMessage(), changeContext);
     updater.setPastGap(raw, base.gap(), changeContext);
     updater.setPastEffort(raw, base.effort(), changeContext);
-    raw.setSelectedAt(base.selectedAt());
   }
 
   public void doAutomaticTransition(DefaultIssue issue) {
     workflow.doAutomaticTransition(issue, changeContext);
+  }
+
+  private void copyFields(DefaultIssue toIssue, DefaultIssue fromIssue) {
+    toIssue.setType(fromIssue.type());
+    toIssue.setCreationDate(fromIssue.creationDate());
+    toIssue.setUpdateDate(fromIssue.updateDate());
+    toIssue.setCloseDate(fromIssue.closeDate());
+    toIssue.setResolution(fromIssue.resolution());
+    toIssue.setStatus(fromIssue.status());
+    toIssue.setAssignee(fromIssue.assignee());
+    toIssue.setAuthorLogin(fromIssue.authorLogin());
+    toIssue.setTags(fromIssue.tags());
+    toIssue.setAttributes(fromIssue.attributes());
+    toIssue.setEffort(debtCalculator.calculate(toIssue));
+    toIssue.setOnDisabledRule(fromIssue.isOnDisabledRule());
+    toIssue.setSelectedAt(fromIssue.selectedAt());
   }
 }

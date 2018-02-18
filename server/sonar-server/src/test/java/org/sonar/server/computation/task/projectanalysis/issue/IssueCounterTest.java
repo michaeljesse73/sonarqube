@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -139,7 +139,7 @@ public class IssueCounterTest {
   @Rule
   public MeasureRepositoryRule measureRepository = MeasureRepositoryRule.create(treeRootHolder, metricRepository);
 
-  private IssueCounter underTest = new IssueCounter(periodsHolder, metricRepository, measureRepository);;
+  private IssueCounter underTest = new IssueCounter(periodsHolder, metricRepository, measureRepository);
 
   @Test
   public void count_issues_by_status() {

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,12 +19,12 @@
  */
 package org.sonar.api.server.ws;
 
-import com.google.common.annotations.Beta;
 import com.google.common.base.Splitter;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -32,7 +32,6 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 import org.apache.commons.lang.StringUtils;
 import org.sonar.api.utils.DateUtils;
-import org.sonar.api.utils.SonarException;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.lang.String.format;
@@ -45,7 +44,7 @@ import static org.sonar.api.utils.DateUtils.parseDateTimeQuietly;
  */
 public abstract class Request {
 
-  private static final String MSG_PARAMETER_MISSING = "The '%s' parameter is missing";
+  protected static final String MSG_PARAMETER_MISSING = "The '%s' parameter is missing";
 
   /**
    * Returns the name of the HTTP method with which this request was made. Possible
@@ -246,7 +245,7 @@ public abstract class Request {
 
     try {
       return DateUtils.parseDate(s);
-    } catch (SonarException notDateException) {
+    } catch (RuntimeException notDateException) {
       throw new IllegalArgumentException(notDateException);
     }
   }
@@ -277,7 +276,6 @@ public abstract class Request {
     }
   }
 
-  @Beta
   public <T> Param<T> getParam(String key, BiFunction<Request, String, T> retrieveAndValidate) {
     String param = this.param(key);
     if (param != null) {
@@ -286,7 +284,6 @@ public abstract class Request {
     return AbsentParam.absent();
   }
 
-  @Beta
   public StringParam getParam(String key, Consumer<String> validate) {
     String value = this.param(key);
     if (value != null) {
@@ -296,7 +293,6 @@ public abstract class Request {
     return AbsentStringParam.absent();
   }
 
-  @Beta
   public StringParam getParam(String key) {
     String value = this.param(key);
     if (value != null) {
@@ -306,11 +302,18 @@ public abstract class Request {
   }
 
   /**
+   * Optional value of the HTTP header with specified name.
+   * If present, the result can have an empty string value ({@code ""}).
+   *
+   * @since 6.6
+   */
+  public abstract Optional<String> header(String name);
+
+  /**
    * Allows a web service to call another web service.
    * @see LocalConnector
    * @since 5.5
    */
-  @Beta
   public abstract LocalConnector localConnector();
 
   /**
@@ -332,7 +335,6 @@ public abstract class Request {
    * Represents a Request parameter, provides information whether is was specified or not (check {@link #isPresent()})
    * and utility method to nicely handles cases where the parameter is not present.
    */
-  @Beta
   public interface Param<T> {
     boolean isPresent();
 

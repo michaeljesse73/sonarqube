@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -31,6 +31,7 @@ import java.util.Date;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.elasticsearch.action.update.UpdateRequest;
+import org.elasticsearch.common.xcontent.XContentType;
 import org.sonar.api.utils.log.Loggers;
 import org.sonar.api.utils.text.JsonWriter;
 import org.sonar.db.DbClient;
@@ -39,9 +40,9 @@ import org.sonar.db.ResultSetIterator;
 import org.sonar.db.protobuf.DbFileSources;
 import org.sonar.db.source.FileSourceDto;
 import org.sonar.server.es.EsUtils;
-import org.sonar.server.source.index.FileSourcesUpdaterHelper;
 import org.sonar.server.source.index.FileSourcesUpdaterHelper.Row;
 
+import static org.sonar.server.source.index.FileSourcesUpdaterHelper.preparedStatementToSelectFileSources;
 import static org.sonar.server.test.index.TestIndexDefinition.FIELD_COVERED_FILES;
 import static org.sonar.server.test.index.TestIndexDefinition.FIELD_COVERED_FILE_LINES;
 import static org.sonar.server.test.index.TestIndexDefinition.FIELD_COVERED_FILE_UUID;
@@ -68,7 +69,7 @@ public class TestResultSetIterator extends ResultSetIterator<Row> {
 
   public static TestResultSetIterator create(DbClient dbClient, DbSession session, @Nullable String projectUuid) {
     try {
-      return new TestResultSetIterator(FileSourcesUpdaterHelper.preparedStatementToSelectFileSources(dbClient, session, FileSourceDto.Type.TEST, projectUuid));
+      return new TestResultSetIterator(preparedStatementToSelectFileSources(dbClient, session, FileSourceDto.Type.TEST, projectUuid));
     } catch (SQLException e) {
       throw new IllegalStateException("Fail to prepare SQL request to select all tests", e);
     }
@@ -134,8 +135,8 @@ public class TestResultSetIterator extends ResultSetIterator<Row> {
       byte[] jsonDoc = bytes.toByteArray();
       UpdateRequest updateRequest = new UpdateRequest(INDEX_TYPE_TEST.getIndex(), INDEX_TYPE_TEST.getType(), test.getUuid())
         .routing(projectUuid)
-        .doc(jsonDoc)
-        .upsert(jsonDoc);
+        .doc(jsonDoc, XContentType.JSON)
+        .upsert(jsonDoc, XContentType.JSON);
       result.getUpdateRequests().add(updateRequest);
     }
     return result;

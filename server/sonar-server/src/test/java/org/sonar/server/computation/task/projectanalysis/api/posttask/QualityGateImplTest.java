@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -47,7 +47,7 @@ public class QualityGateImplTest {
     expectedException.expect(NullPointerException.class);
     expectedException.expectMessage("id can not be null");
 
-    new QualityGateImpl(null, SOME_NAME, SOME_STATUS, Collections.<QualityGate.Condition>emptyList());
+    new QualityGateImpl(null, SOME_NAME, SOME_STATUS, Collections.emptyList());
   }
 
   @Test
@@ -55,7 +55,7 @@ public class QualityGateImplTest {
     expectedException.expect(NullPointerException.class);
     expectedException.expectMessage("name can not be null");
 
-    new QualityGateImpl(SOME_ID, null, SOME_STATUS, Collections.<QualityGate.Condition>emptyList());
+    new QualityGateImpl(SOME_ID, null, SOME_STATUS, Collections.emptyList());
   }
 
   @Test
@@ -63,7 +63,7 @@ public class QualityGateImplTest {
     expectedException.expect(NullPointerException.class);
     expectedException.expectMessage("status can not be null");
 
-    new QualityGateImpl(SOME_ID, SOME_NAME, null, Collections.<QualityGate.Condition>emptyList());
+    new QualityGateImpl(SOME_ID, SOME_NAME, null, Collections.emptyList());
   }
 
   @Test

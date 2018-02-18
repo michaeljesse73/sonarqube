@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,18 +19,18 @@
  */
 package org.sonar.scanner.report;
 
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.stream.Collectors;
 import javax.annotation.CheckForNull;
-
 import org.apache.commons.lang.StringUtils;
 import org.sonar.api.CoreProperties;
 import org.sonar.api.batch.bootstrap.ProjectDefinition;
 import org.sonar.api.batch.fs.InputComponent;
 import org.sonar.api.batch.fs.InputDir;
 import org.sonar.api.batch.fs.InputFile;
+import org.sonar.api.batch.fs.InputFile.Status;
 import org.sonar.api.batch.fs.InputModule;
-import org.sonar.api.batch.fs.InputPath;
 import org.sonar.api.batch.fs.internal.DefaultInputComponent;
 import org.sonar.api.batch.fs.internal.DefaultInputFile;
 import org.sonar.api.batch.fs.internal.DefaultInputModule;
@@ -39,25 +39,30 @@ import org.sonar.api.batch.fs.internal.InputModuleHierarchy;
 import org.sonar.core.util.CloseableIterator;
 import org.sonar.scanner.protocol.output.ScannerReport;
 import org.sonar.scanner.protocol.output.ScannerReport.Component.ComponentType;
+import org.sonar.scanner.protocol.output.ScannerReport.Component.FileStatus;
 import org.sonar.scanner.protocol.output.ScannerReport.ComponentLink;
 import org.sonar.scanner.protocol.output.ScannerReport.ComponentLink.ComponentLinkType;
 import org.sonar.scanner.protocol.output.ScannerReport.Issue;
 import org.sonar.scanner.protocol.output.ScannerReportReader;
 import org.sonar.scanner.protocol.output.ScannerReportWriter;
+import org.sonar.scanner.scan.branch.BranchConfiguration;
 
 /**
  * Adds components and analysis metadata to output report
  */
 public class ComponentsPublisher implements ReportPublisherStep {
 
-  private InputComponentTree componentTree;
-  private InputModuleHierarchy moduleHierarchy;
+  private final InputComponentTree componentTree;
+  private final InputModuleHierarchy moduleHierarchy;
+  private final BranchConfiguration branchConfiguration;
+
   private ScannerReportReader reader;
   private ScannerReportWriter writer;
 
-  public ComponentsPublisher(InputModuleHierarchy moduleHierarchy, InputComponentTree inputComponentTree) {
+  public ComponentsPublisher(InputModuleHierarchy moduleHierarchy, InputComponentTree inputComponentTree, BranchConfiguration branchConfiguration) {
     this.moduleHierarchy = moduleHierarchy;
     this.componentTree = inputComponentTree;
+    this.branchConfiguration = branchConfiguration;
   }
 
   @Override
@@ -103,12 +108,11 @@ public class ComponentsPublisher implements ReportPublisherStep {
       }
 
       writeVersion(inputModule, builder);
-    }
-
-    if (component.isFile()) {
+    } else if (component.isFile()) {
       DefaultInputFile file = (DefaultInputFile) component;
       builder.setIsTest(file.type() == InputFile.Type.TEST);
       builder.setLines(file.lines());
+      builder.setStatus(convert(file.status()));
 
       String lang = getLanguageKey(file);
       if (lang != null) {
@@ -119,6 +123,11 @@ public class ComponentsPublisher implements ReportPublisherStep {
     String path = getPath(component);
     if (path != null) {
       builder.setPath(path);
+
+      String projectRelativePath = getProjectRelativePath(component);
+      if (projectRelativePath != null) {
+        builder.setProjectRelativePath(projectRelativePath);
+      }
     }
 
     for (InputComponent child : children) {
@@ -129,25 +138,40 @@ public class ComponentsPublisher implements ReportPublisherStep {
     return true;
   }
 
+  private FileStatus convert(Status status) {
+    switch (status) {
+      case ADDED:
+        return FileStatus.ADDED;
+      case CHANGED:
+        return FileStatus.CHANGED;
+      case SAME:
+        return FileStatus.SAME;
+      default:
+        throw new IllegalArgumentException("Unexpected status: " + status);
+    }
+  }
+
   private boolean shouldSkipComponent(DefaultInputComponent component, Collection<InputComponent> children) {
-    if (component instanceof InputDir && children.isEmpty()) {
+    if (component instanceof InputModule && children.isEmpty() && branchConfiguration.isShortLivingBranch()) {
+      // no children on a module in short branch analysis -> skip it (except root)
+      return !moduleHierarchy.isRoot((InputModule) component);
+    } else if (component instanceof InputDir && children.isEmpty()) {
       try (CloseableIterator<Issue> componentIssuesIt = reader.readComponentIssues(component.batchId())) {
         if (!componentIssuesIt.hasNext()) {
-          // no file to publish on a directory without issues -> skip it
+          // no files to publish on a directory without issues -> skip it
           return true;
         }
       }
     } else if (component instanceof DefaultInputFile) {
       // skip files not marked for publishing
       DefaultInputFile inputFile = (DefaultInputFile) component;
-      return !inputFile.publish();
+      return !inputFile.isPublished() || (branchConfiguration.isShortLivingBranch() && inputFile.status() == Status.SAME);
     }
     return false;
   }
 
-  private static void writeVersion(DefaultInputModule module, ScannerReport.Component.Builder builder) {
-    ProjectDefinition def = module.definition();
-    String version = getVersion(def);
+  private void writeVersion(DefaultInputModule module, ScannerReport.Component.Builder builder) {
+    String version = getVersion(module);
     if (version != null) {
       builder.setVersion(version);
     }
@@ -155,8 +179,11 @@ public class ComponentsPublisher implements ReportPublisherStep {
 
   @CheckForNull
   private String getPath(InputComponent component) {
-    if (component instanceof InputPath) {
-      InputPath inputPath = (InputPath) component;
+    if (component instanceof InputFile) {
+      DefaultInputFile inputPath = (DefaultInputFile) component;
+      return inputPath.getModuleRelativePath();
+    } else if (component instanceof InputDir) {
+      InputDir inputPath = (InputDir) component;
       if (StringUtils.isEmpty(inputPath.relativePath())) {
         return "/";
       } else {
@@ -166,16 +193,37 @@ public class ComponentsPublisher implements ReportPublisherStep {
       InputModule module = (InputModule) component;
       return moduleHierarchy.relativePath(module);
     }
-    throw new IllegalStateException("Unkown component: " + component.getClass());
+    throw new IllegalStateException("Unknown component: " + component.getClass());
   }
 
-  private static String getVersion(ProjectDefinition def) {
-    String version = def.getOriginalVersion();
+  @CheckForNull
+  private String getProjectRelativePath(DefaultInputComponent component) {
+    if (component instanceof InputFile) {
+      DefaultInputFile inputFile = (DefaultInputFile) component;
+      return inputFile.getProjectRelativePath();
+    }
+
+    Path projectBaseDir = moduleHierarchy.root().getBaseDir();
+    if (component instanceof InputDir) {
+      InputDir inputDir = (InputDir) component;
+      return projectBaseDir.relativize(inputDir.path()).toString();
+    }
+    if (component instanceof InputModule) {
+      DefaultInputModule module = (DefaultInputModule) component;
+      return projectBaseDir.relativize(module.getBaseDir()).toString();
+    }
+    throw new IllegalStateException("Unknown component: " + component.getClass());
+  }
+
+  private String getVersion(DefaultInputModule module) {
+    String version = module.getOriginalVersion();
     if (StringUtils.isNotBlank(version)) {
       return version;
     }
 
-    return def.getParent() != null ? getVersion(def.getParent()) : null;
+    DefaultInputModule parent = moduleHierarchy.parent(module);
+
+    return parent != null ? getVersion(parent) : null;
   }
 
   private static void writeLinks(InputComponent c, ScannerReport.Component.Builder builder) {
@@ -211,7 +259,7 @@ public class ComponentsPublisher implements ReportPublisherStep {
   @CheckForNull
   private static String getName(DefaultInputModule module) {
     if (StringUtils.isNotEmpty(module.definition().getBranch())) {
-      return module.definition().getOriginalName() + " " + module.definition().getBranch();
+      return module.definition().getName() + " " + module.definition().getBranch();
     } else {
       return module.definition().getOriginalName();
     }

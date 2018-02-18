@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,7 +25,11 @@ import { receiveFavorites } from '../../store/favorites/duck';
 const mapStateToProps = null;
 
 const onReceiveComponent = (
-  component: { key: string, canMarkAsFavorite: boolean, fav: boolean }
+  component /*: {
+  key: string,
+  canMarkAsFavorite: boolean,
+  fav: boolean
+} */
 ) => dispatch => {
   if (component.canMarkAsFavorite) {
     const favorites = [];

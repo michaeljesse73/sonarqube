@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -29,7 +29,9 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 import javax.annotation.Nullable;
 import org.apache.commons.io.IOUtils;
 import org.junit.Before;
@@ -42,7 +44,9 @@ import org.sonar.api.server.ws.internal.PartImpl;
 import org.sonar.api.server.ws.internal.ValidatingRequest;
 import org.sonar.api.utils.DateUtils;
 
+import static com.google.common.base.Strings.repeat;
 import static com.google.common.collect.Lists.newArrayList;
+import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 import static org.mockito.Mockito.mock;
@@ -93,6 +97,50 @@ public class RequestTest {
     assertThat(underTest.mandatoryParamAsInt("a_required_number")).isEqualTo(42);
     assertThat(underTest.mandatoryParamAsLong("a_required_number")).isEqualTo(42L);
     assertThat(underTest.mandatoryParamAsEnum("a_required_enum", RuleStatus.class)).isEqualTo(RuleStatus.BETA);
+  }
+
+  @Test
+  public void maximum_length_ok() {
+    String parameter = "maximum_length_param";
+    defineParameterTestAction(newParam -> newParam.setMaximumLength(10), parameter);
+    String value = repeat("X", 10);
+
+    String param = underTest.setParam(parameter, value).param(parameter);
+
+    assertThat(param).isEqualTo(value);
+  }
+
+  @Test
+  public void maximum_length_not_ok() {
+    String parameter = "maximum_length_param";
+    defineParameterTestAction(newParam -> newParam.setMaximumLength(10), parameter);
+
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage(format("'%s' length (11) is longer than the maximum authorized (10)", parameter));
+
+    underTest.setParam(parameter, repeat("X", 11)).param(parameter);
+  }
+
+  @Test
+  public void maximum_value_ok() {
+    String param = "maximum_value_param";
+    defineParameterTestAction(newParam -> newParam.setMaximumValue(10), param);
+    String expected = "10";
+
+    String actual = underTest.setParam(param, expected).param(param);
+
+    assertThat(actual).isEqualTo(expected);
+  }
+
+  @Test
+  public void maximum_value_not_ok() {
+    String param = "maximum_value_param";
+    defineParameterTestAction(newParam -> newParam.setMaximumValue(10), param);
+
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage(format("'%s' value (11) must be less than 10", param));
+
+    underTest.setParam(param, "11").param(param);
   }
 
   @Test
@@ -579,11 +627,26 @@ public class RequestTest {
     underTest.mandatoryParamAsPart("required_param");
   }
 
+  private void defineParameterTestAction(Consumer<WebService.NewParam> newParam, String parameter) {
+    String controllerPath = "my_controller";
+    String actionPath = "my_action";
+    WebService.Context context = new WebService.Context();
+    WebService.NewController controller = context.createController(controllerPath);
+    WebService.NewAction action = controller
+      .createAction(actionPath)
+      .setHandler(mock(RequestHandler.class));
+    WebService.NewParam param = action.createParam(parameter);
+    newParam.accept(param);
+    controller.done();
+    underTest.setAction(context.controller(controllerPath).action(actionPath));
+  }
+
   private static class FakeRequest extends ValidatingRequest {
 
     private final ListMultimap<String, String> multiParams = ArrayListMultimap.create();
     private final Map<String, String> params = new HashMap<>();
     private final Map<String, Part> parts = new HashMap<>();
+    private final Map<String, String> headers = new HashMap<>();
 
     @Override
     public String method() {
@@ -642,6 +705,16 @@ public class RequestTest {
 
     public FakeRequest setPart(String key, InputStream input, String fileName) {
       parts.put(key, new PartImpl(input, fileName));
+      return this;
+    }
+
+    @Override
+    public Optional<String> header(String name) {
+      return Optional.ofNullable(headers.get(name));
+    }
+
+    public FakeRequest setHeader(String name, String value) {
+      headers.put(name, value);
       return this;
     }
   }

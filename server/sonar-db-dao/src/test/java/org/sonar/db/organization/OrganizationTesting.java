@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -37,6 +37,8 @@ public class OrganizationTesting {
       .setName(randomAlphanumeric(64))
       .setDescription(randomAlphanumeric(256))
       .setAvatarUrl(randomAlphanumeric(256))
+      // Default quality gate should be set explicitly when needed in tests
+      .setDefaultQualityGateUuid("_NOT_SET_")
       .setUrl(randomAlphanumeric(256));
   }
 }

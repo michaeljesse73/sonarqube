@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,6 +25,7 @@ import HoldersList from '../../shared/components/HoldersList';
 import { translate } from '../../../../helpers/l10n';
 import { PERMISSIONS_ORDER_BY_QUALIFIER } from '../constants';
 
+/*::
 type Props = {|
   component: {
     configuration?: {
@@ -57,11 +58,12 @@ type Props = {|
     permissions: Array<string>
   }>
 |};
+*/
 
 export default class AllHoldersList extends React.PureComponent {
-  props: Props;
+  /*:: props: Props; */
 
-  handleToggleUser = (user: Object, permission: string) => {
+  handleToggleUser = (user /*: Object */, permission /*: string */) => {
     const hasPermission = user.permissions.includes(permission);
 
     if (hasPermission) {
@@ -71,7 +73,7 @@ export default class AllHoldersList extends React.PureComponent {
     }
   };
 
-  handleToggleGroup = (group: Object, permission: string) => {
+  handleToggleGroup = (group /*: Object */, permission /*: string */) => {
     const hasPermission = group.permissions.includes(permission);
 
     if (hasPermission) {
@@ -81,7 +83,7 @@ export default class AllHoldersList extends React.PureComponent {
     }
   };
 
-  handleSelectPermission = (permission?: string) => {
+  handleSelectPermission = (permission /*: string | void */) => {
     this.props.onPermissionSelect(permission);
   };
 
@@ -106,14 +108,12 @@ export default class AllHoldersList extends React.PureComponent {
         onSelectPermission={this.handleSelectPermission}
         onToggleUser={this.handleToggleUser}
         onToggleGroup={this.handleToggleGroup}>
-
         <SearchForm
           query={this.props.query}
           filter={this.props.filter}
           onSearch={this.props.onQueryChange}
           onFilter={this.props.onFilterChange}
         />
-
       </HoldersList>
     );
   }

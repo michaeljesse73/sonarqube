@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -27,7 +27,6 @@ import org.sonar.core.util.CloseableIterator;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
 import org.sonar.db.measure.MeasureDto;
-import org.sonar.db.measure.MeasureQuery;
 import org.sonar.scanner.protocol.output.ScannerReport;
 import org.sonar.server.computation.task.projectanalysis.batch.BatchReportReader;
 import org.sonar.server.computation.task.projectanalysis.component.Component;
@@ -47,10 +46,11 @@ public class MeasureRepositoryImpl implements MeasureRepository {
   private final MetricRepository metricRepository;
   private final ReportMetricValidator reportMetricValidator;
 
-  private MeasureDtoToMeasure underTest = new MeasureDtoToMeasure();
+  private MeasureDtoToMeasure measureTransformer = new MeasureDtoToMeasure();
   private final Set<Integer> loadedComponents = new HashSet<>();
 
-  public MeasureRepositoryImpl(DbClient dbClient, BatchReportReader reportReader, MetricRepository metricRepository, ReportMetricValidator reportMetricValidator) {
+  public MeasureRepositoryImpl(DbClient dbClient, BatchReportReader reportReader, MetricRepository metricRepository,
+    ReportMetricValidator reportMetricValidator) {
     this.dbClient = dbClient;
     this.reportReader = reportReader;
     this.reportMetricValidator = reportMetricValidator;
@@ -65,10 +65,9 @@ public class MeasureRepositoryImpl implements MeasureRepository {
     requireNonNull(metric);
 
     try (DbSession dbSession = dbClient.openSession(false)) {
-      MeasureQuery query = MeasureQuery.builder().setComponentUuid(component.getUuid()).setMetricKey(metric.getKey()).build();
-      java.util.Optional<MeasureDto> measureDto = dbClient.measureDao().selectSingle(dbSession, query);
+      java.util.Optional<MeasureDto> measureDto = dbClient.measureDao().selectLastMeasure(dbSession, component.getUuid(), metric.getKey());
       if (measureDto.isPresent()) {
-        return underTest.toMeasure(measureDto.get(), metric);
+        return measureTransformer.toMeasure(measureDto.get(), metric);
       }
       return Optional.absent();
     }

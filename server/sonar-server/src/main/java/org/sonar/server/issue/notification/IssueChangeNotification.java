@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,10 +24,10 @@ import java.io.Serializable;
 import java.util.Map;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
-import org.sonar.api.component.Component;
 import org.sonar.api.notifications.Notification;
 import org.sonar.core.issue.DefaultIssue;
 import org.sonar.core.issue.FieldDiffs;
+import org.sonar.db.component.ComponentDto;
 
 public class IssueChangeNotification extends Notification {
 
@@ -41,7 +41,6 @@ public class IssueChangeNotification extends Notification {
     setFieldValue("key", issue.key());
     setFieldValue("assignee", issue.assignee());
     setFieldValue("message", issue.message());
-    setFieldValue("componentKey", issue.componentKey());
     FieldDiffs currentChange = issue.currentChange();
     if (currentChange != null) {
       for (Map.Entry<String, FieldDiffs.Diff> entry : currentChange.diffs().entrySet()) {
@@ -54,20 +53,26 @@ public class IssueChangeNotification extends Notification {
     return this;
   }
 
-  public IssueChangeNotification setProject(Component project) {
-    setFieldValue("projectName", project.longName());
-    setFieldValue("projectKey", project.key());
-    return this;
+  public IssueChangeNotification setProject(ComponentDto project) {
+    return setProject(project.getKey(), project.name(), project.getBranch());
   }
 
-  public IssueChangeNotification setProject(String projectKey, String projectName) {
+  public IssueChangeNotification setProject(String projectKey, String projectName, @Nullable String branch) {
     setFieldValue("projectName", projectName);
     setFieldValue("projectKey", projectKey);
+    if (branch != null) {
+      setFieldValue("branch", branch);
+    }
     return this;
   }
 
-  public IssueChangeNotification setComponent(Component component) {
-    setFieldValue("componentName", component.longName());
+  public IssueChangeNotification setComponent(ComponentDto component) {
+    return setComponent(component.getKey(), component.longName());
+  }
+
+  public IssueChangeNotification setComponent(String componentKey, String componentName) {
+    setFieldValue("componentName", componentName);
+    setFieldValue("componentKey", componentKey);
     return this;
   }
 

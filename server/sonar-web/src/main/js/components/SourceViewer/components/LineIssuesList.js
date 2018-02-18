@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,29 +20,41 @@
 // @flow
 import React from 'react';
 import Issue from '../../issue/Issue';
-import type { Issue as IssueType } from '../../issue/types';
+/*:: import type { Issue as IssueType } from '../../issue/types'; */
 
+/*::
 type Props = {
+  branch?: string,
+  displayIssueLocationsCount?: boolean;
+  displayIssueLocationsLink?: boolean;
   issues: Array<IssueType>,
   onIssueChange: IssueType => void,
   onIssueClick: (issueKey: string) => void,
+  onPopupToggle: (issue: string, popupName: string, open: ?boolean ) => void,
+  openPopup: ?{ issue: string, name: string},
   selectedIssue: string | null
 };
+*/
 
 export default class LineIssuesList extends React.PureComponent {
-  props: Props;
+  /*:: props: Props; */
 
   render() {
-    const { issues, onIssueClick, selectedIssue } = this.props;
+    const { branch, issues, onIssueClick, openPopup, selectedIssue } = this.props;
 
     return (
       <div className="issue-list">
         {issues.map(issue => (
           <Issue
+            branch={branch}
+            displayLocationsCount={this.props.displayIssueLocationsCount}
+            displayLocationsLink={this.props.displayIssueLocationsLink}
             issue={issue}
             key={issue.key}
             onChange={this.props.onIssueChange}
             onClick={onIssueClick}
+            onPopupToggle={this.props.onPopupToggle}
+            openPopup={openPopup && openPopup.issue === issue.key ? openPopup.name : null}
             selected={selectedIssue === issue.key}
           />
         ))}

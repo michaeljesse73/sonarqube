@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -33,14 +33,16 @@ import org.sonar.db.permission.template.PermissionTemplateDto;
 import org.sonar.server.permission.ws.PermissionWsSupport;
 import org.sonar.server.permission.ws.PermissionsWsAction;
 import org.sonar.server.user.UserSession;
-import org.sonarqube.ws.client.permission.SetDefaultTemplateWsRequest;
+
+import javax.annotation.CheckForNull;
+import javax.annotation.Nullable;
 
 import static org.sonar.server.permission.PermissionPrivilegeChecker.checkGlobalAdmin;
 import static org.sonar.server.permission.ws.PermissionRequestValidator.validateQualifier;
 import static org.sonar.server.permission.ws.PermissionsWsParametersBuilder.createTemplateParameters;
 import static org.sonar.server.permission.ws.template.WsTemplateRef.newTemplateRef;
-import static org.sonar.server.ws.WsParameterBuilder.createRootQualifierParameter;
 import static org.sonar.server.ws.WsParameterBuilder.QualifierParameterContext.newQualifierParameterContext;
+import static org.sonar.server.ws.WsParameterBuilder.createDefaultTemplateQualifierParameter;
 import static org.sonar.server.ws.WsUtils.checkFoundWithOptional;
 import static org.sonarqube.ws.client.permission.PermissionsWsParameters.PARAM_ORGANIZATION;
 import static org.sonarqube.ws.client.permission.PermissionsWsParameters.PARAM_QUALIFIER;
@@ -63,8 +65,8 @@ public class SetDefaultTemplateAction implements PermissionsWsAction {
     this.i18n = i18n;
   }
 
-  private static SetDefaultTemplateWsRequest toSetDefaultTemplateWsRequest(Request request) {
-    return new SetDefaultTemplateWsRequest()
+  private static SetDefaultTemplateRequest toSetDefaultTemplateWsRequest(Request request) {
+    return new SetDefaultTemplateRequest()
       .setQualifier(request.param(PARAM_QUALIFIER))
       .setTemplateId(request.param(PARAM_TEMPLATE_ID))
       .setOrganization(request.param(PARAM_ORGANIZATION))
@@ -81,7 +83,7 @@ public class SetDefaultTemplateAction implements PermissionsWsAction {
       .setHandler(this);
 
     createTemplateParameters(action);
-    createRootQualifierParameter(action, newQualifierParameterContext(i18n, resourceTypes))
+    createDefaultTemplateQualifierParameter(action, newQualifierParameterContext(i18n, resourceTypes))
       .setDefaultValue(Qualifiers.PROJECT);
   }
 
@@ -91,7 +93,7 @@ public class SetDefaultTemplateAction implements PermissionsWsAction {
     response.noContent();
   }
 
-  private void doHandle(SetDefaultTemplateWsRequest request) {
+  private void doHandle(SetDefaultTemplateRequest request) {
     try (DbSession dbSession = dbClient.openSession(false)) {
       String qualifier = request.getQualifier();
       PermissionTemplateDto template = findTemplate(dbSession, request);
@@ -102,7 +104,7 @@ public class SetDefaultTemplateAction implements PermissionsWsAction {
     }
   }
 
-  private PermissionTemplateDto findTemplate(DbSession dbSession, SetDefaultTemplateWsRequest request) {
+  private PermissionTemplateDto findTemplate(DbSession dbSession, SetDefaultTemplateRequest request) {
     return wsSupport.findTemplate(dbSession, newTemplateRef(request.getTemplateId(),
       request.getOrganization(), request.getTemplateName()));
   }
@@ -120,5 +122,52 @@ public class SetDefaultTemplateAction implements PermissionsWsAction {
       defaultTemplates.setViewUuid(permissionTemplateDto.getUuid());
     }
     organizationDao.setDefaultTemplates(dbSession, organizationUuid, defaultTemplates);
+  }
+
+  private static class SetDefaultTemplateRequest {
+    private String qualifier;
+    private String templateId;
+    private String organization;
+    private String templateName;
+
+    @CheckForNull
+    public String getQualifier() {
+      return qualifier;
+    }
+
+    public SetDefaultTemplateRequest setQualifier(@Nullable String qualifier) {
+      this.qualifier = qualifier;
+      return this;
+    }
+
+    @CheckForNull
+    public String getTemplateId() {
+      return templateId;
+    }
+
+    public SetDefaultTemplateRequest setTemplateId(@Nullable String templateId) {
+      this.templateId = templateId;
+      return this;
+    }
+
+    @CheckForNull
+    public String getOrganization() {
+      return organization;
+    }
+
+    public SetDefaultTemplateRequest setOrganization(@Nullable String s) {
+      this.organization = s;
+      return this;
+    }
+
+    @CheckForNull
+    public String getTemplateName() {
+      return templateName;
+    }
+
+    public SetDefaultTemplateRequest setTemplateName(@Nullable String templateName) {
+      this.templateName = templateName;
+      return this;
+    }
   }
 }

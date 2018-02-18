@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,12 +25,11 @@ import org.sonar.api.batch.SensorContext;
 import org.sonar.api.batch.fs.internal.InputModuleHierarchy;
 import org.sonar.scanner.events.BatchStepEvent;
 import org.sonar.scanner.events.EventBus;
-import org.sonar.scanner.issue.IssueCallback;
 import org.sonar.scanner.issue.ignore.scanner.IssueExclusionsLoader;
 import org.sonar.scanner.issue.tracking.IssueTransition;
 import org.sonar.scanner.rule.QProfileVerifier;
 import org.sonar.scanner.scan.filesystem.DefaultModuleFileSystem;
-import org.sonar.scanner.scan.filesystem.FileSystemLogger;
+import org.sonar.scanner.scan.filesystem.FileIndexer;
 import org.sonar.scanner.scan.report.IssuesReports;
 
 public final class IssuesPhaseExecutor extends AbstractPhaseExecutor {
@@ -40,22 +39,21 @@ public final class IssuesPhaseExecutor extends AbstractPhaseExecutor {
   private final EventBus eventBus;
   private final IssuesReports issuesReport;
   private final IssueTransition localIssueTracking;
-  private final IssueCallback issueCallback;
 
   public IssuesPhaseExecutor(InitializersExecutor initializersExecutor, PostJobsExecutor postJobsExecutor, SensorsExecutor sensorsExecutor, SensorContext sensorContext,
-    EventBus eventBus, FileSystemLogger fsLogger, IssuesReports jsonReport, DefaultModuleFileSystem fs, QProfileVerifier profileVerifier,
-    IssueExclusionsLoader issueExclusionsLoader, IssueTransition localIssueTracking, IssueCallback issueCallback, InputModuleHierarchy moduleHierarchy) {
-    super(initializersExecutor, postJobsExecutor, sensorsExecutor, sensorContext, moduleHierarchy, eventBus, fsLogger, fs, profileVerifier, issueExclusionsLoader);
+    EventBus eventBus, IssuesReports jsonReport, DefaultModuleFileSystem fs, QProfileVerifier profileVerifier,
+    IssueExclusionsLoader issueExclusionsLoader, IssueTransition localIssueTracking, InputModuleHierarchy moduleHierarchy, FileIndexer fileIndexer,
+    CoverageExclusions coverageExclusions) {
+    super(initializersExecutor, postJobsExecutor, sensorsExecutor, sensorContext, moduleHierarchy, eventBus, fs, profileVerifier, issueExclusionsLoader, fileIndexer,
+      coverageExclusions);
     this.eventBus = eventBus;
     this.issuesReport = jsonReport;
     this.localIssueTracking = localIssueTracking;
-    this.issueCallback = issueCallback;
   }
 
   @Override
   protected void executeOnRoot() {
     localIssueTracking();
-    issuesCallback();
     issuesReport();
     LOG.info("ANALYSIS SUCCESSFUL");
   }
@@ -64,13 +62,6 @@ public final class IssuesPhaseExecutor extends AbstractPhaseExecutor {
     String stepName = "Local Issue Tracking";
     eventBus.fireEvent(new BatchStepEvent(stepName, true));
     localIssueTracking.execute();
-    eventBus.fireEvent(new BatchStepEvent(stepName, false));
-  }
-
-  private void issuesCallback() {
-    String stepName = "Issues Callback";
-    eventBus.fireEvent(new BatchStepEvent(stepName, true));
-    issueCallback.execute();
     eventBus.fireEvent(new BatchStepEvent(stepName, false));
   }
 

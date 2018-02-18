@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -35,6 +35,7 @@ public class CeWsModule extends Module {
       SubmitAction.class,
       TaskFormatter.class,
       TaskAction.class,
-      TaskTypesAction.class);
+      TaskTypesAction.class,
+      WorkerCountAction.class);
   }
 }

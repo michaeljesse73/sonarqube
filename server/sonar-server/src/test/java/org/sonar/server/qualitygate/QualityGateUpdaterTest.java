@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,17 +19,18 @@
  */
 package org.sonar.server.qualitygate;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.sonar.api.utils.System2;
+import org.sonar.core.util.UuidFactoryFast;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
 import org.sonar.db.DbTester;
+import org.sonar.db.organization.OrganizationDto;
 import org.sonar.db.qualitygate.QualityGateDto;
-import org.sonar.server.exceptions.BadRequestException;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 public class QualityGateUpdaterTest {
 
@@ -43,35 +44,30 @@ public class QualityGateUpdaterTest {
 
   private DbClient dbClient = db.getDbClient();
   private DbSession dbSession = db.getSession();
-  private QualityGateUpdater underTest = new QualityGateUpdater(dbClient);
+  private QualityGateUpdater underTest = new QualityGateUpdater(dbClient, UuidFactoryFast.getInstance());
 
   @Test
-  public void create_quality_gate() throws Exception {
-    QualityGateDto result = underTest.create(dbSession, QGATE_NAME);
+  public void create_quality_gate() {
+    OrganizationDto organization = db.organizations().insert();
+
+    QualityGateDto result = underTest.create(dbSession, organization, QGATE_NAME);
 
     assertThat(result).isNotNull();
     assertThat(result.getName()).isEqualTo(QGATE_NAME);
     assertThat(result.getCreatedAt()).isNotNull();
+    assertThat(result.isBuiltIn()).isFalse();
     QualityGateDto reloaded = dbClient.qualityGateDao().selectByName(dbSession, QGATE_NAME);
     assertThat(reloaded).isNotNull();
   }
 
   @Test
-  public void fail_to_create_when_name_is_empty() throws Exception {
-    expectedException.expect(BadRequestException.class);
-    expectedException.expectMessage("Name can't be empty");
+  public void fail_to_create_when_name_already_exists() {
+    OrganizationDto org = db.organizations().insert();
+    underTest.create(dbSession, org, QGATE_NAME);
 
-    underTest.create(dbSession, "");
-  }
-
-  @Test
-  public void fail_to_create_when_name_already_exists() throws Exception {
-    dbClient.qualityGateDao().insert(dbSession, new QualityGateDto().setName(QGATE_NAME));
-    dbSession.commit();
-
-    expectedException.expect(BadRequestException.class);
+    expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("Name has already been taken");
 
-    underTest.create(dbSession, QGATE_NAME);
+    underTest.create(dbSession, org, QGATE_NAME);
   }
 }

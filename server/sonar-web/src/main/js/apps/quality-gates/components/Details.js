@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -17,126 +17,64 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import React, { Component } from 'react';
+import React from 'react';
+import PropTypes from 'prop-types';
 import Helmet from 'react-helmet';
-import {
-  fetchQualityGate,
-  setQualityGateAsDefault,
-  unsetQualityGateAsDefault
-} from '../../../api/quality-gates';
 import DetailsHeader from './DetailsHeader';
 import DetailsContent from './DetailsContent';
-import RenameView from '../views/rename-view';
-import CopyView from '../views/copy-view';
-import DeleteView from '../views/delete-view';
+import { fetchQualityGate } from '../../../api/quality-gates';
 
-export default class Details extends Component {
+export default class Details extends React.PureComponent {
+  static contextTypes = {
+    router: PropTypes.object.isRequired
+  };
+
   componentDidMount() {
+    this.props.fetchMetrics();
     this.fetchDetails();
   }
 
-  componentDidUpdate(nextProps) {
-    if (nextProps.params.id !== this.props.params.id) {
+  componentDidUpdate(prevProps) {
+    if (prevProps.params.id !== this.props.params.id) {
       this.fetchDetails();
     }
   }
 
-  fetchDetails() {
-    const { id } = this.props.params;
-    const { onShow } = this.props;
-
-    fetchQualityGate(id).then(qualityGate => {
-      onShow(qualityGate);
-    });
-  }
-
-  handleRenameClick() {
-    const { qualityGate, onRename } = this.props;
-
-    new RenameView({
-      qualityGate,
-      onRename: (qualityGate, newName) => {
-        onRename(qualityGate, newName);
-      }
-    }).render();
-  }
-
-  handleCopyClick() {
-    const { qualityGate, onCopy } = this.props;
-    const { router } = this.context;
-
-    new CopyView({
-      qualityGate,
-      onCopy: newQualityGate => {
-        onCopy(newQualityGate);
-        router.push(`/quality_gates/show/${newQualityGate.id}`);
-      }
-    }).render();
-  }
-
-  handleSetAsDefaultClick() {
-    const { qualityGate, onSetAsDefault, onUnsetAsDefault } = this.props;
-
-    if (qualityGate.isDefault) {
-      unsetQualityGateAsDefault(qualityGate.id).then(() => onUnsetAsDefault(qualityGate));
-    } else {
-      setQualityGateAsDefault(qualityGate.id).then(() => onSetAsDefault(qualityGate));
-    }
-  }
-
-  handleDeleteClick() {
-    const { qualityGate, onDelete } = this.props;
-    const { router } = this.context;
-
-    new DeleteView({
-      qualityGate,
-      onDelete: qualityGate => {
-        onDelete(qualityGate);
-        router.replace('/quality_gates');
-      }
-    }).render();
-  }
+  fetchDetails = () =>
+    fetchQualityGate({
+      id: this.props.params.id,
+      organization: this.props.organization && this.props.organization.key
+    }).then(qualityGate => this.props.onShow(qualityGate), () => {});
 
   render() {
-    const { qualityGate, edit, metrics } = this.props;
+    const { organization, metrics, qualityGate } = this.props;
     const { onAddCondition, onDeleteCondition, onSaveCondition } = this.props;
 
     if (!qualityGate) {
-      return (
-        <div className="search-navigator-workspace">
-          <div className="search-navigator-workspace-header" style={{ top: 30 }}>
-            <h2 className="search-navigator-header-component">&nbsp;</h2>
-          </div>
-          <div className="search-navigator-workspace-details" />
-        </div>
-      );
+      return null;
     }
 
     return (
-      <div className="search-navigator-workspace">
+      <div className="layout-page-main">
         <Helmet title={qualityGate.name} />
         <DetailsHeader
           qualityGate={qualityGate}
-          edit={edit}
-          onRename={this.handleRenameClick.bind(this)}
-          onCopy={this.handleCopyClick.bind(this)}
-          onSetAsDefault={this.handleSetAsDefaultClick.bind(this)}
-          onDelete={this.handleDeleteClick.bind(this)}
+          onRename={this.props.onRename}
+          onCopy={this.props.onCopy}
+          onSetAsDefault={this.props.onSetAsDefault}
+          onDelete={this.props.onDelete}
+          organization={organization && organization.key}
         />
 
         <DetailsContent
           gate={qualityGate}
-          canEdit={edit}
           metrics={metrics}
           onAddCondition={onAddCondition}
           onSaveCondition={onSaveCondition}
           onDeleteCondition={onDeleteCondition}
+          organization={organization && organization.key}
         />
       </div>
     );
   }
 }
-
-Details.contextTypes = {
-  router: React.PropTypes.object.isRequired
-};

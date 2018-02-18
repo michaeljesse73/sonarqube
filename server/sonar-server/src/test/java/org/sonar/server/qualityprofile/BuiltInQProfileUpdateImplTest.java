@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,8 +24,10 @@ import java.util.Optional;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.sonar.api.profiles.RulesProfile;
+import org.sonar.api.rule.Severity;
 import org.sonar.api.rules.RulePriority;
+import org.sonar.api.server.profile.BuiltInQualityProfilesDefinition;
+import org.sonar.api.server.profile.BuiltInQualityProfilesDefinition.NewBuiltInQualityProfile;
 import org.sonar.api.utils.System2;
 import org.sonar.api.utils.internal.TestSystem2;
 import org.sonar.db.DbTester;
@@ -59,9 +61,8 @@ public class BuiltInQProfileUpdateImplTest {
   public UserSessionRule userSession = UserSessionRule.standalone();
   private System2 system2 = new TestSystem2().setNow(NOW);
   private ActiveRuleIndexer activeRuleIndexer = mock(ActiveRuleIndexer.class);
-  private RuleActivatorContextFactory contextFactory = new RuleActivatorContextFactory(db.getDbClient());
   private TypeValidations typeValidations = new TypeValidations(asList(new StringTypeValidation(), new IntegerTypeValidation()));
-  private RuleActivator ruleActivator = new RuleActivator(system2, db.getDbClient(), null, contextFactory, typeValidations, activeRuleIndexer, userSession);
+  private RuleActivator ruleActivator = new RuleActivator(system2, db.getDbClient(), typeValidations, userSession);
 
   private BuiltInQProfileUpdateImpl underTest = new BuiltInQProfileUpdateImpl(db.getDbClient(), ruleActivator, activeRuleIndexer);
 
@@ -81,10 +82,12 @@ public class BuiltInQProfileUpdateImplTest {
   public void activate_new_rules() {
     RuleDefinitionDto rule1 = db.rules().insert(r -> r.setLanguage("xoo"));
     RuleDefinitionDto rule2 = db.rules().insert(r -> r.setLanguage("xoo"));
-    RulesProfile apiProfile = RulesProfile.create("Sonar way", "xoo");
-    activateRuleInDef(apiProfile, rule1, CRITICAL);
-    activateRuleInDef(apiProfile, rule2, MAJOR);
-    BuiltInQProfile builtIn = builtInProfileRepository.create(apiProfile);
+    BuiltInQualityProfilesDefinition.Context context = new BuiltInQualityProfilesDefinition.Context();
+    NewBuiltInQualityProfile newQp = context.createBuiltInQualityProfile("Sonar way", "xoo");
+    newQp.activateRule(rule1.getRepositoryKey(), rule1.getRuleKey()).overrideSeverity(Severity.CRITICAL);
+    newQp.activateRule(rule2.getRepositoryKey(), rule2.getRuleKey()).overrideSeverity(Severity.MAJOR);
+    newQp.done();
+    BuiltInQProfile builtIn = builtInProfileRepository.create(context.profile("xoo", "Sonar way"), rule1, rule2);
 
     underTest.update(db.getSession(), builtIn, persistedProfile);
 
@@ -98,9 +101,11 @@ public class BuiltInQProfileUpdateImplTest {
   @Test
   public void already_activated_rule_is_updated_in_case_of_differences() {
     RuleDefinitionDto rule = db.rules().insert(r -> r.setLanguage("xoo"));
-    RulesProfile apiProfile = RulesProfile.create("Sonar way", "xoo");
-    activateRuleInDef(apiProfile, rule, CRITICAL);
-    BuiltInQProfile builtIn = builtInProfileRepository.create(apiProfile);
+    BuiltInQualityProfilesDefinition.Context context = new BuiltInQualityProfilesDefinition.Context();
+    NewBuiltInQualityProfile newQp = context.createBuiltInQualityProfile("Sonar way", "xoo");
+    newQp.activateRule(rule.getRepositoryKey(), rule.getRuleKey()).overrideSeverity(Severity.CRITICAL);
+    newQp.done();
+    BuiltInQProfile builtIn = builtInProfileRepository.create(context.profile("xoo", "Sonar way"), rule);
 
     activateRuleInDb(persistedProfile, rule, BLOCKER);
 
@@ -115,9 +120,11 @@ public class BuiltInQProfileUpdateImplTest {
   @Test
   public void already_activated_rule_is_not_touched_if_no_differences() {
     RuleDefinitionDto rule = db.rules().insert(r -> r.setLanguage("xoo"));
-    RulesProfile apiProfile = RulesProfile.create("Sonar way", "xoo");
-    activateRuleInDef(apiProfile, rule, CRITICAL);
-    BuiltInQProfile builtIn = builtInProfileRepository.create(apiProfile);
+    BuiltInQualityProfilesDefinition.Context context = new BuiltInQualityProfilesDefinition.Context();
+    NewBuiltInQualityProfile newQp = context.createBuiltInQualityProfile("Sonar way", "xoo");
+    newQp.activateRule(rule.getRepositoryKey(), rule.getRuleKey()).overrideSeverity(Severity.CRITICAL);
+    newQp.done();
+    BuiltInQProfile builtIn = builtInProfileRepository.create(context.profile("xoo", "Sonar way"), rule);
 
     activateRuleInDb(persistedProfile, rule, CRITICAL);
 
@@ -133,9 +140,11 @@ public class BuiltInQProfileUpdateImplTest {
   public void deactivate_rule_that_is_not_in_built_in_definition_anymore() {
     RuleDefinitionDto rule1 = db.rules().insert(r -> r.setLanguage("xoo"));
     RuleDefinitionDto rule2 = db.rules().insert(r -> r.setLanguage("xoo"));
-    RulesProfile apiProfile = RulesProfile.create("Sonar way", "xoo");
-    activateRuleInDef(apiProfile, rule2, CRITICAL);
-    BuiltInQProfile builtIn = builtInProfileRepository.create(apiProfile);
+    BuiltInQualityProfilesDefinition.Context context = new BuiltInQualityProfilesDefinition.Context();
+    NewBuiltInQualityProfile newQp = context.createBuiltInQualityProfile("Sonar way", "xoo");
+    newQp.activateRule(rule2.getRepositoryKey(), rule2.getRuleKey()).overrideSeverity(Severity.MAJOR);
+    newQp.done();
+    BuiltInQProfile builtIn = builtInProfileRepository.create(context.profile("xoo", "Sonar way"), rule1, rule2);
 
     // built-in definition contains only rule2
     // so rule1 must be deactivated
@@ -154,10 +163,13 @@ public class BuiltInQProfileUpdateImplTest {
     RuleDefinitionDto rule1 = db.rules().insert(r -> r.setLanguage("xoo"));
     RuleDefinitionDto rule2 = db.rules().insert(r -> r.setLanguage("xoo"));
     RuleDefinitionDto rule3 = db.rules().insert(r -> r.setLanguage("xoo"));
-    RulesProfile apiProfile = RulesProfile.create("Sonar way", "xoo");
-    activateRuleInDef(apiProfile, rule1, CRITICAL);
-    activateRuleInDef(apiProfile, rule2, MAJOR);
-    BuiltInQProfile builtIn = builtInProfileRepository.create(apiProfile);
+
+    BuiltInQualityProfilesDefinition.Context context = new BuiltInQualityProfilesDefinition.Context();
+    NewBuiltInQualityProfile newQp = context.createBuiltInQualityProfile("Sonar way", "xoo");
+    newQp.activateRule(rule1.getRepositoryKey(), rule1.getRuleKey()).overrideSeverity(Severity.CRITICAL);
+    newQp.activateRule(rule2.getRepositoryKey(), rule2.getRuleKey()).overrideSeverity(Severity.MAJOR);
+    newQp.done();
+    BuiltInQProfile builtIn = builtInProfileRepository.create(context.profile("xoo", "Sonar way"), rule1, rule2);
 
     // rule1 must be updated (blocker to critical)
     // rule2 must be activated
@@ -175,6 +187,47 @@ public class BuiltInQProfileUpdateImplTest {
     assertThatProfileIsMarkedAsUpdated(persistedProfile);
   }
 
+//  @Test
+//  public void propagate_new_activation_to_profiles() {
+//    RuleDefinitionDto rule = createJavaRule();
+//    QProfileDto profile = db.qualityProfiles().insert(db.getDefaultOrganization(),
+//      p -> p.setLanguage(rule.getLanguage())
+//        .setIsBuiltIn(true));
+//    QProfileDto childProfile = createChildProfile(profile);
+//    QProfileDto grandchildProfile = createChildProfile(childProfile);
+//
+//    List<ActiveRuleChange> changes = underTest.activateOnBuiltInRulesProfile(db.getSession(), RuleActivation.create(rule.getKey()),
+//      RulesProfileDto.from(profile));
+//
+//    assertThat(changes).hasSize(3);
+//    assertThatRuleIsActivated(profile, rule, changes, rule.getSeverityString(), null, emptyMap());
+//    assertThatRuleIsActivated(childProfile, rule, changes, rule.getSeverityString(), INHERITED, emptyMap());
+//    assertThatRuleIsActivated(grandchildProfile, rule, changes, rule.getSeverityString(), INHERITED, emptyMap());
+//  }
+//
+//  @Test
+//  public void deactivateOnBuiltInProfile_activate_rule_on_child_profiles() {
+//    RuleDefinitionDto rule = createJavaRule();
+//    QProfileDto profile = db.qualityProfiles().insert(db.getDefaultOrganization(),
+//      p -> p.setLanguage(rule.getLanguage())
+//        .setIsBuiltIn(true));
+//    QProfileDto childProfile = createChildProfile(profile);
+//    QProfileDto grandchildProfile = createChildProfile(childProfile);
+//
+//    List<ActiveRuleChange> changes = underTest.activateOnBuiltInRulesProfile(db.getSession(), RuleActivation.create(rule.getKey()),
+//      RulesProfileDto.from(profile));
+//
+//    assertThatRuleIsActivated(profile, rule, changes, rule.getSeverityString(), null, emptyMap());
+//    assertThatRuleIsActivated(childProfile, rule, changes, rule.getSeverityString(), INHERITED, emptyMap());
+//    assertThatRuleIsActivated(grandchildProfile, rule, changes, rule.getSeverityString(), INHERITED, emptyMap());
+//
+//    changes = underTest.deactivateOnBuiltInRulesProfile(db.getSession(), RulesProfileDto.from(profile), rule.getKey(), false);
+//
+//    assertThat(changes).hasSize(3);
+//    assertThatRuleIsNotPresent(profile, rule);
+//    assertThatRuleIsNotPresent(childProfile, rule);
+//    assertThatRuleIsNotPresent(grandchildProfile, rule);
+//  }
 
   private static void assertThatRuleIsNewlyActivated(List<ActiveRuleDto> activeRules, RuleDefinitionDto rule, RulePriority severity) {
     ActiveRuleDto activeRule = findRule(activeRules, rule).get();
@@ -229,10 +282,6 @@ public class BuiltInQProfileUpdateImplTest {
     return activeRules.stream()
       .filter(ar -> ar.getRuleKey().equals(rule.getKey()))
       .findFirst();
-  }
-
-  private static void activateRuleInDef(RulesProfile apiProfile, RuleDefinitionDto rule, RulePriority severity) {
-    apiProfile.activateRule(org.sonar.api.rules.Rule.create(rule.getRepositoryKey(), rule.getRuleKey()), severity);
   }
 
   private void activateRuleInDb(RulesProfileDto profile, RuleDefinitionDto rule, RulePriority severity) {

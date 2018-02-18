@@ -72,6 +72,12 @@ enum RuleStatus {
   REMOVED = 3;
 }
 
+enum RuleScope {
+  MAIN = 0;
+  TEST = 1;
+  ALL = 2;
+}
+
 // Lines start at 1 and line offsets start at 0
 message TextRange {
   // Start line. Should never be absent
@@ -112,4 +118,13 @@ enum RuleType {
   CODE_SMELL = 1;
   BUG = 2;
   VULNERABILITY = 3;
+}
+
+enum BranchType {
+  // Zero is required in order to not get LONG as default value
+  // See http://androiddevblog.com/protocol-buffers-pitfall-adding-enum-values/
+  UNKNOWN_BRANCH_TYPE = 0;
+
+  LONG = 1;
+  SHORT = 2;
 }

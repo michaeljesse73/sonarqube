@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -17,7 +17,6 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-
 package org.sonar.server.computation.task.projectanalysis.step;
 
 import org.junit.Rule;
@@ -28,6 +27,7 @@ import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
 import org.sonar.db.component.ComponentDao;
 import org.sonar.server.computation.task.projectanalysis.analysis.AnalysisMetadataHolder;
+import org.sonar.server.computation.task.projectanalysis.component.BranchPersister;
 import org.sonar.server.computation.task.projectanalysis.component.Component;
 import org.sonar.server.computation.task.projectanalysis.component.MutableDbIdsRepository;
 import org.sonar.server.computation.task.projectanalysis.component.MutableDisabledComponentsHolder;
@@ -67,6 +67,7 @@ public class PersistComponentsStepTest {
       mock(MutableDbIdsRepository.class),
       System2.INSTANCE,
       mock(MutableDisabledComponentsHolder.class),
-      mock(AnalysisMetadataHolder.class)).execute();
+      mock(AnalysisMetadataHolder.class),
+      mock(BranchPersister.class)).execute();
   }
 }

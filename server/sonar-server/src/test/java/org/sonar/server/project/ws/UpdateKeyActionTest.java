@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -17,7 +17,6 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-
 package org.sonar.server.project.ws;
 
 import javax.annotation.Nullable;
@@ -67,7 +66,7 @@ public class UpdateKeyActionTest {
   public void call_by_key() {
     ComponentDto project = insertProject();
 
-    callByKey(project.key(), ANOTHER_KEY);
+    callByKey(project.getDbKey(), ANOTHER_KEY);
 
     assertCallComponentService(ANOTHER_KEY);
   }
@@ -87,7 +86,7 @@ public class UpdateKeyActionTest {
 
     ComponentDto project = insertProject();
 
-    callByKey(project.key(), null);
+    callByKey(project.getDbKey(), null);
   }
 
   @Test
@@ -103,7 +102,7 @@ public class UpdateKeyActionTest {
 
     ComponentDto project = insertProject();
 
-    call(project.uuid(), project.key(), ANOTHER_KEY);
+    call(project.uuid(), project.getDbKey(), ANOTHER_KEY);
   }
 
   @Test
@@ -111,6 +110,28 @@ public class UpdateKeyActionTest {
     expectedException.expect(NotFoundException.class);
 
     callByUuid("UNKNOWN_UUID", ANOTHER_KEY);
+  }
+
+  @Test
+  public void fail_when_using_branch_db_key() throws Exception {
+    ComponentDto project = db.components().insertMainBranch();
+    ComponentDto branch = db.components().insertProjectBranch(project);
+
+    expectedException.expect(NotFoundException.class);
+    expectedException.expectMessage(String.format("Component key '%s' not found", branch.getDbKey()));
+
+    callByKey(branch.getDbKey(), ANOTHER_KEY);
+  }
+
+  @Test
+  public void fail_when_using_branch_uuid() {
+    ComponentDto project = db.components().insertMainBranch();
+    ComponentDto branch = db.components().insertProjectBranch(project);
+
+    expectedException.expect(NotFoundException.class);
+    expectedException.expectMessage(String.format("Component id '%s' not found", branch.uuid()));
+
+    callByUuid(branch.uuid(), ANOTHER_KEY);
   }
 
   @Test

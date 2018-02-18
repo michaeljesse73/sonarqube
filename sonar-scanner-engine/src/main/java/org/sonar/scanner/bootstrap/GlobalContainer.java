@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,6 +19,7 @@
  */
 package org.sonar.scanner.bootstrap;
 
+import java.time.Clock;
 import java.util.List;
 import java.util.Map;
 import org.sonar.api.Plugin;
@@ -65,7 +66,7 @@ public class GlobalContainer extends ComponentContainer {
   @Override
   protected void doBeforeStart() {
     GlobalProperties bootstrapProps = new GlobalProperties(bootstrapProperties);
-    GlobalMode globalMode = new GlobalMode(bootstrapProps);
+    GlobalAnalysisMode globalMode = new GlobalAnalysisMode(bootstrapProps);
     add(bootstrapProps);
     add(globalMode);
     addBootstrapComponents();
@@ -94,6 +95,7 @@ public class GlobalContainer extends ComponentContainer {
       UriReader.class,
       new FileCacheProvider(),
       System2.INSTANCE,
+      Clock.systemDefaultZone(),
       new MetricsRepositoryProvider(),
       UuidFactoryImpl.INSTANCE);
     addIfMissing(ScannerPluginInstaller.class, PluginInstaller.class);

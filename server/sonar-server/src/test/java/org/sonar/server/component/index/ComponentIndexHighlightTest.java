@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -62,11 +62,11 @@ public class ComponentIndexHighlightTest extends ComponentIndexTest {
   private void assertHighlighting(String fileName, String search, String expectedHighlighting) {
     indexFile(fileName);
 
-    ComponentIndexQuery query = ComponentIndexQuery.builder()
+    SuggestionQuery query = SuggestionQuery.builder()
       .setQuery(search)
       .setQualifiers(Collections.singletonList(Qualifiers.FILE))
       .build();
-    Stream<ComponentHitsPerQualifier> results = index.search(query, features.get()).getQualifiers();
+    Stream<ComponentHitsPerQualifier> results = index.searchSuggestions(query, features.get()).getQualifiers();
 
     assertThat(results).flatExtracting(ComponentHitsPerQualifier::getHits)
       .extracting(ComponentHit::getHighlightedText)

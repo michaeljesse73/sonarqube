@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,9 +20,11 @@
 package org.sonar.server.computation.task.projectanalysis.component;
 
 import java.util.Arrays;
+import java.util.Collections;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.sonar.server.computation.task.projectanalysis.component.Component.Status;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
@@ -38,7 +40,7 @@ public class ComponentImplTest {
   public ExpectedException thrown = ExpectedException.none();
 
   @Test
-  public void verify_key_uuid_and_name() throws Exception {
+  public void verify_key_uuid_and_name() {
     ComponentImpl component = buildSimpleComponent(FILE, KEY).setUuid(UUID).setName("name").build();
 
     assertThat(component.getKey()).isEqualTo(KEY);
@@ -51,6 +53,25 @@ public class ComponentImplTest {
     thrown.expect(NullPointerException.class);
 
     builder(null);
+  }
+
+  @Test
+  public void builder_throws_NPE_if_status_arg_is_Null() {
+    thrown.expect(NullPointerException.class);
+
+    builder(FILE).setStatus(null);
+  }
+
+  @Test
+  public void builder_throws_NPE_if_status_is_Null() {
+    thrown.expect(NullPointerException.class);
+
+    builder(Component.Type.DIRECTORY)
+      .setName("DIR")
+      .setKey(KEY)
+      .setUuid(UUID)
+      .setReportAttributes(ReportAttributes.newBuilder(1).build())
+      .build();
   }
 
   @Test
@@ -119,6 +140,21 @@ public class ComponentImplTest {
   }
 
   @Test
+  public void getViewAttributes_throws_ISE_if_component_is_not_have_type_VIEW() {
+    Arrays.stream(Component.Type.values())
+      .filter(type -> type != FILE)
+      .forEach((componentType) -> {
+        ComponentImpl component = buildSimpleComponent(componentType, componentType.name()).build();
+        try {
+          component.getViewAttributes();
+          fail("A IllegalStateException should have been raised");
+        } catch (IllegalStateException e) {
+          assertThat(e).hasMessage("Only component of type VIEW have a ViewAttributes object");
+        }
+      });
+  }
+
+  @Test
   public void isUnitTest_returns_true_if_IsTest_is_set_in_BatchComponent() {
     ComponentImpl component = buildSimpleComponent(FILE, "file").setFileAttributes(new FileAttributes(true, null, 1)).build();
 
@@ -134,19 +170,21 @@ public class ComponentImplTest {
   }
 
   @Test
-  public void build_with_child() throws Exception {
+  public void build_with_child() {
     ComponentImpl child = builder(FILE)
       .setName("CHILD_NAME")
       .setKey("CHILD_KEY")
       .setUuid("CHILD_UUID")
+      .setStatus(Status.UNAVAILABLE)
       .setReportAttributes(ReportAttributes.newBuilder(2).build())
       .build();
     ComponentImpl componentImpl = builder(Component.Type.DIRECTORY)
       .setName("DIR")
       .setKey(KEY)
       .setUuid(UUID)
+      .setStatus(Status.UNAVAILABLE)
       .setReportAttributes(ReportAttributes.newBuilder(1).build())
-      .addChildren(child)
+      .addChildren(Collections.singletonList(child))
       .build();
 
     assertThat(componentImpl.getChildren()).hasSize(1);
@@ -178,6 +216,7 @@ public class ComponentImplTest {
     return builder(type)
       .setName("name_" + key)
       .setKey(key)
+      .setStatus(Status.UNAVAILABLE)
       .setUuid("uuid_" + key)
       .setReportAttributes(ReportAttributes.newBuilder(key.hashCode())
         .build());

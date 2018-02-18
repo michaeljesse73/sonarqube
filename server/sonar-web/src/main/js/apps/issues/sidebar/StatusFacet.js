@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,12 +20,14 @@
 // @flow
 import React from 'react';
 import { orderBy, without } from 'lodash';
-import FacetBox from './components/FacetBox';
-import FacetHeader from './components/FacetHeader';
-import FacetItem from './components/FacetItem';
-import FacetItemsList from './components/FacetItemsList';
+import FacetBox from '../../../components/facet/FacetBox';
+import FacetHeader from '../../../components/facet/FacetHeader';
+import FacetItem from '../../../components/facet/FacetItem';
+import FacetItemsList from '../../../components/facet/FacetItemsList';
 import { translate } from '../../../helpers/l10n';
+import { formatFacetStat } from '../utils';
 
+/*::
 type Props = {|
   facetMode: string,
   onChange: (changes: { [string]: Array<string> }) => void,
@@ -34,17 +36,18 @@ type Props = {|
   stats?: { [string]: number },
   statuses: Array<string>
 |};
+*/
 
 export default class StatusFacet extends React.PureComponent {
-  props: Props;
+  /*:: props: Props; */
+
+  property = 'statuses';
 
   static defaultProps = {
     open: true
   };
 
-  property = 'statuses';
-
-  handleItemClick = (itemValue: string) => {
+  handleItemClick = (itemValue /*: string */) => {
     const { statuses } = this.props;
     const newValue = orderBy(
       statuses.includes(itemValue) ? without(statuses, itemValue) : [...statuses, itemValue]
@@ -60,22 +63,20 @@ export default class StatusFacet extends React.PureComponent {
     this.props.onChange({ [this.property]: [] });
   };
 
-  getStat(status: string): ?number {
+  getStat(status /*: string */) /*: ?number */ {
     const { stats } = this.props;
     return stats ? stats[status] : null;
   }
 
-  renderStatus(status: string) {
+  renderStatus(status /*: string */) {
     return (
       <span>
-        <i className={`icon-status-${status.toLowerCase()}`} />
-        {' '}
-        {translate('issue.status', status)}
+        <i className={`icon-status-${status.toLowerCase()}`} /> {translate('issue.status', status)}
       </span>
     );
   }
 
-  renderItem = (status: string) => {
+  renderItem = (status /*: string */) => {
     const active = this.props.statuses.includes(status);
     const stat = this.getStat(status);
 
@@ -83,12 +84,11 @@ export default class StatusFacet extends React.PureComponent {
       <FacetItem
         active={active}
         disabled={stat === 0 && !active}
-        facetMode={this.props.facetMode}
         halfWidth={true}
         key={status}
         name={this.renderStatus(status)}
         onClick={this.handleItemClick}
-        stat={stat}
+        stat={formatFacetStat(stat, this.props.facetMode)}
         value={status}
       />
     );
@@ -96,6 +96,7 @@ export default class StatusFacet extends React.PureComponent {
 
   render() {
     const statuses = ['OPEN', 'RESOLVED', 'REOPENED', 'CLOSED', 'CONFIRMED'];
+    const values = this.props.statuses.map(status => translate('issue.status', status));
 
     return (
       <FacetBox property={this.property}>
@@ -104,13 +105,10 @@ export default class StatusFacet extends React.PureComponent {
           onClear={this.handleClear}
           onClick={this.handleHeaderClick}
           open={this.props.open}
-          values={this.props.statuses.length}
+          values={values}
         />
 
-        {this.props.open &&
-          <FacetItemsList>
-            {statuses.map(this.renderItem)}
-          </FacetItemsList>}
+        {this.props.open && <FacetItemsList>{statuses.map(this.renderItem)}</FacetItemsList>}
       </FacetBox>
     );
   }

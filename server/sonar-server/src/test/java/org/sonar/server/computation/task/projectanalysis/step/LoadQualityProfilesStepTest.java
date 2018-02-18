@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -46,13 +46,15 @@ public class LoadQualityProfilesStepTest {
   @Rule
   public RuleRepositoryRule ruleRepository = new RuleRepositoryRule();
 
-  ActiveRulesHolderImpl activeRulesHolder = new ActiveRulesHolderImpl();
-  LoadQualityProfilesStep underTest = new LoadQualityProfilesStep(batchReportReader, activeRulesHolder, ruleRepository);
+  private ActiveRulesHolderImpl activeRulesHolder = new ActiveRulesHolderImpl();
+  private LoadQualityProfilesStep underTest = new LoadQualityProfilesStep(batchReportReader, activeRulesHolder, ruleRepository);
 
   @Test
-  public void feed_active_rules() throws Exception {
-    ruleRepository.add(XOO_X1);
-    ruleRepository.add(XOO_X2);
+  public void feed_active_rules() {
+    ruleRepository.add(XOO_X1)
+      .setPluginKey("xoo");
+    ruleRepository.add(XOO_X2)
+      .setPluginKey("xoo");
 
     ScannerReport.ActiveRule.Builder batch1 = ScannerReport.ActiveRule.newBuilder()
       .setRuleRepository(XOO_X1.repository()).setRuleKey(XOO_X1.rule())
@@ -70,14 +72,16 @@ public class LoadQualityProfilesStepTest {
     Optional<ActiveRule> ar1 = activeRulesHolder.get(XOO_X1);
     assertThat(ar1.get().getSeverity()).isEqualTo(Severity.BLOCKER);
     assertThat(ar1.get().getParams()).containsExactly(MapEntry.entry("p1", "v1"));
+    assertThat(ar1.get().getPluginKey()).isEqualTo("xoo");
 
     Optional<ActiveRule> ar2 = activeRulesHolder.get(XOO_X2);
     assertThat(ar2.get().getSeverity()).isEqualTo(Severity.MAJOR);
     assertThat(ar2.get().getParams()).isEmpty();
+    assertThat(ar2.get().getPluginKey()).isEqualTo("xoo");
   }
 
   @Test
-  public void ignore_rules_with_status_REMOVED() throws Exception {
+  public void ignore_rules_with_status_REMOVED() {
     ruleRepository.add(new DumbRule(XOO_X1).setStatus(RuleStatus.REMOVED));
 
     ScannerReport.ActiveRule.Builder batch1 = ScannerReport.ActiveRule.newBuilder()
@@ -91,7 +95,7 @@ public class LoadQualityProfilesStepTest {
   }
 
   @Test
-  public void ignore_not_found_rules() throws Exception {
+  public void ignore_not_found_rules() {
     ScannerReport.ActiveRule.Builder batch1 = ScannerReport.ActiveRule.newBuilder()
       .setRuleRepository(XOO_X1.repository()).setRuleKey(XOO_X1.rule())
       .setSeverity(Constants.Severity.BLOCKER);

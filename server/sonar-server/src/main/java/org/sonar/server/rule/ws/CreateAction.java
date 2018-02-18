@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -26,6 +26,7 @@ import java.util.Optional;
 import org.sonar.api.rule.RuleKey;
 import org.sonar.api.rule.RuleStatus;
 import org.sonar.api.rule.Severity;
+import org.sonar.api.rules.RuleType;
 import org.sonar.api.server.ws.Change;
 import org.sonar.api.server.ws.Request;
 import org.sonar.api.server.ws.Response;
@@ -43,11 +44,9 @@ import org.sonarqube.ws.Rules;
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static java.net.HttpURLConnection.HTTP_CONFLICT;
 import static java.util.Collections.singletonList;
+import static org.sonar.core.util.Protobuf.setNullable;
 import static org.sonar.server.ws.WsUtils.writeProtobuf;
 
-/**
- * @since 4.4
- */
 public class CreateAction implements RulesWsAction {
 
   public static final String PARAM_CUSTOM_KEY = "custom_key";
@@ -56,9 +55,12 @@ public class CreateAction implements RulesWsAction {
   public static final String PARAM_SEVERITY = "severity";
   public static final String PARAM_STATUS = "status";
   public static final String PARAM_TEMPLATE_KEY = "template_key";
+  public static final String PARAM_TYPE = "type";
   public static final String PARAMS = "params";
 
   public static final String PARAM_PREVENT_REACTIVATION = "prevent_reactivation";
+  static final int KEY_MAXIMUM_LENGTH = 200;
+  static final int NAME_MAXIMUM_LENGTH = 200;
 
   private final DbClient dbClient;
   private final RuleCreator ruleCreator;
@@ -76,19 +78,20 @@ public class CreateAction implements RulesWsAction {
   public void define(WebService.NewController controller) {
     WebService.NewAction action = controller
       .createAction("create")
+      .setPost(true)
       .setDescription("Create a custom rule.<br>" +
         "Requires the 'Administer Quality Profiles' permission")
       .setSince("4.4")
       .setChangelog(
         new Change("5.5", "Creating manual rule is not more possible"))
-      .setPost(true)
       .setHandler(this);
 
     action
       .createParam(PARAM_CUSTOM_KEY)
+      .setRequired(true)
+      .setMaximumLength(KEY_MAXIMUM_LENGTH)
       .setDescription("Key of the custom rule")
-      .setExampleValue("Todo_should_not_be_used")
-      .setRequired(true);
+      .setExampleValue("Todo_should_not_be_used");
 
     action
       .createParam("manual_key")
@@ -103,35 +106,41 @@ public class CreateAction implements RulesWsAction {
 
     action
       .createParam(PARAM_NAME)
-      .setDescription("Rule name")
       .setRequired(true)
+      .setMaximumLength(NAME_MAXIMUM_LENGTH)
+      .setDescription("Rule name")
       .setExampleValue("My custom rule");
 
     action
       .createParam(PARAM_DESCRIPTION)
-      .setDescription("Rule description")
       .setRequired(true)
+      .setDescription("Rule description")
       .setExampleValue("Description of my custom rule");
 
     action
       .createParam(PARAM_SEVERITY)
-      .setDescription("Rule severity")
-      .setPossibleValues(Severity.ALL);
+      .setPossibleValues(Severity.ALL)
+      .setDescription("Rule severity");
 
     action
       .createParam(PARAM_STATUS)
-      .setDescription("Rule status")
+      .setPossibleValues(RuleStatus.values())
       .setDefaultValue(RuleStatus.READY)
-      .setPossibleValues(RuleStatus.values());
+      .setDescription("Rule status");
 
     action.createParam(PARAMS)
       .setDescription("Parameters as semi-colon list of <key>=<value>, for example 'params=key1=v1;key2=v2' (Only for custom rule)");
 
     action
       .createParam(PARAM_PREVENT_REACTIVATION)
-      .setDescription("If set to true and if the rule has been deactivated (status 'REMOVED'), a status 409 will be returned")
+      .setBooleanPossibleValues()
       .setDefaultValue(false)
-      .setBooleanPossibleValues();
+      .setDescription("If set to true and if the rule has been deactivated (status 'REMOVED'), a status 409 will be returned");
+
+    action.createParam(PARAM_TYPE)
+      .setPossibleValues(RuleType.names())
+      .setDescription("Rule type")
+      .setSince("6.7");
   }
 
   @Override
@@ -150,6 +159,7 @@ public class CreateAction implements RulesWsAction {
         if (!isNullOrEmpty(params)) {
           newRule.setParameters(KeyValueFormat.parse(params));
         }
+        setNullable(request.param(PARAM_TYPE), t -> newRule.setType(RuleType.valueOf(t)));
         writeResponse(dbSession, request, response, ruleCreator.create(dbSession, newRule));
       } catch (ReactivationException e) {
         response.stream().setStatus(HTTP_CONFLICT);

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -39,7 +39,7 @@ public class ScannerWsClientProvider extends ProviderAdapter {
 
   private ScannerWsClient wsClient;
 
-  public synchronized ScannerWsClient provide(final GlobalProperties settings, final EnvironmentInformation env, GlobalMode globalMode) {
+  public synchronized ScannerWsClient provide(final GlobalProperties settings, final EnvironmentInformation env, GlobalAnalysisMode globalMode) {
     if (wsClient == null) {
       String url = defaultIfBlank(settings.property("sonar.host.url"), CoreProperties.SERVER_BASE_URL_DEFAULT_VALUE);
       HttpConnector.Builder connectorBuilder = HttpConnector.newBuilder();

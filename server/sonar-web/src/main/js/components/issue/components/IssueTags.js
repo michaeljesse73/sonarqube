@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,8 +25,9 @@ import SetIssueTagsPopup from '../popups/SetIssueTagsPopup';
 import TagsList from '../../../components/tags/TagsList';
 import { setIssueTags } from '../../../api/issues';
 import { translate } from '../../../helpers/l10n';
-import type { Issue } from '../types';
+/*:: import type { Issue } from '../types'; */
 
+/*::
 type Props = {|
   canSetTags: boolean,
   isOpen: boolean,
@@ -35,15 +36,16 @@ type Props = {|
   onFail: Error => void,
   togglePopup: (string, boolean | void) => void
 |};
+*/
 
 export default class IssueTags extends React.PureComponent {
-  props: Props;
+  /*:: props: Props; */
 
-  toggleSetTags = (open?: boolean) => {
+  toggleSetTags = (open /*: boolean | void */) => {
     this.props.togglePopup('edit-tags', open);
   };
 
-  setTags = (tags: Array<string>) => {
+  setTags = (tags /*: Array<string> */) => {
     const { issue } = this.props;
     const newIssue = { ...issue, tags };
     updateIssue(
@@ -67,6 +69,7 @@ export default class IssueTags extends React.PureComponent {
           popup={
             <SetIssueTagsPopup
               onFail={this.props.onFail}
+              organization={issue.projectOrganization}
               selectedTags={issue.tags}
               setTags={this.setTags}
             />
@@ -75,8 +78,8 @@ export default class IssueTags extends React.PureComponent {
             className={'js-issue-edit-tags button-link issue-action issue-action-with-options'}
             onClick={this.toggleSetTags}>
             <TagsList
-              tags={issue.tags && issue.tags.length > 0 ? issue.tags : [translate('issue.no_tag')]}
               allowUpdate={this.props.canSetTags}
+              tags={issue.tags && issue.tags.length > 0 ? issue.tags : [translate('issue.no_tag')]}
             />
           </button>
         </BubblePopupHelper>
@@ -84,8 +87,9 @@ export default class IssueTags extends React.PureComponent {
     } else {
       return (
         <TagsList
-          tags={issue.tags && issue.tags.length > 0 ? issue.tags : [translate('issue.no_tag')]}
           allowUpdate={this.props.canSetTags}
+          className="note"
+          tags={issue.tags && issue.tags.length > 0 ? issue.tags : [translate('issue.no_tag')]}
         />
       );
     }

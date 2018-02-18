@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,12 +20,13 @@
 // @flow
 import React from 'react';
 import { connect } from 'react-redux';
-import Extension from './Extension';
+import ExtensionContainer from './ExtensionContainer';
 import ExtensionNotFound from './ExtensionNotFound';
 import { getOrganizationByKey } from '../../../store/rootReducer';
 import { fetchOrganization } from '../../../apps/organizations/actions';
-import type { Organization } from '../../../store/organizations/duck';
+/*:: import type { Organization } from '../../../store/organizations/duck'; */
 
+/*::
 type Props = {
   fetchOrganization: string => void,
   location: {},
@@ -36,9 +37,10 @@ type Props = {
     pluginKey: string
   }
 };
+*/
 
 class OrganizationPageExtension extends React.PureComponent {
-  props: Props;
+  /*:: props: Props; */
 
   refreshOrganization = () => this.props.fetchOrganization(this.props.organization.key);
 
@@ -52,17 +54,19 @@ class OrganizationPageExtension extends React.PureComponent {
     }
 
     const extension = pages.find(p => p.key === `${pluginKey}/${extensionKey}`);
-    return extension
-      ? <Extension
-          extension={extension}
-          location={this.props.location}
-          options={{ organization, refreshOrganization: this.refreshOrganization }}
-        />
-      : <ExtensionNotFound />;
+    return extension ? (
+      <ExtensionContainer
+        extension={extension}
+        location={this.props.location}
+        options={{ organization, refreshOrganization: this.refreshOrganization }}
+      />
+    ) : (
+      <ExtensionNotFound />
+    );
   }
 }
 
-const mapStateToProps = (state, ownProps: Props) => ({
+const mapStateToProps = (state, ownProps /*: Props */) => ({
   organization: getOrganizationByKey(state, ownProps.params.organizationKey)
 });
 

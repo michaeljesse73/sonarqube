@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -408,7 +408,8 @@ public class CachingRuleFinderTest {
     assertThat(rule.getUpdatedAt().getTime()).isEqualTo(ruleDefinition.getUpdatedAt());
     assertThat(rule.getRepositoryKey()).isEqualTo(ruleDefinition.getRepositoryKey());
     assertThat(rule.getSeverity().name()).isEqualTo(ruleDefinition.getSeverityString());
-    assertThat(rule.getTags()).isEqualTo(ruleDefinition.getSystemTags().stream().toArray(String[]::new));
+    assertThat(rule.getSystemTags()).isEqualTo(ruleDefinition.getSystemTags().stream().toArray(String[]::new));
+    assertThat(rule.getTags()).isEmpty();
     assertThat(rule.getId()).isEqualTo(ruleDefinition.getId());
     assertThat(rule.getDescription()).isEqualTo(ruleDefinition.getDescription());
 

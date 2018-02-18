@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,9 +25,11 @@ import java.util.Optional;
 import org.sonar.api.batch.bootstrap.ProjectReactor;
 import org.sonar.api.config.Settings;
 import org.sonar.api.utils.MessageException;
-import org.sonar.scanner.analysis.DefaultAnalysisMode;
+import org.sonar.scanner.bootstrap.GlobalAnalysisMode;
 import org.sonar.scanner.bootstrap.MutableGlobalSettings;
 import org.sonar.scanner.repository.ProjectRepositories;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * @deprecated since 6.5 {@link ProjectSettings} used to be mutable, so keep a mutable copy for backward compatibility.
@@ -35,10 +37,10 @@ import org.sonar.scanner.repository.ProjectRepositories;
 @Deprecated
 public class MutableProjectSettings extends Settings {
 
-  private final DefaultAnalysisMode mode;
+  private final GlobalAnalysisMode mode;
   private final Map<String, String> properties = new HashMap<>();
 
-  public MutableProjectSettings(ProjectReactor reactor, MutableGlobalSettings mutableGlobalSettings, ProjectRepositories projectRepositories, DefaultAnalysisMode mode) {
+  public MutableProjectSettings(ProjectReactor reactor, MutableGlobalSettings mutableGlobalSettings, ProjectRepositories projectRepositories, GlobalAnalysisMode mode) {
     super(mutableGlobalSettings.getDefinitions(), mutableGlobalSettings.getEncryption());
     this.mode = mode;
     addProperties(mutableGlobalSettings.getProperties());
@@ -57,7 +59,9 @@ public class MutableProjectSettings extends Settings {
 
   @Override
   protected void set(String key, String value) {
-    properties.put(key, value);
+    properties.put(
+      requireNonNull(key, "key can't be null"),
+      requireNonNull(value, "value can't be null").trim());
   }
 
   @Override

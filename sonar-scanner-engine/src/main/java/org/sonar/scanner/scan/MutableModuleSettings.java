@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -23,12 +23,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.sonar.api.batch.AnalysisMode;
 import org.sonar.api.batch.bootstrap.ProjectDefinition;
 import org.sonar.api.config.Settings;
 import org.sonar.api.utils.MessageException;
-import org.sonar.scanner.analysis.DefaultAnalysisMode;
 import org.sonar.scanner.bootstrap.MutableGlobalSettings;
 import org.sonar.scanner.repository.ProjectRepositories;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * @deprecated since 6.5 {@link ModuleSettings} used to be mutable, so keep a mutable copy for backward compatibility.
@@ -37,11 +39,11 @@ import org.sonar.scanner.repository.ProjectRepositories;
 public class MutableModuleSettings extends Settings {
 
   private final ProjectRepositories projectRepos;
-  private final DefaultAnalysisMode analysisMode;
+  private final AnalysisMode analysisMode;
   private final Map<String, String> properties = new HashMap<>();
 
   public MutableModuleSettings(MutableGlobalSettings batchSettings, ProjectDefinition moduleDefinition, ProjectRepositories projectSettingsRepo,
-    DefaultAnalysisMode analysisMode) {
+    AnalysisMode analysisMode) {
     super(batchSettings.getDefinitions(), batchSettings.getEncryption());
     this.projectRepos = projectSettingsRepo;
     this.analysisMode = analysisMode;
@@ -84,7 +86,9 @@ public class MutableModuleSettings extends Settings {
 
   @Override
   protected void set(String key, String value) {
-    properties.put(key, value);
+    properties.put(
+      requireNonNull(key, "key can't be null"),
+      requireNonNull(value, "value can't be null").trim());
   }
 
   @Override

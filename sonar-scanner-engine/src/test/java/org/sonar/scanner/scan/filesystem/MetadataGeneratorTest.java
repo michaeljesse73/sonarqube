@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -31,6 +31,7 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.sonar.api.batch.bootstrap.ProjectDefinition;
 import org.sonar.api.batch.fs.InputFile;
 import org.sonar.api.batch.fs.internal.DefaultInputFile;
 import org.sonar.api.batch.fs.internal.DefaultInputModule;
@@ -59,11 +60,12 @@ public class MetadataGeneratorTest {
   private MetadataGenerator generator;
 
   @Before
-  public void setUp() {
+  public void setUp() throws IOException {
     MockitoAnnotations.initMocks(this);
     metadata = new FileMetadata();
     IssueExclusionsLoader issueExclusionsLoader = new IssueExclusionsLoader(mock(IssueExclusionPatternInitializer.class), mock(PatternMatcher.class));
-    generator = new MetadataGenerator(new DefaultInputModule("module"), statusDetection, metadata, issueExclusionsLoader);
+    generator = new MetadataGenerator(new DefaultInputModule(ProjectDefinition.create().setKey("module").setBaseDir(temp.newFolder()).setWorkDir(temp.newFolder())),
+      statusDetection, metadata, issueExclusionsLoader);
   }
 
   @Test
@@ -138,10 +140,9 @@ public class MetadataGeneratorTest {
     FileUtils.write(srcFile.toFile(), "single line");
 
     // status
-    when(statusDetection.status("foo", "src/main/java/foo/Bar.java", "6c1d64c0b3555892fe7273e954f6fb5a"))
+    DefaultInputFile inputFile = createInputFileWithMetadata(baseDir, "src/main/java/foo/Bar.java");
+    when(statusDetection.status("foo", inputFile, "6c1d64c0b3555892fe7273e954f6fb5a"))
       .thenReturn(InputFile.Status.ADDED);
-
-    InputFile inputFile = createInputFileWithMetadata(baseDir, "src/main/java/foo/Bar.java");
 
     assertThat(inputFile.type()).isEqualTo(InputFile.Type.MAIN);
     assertThat(inputFile.file()).isEqualTo(srcFile.toFile());

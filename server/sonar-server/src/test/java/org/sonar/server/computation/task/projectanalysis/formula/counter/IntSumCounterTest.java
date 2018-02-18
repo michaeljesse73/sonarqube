@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -54,7 +54,7 @@ public class IntSumCounterTest {
 
   @Test
   public void no_value_when_aggregate_from_context_but_no_measure() {
-    when(counterInitializationContext.getMeasure(anyString())).thenReturn(Optional.<Measure>absent());
+    when(counterInitializationContext.getMeasure(anyString())).thenReturn(Optional.absent());
 
     sumCounter.initialize(counterInitializationContext);
 

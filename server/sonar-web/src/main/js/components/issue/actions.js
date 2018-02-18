@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,14 +19,14 @@
  */
 // @flow
 import { parseIssueFromResponse } from '../../helpers/issues';
-import type { Issue } from './types';
+/*:: import type { Issue } from './types'; */
 
 export const updateIssue = (
-  onChange: Issue => void,
-  onFail: Error => void,
-  resultPromise: Promise<*>,
-  oldIssue?: Issue,
-  newIssue?: Issue
+  onChange /*: Issue => void */,
+  onFail /*: Error => void */,
+  resultPromise /*: Promise<*> */,
+  oldIssue /*: ?Issue */,
+  newIssue /*: ?Issue */
 ) => {
   const optimisticUpdate = oldIssue != null && newIssue != null;
   if (optimisticUpdate) {

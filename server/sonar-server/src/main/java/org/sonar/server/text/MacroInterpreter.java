@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -31,7 +31,7 @@ public class MacroInterpreter {
   private final List<Macro> macros;
 
   public MacroInterpreter(Server server) {
-    this.macros = ImmutableList.<Macro>of(
+    this.macros = ImmutableList.of(
       new RuleMacro(server.getContextPath())
       );
   }

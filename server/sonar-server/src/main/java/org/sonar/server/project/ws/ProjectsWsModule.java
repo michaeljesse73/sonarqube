@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -36,7 +36,6 @@ public class ProjectsWsModule extends Module {
       GhostsAction.class,
       ProvisionedAction.class,
       SearchMyProjectsAction.class,
-      SearchMyProjectsDataLoader.class,
       SearchAction.class,
       UpdateVisibilityAction.class);
   }

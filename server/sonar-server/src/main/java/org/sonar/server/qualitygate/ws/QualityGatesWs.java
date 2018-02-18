@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,23 +19,23 @@
  */
 package org.sonar.server.qualitygate.ws;
 
+import org.sonar.api.server.ws.Change;
 import org.sonar.api.server.ws.Request;
 import org.sonar.api.server.ws.WebService;
-import org.sonar.api.utils.text.JsonWriter;
 import org.sonar.db.qualitygate.QualityGateConditionDto;
-import org.sonar.db.qualitygate.QualityGateDto;
 import org.sonar.server.exceptions.BadRequestException;
+import org.sonar.server.ws.RemovedWebServiceHandler;
 
-import static org.sonarqube.ws.client.qualitygate.QualityGatesWsParameters.CONTROLLER_QUALITY_GATES;
-import static org.sonarqube.ws.client.qualitygate.QualityGatesWsParameters.PARAM_ERROR;
-import static org.sonarqube.ws.client.qualitygate.QualityGatesWsParameters.PARAM_ID;
-import static org.sonarqube.ws.client.qualitygate.QualityGatesWsParameters.PARAM_METRIC;
-import static org.sonarqube.ws.client.qualitygate.QualityGatesWsParameters.PARAM_NAME;
-import static org.sonarqube.ws.client.qualitygate.QualityGatesWsParameters.PARAM_OPERATOR;
-import static org.sonarqube.ws.client.qualitygate.QualityGatesWsParameters.PARAM_PERIOD;
-import static org.sonarqube.ws.client.qualitygate.QualityGatesWsParameters.PARAM_WARNING;
+import static org.sonar.server.qualitygate.ws.QualityGatesWsParameters.CONTROLLER_QUALITY_GATES;
+import static org.sonar.server.qualitygate.ws.QualityGatesWsParameters.PARAM_ERROR;
+import static org.sonar.server.qualitygate.ws.QualityGatesWsParameters.PARAM_METRIC;
+import static org.sonar.server.qualitygate.ws.QualityGatesWsParameters.PARAM_OPERATOR;
+import static org.sonar.server.qualitygate.ws.QualityGatesWsParameters.PARAM_PERIOD;
+import static org.sonar.server.qualitygate.ws.QualityGatesWsParameters.PARAM_WARNING;
 
 public class QualityGatesWs implements WebService {
+
+  private static final int CONDITION_MAX_LENGTH = 64;
   private final QualityGatesWsAction[] actions;
 
   public QualityGatesWs(QualityGatesWsAction... actions) {
@@ -51,6 +51,18 @@ public class QualityGatesWs implements WebService {
     for (QualityGatesWsAction action : actions) {
       action.define(controller);
     }
+
+    // unset_default is no more authorized
+    controller.createAction("unset_default")
+      .setDescription("This webservice is no more available : a default quality gate is mandatory.")
+      .setSince("4.3")
+      .setDeprecatedSince("7.0")
+      .setPost(true)
+      .setHandler(RemovedWebServiceHandler.INSTANCE)
+      .setResponseExample(RemovedWebServiceHandler.INSTANCE.getResponseExample())
+      .setChangelog(
+        new Change("7.0", "Unset a quality gate is no more authorized")
+      );
 
     controller.done();
   }
@@ -78,10 +90,12 @@ public class QualityGatesWs implements WebService {
       .setPossibleValues("1");
 
     action.createParam(PARAM_WARNING)
+      .setMaximumLength(CONDITION_MAX_LENGTH)
       .setDescription("Condition warning threshold")
       .setExampleValue("5");
 
     action.createParam(PARAM_ERROR)
+      .setMaximumLength(CONDITION_MAX_LENGTH)
       .setDescription("Condition error threshold")
       .setExampleValue("10");
   }
@@ -92,31 +106,6 @@ public class QualityGatesWs implements WebService {
     } catch (NumberFormatException badFormat) {
       throw BadRequestException.create(paramName + " must be a valid long value");
     }
-  }
-
-  static JsonWriter writeQualityGate(QualityGateDto qualityGate, JsonWriter writer) {
-    return writer.beginObject()
-      .prop(PARAM_ID, qualityGate.getId())
-      .prop(PARAM_NAME, qualityGate.getName())
-      .endObject();
-  }
-
-  static JsonWriter writeQualityGateCondition(QualityGateConditionDto condition, JsonWriter writer) {
-    writer.beginObject()
-      .prop(PARAM_ID, condition.getId())
-      .prop(PARAM_METRIC, condition.getMetricKey())
-      .prop(PARAM_OPERATOR, condition.getOperator());
-    if (condition.getWarningThreshold() != null) {
-      writer.prop(PARAM_WARNING, condition.getWarningThreshold());
-    }
-    if (condition.getErrorThreshold() != null) {
-      writer.prop(PARAM_ERROR, condition.getErrorThreshold());
-    }
-    if (condition.getPeriod() != null) {
-      writer.prop(PARAM_PERIOD, condition.getPeriod());
-    }
-    writer.endObject();
-    return writer;
   }
 
 }

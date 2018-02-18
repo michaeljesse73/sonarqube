@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,17 +19,12 @@
  */
 package org.sonar.server.computation.task.projectanalysis.step;
 
-import com.google.common.base.Predicate;
 import java.util.Arrays;
 import java.util.List;
-import javax.annotation.Nonnull;
-import org.picocontainer.ComponentAdapter;
 import org.sonar.server.computation.task.container.TaskContainer;
-import org.sonar.server.computation.task.projectanalysis.api.developer.PersistDevelopersDelegate;
 import org.sonar.server.computation.task.projectanalysis.filemove.FileMoveDetectionStep;
 import org.sonar.server.computation.task.step.ComputationStep;
-
-import static com.google.common.collect.FluentIterable.from;
+import org.sonar.server.computation.task.step.ExecuteStatelessInitExtensionsStep;
 
 /**
  * Ordered list of steps classes and instances to be executed for batch processing
@@ -43,6 +38,8 @@ public class ReportComputationSteps extends AbstractComputationSteps {
 
     // Builds Component tree
     LoadReportAnalysisMetadataHolderStep.class,
+    ExecuteStatelessInitExtensionsStep.class,
+    VerifyBillingStep.class,
     BuildComponentTreeStep.class,
     ValidateProjectStep.class,
 
@@ -89,8 +86,9 @@ public class ReportComputationSteps extends AbstractComputationSteps {
     // Persist data
     PersistComponentsStep.class,
     PersistAnalysisStep.class,
-    PersistDevelopersStep.class,
+    PersistAnalysisPropertiesStep.class,
     PersistMeasuresStep.class,
+    PersistLiveMeasuresStep.class,
     PersistIssuesStep.class,
     PersistProjectLinksStep.class,
     PersistEventsStep.class,
@@ -108,11 +106,8 @@ public class ReportComputationSteps extends AbstractComputationSteps {
 
     PublishTaskResultStep.class);
 
-  private final TaskContainer taskContainer;
-
   public ReportComputationSteps(TaskContainer taskContainer) {
     super(taskContainer);
-    this.taskContainer = taskContainer;
   }
 
   /**
@@ -121,27 +116,7 @@ public class ReportComputationSteps extends AbstractComputationSteps {
    */
   @Override
   public List<Class<? extends ComputationStep>> orderedStepClasses() {
-    return from(STEPS)
-      .filter(new AllowPersistDevelopersStepIfDevCockpitPluginInstalled(taskContainer))
-      .toList();
-  }
-
-  private static class AllowPersistDevelopersStepIfDevCockpitPluginInstalled implements Predicate<Class<? extends ComputationStep>> {
-    private final boolean devCockpitIsInstalled;
-
-    private AllowPersistDevelopersStepIfDevCockpitPluginInstalled(TaskContainer taskContainer) {
-      this.devCockpitIsInstalled = isDevCockpitInstalled(taskContainer);
-    }
-
-    private static boolean isDevCockpitInstalled(TaskContainer taskContainer) {
-      List<ComponentAdapter<PersistDevelopersDelegate>> componentAdapters = taskContainer.getPicoContainer().getComponentAdapters(PersistDevelopersDelegate.class);
-      return !componentAdapters.isEmpty();
-    }
-
-    @Override
-    public boolean apply(@Nonnull Class<? extends ComputationStep> input) {
-      return devCockpitIsInstalled || !input.equals(PersistDevelopersStep.class);
-    }
+    return STEPS;
   }
 
 }

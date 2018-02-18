@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,6 +21,8 @@ package org.sonar.server.rule.index;
 
 import com.google.common.collect.ImmutableSet;
 import java.util.Collections;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import org.junit.Rule;
 import org.junit.Test;
 import org.sonar.api.config.internal.MapSettings;
@@ -34,6 +36,7 @@ import org.sonar.db.organization.OrganizationDto;
 import org.sonar.db.rule.RuleDefinitionDto;
 import org.sonar.db.rule.RuleDto;
 import org.sonar.db.rule.RuleTesting;
+import org.sonar.db.rule.RuleDto.Scope;
 import org.sonar.server.es.EsTester;
 
 import static com.google.common.collect.Sets.newHashSet;
@@ -64,6 +67,7 @@ public class RuleIndexerTest {
     .setIsTemplate(true)
     .setSystemTags(newHashSet("cwe"))
     .setType(RuleType.BUG)
+    .setScope(Scope.ALL)
     .setCreatedAt(1500000000000L)
     .setUpdatedAt(1600000000000L);
 
@@ -76,7 +80,7 @@ public class RuleIndexerTest {
   @Test
   public void index() {
     dbClient.ruleDao().insert(dbSession, rule);
-    underTest.commitAndIndex(dbSession, rule.getKey());
+    underTest.commitAndIndex(dbSession, rule.getId());
 
     assertThat(esTester.countDocuments(RuleIndexDefinition.INDEX_TYPE_RULE)).isEqualTo(1);
   }
@@ -86,12 +90,12 @@ public class RuleIndexerTest {
     // Create and Index rule
     dbClient.ruleDao().insert(dbSession, rule.setStatus(RuleStatus.READY));
     dbSession.commit();
-    underTest.commitAndIndex(dbTester.getSession(), rule.getKey());
+    underTest.commitAndIndex(dbTester.getSession(), rule.getId());
     assertThat(esTester.countDocuments(RuleIndexDefinition.INDEX_TYPE_RULE)).isEqualTo(1);
 
     // Remove rule
     dbTester.getDbClient().ruleDao().update(dbTester.getSession(), rule.setStatus(RuleStatus.READY).setUpdatedAt(2000000000000L));
-    underTest.commitAndIndex(dbTester.getSession(), rule.getKey());
+    underTest.commitAndIndex(dbTester.getSession(), rule.getId());
 
     assertThat(esTester.countDocuments(RuleIndexDefinition.INDEX_TYPE_RULE)).isEqualTo(1);
   }
@@ -99,13 +103,13 @@ public class RuleIndexerTest {
   @Test
   public void index_rule_extension_with_long_id() {
     RuleDefinitionDto rule = dbTester.rules().insert(r -> r.setRuleKey(RuleTesting.randomRuleKeyOfMaximumLength()));
-    underTest.commitAndIndex(dbTester.getSession(), rule.getKey());
+    underTest.commitAndIndex(dbTester.getSession(), rule.getId());
     OrganizationDto organization = dbTester.organizations().insert();
     dbTester.rules().insertOrUpdateMetadata(rule, organization, m -> m.setTags(ImmutableSet.of("bla")));
-    underTest.commitAndIndex(dbTester.getSession(), rule.getKey(), organization);
+    underTest.commitAndIndex(dbTester.getSession(), rule.getId(), organization);
 
     RuleExtensionDoc doc = new RuleExtensionDoc()
-      .setRuleKey(rule.getKey())
+      .setRuleId(rule.getId())
       .setScope(RuleExtensionScope.organization(organization.getUuid()));
     assertThat(
       esTester.client()
@@ -114,6 +118,15 @@ public class RuleIndexerTest {
         .get()
         .getHits()
         .getHits()[0]
-          .getId()).isEqualTo(doc.getId());
+        .getId()).isEqualTo(doc.getId());
+  }
+
+  @Test
+  public void index_long_rule_description() {
+    String description = IntStream.range(0, 100000).map(i -> i % 100).mapToObj(Integer::toString).collect(Collectors.joining(" "));
+    RuleDefinitionDto rule = dbTester.rules().insert(r -> r.setDescription(description));
+    underTest.commitAndIndex(dbTester.getSession(), rule.getId());
+
+    assertThat(esTester.countDocuments(RuleIndexDefinition.INDEX_TYPE_RULE)).isEqualTo(1);
   }
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -43,15 +43,14 @@ import static com.google.common.collect.ImmutableList.of;
 import static com.google.common.collect.Lists.newArrayList;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
+import static java.util.Collections.singleton;
 import static java.util.Collections.singletonList;
 import static org.apache.commons.lang.RandomStringUtils.randomAlphanumeric;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-import static org.sonar.core.util.stream.MoreCollectors.toList;
 import static org.sonar.db.qualityprofile.QualityProfileTesting.newQualityProfileDto;
-import static org.sonar.db.qualityprofile.RulesProfileDto.from;
 
 public class QualityProfileDaoTest {
 
@@ -312,7 +311,7 @@ public class QualityProfileDaoTest {
 
   @Test
   public void selectDefaultProfiles() {
-    List<QProfileDto> sharedData = createSharedData();
+    createSharedData();
 
     List<QProfileDto> java = underTest.selectDefaultProfiles(dbSession, organization, singletonList("java"));
     assertThat(java).extracting(QProfileDto::getKee).containsOnly("java_sonar_way");
@@ -320,6 +319,7 @@ public class QualityProfileDaoTest {
     assertThat(underTest.selectDefaultProfiles(dbSession, organization, singletonList("js"))).isEmpty();
     assertThat(underTest.selectDefaultProfiles(dbSession, organization, of("java", "js"))).extracting(QProfileDto::getKee).containsOnly("java_sonar_way");
     assertThat(underTest.selectDefaultProfiles(dbSession, organization, of("js", "java"))).extracting(QProfileDto::getKee).containsOnly("java_sonar_way");
+    assertThat(underTest.selectDefaultProfiles(dbSession, organization, Collections.emptyList())).isEmpty();
   }
 
   @Test
@@ -467,7 +467,7 @@ public class QualityProfileDaoTest {
       .setIsBuiltIn(false);
     underTest.insert(dbSession, original6);
 
-    List<QProfileDto> dtos = underTest.selectChildren(dbSession, original3);
+    List<QProfileDto> dtos = underTest.selectChildren(dbSession, singleton(original3));
 
     assertThat(dtos).hasSize(2);
 
@@ -483,11 +483,61 @@ public class QualityProfileDaoTest {
   }
 
   @Test
+  public void selectDescendants_returns_empty_if_no_children() {
+    QProfileDto base = db.qualityProfiles().insert(db.getDefaultOrganization());
+
+    Collection<QProfileDto> descendants = underTest.selectDescendants(dbSession, singleton(base));
+
+    assertThat(descendants).isEmpty();
+  }
+
+  @Test
+  public void selectDescendants_returns_profile_does_not_exist() {
+    Collection<QProfileDto> descendants = underTest.selectDescendants(dbSession, singleton(new QProfileDto().setKee("unknown")));
+
+    assertThat(descendants).isEmpty();
+  }
+
+  @Test
+  public void selectDescendants_returns_descendants_in_any_order() {
+    QProfileDto base1 = db.qualityProfiles().insert(db.getDefaultOrganization());
+    QProfileDto child1OfBase1 = db.qualityProfiles().insert(db.getDefaultOrganization(), p -> p.setParentKee(base1.getKee()));
+    QProfileDto child2OfBase1 = db.qualityProfiles().insert(db.getDefaultOrganization(), p -> p.setParentKee(base1.getKee()));
+    QProfileDto grandChildOfBase1 = db.qualityProfiles().insert(db.getDefaultOrganization(), p -> p.setParentKee(child1OfBase1.getKee()));
+    QProfileDto base2 = db.qualityProfiles().insert(db.getDefaultOrganization());
+    QProfileDto childOfBase2 = db.qualityProfiles().insert(db.getDefaultOrganization(), p -> p.setParentKee(base2.getKee()));
+    QProfileDto grandChildOfBase2 = db.qualityProfiles().insert(db.getDefaultOrganization(), p -> p.setParentKee(childOfBase2.getKee()));
+    QProfileDto other = db.qualityProfiles().insert(db.getDefaultOrganization());
+
+    // descendants of a single base profile
+    verifyDescendants(singleton(base1), asList(child1OfBase1, child2OfBase1, grandChildOfBase1));
+    verifyDescendants(singleton(child1OfBase1), asList(grandChildOfBase1));
+    verifyDescendants(singleton(child2OfBase1), emptyList());
+    verifyDescendants(singleton(grandChildOfBase1), emptyList());
+
+    // descendants of a multiple base profiles
+    verifyDescendants(asList(base1, base2), asList(child1OfBase1, child2OfBase1, grandChildOfBase1, childOfBase2, grandChildOfBase2));
+    verifyDescendants(asList(base1, childOfBase2), asList(child1OfBase1, child2OfBase1, grandChildOfBase1, grandChildOfBase2));
+    verifyDescendants(asList(child1OfBase1, grandChildOfBase2), asList(grandChildOfBase1));
+    verifyDescendants(asList(other, base2), asList(childOfBase2, grandChildOfBase2));
+
+  }
+
+  private void verifyDescendants(Collection<QProfileDto> baseProfiles, Collection<QProfileDto> expectedDescendants) {
+    Collection<QProfileDto> descendants = underTest.selectDescendants(dbSession, baseProfiles);
+    String[] expectedUuids = expectedDescendants.stream().map(QProfileDto::getKee).toArray(String[]::new);
+    assertThat(descendants)
+      .extracting(QProfileDto::getKee)
+      .containsExactlyInAnyOrder(expectedUuids);
+  }
+
+  @Test
   public void countProjectsByProfileKey() {
     QProfileDto profileWithoutProjects = db.qualityProfiles().insert(organization);
     QProfileDto profileWithProjects = db.qualityProfiles().insert(organization);
     ComponentDto project1 = db.components().insertPrivateProject(organization);
     ComponentDto project2 = db.components().insertPrivateProject(organization);
+
     db.qualityProfiles().associateWithProject(project1, profileWithProjects);
     db.qualityProfiles().associateWithProject(project2, profileWithProjects);
 
@@ -540,6 +590,8 @@ public class QualityProfileDaoTest {
       .extracting(QProfileDto::getKee).containsExactlyInAnyOrder(javaProfile.getKee(), jsProfile.getKee());
     assertThat(underTest.selectAssociatedToProjectUuidAndLanguages(dbSession, project2, singletonList("java")))
       .isEmpty();
+    assertThat(underTest.selectAssociatedToProjectUuidAndLanguages(dbSession, project2, Collections.emptyList()))
+      .isEmpty();
   }
 
   @Test
@@ -571,12 +623,13 @@ public class QualityProfileDaoTest {
   }
 
   @Test
-  public void select_selected_projects() throws Exception {
+  public void select_selected_projects() {
     ComponentDto project1 = db.components().insertPrivateProject(t -> t.setName("Project1 name"), t -> t.setOrganizationUuid(organization.getUuid()));
     ComponentDto project2 = db.components().insertPrivateProject(t -> t.setName("Project2 name"), t -> t.setOrganizationUuid(organization.getUuid()));
     ComponentDto project3 = db.components().insertPrivateProject(t -> t.setName("Project3 name"), t -> t.setOrganizationUuid(organization.getUuid()));
     OrganizationDto organization2 = db.organizations().insert();
     ComponentDto project4 = db.components().insertPrivateProject(t -> t.setName("Project4 name"), t -> t.setOrganizationUuid(organization2.getUuid()));
+    ComponentDto branch = db.components().insertProjectBranch(project1, t -> t.setKey("branch"));
 
     QProfileDto profile1 = newQualityProfileDto();
     db.qualityProfiles().insert(profile1);
@@ -591,20 +644,21 @@ public class QualityProfileDaoTest {
     assertThat(underTest.selectSelectedProjects(dbSession, organization, profile1, null))
       .extracting("projectId", "projectUuid", "projectKey", "projectName", "profileKey")
       .containsOnly(
-        tuple(project1.getId(), project1.uuid(), project1.key(), project1.name(), profile1.getKee()),
-        tuple(project2.getId(), project2.uuid(), project2.key(), project2.name(), profile1.getKee()));
+        tuple(project1.getId(), project1.uuid(), project1.getDbKey(), project1.name(), profile1.getKee()),
+        tuple(project2.getId(), project2.uuid(), project2.getDbKey(), project2.name(), profile1.getKee()));
 
     assertThat(underTest.selectSelectedProjects(dbSession, organization, profile1, "ect1")).hasSize(1);
     assertThat(underTest.selectSelectedProjects(dbSession, organization, profile3, null)).isEmpty();
   }
 
   @Test
-  public void select_deselected_projects() throws Exception {
+  public void select_deselected_projects() {
     ComponentDto project1 = db.components().insertPrivateProject(t -> t.setName("Project1 name"), t -> t.setOrganizationUuid(organization.getUuid()));
     ComponentDto project2 = db.components().insertPrivateProject(t -> t.setName("Project2 name"), t -> t.setOrganizationUuid(organization.getUuid()));
     ComponentDto project3 = db.components().insertPrivateProject(t -> t.setName("Project3 name"), t -> t.setOrganizationUuid(organization.getUuid()));
     OrganizationDto organization2 = db.organizations().insert();
     ComponentDto project4 = db.components().insertPrivateProject(t -> t.setName("Project4 name"), t -> t.setOrganizationUuid(organization2.getUuid()));
+    ComponentDto branch = db.components().insertProjectBranch(project1, t -> t.setKey("branch"));
 
     QProfileDto profile1 = newQualityProfileDto();
     db.qualityProfiles().insert(profile1);
@@ -618,20 +672,21 @@ public class QualityProfileDaoTest {
     assertThat(underTest.selectDeselectedProjects(dbSession, organization, profile1, null))
       .extracting("projectId", "projectUuid", "projectKey", "projectName", "profileKey")
       .containsExactly(
-        tuple(project2.getId(), project2.uuid(), project2.key(), project2.name(), null),
-        tuple(project3.getId(), project3.uuid(), project3.key(), project3.name(), null));
+        tuple(project2.getId(), project2.uuid(), project2.getDbKey(), project2.name(), null),
+        tuple(project3.getId(), project3.uuid(), project3.getDbKey(), project3.name(), null));
 
     assertThat(underTest.selectDeselectedProjects(dbSession, organization, profile1, "ect2")).hasSize(1);
     assertThat(underTest.selectDeselectedProjects(dbSession, organization, profile3, null)).hasSize(3);
   }
 
   @Test
-  public void select_project_associations() throws Exception {
+  public void select_project_associations() {
     ComponentDto project1 = db.components().insertPrivateProject(t -> t.setName("Project1 name"), t -> t.setOrganizationUuid(organization.getUuid()));
     ComponentDto project2 = db.components().insertPrivateProject(t -> t.setName("Project2 name"), t -> t.setOrganizationUuid(organization.getUuid()));
     ComponentDto project3 = db.components().insertPrivateProject(t -> t.setName("Project3 name"), t -> t.setOrganizationUuid(organization.getUuid()));
     OrganizationDto organization2 = db.organizations().insert();
     ComponentDto project4 = db.components().insertPrivateProject(t -> t.setName("Project4 name"), t -> t.setOrganizationUuid(organization2.getUuid()));
+    ComponentDto branch = db.components().insertProjectBranch(project1, t -> t.setKey("branch"));
 
     QProfileDto profile1 = newQualityProfileDto();
     db.qualityProfiles().insert(profile1);
@@ -645,9 +700,9 @@ public class QualityProfileDaoTest {
     assertThat(underTest.selectProjectAssociations(dbSession, organization, profile1, null))
       .extracting("projectId", "projectUuid", "projectKey", "projectName", "profileKey")
       .containsOnly(
-        tuple(project1.getId(), project1.uuid(), project1.key(), project1.name(), profile1.getKee()),
-        tuple(project2.getId(), project2.uuid(), project2.key(), project2.name(), null),
-        tuple(project3.getId(), project3.uuid(), project3.key(), project3.name(), null));
+        tuple(project1.getId(), project1.uuid(), project1.getDbKey(), project1.name(), profile1.getKee()),
+        tuple(project2.getId(), project2.uuid(), project2.getDbKey(), project2.name(), null),
+        tuple(project3.getId(), project3.uuid(), project3.getDbKey(), project3.name(), null));
 
     assertThat(underTest.selectProjectAssociations(dbSession, organization, profile1, "ect2")).hasSize(1);
     assertThat(underTest.selectProjectAssociations(dbSession, organization, profile3, null)).hasSize(3);
@@ -699,6 +754,36 @@ public class QualityProfileDaoTest {
     assertThat(underTest.selectOrFailByUuid(dbSession, profile.getKee()).getName()).isEqualTo("foo");
   }
 
+  @Test
+  public void selectQProfilesByRuleProfileUuid() {
+    OrganizationDto org1 = db.organizations().insert();
+    OrganizationDto org2 = db.organizations().insert();
+
+    RulesProfileDto ruleProfile1 = QualityProfileTesting.newRuleProfileDto();
+    OrgQProfileDto profile1InOrg1 = new OrgQProfileDto().setOrganizationUuid(org1.getUuid()).setRulesProfileUuid(ruleProfile1.getKee()).setUuid(Uuids.create());
+    OrgQProfileDto profile1InOrg2 = new OrgQProfileDto().setOrganizationUuid(org2.getUuid()).setRulesProfileUuid(ruleProfile1.getKee()).setUuid(Uuids.create());
+    RulesProfileDto ruleProfile2 = QualityProfileTesting.newRuleProfileDto();
+    OrgQProfileDto profile2InOrg1 = new OrgQProfileDto().setOrganizationUuid(org1.getUuid()).setRulesProfileUuid(ruleProfile2.getKee()).setUuid(Uuids.create());
+    db.getDbClient().qualityProfileDao().insert(db.getSession(), ruleProfile1);
+    db.getDbClient().qualityProfileDao().insert(db.getSession(), profile1InOrg1);
+    db.getDbClient().qualityProfileDao().insert(db.getSession(), profile1InOrg2);
+    db.getDbClient().qualityProfileDao().insert(db.getSession(), ruleProfile2);
+    db.getDbClient().qualityProfileDao().insert(db.getSession(), profile2InOrg1);
+
+    List<QProfileDto> result = db.getDbClient().qualityProfileDao().selectQProfilesByRuleProfile(db.getSession(), ruleProfile1);
+    assertThat(result).extracting(QProfileDto::getKee).containsExactlyInAnyOrder(profile1InOrg1.getUuid(), profile1InOrg2.getUuid());
+
+    result = db.getDbClient().qualityProfileDao().selectQProfilesByRuleProfile(db.getSession(), ruleProfile2);
+    assertThat(result).extracting(QProfileDto::getKee).containsExactlyInAnyOrder(profile2InOrg1.getUuid());
+  }
+
+  @Test
+  public void selectQProfilesByRuleProfileUuid_returns_empty_list_if_rule_profile_does_not_exist() {
+    List<QProfileDto> result = db.getDbClient().qualityProfileDao().selectQProfilesByRuleProfile(db.getSession(), new RulesProfileDto().setKee("unknown"));
+
+    assertThat(result).isEmpty();
+  }
+
   private List<QProfileDto> createSharedData() {
     QProfileDto dto1 = new QProfileDto()
       .setKee("java_sonar_way")
@@ -731,37 +816,5 @@ public class QualityProfileDaoTest {
     db.getDbClient().defaultQProfileDao().insertOrUpdate(dbSession, DefaultQProfileDto.from(dto1));
 
     return Arrays.asList(dto1, dto2);
-  }
-
-  @Test
-  public void selectChildrenOfBuiltInRulesProfile_must_return_only_inherited_profiles() {
-    OrganizationDto org1 = db.organizations().insert();
-    OrganizationDto org2 = db.organizations().insert();
-    OrganizationDto org3 = db.organizations().insert();
-
-    QProfileDto builtInProfile = db.qualityProfiles().insert(org1, p -> p.setIsBuiltIn(true).setLanguage("java").setName("foo"));
-    QProfileDto javaProfileOrg2 = db.qualityProfiles().insert(org2, p -> p.setIsBuiltIn(false).setLanguage("java").setName("foo"));
-    QProfileDto inheritedJavaProfileOrg2 = db.qualityProfiles().insert(org2, p -> p.setIsBuiltIn(false).setLanguage("java").setName("foo").setParentKee(builtInProfile.getKee()));
-    QProfileDto differentLanguage = db.qualityProfiles().insert(org2, p -> p.setIsBuiltIn(false).setLanguage("cobol").setName("foo"));
-    QProfileDto differentName = db.qualityProfiles().insert(org2, p -> p.setIsBuiltIn(false).setLanguage("java").setName("bar"));
-    QProfileDto javaProfileOrg3 = db.qualityProfiles().insert(org3, p -> p.setIsBuiltIn(false).setLanguage("java").setName("foo"));
-    QProfileDto inheritedJavaProfileOrg3 = db.qualityProfiles().insert(org3, p -> p.setIsBuiltIn(false).setLanguage("java").setName("foo").setParentKee(builtInProfile.getKee()));
-
-    List<QProfileDto> children = db.getDbClient().qualityProfileDao().selectChildrenOfBuiltInRulesProfile(db.getSession(), from(builtInProfile));
-
-    assertThat(children.stream().map(qp -> qp.getId()).collect(toList())).containsExactlyInAnyOrder(
-      inheritedJavaProfileOrg2.getId(), inheritedJavaProfileOrg3.getId());
-  }
-
-  @Test
-  public void selectChildrenOfBuiltInRulesProfile_must_return_empty_list_if_not_built_in() {
-    OrganizationDto org = db.organizations().insert();
-
-    QProfileDto notBuiltInProfile = db.qualityProfiles().insert(org, p -> p.setIsBuiltIn(false).setLanguage("java").setName("foo"));
-    QProfileDto inheritedProfile = db.qualityProfiles().insert(org, p -> p.setIsBuiltIn(false).setLanguage("java").setName("foo").setParentKee(notBuiltInProfile.getKee()));
-
-    List<QProfileDto> children = db.getDbClient().qualityProfileDao().selectChildrenOfBuiltInRulesProfile(db.getSession(), from(notBuiltInProfile));
-
-    assertThat(children).isEmpty();
   }
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,6 +19,7 @@
  */
 package org.sonar.server.platform;
 
+import java.util.Random;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -79,7 +80,7 @@ public class BackendCleanupTest {
   }
 
   @Test
-  public void clear_indexes() throws Exception {
+  public void clear_indexes() {
     esTester.putDocuments(IssueIndexDefinition.INDEX_TYPE_ISSUE, IssueDocTesting.newDoc());
     esTester.putDocuments(RuleIndexDefinition.INDEX_TYPE_RULE, newRuleDoc());
     esTester.putDocuments(ComponentIndexDefinition.INDEX_TYPE_COMPONENT, newComponentDoc());
@@ -91,7 +92,7 @@ public class BackendCleanupTest {
   }
 
   @Test
-  public void clear_all() throws Exception {
+  public void clear_all() {
     dbTester.prepareDbUnit(getClass(), "shared.xml");
     esTester.putDocuments(IssueIndexDefinition.INDEX_TYPE_ISSUE, IssueDocTesting.newDoc());
     esTester.putDocuments(RuleIndexDefinition.INDEX_TYPE_RULE, newRuleDoc());
@@ -110,7 +111,7 @@ public class BackendCleanupTest {
   }
 
   @Test
-  public void reset_data() throws Exception {
+  public void reset_data() {
     dbTester.prepareDbUnit(getClass(), "shared.xml");
     esTester.putDocuments(IssueIndexDefinition.INDEX_TYPE_ISSUE, IssueDocTesting.newDoc());
     esTester.putDocuments(ViewIndexDefinition.INDEX_TYPE_VIEW, new ViewDoc().setUuid("CDEF").setProjects(newArrayList("DEFG")));
@@ -137,7 +138,7 @@ public class BackendCleanupTest {
   }
 
   private static RuleDoc newRuleDoc() {
-    return new RuleDoc().setKey(RuleTesting.XOO_X1.toString()).setRepository(RuleTesting.XOO_X1.repository());
+    return new RuleDoc().setId(new Random().nextInt(942)).setKey(RuleTesting.XOO_X1.toString()).setRepository(RuleTesting.XOO_X1.repository());
   }
 
   private ComponentDoc newComponentDoc() {

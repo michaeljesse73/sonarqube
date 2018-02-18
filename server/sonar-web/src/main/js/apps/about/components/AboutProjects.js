@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -23,26 +23,27 @@ import { Link } from 'react-router';
 import { formatMeasure } from '../../../helpers/measures';
 import { translate } from '../../../helpers/l10n';
 
+/*::
 type Props = {
   count: number,
   loading: boolean
 };
+*/
 
-export default function AboutProjects({ count, loading }: Props) {
+export default function AboutProjects({ count, loading } /*: Props */) {
   return (
     <div className="about-page-projects">
       {loading && <i className="spinner" />}
-      {!loading &&
+      {!loading && (
         <div>
           <div>
             <Link to="/projects" className="about-page-projects-link">
               {formatMeasure(count, 'INT')}
             </Link>
           </div>
-          <div>
-            {translate('about_page.projects_analyzed')}
-          </div>
-        </div>}
+          <div>{translate('about_page.projects_analyzed')}</div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -48,7 +48,7 @@ public class CloseIssuesOnRemovedComponentsVisitorTest {
   @Rule
   public TemporaryFolder temp = new TemporaryFolder();
 
-  BaseIssuesLoader baseIssuesLoader = mock(BaseIssuesLoader.class);
+  ComponentIssuesLoader issuesLoader = mock(ComponentIssuesLoader.class);
   ComponentsWithUnprocessedIssues componentsWithUnprocessedIssues = mock(ComponentsWithUnprocessedIssues.class);
   IssueLifecycle issueLifecycle = mock(IssueLifecycle.class);
   IssueCache issueCache;
@@ -57,17 +57,18 @@ public class CloseIssuesOnRemovedComponentsVisitorTest {
   @Before
   public void setUp() throws Exception {
     issueCache = new IssueCache(temp.newFile(), System2.INSTANCE);
-    underTest = new VisitorsCrawler(Arrays.<ComponentVisitor>asList(new CloseIssuesOnRemovedComponentsVisitor(baseIssuesLoader, componentsWithUnprocessedIssues, issueCache, issueLifecycle)));
+    underTest = new VisitorsCrawler(
+      Arrays.asList(new CloseIssuesOnRemovedComponentsVisitor(issuesLoader, componentsWithUnprocessedIssues, issueCache, issueLifecycle)));
   }
 
   @Test
-  public void close_issue() throws Exception {
+  public void close_issue() {
     String fileUuid = "FILE1";
     String issueUuid = "ABCD";
 
     when(componentsWithUnprocessedIssues.getUuids()).thenReturn(newHashSet(fileUuid));
     DefaultIssue issue = new DefaultIssue().setKey(issueUuid);
-    when(baseIssuesLoader.loadForComponentUuid(fileUuid)).thenReturn(Collections.singletonList(issue));
+    when(issuesLoader.loadForComponentUuid(fileUuid)).thenReturn(Collections.singletonList(issue));
 
     underTest.visit(ReportComponent.builder(PROJECT, 1).build());
 
@@ -82,8 +83,8 @@ public class CloseIssuesOnRemovedComponentsVisitorTest {
   }
 
   @Test
-  public void nothing_to_do_when_no_uuid_in_queue() throws Exception {
-    when(componentsWithUnprocessedIssues.getUuids()).thenReturn(Collections.<String>emptySet());
+  public void nothing_to_do_when_no_uuid_in_queue() {
+    when(componentsWithUnprocessedIssues.getUuids()).thenReturn(Collections.emptySet());
 
     underTest.visit(ReportComponent.builder(PROJECT, 1).build());
 
@@ -93,7 +94,7 @@ public class CloseIssuesOnRemovedComponentsVisitorTest {
   }
 
   @Test
-  public void do_nothing_on_module() throws Exception {
+  public void do_nothing_on_module() {
     underTest.visit(ReportComponent.builder(MODULE, 1).build());
 
     verifyZeroInteractions(issueLifecycle);
@@ -102,7 +103,7 @@ public class CloseIssuesOnRemovedComponentsVisitorTest {
   }
 
   @Test
-  public void do_nothing_on_directory() throws Exception {
+  public void do_nothing_on_directory() {
     underTest.visit(ReportComponent.builder(DIRECTORY, 1).build());
 
     verifyZeroInteractions(issueLifecycle);
@@ -111,7 +112,7 @@ public class CloseIssuesOnRemovedComponentsVisitorTest {
   }
 
   @Test
-  public void do_nothing_on_file() throws Exception {
+  public void do_nothing_on_file() {
     underTest.visit(ReportComponent.builder(FILE, 1).build());
 
     verifyZeroInteractions(issueLifecycle);

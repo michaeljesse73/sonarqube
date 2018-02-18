@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,6 +21,7 @@ package org.sonar.scanner.repository;
 
 import com.google.common.collect.ImmutableMap;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import org.junit.Before;
 import org.junit.Rule;
@@ -28,16 +29,16 @@ import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.sonar.api.batch.bootstrap.ProjectKey;
+import org.sonar.api.utils.DateUtils;
 import org.sonar.api.utils.log.LogTester;
 import org.sonar.api.utils.log.LoggerLevel;
 import org.sonar.scanner.analysis.AnalysisProperties;
 import org.sonar.scanner.rule.ModuleQProfiles;
-import org.sonarqube.ws.QualityProfiles.SearchWsResponse.QualityProfile;
+import org.sonarqube.ws.Qualityprofiles.SearchWsResponse.QualityProfile;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
-import static org.mockito.Matchers.isNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
@@ -69,16 +70,16 @@ public class QualityProfileProviderTest {
     when(projectRepo.exists()).thenReturn(true);
 
     response = new ArrayList<>(1);
-    response.add(QualityProfile.newBuilder().setKey("profile").setName("profile").setLanguage("lang").build());
+    response.add(QualityProfile.newBuilder().setKey("profile").setName("profile").setLanguage("lang").setRulesUpdatedAt(DateUtils.formatDateTime(new Date())).build());
   }
 
   @Test
   public void testProvide() {
-    when(loader.load(eq("project"), isNull(String.class))).thenReturn(response);
+    when(loader.load("project", null)).thenReturn(response);
     ModuleQProfiles qps = qualityProfileProvider.provide(key, loader, projectRepo, props);
     assertResponse(qps);
 
-    verify(loader).load(eq("project"), isNull(String.class));
+    verify(loader).load("project", null);
     verifyNoMoreInteractions(loader);
   }
 
@@ -86,6 +87,7 @@ public class QualityProfileProviderTest {
   public void testProjectDoesntExist() {
     when(projectRepo.exists()).thenReturn(false);
     when(loader.loadDefault(anyString())).thenReturn(response);
+    when(props.property(ModuleQProfiles.SONAR_PROFILE_PROP)).thenReturn("profile");
     ModuleQProfiles qps = qualityProfileProvider.provide(key, loader, projectRepo, props);
     assertResponse(qps);
 
@@ -125,7 +127,6 @@ public class QualityProfileProviderTest {
   }
 
   private void assertResponse(ModuleQProfiles qps) {
-    assertThat(qps.findAll()).hasSize(1);
     assertThat(qps.findAll()).extracting("key").containsExactly("profile");
 
   }

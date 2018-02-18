@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -40,7 +40,7 @@ public class CePluginJarExploderTest {
   CePluginJarExploder underTest = new CePluginJarExploder(fs);
 
   @Test
-  public void explode_jar_to_temp_directory() throws Exception {
+  public void explode_jar_to_temp_directory() {
     PluginInfo info = PluginInfo.create(plugin1Jar());
 
     ExplodedPlugin exploded = underTest.explode(info);
@@ -55,7 +55,7 @@ public class CePluginJarExploderTest {
   }
 
   @Test
-  public void plugins_do_not_overlap() throws Exception {
+  public void plugins_do_not_overlap() {
     PluginInfo info1 = PluginInfo.create(plugin1Jar());
     PluginInfo info2 = PluginInfo.create(plugin2Jar());
 
@@ -146,6 +146,21 @@ public class CePluginJarExploderTest {
 
     @Override
     public File getPluginIndex() {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public File getEditionDownloadedPluginsDir() {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public File getUninstalledPluginsDir() {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public File getEditionUninstalledPluginsDir() {
       throw new UnsupportedOperationException();
     }
 

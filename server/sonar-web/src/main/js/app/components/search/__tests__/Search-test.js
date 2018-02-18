@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,11 +19,11 @@
  */
 import React from 'react';
 import { shallow, mount } from 'enzyme';
-import type { ShallowWrapper } from 'enzyme';
+/*:: import type { ShallowWrapper } from 'enzyme'; */
 import Search from '../Search';
 import { elementKeydown, clickOutside } from '../../../../helpers/testUtils';
 
-function render(props?: Object) {
+function render(props /*: ?Object */) {
   return shallow(
     <Search
       appState={{ organizationsEnabled: false }}
@@ -33,21 +33,21 @@ function render(props?: Object) {
   );
 }
 
-function component(key: string, qualifier: string = 'TRK') {
+function component(key /*: string */, qualifier /*: string */ = 'TRK') {
   return { key, name: key, qualifier };
 }
 
-function next(form: ShallowWrapper, expected: string) {
-  elementKeydown(form.find('input'), 40);
+function next(form /*: ShallowWrapper */, expected /*: string */) {
+  elementKeydown(form.find('SearchBox'), 40);
   expect(form.state().selected).toBe(expected);
 }
 
-function prev(form: ShallowWrapper, expected: string) {
-  elementKeydown(form.find('input'), 38);
+function prev(form /*: ShallowWrapper */, expected /*: string */) {
+  elementKeydown(form.find('SearchBox'), 38);
   expect(form.state().selected).toBe(expected);
 }
 
-function select(form: ShallowWrapper, expected: string) {
+function select(form /*: ShallowWrapper */, expected /*: string */) {
   form.instance().handleSelect(expected);
   expect(form.state().selected).toBe(expected);
 }
@@ -83,7 +83,7 @@ it('opens selected on enter', () => {
   });
   const openSelected = jest.fn();
   form.instance().openSelected = openSelected;
-  elementKeydown(form.find('input'), 13);
+  elementKeydown(form.find('SearchBox'), 13);
   expect(openSelected).toBeCalled();
 });
 
@@ -93,14 +93,6 @@ it('shows warning about short input', () => {
   expect(form.find('.navbar-search-input-hint')).toMatchSnapshot();
   form.setState({ query: 'foobar x' });
   expect(form.find('.navbar-search-input-hint')).toMatchSnapshot();
-});
-
-it('closes on escape', () => {
-  const form = render();
-  form.instance().openSearch();
-  expect(form.state().open).toBe(true);
-  elementKeydown(form.find('input'), 27);
-  expect(form.state().open).toBe(false);
 });
 
 it('closes on click outside', () => {

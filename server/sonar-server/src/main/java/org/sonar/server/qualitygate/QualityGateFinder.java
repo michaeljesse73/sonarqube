@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,17 +20,19 @@
 package org.sonar.server.qualitygate;
 
 import java.util.Optional;
-import javax.annotation.CheckForNull;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
-import org.sonar.db.property.PropertyDto;
+import org.sonar.db.component.ComponentDto;
+import org.sonar.db.organization.OrganizationDto;
+import org.sonar.db.qualitygate.QGateWithOrgDto;
 import org.sonar.db.qualitygate.QualityGateDto;
-import org.sonar.server.exceptions.NotFoundException;
 
-import static org.apache.commons.lang.StringUtils.isBlank;
-import static org.sonar.server.qualitygate.QualityGates.SONAR_QUALITYGATE_PROPERTY;
+import static com.google.common.base.Preconditions.checkState;
+import static org.sonar.server.ws.WsUtils.checkFound;
 
 public class QualityGateFinder {
+
+  public static final String SONAR_QUALITYGATE_PROPERTY = "sonar.qualitygate";
 
   private final DbClient dbClient;
 
@@ -41,47 +43,34 @@ public class QualityGateFinder {
   /**
    * Return effective quality gate of a project.
    *
-   * It will first try to get the quality gate explicitly defined on a project, if none it will try to return default quality gate.
-   * As it's possible to have no default quality gate, this method can return {@link Optional#empty()}
+   * It will first try to get the quality gate explicitly defined on a project, if none it will try to return default quality gate ofI the organization
    */
-  public Optional<QualityGateData> getQualityGate(DbSession dbSession, long componentId) {
-    Optional<Long> qualityGateId = dbClient.projectQgateAssociationDao().selectQGateIdByComponentId(dbSession, componentId);
+  public QualityGateData getQualityGate(DbSession dbSession, OrganizationDto organization, ComponentDto component) {
+    Optional<Long> qualityGateId = dbClient.projectQgateAssociationDao().selectQGateIdByComponentId(dbSession, component.getId());
     if (qualityGateId.isPresent()) {
-      return Optional.of(new QualityGateData(selectOrFailById(dbSession, qualityGateId.get()), false));
-    } else {
-      QualityGateDto defaultQualityGate = getDefault(dbSession);
-      if (defaultQualityGate == null) {
-        return Optional.empty();
-      }
-      return Optional.of(new QualityGateData(defaultQualityGate, true));
+      QualityGateDto qualityGate = checkFound(dbClient.qualityGateDao().selectById(dbSession, qualityGateId.get()), "No quality gate has been found for id %s", qualityGateId);
+      return new QualityGateData(qualityGate, false);
     }
+    QualityGateDto defaultQualityGate = dbClient.qualityGateDao().selectByOrganizationAndUuid(dbSession, organization, organization.getDefaultQualityGateUuid());
+    checkState(defaultQualityGate != null, "Unable to find the quality gate [%s] for organization [%s]", organization.getDefaultQualityGateUuid(), organization.getUuid());
+    return new QualityGateData(defaultQualityGate, true);
   }
 
-  @CheckForNull
-  private QualityGateDto getDefault(DbSession dbSession) {
-    Long defaultId = getDefaultId(dbSession);
-    if (defaultId == null) {
-      return null;
-    }
-    return selectOrFailById(dbSession, defaultId);
+  public QGateWithOrgDto getByOrganizationAndId(DbSession dbSession, OrganizationDto organization, long qualityGateId) {
+    return checkFound(dbClient.qualityGateDao().selectByOrganizationAndId(dbSession, organization, qualityGateId),
+      "No quality gate has been found for id %s in organization %s", qualityGateId, organization.getName());
   }
 
-  private QualityGateDto selectOrFailById(DbSession dbSession, long qualityGateId) {
-    QualityGateDto qualityGateDto = dbClient.qualityGateDao().selectById(dbSession, qualityGateId);
-    if (qualityGateDto == null) {
-      throw new NotFoundException(String.format("No quality gate has been found for id %s", qualityGateId));
-    }
-    return qualityGateDto;
+  public QualityGateDto getDefault(DbSession dbSession, OrganizationDto organization) {
+    QGateWithOrgDto qgate = dbClient.qualityGateDao().selectByOrganizationAndUuid(dbSession, organization, organization.getDefaultQualityGateUuid());
+    checkState(qgate != null, "Default quality gate [%s] is missing on organization [%s]", organization.getDefaultQualityGateUuid(), organization.getUuid());
+    return qgate;
   }
 
-  @CheckForNull
-  private Long getDefaultId(DbSession dbSession) {
-    PropertyDto defaultQgate = dbClient.propertiesDao().selectGlobalProperty(dbSession, SONAR_QUALITYGATE_PROPERTY);
-    if (defaultQgate == null || isBlank(defaultQgate.getValue())) {
-      // For the moment, it's possible to have no default quality gate, but it will change with SONAR-8507
-      return null;
-    }
-    return Long.valueOf(defaultQgate.getValue());
+  public QualityGateDto getBuiltInQualityGate(DbSession dbSession) {
+    QualityGateDto builtIn = dbClient.qualityGateDao().selectBuiltIn(dbSession);
+    checkState(builtIn != null, "Builtin quality gate is missing.");
+    return builtIn;
   }
 
   public static class QualityGateData {
@@ -101,4 +90,5 @@ public class QualityGateFinder {
       return isDefault;
     }
   }
+
 }

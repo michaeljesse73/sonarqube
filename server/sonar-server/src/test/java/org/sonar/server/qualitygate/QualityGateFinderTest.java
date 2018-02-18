@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,7 +19,6 @@
  */
 package org.sonar.server.qualitygate;
 
-import java.util.Optional;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -27,10 +26,10 @@ import org.sonar.api.utils.System2;
 import org.sonar.db.DbSession;
 import org.sonar.db.DbTester;
 import org.sonar.db.component.ComponentDto;
-import org.sonar.db.component.ComponentTesting;
 import org.sonar.db.qualitygate.QualityGateDto;
 import org.sonar.server.exceptions.NotFoundException;
 
+import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class QualityGateFinderTest {
@@ -39,65 +38,72 @@ public class QualityGateFinderTest {
   public ExpectedException expectedException = ExpectedException.none();
 
   @Rule
-  public DbTester dbTester = DbTester.create(System2.INSTANCE);
+  public DbTester db = DbTester.create(System2.INSTANCE);
 
-  private DbSession dbSession = dbTester.getSession();
+  private DbSession dbSession = db.getSession();
 
-  private QualityGateFinder underTest = new QualityGateFinder(dbTester.getDbClient());
+  private QualityGateFinder underTest = new QualityGateFinder(db.getDbClient());
 
   @Test
   public void return_default_quality_gate_for_project() {
-    ComponentDto project = dbTester.components().insertComponent(ComponentTesting.newPrivateProjectDto(dbTester.getDefaultOrganization()));
-    QualityGateDto dbQualityGate = dbTester.qualityGates().createDefaultQualityGate("Sonar way");
+    ComponentDto project = db.components().insertPrivateProject();
+    QualityGateDto dbQualityGate = db.qualityGates().createDefaultQualityGate(db.getDefaultOrganization(), qg -> qg.setName("Sonar way"));
 
-    Optional<QualityGateFinder.QualityGateData> result = underTest.getQualityGate(dbSession, project.getId());
+    QualityGateFinder.QualityGateData result = underTest.getQualityGate(dbSession, db.getDefaultOrganization(), project);
 
-    assertThat(result).isPresent();
-    assertThat(result.get().getQualityGate().getId()).isEqualTo(dbQualityGate.getId());
-    assertThat(result.get().isDefault()).isTrue();
+    assertThat(result).isNotNull();
+    assertThat(result.getQualityGate().getId()).isEqualTo(dbQualityGate.getId());
+    assertThat(result.isDefault()).isTrue();
   }
 
   @Test
   public void return_project_quality_gate_over_default() {
-    ComponentDto project = dbTester.components().insertComponent(ComponentTesting.newPrivateProjectDto(dbTester.organizations().insert()));
-    dbTester.qualityGates().createDefaultQualityGate("Sonar way");
-    QualityGateDto dbQualityGate = dbTester.qualityGates().insertQualityGate("My team QG");
-    dbTester.qualityGates().associateProjectToQualityGate(project, dbQualityGate);
+    ComponentDto project = db.components().insertPrivateProject();
+    db.qualityGates().createDefaultQualityGate(db.getDefaultOrganization(),qg -> qg.setName("Sonar way"));
+    QualityGateDto dbQualityGate = db.qualityGates().insertQualityGate(db.getDefaultOrganization(), qg -> qg.setName("My team QG"));
+    db.qualityGates().associateProjectToQualityGate(project, dbQualityGate);
 
-    Optional<QualityGateFinder.QualityGateData> result = underTest.getQualityGate(dbSession, project.getId());
+    QualityGateFinder.QualityGateData result = underTest.getQualityGate(dbSession, db.getDefaultOrganization(), project);
 
-    assertThat(result).isPresent();
-    assertThat(result.get().getQualityGate().getId()).isEqualTo(dbQualityGate.getId());
-    assertThat(result.get().isDefault()).isFalse();
+    assertThat(result).isNotNull();
+    assertThat(result.getQualityGate().getId()).isEqualTo(dbQualityGate.getId());
+    assertThat(result.isDefault()).isFalse();
   }
 
   @Test
-  public void return_nothing_when_no_default_qgate_and_no_qgate_defined_for_project() {
-    ComponentDto project = dbTester.components().insertComponent(ComponentTesting.newPrivateProjectDto(dbTester.getDefaultOrganization()));
+  public void fail_when_default_qgate_defined_does_not_exists() {
+    ComponentDto project = db.components().insertPrivateProject();
+    QualityGateDto dbQualityGate = db.qualityGates().createDefaultQualityGate(db.getDefaultOrganization(), qg -> qg.setName("Sonar way"));
+    db.getDbClient().qualityGateDao().delete(dbQualityGate, dbSession);
+    db.commit();
 
-    Optional<QualityGateFinder.QualityGateData> result = underTest.getQualityGate(dbSession, project.getId());
+    expectedException.expect(IllegalStateException.class);
+    expectedException.expectMessage(format("Unable to find the quality gate [%s] for organization [%s]", dbQualityGate.getUuid(), db.getDefaultOrganization().getUuid()));
 
-    assertThat(result).isNotPresent();
+    underTest.getQualityGate(dbSession, db.getDefaultOrganization(), project);
   }
 
   @Test
-  public void fail_when_default_qgate_defined_in_properties_does_not_exists() throws Exception {
-    ComponentDto project = dbTester.components().insertComponent(ComponentTesting.newPrivateProjectDto(dbTester.organizations().insert()));
-    QualityGateDto dbQualityGate = dbTester.qualityGates().createDefaultQualityGate("Sonar way");
-    dbTester.getDbClient().qualityGateDao().delete(dbQualityGate, dbSession);
+  public void fail_when_project_qgate_defined_does_not_exists() {
+    ComponentDto project = db.components().insertPrivateProject();
+    QualityGateDto dbQualityGate = db.qualityGates().insertQualityGate(db.getDefaultOrganization(), qg -> qg.setName("My team QG"));
+    db.qualityGates().associateProjectToQualityGate(project, dbQualityGate);
+    db.getDbClient().qualityGateDao().delete(dbQualityGate, dbSession);
 
     expectedException.expect(NotFoundException.class);
-    underTest.getQualityGate(dbSession, project.getId());
+    underTest.getQualityGate(dbSession, db.getDefaultOrganization(), project);
   }
 
   @Test
-  public void fail_when_project_qgate_defined_in_properties_does_not_exists() throws Exception {
-    ComponentDto project = dbTester.components().insertComponent(ComponentTesting.newPrivateProjectDto(dbTester.getDefaultOrganization()));
-    QualityGateDto dbQualityGate = dbTester.qualityGates().insertQualityGate("My team QG");
-    dbTester.qualityGates().associateProjectToQualityGate(project, dbQualityGate);
-    dbTester.getDbClient().qualityGateDao().delete(dbQualityGate, dbSession);
+  public void fail_when_default_quality_gate_does_not_exists() {
+    QualityGateDto dbQualityGate = db.qualityGates().insertQualityGate(db.getDefaultOrganization(), qg -> qg.setName("My team QG"));
+    db.qualityGates().setDefaultQualityGate(db.getDefaultOrganization(), dbQualityGate);
+    db.getDbClient().qualityGateDao().delete(dbQualityGate, dbSession);
 
-    expectedException.expect(NotFoundException.class);
-    underTest.getQualityGate(dbSession, project.getId());
+    expectedException.expect(IllegalStateException.class);
+    expectedException.expectMessage(format("Default quality gate [%s] is missing on organization [%s]", dbQualityGate.getUuid(), db.getDefaultOrganization().getUuid()));
+
+    underTest.getDefault(dbSession, db.getDefaultOrganization());
   }
+
 }

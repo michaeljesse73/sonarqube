@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,19 +20,60 @@
 // @flow
 import React from 'react';
 import { getSettingValue, isEmptyValue, getDefaultValue } from '../utils';
+import Modal from '../../../components/controls/Modal';
 import { translate } from '../../../helpers/l10n';
 
+/*::
+type Props = {
+  isDefault: boolean,
+  onReset: () => void,
+  setting: Object
+};
+*/
+/*::
+type State = { reseting: boolean };
+*/
+
 export default class DefinitionDefaults extends React.PureComponent {
-  static propTypes = {
-    setting: React.PropTypes.object.isRequired,
-    isDefault: React.PropTypes.bool.isRequired,
-    onReset: React.PropTypes.func.isRequired
+  /*:: props: Props; */
+  state /*: State*/ = { reseting: false };
+
+  handleClose = () => {
+    this.setState({ reseting: false });
   };
 
-  handleReset(e: Object) {
+  handleReset = (e /*: Event & {target: HTMLElement} */) => {
     e.preventDefault();
     e.target.blur();
+    this.setState({ reseting: true });
+  };
+
+  handleSubmit = (event /*: Event */) => {
+    event.preventDefault();
     this.props.onReset();
+    this.handleClose();
+  };
+
+  renderModal() {
+    const header = translate('settings.reset_confirm.title');
+    return (
+      <Modal contentLabel={header} onRequestClose={this.handleClose}>
+        <header className="modal-head">
+          <h2>{header}</h2>
+        </header>
+        <form onSubmit={this.handleSubmit}>
+          <div className="modal-body">
+            <p>{translate('settings.reset_confirm.description')}</p>
+          </div>
+          <footer className="modal-foot">
+            <button className="button-red">{translate('reset_verb')}</button>
+            <button type="reset" className="button-link" onClick={this.handleClose}>
+              {translate('cancel')}
+            </button>
+          </footer>
+        </form>
+      </Modal>
+    );
   }
 
   render() {
@@ -43,18 +84,23 @@ export default class DefinitionDefaults extends React.PureComponent {
 
     return (
       <div>
-        {isDefault &&
+        {isDefault && (
           <div className="spacer-top note" style={{ lineHeight: '24px' }}>
             {translate('settings._default')}
-          </div>}
+          </div>
+        )}
 
-        {isExplicitlySet &&
+        {isExplicitlySet && (
           <div className="spacer-top nowrap">
-            <button onClick={e => this.handleReset(e)}>{translate('reset_verb')}</button>
+            <button onClick={this.handleReset}>{translate('reset_verb')}</button>
             <span className="spacer-left note">
-              {translate('default')}{': '}{getDefaultValue(setting)}
+              {translate('default')}
+              {': '}
+              {getDefaultValue(setting)}
             </span>
-          </div>}
+          </div>
+        )}
+        {this.state.reseting && this.renderModal()}
       </div>
     );
   }

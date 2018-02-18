@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -33,6 +33,7 @@ import org.sonar.updatecenter.common.PluginUpdate;
 import org.sonar.updatecenter.common.UpdateCenter;
 
 import static java.lang.String.format;
+import static org.sonar.server.plugins.edition.EditionBundledPlugins.isEditionBundled;
 
 /**
  * Implementation of the {@code install} action for the Plugins WebService.
@@ -93,6 +94,11 @@ public class InstallAction implements PluginsWsAction {
     if (pluginUpdate == MISSING_PLUGIN) {
       throw new IllegalArgumentException(
         format("No plugin with key '%s' or plugin '%s' is already installed in latest version", key, key));
+    }
+    if (isEditionBundled(pluginUpdate.getPlugin())) {
+      throw new IllegalArgumentException(format(
+        "SonarSource commercial plugin with key '%s' can only be installed as part of a SonarSource edition",
+        pluginUpdate.getPlugin().getKey()));
     }
 
     return pluginUpdate;

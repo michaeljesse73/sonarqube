@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -55,9 +55,9 @@ public class TimeProfiler {
     this.name = name;
     this.start = System.currentTimeMillis();
     if (debug) {
-      logger.debug("%s ...", name);
+      logger.debug("{} ...", name);
     } else {
-      logger.info(name + "...");
+      logger.info("{}...", name);
     }
     return this;
   }

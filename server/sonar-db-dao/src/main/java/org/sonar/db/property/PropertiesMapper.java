@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,14 +20,13 @@
 package org.sonar.db.property;
 
 import java.util.List;
+import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.ibatis.annotations.Param;
 
 public interface PropertiesMapper {
 
-  List<String> findUsersForNotification(@Param("notifKey") String notificationKey, @Nullable @Param("projectUuid") String projectUuid);
-
-  List<String> findNotificationSubscribers(@Param("propKey") String propertyKey, @Nullable @Param("componentKey") String componentKey);
+  Set<Subscriber> findUsersForNotification(@Param("notifKey") String notificationKey, @Nullable @Param("projectKey") String projectKey);
 
   List<PropertyDto> selectGlobalProperties();
 
@@ -35,7 +34,7 @@ public interface PropertiesMapper {
 
   PropertyDto selectByKey(PropertyDto key);
 
-  List<PropertyDto> selectByKeys(@Param("keys") List<String> keys, @Nullable @Param("componentId") Long componentId);
+  List<PropertyDto> selectByKeys(@Param("keys") List<String> keys);
 
   List<PropertyDto> selectByKeysAndComponentIds(@Param("keys") List<String> keys, @Param("componentIds") List<Long> componentIds);
 

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -17,11 +17,10 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-// @flow
 import $ from 'jquery';
-import moment from 'moment';
 import React, { Component } from 'react';
-import { DATE_FORMAT } from '../constants';
+import { isValidDate, parseDate, toShortNotSoISOString } from '../../../helpers/dates';
+import { translate } from '../../../helpers/l10n';
 
 export default class DateFilter extends Component {
   componentDidMount() {
@@ -47,17 +46,15 @@ export default class DateFilter extends Component {
 
   handleChange() {
     const date = {};
-    const minDateRaw = this.refs.minDate.value;
-    const maxDateRaw = this.refs.maxDate.value;
-    const minDate = moment(minDateRaw, DATE_FORMAT, true);
-    const maxDate = moment(maxDateRaw, DATE_FORMAT, true);
+    const minDate = parseDate(this.refs.minDate.value);
+    const maxDate = parseDate(this.refs.maxDate.value);
 
-    if (minDate.isValid()) {
-      date.minSubmittedAt = minDate.format(DATE_FORMAT);
+    if (isValidDate(minDate)) {
+      date.minSubmittedAt = toShortNotSoISOString(minDate);
     }
 
-    if (maxDate.isValid()) {
-      date.maxExecutedAt = maxDate.format(DATE_FORMAT);
+    if (isValidDate(maxDate)) {
+      date.maxExecutedAt = toShortNotSoISOString(maxDate);
     }
 
     this.props.onChange(date);
@@ -67,23 +64,22 @@ export default class DateFilter extends Component {
     const { minSubmittedAt, maxExecutedAt } = this.props;
 
     return (
-      <div>
+      <div className="nowrap">
         <input
           className="input-small"
           value={minSubmittedAt}
           onChange={() => true}
           ref="minDate"
           type="text"
-          placeholder="From"
-        />
-        {' '}
+          placeholder={translate('from')}
+        />{' '}
         <input
           className="input-small"
           value={maxExecutedAt}
           onChange={() => true}
           ref="maxDate"
           type="text"
-          placeholder="To"
+          placeholder={translate('to')}
         />
       </div>
     );

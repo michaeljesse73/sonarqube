@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -179,7 +179,7 @@ public class AverageFormulaTest {
   @Test
   public void no_measure_created_when_counter_has_no_value() {
     AverageFormula.AverageCounter counter = BASIC_AVERAGE_FORMULA.createNewCounter();
-    when(counterInitializationContext.getMeasure(anyString())).thenReturn(Optional.<Measure>absent());
+    when(counterInitializationContext.getMeasure(anyString())).thenReturn(Optional.absent());
     counter.initialize(counterInitializationContext);
 
     Assertions.assertThat(BASIC_AVERAGE_FORMULA.createMeasure(counter, createMeasureContext)).isAbsent();
@@ -189,7 +189,7 @@ public class AverageFormulaTest {
   public void not_create_measure_when_only_one_measure() {
     AverageFormula.AverageCounter counter = BASIC_AVERAGE_FORMULA.createNewCounter();
     addMeasure(COMPLEXITY_IN_FUNCTIONS_KEY, 10L);
-    when(counterInitializationContext.getMeasure(FUNCTIONS_KEY)).thenReturn(Optional.<Measure>absent());
+    when(counterInitializationContext.getMeasure(FUNCTIONS_KEY)).thenReturn(Optional.absent());
     counter.initialize(counterInitializationContext);
 
     Assertions.assertThat(BASIC_AVERAGE_FORMULA.createMeasure(counter, createMeasureContext)).isAbsent();

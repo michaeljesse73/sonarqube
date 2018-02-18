@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -31,9 +31,12 @@ import org.sonar.db.DbSession;
 import org.sonar.db.DbTester;
 import org.sonar.db.component.ComponentDbTester;
 import org.sonar.db.component.ComponentDto;
+import org.sonar.db.component.ResourceTypesRule;
+import org.sonar.db.user.UserDto;
 import org.sonar.server.component.ComponentCleanerService;
-import org.sonar.server.component.TestComponentFinder;
+import org.sonar.server.es.TestProjectIndexers;
 import org.sonar.server.exceptions.ForbiddenException;
+import org.sonar.server.exceptions.NotFoundException;
 import org.sonar.server.exceptions.UnauthorizedException;
 import org.sonar.server.tester.UserSessionRule;
 import org.sonar.server.ws.WsTester;
@@ -42,7 +45,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.sonar.api.resources.Qualifiers.PROJECT;
+import static org.sonar.api.web.UserRole.ADMIN;
 import static org.sonar.db.permission.OrganizationPermission.ADMINISTER;
+import static org.sonar.db.user.UserTesting.newUserDto;
+import static org.sonar.server.component.TestComponentFinder.from;
 import static org.sonarqube.ws.client.project.ProjectsWsParameters.CONTROLLER;
 import static org.sonarqube.ws.client.project.ProjectsWsParameters.PARAM_PROJECT;
 import static org.sonarqube.ws.client.project.ProjectsWsParameters.PARAM_PROJECT_ID;
@@ -60,17 +67,22 @@ public class DeleteActionTest {
   @Rule
   public ExpectedException expectedException = ExpectedException.none();
 
+
   private WsTester ws;
   private DbClient dbClient = db.getDbClient();
+  private DbSession dbSession = db.getSession();
   private ComponentDbTester componentDbTester = new ComponentDbTester(db);
   private ComponentCleanerService componentCleanerService = mock(ComponentCleanerService.class);
+
+
+
 
   @Before
   public void setUp() {
     ws = new WsTester(new ProjectsWs(
       new DeleteAction(
         componentCleanerService,
-          TestComponentFinder.from(db),
+        from(db),
         dbClient,
         userSessionRule)));
   }
@@ -83,7 +95,7 @@ public class DeleteActionTest {
     WsTester.TestRequest request = newRequest().setParam(PARAM_PROJECT_ID, project.uuid());
     call(request);
 
-    assertThat(verifyDeletedKey()).isEqualTo(project.key());
+    assertThat(verifyDeletedKey()).isEqualTo(project.getDbKey());
   }
 
   @Test
@@ -91,35 +103,58 @@ public class DeleteActionTest {
     ComponentDto project = componentDbTester.insertPrivateProject();
     userSessionRule.logIn().addPermission(ADMINISTER, project.getOrganizationUuid());
 
-    call(newRequest().setParam(PARAM_PROJECT, project.key()));
+    call(newRequest().setParam(PARAM_PROJECT, project.getDbKey()));
 
-    assertThat(verifyDeletedKey()).isEqualTo(project.key());
+    assertThat(verifyDeletedKey()).isEqualTo(project.getDbKey());
   }
 
   private String verifyDeletedKey() {
     ArgumentCaptor<ComponentDto> argument = ArgumentCaptor.forClass(ComponentDto.class);
     verify(componentCleanerService).delete(any(DbSession.class), argument.capture());
-    return argument.getValue().key();
+    return argument.getValue().getDbKey();
   }
 
   @Test
   public void project_administrator_deletes_the_project_by_uuid() throws Exception {
     ComponentDto project = componentDbTester.insertPrivateProject();
-    userSessionRule.logIn().addProjectPermission(UserRole.ADMIN, project);
+    userSessionRule.logIn().addProjectPermission(ADMIN, project);
 
     call(newRequest().setParam(PARAM_PROJECT_ID, project.uuid()));
 
-    assertThat(verifyDeletedKey()).isEqualTo(project.key());
+    assertThat(verifyDeletedKey()).isEqualTo(project.getDbKey());
   }
 
   @Test
   public void project_administrator_deletes_the_project_by_key() throws Exception {
     ComponentDto project = componentDbTester.insertPrivateProject();
-    userSessionRule.logIn().addProjectPermission(UserRole.ADMIN, project);
+    userSessionRule.logIn().addProjectPermission(ADMIN, project);
 
-    call(newRequest().setParam(PARAM_PROJECT, project.key()));
+    call(newRequest().setParam(PARAM_PROJECT, project.getDbKey()));
 
-    assertThat(verifyDeletedKey()).isEqualTo(project.key());
+    assertThat(verifyDeletedKey()).isEqualTo(project.getDbKey());
+  }
+
+  @Test
+  public void project_deletion_also_ensure_that_homepage_on_this_project_if_it_exists_is_cleared() throws Exception {
+
+    ComponentDto project = componentDbTester.insertPrivateProject();
+    UserDto insert = dbClient.userDao().insert(dbSession,
+      newUserDto().setHomepageType("PROJECT").setHomepageParameter(project.uuid()));
+    dbSession.commit();
+
+    userSessionRule.logIn().addProjectPermission(ADMIN, project);
+
+    new WsTester(new ProjectsWs(
+      new DeleteAction(
+        new ComponentCleanerService(dbClient, new ResourceTypesRule().setAllQualifiers(PROJECT),
+          new TestProjectIndexers()), from(db), dbClient, userSessionRule)))
+          .newPostRequest(CONTROLLER, ACTION)
+          .setParam(PARAM_PROJECT, project.getDbKey())
+          .execute();
+
+    UserDto userReloaded = dbClient.userDao().selectUserById(dbSession, insert.getId());
+    assertThat(userReloaded.getHomepageType()).isNull();
+    assertThat(userReloaded.getHomepageParameter()).isNull();
   }
 
   @Test
@@ -143,6 +178,30 @@ public class DeleteActionTest {
     expectedException.expect(UnauthorizedException.class);
 
     call(newRequest().setParam(PARAM_PROJECT_ID, project.uuid()));
+  }
+
+  @Test
+  public void fail_when_using_branch_db_key() throws Exception {
+    ComponentDto project = db.components().insertMainBranch();
+    userSessionRule.logIn().addProjectPermission(UserRole.USER, project);
+    ComponentDto branch = db.components().insertProjectBranch(project);
+
+    expectedException.expect(NotFoundException.class);
+    expectedException.expectMessage(String.format("Component key '%s' not found", branch.getDbKey()));
+
+    call(newRequest().setParam(PARAM_PROJECT, branch.getDbKey()));
+  }
+
+  @Test
+  public void fail_when_using_branch_uuid() throws Exception {
+    ComponentDto project = db.components().insertMainBranch();
+    userSessionRule.logIn().addProjectPermission(UserRole.USER, project);
+    ComponentDto branch = db.components().insertProjectBranch(project);
+
+    expectedException.expect(NotFoundException.class);
+    expectedException.expectMessage(String.format("Component id '%s' not found", branch.uuid()));
+
+    call(newRequest().setParam(PARAM_PROJECT_ID, branch.uuid()));
   }
 
   private WsTester.TestRequest newRequest() {

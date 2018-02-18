@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,17 +20,20 @@
 package org.sonar.server.qualityprofile;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import org.sonar.api.rule.RuleKey;
-import org.sonar.api.rules.ActiveRuleParam;
+import java.util.stream.Stream;
+import org.sonar.api.server.profile.BuiltInQualityProfilesDefinition;
 import org.sonar.core.util.stream.MoreCollectors;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
 import org.sonar.db.qualityprofile.ActiveRuleDto;
 import org.sonar.db.qualityprofile.RulesProfileDto;
 import org.sonar.server.qualityprofile.index.ActiveRuleIndexer;
+
+import static org.sonar.core.util.stream.MoreCollectors.toSet;
 
 public class BuiltInQProfileUpdateImpl implements BuiltInQProfileUpdate {
 
@@ -44,33 +47,42 @@ public class BuiltInQProfileUpdateImpl implements BuiltInQProfileUpdate {
     this.activeRuleIndexer = activeRuleIndexer;
   }
 
-  public List<ActiveRuleChange> update(DbSession dbSession, BuiltInQProfile builtIn, RulesProfileDto ruleProfile) {
+  public List<ActiveRuleChange> update(DbSession dbSession, BuiltInQProfile builtIn, RulesProfileDto rulesProfile) {
     // Keep reference to all the activated rules before update
-    Set<RuleKey> toBeDeactivated = dbClient.activeRuleDao().selectByRuleProfile(dbSession, ruleProfile)
+    Set<Integer> deactivatedRuleIds = dbClient.activeRuleDao().selectByRuleProfile(dbSession, rulesProfile)
       .stream()
-      .map(ActiveRuleDto::getRuleKey)
+      .map(ActiveRuleDto::getRuleId)
       .collect(MoreCollectors.toHashSet());
 
-    List<ActiveRuleChange> changes = new ArrayList<>();
-    builtIn.getActiveRules().forEach(ar -> {
+    Set<Integer> ruleKeys = Stream.concat(
+      deactivatedRuleIds.stream(),
+      builtIn.getActiveRules().stream().map(BuiltInQProfile.ActiveRule::getRuleId))
+      .collect(toSet());
+    RuleActivationContext context = ruleActivator.createContextForBuiltInProfile(dbSession, rulesProfile, ruleKeys);
+
+    Collection<RuleActivation> activations = new ArrayList<>();
+    for (BuiltInQProfile.ActiveRule ar : builtIn.getActiveRules()) {
       RuleActivation activation = convert(ar);
-      toBeDeactivated.remove(activation.getRuleKey());
-      changes.addAll(ruleActivator.activateOnBuiltInRulesProfile(dbSession, activation, ruleProfile));
-    });
+      activations.add(activation);
+      deactivatedRuleIds.remove(activation.getRuleId());
+    }
+
+    List<ActiveRuleChange> changes = new ArrayList<>();
+    for (RuleActivation activation : activations) {
+      changes.addAll(ruleActivator.activate(dbSession, activation, context));
+    }
 
     // these rules are not part of the built-in profile anymore
-    toBeDeactivated.forEach(ruleKey ->
-      changes.addAll(ruleActivator.deactivateOnBuiltInRulesProfile(dbSession, ruleProfile, ruleKey, false)));
+    deactivatedRuleIds.forEach(ruleKey -> changes.addAll(ruleActivator.deactivate(dbSession, context, ruleKey, false)));
 
     activeRuleIndexer.commitAndIndex(dbSession, changes);
     return changes;
   }
 
-  private static RuleActivation convert(org.sonar.api.rules.ActiveRule ar) {
-    String severity = ar.getSeverity() != null ? ar.getSeverity().name() : null;
-    Map<String, String> params = ar.getActiveRuleParams().stream()
-      .collect(MoreCollectors.uniqueIndex(ActiveRuleParam::getKey, ActiveRuleParam::getValue));
-    return RuleActivation.create(ar.getRule().ruleKey(), severity, params);
+  private static RuleActivation convert(BuiltInQProfile.ActiveRule ar) {
+    Map<String, String> params = ar.getBuiltIn().overriddenParams().stream()
+      .collect(MoreCollectors.uniqueIndex(BuiltInQualityProfilesDefinition.OverriddenParam::key, BuiltInQualityProfilesDefinition.OverriddenParam::overriddenValue));
+    return RuleActivation.create(ar.getRuleId(), ar.getBuiltIn().overriddenSeverity(), params);
   }
 
 }

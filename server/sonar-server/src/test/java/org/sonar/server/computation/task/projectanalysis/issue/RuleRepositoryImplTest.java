@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,8 +19,9 @@
  */
 package org.sonar.server.computation.task.projectanalysis.issue;
 
-import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
+import java.util.Optional;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -29,12 +30,12 @@ import org.sonar.api.rule.RuleStatus;
 import org.sonar.api.rules.RuleType;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
+import org.sonar.db.rule.DeprecatedRuleKeyDto;
 import org.sonar.db.rule.RuleDao;
 import org.sonar.db.rule.RuleDto;
 import org.sonar.server.computation.task.projectanalysis.analysis.AnalysisMetadataHolderRule;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.guava.api.Assertions.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.eq;
@@ -47,28 +48,48 @@ import static org.mockito.internal.verification.VerificationModeFactory.times;
 
 public class RuleRepositoryImplTest {
 
-  private static final RuleDto AB_RULE = createABRuleDto();
+  private static final RuleDto AB_RULE = createABRuleDto()
+    .setId(9688);
+  private static final RuleKey AB_RULE_DEPRECATED_KEY_1 = RuleKey.of("old_a", "old_b");
+  private static final RuleKey AB_RULE_DEPRECATED_KEY_2 = RuleKey.of(AB_RULE.getRepositoryKey(), "old_b");
+  private static final RuleKey DEPRECATED_KEY_OF_NON_EXITING_RULE = RuleKey.of("some_rep", "some_key");
   private static final RuleKey AC_RULE_KEY = RuleKey.of("a", "c");
   private static final int AC_RULE_ID = 684;
   private static final String ORGANIZATION_UUID = "org-1";
+  private static final String QUALITY_GATE_UUID = "QUALITY_GATE_UUID";
 
   @org.junit.Rule
   public ExpectedException expectedException = ExpectedException.none();
   @org.junit.Rule
   public AnalysisMetadataHolderRule analysisMetadataHolder = new AnalysisMetadataHolderRule()
-      .setOrganizationUuid(ORGANIZATION_UUID);
+    .setOrganizationUuid(ORGANIZATION_UUID, QUALITY_GATE_UUID);
 
   private DbClient dbClient = mock(DbClient.class);
   private DbSession dbSession = mock(DbSession.class);
   private RuleDao ruleDao = mock(RuleDao.class);
 
-  RuleRepositoryImpl underTest = new RuleRepositoryImpl(dbClient, analysisMetadataHolder);
+  private RuleRepositoryImpl underTest = new RuleRepositoryImpl(dbClient, analysisMetadataHolder);
 
   @Before
   public void setUp() throws Exception {
     when(dbClient.openSession(anyBoolean())).thenReturn(dbSession);
     when(dbClient.ruleDao()).thenReturn(ruleDao);
     when(ruleDao.selectAll(any(DbSession.class), eq(ORGANIZATION_UUID))).thenReturn(ImmutableList.of(AB_RULE));
+    DeprecatedRuleKeyDto abDeprecatedRuleKey1 = deprecatedRuleKeyOf(AB_RULE, AB_RULE_DEPRECATED_KEY_1);
+    DeprecatedRuleKeyDto abDeprecatedRuleKey2 = deprecatedRuleKeyOf(AB_RULE, AB_RULE_DEPRECATED_KEY_2);
+    DeprecatedRuleKeyDto deprecatedRuleOfNonExistingRule = deprecatedRuleKeyOf(77777, DEPRECATED_KEY_OF_NON_EXITING_RULE);
+    when(ruleDao.selectAllDeprecatedRuleKeys(any(DbSession.class))).thenReturn(ImmutableSet.of(
+      abDeprecatedRuleKey1, abDeprecatedRuleKey2, deprecatedRuleOfNonExistingRule));
+  }
+
+  private static DeprecatedRuleKeyDto deprecatedRuleKeyOf(RuleDto ruleDto, RuleKey deprecatedRuleKey) {
+    return deprecatedRuleKeyOf(ruleDto.getId(), deprecatedRuleKey);
+  }
+
+  private static DeprecatedRuleKeyDto deprecatedRuleKeyOf(int ruleId, RuleKey deprecatedRuleKey) {
+    return new DeprecatedRuleKeyDto().setRuleId(ruleId)
+      .setOldRepositoryKey(deprecatedRuleKey.repository())
+      .setOldRuleKey(deprecatedRuleKey.rule());
   }
 
   @Test
@@ -136,11 +157,29 @@ public class RuleRepositoryImplTest {
   }
 
   @Test
+  public void getByKey_returns_Rule_if_argument_is_deprecated_key_in_DB_of_rule_in_DB() {
+    Rule rule = underTest.getByKey(AB_RULE_DEPRECATED_KEY_1);
+
+    assertIsABRule(rule);
+  }
+
+  @Test
   public void getByKey_throws_IAE_if_rules_does_not_exist_in_DB() {
-    expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("Can not find rule for key a:c. This rule does not exist in DB");
+    expectIAERuleNotFound(AC_RULE_KEY);
 
     underTest.getByKey(AC_RULE_KEY);
+  }
+
+  @Test
+  public void getByKey_throws_IAE_if_argument_is_deprecated_key_in_DB_of_non_existing_rule() {
+    expectIAERuleNotFound(DEPRECATED_KEY_OF_NON_EXITING_RULE);
+
+    underTest.getByKey(DEPRECATED_KEY_OF_NON_EXITING_RULE);
+  }
+
+  private void expectIAERuleNotFound(RuleKey ruleKey) {
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("Can not find rule for key " + ruleKey.toString() + ". This rule does not exist in DB");
   }
 
   @Test
@@ -163,7 +202,7 @@ public class RuleRepositoryImplTest {
   public void findByKey_returns_absent_if_rule_does_not_exist_in_DB() {
     Optional<Rule> rule = underTest.findByKey(AC_RULE_KEY);
 
-    assertThat(rule).isAbsent();
+    assertThat(rule).isEmpty();
   }
 
   @Test
@@ -171,6 +210,20 @@ public class RuleRepositoryImplTest {
     Optional<Rule> rule = underTest.findByKey(AB_RULE.getKey());
 
     assertIsABRule(rule.get());
+  }
+
+  @Test
+  public void findByKey_returns_Rule_if_argument_is_deprecated_key_in_DB_of_rule_in_DB() {
+    Optional<Rule> rule = underTest.findByKey(AB_RULE_DEPRECATED_KEY_1);
+
+    assertIsABRule(rule.get());
+  }
+
+  @Test
+  public void findByKey_returns_empty_if_argument_is_deprecated_key_in_DB_of_rule_in_DB() {
+    Optional<Rule> rule = underTest.findByKey(DEPRECATED_KEY_OF_NON_EXITING_RULE);
+
+    assertThat(rule).isEmpty();
   }
 
   @Test
@@ -192,7 +245,7 @@ public class RuleRepositoryImplTest {
   public void findById_returns_absent_if_rule_does_not_exist_in_DB() {
     Optional<Rule> rule = underTest.findById(AC_RULE_ID);
 
-    assertThat(rule).isAbsent();
+    assertThat(rule).isEmpty();
   }
 
   @Test

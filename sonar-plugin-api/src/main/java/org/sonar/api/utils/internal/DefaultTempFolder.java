@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -93,9 +93,11 @@ public class DefaultTempFolder implements TempFolder {
 
   public void clean() {
     try {
-      Files.walkFileTree(tempDir.toPath(), DeleteRecursivelyFileVisitor.INSTANCE);
+      if (tempDir.exists()) {
+        Files.walkFileTree(tempDir.toPath(), DeleteRecursivelyFileVisitor.INSTANCE);
+      }
     } catch (IOException e) {
-      LOG.trace("Failed to delete temp folder", e);
+      LOG.error("Failed to delete temp folder", e);
     }
   }
 
@@ -110,13 +112,13 @@ public class DefaultTempFolder implements TempFolder {
 
     @Override
     public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-      Files.delete(file);
+      Files.deleteIfExists(file);
       return FileVisitResult.CONTINUE;
     }
 
     @Override
     public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
-      Files.delete(dir);
+      Files.deleteIfExists(dir);
       return FileVisitResult.CONTINUE;
     }
   }

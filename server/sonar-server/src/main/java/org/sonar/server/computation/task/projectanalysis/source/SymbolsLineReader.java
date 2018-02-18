@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,7 +25,7 @@ import com.google.common.collect.SetMultimap;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -115,7 +115,7 @@ public class SymbolsLineReader implements LineReader {
   }
 
   private static Map<ScannerReport.Symbol, Integer> createIdsBySymbolMap(List<ScannerReport.Symbol> symbols) {
-    Map<ScannerReport.Symbol, Integer> map = new HashMap<>(symbols.size());
+    Map<ScannerReport.Symbol, Integer> map = new IdentityHashMap<>(symbols.size());
     int symbolId = 1;
     for (ScannerReport.Symbol symbol : symbols) {
       map.put(symbol, symbolId);

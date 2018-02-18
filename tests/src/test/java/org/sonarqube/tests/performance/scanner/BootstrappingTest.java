@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -27,7 +27,6 @@ import java.io.IOException;
 import org.apache.commons.io.FileUtils;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -35,7 +34,6 @@ import org.sonarqube.tests.performance.AbstractPerfTest;
 import org.sonarqube.tests.performance.MavenLogs;
 import org.sonarqube.tests.performance.PerfRule;
 
-@Ignore("Timeout on computation side")
 public class BootstrappingTest extends AbstractPerfTest {
 
   @Rule
@@ -65,7 +63,7 @@ public class BootstrappingTest extends AbstractPerfTest {
   }
 
   @Test
-  public void analyzeProjectWith100FlatModules() throws IOException {
+  public void analyzeProjectWith100FlatModules() {
 
     SonarScanner scanner = SonarScanner.create()
       .setProperties(
@@ -80,11 +78,11 @@ public class BootstrappingTest extends AbstractPerfTest {
 
     BuildResult result = orchestrator.executeBuild(scanner);
     // First analysis
-    perfRule.assertDurationAround(MavenLogs.extractTotalTime(result.getLogs()), 22800L);
+    perfRule.assertDurationAround(MavenLogs.extractTotalTime(result.getLogs()), 7900L);
 
     result = orchestrator.executeBuild(scanner);
     // Second analysis is longer since we load project referential
-    perfRule.assertDurationAround(MavenLogs.extractTotalTime(result.getLogs()), 27200L);
+    perfRule.assertDurationAround(MavenLogs.extractTotalTime(result.getLogs()), 8400L);
   }
 
   private static File prepareProjectWithManyFlatModules(int SIZE) throws IOException {
@@ -109,7 +107,7 @@ public class BootstrappingTest extends AbstractPerfTest {
   }
 
   @Test
-  public void analyzeProjectWith50NestedModules() throws IOException {
+  public void analyzeProjectWith50NestedModules() {
     SonarScanner scanner = SonarScanner.create()
       .setProperties(
         "sonar.projectKey", "many-nested-modules",
@@ -122,11 +120,11 @@ public class BootstrappingTest extends AbstractPerfTest {
 
     BuildResult result = orchestrator.executeBuild(scanner);
     // First analysis
-    perfRule.assertDurationAround(MavenLogs.extractTotalTime(result.getLogs()), 8900L);
+    perfRule.assertDurationAround(MavenLogs.extractTotalTime(result.getLogs()), 6300L);
 
     result = orchestrator.executeBuild(scanner);
     // Second analysis
-    perfRule.assertDurationAround(MavenLogs.extractTotalTime(result.getLogs()), 9300L);
+    perfRule.assertDurationAround(MavenLogs.extractTotalTime(result.getLogs()), 6300L);
   }
 
   private static File prepareProjectWithManyNestedModules(int SIZE) throws IOException {

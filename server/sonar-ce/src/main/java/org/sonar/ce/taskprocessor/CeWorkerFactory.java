@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -26,12 +26,13 @@ import java.util.Set;
  */
 public interface CeWorkerFactory {
   /**
-   * Create a new CeWorker object.
+   * Create a new CeWorker object with the specified ordinal.
    * Each {@link CeWorker} returned by this method will have a different UUID from the others and all of these UUIDS will be returned by {@link #getWorkerUUIDs()}.
    *
    * @return the CeWorker
    */
-  CeWorker create();
+  CeWorker create(int ordinal);
+
   /**
    * @return  the UUIDs of each {@link CeWorker} object returned by {@link #create}.
    */

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,7 +24,7 @@ import org.junit.Test;
 import org.sonar.api.config.PropertyDefinition;
 import org.sonar.api.utils.System2;
 import org.sonar.server.platform.Platform;
-import org.sonar.server.platform.cluster.Cluster;
+import org.sonar.server.platform.WebServer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -39,7 +39,7 @@ public class PlatformLevel1Test {
     underTest.configureLevel();
 
     assertThat(underTest.getAll(PropertyDefinition.class)).isNotEmpty();
-    assertThat(underTest.getOptional(Cluster.class)).isPresent();
+    assertThat(underTest.getOptional(WebServer.class)).isPresent();
     assertThat(underTest.getOptional(System2.class)).isPresent();
   }
 }

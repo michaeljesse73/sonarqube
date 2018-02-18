@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -87,6 +87,11 @@ public class AssignAction extends Action {
     checkArgument(properties.containsKey(VERIFIED_ASSIGNEE), "Assignee is missing from the execution parameters");
     UserDto assignee = (UserDto) properties.get(VERIFIED_ASSIGNEE);
     return isAssigneeMemberOfIssueOrganization(assignee, properties, context) && issueFieldsSetter.assign(context.issue(), assignee, context.issueChangeContext());
+  }
+
+  @Override
+  public boolean shouldRefreshMeasures() {
+    return false;
   }
 
   private static boolean isAssigneeMemberOfIssueOrganization(@Nullable UserDto assignee, Map<String, Object> properties, Context context) {

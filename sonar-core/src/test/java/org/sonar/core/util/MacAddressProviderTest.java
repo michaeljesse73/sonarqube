@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -26,7 +26,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class MacAddressProviderTest {
 
   @Test
-  public void getSecureMungedAddress() throws Exception {
+  public void getSecureMungedAddress() {
     byte[] address = MacAddressProvider.getSecureMungedAddress();
     assertThat(address).isNotEmpty();
     assertThat(address).hasSize(6);

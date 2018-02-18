@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -35,9 +35,12 @@ import org.sonar.server.component.ComponentFinder;
 import org.sonar.server.component.ComponentFinder.ParamNames;
 import org.sonar.server.component.ComponentService;
 import org.sonar.server.user.UserSession;
-import org.sonarqube.ws.WsProjects.BulkUpdateKeyWsResponse;
-import org.sonarqube.ws.client.project.BulkUpdateKeyWsRequest;
+import org.sonarqube.ws.Projects.BulkUpdateKeyWsResponse;
 
+import javax.annotation.CheckForNull;
+import javax.annotation.Nullable;
+
+import static com.google.common.base.Preconditions.checkArgument;
 import static org.sonar.core.util.Uuids.UUID_EXAMPLE_01;
 import static org.sonar.db.component.ComponentKeyUpdaterDao.checkIsProjectOrModule;
 import static org.sonar.server.ws.WsUtils.checkRequest;
@@ -80,7 +83,7 @@ public class BulkUpdateKeyAction implements ProjectsWsAction {
         "  <li>%s: my_</li>" +
         "  <li>%s: my_new_</li>" +
         "</ul>" +
-        "Either '%s' or '%s' must be provided, not both.<br> " +
+        "Either '%s' or '%s' must be provided.<br> " +
         "Requires one of the following permissions: " +
         "<ul>" +
         "<li>'Administer System'</li>" +
@@ -131,7 +134,7 @@ public class BulkUpdateKeyAction implements ProjectsWsAction {
     writeProtobuf(doHandle(toWsRequest(request)), request, response);
   }
 
-  private BulkUpdateKeyWsResponse doHandle(BulkUpdateKeyWsRequest request) {
+  private BulkUpdateKeyWsResponse doHandle(BulkUpdateKeyRequest request) {
     try (DbSession dbSession = dbClient.openSession(false)) {
       ComponentDto projectOrModule = componentFinder.getByUuidOrKey(dbSession, request.getId(), request.getKey(), ParamNames.ID_AND_KEY);
       checkIsProjectOrModule(projectOrModule);
@@ -153,9 +156,8 @@ public class BulkUpdateKeyAction implements ProjectsWsAction {
     newKeysWithDuplicateMap.entrySet().forEach(entry -> checkRequest(!entry.getValue(), "Impossible to update key: a component with key \"%s\" already exists.", entry.getKey()));
   }
 
-  private void bulkUpdateKey(DbSession dbSession, BulkUpdateKeyWsRequest request, ComponentDto projectOrModule) {
-    componentService.bulkUpdateKey(dbSession, projectOrModule.uuid(), request.getFrom(), request.getTo());
-    dbSession.commit();
+  private void bulkUpdateKey(DbSession dbSession, BulkUpdateKeyRequest request, ComponentDto projectOrModule) {
+    componentService.bulkUpdateKey(dbSession, projectOrModule, request.getFrom(), request.getTo());
   }
 
   private static BulkUpdateKeyWsResponse buildResponse(Map<String, String> newKeysByOldKeys, Map<String, Boolean> newKeysWithDuplicateMap) {
@@ -176,13 +178,98 @@ public class BulkUpdateKeyAction implements ProjectsWsAction {
     return response.build();
   }
 
-  private static BulkUpdateKeyWsRequest toWsRequest(Request request) {
-    return BulkUpdateKeyWsRequest.builder()
+  private static BulkUpdateKeyRequest toWsRequest(Request request) {
+    return BulkUpdateKeyRequest.builder()
       .setId(request.param(PARAM_PROJECT_ID))
       .setKey(request.param(PARAM_PROJECT))
       .setFrom(request.mandatoryParam(PARAM_FROM))
       .setTo(request.mandatoryParam(PARAM_TO))
       .setDryRun(request.mandatoryParamAsBoolean(PARAM_DRY_RUN))
       .build();
+  }
+
+  private static class BulkUpdateKeyRequest {
+    private final String id;
+    private final String key;
+    private final String from;
+    private final String to;
+    private final boolean dryRun;
+
+    public BulkUpdateKeyRequest(Builder builder) {
+      this.id = builder.id;
+      this.key = builder.key;
+      this.from = builder.from;
+      this.to = builder.to;
+      this.dryRun = builder.dryRun;
+    }
+
+    @CheckForNull
+    public String getId() {
+      return id;
+    }
+
+    @CheckForNull
+    public String getKey() {
+      return key;
+    }
+
+    public String getFrom() {
+      return from;
+    }
+
+    public String getTo() {
+      return to;
+    }
+
+    public boolean isDryRun() {
+      return dryRun;
+    }
+
+    public static Builder builder() {
+      return new Builder();
+    }
+  }
+
+  public static class Builder {
+    private String id;
+    private String key;
+    private String from;
+    private String to;
+    private boolean dryRun;
+
+    private Builder() {
+      // enforce method constructor
+    }
+
+    public Builder setId(@Nullable String id) {
+      this.id = id;
+      return this;
+    }
+
+    public Builder setKey(@Nullable String key) {
+      this.key = key;
+      return this;
+    }
+
+    public Builder setFrom(String from) {
+      this.from = from;
+      return this;
+    }
+
+    public Builder setTo(String to) {
+      this.to = to;
+      return this;
+    }
+
+    public Builder setDryRun(boolean dryRun) {
+      this.dryRun = dryRun;
+      return this;
+    }
+
+    public BulkUpdateKeyRequest build() {
+      checkArgument(from != null && !from.isEmpty(), "The string to match must not be empty");
+      checkArgument(to != null && !to.isEmpty(), "The string replacement must not be empty");
+      return new BulkUpdateKeyRequest(this);
+    }
   }
 }

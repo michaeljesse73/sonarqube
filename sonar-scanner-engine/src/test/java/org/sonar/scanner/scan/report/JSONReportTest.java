@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,12 +19,6 @@
  */
 package org.sonar.scanner.scan.report;
 
-import static net.javacrumbs.jsonunit.assertj.JsonAssert.assertThatJson;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verifyZeroInteractions;
-import static org.mockito.Mockito.when;
-
 import java.io.File;
 import java.io.IOException;
 import java.io.StringWriter;
@@ -32,7 +26,6 @@ import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.TimeZone;
-
 import org.apache.commons.io.IOUtils;
 import org.junit.Before;
 import org.junit.Rule;
@@ -52,11 +45,17 @@ import org.sonar.api.config.internal.MapSettings;
 import org.sonar.api.issue.Issue;
 import org.sonar.api.platform.Server;
 import org.sonar.api.rule.RuleKey;
-import org.sonar.api.scan.filesystem.PathResolver;
 import org.sonar.scanner.issue.IssueCache;
 import org.sonar.scanner.issue.tracking.TrackedIssue;
 import org.sonar.scanner.scan.DefaultComponentTree;
+import org.sonar.scanner.scan.branch.BranchConfiguration;
 import org.sonar.scanner.scan.filesystem.InputComponentStore;
+
+import static net.javacrumbs.jsonunit.assertj.JsonAssert.assertThatJson;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyZeroInteractions;
+import static org.mockito.Mockito.when;
 
 public class JSONReportTest {
 
@@ -82,13 +81,13 @@ public class JSONReportTest {
     when(server.getVersion()).thenReturn("3.6");
 
     DefaultComponentTree inputComponentTree = new DefaultComponentTree();
-    ProjectDefinition def = ProjectDefinition.create().setBaseDir(projectBaseDir).setKey("struts");
+    ProjectDefinition def = ProjectDefinition.create().setBaseDir(projectBaseDir).setWorkDir(temp.newFolder()).setKey("struts");
     DefaultInputModule rootModule = new DefaultInputModule(def, 1);
-    InputComponentStore inputComponentStore = new InputComponentStore(new PathResolver(), rootModule);
+    InputComponentStore inputComponentStore = new InputComponentStore(rootModule, mock(BranchConfiguration.class));
 
-    DefaultInputModule moduleA = new DefaultInputModule("struts-core");
+    DefaultInputModule moduleA = new DefaultInputModule(ProjectDefinition.create().setKey("struts-core").setBaseDir(temp.newFolder()).setWorkDir(temp.newFolder()));
     inputComponentTree.index(moduleA, rootModule);
-    DefaultInputModule moduleB = new DefaultInputModule("struts-ui");
+    DefaultInputModule moduleB = new DefaultInputModule(ProjectDefinition.create().setKey("struts-ui").setBaseDir(temp.newFolder()).setWorkDir(temp.newFolder()));
     inputComponentTree.index(moduleB, rootModule);
 
     DefaultInputDir inputDir = new DefaultInputDir("struts", "src/main/java/org/apache/struts", TestInputFileBuilder.nextBatchId())
@@ -96,7 +95,7 @@ public class JSONReportTest {
     DefaultInputFile inputFile = new TestInputFileBuilder("struts", "src/main/java/org/apache/struts/Action.java")
       .setModuleBaseDir(projectBaseDir.toPath()).build();
     inputFile.setStatus(InputFile.Status.CHANGED);
-    inputFile.setPublish(true);
+    inputFile.setPublished(true);
     inputComponentStore.put(inputFile);
     inputComponentStore.put(inputDir);
 
@@ -163,7 +162,7 @@ public class JSONReportTest {
   @Test
   public void should_not_export_by_default() throws IOException {
     File workDir = temp.newFolder("sonar");
-    fs.setWorkDir(workDir);
+    fs.setWorkDir(workDir.toPath());
 
     jsonReport.execute();
 
@@ -173,7 +172,7 @@ public class JSONReportTest {
   @Test
   public void should_export_issues_to_file() throws IOException {
     File workDir = temp.newFolder("sonar");
-    fs.setWorkDir(workDir);
+    fs.setWorkDir(workDir.toPath());
 
     when(issueCache.all()).thenReturn(Collections.<TrackedIssue>emptyList());
 

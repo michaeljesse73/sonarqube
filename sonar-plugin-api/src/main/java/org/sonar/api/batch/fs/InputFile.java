@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -26,6 +26,7 @@ import java.nio.charset.Charset;
 import java.nio.file.Path;
 import javax.annotation.CheckForNull;
 import org.sonar.api.batch.fs.internal.TestInputFileBuilder;
+import org.sonar.api.batch.sensor.SensorDescriptor;
 
 /**
  * This layer over {@link java.io.File} adds information for code analyzers.
@@ -54,8 +55,8 @@ public interface InputFile extends IndexedFile {
   }
 
   /**
-   * Path relative to module base directory. Path is unique and identifies file
-   * within given <code>{@link FileSystem}</code>. File separator is the forward
+   * Relative path to module (for normal Sensors) or project (for {@link SensorDescriptor#global() global} Sensors) base directory.
+   * File separator is the forward
    * slash ('/'), even on Microsoft Windows.
    * <br>
    * Returns <code>src/main/java/com/Foo.java</code> if module base dir is
@@ -63,7 +64,9 @@ public interface InputFile extends IndexedFile {
    * <code>/path/to/module/src/main/java/com/Foo.java</code>.
    * <br>
    * Relative path is not null and is normalized ('foo/../foo' is replaced by 'foo').
+   * @deprecated since 6.6 use {@link #inputStream()} for file content, {@link #filename()} for file name, {@link #uri()} for an unique identifier, and {@link #toString()} for logging
    */
+  @Deprecated
   @Override
   String relativePath();
 
@@ -73,7 +76,9 @@ public interface InputFile extends IndexedFile {
    * This is not canonical path. Symbolic links are not resolved. For example if /project/src links
    * to /tmp/src and basedir is /project, then this method returns /project/src/index.php. Use
    * {@code file().getCanonicalPath()} to resolve symbolic link.
+   * @deprecated since 6.6 use {@link #inputStream()} for file content, {@link #filename()} for file name, {@link #uri()} for an unique identifier, and {@link #toString()} for logging
    */
+  @Deprecated
   @Override
   String absolutePath();
 
@@ -81,7 +86,9 @@ public interface InputFile extends IndexedFile {
    * The underlying absolute {@link java.io.File}. It should not be used to read the file in the filesystem.
    * @see #contents()
    * @see #inputStream()
+   * @deprecated since 6.6 use {@link #inputStream()} for file content, {@link #filename()} for file name, {@link #uri()} for an unique identifier, and {@link #toString()} for logging
    */
+  @Deprecated
   @Override
   File file();
 
@@ -91,7 +98,9 @@ public interface InputFile extends IndexedFile {
    * @see #contents()
    * @see #inputStream()
    * @since 5.1
+   * @deprecated since 6.6 use {@link #inputStream()} for file content, {@link #filename()} for file name, {@link #uri()} for an unique identifier, and {@link #toString()} for logging
    */
+  @Deprecated
   @Override
   Path path();
 
@@ -188,4 +197,10 @@ public interface InputFile extends IndexedFile {
    * @since 6.0
    */
   Charset charset();
+
+  /**
+   * Return a string to identify this file (suitable for logs).
+   */
+  @Override
+  String toString();
 }

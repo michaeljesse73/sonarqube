@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,10 +19,11 @@
  */
 // @flow
 import React from 'react';
-import Modal from 'react-modal';
+import Modal from '../../../../components/controls/Modal';
 import { translate } from '../../../../helpers/l10n';
-import type { Event } from '../../types';
+/*:: import type { Event } from '../../types'; */
 
+/*::
 type Props = {
   analysis: string,
   deleteEvent: (analysis: string, event: string) => Promise<*>,
@@ -31,15 +32,18 @@ type Props = {
   removeEventQuestion: string,
   onClose: () => void
 };
+*/
 
+/*::
 type State = {
   processing: boolean
 };
+*/
 
 export default class RemoveEventForm extends React.PureComponent {
-  mounted: boolean;
-  props: Props;
-  state: State = {
+  /*:: mounted: boolean; */
+  /*:: props: Props; */
+  state /*: State */ = {
     processing: false
   };
 
@@ -68,7 +72,7 @@ export default class RemoveEventForm extends React.PureComponent {
     this.props.onClose();
   };
 
-  handleSubmit = (e: Object) => {
+  handleSubmit = (e /*: Object */) => {
     e.preventDefault();
     this.setState({ processing: true });
     this.props
@@ -77,34 +81,29 @@ export default class RemoveEventForm extends React.PureComponent {
   };
 
   render() {
+    const header = translate(this.props.removeEventButtonText);
     return (
-      <Modal
-        isOpen={true}
-        contentLabel="modal form"
-        className="modal"
-        overlayClassName="modal-overlay"
-        onRequestClose={this.closeForm}>
-
+      <Modal contentLabel={header} onRequestClose={this.closeForm}>
         <header className="modal-head">
-          <h2>{translate(this.props.removeEventButtonText)}</h2>
+          <h2>{header}</h2>
         </header>
 
         <form onSubmit={this.handleSubmit}>
-          <div className="modal-body">
-            {translate(this.props.removeEventQuestion)}
-          </div>
+          <div className="modal-body">{translate(this.props.removeEventQuestion)}</div>
 
           <footer className="modal-foot">
-            {this.state.processing
-              ? <i className="spinner" />
-              : <div>
-                  <button type="submit" className="button-red" autoFocus={true}>
-                    {translate('delete')}
-                  </button>
-                  <button type="reset" className="button-link" onClick={this.closeForm}>
-                    {translate('cancel')}
-                  </button>
-                </div>}
+            {this.state.processing ? (
+              <i className="spinner" />
+            ) : (
+              <div>
+                <button type="submit" className="button-red" autoFocus={true}>
+                  {translate('delete')}
+                </button>
+                <button type="reset" className="button-link" onClick={this.closeForm}>
+                  {translate('cancel')}
+                </button>
+              </div>
+            )}
           </footer>
         </form>
       </Modal>

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -23,6 +23,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.sonar.api.server.ws.WebService;
 import org.sonar.db.DbClient;
+import org.sonar.server.issue.ws.AvatarResolverImpl;
 import org.sonar.server.permission.ws.template.TemplateGroupsAction;
 import org.sonar.server.permission.ws.template.TemplateUsersAction;
 import org.sonar.server.user.UserSession;
@@ -43,7 +44,7 @@ public class PermissionsWsTest {
     PermissionWsSupport permissionWsSupport = mock(PermissionWsSupport.class);
 
     ws = new WsTester(new PermissionsWs(
-      new TemplateUsersAction(dbClient, userSession, permissionWsSupport),
+      new TemplateUsersAction(dbClient, userSession, permissionWsSupport, new AvatarResolverImpl()),
       new TemplateGroupsAction(dbClient, userSession, permissionWsSupport)));
   }
 
@@ -75,7 +76,6 @@ public class PermissionsWsTest {
     assertThat(action.isPost()).isFalse();
     assertThat(action.isInternal()).isTrue();
     assertThat(action.since()).isEqualTo("5.2");
-    assertThat(action.param(PARAM_PERMISSION).isRequired()).isTrue();
   }
 
   private WebService.Controller controller() {

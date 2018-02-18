@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,13 +19,12 @@
  */
 package org.sonar.server.issue.notification;
 
+import java.util.Date;
 import org.sonar.api.config.EmailSettings;
 import org.sonar.api.i18n.I18n;
 import org.sonar.api.notifications.Notification;
 import org.sonar.api.utils.DateUtils;
 import org.sonar.server.issue.notification.NewIssuesStatistics.Metric;
-
-import java.util.Date;
 
 /**
  * Creates email message for notification "my-new-issues".
@@ -47,25 +46,34 @@ public class MyNewIssuesEmailTemplate extends AbstractNewIssuesEmailTemplate {
   }
 
   @Override
-  protected String subject(Notification notification, String projectName) {
-    return String.format("You have %s new issues on project %s",
-      notification.getFieldValue(Metric.SEVERITY + COUNT),
-      projectName);
+  protected String subject(Notification notification, String fullProjectName) {
+    int issueCount = Integer.parseInt(notification.getFieldValue(Metric.RULE_TYPE + COUNT));
+    return String.format("You have %s new issue%s on project %s",
+      issueCount,
+      issueCount > 1 ? "s" : "",
+      fullProjectName);
   }
 
   @Override
   protected void appendFooter(StringBuilder message, Notification notification) {
-    String projectUuid = notification.getFieldValue(FIELD_PROJECT_UUID);
+    String projectKey = notification.getFieldValue(FIELD_PROJECT_KEY);
     String dateString = notification.getFieldValue(FIELD_PROJECT_DATE);
     String assignee = notification.getFieldValue(FIELD_ASSIGNEE);
-    if (projectUuid != null && dateString != null && assignee != null) {
+    if (projectKey != null && dateString != null && assignee != null) {
       Date date = DateUtils.parseDateTime(dateString);
-      String url = String.format("%s/issues?projectUuids=%s&assignees=%s&createdAt=%s",
+      String url = String.format("%s/project/issues?id=%s&assignees=%s",
         settings.getServerBaseURL(),
-        encode(projectUuid),
-        encode(assignee),
-        encode(DateUtils.formatDateTime(date)));
-      message.append("See it in SonarQube: ").append(url).append(NEW_LINE);
+        encode(projectKey),
+        encode(assignee));
+      String branchName = notification.getFieldValue("branch");
+      if (branchName != null) {
+        url += "&branch=" + encode(branchName);
+      }
+      url += "&createdAt=" + encode(DateUtils.formatDateTime(date));
+      message
+        .append("More details at: ")
+        .append(url)
+        .append(NEW_LINE);
     }
   }
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -40,7 +40,7 @@ import static org.sonar.server.ws.WsUtils.checkFoundWithOptional;
 import static org.sonar.server.ws.WsUtils.checkRequest;
 
 public class ComponentFinder {
-  private static final String MSG_COMPONENT_ID_OR_KEY_TEMPLATE = "Either '%s' or '%s' must be provided, not both";
+  private static final String MSG_COMPONENT_ID_OR_KEY_TEMPLATE = "Either '%s' or '%s' must be provided";
   private static final String MSG_PARAMETER_MUST_NOT_BE_EMPTY = "The '%s' parameter must not be empty";
   private static final String LABEL_PROJECT = "Project";
   private static final String LABEL_COMPONENT = "Component";
@@ -99,7 +99,7 @@ public class ComponentFinder {
   }
 
   private static ComponentDto checkComponent(Optional<ComponentDto> componentDto, String message, Object... messageArguments) {
-    if (componentDto.isPresent() && componentDto.get().isEnabled()) {
+    if (componentDto.isPresent() && componentDto.get().isEnabled() && componentDto.get().getMainBranchProjectUuid() == null) {
       return componentDto.get();
     }
     throw new NotFoundException(format(message, messageArguments));
@@ -123,7 +123,7 @@ public class ComponentFinder {
     checkRequest(component.scope().equals(Scopes.PROJECT) && rootQualifiers.contains(component.qualifier()),
       format(
         "Component '%s' (id: %s) must be a project%s.",
-        component.key(), component.uuid(),
+        component.getDbKey(), component.uuid(),
         rootQualifiers.contains(Qualifiers.VIEW) ? " or a view" : ""));
 
     return component;
@@ -141,6 +141,21 @@ public class ComponentFinder {
     String organizationUuid = component.getOrganizationUuid();
     java.util.Optional<OrganizationDto> organizationDto = dbClient.organizationDao().selectByUuid(dbSession, organizationUuid);
     return checkFoundWithOptional(organizationDto, "Organization with uuid '%s' not found", organizationUuid);
+  }
+
+  /**
+   * Components of the main branch won't be found
+   */
+  public ComponentDto getByKeyAndBranch(DbSession dbSession, String key, String branch) {
+    java.util.Optional<ComponentDto> componentDto = dbClient.componentDao().selectByKeyAndBranch(dbSession, key, branch);
+    if (componentDto.isPresent() && componentDto.get().isEnabled()) {
+      return componentDto.get();
+    }
+    throw new NotFoundException(format("Component '%s' on branch '%s' not found", key, branch));
+  }
+
+  public ComponentDto getByKeyAndOptionalBranch(DbSession dbSession, String key, @Nullable String branch) {
+    return branch == null ? getByKey(dbSession, key) : getByKeyAndBranch(dbSession, key, branch);
   }
 
   public enum ParamNames {

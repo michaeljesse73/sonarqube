@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -29,7 +29,7 @@ public interface QProfileChangeMapper {
 
   List<QProfileChangeDto> selectByQuery(@Param("query") QProfileChangeQuery query);
 
-  int countForQProfileUuid(@Param("qProfileUuid") String qProfileUuid);
+  int countByQuery(@Param("query") QProfileChangeQuery query);
 
   void deleteByRuleProfileUuids(@Param("ruleProfileUuids") Collection<String> uuids);
 }

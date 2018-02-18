@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -41,11 +41,12 @@ import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
 import org.sonar.db.DbTester;
 import org.sonar.db.component.ComponentDto;
-import org.sonar.db.component.SnapshotDto;
-import org.sonar.db.measure.MeasureDto;
+import org.sonar.db.measure.LiveMeasureDto;
 import org.sonar.db.metric.MetricDto;
 import org.sonar.db.organization.OrganizationDto;
 import org.sonar.db.property.PropertyDto;
+import org.sonar.server.component.ws.SearchProjectsAction.RequestBuilder;
+import org.sonar.server.component.ws.SearchProjectsAction.SearchProjectsRequest;
 import org.sonar.server.es.EsTester;
 import org.sonar.server.measure.index.ProjectMeasuresIndex;
 import org.sonar.server.measure.index.ProjectMeasuresIndexDefinition;
@@ -57,9 +58,8 @@ import org.sonar.server.ws.KeyExamples;
 import org.sonar.server.ws.TestRequest;
 import org.sonar.server.ws.WsActionTester;
 import org.sonarqube.ws.Common;
-import org.sonarqube.ws.WsComponents.Component;
-import org.sonarqube.ws.WsComponents.SearchProjectsWsResponse;
-import org.sonarqube.ws.client.component.SearchProjectsRequest;
+import org.sonarqube.ws.Components.Component;
+import org.sonarqube.ws.Components.SearchProjectsWsResponse;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
@@ -89,7 +89,6 @@ import static org.sonar.core.util.stream.MoreCollectors.toList;
 import static org.sonar.server.computation.task.projectanalysis.metric.Metric.MetricType.DATA;
 import static org.sonar.server.computation.task.projectanalysis.metric.Metric.MetricType.PERCENT;
 import static org.sonar.server.computation.task.projectanalysis.metric.Metric.MetricType.RATING;
-import static org.sonar.server.es.ProjectIndexer.Cause.PROJECT_CREATION;
 import static org.sonar.test.JsonAssert.assertJson;
 import static org.sonarqube.ws.client.component.ComponentsWsParameters.PARAM_FILTER;
 import static org.sonarqube.ws.client.component.ComponentsWsParameters.PARAM_ORGANIZATION;
@@ -129,13 +128,13 @@ public class SearchProjectsActionTest {
   private DbSession dbSession = db.getSession();
 
   private PermissionIndexerTester authorizationIndexerTester = new PermissionIndexerTester(es, new ProjectMeasuresIndexer(dbClient, es.client()));
-  private ProjectMeasuresIndex index = new ProjectMeasuresIndex(es.client(), new AuthorizationTypeSupport(userSession));
+  private ProjectMeasuresIndex index = new ProjectMeasuresIndex(es.client(), new AuthorizationTypeSupport(userSession), System2.INSTANCE);
   private ProjectMeasuresIndexer projectMeasuresIndexer = new ProjectMeasuresIndexer(db.getDbClient(), es.client());
 
   private WsActionTester ws = new WsActionTester(
     new SearchProjectsAction(dbClient, index, userSession));
 
-  private SearchProjectsRequest.Builder request = SearchProjectsRequest.builder();
+  private RequestBuilder request = SearchProjectsRequest.builder();
 
   @Test
   public void verify_definition() {
@@ -161,10 +160,12 @@ public class SearchProjectsActionTest {
 
     Param sort = def.param("s");
     assertThat(sort.defaultValue()).isEqualTo("name");
-    assertThat(sort.possibleValues()).containsExactlyInAnyOrder("coverage",
+    assertThat(sort.possibleValues()).containsExactlyInAnyOrder(
+      "coverage",
       "reliability_rating",
       "duplicated_lines_density",
       "ncloc_language_distribution",
+      "lines",
       "new_lines",
       "security_rating",
       "new_reliability_rating",
@@ -197,22 +198,29 @@ public class SearchProjectsActionTest {
     userSession.logIn();
     OrganizationDto organization1Dto = db.organizations().insertForKey("my-org-key-1");
     OrganizationDto organization2Dto = db.organizations().insertForKey("my-org-key-2");
+    MetricDto coverage = db.measures().insertMetric(c -> c.setKey(COVERAGE).setValueType(PERCENT.name()));
     ComponentDto project1 = insertProject(organization1Dto, c -> c
-      .setKey(KeyExamples.KEY_PROJECT_EXAMPLE_001)
+      .setDbKey(KeyExamples.KEY_PROJECT_EXAMPLE_001)
       .setName("My Project 1")
-      .setTagsString("finance, java"));
-    insertProject(organization1Dto, c -> c
-      .setKey(KeyExamples.KEY_PROJECT_EXAMPLE_002)
-      .setName("My Project 2"));
-    insertProject(organization2Dto, c -> c
-      .setKey(KeyExamples.KEY_PROJECT_EXAMPLE_003)
+      .setTagsString("finance, java"),
+      new Measure(coverage, c -> c.setValue(80d)));
+    ComponentDto project2 = insertProject(organization1Dto, c -> c
+      .setDbKey(KeyExamples.KEY_PROJECT_EXAMPLE_002)
+      .setName("My Project 2"),
+      new Measure(coverage, c -> c.setValue(90d)));
+    ComponentDto project3 = insertProject(organization2Dto, c -> c
+      .setDbKey(KeyExamples.KEY_PROJECT_EXAMPLE_003)
       .setName("My Project 3")
-      .setTagsString("sales, offshore, java"));
+      .setTagsString("sales, offshore, java"),
+      new Measure(coverage, c -> c.setValue(20d)));
     addFavourite(project1);
 
-    String result = ws.newRequest().execute().getInput();
+    String jsonResult = ws.newRequest().setParam(Param.FACETS, COVERAGE).execute().getInput();
+    SearchProjectsWsResponse protobufResult = ws.newRequest().setParam(Param.FACETS, COVERAGE).executeProtobuf(SearchProjectsWsResponse.class);
 
-    assertJson(result).withStrictArrayOrder().ignoreFields("id").isSimilarTo(ws.getDef().responseExampleAsString());
+    assertJson(jsonResult).withStrictArrayOrder().ignoreFields("id").isSimilarTo(ws.getDef().responseExampleAsString());
+    assertJson(ws.getDef().responseExampleAsString()).ignoreFields("id").withStrictArrayOrder().isSimilarTo(jsonResult);
+    assertThat(protobufResult.getComponentsList()).extracting(Component::getId).containsExactly(project1.uuid(), project2.uuid(), project3.uuid());
   }
 
   @Test
@@ -263,8 +271,8 @@ public class SearchProjectsActionTest {
   public void filter_projects_with_query() {
     userSession.logIn();
     OrganizationDto organizationDto = db.organizations().insert();
-    MetricDto coverage = db.measureDbTester().insertMetric(c -> c.setKey(COVERAGE).setValueType(INT.name()));
-    MetricDto ncloc = db.measureDbTester().insertMetric(c -> c.setKey(NCLOC).setValueType(INT.name()));
+    MetricDto coverage = db.measures().insertMetric(c -> c.setKey(COVERAGE).setValueType(INT.name()));
+    MetricDto ncloc = db.measures().insertMetric(c -> c.setKey(NCLOC).setValueType(INT.name()));
     ComponentDto project1 = insertProject(organizationDto,
       new Measure(coverage, c -> c.setValue(81d)),
       new Measure(ncloc, c -> c.setValue(10_000d)));
@@ -277,7 +285,7 @@ public class SearchProjectsActionTest {
 
     SearchProjectsWsResponse result = call(request.setFilter("coverage <= 80 and ncloc <= 10000"));
 
-    assertThat(result.getComponentsList()).extracting(Component::getKey).containsExactly(project2.key());
+    assertThat(result.getComponentsList()).extracting(Component::getKey).containsExactly(project2.getDbKey());
   }
 
   @Test
@@ -285,52 +293,52 @@ public class SearchProjectsActionTest {
     userSession.logIn();
     OrganizationDto organization1 = db.organizations().insert();
     OrganizationDto organization2 = db.organizations().insert();
-    MetricDto coverage = db.measureDbTester().insertMetric(c -> c.setKey(COVERAGE).setValueType(PERCENT.name()));
-    MetricDto ncloc = db.measureDbTester().insertMetric(c -> c.setKey(NCLOC).setValueType(INT.name()));
+    MetricDto coverage = db.measures().insertMetric(c -> c.setKey(COVERAGE).setValueType(PERCENT.name()));
+    MetricDto ncloc = db.measures().insertMetric(c -> c.setKey(NCLOC).setValueType(INT.name()));
     ComponentDto project1 = insertProject(organization1, new Measure(coverage, c -> c.setValue(81d)), new Measure(ncloc, c -> c.setValue(10_000d)));
     ComponentDto project2 = insertProject(organization1, new Measure(coverage, c -> c.setValue(80d)), new Measure(ncloc, c -> c.setValue(10_000d)));
     ComponentDto project3 = insertProject(organization2, new Measure(coverage, c -> c.setValue(80d)), new Measure(ncloc, c -> c.setValue(10_000d)));
 
     assertThat(call(request.setOrganization(null)).getComponentsList())
       .extracting(Component::getKey)
-      .containsOnly(project1.getKey(), project2.getKey(), project3.getKey());
+      .containsOnly(project1.getDbKey(), project2.getDbKey(), project3.getDbKey());
     assertThat(call(request.setOrganization(organization1.getKey())).getComponentsList())
       .extracting(Component::getKey)
-      .containsOnly(project1.getKey(), project2.getKey());
+      .containsOnly(project1.getDbKey(), project2.getDbKey());
     assertThat(call(request.setOrganization(organization2.getKey())).getComponentsList())
       .extracting(Component::getKey)
-      .containsOnly(project3.getKey());
+      .containsOnly(project3.getDbKey());
   }
 
   @Test
   public void filter_projects_by_quality_gate() {
     userSession.logIn();
     OrganizationDto organizationDto = db.organizations().insert();
-    MetricDto qualityGateStatus = db.measureDbTester().insertMetric(c -> c.setKey(QUALITY_GATE_STATUS).setValueType(LEVEL.name()));
-    ComponentDto project1 = insertProject(organizationDto, new Measure(qualityGateStatus, c -> c.setData("OK")));
-    ComponentDto project2 = insertProject(organizationDto, new Measure(qualityGateStatus, c -> c.setData("OK")));
-    ComponentDto project3 = insertProject(organizationDto, new Measure(qualityGateStatus, c -> c.setData("ERROR")));
+    MetricDto qualityGateStatus = db.measures().insertMetric(c -> c.setKey(QUALITY_GATE_STATUS).setValueType(LEVEL.name()));
+    ComponentDto project1 = insertProject(organizationDto, new Measure(qualityGateStatus, c -> c.setValue(null).setData("OK")));
+    ComponentDto project2 = insertProject(organizationDto, new Measure(qualityGateStatus, c -> c.setValue(null).setData("OK")));
+    ComponentDto project3 = insertProject(organizationDto, new Measure(qualityGateStatus, c -> c.setValue(null).setData("ERROR")));
 
     SearchProjectsWsResponse result = call(request.setFilter("alert_status = OK"));
 
     assertThat(result.getComponentsList())
       .extracting(Component::getKey)
-      .containsExactlyInAnyOrder(project1.getKey(), project2.getKey());
+      .containsExactlyInAnyOrder(project1.getDbKey(), project2.getDbKey());
   }
 
   @Test
   public void filter_projects_by_languages() {
     userSession.logIn();
     OrganizationDto organizationDto = db.organizations().insert();
-    MetricDto languagesDistribution = db.measureDbTester().insertMetric(c -> c.setKey(NCLOC_LANGUAGE_DISTRIBUTION_KEY).setValueType(DATA.name()));
-    ComponentDto project1 = insertProject(organizationDto, new Measure(languagesDistribution, c -> c.setData("<null>=2;java=6;xoo=18")));
-    ComponentDto project2 = insertProject(organizationDto, new Measure(languagesDistribution, c -> c.setData("java=3;xoo=9")));
-    ComponentDto project3 = insertProject(organizationDto, new Measure(languagesDistribution, c -> c.setData("xoo=1")));
-    ComponentDto project4 = insertProject(organizationDto, new Measure(languagesDistribution, c -> c.setData("<null>=1;java=5;xoo=13")));
+    MetricDto languagesDistribution = db.measures().insertMetric(c -> c.setKey(NCLOC_LANGUAGE_DISTRIBUTION_KEY).setValueType(DATA.name()));
+    ComponentDto project1 = insertProject(organizationDto, new Measure(languagesDistribution, c -> c.setValue(null).setData("<null>=2;java=6;xoo=18")));
+    ComponentDto project2 = insertProject(organizationDto, new Measure(languagesDistribution, c -> c.setValue(null).setData("java=3;xoo=9")));
+    ComponentDto project3 = insertProject(organizationDto, new Measure(languagesDistribution, c -> c.setValue(null).setData("xoo=1")));
+    ComponentDto project4 = insertProject(organizationDto, new Measure(languagesDistribution, c -> c.setValue(null).setData("<null>=1;java=5;xoo=13")));
 
     SearchProjectsWsResponse result = call(request.setFilter("languages IN (java, js, <null>)"));
 
-    assertThat(result.getComponentsList()).extracting(Component::getKey).containsExactlyInAnyOrder(project1.getKey(), project2.getKey(), project4.getKey());
+    assertThat(result.getComponentsList()).extracting(Component::getKey).containsExactlyInAnyOrder(project1.getDbKey(), project2.getDbKey(), project4.getDbKey());
   }
 
   @Test
@@ -338,14 +346,14 @@ public class SearchProjectsActionTest {
   public void filter_projects_by_rating(String metricKey) {
     userSession.logIn();
     OrganizationDto organizationDto = db.organizations().insert();
-    MetricDto ratingMetric = db.measureDbTester().insertMetric(c -> c.setKey(metricKey).setValueType(INT.name()));
+    MetricDto ratingMetric = db.measures().insertMetric(c -> c.setKey(metricKey).setValueType(INT.name()));
     ComponentDto project1 = insertProject(organizationDto, new Measure(ratingMetric, c -> c.setValue(1d)));
     ComponentDto project2 = insertProject(organizationDto, new Measure(ratingMetric, c -> c.setValue(2d)));
     ComponentDto project3 = insertProject(organizationDto, new Measure(ratingMetric, c -> c.setValue(3d)));
 
     SearchProjectsWsResponse result = call(request.setFilter(metricKey + " = 2"));
 
-    assertThat(result.getComponentsList()).extracting(Component::getKey).containsExactly(project2.getKey());
+    assertThat(result.getComponentsList()).extracting(Component::getKey).containsExactly(project2.getDbKey());
   }
 
   @Test
@@ -353,14 +361,14 @@ public class SearchProjectsActionTest {
   public void filter_projects_by_new_rating(String newMetricKey) {
     userSession.logIn();
     OrganizationDto organizationDto = db.organizations().insert();
-    MetricDto ratingMetric = db.measureDbTester().insertMetric(c -> c.setKey(newMetricKey).setValueType(INT.name()));
+    MetricDto ratingMetric = db.measures().insertMetric(c -> c.setKey(newMetricKey).setValueType(INT.name()));
     ComponentDto project1 = insertProject(organizationDto, new Measure(ratingMetric, c -> c.setVariation(1d)));
     ComponentDto project2 = insertProject(organizationDto, new Measure(ratingMetric, c -> c.setVariation(2d)));
     ComponentDto project3 = insertProject(organizationDto, new Measure(ratingMetric, c -> c.setVariation(3d)));
 
     SearchProjectsWsResponse result = call(request.setFilter(newMetricKey + " = 2"));
 
-    assertThat(result.getComponentsList()).extracting(Component::getKey).containsExactly(project2.getKey());
+    assertThat(result.getComponentsList()).extracting(Component::getKey).containsExactly(project2.getDbKey());
   }
 
   @Test
@@ -373,72 +381,72 @@ public class SearchProjectsActionTest {
 
     SearchProjectsWsResponse result = call(request.setFilter("tags in (finance, offshore)"));
 
-    assertThat(result.getComponentsList()).extracting(Component::getKey).containsExactlyInAnyOrder(project1.getKey(), project3.getKey());
+    assertThat(result.getComponentsList()).extracting(Component::getKey).containsExactlyInAnyOrder(project1.getDbKey(), project3.getDbKey());
   }
 
   @Test
   public void filter_projects_by_coverage() {
     userSession.logIn();
     OrganizationDto organizationDto = db.organizations().insert();
-    MetricDto coverage = db.measureDbTester().insertMetric(c -> c.setKey(COVERAGE).setValueType(PERCENT.name()));
+    MetricDto coverage = db.measures().insertMetric(c -> c.setKey(COVERAGE).setValueType(PERCENT.name()));
     ComponentDto project1 = insertProject(organizationDto, new Measure(coverage, c -> c.setValue(80d)));
     ComponentDto project2 = insertProject(organizationDto, new Measure(coverage, c -> c.setValue(85d)));
     ComponentDto project3 = insertProject(organizationDto, new Measure(coverage, c -> c.setValue(10d)));
 
     SearchProjectsWsResponse result = call(request.setFilter("coverage <= 80"));
 
-    assertThat(result.getComponentsList()).extracting(Component::getKey).containsExactlyInAnyOrder(project1.getKey(), project3.key());
+    assertThat(result.getComponentsList()).extracting(Component::getKey).containsExactlyInAnyOrder(project1.getDbKey(), project3.getDbKey());
   }
 
   @Test
   public void filter_projects_by_new_coverage() {
     userSession.logIn();
     OrganizationDto organizationDto = db.organizations().insert();
-    MetricDto coverage = db.measureDbTester().insertMetric(c -> c.setKey(NEW_COVERAGE).setValueType(PERCENT.name()));
+    MetricDto coverage = db.measures().insertMetric(c -> c.setKey(NEW_COVERAGE).setValueType(PERCENT.name()));
     ComponentDto project1 = insertProject(organizationDto, new Measure(coverage, c -> c.setVariation(80d)));
     ComponentDto project2 = insertProject(organizationDto, new Measure(coverage, c -> c.setVariation(85d)));
     ComponentDto project3 = insertProject(organizationDto, new Measure(coverage, c -> c.setVariation(10d)));
 
     SearchProjectsWsResponse result = call(request.setFilter("new_coverage <= 80"));
 
-    assertThat(result.getComponentsList()).extracting(Component::getKey).containsExactlyInAnyOrder(project1.getKey(), project3.key());
+    assertThat(result.getComponentsList()).extracting(Component::getKey).containsExactlyInAnyOrder(project1.getDbKey(), project3.getDbKey());
   }
 
   @Test
   public void filter_projects_by_duplications() {
     userSession.logIn();
     OrganizationDto organizationDto = db.organizations().insert();
-    MetricDto duplications = db.measureDbTester().insertMetric(c -> c.setKey(DUPLICATED_LINES_DENSITY_KEY).setValueType(PERCENT.name()));
+    MetricDto duplications = db.measures().insertMetric(c -> c.setKey(DUPLICATED_LINES_DENSITY_KEY).setValueType(PERCENT.name()));
     ComponentDto project1 = insertProject(organizationDto, new Measure(duplications, c -> c.setValue(80d)));
     ComponentDto project2 = insertProject(organizationDto, new Measure(duplications, c -> c.setValue(85d)));
     ComponentDto project3 = insertProject(organizationDto, new Measure(duplications, c -> c.setValue(10d)));
 
     SearchProjectsWsResponse result = call(request.setFilter("duplicated_lines_density <= 80"));
 
-    assertThat(result.getComponentsList()).extracting(Component::getKey).containsExactlyInAnyOrder(project1.getKey(), project3.key());
+    assertThat(result.getComponentsList()).extracting(Component::getKey).containsExactlyInAnyOrder(project1.getDbKey(), project3.getDbKey());
   }
 
   @Test
   public void filter_projects_by_no_duplication() {
     userSession.logIn();
     OrganizationDto organizationDto = db.organizations().insert();
-    MetricDto coverage = db.measureDbTester().insertMetric(c -> c.setKey(COVERAGE).setValueType(PERCENT.name()));
-    MetricDto duplications = db.measureDbTester().insertMetric(c -> c.setKey(DUPLICATED_LINES_DENSITY_KEY).setValueType(PERCENT.name()));
+    MetricDto coverage = db.measures().insertMetric(c -> c.setKey(COVERAGE).setValueType(PERCENT.name()));
+    MetricDto duplications = db.measures().insertMetric(c -> c.setKey(DUPLICATED_LINES_DENSITY_KEY).setValueType(PERCENT.name()));
     ComponentDto project1 = insertProject(organizationDto, new Measure(coverage, c -> c.setValue(10d)));
     ComponentDto project2 = insertProject(organizationDto, new Measure(duplications, c -> c.setValue(0d)));
     ComponentDto project3 = insertProject(organizationDto, new Measure(duplications, c -> c.setValue(79d)));
 
     SearchProjectsWsResponse result = call(request.setFilter("duplicated_lines_density = NO_DATA"));
 
-    assertThat(result.getComponentsList()).extracting(Component::getKey).containsExactlyInAnyOrder(project1.getKey());
+    assertThat(result.getComponentsList()).extracting(Component::getKey).containsExactlyInAnyOrder(project1.getDbKey());
   }
 
   @Test
   public void filter_projects_by_no_duplication_should_not_return_projects_with_duplication() {
     userSession.logIn();
     OrganizationDto organizationDto = db.organizations().insert();
-    MetricDto coverage = db.measureDbTester().insertMetric(c -> c.setKey(COVERAGE).setValueType(PERCENT.name()));
-    MetricDto duplications = db.measureDbTester().insertMetric(c -> c.setKey(DUPLICATED_LINES_DENSITY_KEY).setValueType(PERCENT.name()));
+    MetricDto coverage = db.measures().insertMetric(c -> c.setKey(COVERAGE).setValueType(PERCENT.name()));
+    MetricDto duplications = db.measures().insertMetric(c -> c.setKey(DUPLICATED_LINES_DENSITY_KEY).setValueType(PERCENT.name()));
     insertProject(organizationDto, new Measure(duplications, c -> c.setValue(10d)), new Measure(coverage, c -> c.setValue(50d)));
 
     SearchProjectsWsResponse result = call(request.setFilter("duplicated_lines_density = NO_DATA"));
@@ -450,52 +458,52 @@ public class SearchProjectsActionTest {
   public void filter_projects_by_new_duplications() {
     userSession.logIn();
     OrganizationDto organizationDto = db.organizations().insert();
-    MetricDto newDuplications = db.measureDbTester().insertMetric(c -> c.setKey(NEW_DUPLICATED_LINES_DENSITY_KEY).setValueType(PERCENT.name()));
+    MetricDto newDuplications = db.measures().insertMetric(c -> c.setKey(NEW_DUPLICATED_LINES_DENSITY_KEY).setValueType(PERCENT.name()));
     ComponentDto project1 = insertProject(organizationDto, new Measure(newDuplications, c -> c.setVariation(80d)));
     ComponentDto project2 = insertProject(organizationDto, new Measure(newDuplications, c -> c.setVariation(85d)));
     ComponentDto project3 = insertProject(organizationDto, new Measure(newDuplications, c -> c.setVariation(10d)));
 
     SearchProjectsWsResponse result = call(request.setFilter("new_duplicated_lines_density <= 80"));
 
-    assertThat(result.getComponentsList()).extracting(Component::getKey).containsExactlyInAnyOrder(project1.getKey(), project3.key());
+    assertThat(result.getComponentsList()).extracting(Component::getKey).containsExactlyInAnyOrder(project1.getDbKey(), project3.getDbKey());
   }
 
   @Test
   public void filter_projects_by_ncloc() {
     userSession.logIn();
     OrganizationDto organizationDto = db.organizations().insert();
-    MetricDto ncloc = db.measureDbTester().insertMetric(c -> c.setKey(NCLOC).setValueType(INT.name()));
+    MetricDto ncloc = db.measures().insertMetric(c -> c.setKey(NCLOC).setValueType(INT.name()));
     ComponentDto project1 = insertProject(organizationDto, new Measure(ncloc, c -> c.setValue(80d)));
     ComponentDto project2 = insertProject(organizationDto, new Measure(ncloc, c -> c.setValue(85d)));
     ComponentDto project3 = insertProject(organizationDto, new Measure(ncloc, c -> c.setValue(10d)));
 
     SearchProjectsWsResponse result = call(request.setFilter("ncloc <= 80"));
 
-    assertThat(result.getComponentsList()).extracting(Component::getKey).containsExactlyInAnyOrder(project1.getKey(), project3.key());
+    assertThat(result.getComponentsList()).extracting(Component::getKey).containsExactlyInAnyOrder(project1.getDbKey(), project3.getDbKey());
   }
 
   @Test
   public void filter_projects_by_new_lines() {
     userSession.logIn();
     OrganizationDto organizationDto = db.organizations().insert();
-    MetricDto newLines = db.measureDbTester().insertMetric(c -> c.setKey(NEW_LINES_KEY).setValueType(INT.name()));
+    MetricDto newLines = db.measures().insertMetric(c -> c.setKey(NEW_LINES_KEY).setValueType(INT.name()));
     ComponentDto project1 = insertProject(organizationDto, new Measure(newLines, c -> c.setVariation(80d)));
     ComponentDto project2 = insertProject(organizationDto, new Measure(newLines, c -> c.setVariation(85d)));
     ComponentDto project3 = insertProject(organizationDto, new Measure(newLines, c -> c.setVariation(10d)));
 
     SearchProjectsWsResponse result = call(request.setFilter("new_lines <= 80"));
 
-    assertThat(result.getComponentsList()).extracting(Component::getKey).containsExactlyInAnyOrder(project1.getKey(), project3.key());
+    assertThat(result.getComponentsList()).extracting(Component::getKey).containsExactlyInAnyOrder(project1.getDbKey(), project3.getDbKey());
   }
 
   @Test
   public void filter_projects_by_text_query() {
     userSession.logIn();
     OrganizationDto organizationDto = db.organizations().insert();
-    insertProject(organizationDto, c -> c.setKey("sonar-java").setName("Sonar Java"));
-    insertProject(organizationDto, c -> c.setKey("sonar-groovy").setName("Sonar Groovy"));
-    insertProject(organizationDto, c -> c.setKey("sonar-markdown").setName("Sonar Markdown"));
-    insertProject(organizationDto, c -> c.setKey("sonarqube").setName("Sonar Qube"));
+    insertProject(organizationDto, c -> c.setDbKey("sonar-java").setName("Sonar Java"));
+    insertProject(organizationDto, c -> c.setDbKey("sonar-groovy").setName("Sonar Groovy"));
+    insertProject(organizationDto, c -> c.setDbKey("sonar-markdown").setName("Sonar Markdown"));
+    insertProject(organizationDto, c -> c.setDbKey("sonarqube").setName("Sonar Qube"));
 
     assertThat(call(request.setFilter("query = \"Groovy\"")).getComponentsList()).extracting(Component::getName).containsOnly("Sonar Groovy");
     assertThat(call(request.setFilter("query = \"oNar\"")).getComponentsList()).extracting(Component::getName).containsOnly("Sonar Java", "Sonar Groovy", "Sonar Markdown",
@@ -561,7 +569,7 @@ public class SearchProjectsActionTest {
     SearchProjectsWsResponse result = call(request.setFilter("isFavorite"));
 
     assertThat(result.getComponentsCount()).isEqualTo(2);
-    assertThat(result.getComponentsList()).extracting(Component::getKey).containsExactly(javaProject.getKey(), markDownProject.getKey());
+    assertThat(result.getComponentsList()).extracting(Component::getKey).containsExactly(javaProject.getDbKey(), markDownProject.getDbKey());
   }
 
   @Test
@@ -593,7 +601,7 @@ public class SearchProjectsActionTest {
   public void return_nloc_facet() {
     userSession.logIn();
     OrganizationDto organizationDto = db.organizations().insert();
-    MetricDto ncloc = db.measureDbTester().insertMetric(c -> c.setKey(NCLOC).setValueType(INT.name()));
+    MetricDto ncloc = db.measures().insertMetric(c -> c.setKey(NCLOC).setValueType(INT.name()));
     insertProject(organizationDto, new Measure(ncloc, c -> c.setValue(5d)));
     insertProject(organizationDto, new Measure(ncloc, c -> c.setValue(5d)));
     insertProject(organizationDto, new Measure(ncloc, c -> c.setValue(10_000d)));
@@ -618,11 +626,11 @@ public class SearchProjectsActionTest {
   public void return_languages_facet() {
     userSession.logIn();
     OrganizationDto organizationDto = db.organizations().insert();
-    MetricDto languagesDistribution = db.measureDbTester().insertMetric(c -> c.setKey(NCLOC_LANGUAGE_DISTRIBUTION_KEY).setValueType(DATA.name()));
-    insertProject(organizationDto, new Measure(languagesDistribution, c -> c.setData("<null>=2;java=6;xoo=18")));
-    insertProject(organizationDto, new Measure(languagesDistribution, c -> c.setData("java=5;xoo=19")));
-    insertProject(organizationDto, new Measure(languagesDistribution, c -> c.setData("xoo=1")));
-    insertProject(organizationDto, new Measure(languagesDistribution, c -> c.setData("<null>=1;java=3;xoo=8")));
+    MetricDto languagesDistribution = db.measures().insertMetric(c -> c.setKey(NCLOC_LANGUAGE_DISTRIBUTION_KEY).setValueType(DATA.name()));
+    insertProject(organizationDto, new Measure(languagesDistribution, c -> c.setValue(null).setData("<null>=2;java=6;xoo=18")));
+    insertProject(organizationDto, new Measure(languagesDistribution, c -> c.setValue(null).setData("java=5;xoo=19")));
+    insertProject(organizationDto, new Measure(languagesDistribution, c -> c.setValue(null).setData("xoo=1")));
+    insertProject(organizationDto, new Measure(languagesDistribution, c -> c.setValue(null).setData("<null>=1;java=3;xoo=8")));
 
     SearchProjectsWsResponse result = call(request.setFacets(singletonList(FILTER_LANGUAGES)));
 
@@ -641,9 +649,9 @@ public class SearchProjectsActionTest {
   public void return_languages_facet_with_language_having_no_project_if_language_is_in_filter() {
     userSession.logIn();
     OrganizationDto organizationDto = db.organizations().insert();
-    MetricDto languagesDistribution = db.measureDbTester().insertMetric(c -> c.setKey(NCLOC_LANGUAGE_DISTRIBUTION_KEY).setValueType(DATA.name()));
-    insertProject(organizationDto, new Measure(languagesDistribution, c -> c.setData("<null>=2;java=6")));
-    insertProject(organizationDto, new Measure(languagesDistribution, c -> c.setData("java=5")));
+    MetricDto languagesDistribution = db.measures().insertMetric(c -> c.setKey(NCLOC_LANGUAGE_DISTRIBUTION_KEY).setValueType(DATA.name()));
+    insertProject(organizationDto, new Measure(languagesDistribution, c -> c.setValue(null).setData("<null>=2;java=6")));
+    insertProject(organizationDto, new Measure(languagesDistribution, c -> c.setValue(null).setData("java=5")));
 
     SearchProjectsWsResponse result = call(request.setFilter("languages = xoo").setFacets(singletonList(FILTER_LANGUAGES)));
 
@@ -703,10 +711,10 @@ public class SearchProjectsActionTest {
 
   @Test
   @UseDataProvider("rating_metric_keys")
-  public void return_rating_facet(String ratingMetricKey) throws Exception {
+  public void return_rating_facet(String ratingMetricKey) {
     userSession.logIn();
     OrganizationDto organization = db.organizations().insert();
-    MetricDto ratingMetric = db.measureDbTester().insertMetric(c -> c.setKey(ratingMetricKey).setValueType(RATING.name()));
+    MetricDto ratingMetric = db.measures().insertMetric(c -> c.setKey(ratingMetricKey).setValueType(RATING.name()));
     insertProject(organization, new Measure(ratingMetric, c -> c.setValue(1d)));
     insertProject(organization, new Measure(ratingMetric, c -> c.setValue(1d)));
     insertProject(organization, new Measure(ratingMetric, c -> c.setValue(3d)));
@@ -729,10 +737,10 @@ public class SearchProjectsActionTest {
 
   @Test
   @UseDataProvider("new_rating_metric_keys")
-  public void return_new_rating_facet(String newRatingMetricKey) throws Exception {
+  public void return_new_rating_facet(String newRatingMetricKey) {
     userSession.logIn();
     OrganizationDto organization = db.organizations().insert();
-    MetricDto newRatingMetric = db.measureDbTester().insertMetric(c -> c.setKey(newRatingMetricKey).setValueType(RATING.name()));
+    MetricDto newRatingMetric = db.measures().insertMetric(c -> c.setKey(newRatingMetricKey).setValueType(RATING.name()));
     insertProject(organization, new Measure(newRatingMetric, c -> c.setVariation(1d)));
     insertProject(organization, new Measure(newRatingMetric, c -> c.setVariation(1d)));
     insertProject(organization, new Measure(newRatingMetric, c -> c.setVariation(3d)));
@@ -757,7 +765,7 @@ public class SearchProjectsActionTest {
   public void return_coverage_facet() {
     userSession.logIn();
     OrganizationDto organizationDto = db.organizations().insert();
-    MetricDto coverage = db.measureDbTester().insertMetric(c -> c.setKey(COVERAGE).setValueType(PERCENT.name()));
+    MetricDto coverage = db.measures().insertMetric(c -> c.setKey(COVERAGE).setValueType(PERCENT.name()));
     insertProject(organizationDto);
     insertProject(organizationDto, new Measure(coverage, c -> c.setValue(80d)));
     insertProject(organizationDto, new Measure(coverage, c -> c.setValue(85d)));
@@ -783,7 +791,7 @@ public class SearchProjectsActionTest {
   public void return_new_coverage_facet() {
     userSession.logIn();
     OrganizationDto organizationDto = db.organizations().insert();
-    MetricDto coverage = db.measureDbTester().insertMetric(c -> c.setKey(NEW_COVERAGE).setValueType(PERCENT.name()));
+    MetricDto coverage = db.measures().insertMetric(c -> c.setKey(NEW_COVERAGE).setValueType(PERCENT.name()));
     insertProject(organizationDto);
     insertProject(organizationDto, new Measure(coverage, c -> c.setVariation(80d)));
     insertProject(organizationDto, new Measure(coverage, c -> c.setVariation(85d)));
@@ -809,7 +817,7 @@ public class SearchProjectsActionTest {
   public void return_duplications_facet() {
     userSession.logIn();
     OrganizationDto organizationDto = db.organizations().insert();
-    MetricDto coverage = db.measureDbTester().insertMetric(c -> c.setKey(DUPLICATED_LINES_DENSITY_KEY).setValueType(PERCENT.name()));
+    MetricDto coverage = db.measures().insertMetric(c -> c.setKey(DUPLICATED_LINES_DENSITY_KEY).setValueType(PERCENT.name()));
     insertProject(organizationDto, new Measure(coverage, c -> c.setValue(10d)));
     insertProject(organizationDto, new Measure(coverage, c -> c.setValue(15d)));
     insertProject(organizationDto, new Measure(coverage, c -> c.setValue(5d)));
@@ -835,7 +843,7 @@ public class SearchProjectsActionTest {
   public void return_new_duplications_facet() {
     userSession.logIn();
     OrganizationDto organizationDto = db.organizations().insert();
-    MetricDto coverage = db.measureDbTester().insertMetric(c -> c.setKey(NEW_DUPLICATED_LINES_DENSITY_KEY).setValueType(PERCENT.name()));
+    MetricDto coverage = db.measures().insertMetric(c -> c.setKey(NEW_DUPLICATED_LINES_DENSITY_KEY).setValueType(PERCENT.name()));
     insertProject(organizationDto);
     insertProject(organizationDto, new Measure(coverage, c -> c.setVariation(10d)));
     insertProject(organizationDto, new Measure(coverage, c -> c.setVariation(15d)));
@@ -861,7 +869,7 @@ public class SearchProjectsActionTest {
   public void return_ncloc_facet() {
     userSession.logIn();
     OrganizationDto organizationDto = db.organizations().insert();
-    MetricDto coverage = db.measureDbTester().insertMetric(c -> c.setKey(NCLOC).setValueType(INT.name()));
+    MetricDto coverage = db.measures().insertMetric(c -> c.setKey(NCLOC).setValueType(INT.name()));
     insertProject(organizationDto, new Measure(coverage, c -> c.setValue(100d)));
     insertProject(organizationDto, new Measure(coverage, c -> c.setValue(15_000d)));
     insertProject(organizationDto, new Measure(coverage, c -> c.setValue(50_000d)));
@@ -885,7 +893,7 @@ public class SearchProjectsActionTest {
   public void return_new_lines_facet() {
     userSession.logIn();
     OrganizationDto organizationDto = db.organizations().insert();
-    MetricDto coverage = db.measureDbTester().insertMetric(c -> c.setKey(NEW_LINES_KEY).setValueType(INT.name()));
+    MetricDto coverage = db.measures().insertMetric(c -> c.setKey(NEW_LINES_KEY).setValueType(INT.name()));
     insertProject(organizationDto, new Measure(coverage, c -> c.setVariation(100d)));
     insertProject(organizationDto, new Measure(coverage, c -> c.setVariation(15_000d)));
     insertProject(organizationDto, new Measure(coverage, c -> c.setVariation(50_000d)));
@@ -906,7 +914,7 @@ public class SearchProjectsActionTest {
   }
 
   @Test
-  public void default_sort_is_by_ascending_name() throws Exception {
+  public void default_sort_is_by_ascending_name() {
     userSession.logIn();
     OrganizationDto organization = db.getDefaultOrganization();
     insertProject(organization, c -> c.setName("Sonar Java"));
@@ -920,7 +928,7 @@ public class SearchProjectsActionTest {
   }
 
   @Test
-  public void sort_by_name() throws Exception {
+  public void sort_by_name() {
     userSession.logIn();
     OrganizationDto organization = db.getDefaultOrganization();
     insertProject(organization, c -> c.setName("Sonar Java"));
@@ -935,60 +943,60 @@ public class SearchProjectsActionTest {
   }
 
   @Test
-  public void sort_by_coverage_then_by_name() throws Exception {
+  public void sort_by_coverage_then_by_name() {
     userSession.logIn();
     OrganizationDto organizationDto = db.organizations().insert();
-    MetricDto coverage = db.measureDbTester().insertMetric(c -> c.setKey(COVERAGE).setValueType(INT.name()));
+    MetricDto coverage = db.measures().insertMetric(c -> c.setKey(COVERAGE).setValueType(INT.name()));
     ComponentDto project1 = insertProject(organizationDto, c -> c.setName("Sonar Java"), new Measure(coverage, c -> c.setValue(81d)));
     ComponentDto project2 = insertProject(organizationDto, c -> c.setName("Sonar Groovy"), new Measure(coverage, c -> c.setValue(81d)));
     ComponentDto project3 = insertProject(organizationDto, c -> c.setName("Sonar Markdown"), new Measure(coverage, c -> c.setValue(80d)));
     ComponentDto project4 = insertProject(organizationDto, c -> c.setName("Sonar Qube"), new Measure(coverage, c -> c.setValue(80d)));
 
     assertThat(call(request.setSort(COVERAGE).setAsc(true)).getComponentsList()).extracting(Component::getKey)
-      .containsExactly(project3.getKey(), project4.getKey(), project2.getKey(), project1.getKey());
+      .containsExactly(project3.getDbKey(), project4.getDbKey(), project2.getDbKey(), project1.getDbKey());
     assertThat(call(request.setSort(COVERAGE).setAsc(false)).getComponentsList()).extracting(Component::getKey)
-      .containsExactly(project2.getKey(), project1.getKey(), project3.getKey(), project4.getKey());
+      .containsExactly(project2.getDbKey(), project1.getDbKey(), project3.getDbKey(), project4.getDbKey());
   }
 
   @Test
-  public void sort_by_quality_gate_then_by_name() throws Exception {
+  public void sort_by_quality_gate_then_by_name() {
     userSession.logIn();
     OrganizationDto organization = db.organizations().insert();
-    MetricDto qualityGateStatus = db.measureDbTester().insertMetric(c -> c.setKey(QUALITY_GATE_STATUS).setValueType(LEVEL.name()));
-    ComponentDto project1 = insertProject(organization, c -> c.setName("Sonar Java"), new Measure(qualityGateStatus, c -> c.setData("ERROR")));
-    ComponentDto project2 = insertProject(organization, c -> c.setName("Sonar Groovy"), new Measure(qualityGateStatus, c -> c.setData("WARN")));
-    ComponentDto project3 = insertProject(organization, c -> c.setName("Sonar Markdown"), new Measure(qualityGateStatus, c -> c.setData("OK")));
-    ComponentDto project4 = insertProject(organization, c -> c.setName("Sonar Qube"), new Measure(qualityGateStatus, c -> c.setData("OK")));
+    MetricDto qualityGateStatus = db.measures().insertMetric(c -> c.setKey(QUALITY_GATE_STATUS).setValueType(LEVEL.name()));
+    ComponentDto project1 = insertProject(organization, c -> c.setName("Sonar Java"), new Measure(qualityGateStatus, c -> c.setValue(null).setData("ERROR")));
+    ComponentDto project2 = insertProject(organization, c -> c.setName("Sonar Groovy"), new Measure(qualityGateStatus, c -> c.setValue(null).setData("WARN")));
+    ComponentDto project3 = insertProject(organization, c -> c.setName("Sonar Markdown"), new Measure(qualityGateStatus, c -> c.setValue(null).setData("OK")));
+    ComponentDto project4 = insertProject(organization, c -> c.setName("Sonar Qube"), new Measure(qualityGateStatus, c -> c.setValue(null).setData("OK")));
 
     assertThat(call(request.setSort(QUALITY_GATE_STATUS).setAsc(true)).getComponentsList()).extracting(Component::getKey)
-      .containsExactly(project3.getKey(), project4.getKey(), project2.getKey(), project1.getKey());
+      .containsExactly(project3.getDbKey(), project4.getDbKey(), project2.getDbKey(), project1.getDbKey());
     assertThat(call(request.setSort(QUALITY_GATE_STATUS).setAsc(false)).getComponentsList()).extracting(Component::getKey)
-      .containsExactly(project1.getKey(), project2.getKey(), project3.getKey(), project4.getKey());
+      .containsExactly(project1.getDbKey(), project2.getDbKey(), project3.getDbKey(), project4.getDbKey());
   }
 
   @Test
-  public void sort_by_last_analysis_date() throws Exception {
+  public void sort_by_last_analysis_date() {
     userSession.logIn();
     OrganizationDto organization = db.organizations().insert();
-    ComponentDto project1 = db.components().insertPublicProject(organization, p -> p.setKey("project1"));
+    ComponentDto project1 = db.components().insertPublicProject(organization, p -> p.setDbKey("project1"));
     authorizationIndexerTester.allowOnlyAnyone(project1);
-    ComponentDto project2 = db.components().insertPublicProject(organization, p -> p.setKey("project2"));
+    ComponentDto project2 = db.components().insertPublicProject(organization, p -> p.setDbKey("project2"));
     db.components().insertSnapshot(project2, snapshot -> snapshot.setCreatedAt(40_000_000_000L).setLast(true));
     authorizationIndexerTester.allowOnlyAnyone(project2);
-    ComponentDto project3 = db.components().insertPublicProject(organization, p -> p.setKey("project3"));
+    ComponentDto project3 = db.components().insertPublicProject(organization, p -> p.setDbKey("project3"));
     db.components().insertSnapshot(project3, snapshot -> snapshot.setCreatedAt(20_000_000_000L).setLast(true));
     authorizationIndexerTester.allowOnlyAnyone(project3);
-    ComponentDto project4 = db.components().insertPublicProject(organization, p -> p.setKey("project4"));
+    ComponentDto project4 = db.components().insertPublicProject(organization, p -> p.setDbKey("project4"));
     db.components().insertSnapshot(project4, snapshot -> snapshot.setCreatedAt(10_000_000_000L).setLast(false));
     db.components().insertSnapshot(project4, snapshot -> snapshot.setCreatedAt(30_000_000_000L).setLast(true));
     authorizationIndexerTester.allowOnlyAnyone(project4);
     projectMeasuresIndexer.indexOnStartup(null);
 
     assertThat(call(request.setSort(ANALYSIS_DATE).setAsc(true)).getComponentsList()).extracting(Component::getKey)
-      .containsExactly(project3.getKey(), project4.getKey(), project2.getKey(), project1.getKey());
+      .containsExactly(project3.getDbKey(), project4.getDbKey(), project2.getDbKey(), project1.getDbKey());
 
     assertThat(call(request.setSort(ANALYSIS_DATE).setAsc(false)).getComponentsList()).extracting(Component::getKey)
-      .containsExactly(project2.getKey(), project4.getKey(), project3.getKey(), project1.getKey());
+      .containsExactly(project2.getDbKey(), project4.getDbKey(), project3.getDbKey(), project1.getDbKey());
   }
 
   @Test
@@ -1011,9 +1019,9 @@ public class SearchProjectsActionTest {
 
     assertThat(result.getComponentsList()).extracting(Component::getKey, Component::hasAnalysisDate, Component::getAnalysisDate)
       .containsOnly(
-        tuple(project1.getKey(), true, formatDateTime(new Date(20_000_000_000L))),
-        tuple(project2.getKey(), true, formatDateTime(new Date(30_000_000_000L))),
-        tuple(project3.getKey(), false, ""));
+        tuple(project1.getDbKey(), true, formatDateTime(new Date(20_000_000_000L))),
+        tuple(project2.getDbKey(), true, formatDateTime(new Date(30_000_000_000L))),
+        tuple(project3.getDbKey(), false, ""));
   }
 
   @Test
@@ -1036,9 +1044,9 @@ public class SearchProjectsActionTest {
 
     assertThat(result.getComponentsList()).extracting(Component::getKey, Component::hasLeakPeriodDate, Component::getLeakPeriodDate)
       .containsOnly(
-        tuple(project1.getKey(), true, formatDateTime(new Date(10_000_000_000L))),
-        tuple(project2.getKey(), false, ""),
-        tuple(project3.getKey(), false, ""));
+        tuple(project1.getDbKey(), true, formatDateTime(new Date(10_000_000_000L))),
+        tuple(project2.getDbKey(), false, ""),
+        tuple(project3.getDbKey(), false, ""));
   }
 
   @Test
@@ -1055,8 +1063,21 @@ public class SearchProjectsActionTest {
 
     assertThat(result.getComponentsList()).extracting(Component::getKey, Component::getVisibility)
       .containsExactly(
-        tuple(privateProject.getKey(), privateProject.isPrivate() ? "private" : "public"),
-        tuple(publicProject.getKey(), publicProject.isPrivate() ? "private" : "public"));
+        tuple(privateProject.getDbKey(), privateProject.isPrivate() ? "private" : "public"),
+        tuple(publicProject.getDbKey(), publicProject.isPrivate() ? "private" : "public"));
+  }
+
+  @Test
+  public void does_not_return_branches() {
+    ComponentDto project = db.components().insertMainBranch();
+    authorizationIndexerTester.allowOnlyAnyone(project);
+    ComponentDto branch = db.components().insertProjectBranch(project);
+    projectMeasuresIndexer.indexOnStartup(null);
+
+    SearchProjectsWsResponse result = call(request);
+
+    assertThat(result.getComponentsList()).extracting(Component::getKey)
+      .containsExactlyInAnyOrder(project.getDbKey());
   }
 
   @Test
@@ -1090,7 +1111,7 @@ public class SearchProjectsActionTest {
     call(request.setPageSize(501));
   }
 
-  private SearchProjectsWsResponse call(SearchProjectsRequest.Builder requestBuilder) {
+  private SearchProjectsWsResponse call(RequestBuilder requestBuilder) {
     SearchProjectsRequest wsRequest = requestBuilder.build();
     TestRequest httpRequest = ws.newRequest();
     ofNullable(wsRequest.getOrganization()).ifPresent(organization -> httpRequest.setParam(PARAM_ORGANIZATION, organization));
@@ -1116,18 +1137,17 @@ public class SearchProjectsActionTest {
 
   private ComponentDto insertProject(OrganizationDto organizationDto, Consumer<ComponentDto> projectConsumer, Measure... measures) {
     ComponentDto project = db.components().insertPublicProject(organizationDto, projectConsumer);
-    SnapshotDto analysis = db.components().insertSnapshot(project);
-    Arrays.stream(measures).forEach(m -> db.measureDbTester().insertMeasure(project, analysis, m.metric, m.consumer));
+    Arrays.stream(measures).forEach(m -> db.measures().insertLiveMeasure(project, m.metric, m.consumer));
     authorizationIndexerTester.allowOnlyAnyone(project);
-    projectMeasuresIndexer.indexProject(project.uuid(), PROJECT_CREATION);
+    projectMeasuresIndexer.indexOnAnalysis(project.uuid());
     return project;
   }
 
   private static class Measure {
     private final MetricDto metric;
-    private final Consumer<MeasureDto> consumer;
+    private final Consumer<LiveMeasureDto> consumer;
 
-    public Measure(MetricDto metric, Consumer<MeasureDto> consumer) {
+    public Measure(MetricDto metric, Consumer<LiveMeasureDto> consumer) {
       this.metric = metric;
       this.consumer = consumer;
     }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -60,7 +60,7 @@ public class CommentMeasuresStep implements ComputationStep {
     this.treeRootHolder = treeRootHolder;
     this.metricRepository = metricRepository;
     this.measureRepository = measureRepository;
-    this.formulas = ImmutableList.<Formula>of(
+    this.formulas = ImmutableList.of(
       createIntSumFormula(COMMENTED_OUT_CODE_LINES_KEY),
       new DocumentationFormula(),
       new CommentDensityFormula());

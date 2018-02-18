@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,14 +18,15 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import React from 'react';
+import PropTypes from 'prop-types';
 import classNames from 'classnames';
 import './styles.css';
 
 export default class Toggle extends React.PureComponent {
   static propTypes = {
-    value: React.PropTypes.oneOfType([React.PropTypes.string, React.PropTypes.bool]).isRequired,
-    name: React.PropTypes.string,
-    onChange: React.PropTypes.func
+    value: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]).isRequired,
+    name: PropTypes.string,
+    onChange: PropTypes.func
   };
 
   handleClick(e, value) {

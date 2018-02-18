@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -23,35 +23,60 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.File;
+import org.picocontainer.Startable;
 import org.slf4j.LoggerFactory;
 import org.sonar.api.ce.ComputeEngineSide;
 import org.sonar.api.config.Configuration;
 import org.sonar.api.server.ServerSide;
 import org.sonar.api.utils.log.LoggerLevel;
 import org.sonar.api.utils.log.Loggers;
-import org.sonar.process.ProcessProperties;
+import org.sonar.db.Database;
 import org.sonar.process.logging.LogbackHelper;
 import org.sonar.server.app.ServerProcessLogging;
 
+import static org.sonar.api.utils.log.LoggerLevel.TRACE;
+import static org.sonar.process.ProcessProperties.Property.PATH_LOGS;
+
 @ServerSide
 @ComputeEngineSide
-public class ServerLogging {
+public class ServerLogging implements Startable {
 
+  /** Used for Hazelcast's distributed queries in cluster mode */
+  private static ServerLogging instance;
   private final LogbackHelper helper;
   private final Configuration config;
+  private final ServerProcessLogging serverProcessLogging;
+  private final Database database;
 
-  public ServerLogging(Configuration config) {
-    this(new LogbackHelper(), config);
+  public ServerLogging(Configuration config, ServerProcessLogging serverProcessLogging, Database database) {
+    this(new LogbackHelper(), config, serverProcessLogging, database);
   }
 
   @VisibleForTesting
-  ServerLogging(LogbackHelper helper, Configuration config) {
+  ServerLogging(LogbackHelper helper, Configuration config, ServerProcessLogging serverProcessLogging, Database database) {
     this.helper = helper;
     this.config = config;
+    this.serverProcessLogging = serverProcessLogging;
+    this.database = database;
   }
 
-  public void changeLevel(ServerProcessLogging serverProcessLogging, LoggerLevel level) {
+  @Override
+  public void start() {
+    instance = this;
+  }
+
+  @Override
+  public void stop() {
+    instance = null;
+  }
+
+  public static void changeLevelFromHazelcastDistributedQuery(LoggerLevel level) {
+    instance.changeLevel(level);
+  }
+
+  public void changeLevel(LoggerLevel level) {
     Level logbackLevel = Level.toLevel(level.name());
+    database.enableSqlLogging(level == TRACE);
     helper.changeRoot(serverProcessLogging.getLogLevelConfig(), logbackLevel);
     LoggerFactory.getLogger(ServerLogging.class).info("Level of logs changed to {}", level);
   }
@@ -64,7 +89,7 @@ public class ServerLogging {
    * The directory that contains log files. May not exist.
    */
   public File getLogsDir() {
-    return new File(config.get(ProcessProperties.PATH_LOGS).get());
+    return new File(config.get(PATH_LOGS.getKey()).get());
   }
 
 }

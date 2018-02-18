@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,17 +19,22 @@
  */
 // @flow
 import React from 'react';
-import moment from 'moment';
 import { max } from 'lodash';
-import FacetBox from './components/FacetBox';
-import FacetHeader from './components/FacetHeader';
-import FacetItem from './components/FacetItem';
+import { intlShape } from 'react-intl';
+import DateFromNow from '../../../components/intl/DateFromNow';
+import { longFormatterOption } from '../../../components/intl/DateFormatter';
+import DateTimeFormatter from '../../../components/intl/DateTimeFormatter';
+import FacetBox from '../../../components/facet/FacetBox';
+import FacetHeader from '../../../components/facet/FacetHeader';
+import FacetItem from '../../../components/facet/FacetItem';
 import { BarChart } from '../../../components/charts/bar-chart';
 import DateInput from '../../../components/controls/DateInput';
+import { isSameDay, parseDate, toShortNotSoISOString } from '../../../helpers/dates';
 import { translate } from '../../../helpers/l10n';
 import { formatMeasure } from '../../../helpers/measures';
-import type { Component } from '../utils';
+/*:: import type { Component } from '../utils'; */
 
+/*::
 type Props = {|
   component?: Component,
   createdAfter: string,
@@ -43,19 +48,22 @@ type Props = {|
   sinceLeakPeriod: boolean,
   stats?: { [string]: number }
 |};
-
-const DATE_FORMAT = 'YYYY-MM-DDTHH:mm:ssZZ';
+*/
 
 export default class CreationDateFacet extends React.PureComponent {
-  props: Props;
+  /*:: props: Props; */
+
+  property = 'createdAt';
 
   static defaultProps = {
     open: true
   };
 
-  property = 'createdAt';
+  static contextTypes = {
+    intl: intlShape
+  };
 
-  hasValue = (): boolean =>
+  hasValue = () =>
     this.props.createdAfter.length > 0 ||
     this.props.createdAt.length > 0 ||
     this.props.createdBefore.length > 0 ||
@@ -70,7 +78,7 @@ export default class CreationDateFacet extends React.PureComponent {
     this.resetTo({});
   };
 
-  resetTo = (changes: {}) => {
+  resetTo = (changes /*: {} */) => {
     this.props.onChange({
       createdAfter: undefined,
       createdAt: undefined,
@@ -81,32 +89,63 @@ export default class CreationDateFacet extends React.PureComponent {
     });
   };
 
-  handleBarClick = ({
-    createdAfter,
-    createdBefore
-  }: { createdAfter: Object, createdBefore?: Object }) => {
+  handleBarClick = (
+    { createdAfter, createdBefore } /*: {
+    createdAfter: Date,
+    createdBefore?: Date
+  } */
+  ) => {
     this.resetTo({
-      createdAfter: createdAfter.format(DATE_FORMAT),
-      createdBefore: createdBefore && createdBefore.format(DATE_FORMAT)
+      createdAfter: toShortNotSoISOString(createdAfter),
+      createdBefore: createdBefore && toShortNotSoISOString(createdBefore)
     });
   };
 
-  handlePeriodChange = (property: string) => (value: string) => {
+  handlePeriodChange = (property /*: string */, value /*: string */) => {
     this.props.onChange({
       createdAt: undefined,
       createdInLast: undefined,
       sinceLeakPeriod: undefined,
-      [property]: value
+      [property]: value ? toShortNotSoISOString(parseDate(value)) : undefined
     });
   };
 
-  handlePeriodClick = (period: string) => {
-    this.resetTo({ createdInLast: period });
-  };
+  handlePeriodChangeBefore = (value /*: string */) =>
+    this.handlePeriodChange('createdBefore', value);
 
-  handleLeakPeriodClick = () => {
-    this.resetTo({ sinceLeakPeriod: true });
-  };
+  handlePeriodChangeAfter = (value /*: string */) => this.handlePeriodChange('createdAfter', value);
+
+  handlePeriodClick = (period /*: string */) => this.resetTo({ createdInLast: period });
+
+  handleLeakPeriodClick = () => this.resetTo({ sinceLeakPeriod: true });
+
+  getValues() {
+    const { createdAfter, createdAt, createdBefore, createdInLast, sinceLeakPeriod } = this.props;
+    const { formatDate } = this.context.intl;
+    const values = [];
+    if (createdAfter) {
+      values.push(formatDate(createdAfter, longFormatterOption));
+    }
+    if (createdAt) {
+      values.push(formatDate(createdAt, longFormatterOption));
+    }
+    if (createdBefore) {
+      values.push(formatDate(createdBefore, longFormatterOption));
+    }
+    if (createdInLast === '1w') {
+      values.push(translate('issues.facet.createdAt.last_week'));
+    }
+    if (createdInLast === '1m') {
+      values.push(translate('issues.facet.createdAt.last_month'));
+    }
+    if (createdInLast === '1y') {
+      values.push(translate('issues.facet.createdAt.last_year'));
+    }
+    if (sinceLeakPeriod) {
+      values.push(translate('issues.leak_period'));
+    }
+    return values;
+  }
 
   renderBarChart() {
     const { createdBefore, stats } = this.props;
@@ -117,34 +156,36 @@ export default class CreationDateFacet extends React.PureComponent {
 
     const periods = Object.keys(stats);
 
-    if (periods.length < 2) {
+    if (periods.length < 2 || periods.every(period => !stats[period])) {
       return null;
     }
 
-    const data = periods.map((startDate, index) => {
-      const startMoment = moment(startDate);
-      const nextStartMoment = index < periods.length - 1
-        ? moment(periods[index + 1])
-        : createdBefore ? moment(createdBefore) : undefined;
-      const endMoment = nextStartMoment && nextStartMoment.clone().subtract(1, 'days');
+    const { formatDate } = this.context.intl;
+    const data = periods.map((start, index) => {
+      const startDate = parseDate(start);
+      let endDate;
+      if (index < periods.length - 1) {
+        endDate = parseDate(periods[index + 1]);
+        endDate.setDate(endDate.getDate() - 1);
+      } else {
+        endDate = createdBefore && parseDate(createdBefore);
+      }
 
       let tooltip =
-        formatMeasure(stats[startDate], 'SHORT_INT') + '<br>' + startMoment.format('LL');
-
-      if (endMoment) {
-        const isSameDay = endMoment.diff(startMoment, 'days') <= 1;
-        if (!isSameDay) {
-          tooltip += ' – ' + endMoment.format('LL');
-        }
+        formatMeasure(stats[start], 'SHORT_INT') +
+        '<br/>' +
+        formatDate(startDate, longFormatterOption);
+      const tooltipEndDate = endDate || Date.now();
+      if (!isSameDay(tooltipEndDate, startDate)) {
+        tooltip += ' – ' + formatDate(tooltipEndDate, longFormatterOption);
       }
 
       return {
-        createdAfter: startMoment,
-        createdBefore: nextStartMoment,
-        startMoment,
+        createdAfter: startDate,
+        createdBefore: endDate,
         tooltip,
         x: index,
-        y: stats[startDate]
+        y: stats[start]
       };
     });
 
@@ -169,98 +210,102 @@ export default class CreationDateFacet extends React.PureComponent {
   }
 
   renderExactDate() {
-    const m = moment(this.props.createdAt);
     return (
       <div className="search-navigator-facet-container">
-        {m.format('LLL')}
+        <DateTimeFormatter date={this.props.createdAt} />
         <br />
-        <span className="note">({m.fromNow()})</span>
+        <span className="note">
+          <DateFromNow date={this.props.createdAt} />
+        </span>
       </div>
     );
   }
 
   renderPeriodSelectors() {
     const { createdAfter, createdBefore } = this.props;
-
     return (
       <div className="search-navigator-date-facet-selection">
         <DateInput
           className="search-navigator-date-facet-selection-dropdown-left"
-          onChange={this.handlePeriodChange('createdAfter')}
+          inputClassName="search-navigator-date-facet-selection-input"
+          maxDate={createdBefore ? toShortNotSoISOString(createdBefore) : '+0'}
+          onChange={this.handlePeriodChangeAfter}
           placeholder={translate('from')}
-          value={createdAfter ? moment(createdAfter).format('YYYY-MM-DD') : undefined}
+          value={createdAfter ? toShortNotSoISOString(createdAfter) : undefined}
         />
         <DateInput
           className="search-navigator-date-facet-selection-dropdown-right"
-          onChange={this.handlePeriodChange('createdBefore')}
+          inputClassName="search-navigator-date-facet-selection-input"
+          minDate={createdAfter ? toShortNotSoISOString(createdAfter) : undefined}
+          onChange={this.handlePeriodChangeBefore}
           placeholder={translate('to')}
-          value={createdBefore ? moment(createdBefore).format('YYYY-MM-DD') : undefined}
+          value={createdBefore ? toShortNotSoISOString(createdBefore) : undefined}
         />
       </div>
     );
   }
 
-  renderPrefefinedPeriods() {
+  renderPredefinedPeriods() {
     const { component, createdInLast, sinceLeakPeriod } = this.props;
+    if (component != null && component.branch != null) {
+      // FIXME handle long-living branches
+      return null;
+    }
     return (
       <div className="spacer-top issues-predefined-periods">
         <FacetItem
           active={!this.hasValue()}
-          facetMode=""
           name={translate('issues.facet.createdAt.all')}
           onClick={this.handlePeriodClick}
-          stat={null}
           value=""
         />
-        {component == null &&
+        {component == null && (
           <FacetItem
             active={createdInLast === '1w'}
-            facetMode=""
             name={translate('issues.facet.createdAt.last_week')}
             onClick={this.handlePeriodClick}
-            stat={null}
             value="1w"
-          />}
-        {component == null &&
+          />
+        )}
+        {component == null && (
           <FacetItem
             active={createdInLast === '1m'}
-            facetMode=""
             name={translate('issues.facet.createdAt.last_month')}
             onClick={this.handlePeriodClick}
-            stat={null}
             value="1m"
-          />}
-        {component == null &&
+          />
+        )}
+        {component == null && (
           <FacetItem
             active={createdInLast === '1y'}
-            facetMode=""
             name={translate('issues.facet.createdAt.last_year')}
             onClick={this.handlePeriodClick}
-            stat={null}
             value="1y"
-          />}
-        {component != null &&
+          />
+        )}
+        {component != null && (
           <FacetItem
             active={sinceLeakPeriod}
-            facetMode=""
             name={translate('issues.leak_period')}
             onClick={this.handleLeakPeriodClick}
-            stat={null}
             value=""
-          />}
+          />
+        )}
       </div>
     );
   }
 
   renderInner() {
     const { createdAt } = this.props;
-    return createdAt
-      ? this.renderExactDate()
-      : <div>
-          {this.renderBarChart()}
-          {this.renderPeriodSelectors()}
-          {this.renderPrefefinedPeriods()}
-        </div>;
+    return createdAt ? (
+      this.renderExactDate()
+    ) : (
+      <div>
+        {this.renderBarChart()}
+        {this.renderPeriodSelectors()}
+        {this.renderPredefinedPeriods()}
+      </div>
+    );
   }
 
   render() {
@@ -271,7 +316,7 @@ export default class CreationDateFacet extends React.PureComponent {
           onClear={this.handleClear}
           onClick={this.handleHeaderClick}
           open={this.props.open}
-          values={this.hasValue() ? 1 : 0}
+          values={this.getValues()}
         />
 
         {this.props.open && this.renderInner()}

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -33,11 +33,11 @@ import org.junit.Test;
 import org.junit.rules.ErrorCollector;
 import org.junit.rules.TemporaryFolder;
 import org.sonarqube.tests.performance.AbstractPerfTest;
-import org.sonarqube.ws.WsMeasures;
+import org.sonarqube.ws.Measures;
 import org.sonarqube.ws.client.HttpConnector;
 import org.sonarqube.ws.client.WsClient;
 import org.sonarqube.ws.client.WsClientFactories;
-import org.sonarqube.ws.client.measure.ComponentWsRequest;
+import org.sonarqube.ws.client.measures.ComponentRequest;
 
 import static java.lang.Double.parseDouble;
 import static java.util.Arrays.asList;
@@ -55,7 +55,7 @@ public class DuplicationTest extends AbstractPerfTest {
   public static final Orchestrator orchestrator = ScannerPerformanceSuite.ORCHESTRATOR;
 
   @BeforeClass
-  public static void setUp() throws IOException {
+  public static void setUp() {
     // Execute a first analysis to prevent any side effects with cache of plugin JAR files
     orchestrator.executeBuild(newScanner("-Xmx512m -server", "sonar.profile", "one-xoo-issue-per-line"));
   }
@@ -80,12 +80,12 @@ public class DuplicationTest extends AbstractPerfTest {
   }
 
   private Map<String, Double> getMeasures(String key) {
-    return newWsClient().measures().component(new ComponentWsRequest()
-      .setComponentKey(key)
+    return newWsClient().measures().component(new ComponentRequest()
+      .setComponent(key)
       .setMetricKeys(asList("duplicated_lines", "duplicated_blocks", "duplicated_files", "duplicated_lines_density")))
       .getComponent().getMeasuresList()
       .stream()
-      .collect(Collectors.toMap(WsMeasures.Measure::getMetric, measure -> parseDouble(measure.getValue())));
+      .collect(Collectors.toMap(Measures.Measure::getMetric, measure -> parseDouble(measure.getValue())));
   }
 
   private WsClient newWsClient() {

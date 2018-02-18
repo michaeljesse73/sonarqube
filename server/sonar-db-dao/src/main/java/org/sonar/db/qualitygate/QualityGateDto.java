@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -27,12 +27,20 @@ import java.util.Date;
 public class QualityGateDto {
 
   private Long id;
-
   private String name;
-
+  private String uuid;
+  private boolean isBuiltIn;
   private Date createdAt;
-
   private Date updatedAt;
+
+  public String getUuid() {
+    return uuid;
+  }
+
+  public QualityGateDto setUuid(String uuid) {
+    this.uuid = uuid;
+    return this;
+  }
 
   public Long getId() {
     return id;
@@ -49,6 +57,15 @@ public class QualityGateDto {
 
   public QualityGateDto setName(String name) {
     this.name = name;
+    return this;
+  }
+
+  public boolean isBuiltIn() {
+    return isBuiltIn;
+  }
+
+  public QualityGateDto setBuiltIn(boolean builtIn) {
+    isBuiltIn = builtIn;
     return this;
   }
 

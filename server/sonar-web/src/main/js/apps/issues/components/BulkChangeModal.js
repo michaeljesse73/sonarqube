@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,31 +19,35 @@
  */
 // @flow
 import React from 'react';
-import Modal from 'react-modal';
-import Select from 'react-select';
 import { pickBy, sortBy } from 'lodash';
-import SearchSelect from './SearchSelect';
+import SearchSelect from '../../../components/controls/SearchSelect';
 import Checkbox from '../../../components/controls/Checkbox';
+import Modal from '../../../components/controls/Modal';
+import Select, { Creatable } from '../../../components/controls/Select';
 import Tooltip from '../../../components/controls/Tooltip';
 import MarkdownTips from '../../../components/common/MarkdownTips';
 import SeverityHelper from '../../../components/shared/SeverityHelper';
 import Avatar from '../../../components/ui/Avatar';
 import IssueTypeIcon from '../../../components/ui/IssueTypeIcon';
+import throwGlobalError from '../../../app/utils/throwGlobalError';
 import { searchIssueTags, bulkChangeIssues } from '../../../api/issues';
 import { translate, translateWithParameters } from '../../../helpers/l10n';
 import { searchAssignees } from '../utils';
-import type { Paging, Component, CurrentUser } from '../utils';
-import type { Issue } from '../../../components/issue/types';
+/*:: import type { Paging, Component, CurrentUser } from '../utils'; */
+/*:: import type { Issue } from '../../../components/issue/types'; */
 
+/*::
 type Props = {|
   component?: Component,
   currentUser: CurrentUser,
   fetchIssues: ({}) => Promise<*>,
   onClose: () => void,
   onDone: () => void,
-  onRequestFail: Error => void
+  organization?: { key: string }
 |};
+*/
 
+/*::
 type State = {|
   issues: Array<Issue>,
   // used for initial loading of issues
@@ -58,28 +62,38 @@ type State = {|
   assignee?: string,
   comment?: string,
   notifications?: boolean,
+  organization?: string,
   removeTags?: Array<string>,
   severity?: string,
   transition?: string,
   type?: string
 |};
+*/
 
-const hasAction = (action: string) => (issue: Issue): boolean =>
+const hasAction = (action /*: string */) => (issue /*: Issue */) =>
   issue.actions && issue.actions.includes(action);
 
 export default class BulkChangeModal extends React.PureComponent {
-  mounted: boolean;
-  props: Props;
-  state: State;
+  /*:: mounted: boolean; */
+  /*:: props: Props; */
+  /*:: state: State; */
 
-  constructor(props: Props) {
+  constructor(props /*: Props */) {
     super(props);
-    this.state = { issues: [], loading: true, submitting: false };
+    let organization = props.component && props.component.organization;
+    if (props.organization && !organization) {
+      organization = props.organization.key;
+    }
+    this.state = { issues: [], loading: true, submitting: false, organization };
   }
 
   componentDidMount() {
     this.mounted = true;
-    Promise.all([this.loadIssues(), searchIssueTags()]).then(([issues, tags]) => {
+
+    Promise.all([
+      this.loadIssues(),
+      searchIssueTags({ organization: this.state.organization })
+    ]).then(([issues, tags]) => {
       if (this.mounted) {
         this.setState({
           issues: issues.issues,
@@ -95,50 +109,46 @@ export default class BulkChangeModal extends React.PureComponent {
     this.mounted = false;
   }
 
-  handleCloseClick = (e: Event & { target: HTMLElement }) => {
+  loadIssues = () => this.props.fetchIssues({ additionalFields: 'actions,transitions', ps: 250 });
+
+  getDefaultAssignee = () => {
+    const { currentUser } = this.props;
+    const { issues } = this.state;
+    const options = [];
+
+    if (currentUser.isLoggedIn) {
+      const canBeAssignedToMe =
+        issues.filter(issue => issue.assignee !== currentUser.login).length > 0;
+      if (canBeAssignedToMe) {
+        options.push({
+          avatar: currentUser.avatar,
+          label: currentUser.name,
+          value: currentUser.login
+        });
+      }
+    }
+
+    const canBeUnassigned = issues.filter(issue => issue.assignee).length > 0;
+    if (canBeUnassigned) {
+      options.push({ label: translate('unassigned'), value: '' });
+    }
+
+    return options;
+  };
+
+  handleCloseClick = (e /*: Event & { target: HTMLElement } */) => {
     e.preventDefault();
     e.target.blur();
     this.props.onClose();
   };
 
-  loadIssues = () => {
-    return this.props.fetchIssues({ additionalFields: 'actions,transitions', ps: 250 });
-  };
+  handleAssigneeSearch = (query /*: string */) => searchAssignees(query, this.state.organization);
 
-  handleAssigneeSearch = (query: string) => {
-    if (query.length > 1) {
-      return searchAssignees(query, this.props.component);
-    } else {
-      const { currentUser } = this.props;
-      const { issues } = this.state;
-      const options = [];
-
-      if (currentUser.isLoggedIn) {
-        const canBeAssignedToMe =
-          issues.filter(issue => issue.assignee !== currentUser.login).length > 0;
-        if (canBeAssignedToMe) {
-          options.push({
-            email: currentUser.email,
-            label: currentUser.name,
-            value: currentUser.login
-          });
-        }
-      }
-
-      const canBeUnassigned = issues.filter(issue => issue.assignee).length > 0;
-      if (canBeUnassigned) {
-        options.push({ label: translate('unassigned'), value: '' });
-      }
-
-      return Promise.resolve(options);
-    }
-  };
-
-  handleAssigneeSelect = (assignee: string) => {
+  handleAssigneeSelect = (assignee /*: string */) => {
     this.setState({ assignee });
   };
 
-  handleFieldCheck = (field: string) => (checked: boolean) => {
+  handleFieldCheck = (field /*: string */) => (checked /*: boolean */) => {
     if (!checked) {
       this.setState({ [field]: undefined });
     } else if (field === 'notifications') {
@@ -146,19 +156,21 @@ export default class BulkChangeModal extends React.PureComponent {
     }
   };
 
-  handleFieldChange = (field: string) => (event: { target: HTMLInputElement }) => {
+  handleFieldChange = (field /*: string */) => (event /*: { target: HTMLInputElement } */) => {
     this.setState({ [field]: event.target.value });
   };
 
-  handleSelectFieldChange = (field: string) => ({ value }: { value: string }) => {
+  handleSelectFieldChange = (field /*: string */) => ({ value } /*: { value: string } */) => {
     this.setState({ [field]: value });
   };
 
-  handleMultiSelectFieldChange = (field: string) => (options: Array<{ value: string }>) => {
+  handleMultiSelectFieldChange = (field /*: string */) => (
+    options /*: Array<{ value: string }> */
+  ) => {
     this.setState({ [field]: options.map(option => option.value) });
   };
 
-  handleSubmit = (e: Event) => {
+  handleSubmit = (e /*: Event */) => {
     e.preventDefault();
     const query = pickBy(
       {
@@ -182,14 +194,16 @@ export default class BulkChangeModal extends React.PureComponent {
         this.setState({ submitting: false });
         this.props.onDone();
       },
-      (error: Error) => {
+      (error /*: Error */) => {
         this.setState({ submitting: false });
-        this.props.onRequestFail(error);
+        throwGlobalError(error);
       }
     );
   };
 
-  getAvailableTransitions(issues: Array<Issue>): Array<{ transition: string, count: number }> {
+  getAvailableTransitions(
+    issues /*: Array<Issue> */
+  ) /*: Array<{ transition: string, count: number }> */ {
     const transitions = {};
     issues.forEach(issue => {
       if (issue.transitions) {
@@ -224,23 +238,26 @@ export default class BulkChangeModal extends React.PureComponent {
           <i className="spinner spinner-margin" />
         </div>
       </div>
-      <div className="modal-foot">
-        {this.renderCancelButton()}
-      </div>
+      <div className="modal-foot">{this.renderCancelButton()}</div>
     </div>
   );
 
-  renderCheckbox = (field: string) => (
+  renderCheckbox = (field /*: string */) => (
     <Checkbox checked={this.state[field] != null} onCheck={this.handleFieldCheck(field)} />
   );
 
-  renderAffected = (affected: number) => (
+  renderAffected = (affected /*: number */) => (
     <div className="pull-right note">
       ({translateWithParameters('issue_bulk_change.x_issues', affected)})
     </div>
   );
 
-  renderField = (field: string, label: string, affected: ?number, input: Object) => (
+  renderField = (
+    field /*: string */,
+    label /*: string */,
+    affected /*: ?number */,
+    input /*: Object */
+  ) => (
     <div className="modal-field" id={`issues-bulk-change-${field}`}>
       <label htmlFor={field}>{translate(label)}</label>
       {this.renderCheckbox(field)}
@@ -249,22 +266,19 @@ export default class BulkChangeModal extends React.PureComponent {
     </div>
   );
 
-  renderAssigneeOption = (option: { avatar?: string, email?: string, label: string }) => (
-    <span>
-      {(option.avatar != null || option.email != null) &&
-        <Avatar
-          className="little-spacer-right"
-          email={option.email}
-          hash={option.avatar}
-          name={option.label}
-          size={16}
-        />}
-      {option.label}
-    </span>
-  );
+  renderAssigneeOption = (option /*: { avatar?: string, email?: string, label: string } */) => {
+    return (
+      <span>
+        {option.avatar != null && (
+          <Avatar className="spacer-right" hash={option.avatar} name={option.label} size={16} />
+        )}
+        {option.label}
+      </span>
+    );
+  };
 
   renderAssigneeField = () => {
-    const affected: number = this.state.issues.filter(hasAction('assign')).length;
+    const affected /*: number */ = this.state.issues.filter(hasAction('assign')).length;
 
     if (affected === 0) {
       return null;
@@ -272,9 +286,9 @@ export default class BulkChangeModal extends React.PureComponent {
 
     const input = (
       <SearchSelect
+        defaultOptions={this.getDefaultAssignee()}
         onSearch={this.handleAssigneeSearch}
         onSelect={this.handleAssigneeSelect}
-        minimumQueryLength={0}
         renderOption={this.renderAssigneeOption}
         resetOnBlur={false}
         value={this.state.assignee}
@@ -285,7 +299,7 @@ export default class BulkChangeModal extends React.PureComponent {
   };
 
   renderTypeField = () => {
-    const affected: number = this.state.issues.filter(hasAction('set_type')).length;
+    const affected /*: number */ = this.state.issues.filter(hasAction('set_type')).length;
 
     if (affected === 0) {
       return null;
@@ -294,7 +308,7 @@ export default class BulkChangeModal extends React.PureComponent {
     const types = ['BUG', 'VULNERABILITY', 'CODE_SMELL'];
     const options = types.map(type => ({ label: translate('issue.type', type), value: type }));
 
-    const optionRenderer = (option: { label: string, value: string }) => (
+    const optionRenderer = (option /*: { label: string, value: string } */) => (
       <span>
         <IssueTypeIcon className="little-spacer-right" query={option.value} />
         {option.label}
@@ -318,7 +332,7 @@ export default class BulkChangeModal extends React.PureComponent {
   };
 
   renderSeverityField = () => {
-    const affected: number = this.state.issues.filter(hasAction('set_severity')).length;
+    const affected /*: number */ = this.state.issues.filter(hasAction('set_severity')).length;
 
     if (affected === 0) {
       return null;
@@ -346,52 +360,34 @@ export default class BulkChangeModal extends React.PureComponent {
     return this.renderField('severity', 'issue.set_severity', affected, input);
   };
 
-  renderAddTagsField = () => {
-    const affected: number = this.state.issues.filter(hasAction('set_tags')).length;
+  renderTagsField = (field /*: string */, label /*: string */, allowCreate /*: boolean */) => {
+    const affected /*: number */ = this.state.issues.filter(hasAction('set_tags')).length;
 
     if (this.state.tags == null || affected === 0) {
       return null;
     }
 
-    const options = this.state.tags.map(tag => ({ label: tag, value: tag }));
+    const Component = allowCreate ? Creatable : Select;
+
+    const options = [...this.state.tags, ...(this.state[field] || [])].map(tag => ({
+      label: tag,
+      value: tag
+    }));
 
     const input = (
-      <Select
+      <Component
         clearable={false}
-        id="add_tags"
+        id={field}
         multi={true}
-        onChange={this.handleMultiSelectFieldChange('addTags')}
+        onChange={this.handleMultiSelectFieldChange(field)}
         options={options}
+        promptTextCreator={promptCreateTag}
         searchable={true}
-        value={this.state.addTags}
+        value={this.state[field]}
       />
     );
 
-    return this.renderField('addTags', 'issue.add_tags', affected, input);
-  };
-
-  renderRemoveTagsField = () => {
-    const affected: number = this.state.issues.filter(hasAction('set_tags')).length;
-
-    if (this.state.tags == null || affected === 0) {
-      return null;
-    }
-
-    const options = this.state.tags.map(tag => ({ label: tag, value: tag }));
-
-    const input = (
-      <Select
-        clearable={false}
-        id="remove_tags"
-        multi={true}
-        onChange={this.handleMultiSelectFieldChange('removeTags')}
-        options={options}
-        searchable={true}
-        value={this.state.removeTags}
-      />
-    );
-
-    return this.renderField('removeTags', 'issue.remove_tags', affected, input);
+    return this.renderField(field, label, affected, input);
   };
 
   renderTransitionsField = () => {
@@ -428,7 +424,7 @@ export default class BulkChangeModal extends React.PureComponent {
   };
 
   renderCommentField = () => {
-    const affected: number = this.state.issues.filter(hasAction('comment')).length;
+    const affected /*: number */ = this.state.issues.filter(hasAction('comment')).length;
 
     if (affected === 0) {
       return null;
@@ -468,7 +464,7 @@ export default class BulkChangeModal extends React.PureComponent {
   renderForm = () => {
     const { issues, paging, submitting } = this.state;
 
-    const limitReached: boolean =
+    const limitReached /*: boolean */ =
       paging != null && paging.total > paging.pageIndex * paging.pageSize;
 
     return (
@@ -478,16 +474,17 @@ export default class BulkChangeModal extends React.PureComponent {
         </div>
 
         <div className="modal-body">
-          {limitReached &&
+          {limitReached && (
             <div className="alert alert-warning">
               {translateWithParameters('issue_bulk_change.max_issues_reached', issues.length)}
-            </div>}
+            </div>
+          )}
 
           {this.renderAssigneeField()}
           {this.renderTypeField()}
           {this.renderSeverityField()}
-          {this.renderAddTagsField()}
-          {this.renderRemoveTagsField()}
+          {this.renderTagsField('addTags', 'issue.add_tags', true)}
+          {this.renderTagsField('removeTags', 'issue.remove_tags', false)}
           {this.renderTransitionsField()}
           {this.renderCommentField()}
           {this.renderNotificationsField()}
@@ -495,7 +492,9 @@ export default class BulkChangeModal extends React.PureComponent {
 
         <div className="modal-foot">
           {submitting && <i className="spinner spacer-right" />}
-          <button disabled={submitting} id="bulk-change-submit">{translate('apply')}</button>
+          <button disabled={submitting} id="bulk-change-submit">
+            {translate('apply')}
+          </button>
           {this.renderCancelButton()}
         </div>
       </form>
@@ -504,14 +503,13 @@ export default class BulkChangeModal extends React.PureComponent {
 
   render() {
     return (
-      <Modal
-        isOpen={true}
-        contentLabel="modal"
-        className="modal"
-        overlayClassName="modal-overlay"
-        onRequestClose={this.props.onClose}>
+      <Modal contentLabel="modal" onRequestClose={this.props.onClose}>
         {this.state.loading ? this.renderLoading() : this.renderForm()}
       </Modal>
     );
   }
+}
+
+function promptCreateTag(label /*: string */) {
+  return `+ ${label}`;
 }

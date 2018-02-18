@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -63,7 +63,7 @@ public class RuleTagsCopierTest {
   @Test
   public void do_not_copy_tags_if_existing_issue_without_tags() {
     rule.setTags(Sets.newHashSet("bug", "performance"));
-    issue.setNew(false).setTags(Collections.<String>emptyList());
+    issue.setNew(false).setTags(Collections.emptyList());
 
     underTest.onIssue(mock(Component.class), issue);
 

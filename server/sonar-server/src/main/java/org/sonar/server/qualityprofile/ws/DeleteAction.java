@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,6 +19,7 @@
  */
 package org.sonar.server.qualityprofile.ws;
 
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -31,12 +32,13 @@ import org.sonar.api.server.ws.WebService.NewController;
 import org.sonar.core.util.stream.MoreCollectors;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
+import org.sonar.db.organization.OrganizationDto;
 import org.sonar.db.qualityprofile.QProfileDto;
 import org.sonar.server.qualityprofile.QProfileFactory;
 import org.sonar.server.user.UserSession;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static org.sonar.db.permission.OrganizationPermission.ADMINISTER_QUALITY_PROFILES;
+import static java.util.Collections.singleton;
 import static org.sonar.server.qualityprofile.ws.QProfileWsSupport.createOrganizationParam;
 
 public class DeleteAction implements QProfileWsAction {
@@ -59,7 +61,11 @@ public class DeleteAction implements QProfileWsAction {
   public void define(NewController controller) {
     NewAction action = controller.createAction("delete")
       .setDescription("Delete a quality profile and all its descendants. The default quality profile cannot be deleted.<br> " +
-        "Requires to be logged in and the 'Administer Quality Profiles' permission.")
+        "Requires one of the following permissions:" +
+        "<ul>" +
+        "  <li>'Administer Quality Profiles'</li>" +
+        "  <li>Edit right on the specified quality profile</li>" +
+        "</ul>")
       .setSince("5.2")
       .setPost(true)
       .setHandler(this);
@@ -75,10 +81,10 @@ public class DeleteAction implements QProfileWsAction {
 
     try (DbSession dbSession = dbClient.openSession(false)) {
       QProfileDto profile = wsSupport.getProfile(dbSession, QProfileReference.from(request));
-      userSession.checkPermission(ADMINISTER_QUALITY_PROFILES, profile.getOrganizationUuid());
-      wsSupport.checkNotBuiltInt(profile);
+      OrganizationDto organization = wsSupport.getOrganization(dbSession, profile);
+      wsSupport.checkCanEdit(dbSession, organization, profile);
 
-      List<QProfileDto> descendants = selectDescendants(dbSession, profile);
+      Collection<QProfileDto> descendants = selectDescendants(dbSession, profile);
       ensureNoneIsMarkedAsDefault(dbSession, profile, descendants);
 
       profileFactory.delete(dbSession, merge(profile, descendants));
@@ -87,11 +93,11 @@ public class DeleteAction implements QProfileWsAction {
     response.noContent();
   }
 
-  private List<QProfileDto> selectDescendants(DbSession dbSession, QProfileDto profile) {
-    return dbClient.qualityProfileDao().selectDescendants(dbSession, profile);
+  private Collection<QProfileDto> selectDescendants(DbSession dbSession, QProfileDto profile) {
+    return dbClient.qualityProfileDao().selectDescendants(dbSession, singleton(profile));
   }
 
-  private void ensureNoneIsMarkedAsDefault(DbSession dbSession, QProfileDto profile, List<QProfileDto> descendants) {
+  private void ensureNoneIsMarkedAsDefault(DbSession dbSession, QProfileDto profile, Collection<QProfileDto> descendants) {
     Set<String> allUuids = new HashSet<>();
     allUuids.add(profile.getKee());
     descendants.forEach(p -> allUuids.add(p.getKee()));
@@ -107,7 +113,7 @@ public class DeleteAction implements QProfileWsAction {
       });
   }
 
-  private static List<QProfileDto> merge(QProfileDto profile, List<QProfileDto> descendants) {
+  private static List<QProfileDto> merge(QProfileDto profile, Collection<QProfileDto> descendants) {
     return Stream.concat(Stream.of(profile), descendants.stream())
       .collect(MoreCollectors.toList(descendants.size() + 1));
   }

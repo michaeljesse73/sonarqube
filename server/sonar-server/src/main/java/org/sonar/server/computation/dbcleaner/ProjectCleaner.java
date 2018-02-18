@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -54,14 +54,14 @@ public class ProjectCleaner {
     this.purgeListener = purgeListener;
   }
 
-  public ProjectCleaner purge(DbSession session, IdUuidPair idUuidPair, Configuration projectConfig, Collection<String> disabledComponentUuids) {
+  public ProjectCleaner purge(DbSession session, IdUuidPair rootId, Configuration projectConfig, Collection<String> disabledComponentUuids) {
     long start = System.currentTimeMillis();
     profiler.reset();
 
-    PurgeConfiguration configuration = newDefaultPurgeConfiguration(projectConfig, idUuidPair, disabledComponentUuids);
+    PurgeConfiguration configuration = newDefaultPurgeConfiguration(projectConfig, rootId, disabledComponentUuids);
 
-    cleanHistoricalData(session, configuration.rootProjectIdUuid().getUuid(), projectConfig);
-    doPurge(session, configuration);
+    periodCleaner.clean(session, configuration.rootProjectIdUuid().getUuid(), projectConfig);
+    purgeDao.purge(session, configuration, purgeListener, profiler);
 
     session.commit();
     logProfiling(start, projectConfig);
@@ -74,24 +74,6 @@ public class ProjectCleaner {
       LOG.info("\n -------- Profiling for purge: " + TimeUtils.formatDuration(duration) + " --------\n");
       profiler.dump(duration, LOG);
       LOG.info("\n -------- End of profiling for purge --------\n");
-    }
-  }
-
-  private void cleanHistoricalData(DbSession session, String rootUuid, Configuration config) {
-    try {
-      periodCleaner.clean(session, rootUuid, config);
-    } catch (Exception e) {
-      // purge errors must no fail the batch
-      LOG.error("Fail to clean historical data [uuid=" + rootUuid + "]", e);
-    }
-  }
-
-  private void doPurge(DbSession session, PurgeConfiguration configuration) {
-    try {
-      purgeDao.purge(session, configuration, purgeListener, profiler);
-    } catch (Exception e) {
-      // purge errors must no fail the report analysis
-      LOG.error("Fail to purge data [id=" + configuration.rootProjectIdUuid().getId() + "]", e);
     }
   }
 }

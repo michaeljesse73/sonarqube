@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -33,6 +33,7 @@ import org.sonar.api.config.PropertyDefinitions;
 import org.sonar.api.config.PropertyFieldDefinition;
 import org.sonar.api.server.ws.WebService;
 import org.sonar.api.utils.System2;
+import org.sonar.api.web.UserRole;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbTester;
 import org.sonar.db.component.ComponentDbTester;
@@ -40,8 +41,10 @@ import org.sonar.db.component.ComponentDto;
 import org.sonar.db.component.ComponentTesting;
 import org.sonar.db.organization.OrganizationDto;
 import org.sonar.db.property.PropertyDbTester;
+import org.sonar.process.ProcessProperties;
 import org.sonar.server.component.TestComponentFinder;
 import org.sonar.server.exceptions.ForbiddenException;
+import org.sonar.server.exceptions.NotFoundException;
 import org.sonar.server.organization.DefaultOrganizationProvider;
 import org.sonar.server.organization.TestDefaultOrganizationProvider;
 import org.sonar.server.tester.UserSessionRule;
@@ -51,6 +54,7 @@ import org.sonar.test.JsonAssert;
 import org.sonarqube.ws.Settings;
 import org.sonarqube.ws.Settings.ValuesWsResponse;
 
+import static java.lang.String.format;
 import static java.util.Arrays.asList;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.groups.Tuple.tuple;
@@ -85,13 +89,12 @@ public class ValuesActionTest {
   private ComponentDbTester componentDb = new ComponentDbTester(db);
   private PropertyDefinitions definitions = new PropertyDefinitions();
   private SettingsFinder settingsFinder = new SettingsFinder(dbClient, definitions);
-  private ScannerSettings scannerSettings = new ScannerSettings(db.getDbClient(), definitions);
   private DefaultOrganizationProvider defaultOrganizationProvider = TestDefaultOrganizationProvider.from(db);
   private SettingsWsSupport support = new SettingsWsSupport(defaultOrganizationProvider, userSession);
   private ComponentDto project;
 
   private WsActionTester ws = new WsActionTester(
-    new ValuesAction(dbClient, TestComponentFinder.from(db), userSession, definitions, settingsFinder, support, scannerSettings));
+    new ValuesAction(dbClient, TestComponentFinder.from(db), userSession, definitions, settingsFinder, support));
 
   @Before
   public void setUp() throws Exception {
@@ -100,7 +103,7 @@ public class ValuesActionTest {
   }
 
   @Test
-  public void return_simple_value() throws Exception {
+  public void return_simple_value() {
     logIn();
     definitions.addComponent(PropertyDefinition
       .builder("foo")
@@ -117,7 +120,7 @@ public class ValuesActionTest {
   }
 
   @Test
-  public void return_multi_values() throws Exception {
+  public void return_multi_values() {
     logIn();
     // Property never defined, default value is returned
     definitions.addComponent(PropertyDefinition.builder("default")
@@ -143,7 +146,7 @@ public class ValuesActionTest {
   }
 
   @Test
-  public void return_multi_value_with_coma() throws Exception {
+  public void return_multi_value_with_coma() {
     logIn();
     definitions.addComponent(PropertyDefinition.builder("global").multiValues(true).build());
     propertyDb.insertProperties(newGlobalPropertyDto().setKey("global").setValue("three,four%2Cfive"));
@@ -157,7 +160,7 @@ public class ValuesActionTest {
   }
 
   @Test
-  public void return_property_set() throws Exception {
+  public void return_property_set() {
     logIn();
     definitions.addComponent(PropertyDefinition
       .builder("foo")
@@ -177,7 +180,7 @@ public class ValuesActionTest {
   }
 
   @Test
-  public void return_property_set_for_component() throws Exception {
+  public void return_property_set_for_component() {
     logInAsProjectUser();
     definitions.addComponent(PropertyDefinition
       .builder("foo")
@@ -198,7 +201,7 @@ public class ValuesActionTest {
   }
 
   @Test
-  public void return_default_values() throws Exception {
+  public void return_default_values() {
     logIn();
     definitions.addComponent(PropertyDefinition
       .builder("foo")
@@ -212,7 +215,7 @@ public class ValuesActionTest {
   }
 
   @Test
-  public void return_global_values() throws Exception {
+  public void return_global_values() {
     logIn();
     definitions.addComponent(PropertyDefinition.builder("property").defaultValue("default").build());
     propertyDb.insertProperties(
@@ -226,7 +229,7 @@ public class ValuesActionTest {
   }
 
   @Test
-  public void return_project_values() throws Exception {
+  public void return_project_values() {
     logInAsProjectUser();
     definitions.addComponent(
       PropertyDefinition.builder("property").defaultValue("default").onQualifiers(PROJECT).build());
@@ -242,7 +245,7 @@ public class ValuesActionTest {
   }
 
   @Test
-  public void return_settings_defined_only_at_global_level_when_loading_project_settings() throws Exception {
+  public void return_settings_defined_only_at_global_level_when_loading_project_settings() {
     logInAsProjectUser();
     definitions.addComponents(asList(
       PropertyDefinition.builder("global").build(),
@@ -259,7 +262,7 @@ public class ValuesActionTest {
   }
 
   @Test
-  public void return_is_inherited_to_true_when_property_is_defined_only_at_global_level() throws Exception {
+  public void return_is_inherited_to_true_when_property_is_defined_only_at_global_level() {
     logInAsProjectUser();
     definitions.addComponent(PropertyDefinition.builder("property").defaultValue("default").onQualifiers(PROJECT).build());
     // The property is not defined on project
@@ -272,7 +275,7 @@ public class ValuesActionTest {
   }
 
   @Test
-  public void return_values_even_if_no_property_definition() throws Exception {
+  public void return_values_even_if_no_property_definition() {
     logIn();
     propertyDb.insertProperties(newGlobalPropertyDto().setKey("globalPropertyWithoutDefinition").setValue("value"));
 
@@ -285,7 +288,7 @@ public class ValuesActionTest {
   }
 
   @Test
-  public void return_empty_when_property_def_exists_but_no_value() throws Exception {
+  public void return_empty_when_property_def_exists_but_no_value() {
     logIn();
     definitions.addComponent(PropertyDefinition
       .builder("foo")
@@ -297,7 +300,7 @@ public class ValuesActionTest {
   }
 
   @Test
-  public void return_nothing_when_unknown_keys() throws Exception {
+  public void return_nothing_when_unknown_keys() {
     logIn();
     definitions.addComponent(PropertyDefinition
       .builder("foo")
@@ -311,7 +314,7 @@ public class ValuesActionTest {
   }
 
   @Test
-  public void return_module_values() throws Exception {
+  public void return_module_values() {
     logInAsProjectUser();
     ComponentDto module = componentDb.insertComponent(newModuleDto(project));
     definitions.addComponent(PropertyDefinition.builder("property").defaultValue("default").onQualifiers(PROJECT, MODULE).build());
@@ -327,7 +330,7 @@ public class ValuesActionTest {
   }
 
   @Test
-  public void return_inherited_values_on_module() throws Exception {
+  public void return_inherited_values_on_module() {
     logInAsProjectUser();
     ComponentDto module = componentDb.insertComponent(newModuleDto(project));
     definitions.addComponents(asList(
@@ -350,7 +353,7 @@ public class ValuesActionTest {
   }
 
   @Test
-  public void return_inherited_values_on_global_setting() throws Exception {
+  public void return_inherited_values_on_global_setting() {
     logIn();
     definitions.addComponents(asList(
       PropertyDefinition.builder("defaultProperty").defaultValue("default").build(),
@@ -366,7 +369,7 @@ public class ValuesActionTest {
   }
 
   @Test
-  public void return_parent_value() throws Exception {
+  public void return_parent_value() {
     logInAsProjectUser();
     ComponentDto module = componentDb.insertComponent(newModuleDto(project));
     ComponentDto subModule = componentDb.insertComponent(newModuleDto(module));
@@ -384,7 +387,7 @@ public class ValuesActionTest {
   }
 
   @Test
-  public void return_parent_values() throws Exception {
+  public void return_parent_values() {
     logInAsProjectUser();
     ComponentDto module = componentDb.insertComponent(newModuleDto(project));
     ComponentDto subModule = componentDb.insertComponent(newModuleDto(module));
@@ -402,7 +405,7 @@ public class ValuesActionTest {
   }
 
   @Test
-  public void return_parent_field_values() throws Exception {
+  public void return_parent_field_values() {
     logInAsProjectUser();
     ComponentDto module = componentDb.insertComponent(newModuleDto(project));
     ComponentDto subModule = componentDb.insertComponent(newModuleDto(module));
@@ -425,7 +428,7 @@ public class ValuesActionTest {
   }
 
   @Test
-  public void return_no_parent_value() throws Exception {
+  public void return_no_parent_value() {
     logInAsProjectUser();
     ComponentDto module = componentDb.insertComponent(newModuleDto(project));
     ComponentDto subModule = componentDb.insertComponent(newModuleDto(module));
@@ -450,7 +453,7 @@ public class ValuesActionTest {
   }
 
   @Test
-  public void return_parent_value_when_no_definition() throws Exception {
+  public void return_parent_value_when_no_definition() {
     logInAsProjectUser();
     ComponentDto module = componentDb.insertComponent(newModuleDto(project));
     propertyDb.insertProperties(
@@ -463,7 +466,7 @@ public class ValuesActionTest {
   }
 
   @Test
-  public void return_value_of_deprecated_key() throws Exception {
+  public void return_value_of_deprecated_key() {
     logIn();
     definitions.addComponent(PropertyDefinition
       .builder("foo")
@@ -480,7 +483,7 @@ public class ValuesActionTest {
   }
 
   @Test
-  public void does_not_returned_secured_and_license_settings_when_not_authenticated() throws Exception {
+  public void does_not_returned_secured_and_license_settings_when_not_authenticated() {
     definitions.addComponents(asList(
       PropertyDefinition.builder("foo").build(),
       PropertyDefinition.builder("secret.secured").build(),
@@ -498,7 +501,7 @@ public class ValuesActionTest {
   }
 
   @Test
-  public void does_not_returned_secured_and_license_settings_in_property_set_when_not_authenticated() throws Exception {
+  public void does_not_returned_secured_and_license_settings_in_property_set_when_not_authenticated() {
     definitions.addComponent(PropertyDefinition
       .builder("foo")
       .type(PropertyType.PROPERTY_SET)
@@ -515,7 +518,7 @@ public class ValuesActionTest {
   }
 
   @Test
-  public void return_license_with_hash_settings_when_authenticated_but_not_admin() throws Exception {
+  public void return_license_settings_when_authenticated_but_not_admin() {
     logIn();
     definitions.addComponents(asList(
       PropertyDefinition.builder("foo").build(),
@@ -526,17 +529,15 @@ public class ValuesActionTest {
       newGlobalPropertyDto().setKey("foo").setValue("one"),
       newGlobalPropertyDto().setKey("secret.secured").setValue("password"),
       newGlobalPropertyDto().setKey("commercial.plugin").setValue("ABCD"),
-      newGlobalPropertyDto().setKey("plugin.license.secured").setValue("ABCD"),
-      newGlobalPropertyDto().setKey("sonar.plugin.licenseHash.secured").setValue("987654321"));
+      newGlobalPropertyDto().setKey("plugin.license.secured").setValue("ABCD"));
 
     ValuesWsResponse result = executeRequestForGlobalProperties();
 
-    assertThat(result.getSettingsList()).extracting(Settings.Setting::getKey).containsOnly("foo", "commercial.plugin", "plugin.license.secured",
-      "sonar.plugin.licenseHash.secured");
+    assertThat(result.getSettingsList()).extracting(Settings.Setting::getKey).containsOnly("foo", "commercial.plugin", "plugin.license.secured");
   }
 
   @Test
-  public void return_global_secured_settings_when_not_authenticated_but_with_scan_permission() throws Exception {
+  public void return_global_secured_settings_when_not_authenticated_but_with_scan_permission() {
     userSession.anonymous().addPermission(SCAN, db.getDefaultOrganization());
     definitions.addComponents(asList(
       PropertyDefinition.builder("foo").build(),
@@ -547,17 +548,15 @@ public class ValuesActionTest {
       newGlobalPropertyDto().setKey("foo").setValue("one"),
       newGlobalPropertyDto().setKey("secret.secured").setValue("password"),
       newGlobalPropertyDto().setKey("commercial.plugin").setValue("ABCD"),
-      newGlobalPropertyDto().setKey("plugin.license.secured").setValue("ABCD"),
-      newGlobalPropertyDto().setKey("sonar.plugin.licenseHash.secured").setValue("987654321"));
+      newGlobalPropertyDto().setKey("plugin.license.secured").setValue("ABCD"));
 
     ValuesWsResponse result = executeRequestForGlobalProperties();
 
-    assertThat(result.getSettingsList()).extracting(Settings.Setting::getKey).containsOnly("foo", "secret.secured", "commercial.plugin", "plugin.license.secured",
-      "sonar.plugin.licenseHash.secured");
+    assertThat(result.getSettingsList()).extracting(Settings.Setting::getKey).containsOnly("foo", "secret.secured", "commercial.plugin", "plugin.license.secured");
   }
 
   @Test
-  public void return_component_secured_settings_when_not_authenticated_but_with_scan_permission() throws Exception {
+  public void return_component_secured_settings_when_not_authenticated_but_with_scan_permission() {
     userSession
       .addProjectPermission(USER, project)
       .addProjectPermission(SCAN_EXECUTION, project);
@@ -572,17 +571,16 @@ public class ValuesActionTest {
       newGlobalPropertyDto().setKey("global.secret.secured").setValue("very secret"),
       newComponentPropertyDto(project).setKey("secret.secured").setValue("password"),
       newComponentPropertyDto(project).setKey("commercial.plugin").setValue("ABCD"),
-      newGlobalPropertyDto().setKey("plugin.license.secured").setValue("ABCD"),
-      newGlobalPropertyDto().setKey("sonar.plugin.licenseHash.secured").setValue("987654321"));
+      newGlobalPropertyDto().setKey("plugin.license.secured").setValue("ABCD"));
 
     ValuesWsResponse result = executeRequestForProjectProperties();
 
     assertThat(result.getSettingsList()).extracting(Settings.Setting::getKey).containsOnly("foo", "global.secret.secured", "secret.secured", "commercial.plugin",
-      "plugin.license.secured", "sonar.plugin.licenseHash.secured");
+      "plugin.license.secured");
   }
 
   @Test
-  public void return_component_secured_settings_even_if_not_defined_when_not_authenticated_but_with_scan_permission() throws Exception {
+  public void return_component_secured_settings_even_if_not_defined_when_not_authenticated_but_with_scan_permission() {
     userSession
       .addProjectPermission(USER, project)
       .addProjectPermission(SCAN_EXECUTION, project);
@@ -594,7 +592,7 @@ public class ValuesActionTest {
   }
 
   @Test
-  public void return_secured_and_license_settings_when_system_admin() throws Exception {
+  public void return_secured_and_license_settings_when_system_admin() {
     logInAsAdmin();
     definitions.addComponents(asList(
       PropertyDefinition.builder("foo").build(),
@@ -603,16 +601,15 @@ public class ValuesActionTest {
     propertyDb.insertProperties(
       newGlobalPropertyDto().setKey("foo").setValue("one"),
       newGlobalPropertyDto().setKey("secret.secured").setValue("password"),
-      newGlobalPropertyDto().setKey("plugin.license.secured").setValue("ABCD"),
-      newGlobalPropertyDto().setKey("sonar.plugin.licenseHash.secured").setValue("987654321"));
+      newGlobalPropertyDto().setKey("plugin.license.secured").setValue("ABCD"));
 
     ValuesWsResponse result = executeRequestForGlobalProperties();
 
-    assertThat(result.getSettingsList()).extracting(Settings.Setting::getKey).containsOnly("foo", "secret.secured", "plugin.license.secured", "sonar.plugin.licenseHash.secured");
+    assertThat(result.getSettingsList()).extracting(Settings.Setting::getKey).containsOnly("foo", "secret.secured", "plugin.license.secured");
   }
 
   @Test
-  public void return_secured_and_license_settings_when_project_admin() throws Exception {
+  public void return_secured_and_license_settings_when_project_admin() {
     logInAsProjectAdmin();
     definitions.addComponents(asList(
       PropertyDefinition.builder("foo").onQualifiers(PROJECT).build(),
@@ -623,17 +620,15 @@ public class ValuesActionTest {
       newComponentPropertyDto(project).setKey("foo").setValue("one"),
       newGlobalPropertyDto().setKey("global.secret.secured").setValue("very secret"),
       newComponentPropertyDto(project).setKey("secret.secured").setValue("password"),
-      newGlobalPropertyDto().setKey("plugin.license.secured").setValue("ABCD"),
-      newGlobalPropertyDto().setKey("sonar.plugin.licenseHash.secured").setValue("987654321"));
+      newGlobalPropertyDto().setKey("plugin.license.secured").setValue("ABCD"));
 
     ValuesWsResponse result = executeRequestForProjectProperties();
 
-    assertThat(result.getSettingsList()).extracting(Settings.Setting::getKey).containsOnly("foo", "global.secret.secured", "secret.secured", "plugin.license.secured",
-      "sonar.plugin.licenseHash.secured");
+    assertThat(result.getSettingsList()).extracting(Settings.Setting::getKey).containsOnly("foo", "global.secret.secured", "secret.secured", "plugin.license.secured");
   }
 
   @Test
-  public void return_secured_and_license_settings_even_if_not_defined_when_project_admin() throws Exception {
+  public void return_secured_and_license_settings_even_if_not_defined_when_project_admin() {
     logInAsProjectAdmin();
     propertyDb.insertProperties(newComponentPropertyDto(project).setKey("not-defined.secured").setValue("123"));
 
@@ -643,7 +638,7 @@ public class ValuesActionTest {
   }
 
   @Test
-  public void return_secured_and_license_settings_in_property_set_when_system_admin() throws Exception {
+  public void return_secured_and_license_settings_in_property_set_when_system_admin() {
     logInAsAdmin();
     definitions.addComponent(PropertyDefinition
       .builder("foo")
@@ -661,7 +656,7 @@ public class ValuesActionTest {
   }
 
   @Test
-  public void return_global_settings_from_definitions_when_no_component_and_no_keys() throws Exception {
+  public void return_global_settings_from_definitions_when_no_component_and_no_keys() {
     logInAsAdmin();
     definitions.addComponents(asList(
       PropertyDefinition.builder("foo").build(),
@@ -678,7 +673,7 @@ public class ValuesActionTest {
   }
 
   @Test
-  public void return_project_settings_from_definitions_when_component_and_no_keys() throws Exception {
+  public void return_project_settings_from_definitions_when_component_and_no_keys() {
     logInAsProjectAdmin();
     definitions.addComponents(asList(
       PropertyDefinition.builder("foo").onQualifiers(PROJECT).build(),
@@ -695,24 +690,20 @@ public class ValuesActionTest {
   }
 
   @Test
-  public void return_additional_settings_specific_for_scanner_when_no_keys() throws Exception {
+  public void return_additional_settings_specific_for_scanner_when_no_keys() {
     logInAsAdmin();
     definitions.addComponent(PropertyDefinition.builder("plugin.license.secured").type(LICENSE).build());
     propertyDb.insertProperties(
-      newGlobalPropertyDto().setKey("sonar.server_id").setValue("12345"),
       newGlobalPropertyDto().setKey("sonar.core.id").setValue("ID"),
-      newGlobalPropertyDto().setKey("sonar.core.startTime").setValue("2017-01-01"),
-      newGlobalPropertyDto().setKey("plugin.license.secured").setValue("ABCD"),
-      newGlobalPropertyDto().setKey("sonar.plugin.licenseHash.secured").setValue("987654321"));
+      newGlobalPropertyDto().setKey("sonar.core.startTime").setValue("2017-01-01"));
 
     ValuesWsResponse result = executeRequestForGlobalProperties();
 
-    assertThat(result.getSettingsList()).extracting(Settings.Setting::getKey).containsOnly("sonar.server_id", "sonar.core.id", "sonar.core.startTime", "plugin.license.secured",
-      "sonar.plugin.licenseHash.secured");
+    assertThat(result.getSettingsList()).extracting(Settings.Setting::getKey).containsOnly("sonar.core.id", "sonar.core.startTime");
   }
 
   @Test
-  public void return_simple_value_with_non_ascii_characters() throws Exception {
+  public void return_simple_value_with_non_ascii_characters() {
     logIn();
     definitions.addComponent(PropertyDefinition
       .builder("foo")
@@ -725,17 +716,53 @@ public class ValuesActionTest {
   }
 
   @Test
-  public void fail_when_user_has_not_project_browse_permission() throws Exception {
+  public void branch_values() {
+    ComponentDto project = db.components().insertMainBranch();
+    userSession.logIn().addProjectPermission(USER, project);
+    ComponentDto branch = db.components().insertProjectBranch(project);
+    definitions.addComponent(PropertyDefinition.builder("sonar.leak.period").onQualifiers(PROJECT).build());
+    propertyDb.insertProperties(newComponentPropertyDto(branch).setKey("sonar.leak.period").setValue("two"));
+
+    ValuesWsResponse result = ws.newRequest()
+      .setParam("keys", "sonar.leak.period")
+      .setParam("component", branch.getKey())
+      .setParam("branch", branch.getBranch())
+      .executeProtobuf(ValuesWsResponse.class);
+
+    assertThat(result.getSettingsList()).hasSize(1);
+    assertSetting(result.getSettings(0), "sonar.leak.period", "two", false);
+  }
+
+  @Test
+  public void branch_values_inherit_from_project() {
+    ComponentDto project = db.components().insertMainBranch();
+    userSession.logIn().addProjectPermission(USER, project);
+    ComponentDto branch = db.components().insertProjectBranch(project);
+    definitions.addComponent(PropertyDefinition.builder("sonar.leak.period").onQualifiers(PROJECT).build());
+    propertyDb.insertProperties(newComponentPropertyDto(project).setKey("sonar.leak.period").setValue("two"));
+
+    ValuesWsResponse result = ws.newRequest()
+      .setParam("keys", "sonar.leak.period")
+      .setParam("component", branch.getKey())
+      .setParam("branch", branch.getBranch())
+      .executeProtobuf(ValuesWsResponse.class);
+
+    assertThat(result.getSettingsList()).hasSize(1);
+    assertSetting(result.getSettings(0), "sonar.leak.period", "two", true);
+  }
+
+  @Test
+  public void fail_when_user_has_not_project_browse_permission() {
     userSession.logIn("project-admin").addProjectPermission(CODEVIEWER, project);
     definitions.addComponent(PropertyDefinition.builder("foo").build());
 
     expectedException.expect(ForbiddenException.class);
 
-    executeRequest(project.key(), "foo");
+    executeRequest(project.getDbKey(), "foo");
   }
 
   @Test
-  public void fail_when_deprecated_key_and_new_key_are_used() throws Exception {
+  public void fail_when_deprecated_key_and_new_key_are_used() {
     logIn();
     definitions.addComponent(PropertyDefinition
       .builder("foo")
@@ -747,6 +774,34 @@ public class ValuesActionTest {
     expectedException.expectMessage("'foo' and 'deprecated' cannot be used at the same time as they refer to the same setting");
 
     executeRequestForGlobalProperties("foo", "deprecated");
+  }
+
+  @Test
+  public void fail_when_component_not_found() {
+    expectedException.expect(NotFoundException.class);
+    expectedException.expectMessage("Component key 'unknown' not found");
+
+    ws.newRequest()
+      .setParam("keys", "foo")
+      .setParam("component", "unknown")
+      .execute();
+  }
+
+  @Test
+  public void fail_when_branch_not_found() {
+    ComponentDto project = db.components().insertMainBranch();
+    ComponentDto branch = db.components().insertProjectBranch(project);
+    String settingKey = "not_allowed_on_branch";
+    userSession.logIn().addProjectPermission(USER, project);
+
+    expectedException.expect(NotFoundException.class);
+    expectedException.expectMessage(format("Component '%s' on branch 'unknown' not found", branch.getKey()));
+
+    ws.newRequest()
+      .setParam("keys", settingKey)
+      .setParam("component", branch.getKey())
+      .setParam("branch", "unknown")
+      .execute();
   }
 
   @Test
@@ -779,21 +834,52 @@ public class ValuesActionTest {
   }
 
   @Test
+  public void fail_when_using_branch_db_key() throws Exception {
+    OrganizationDto organization = db.organizations().insert();
+    ComponentDto project = db.components().insertMainBranch(organization);
+    userSession.logIn().addProjectPermission(UserRole.USER, project);
+    ComponentDto branch = db.components().insertProjectBranch(project);
+
+    expectedException.expect(NotFoundException.class);
+    expectedException.expectMessage(format("Component key '%s' not found", branch.getDbKey()));
+
+    ws.newRequest()
+      .setParam("keys", "foo")
+      .setParam("component", branch.getDbKey())
+      .execute();
+  }
+
+  @Test
+  public void fail_when_setting_key_is_defined_in_sonar_properties() {
+    ComponentDto project = db.components().insertPrivateProject();
+    userSession.logIn().addProjectPermission(UserRole.USER, project);
+    String settingKey = ProcessProperties.Property.JDBC_URL.getKey();
+
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage(format("Setting '%s' can only be used in sonar.properties", settingKey));
+
+    ws.newRequest()
+      .setParam("keys", settingKey)
+      .setParam("component", project.getKey())
+      .execute();
+  }
+
+  @Test
   public void test_ws_definition() {
     WebService.Action action = ws.getDef();
     assertThat(action).isNotNull();
     assertThat(action.isInternal()).isFalse();
     assertThat(action.isPost()).isFalse();
     assertThat(action.responseExampleAsString()).isNotEmpty();
-    assertThat(action.params()).hasSize(2);
+    assertThat(action.params()).extracting(WebService.Param::key).containsExactlyInAnyOrder("keys", "component", "branch");
   }
 
   private ValuesWsResponse executeRequestForComponentProperties(ComponentDto componentDto, String... keys) {
-    return executeRequest(componentDto.key(), keys);
+    return executeRequest(componentDto.getDbKey(), keys);
   }
 
   private ValuesWsResponse executeRequestForProjectProperties(String... keys) {
-    return executeRequest(project.key(), keys);
+    return executeRequest(project.getDbKey(), keys);
   }
 
   private ValuesWsResponse executeRequestForGlobalProperties(String... keys) {

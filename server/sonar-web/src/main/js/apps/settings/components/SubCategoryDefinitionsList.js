@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,18 +19,37 @@
  */
 // @flow
 import React from 'react';
-import { groupBy, sortBy } from 'lodash';
+import PropTypes from 'prop-types';
+import { groupBy, isEqual, sortBy } from 'lodash';
 import DefinitionsList from './DefinitionsList';
 import EmailForm from './EmailForm';
 import { getSubCategoryName, getSubCategoryDescription } from '../utils';
 
 export default class SubCategoryDefinitionsList extends React.PureComponent {
   static propTypes = {
-    component: React.PropTypes.object,
-    settings: React.PropTypes.array.isRequired
+    component: PropTypes.object,
+    fetchValues: PropTypes.func,
+    settings: PropTypes.array.isRequired
   };
 
-  renderEmailForm(subCategoryKey: string) {
+  componentDidMount() {
+    this.fetchValues();
+  }
+
+  componentDidUpdate(prevProps /*: Object */) {
+    const prevKeys = prevProps.settings.map(setting => setting.definition.key);
+    const keys = this.props.settings.map(setting => setting.definition.key);
+    if (prevProps.component !== this.props.component || !isEqual(prevKeys, keys)) {
+      this.fetchValues();
+    }
+  }
+
+  fetchValues() {
+    const keys = this.props.settings.map(setting => setting.definition.key).join();
+    this.props.fetchValues(keys, this.props.component && this.props.component.key);
+  }
+
+  renderEmailForm(subCategoryKey /*: string */) {
     const isEmailSettings = this.props.category === 'general' && subCategoryKey === 'email';
     if (!isEmailSettings) {
       return null;
@@ -54,14 +73,15 @@ export default class SubCategoryDefinitionsList extends React.PureComponent {
         {sortedSubCategories.map(subCategory => (
           <li key={subCategory.key}>
             <h2 className="settings-sub-category-name">{subCategory.name}</h2>
-            {subCategory.description != null &&
+            {subCategory.description != null && (
               <div
                 className="settings-sub-category-description markdown"
                 dangerouslySetInnerHTML={{ __html: subCategory.description }}
-              />}
+              />
+            )}
             <DefinitionsList
-              settings={bySubCategory[subCategory.key]}
               component={this.props.component}
+              settings={bySubCategory[subCategory.key]}
             />
             {this.renderEmailForm(subCategory.key)}
           </li>

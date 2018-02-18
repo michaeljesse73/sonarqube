@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -17,7 +17,6 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-
 package org.sonar.server.platform.platformlevel;
 
 import java.util.List;
@@ -30,11 +29,16 @@ import org.sonar.api.rules.AnnotationRuleParser;
 import org.sonar.api.rules.XMLRuleParser;
 import org.sonar.api.server.rule.RulesDefinitionXmlLoader;
 import org.sonar.ce.CeModule;
+import org.sonar.ce.notification.ReportAnalysisFailureNotificationModule;
 import org.sonar.ce.settings.ProjectConfigurationFactory;
 import org.sonar.core.component.DefaultResourceTypes;
 import org.sonar.core.timemachine.Periods;
 import org.sonar.server.authentication.AuthenticationModule;
+import org.sonar.server.authentication.LogOAuthWarning;
+import org.sonar.server.badge.ws.ProjectBadgesWsModule;
 import org.sonar.server.batch.BatchWsModule;
+import org.sonar.server.branch.BranchFeatureProxyImpl;
+import org.sonar.server.branch.ws.BranchWsModule;
 import org.sonar.server.ce.ws.CeWsModule;
 import org.sonar.server.component.ComponentCleanerService;
 import org.sonar.server.component.ComponentFinder;
@@ -50,15 +54,23 @@ import org.sonar.server.debt.DebtRulesXMLImporter;
 import org.sonar.server.duplication.ws.DuplicationsParser;
 import org.sonar.server.duplication.ws.DuplicationsWs;
 import org.sonar.server.duplication.ws.ShowResponseBuilder;
+import org.sonar.server.edition.EditionsWsModule;
+import org.sonar.server.edition.FinalizeEditionChange;
 import org.sonar.server.email.ws.EmailsWsModule;
 import org.sonar.server.es.IndexCreator;
 import org.sonar.server.es.IndexDefinitions;
+import org.sonar.server.es.ProjectIndexersImpl;
 import org.sonar.server.es.RecoveryIndexer;
+import org.sonar.server.es.metadata.EsDbCompatibilityImpl;
+import org.sonar.server.es.metadata.MetadataIndex;
+import org.sonar.server.es.metadata.MetadataIndexDefinition;
 import org.sonar.server.event.NewAlerts;
 import org.sonar.server.favorite.FavoriteModule;
+import org.sonar.server.health.NodeHealthModule;
 import org.sonar.server.issue.AddTagsAction;
 import org.sonar.server.issue.AssignAction;
 import org.sonar.server.issue.CommentAction;
+import org.sonar.server.issue.IssueChangePostProcessorImpl;
 import org.sonar.server.issue.RemoveTagsAction;
 import org.sonar.server.issue.SetSeverityAction;
 import org.sonar.server.issue.SetTypeAction;
@@ -76,9 +88,9 @@ import org.sonar.server.issue.notification.NewIssuesNotificationDispatcher;
 import org.sonar.server.issue.notification.NewIssuesNotificationFactory;
 import org.sonar.server.issue.ws.IssueWsModule;
 import org.sonar.server.language.ws.LanguageWs;
-import org.sonar.server.license.ws.LicensesWsModule;
 import org.sonar.server.measure.custom.ws.CustomMeasuresWsModule;
 import org.sonar.server.measure.index.ProjectsEsModule;
+import org.sonar.server.measure.live.LiveMeasureModule;
 import org.sonar.server.measure.ws.MeasuresWsModule;
 import org.sonar.server.measure.ws.TimeMachineWs;
 import org.sonar.server.metric.CoreCustomMetrics;
@@ -98,21 +110,18 @@ import org.sonar.server.permission.index.PermissionIndexer;
 import org.sonar.server.permission.ws.PermissionsWsModule;
 import org.sonar.server.permission.ws.template.DefaultTemplatesResolverImpl;
 import org.sonar.server.platform.BackendCleanup;
+import org.sonar.server.platform.ClusterVerification;
 import org.sonar.server.platform.PersistentSettings;
 import org.sonar.server.platform.ServerLogging;
 import org.sonar.server.platform.SettingsChangeNotifier;
-import org.sonar.server.platform.monitoring.DatabaseMonitor;
-import org.sonar.server.platform.monitoring.EsMonitor;
-import org.sonar.server.platform.monitoring.JvmPropsMonitor;
-import org.sonar.server.platform.monitoring.PluginsMonitor;
-import org.sonar.server.platform.monitoring.SettingsMonitor;
-import org.sonar.server.platform.monitoring.SonarQubeMonitor;
-import org.sonar.server.platform.monitoring.SystemMonitor;
+import org.sonar.server.platform.monitoring.WebSystemInfoModule;
 import org.sonar.server.platform.web.WebPagesFilter;
 import org.sonar.server.platform.web.requestid.HttpRequestIdModule;
 import org.sonar.server.platform.ws.ChangeLogLevelAction;
+import org.sonar.server.platform.ws.ChangeLogLevelClusterService;
+import org.sonar.server.platform.ws.ChangeLogLevelStandaloneService;
 import org.sonar.server.platform.ws.DbMigrationStatusAction;
-import org.sonar.server.platform.ws.InfoAction;
+import org.sonar.server.platform.ws.HealthActionModule;
 import org.sonar.server.platform.ws.L10nWs;
 import org.sonar.server.platform.ws.LogsAction;
 import org.sonar.server.platform.ws.MigrateDbAction;
@@ -123,7 +132,12 @@ import org.sonar.server.platform.ws.StatusAction;
 import org.sonar.server.platform.ws.SystemWs;
 import org.sonar.server.platform.ws.UpgradesAction;
 import org.sonar.server.plugins.PluginDownloader;
+import org.sonar.server.plugins.PluginUninstaller;
 import org.sonar.server.plugins.ServerExtensionInstaller;
+import org.sonar.server.plugins.edition.EditionInstaller;
+import org.sonar.server.plugins.edition.EditionInstallerExecutor;
+import org.sonar.server.plugins.edition.EditionPluginDownloader;
+import org.sonar.server.plugins.edition.EditionPluginUninstaller;
 import org.sonar.server.plugins.privileged.PrivilegedPluginsBootstraper;
 import org.sonar.server.plugins.privileged.PrivilegedPluginsStopper;
 import org.sonar.server.plugins.ws.AvailableAction;
@@ -143,17 +157,20 @@ import org.sonar.server.projecttag.ws.ProjectTagsWsModule;
 import org.sonar.server.property.InternalPropertiesImpl;
 import org.sonar.server.property.ws.PropertiesWs;
 import org.sonar.server.qualitygate.QualityGateModule;
+import org.sonar.server.qualityprofile.BuiltInQProfileDefinitionsBridge;
 import org.sonar.server.qualityprofile.BuiltInQProfileRepositoryImpl;
+import org.sonar.server.qualityprofile.BuiltInQualityProfilesNotificationDispatcher;
+import org.sonar.server.qualityprofile.BuiltInQualityProfilesNotificationTemplate;
 import org.sonar.server.qualityprofile.QProfileBackuperImpl;
 import org.sonar.server.qualityprofile.QProfileComparison;
 import org.sonar.server.qualityprofile.QProfileCopier;
 import org.sonar.server.qualityprofile.QProfileExporters;
 import org.sonar.server.qualityprofile.QProfileFactoryImpl;
 import org.sonar.server.qualityprofile.QProfileResetImpl;
+import org.sonar.server.qualityprofile.QProfileRulesImpl;
+import org.sonar.server.qualityprofile.QProfileTreeImpl;
 import org.sonar.server.qualityprofile.RuleActivator;
-import org.sonar.server.qualityprofile.RuleActivatorContextFactory;
 import org.sonar.server.qualityprofile.index.ActiveRuleIndexer;
-import org.sonar.server.qualityprofile.ws.OldRestoreAction;
 import org.sonar.server.qualityprofile.ws.ProfilesWs;
 import org.sonar.server.qualityprofile.ws.QProfilesWsModule;
 import org.sonar.server.root.ws.RootWsModule;
@@ -172,7 +189,6 @@ import org.sonar.server.rule.ws.RuleQueryFactory;
 import org.sonar.server.rule.ws.RuleWsSupport;
 import org.sonar.server.rule.ws.RulesWs;
 import org.sonar.server.rule.ws.TagsAction;
-import org.sonar.server.serverid.ws.ServerIdWsModule;
 import org.sonar.server.setting.ws.SettingsWsModule;
 import org.sonar.server.source.HtmlSourceDecorator;
 import org.sonar.server.source.SourceService;
@@ -182,6 +198,10 @@ import org.sonar.server.source.ws.LinesAction;
 import org.sonar.server.source.ws.RawAction;
 import org.sonar.server.source.ws.ScmAction;
 import org.sonar.server.source.ws.SourcesWs;
+import org.sonar.server.startup.LogServerId;
+import org.sonar.server.telemetry.TelemetryClient;
+import org.sonar.server.telemetry.TelemetryDaemon;
+import org.sonar.server.telemetry.TelemetryDataLoader;
 import org.sonar.server.test.index.TestIndex;
 import org.sonar.server.test.index.TestIndexDefinition;
 import org.sonar.server.test.index.TestIndexer;
@@ -211,6 +231,7 @@ import org.sonar.server.util.TypeValidationModule;
 import org.sonar.server.view.index.ViewIndex;
 import org.sonar.server.view.index.ViewIndexDefinition;
 import org.sonar.server.view.index.ViewIndexer;
+import org.sonar.server.webhook.WebhookModule;
 import org.sonar.server.webhook.ws.WebhooksWsModule;
 import org.sonar.server.ws.DeprecatedPropertiesWsFilter;
 import org.sonar.server.ws.WebServiceEngine;
@@ -229,10 +250,24 @@ public class PlatformLevel4 extends PlatformLevel {
 
   @Override
   protected void configureLevel() {
-    addIfStartupLeader(IndexCreator.class);
+    addIfStartupLeader(
+      IndexCreator.class,
+      MetadataIndexDefinition.class,
+      MetadataIndex.class,
+      EsDbCompatibilityImpl.class);
+
+    addIfCluster(
+      NodeHealthModule.class,
+      ChangeLogLevelClusterService.class);
+    addIfStandalone(
+      ChangeLogLevelStandaloneService.class);
 
     add(
+      ClusterVerification.class,
+      LogServerId.class,
+      LogOAuthWarning.class,
       PluginDownloader.class,
+      PluginUninstaller.class,
       DeprecatedViews.class,
       PageRepository.class,
       ResourceTypes.class,
@@ -244,6 +279,12 @@ public class PlatformLevel4 extends PlatformLevel {
       BackendCleanup.class,
       IndexDefinitions.class,
       WebPagesFilter.class,
+
+      // edition
+      EditionInstaller.class,
+      EditionPluginDownloader.class,
+      EditionInstallerExecutor.class,
+      EditionPluginUninstaller.class,
 
       // batch
       BatchWsModule.class,
@@ -258,6 +299,7 @@ public class PlatformLevel4 extends PlatformLevel {
       BillingValidationsProxyImpl.class,
 
       // quality profile
+      BuiltInQProfileDefinitionsBridge.class,
       BuiltInQProfileRepositoryImpl.class,
       ActiveRuleIndexer.class,
       XMLProfileParser.class,
@@ -265,10 +307,10 @@ public class PlatformLevel4 extends PlatformLevel {
       AnnotationProfileParser.class,
       QProfileComparison.class,
       ProfilesWs.class,
-      OldRestoreAction.class,
+      QProfileTreeImpl.class,
+      QProfileRulesImpl.class,
       RuleActivator.class,
       QProfileExporters.class,
-      RuleActivatorContextFactory.class,
       QProfileFactoryImpl.class,
       QProfileCopier.class,
       QProfileBackuperImpl.class,
@@ -358,6 +400,7 @@ public class PlatformLevel4 extends PlatformLevel {
       GroupPermissionChanger.class,
 
       // components
+      BranchWsModule.class,
       ProjectsWsModule.class,
       ProjectsEsModule.class,
       ProjectTagsWsModule.class,
@@ -371,6 +414,7 @@ public class PlatformLevel4 extends PlatformLevel {
       ComponentIndexDefinition.class,
       ComponentIndex.class,
       ComponentIndexer.class,
+      LiveMeasureModule.class,
 
       FavoriteModule.class,
 
@@ -406,6 +450,7 @@ public class PlatformLevel4 extends PlatformLevel {
       TransitionAction.class,
       AddTagsAction.class,
       RemoveTagsAction.class,
+      IssueChangePostProcessorImpl.class,
 
       // technical debt
       DebtModelPluginRepository.class,
@@ -433,6 +478,11 @@ public class PlatformLevel4 extends PlatformLevel {
       MacroInterpreter.class,
 
       // Notifications
+      // Those class are required in order to be able to send emails during startup
+      // Without having two NotificationModule (one in StartupLevel and one in Level4)
+      BuiltInQualityProfilesNotificationTemplate.class,
+      BuiltInQualityProfilesNotificationDispatcher.class,
+
       NotificationModule.class,
       NotificationWsModule.class,
       EmailsWsModule.class,
@@ -451,9 +501,6 @@ public class PlatformLevel4 extends PlatformLevel {
       org.sonar.server.property.ws.IndexAction.class,
       SettingsWsModule.class,
 
-      // Licences
-      LicensesWsModule.class,
-
       TypeValidationModule.class,
 
       // Project Links
@@ -465,25 +512,15 @@ public class PlatformLevel4 extends PlatformLevel {
       // System
       ServerLogging.class,
       RestartAction.class,
-      InfoAction.class,
       PingAction.class,
       UpgradesAction.class,
       StatusAction.class,
-      SystemWs.class,
-      SystemMonitor.class,
-      SettingsMonitor.class,
-      SonarQubeMonitor.class,
-      EsMonitor.class,
-      PluginsMonitor.class,
-      JvmPropsMonitor.class,
-      DatabaseMonitor.class,
       MigrateDbAction.class,
       LogsAction.class,
       ChangeLogLevelAction.class,
       DbMigrationStatusAction.class,
-
-      // Server id
-      ServerIdWsModule.class,
+      HealthActionModule.class,
+      SystemWs.class,
 
       // Plugins WS
       PluginWSCommons.class,
@@ -498,13 +535,23 @@ public class PlatformLevel4 extends PlatformLevel {
       CancelAllAction.class,
       PluginsWs.class,
 
+      // Branch
+      BranchFeatureProxyImpl.class,
+
+      // Project badges
+      ProjectBadgesWsModule.class,
+
       // privileged plugins
       PrivilegedPluginsBootstraper.class,
       PrivilegedPluginsStopper.class,
 
       // Compute engine (must be after Views and Developer Cockpit)
+      ReportAnalysisFailureNotificationModule.class,
       CeModule.class,
       CeWsModule.class,
+
+      // SonarSource editions
+      EditionsWsModule.class,
 
       InternalPropertiesImpl.class,
       ProjectConfigurationFactory.class,
@@ -516,12 +563,25 @@ public class PlatformLevel4 extends PlatformLevel {
       RootWsModule.class,
 
       // webhooks
+      WebhookModule.class,
       WebhooksWsModule.class,
 
       // Http Request ID
       HttpRequestIdModule.class,
 
-      RecoveryIndexer.class);
+      RecoveryIndexer.class,
+      ProjectIndexersImpl.class);
+
+    // telemetry
+    add(TelemetryDataLoader.class);
+    addIfStartupLeader(TelemetryDaemon.class, TelemetryClient.class);
+
+    // edition
+    addIfStartupLeader(FinalizeEditionChange.class);
+    
+    // system info
+    addIfCluster(WebSystemInfoModule.forClusterMode()).otherwiseAdd(WebSystemInfoModule.forStandaloneMode());
+
     addAll(level4AddedComponents);
   }
 

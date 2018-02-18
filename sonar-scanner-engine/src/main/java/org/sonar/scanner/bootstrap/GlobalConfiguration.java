@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,13 +20,11 @@
 package org.sonar.scanner.bootstrap;
 
 import com.google.common.collect.ImmutableMap;
-import java.util.Collections;
 import java.util.Map;
 import javax.annotation.concurrent.Immutable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.sonar.api.CoreProperties;
-import org.sonar.api.batch.AnalysisMode;
 import org.sonar.api.config.Encryption;
 import org.sonar.api.config.PropertyDefinitions;
 import org.sonar.scanner.config.DefaultConfiguration;
@@ -48,17 +46,17 @@ public class GlobalConfiguration extends DefaultConfiguration {
 
   private final Map<String, String> serverSideSettings;
 
-  public GlobalConfiguration(PropertyDefinitions propertyDefinitions, Encryption encryption, AnalysisMode mode,
+  public GlobalConfiguration(PropertyDefinitions propertyDefinitions, Encryption encryption, GlobalAnalysisMode mode,
     Map<String, String> settings, Map<String, String> serverSideSettings) {
     super(propertyDefinitions, encryption, mode, settings);
-    this.serverSideSettings = serverSideSettings;
+    this.serverSideSettings = unmodifiableMapWithTrimmedValues(propertyDefinitions, serverSideSettings);
 
-    get(CoreProperties.PERMANENT_SERVER_ID).ifPresent(v -> LOG.info("Server id: {}", v));
+    get(CoreProperties.SERVER_ID).ifPresent(v -> LOG.info("Server id: {}", v));
     new DroppedPropertyChecker(getProperties(), DROPPED_PROPERTIES).checkDroppedProperties();
   }
 
   public Map<String, String> getServerSideSettings() {
-    return Collections.unmodifiableMap(serverSideSettings);
+    return serverSideSettings;
   }
 
 }

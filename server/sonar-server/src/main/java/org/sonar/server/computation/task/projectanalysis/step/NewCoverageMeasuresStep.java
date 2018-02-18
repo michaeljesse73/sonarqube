@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -35,6 +35,7 @@ import org.sonar.server.computation.task.projectanalysis.batch.BatchReportReader
 import org.sonar.server.computation.task.projectanalysis.component.Component;
 import org.sonar.server.computation.task.projectanalysis.component.PathAwareCrawler;
 import org.sonar.server.computation.task.projectanalysis.component.TreeRootHolder;
+import org.sonar.server.computation.task.projectanalysis.formula.Counter;
 import org.sonar.server.computation.task.projectanalysis.formula.CounterInitializationContext;
 import org.sonar.server.computation.task.projectanalysis.formula.CreateMeasureContext;
 import org.sonar.server.computation.task.projectanalysis.formula.Formula;
@@ -132,7 +133,7 @@ public class NewCoverageMeasuresStep implements ComputationStep {
       if (scmInfoRepository == null) {
         return VIEWS_FORMULAS;
       }
-      return Collections.<Formula<?>>singleton(new NewLinesAndConditionsCoverageFormula(scmInfoRepository));
+      return Collections.singleton(new NewLinesAndConditionsCoverageFormula(scmInfoRepository));
     }
 
     /**
@@ -226,7 +227,7 @@ public class NewCoverageMeasuresStep implements ComputationStep {
     }
   }
 
-  public static final class NewCoverageCounter implements org.sonar.server.computation.task.projectanalysis.formula.Counter<NewCoverageCounter> {
+  public static final class NewCoverageCounter implements Counter<NewCoverageCounter> {
     private final IntValue newLines = new IntValue();
     private final IntValue newCoveredLines = new IntValue();
     private final IntValue newConditions = new IntValue();
@@ -271,8 +272,10 @@ public class NewCoverageMeasuresStep implements ComputationStep {
         int hits = entry.getValue();
         int conditions = (Integer) ObjectUtils.defaultIfNull(conditionsByLine.get(lineId), 0);
         int coveredConditions = (Integer) ObjectUtils.defaultIfNull(coveredConditionsByLine.get(lineId), 0);
-        long date = componentScm.getChangesetForLine(lineId).getDate();
-        analyze(context.getPeriod(), date, hits, conditions, coveredConditions);
+        if (componentScm.hasChangesetForLine(lineId)) {
+          long date = componentScm.getChangesetForLine(lineId).getDate();
+          analyze(context.getPeriod(), date, hits, conditions, coveredConditions);
+        }
       }
     }
 
@@ -283,10 +286,7 @@ public class NewCoverageMeasuresStep implements ComputationStep {
       return Collections.emptyMap();
     }
 
-    void analyze(Period period, @Nullable Long lineDate, int hits, int conditions, int coveredConditions) {
-      if (lineDate == null) {
-        return;
-      }
+    void analyze(Period period, long lineDate, int hits, int conditions, int coveredConditions) {
       if (isLineInPeriod(lineDate, period)) {
         incrementLines(hits);
         incrementConditions(conditions, coveredConditions);

@@ -1,13 +1,16 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`should match snapshot 1`] = `
+exports[`renders project-specific labels 1`] = `
 <tbody>
-  <tr>
+  <tr
+    key="type1"
+  >
     <td>
-      notification.dispatcher.type1
+      notification.dispatcher.type1.project
     </td>
     <td
       className="text-center"
+      key="channel1"
     >
       <Checkbox
         checked={true}
@@ -18,6 +21,7 @@ exports[`should match snapshot 1`] = `
     </td>
     <td
       className="text-center"
+      key="channel2"
     >
       <Checkbox
         checked={false}
@@ -27,12 +31,15 @@ exports[`should match snapshot 1`] = `
       />
     </td>
   </tr>
-  <tr>
+  <tr
+    key="type2"
+  >
     <td>
-      notification.dispatcher.type2
+      notification.dispatcher.type2.project
     </td>
     <td
       className="text-center"
+      key="channel1"
     >
       <Checkbox
         checked={true}
@@ -43,6 +50,70 @@ exports[`should match snapshot 1`] = `
     </td>
     <td
       className="text-center"
+      key="channel2"
+    >
+      <Checkbox
+        checked={true}
+        id="checkbox-io-type2-channel2"
+        onCheck={[Function]}
+        thirdState={false}
+      />
+    </td>
+  </tr>
+</tbody>
+`;
+
+exports[`should match snapshot 1`] = `
+<tbody>
+  <tr
+    key="type1"
+  >
+    <td>
+      notification.dispatcher.type1
+    </td>
+    <td
+      className="text-center"
+      key="channel1"
+    >
+      <Checkbox
+        checked={true}
+        id="checkbox-io-type1-channel1"
+        onCheck={[Function]}
+        thirdState={false}
+      />
+    </td>
+    <td
+      className="text-center"
+      key="channel2"
+    >
+      <Checkbox
+        checked={false}
+        id="checkbox-io-type1-channel2"
+        onCheck={[Function]}
+        thirdState={false}
+      />
+    </td>
+  </tr>
+  <tr
+    key="type2"
+  >
+    <td>
+      notification.dispatcher.type2
+    </td>
+    <td
+      className="text-center"
+      key="channel1"
+    >
+      <Checkbox
+        checked={true}
+        id="checkbox-io-type2-channel1"
+        onCheck={[Function]}
+        thirdState={false}
+      />
+    </td>
+    <td
+      className="text-center"
+      key="channel2"
     >
       <Checkbox
         checked={true}

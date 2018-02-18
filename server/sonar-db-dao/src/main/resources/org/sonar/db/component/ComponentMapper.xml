@@ -10,6 +10,7 @@
     p.project_uuid as projectUuid,
     p.module_uuid as moduleUuid,
     p.module_uuid_path as moduleUuidPath,
+    p.main_branch_project_uuid as mainBranchProjectUuid,
     p.kee as kee,
     p.deprecated_kee as deprecatedKey,
     p.name as name,
@@ -23,9 +24,7 @@
     p.path as path,
     p.enabled as enabled,
     p.copy_component_uuid as copyComponentUuid,
-    p.developer_uuid as developerUuid,
     p.private as isPrivate,
-    p.authorization_updated_at as authorizationUpdatedAt,
     p.created_at as createdAt
   </sql>
 
@@ -35,6 +34,17 @@
     FROM projects p
     where
       p.kee=#{key,jdbcType=VARCHAR}
+  </select>
+
+  <select id="selectByKeyAndBranch" parameterType="String" resultType="Component">
+    SELECT
+    <include refid="componentColumns"/>
+    FROM projects p
+    INNER JOIN project_branches pb on pb.uuid = p.project_uuid
+    <where>
+      (p.kee=#{dbKey,jdbcType=VARCHAR} OR p.kee=#{key,jdbcType=VARCHAR})
+      AND pb.kee=#{branch,jdbcType=VARCHAR}
+    </where>
   </select>
 
   <select id="selectComponentsHavingSameKeyOrderedById" parameterType="String" resultType="Component">
@@ -75,10 +85,26 @@
     from projects p
     where
       p.enabled=${_true}
+      and p.main_branch_project_uuid is null
       and p.kee in
       <foreach collection="keys" open="(" close=")" item="key" separator=",">
         #{key,jdbcType=VARCHAR}
       </foreach>
+  </select>
+
+  <select id="selectByKeysAndBranch" parameterType="String" resultType="Component">
+    SELECT
+    <include refid="componentColumns"/>
+    FROM projects p
+    INNER JOIN project_branches pb on pb.uuid = p.project_uuid
+    <where>
+    p.enabled=${_true}
+    AND p.kee IN
+    <foreach collection="keys" open="(" close=")" item="key" separator=",">
+      #{key,jdbcType=VARCHAR}
+    </foreach>
+    AND pb.kee=#{branch,jdbcType=VARCHAR}
+    </where>
   </select>
 
   <select id="selectByIds" parameterType="long" resultType="Component">
@@ -205,6 +231,7 @@
       p.enabled=${_true}
       AND p.scope='PRJ'
       AND p.qualifier='TRK'
+      AND p.main_branch_project_uuid IS NULL
   </select>
 
   <select id="selectAllRootsByOrganization" resultType="Component">
@@ -213,8 +240,9 @@
     from projects p
     where
       p.scope='PRJ'
-      and (p.qualifier='TRK' or p.qualifier='VW')
+    and (p.qualifier='TRK' or p.qualifier='VW' or p.qualifier='APP')
       and p.organization_uuid = #{organizationUuid,jdbcType=VARCHAR}
+      and p.main_branch_project_uuid IS NULL
   </select>
 
   <select id="selectComponentsByQualifiers" resultType="Component">
@@ -250,32 +278,56 @@
 
   <sql id="sqlSelectByQuery">
     from projects p
+    <if test="query.analyzedBefore!=null">
+      inner join snapshots sa on sa.component_uuid=p.uuid
+        and sa.status='P' and sa.islast=${_true} and sa.created_at &lt; #{query.analyzedBefore,jdbcType=BIGINT}
+    </if>
     where
       p.enabled=${_true}
+      AND p.main_branch_project_uuid is null
       AND p.copy_component_uuid is null
       <if test="organizationUuid!=null">
         and p.organization_uuid=#{organizationUuid,jdbcType=VARCHAR}
       </if>
       <if test="query.qualifiers!=null">
-      AND p.qualifier in
-        <foreach collection="query.qualifiers" item="qualifier" open="(" close=")" separator=",">
-          #{qualifier,jdbcType=VARCHAR}
-        </foreach>
+        and p.qualifier in
+          <foreach collection="query.qualifiers" item="qualifier" open="(" close=")" separator=",">
+            #{qualifier,jdbcType=VARCHAR}
+          </foreach>
       </if>
       <if test="query.language!=null">
-        AND p.language = #{query.language,jdbcType=VARCHAR}
+        and p.language = #{query.language,jdbcType=VARCHAR}
       </if>
       <if test="query.componentIds!=null">
-        AND p.id in
+        and p.id in
         <foreach collection="query.componentIds" item="componentId" open="(" close=")" separator=",">
           #{componentId,jdbcType=BIGINT}
         </foreach>
       </if>
+      <if test="query.componentKeys!=null">
+        and p.kee in
+        <foreach collection="query.componentKeys" item="componentKey" open="(" close=")" separator=",">
+          #{componentKey,jdbcType=BIGINT}
+        </foreach>
+      </if>
+      <if test="query.componentUuids!=null">
+        and p.uuid in
+        <foreach collection="query.componentUuids" item="componentUuid" open="(" close=")" separator=",">
+          #{componentUuid,jdbcType=BIGINT}
+        </foreach>
+      </if>
       <if test="query.nameOrKeyQuery!=null">
         and (
-          p.kee = #{query.nameOrKeyQuery,jdbcType=VARCHAR}
-          or
           upper(p.name) like #{query.nameOrKeyUpperLikeQuery,jdbcType=VARCHAR} escape '/'
+          or
+          <choose>
+            <when test="query.isPartialMatchOnKey()">
+              upper(p.kee) like #{query.nameOrKeyUpperLikeQuery,jdbcType=VARCHAR} escape '/'
+            </when>
+            <otherwise>
+              p.kee = #{query.nameOrKeyQuery,jdbcType=VARCHAR}
+            </otherwise>
+          </choose>
         )
       </if>
       <if test="query.private!=null">
@@ -285,6 +337,9 @@
         <if test="query.private.equals(false)">
           and p.private=${_false}
         </if>
+      </if>
+      <if test="query.isOnProvisionedOnly()">
+        and not exists(select 1 from snapshots sp where sp.component_uuid=p.uuid)
       </if>
   </sql>
 
@@ -318,6 +373,12 @@
         #{qualifier,jdbcType=VARCHAR}
       </foreach>
     </if>
+    <if test="query.scopes != null">
+      and p.scope in
+      <foreach collection="query.scopes" item="scope" open="(" close=")" separator=",">
+        #{scope,jdbcType=VARCHAR}
+      </foreach>
+    </if>
     <if test="query.nameOrKeyQuery != null">
       and (
         p.kee = #{query.nameOrKeyQuery,jdbcType=VARCHAR}
@@ -336,12 +397,14 @@
   </select>
 
   <select id="selectProjectsFromView" resultType="String">
-    SELECT p.uuid FROM projects technical_projects
-    INNER JOIN projects p on p.uuid=technical_projects.copy_component_uuid AND p.enabled=${_true}
+    select p.copy_component_uuid
+    from projects p
     where
-      technical_projects.enabled=${_true}
-      AND technical_projects.project_uuid = #{projectViewUuid,jdbcType=VARCHAR}
-      AND technical_projects.module_uuid_path LIKE #{viewUuidLikeQuery,jdbcType=VARCHAR}
+      p.enabled = ${_true}
+      and p.project_uuid = #{projectViewUuid,jdbcType=VARCHAR}
+      and p.module_uuid_path like #{viewUuidLikeQuery,jdbcType=VARCHAR}
+      and p.qualifier = 'TRK'
+      and p.copy_component_uuid is not null
   </select>
 
   <select id="selectComponentsFromProjectKeyAndScope" parameterType="map" resultType="Component">
@@ -358,35 +421,15 @@
       </if>
     </where>
   </select>
-
-  <select id="selectProvisioned" parameterType="map" resultType="Component">
-    select
-    <include refid="componentColumns"/>
-    from projects p
-    <include refid="provisionedClauses"/>
+  
+  <select id="selectUuidsByKeyFromProjectKey" parameterType="string" resultType="KeyWithUuid">
+    SELECT
+     p.kee, p.uuid
+    FROM 
+      projects p
+    INNER JOIN 
+      projects root ON root.uuid=p.project_uuid AND root.kee=#{projectKey,jdbcType=VARCHAR}
   </select>
-
-  <select id="countProvisioned" parameterType="map" resultType="int">
-    select count(p.id)
-    from projects p
-    <include refid="provisionedClauses"/>
-  </select>
-
-  <sql id="provisionedClauses">
-    left join snapshots s on s.component_uuid=p.uuid
-    where
-    s.id is null
-    and p.organization_uuid = #{organizationUuid,jdbcType=VARCHAR}
-    and p.enabled = ${_true}
-    and p.qualifier in <foreach collection="qualifiers" open="(" close=")" item="qualifier" separator=",">#{qualifier}</foreach>
-    and p.copy_component_uuid is null
-    <if test="keyOrNameLike != null">
-      and (
-      upper(p.name) like #{keyOrNameLike} ESCAPE '/'
-      or upper(p.kee) like #{keyOrNameLike} ESCAPE '/'
-      )
-    </if>
-  </sql>
 
   <select id="selectGhostProjects" parameterType="map" resultType="Component">
     select distinct
@@ -408,6 +451,7 @@
     where
     s2.id is null
     and p.qualifier='TRK'
+    and p.main_branch_project_uuid is null
     and p.copy_component_uuid is null
     <if test="query!=null">
       and (
@@ -417,15 +461,16 @@
     </if>
   </sql>
 
-  <select id="selectForIndexing" parameterType="map" resultType="Component" fetchSize="${_scrollFetchSize}" resultSetType="FORWARD_ONLY">
+  <select id="scrollForIndexing" parameterType="map" resultType="Component" fetchSize="${_scrollFetchSize}" resultSetType="FORWARD_ONLY">
     select
       <include refid="componentColumns"/>
     from projects p
     where
       p.enabled=${_true}
       and p.copy_component_uuid is null
+      and p.main_branch_project_uuid is null
       <if test="projectUuid != null">
-        and p.project_uuid=#{projectUuid,jdbcType=VARCHAR}
+        and p.project_uuid = #{projectUuid,jdbcType=VARCHAR}
       </if>
   </select>
 
@@ -435,6 +480,7 @@
     from projects p
     <where>
       p.enabled=${_true}
+      AND p.main_branch_project_uuid is null
       AND p.copy_component_uuid is null
       <if test="includeModules == false">
         AND p.qualifier = 'TRK'
@@ -451,40 +497,39 @@
 
   <insert id="insert" parameterType="Component" keyColumn="id" useGeneratedKeys="true" keyProperty="id">
     INSERT INTO projects (
-    organization_uuid,
-    kee,
-    deprecated_kee,
-    uuid,
-    uuid_path,
-    project_uuid,
-    module_uuid,
-    module_uuid_path,
-    name,
-    long_name,
-    qualifier,
-    scope,
-    language,
-    description,
-    private,
-    tags,
-    root_uuid,
-    path,
-    copy_component_uuid,
-    developer_uuid,
-    enabled,
-    created_at,
-    authorization_updated_at,
-    b_changed,
-    b_copy_component_uuid,
-    b_description,
-    b_enabled,
-    b_language,
-    b_long_name,
-    b_module_uuid,
-    b_module_uuid_path,
-    b_name,
-    b_path,
-    b_qualifier
+      organization_uuid,
+      kee,
+      deprecated_kee,
+      uuid,
+      uuid_path,
+      project_uuid,
+      module_uuid,
+      module_uuid_path,
+      main_branch_project_uuid,
+      name,
+      long_name,
+      qualifier,
+      scope,
+      language,
+      description,
+      private,
+      tags,
+      root_uuid,
+      path,
+      copy_component_uuid,
+      enabled,
+      created_at,
+      b_changed,
+      b_copy_component_uuid,
+      b_description,
+      b_enabled,
+      b_language,
+      b_long_name,
+      b_module_uuid,
+      b_module_uuid_path,
+      b_name,
+      b_path,
+      b_qualifier
     )
     VALUES (
     #{organizationUuid,jdbcType=VARCHAR},
@@ -495,6 +540,7 @@
     #{projectUuid,jdbcType=VARCHAR},
     #{moduleUuid,jdbcType=VARCHAR},
     #{moduleUuidPath,jdbcType=VARCHAR},
+    #{mainBranchProjectUuid, jdbcType=VARCHAR},
     #{name,jdbcType=VARCHAR},
     #{longName,jdbcType=VARCHAR},
     #{qualifier,jdbcType=VARCHAR},
@@ -506,10 +552,8 @@
     #{rootUuid,jdbcType=VARCHAR},
     #{path,jdbcType=VARCHAR},
     #{copyComponentUuid,jdbcType=VARCHAR},
-    #{developerUuid,jdbcType=VARCHAR},
     #{enabled,jdbcType=BOOLEAN},
     #{createdAt,jdbcType=TIMESTAMP},
-    #{authorizationUpdatedAt,jdbcType=BIGINT},
     ${_false},
     null,
     null,
@@ -615,5 +659,16 @@
   <delete id="delete" parameterType="long">
     DELETE FROM projects WHERE id=#{id,jdbcType=BIGINT}
   </delete>
+
+  <select id="selectComponentKeysHavingIssuesToMerge" resultType="KeyWithUuid">
+    SELECT DISTINCT p.kee as kee, p.uuid as uuid FROM projects p
+    JOIN issues i
+      ON p.uuid = i.component_uuid
+    JOIN project_branches b
+      ON i.project_uuid = b.uuid
+      AND b.branch_type = 'SHORT'
+      AND b.merge_branch_uuid = #{mergeBranchUuid,jdbcType=VARCHAR}
+      AND i.status != 'CLOSED'
+  </select>
 
 </mapper>

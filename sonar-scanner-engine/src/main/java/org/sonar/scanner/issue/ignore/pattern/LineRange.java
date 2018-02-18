@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -65,10 +65,10 @@ public class LineRange {
 
   @Override
   public int hashCode() {
-    final int prime = 31;
+    final int PRIME = 31;
     int result = 1;
-    result = prime * result + from;
-    result = prime * result + to;
+    result = PRIME * result + from;
+    result = PRIME * result + to;
     return result;
   }
 

@@ -2,15 +2,20 @@
 
 exports[`generates token 1`] = `
 <TokenStep
+  currentUser={
+    Object {
+      "login": "user",
+    }
+  }
   finished={false}
-  onContinue={[Function]}
-  onOpen={[Function]}
+  onContinue={[MockFunction]}
+  onOpen={[MockFunction]}
   open={true}
   stepNumber={1}
 >
   <Step
     finished={false}
-    onOpen={[Function]}
+    onOpen={[MockFunction]}
     open={true}
     renderForm={[Function]}
     renderResult={[Function]}
@@ -35,24 +40,57 @@ exports[`generates token 1`] = `
       <div
         className="boxed-group-inner"
       >
-        <form
-          onSubmit={[Function]}
-        >
-          <input
-            autoFocus={true}
-            className="input-large spacer-right text-middle"
-            onChange={[Function]}
-            placeholder="onboarding.token.placeholder"
-            required={true}
-            type="text"
-            value=""
-          />
-          <button
-            className="text-middle"
+        <div>
+          <div>
+            <a
+              className="js-new link-base-color link-no-underline"
+              href="#"
+              onClick={[Function]}
+            >
+              <i
+                className="icon-radio spacer-right is-checked"
+              />
+              onboading.token.generate_token
+            </a>
+            <div
+              className="big-spacer-top"
+            >
+              <form
+                onSubmit={[Function]}
+              >
+                <input
+                  autoFocus={true}
+                  className="input-large spacer-right text-middle"
+                  onChange={[Function]}
+                  placeholder="onboading.token.generate_token.placeholder"
+                  required={true}
+                  type="text"
+                  value=""
+                />
+                <button
+                  className="text-middle"
+                  disabled={true}
+                >
+                  onboarding.token.generate
+                </button>
+              </form>
+            </div>
+          </div>
+          <div
+            className="big-spacer-top"
           >
-            onboarding.token.generate
-          </button>
-        </form>
+            <a
+              className="js-new link-base-color link-no-underline"
+              href="#"
+              onClick={[Function]}
+            >
+              <i
+                className="icon-radio spacer-right"
+              />
+              onboarding.token.use_existing_token
+            </a>
+          </div>
+        </div>
         <div
           className="note big-spacer-top width-50"
         >
@@ -66,15 +104,20 @@ exports[`generates token 1`] = `
 
 exports[`generates token 2`] = `
 <TokenStep
+  currentUser={
+    Object {
+      "login": "user",
+    }
+  }
   finished={false}
-  onContinue={[Function]}
-  onOpen={[Function]}
+  onContinue={[MockFunction]}
+  onOpen={[MockFunction]}
   open={true}
   stepNumber={1}
 >
   <Step
     finished={false}
-    onOpen={[Function]}
+    onOpen={[MockFunction]}
     open={true}
     renderForm={[Function]}
     renderResult={[Function]}
@@ -99,22 +142,54 @@ exports[`generates token 2`] = `
       <div
         className="boxed-group-inner"
       >
-        <form
-          onSubmit={[Function]}
-        >
-          <input
-            autoFocus={true}
-            className="input-large spacer-right text-middle"
-            onChange={[Function]}
-            placeholder="onboarding.token.placeholder"
-            required={true}
-            type="text"
-            value="my token"
-          />
-          <i
-            className="spinner text-middle"
-          />
-        </form>
+        <div>
+          <div>
+            <a
+              className="js-new link-base-color link-no-underline"
+              href="#"
+              onClick={[Function]}
+            >
+              <i
+                className="icon-radio spacer-right is-checked"
+              />
+              onboading.token.generate_token
+            </a>
+            <div
+              className="big-spacer-top"
+            >
+              <form
+                onSubmit={[Function]}
+              >
+                <input
+                  autoFocus={true}
+                  className="input-large spacer-right text-middle"
+                  onChange={[Function]}
+                  placeholder="onboading.token.generate_token.placeholder"
+                  required={true}
+                  type="text"
+                  value="my token"
+                />
+                <i
+                  className="spinner text-middle"
+                />
+              </form>
+            </div>
+          </div>
+          <div
+            className="big-spacer-top"
+          >
+            <a
+              className="js-new link-base-color link-no-underline"
+              href="#"
+              onClick={[Function]}
+            >
+              <i
+                className="icon-radio spacer-right"
+              />
+              onboarding.token.use_existing_token
+            </a>
+          </div>
+        </div>
         <div
           className="note big-spacer-top width-50"
         >
@@ -128,15 +203,20 @@ exports[`generates token 2`] = `
 
 exports[`generates token 3`] = `
 <TokenStep
+  currentUser={
+    Object {
+      "login": "user",
+    }
+  }
   finished={false}
-  onContinue={[Function]}
-  onOpen={[Function]}
+  onContinue={[MockFunction]}
+  onOpen={[MockFunction]}
   open={true}
   stepNumber={1}
 >
   <Step
     finished={false}
-    onOpen={[Function]}
+    onOpen={[MockFunction]}
     open={true}
     renderForm={[Function]}
     renderResult={[Function]}
@@ -175,27 +255,28 @@ exports[`generates token 3`] = `
           >
             abcd1234
           </strong>
-          <button
-            className="button-clean text-middle"
+          <DeleteButton
+            className="button-small text-middle"
             onClick={[Function]}
           >
-            <CloseIcon
-              className="icon-red"
+            <ButtonIcon
+              className="button-small text-middle"
+              color="#d4333f"
+              onClick={[Function]}
             >
-              <svg
-                className="icon-red"
-                height={16}
-                viewBox="0 0 16 16"
-                width={16}
-                xmlns="http://www.w3.org/2000/svg"
+              <button
+                className="button-small text-middle button-icon"
+                onClick={[Function]}
+                style={
+                  Object {
+                    "color": "#d4333f",
+                  }
+                }
               >
-                <path
-                  d="M12.843 11.232q0 0.357-0.25 0.607l-1.214 1.214q-0.25 0.25-0.607 0.25t-0.607-0.25l-2.625-2.625-2.625 2.625q-0.25 0.25-0.607 0.25t-0.607-0.25l-1.214-1.214q-0.25-0.25-0.25-0.607t0.25-0.607l2.625-2.625-2.625-2.625q-0.25-0.25-0.25-0.607t0.25-0.607l1.214-1.214q0.25-0.25 0.607-0.25t0.607 0.25l2.625 2.625 2.625-2.625q0.25-0.25 0.607-0.25t0.607 0.25l1.214 1.214q0.25 0.25 0.25 0.607t-0.25 0.607l-2.625 2.625 2.625 2.625q0.25 0.25 0.25 0.607z"
-                  fill="currentColor"
-                />
-              </svg>
-            </CloseIcon>
-          </button>
+                <ClearIcon />
+              </button>
+            </ButtonIcon>
+          </DeleteButton>
         </form>
         <div
           className="note big-spacer-top width-50"
@@ -220,15 +301,20 @@ exports[`generates token 3`] = `
 
 exports[`revokes token 1`] = `
 <TokenStep
+  currentUser={
+    Object {
+      "login": "user",
+    }
+  }
   finished={false}
-  onContinue={[Function]}
-  onOpen={[Function]}
+  onContinue={[MockFunction]}
+  onOpen={[MockFunction]}
   open={true}
   stepNumber={1}
 >
   <Step
     finished={false}
-    onOpen={[Function]}
+    onOpen={[MockFunction]}
     open={true}
     renderForm={[Function]}
     renderResult={[Function]}
@@ -267,27 +353,28 @@ exports[`revokes token 1`] = `
           >
             abcd1234
           </strong>
-          <button
-            className="button-clean text-middle"
+          <DeleteButton
+            className="button-small text-middle"
             onClick={[Function]}
           >
-            <CloseIcon
-              className="icon-red"
+            <ButtonIcon
+              className="button-small text-middle"
+              color="#d4333f"
+              onClick={[Function]}
             >
-              <svg
-                className="icon-red"
-                height={16}
-                viewBox="0 0 16 16"
-                width={16}
-                xmlns="http://www.w3.org/2000/svg"
+              <button
+                className="button-small text-middle button-icon"
+                onClick={[Function]}
+                style={
+                  Object {
+                    "color": "#d4333f",
+                  }
+                }
               >
-                <path
-                  d="M12.843 11.232q0 0.357-0.25 0.607l-1.214 1.214q-0.25 0.25-0.607 0.25t-0.607-0.25l-2.625-2.625-2.625 2.625q-0.25 0.25-0.607 0.25t-0.607-0.25l-1.214-1.214q-0.25-0.25-0.25-0.607t0.25-0.607l2.625-2.625-2.625-2.625q-0.25-0.25-0.25-0.607t0.25-0.607l1.214-1.214q0.25-0.25 0.607-0.25t0.607 0.25l2.625 2.625 2.625-2.625q0.25-0.25 0.607-0.25t0.607 0.25l1.214 1.214q0.25 0.25 0.25 0.607t-0.25 0.607l-2.625 2.625 2.625 2.625q0.25 0.25 0.25 0.607z"
-                  fill="currentColor"
-                />
-              </svg>
-            </CloseIcon>
-          </button>
+                <ClearIcon />
+              </button>
+            </ButtonIcon>
+          </DeleteButton>
         </form>
         <div
           className="note big-spacer-top width-50"
@@ -312,15 +399,20 @@ exports[`revokes token 1`] = `
 
 exports[`revokes token 2`] = `
 <TokenStep
+  currentUser={
+    Object {
+      "login": "user",
+    }
+  }
   finished={false}
-  onContinue={[Function]}
-  onOpen={[Function]}
+  onContinue={[MockFunction]}
+  onOpen={[MockFunction]}
   open={true}
   stepNumber={1}
 >
   <Step
     finished={false}
-    onOpen={[Function]}
+    onOpen={[MockFunction]}
     open={true}
     renderForm={[Function]}
     renderResult={[Function]}
@@ -386,15 +478,20 @@ exports[`revokes token 2`] = `
 
 exports[`revokes token 3`] = `
 <TokenStep
+  currentUser={
+    Object {
+      "login": "user",
+    }
+  }
   finished={false}
-  onContinue={[Function]}
-  onOpen={[Function]}
+  onContinue={[MockFunction]}
+  onOpen={[MockFunction]}
   open={true}
   stepNumber={1}
 >
   <Step
     finished={false}
-    onOpen={[Function]}
+    onOpen={[MockFunction]}
     open={true}
     renderForm={[Function]}
     renderResult={[Function]}
@@ -419,24 +516,57 @@ exports[`revokes token 3`] = `
       <div
         className="boxed-group-inner"
       >
-        <form
-          onSubmit={[Function]}
-        >
-          <input
-            autoFocus={true}
-            className="input-large spacer-right text-middle"
-            onChange={[Function]}
-            placeholder="onboarding.token.placeholder"
-            required={true}
-            type="text"
-            value=""
-          />
-          <button
-            className="text-middle"
+        <div>
+          <div>
+            <a
+              className="js-new link-base-color link-no-underline"
+              href="#"
+              onClick={[Function]}
+            >
+              <i
+                className="icon-radio spacer-right is-checked"
+              />
+              onboading.token.generate_token
+            </a>
+            <div
+              className="big-spacer-top"
+            >
+              <form
+                onSubmit={[Function]}
+              >
+                <input
+                  autoFocus={true}
+                  className="input-large spacer-right text-middle"
+                  onChange={[Function]}
+                  placeholder="onboading.token.generate_token.placeholder"
+                  required={true}
+                  type="text"
+                  value=""
+                />
+                <button
+                  className="text-middle"
+                  disabled={true}
+                >
+                  onboarding.token.generate
+                </button>
+              </form>
+            </div>
+          </div>
+          <div
+            className="big-spacer-top"
           >
-            onboarding.token.generate
-          </button>
-        </form>
+            <a
+              className="js-new link-base-color link-no-underline"
+              href="#"
+              onClick={[Function]}
+            >
+              <i
+                className="icon-radio spacer-right"
+              />
+              onboarding.token.use_existing_token
+            </a>
+          </div>
+        </div>
         <div
           className="note big-spacer-top width-50"
         >

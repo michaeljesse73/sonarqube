@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,15 +20,15 @@
 // @flow
 import React from 'react';
 import Helmet from 'react-helmet';
-import moment from 'moment';
 import ProjectActivityPageHeader from './ProjectActivityPageHeader';
 import ProjectActivityAnalysesList from './ProjectActivityAnalysesList';
 import ProjectActivityGraphs from './ProjectActivityGraphs';
-import { GRAPHS_METRICS, activityQueryChanged } from '../utils';
+import { parseDate } from '../../../helpers/dates';
 import { translate } from '../../../helpers/l10n';
 import './projectActivity.css';
-import type { Analysis, MeasureHistory, Metric, Query } from '../types';
+/*:: import type { Analysis, MeasureHistory, Metric, Query } from '../types'; */
 
+/*::
 type Props = {
   addCustomEvent: (analysis: string, name: string, category?: string) => Promise<*>,
   addVersion: (analysis: string, version: string) => Promise<*>,
@@ -38,96 +38,72 @@ type Props = {
   deleteAnalysis: (analysis: string) => Promise<*>,
   deleteEvent: (analysis: string, event: string) => Promise<*>,
   graphLoading: boolean,
-  loading: boolean,
-  project: { configuration?: { showHistory: boolean }, key: string, leakPeriodDate: string },
+  initializing: boolean,
+  project: {
+    configuration?: { showHistory: boolean },
+    key: string,
+    leakPeriodDate?: string,
+    qualifier: string
+  },
   metrics: Array<Metric>,
   measuresHistory: Array<MeasureHistory>,
   query: Query,
   updateQuery: (newQuery: Query) => void
 };
+*/
 
-type State = {
-  filteredAnalyses: Array<Analysis>
-};
+export default function ProjectActivityApp(props /*: Props */) {
+  const { analyses, measuresHistory, query } = props;
+  const { configuration } = props.project;
+  const canAdmin =
+    (props.project.qualifier === 'TRK' || props.project.qualifier === 'APP') &&
+    (configuration ? configuration.showHistory : false);
+  const canDeleteAnalyses = configuration ? configuration.showHistory : false;
+  return (
+    <div id="project-activity" className="page page-limited">
+      <Helmet title={translate('project_activity.page')} />
 
-export default class ProjectActivityApp extends React.PureComponent {
-  props: Props;
-  state: State;
+      <ProjectActivityPageHeader
+        category={query.category}
+        from={query.from}
+        project={props.project}
+        to={query.to}
+        updateQuery={props.updateQuery}
+      />
 
-  constructor(props: Props) {
-    super(props);
-    this.state = { filteredAnalyses: this.filterAnalyses(props.analyses, props.query) };
-  }
-
-  componentWillReceiveProps(nextProps: Props) {
-    if (
-      nextProps.analyses !== this.props.analyses ||
-      activityQueryChanged(this.props.query, nextProps.query)
-    ) {
-      this.setState({ filteredAnalyses: this.filterAnalyses(nextProps.analyses, nextProps.query) });
-    }
-  }
-
-  filterAnalyses = (analyses: Array<Analysis>, query: Query): Array<Analysis> => {
-    if (!query.category && !query.from && !query.to) {
-      return analyses;
-    }
-    return analyses.filter(analysis => {
-      const isAfterFrom = !query.from || analysis.date >= query.from;
-      const isBeforeTo = !query.to || analysis.date <= query.to;
-      const hasSelectedCategoryEvents =
-        !query.category || analysis.events.find(event => event.category === query.category) != null;
-      return isAfterFrom && isBeforeTo && hasSelectedCategoryEvents;
-    });
-  };
-
-  getMetricType = () => {
-    const metricKey = GRAPHS_METRICS[this.props.query.graph][0];
-    const metric = this.props.metrics.find(metric => metric.key === metricKey);
-    return metric ? metric.type : 'INT';
-  };
-
-  render() {
-    const { measuresHistory, query } = this.props;
-    const { filteredAnalyses } = this.state;
-    const { configuration } = this.props.project;
-    const canAdmin = configuration ? configuration.showHistory : false;
-    return (
-      <div id="project-activity" className="page page-limited">
-        <Helmet title={translate('project_activity.page')} />
-
-        <ProjectActivityPageHeader category={query.category} updateQuery={this.props.updateQuery} />
-
-        <div className="layout-page project-activity-page">
-          <div className="layout-page-side-outer project-activity-page-side-outer boxed-group">
-            <ProjectActivityAnalysesList
-              addCustomEvent={this.props.addCustomEvent}
-              addVersion={this.props.addVersion}
-              analysesLoading={this.props.analysesLoading}
-              analyses={filteredAnalyses}
-              canAdmin={canAdmin}
-              className="boxed-group-inner"
-              changeEvent={this.props.changeEvent}
-              deleteAnalysis={this.props.deleteAnalysis}
-              deleteEvent={this.props.deleteEvent}
-              loading={this.props.loading}
-              query={this.props.query}
-            />
-          </div>
-          <div className="project-activity-layout-page-main">
-            <ProjectActivityGraphs
-              analyses={filteredAnalyses}
-              leakPeriodDate={moment(this.props.project.leakPeriodDate).toDate()}
-              loading={this.props.graphLoading}
-              measuresHistory={measuresHistory}
-              metricsType={this.getMetricType()}
-              project={this.props.project.key}
-              query={query}
-              updateQuery={this.props.updateQuery}
-            />
-          </div>
+      <div className="layout-page project-activity-page">
+        <div className="layout-page-side-outer project-activity-page-side-outer boxed-group">
+          <ProjectActivityAnalysesList
+            addCustomEvent={props.addCustomEvent}
+            addVersion={props.addVersion}
+            analysesLoading={props.analysesLoading}
+            analyses={analyses}
+            canAdmin={canAdmin}
+            canDeleteAnalyses={canDeleteAnalyses}
+            className="boxed-group-inner"
+            changeEvent={props.changeEvent}
+            deleteAnalysis={props.deleteAnalysis}
+            deleteEvent={props.deleteEvent}
+            initializing={props.initializing}
+            project={props.project}
+            query={props.query}
+            updateQuery={props.updateQuery}
+          />
+        </div>
+        <div className="project-activity-layout-page-main">
+          <ProjectActivityGraphs
+            analyses={analyses}
+            leakPeriodDate={
+              props.project.leakPeriodDate ? parseDate(props.project.leakPeriodDate) : undefined
+            }
+            loading={props.graphLoading}
+            measuresHistory={measuresHistory}
+            metrics={props.metrics}
+            query={query}
+            updateQuery={props.updateQuery}
+          />
         </div>
       </div>
-    );
-  }
+    </div>
+  );
 }

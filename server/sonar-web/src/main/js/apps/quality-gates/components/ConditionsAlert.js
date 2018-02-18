@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -36,31 +36,27 @@ export default class ConditionsAlert extends Component {
     return (
       <div className="big-spacer-bottom">
         {translate('quality_gates.introduction')}
-        {!expanded &&
+        {!expanded && (
           <a className="spacer-left" href="#" onClick={this.handleMoreClick.bind(this)}>
             {translate('more')}
-          </a>}
-        {expanded &&
+          </a>
+        )}
+        {expanded && (
           <div className="spacer-top">
             {translate('quality_gates.health_icons')}
             <ul>
               <li className="little-spacer-top">
-                <i className="icon-alert-ok" />
-                {' '}
-                {translate('alerts.notes.ok')}
+                <i className="icon-alert-ok" /> {translate('alerts.notes.ok')}
               </li>
               <li className="little-spacer-top">
-                <i className="icon-alert-warn" />
-                {' '}
-                {translate('alerts.notes.warn')}
+                <i className="icon-alert-warn" /> {translate('alerts.notes.warn')}
               </li>
               <li className="little-spacer-top">
-                <i className="icon-alert-error" />
-                {' '}
-                {translate('alerts.notes.error')}
+                <i className="icon-alert-error" /> {translate('alerts.notes.error')}
               </li>
             </ul>
-          </div>}
+          </div>
+        )}
       </div>
     );
   }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -33,6 +33,7 @@ import org.sonar.api.server.ws.WebService;
 import org.sonar.api.utils.text.JsonWriter;
 import org.sonar.core.platform.PluginInfo;
 import org.sonar.server.plugins.PluginDownloader;
+import org.sonar.server.plugins.PluginUninstaller;
 import org.sonar.server.plugins.ServerPluginRepository;
 import org.sonar.server.plugins.UpdateCenterMatrixFactory;
 import org.sonar.server.user.UserSession;
@@ -57,13 +58,15 @@ public class PendingAction implements PluginsWsAction {
   private final ServerPluginRepository installer;
   private final PluginWSCommons pluginWSCommons;
   private final UpdateCenterMatrixFactory updateCenterMatrixFactory;
+  private final PluginUninstaller pluginUninstaller;
 
   public PendingAction(UserSession userSession, PluginDownloader pluginDownloader,
-                       ServerPluginRepository installer,
-                       PluginWSCommons pluginWSCommons, UpdateCenterMatrixFactory updateCenterMatrixFactory) {
+    ServerPluginRepository installer, PluginUninstaller pluginUninstaller,
+    PluginWSCommons pluginWSCommons, UpdateCenterMatrixFactory updateCenterMatrixFactory) {
     this.userSession = userSession;
     this.pluginDownloader = pluginDownloader;
     this.installer = installer;
+    this.pluginUninstaller = pluginUninstaller;
     this.pluginWSCommons = pluginWSCommons;
     this.updateCenterMatrixFactory = updateCenterMatrixFactory;
   }
@@ -93,7 +96,7 @@ public class PendingAction implements PluginsWsAction {
   }
 
   private void writePlugins(JsonWriter json, Map<String, Plugin> compatiblePluginsByKey) {
-    Collection<PluginInfo> uninstalledPlugins = installer.getUninstalledPlugins();
+    Collection<PluginInfo> uninstalledPlugins = pluginUninstaller.getUninstalledPlugins();
     Collection<PluginInfo> downloadedPlugins = pluginDownloader.getDownloadedPlugins();
     Collection<PluginInfo> installedPlugins = installer.getPluginInfos();
     MatchPluginKeys matchPluginKeys = new MatchPluginKeys(from(installedPlugins).transform(PluginInfoToKey.INSTANCE).toSet());

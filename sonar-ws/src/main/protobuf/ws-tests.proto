@@ -23,7 +23,7 @@ package sonarqube.ws.tests;
 import "ws-commons.proto";
 
 option java_package = "org.sonarqube.ws";
-option java_outer_classname = "WsTests";
+option java_outer_classname = "Tests";
 option optimize_for = SPEED;
 
 // WS api/tests/list
@@ -41,6 +41,7 @@ message CoveredFilesResponse {
     optional string key = 2;
     optional string longName = 3;
     optional int32 coveredLines = 4;
+    optional string branch = 5;
   }
 }
 
@@ -56,6 +57,7 @@ message Test {
   optional int32 coveredLines = 8;
   optional string message = 9;
   optional string stacktrace = 10;
+  optional string fileBranch = 11;
 }
 
 enum TestStatus {

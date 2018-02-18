@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,12 +20,13 @@
 // @flow
 import { sortBy } from 'lodash';
 
-const ORDER = ['DEV', 'VW', 'SVW', 'TRK', 'BRC', 'FIL', 'UTS'];
+const ORDER = ['DEV', 'VW', 'SVW', 'APP', 'TRK', 'BRC', 'FIL', 'UTS'];
 
-export function sortQualifiers(qualifiers: Array<string>) {
+export function sortQualifiers(qualifiers /*: Array<string> */) {
   return sortBy(qualifiers, qualifier => ORDER.indexOf(qualifier));
 }
 
+/*::
 export type Component = {
   isFavorite?: boolean,
   isRecentlyBrowsed?: boolean,
@@ -36,7 +37,12 @@ export type Component = {
   project?: string,
   qualifier: string
 };
+*/
 
+/*::
 export type Results = { [qualifier: string]: Array<Component> };
+*/
 
+/*::
 export type More = { [string]: number };
+*/

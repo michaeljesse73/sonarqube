@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -105,7 +105,7 @@ public class UpdateQualityProfilesLastUsedDateStepTest {
   }
 
   @Test
-  public void ancestor_profiles_are_updated() throws Exception {
+  public void ancestor_profiles_are_updated() {
     // Parent profiles should be updated
     QProfileDto rootProfile = newQualityProfileDto().setKee("root");
     QProfileDto parentProfile = newQualityProfileDto().setKee("parent").setParentKee(rootProfile.getKee());
@@ -126,7 +126,7 @@ public class UpdateQualityProfilesLastUsedDateStepTest {
   }
 
   @Test
-  public void fail_when_profile_is_linked_to_unknown_parent() throws Exception {
+  public void fail_when_profile_is_linked_to_unknown_parent() {
     QProfileDto currentProfile = newQualityProfileDto().setKee("current").setParentKee("unknown");
     qualityProfileDb.insert(currentProfile);
 

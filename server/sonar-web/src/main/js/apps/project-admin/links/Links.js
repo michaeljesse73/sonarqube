@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,19 +18,20 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import React from 'react';
+import PropTypes from 'prop-types';
 import Helmet from 'react-helmet';
 import { connect } from 'react-redux';
 import Header from './Header';
 import Table from './Table';
 import DeletionModal from './views/DeletionModal';
 import { fetchProjectLinks, deleteProjectLink, createProjectLink } from '../store/actions';
-import { getProjectAdminProjectLinks, getComponent } from '../../../store/rootReducer';
+import { getProjectAdminProjectLinks } from '../../../store/rootReducer';
 import { translate } from '../../../helpers/l10n';
 
 class Links extends React.PureComponent {
   static propTypes = {
-    component: React.PropTypes.object.isRequired,
-    links: React.PropTypes.array
+    component: PropTypes.object,
+    links: PropTypes.array
   };
 
   componentWillMount() {
@@ -66,7 +67,6 @@ class Links extends React.PureComponent {
 }
 
 const mapStateToProps = (state, ownProps) => ({
-  component: getComponent(state, ownProps.location.query.id),
   links: getProjectAdminProjectLinks(state, ownProps.location.query.id)
 });
 

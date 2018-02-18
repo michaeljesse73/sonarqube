@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -65,7 +65,7 @@ public class WebhookDeliveryActionTest {
     ComponentFinder componentFinder = TestComponentFinder.from(db);
     WebhookDeliveryAction underTest = new WebhookDeliveryAction(dbClient, userSession, componentFinder);
     ws = new WsActionTester(underTest);
-    project = db.components().insertComponent(ComponentTesting.newPrivateProjectDto(db.organizations().insert()).setKey("my-project"));
+    project = db.components().insertComponent(ComponentTesting.newPrivateProjectDto(db.organizations().insert()).setDbKey("my-project"));
   }
 
   @Test
@@ -87,7 +87,7 @@ public class WebhookDeliveryActionTest {
   }
 
   @Test
-  public void return_404_if_delivery_does_not_exist() throws Exception {
+  public void return_404_if_delivery_does_not_exist() {
     userSession.logIn();
 
     expectedException.expect(NotFoundException.class);
@@ -99,7 +99,7 @@ public class WebhookDeliveryActionTest {
   }
 
   @Test
-  public void load_the_delivery_of_example() throws Exception {
+  public void load_the_delivery_of_example() {
     WebhookDeliveryDto dto = newWebhookDeliveryDto()
       .setUuid("d1")
       .setComponentUuid(project.uuid())
@@ -124,7 +124,7 @@ public class WebhookDeliveryActionTest {
   }
 
   @Test
-  public void return_delivery_that_failed_to_be_sent() throws Exception {
+  public void return_delivery_that_failed_to_be_sent() {
     WebhookDeliveryDto dto = newWebhookDeliveryDto()
       .setComponentUuid(project.uuid())
       .setSuccess(false)
@@ -146,7 +146,31 @@ public class WebhookDeliveryActionTest {
   }
 
   @Test
-  public void throw_ForbiddenException_if_not_admin_of_project() throws Exception {
+  public void return_delivery_with_none_of_optional_fields() {
+    WebhookDeliveryDto dto = newWebhookDeliveryDto()
+      .setComponentUuid(project.uuid())
+      .setCeTaskUuid(null)
+      .setHttpStatus(null)
+      .setDurationMs(null)
+      .setErrorStacktrace(null)
+      .setAnalysisUuid(null);
+    dbClient.webhookDeliveryDao().insert(db.getSession(), dto);
+    db.commit();
+    userSession.logIn().addProjectPermission(UserRole.ADMIN, project);
+
+    Webhooks.DeliveryWsResponse response = ws.newRequest()
+      .setParam("deliveryId", dto.getUuid())
+      .executeProtobuf(Webhooks.DeliveryWsResponse.class);
+
+    Webhooks.Delivery actual = response.getDelivery();
+    assertThat(actual.hasHttpStatus()).isFalse();
+    assertThat(actual.hasDurationMs()).isFalse();
+    assertThat(actual.hasErrorStacktrace()).isFalse();
+    assertThat(actual.hasCeTaskId()).isFalse();
+  }
+
+  @Test
+  public void throw_ForbiddenException_if_not_admin_of_project() {
     WebhookDeliveryDto dto = newWebhookDeliveryDto()
       .setComponentUuid(project.uuid());
     dbClient.webhookDeliveryDao().insert(db.getSession(), dto);

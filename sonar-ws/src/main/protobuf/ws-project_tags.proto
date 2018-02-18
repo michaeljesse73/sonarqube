@@ -21,7 +21,7 @@ syntax = "proto3";
 package sonarqube.ws.projects;
 
 option java_package = "org.sonarqube.ws";
-option java_outer_classname = "WsProjectTags";
+option java_outer_classname = "ProjectTags";
 option optimize_for = SPEED;
 
 // Response for api/project_tags/search

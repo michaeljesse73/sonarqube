@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,8 +19,11 @@
  */
 package org.sonar.db.component;
 
+import java.util.Objects;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
+
+import static com.google.common.base.Preconditions.checkArgument;
 
 public final class SnapshotDto {
 
@@ -29,6 +32,7 @@ public final class SnapshotDto {
    */
   public static final String STATUS_UNPROCESSED = "U";
   public static final String STATUS_PROCESSED = "P";
+  public static final int MAX_VERSION_LENGTH = 100;
 
   private Long id;
   private String uuid;
@@ -116,6 +120,10 @@ public final class SnapshotDto {
   }
 
   public SnapshotDto setVersion(@Nullable String version) {
+    if (version != null) {
+      checkArgument(version.length() <= MAX_VERSION_LENGTH,
+        "Event name length (%s) is longer than the maximum authorized (%s). '%s' was provided.", version.length(), MAX_VERSION_LENGTH, version);
+    }
     this.version = version;
     return this;
   }
@@ -160,5 +168,51 @@ public final class SnapshotDto {
    */
   public Long getCreatedAt() {
     return createdAt;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    SnapshotDto that = (SnapshotDto) o;
+    return Objects.equals(id, that.id) &&
+      Objects.equals(uuid, that.uuid) &&
+      Objects.equals(componentUuid, that.componentUuid) &&
+      Objects.equals(createdAt, that.createdAt) &&
+      Objects.equals(buildDate, that.buildDate) &&
+      Objects.equals(status, that.status) &&
+      Objects.equals(purgeStatus, that.purgeStatus) &&
+      Objects.equals(last, that.last) &&
+      Objects.equals(version, that.version) &&
+      Objects.equals(periodMode, that.periodMode) &&
+      Objects.equals(periodParam, that.periodParam) &&
+      Objects.equals(periodDate, that.periodDate);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(id, uuid, componentUuid, createdAt, buildDate, status, purgeStatus, last, version, periodMode, periodParam, periodDate);
+  }
+
+  @Override
+  public String toString() {
+    return "SnapshotDto{" +
+      "id=" + id +
+      ", uuid='" + uuid + '\'' +
+      ", componentUuid='" + componentUuid + '\'' +
+      ", createdAt=" + createdAt +
+      ", buildDate=" + buildDate +
+      ", status='" + status + '\'' +
+      ", purgeStatus=" + purgeStatus +
+      ", last=" + last +
+      ", version='" + version + '\'' +
+      ", periodMode='" + periodMode + '\'' +
+      ", periodParam='" + periodParam + '\'' +
+      ", periodDate=" + periodDate +
+      '}';
   }
 }

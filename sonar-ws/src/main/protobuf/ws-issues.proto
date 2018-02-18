@@ -49,18 +49,65 @@ message SearchWsResponse {
   optional sonarqube.ws.commons.Facets facets = 12;
 }
 
-// Response of most of POST/issues/{operation}, for instance assign, add_comment and set_severity
 message Operation {
   optional Issue issue = 1;
   repeated Component components = 2;
   repeated sonarqube.ws.commons.Rule rules = 3;
   repeated Users.User users = 4;
-  // Deprecated since 5.5, action plan has been removed
-  repeated ActionPlan unusedActionPlans = 5;
+}
+message AddCommentResponse {
+  optional Issue issue = 1;
+  repeated Component components = 2;
+  repeated sonarqube.ws.commons.Rule rules = 3;
+  repeated Users.User users = 4;
+}
+message AssignResponse {
+  optional Issue issue = 1;
+  repeated Component components = 2;
+  repeated sonarqube.ws.commons.Rule rules = 3;
+  repeated Users.User users = 4;
+}
+message AuthorsResponse {
+  optional Issue issue = 1;
+  repeated Component components = 2;
+  repeated sonarqube.ws.commons.Rule rules = 3;
+  repeated Users.User users = 4;
+}
+message DeleteCommentResponse {
+  optional Issue issue = 1;
+  repeated Component components = 2;
+  repeated sonarqube.ws.commons.Rule rules = 3;
+  repeated Users.User users = 4;
+}
+message DoTransitionResponse {
+  optional Issue issue = 1;
+  repeated Component components = 2;
+  repeated sonarqube.ws.commons.Rule rules = 3;
+  repeated Users.User users = 4;
+}
+message SetSeverityResponse {
+  optional Issue issue = 1;
+  repeated Component components = 2;
+  repeated sonarqube.ws.commons.Rule rules = 3;
+  repeated Users.User users = 4;
+}
+message SetTagsResponse {
+  optional Issue issue = 1;
+  repeated Component components = 2;
+  repeated sonarqube.ws.commons.Rule rules = 3;
+  repeated Users.User users = 4;
+}
+message SetTypeResponse {
+  optional Issue issue = 1;
+  repeated Component components = 2;
+  repeated sonarqube.ws.commons.Rule rules = 3;
+  repeated Users.User users = 4;
+}
+message TagsResponse {
+  repeated string tags = 1;
 }
 
 message Issue {
-  optional string organization = 29;
   optional string key = 1;
   optional string rule = 2;
   optional sonarqube.ws.commons.Severity severity = 3;
@@ -69,6 +116,7 @@ message Issue {
   optional string project = 6;
   optional string subProject = 7;
   optional int32 line = 8;
+  optional string hash = 31;
   optional sonarqube.ws.commons.TextRange textRange = 9;
   repeated Flow flows = 10;
   optional string resolution = 11;
@@ -105,6 +153,9 @@ message Issue {
   optional string closeDate = 26;
 
   optional sonarqube.ws.commons.RuleType type = 27;
+
+  optional string organization = 29;
+  optional string branch = 30;
 }
 
 message Transitions {
@@ -182,6 +233,7 @@ message Component {
   optional string path = 8;
   optional int64 unusedProjectId = 9;
   optional int64 unusedSubProjectId = 10;
+  optional string branch = 12;
 }
 
 // Response of GET api/issues/changelog

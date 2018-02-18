@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -26,9 +26,9 @@ import org.sonar.server.computation.task.projectanalysis.component.Component;
 
 public class TrackerExecution {
 
-  private final TrackerBaseInputFactory baseInputFactory;
-  private final TrackerRawInputFactory rawInputFactory;
-  private final Tracker<DefaultIssue, DefaultIssue> tracker;
+  protected final TrackerBaseInputFactory baseInputFactory;
+  protected final TrackerRawInputFactory rawInputFactory;
+  protected final Tracker<DefaultIssue, DefaultIssue> tracker;
 
   public TrackerExecution(TrackerBaseInputFactory baseInputFactory, TrackerRawInputFactory rawInputFactory,
     Tracker<DefaultIssue, DefaultIssue> tracker) {

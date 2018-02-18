@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -37,21 +37,23 @@ import org.sonar.server.exceptions.NotFoundException;
 import org.sonar.server.user.UserSession;
 import org.sonarqube.ws.ProjectAnalyses.Event;
 import org.sonarqube.ws.ProjectAnalyses.UpdateEventResponse;
-import org.sonarqube.ws.client.projectanalysis.EventCategory;
-import org.sonarqube.ws.client.projectanalysis.UpdateEventRequest;
+
+import javax.annotation.CheckForNull;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.lang.String.format;
+import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang.StringUtils.isNotBlank;
 import static org.sonar.core.util.Protobuf.setNullable;
 import static org.sonar.server.projectanalysis.ws.EventValidator.checkModifiable;
 import static org.sonar.server.ws.WsUtils.writeProtobuf;
-import static org.sonarqube.ws.client.projectanalysis.EventCategory.VERSION;
-import static org.sonarqube.ws.client.projectanalysis.EventCategory.fromLabel;
-import static org.sonarqube.ws.client.projectanalysis.ProjectAnalysesWsParameters.PARAM_EVENT;
-import static org.sonarqube.ws.client.projectanalysis.ProjectAnalysesWsParameters.PARAM_NAME;
+import static org.sonar.server.projectanalysis.ws.EventCategory.VERSION;
+import static org.sonar.server.projectanalysis.ws.EventCategory.fromLabel;
+import static org.sonar.server.projectanalysis.ws.ProjectAnalysesWsParameters.PARAM_EVENT;
+import static org.sonar.server.projectanalysis.ws.ProjectAnalysesWsParameters.PARAM_NAME;
 
 public class UpdateEventAction implements ProjectAnalysesWsAction {
+  private static final int MAX_NAME_LENGTH = 100;
   private final DbClient dbClient;
   private final UserSession userSession;
 
@@ -82,6 +84,7 @@ public class UpdateEventAction implements ProjectAnalysesWsAction {
       .setRequired(true);
 
     action.createParam(PARAM_NAME)
+      .setMaximumLength(org.sonar.db.event.EventValidator.MAX_NAME_LENGTH)
       .setDescription("New name")
       .setExampleValue("5.6");
   }
@@ -100,6 +103,7 @@ public class UpdateEventAction implements ProjectAnalysesWsAction {
         .of(getDbEvent(dbSession, request))
         .peek(checkPermissions())
         .peek(checkModifiable())
+        .peek(checkVersionNameLength(request))
         .map(updateNameAndDescription(request))
         .peek(checkNonConflictingOtherEvents(dbSession))
         .peek(updateInDb(dbSession))
@@ -146,6 +150,16 @@ public class UpdateEventAction implements ProjectAnalysesWsAction {
     };
   }
 
+  private static Consumer<EventDto> checkVersionNameLength(UpdateEventRequest request) {
+    String name = request.getName();
+    return candidateEvent -> {
+      if (name != null && VERSION.getLabel().equals(candidateEvent.getCategory())) {
+        checkArgument(name.length() <= MAX_NAME_LENGTH,
+          "Version length (%s) is longer than the maximum authorized (%s). '%s' was provided.", name.length(), MAX_NAME_LENGTH, name);
+      }
+    };
+  }
+
   private SnapshotDto getAnalysis(DbSession dbSession, EventDto event) {
     return dbClient.snapshotDao().selectByUuid(dbSession, event.getAnalysisUuid())
       .orElseThrow(() -> new IllegalStateException(format("Analysis '%s' is not found", event.getAnalysisUuid())));
@@ -175,5 +189,24 @@ public class UpdateEventAction implements ProjectAnalysesWsAction {
     return request -> new UpdateEventRequest(
       request.mandatoryParam(PARAM_EVENT),
       request.param(PARAM_NAME));
+  }
+
+  private static class UpdateEventRequest {
+    private final String event;
+    private final String name;
+
+    public UpdateEventRequest(String event, String name) {
+      this.event = requireNonNull(event, "Event key is required");
+      this.name = requireNonNull(name, "Name is required");
+    }
+
+    public String getEvent() {
+      return event;
+    }
+
+    @CheckForNull
+    public String getName() {
+      return name;
+    }
   }
 }

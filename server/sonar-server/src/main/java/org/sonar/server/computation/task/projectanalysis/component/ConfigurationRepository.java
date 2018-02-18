@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,12 +21,8 @@ package org.sonar.server.computation.task.projectanalysis.component;
 
 import org.sonar.api.config.Configuration;
 
-/**
- * Repository of component settings.
- */
 public interface ConfigurationRepository {
-  /**
-   * Returns the configuration for the specified Component.
-   */
-  Configuration getConfiguration(Component component);
+
+  Configuration getConfiguration();
+
 }

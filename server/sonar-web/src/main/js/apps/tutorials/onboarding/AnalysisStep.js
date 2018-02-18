@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,7 +21,7 @@
 import React from 'react';
 import Step from './Step';
 import LanguageStep from './LanguageStep';
-import type { Result } from './LanguageStep';
+/*:: import type { Result } from './LanguageStep'; */
 import JavaMaven from './commands/JavaMaven';
 import JavaGradle from './commands/JavaGradle';
 import DotNet from './commands/DotNet';
@@ -29,7 +29,9 @@ import Msvc from './commands/Msvc';
 import ClangGCC from './commands/ClangGCC';
 import Other from './commands/Other';
 import { translate } from '../../../helpers/l10n';
+import { getHostUrl } from '../../../helpers/urls';
 
+/*::
 type Props = {|
   onFinish: (projectKey?: string) => void,
   onReset: () => void,
@@ -39,16 +41,19 @@ type Props = {|
   stepNumber: number,
   token: string
 |};
+*/
 
+/*::
 type State = {
   result?: Result
 };
+*/
 
 export default class AnalysisStep extends React.PureComponent {
-  props: Props;
-  state: State = {};
+  /*:: props: Props; */
+  state /*: State */ = {};
 
-  handleLanguageSelect = (result?: Result) => {
+  handleLanguageSelect = (result /*: Result | void */) => {
     this.setState({ result });
     const projectKey = result && result.language !== 'java' ? result.projectKey : undefined;
     this.props.onFinish(projectKey);
@@ -58,8 +63,6 @@ export default class AnalysisStep extends React.PureComponent {
     this.setState({ result: undefined });
     this.props.onReset();
   };
-
-  getHost = () => window.location.origin + window.baseUrl;
 
   renderForm = () => {
     return (
@@ -73,15 +76,15 @@ export default class AnalysisStep extends React.PureComponent {
               sonarCloud={this.props.sonarCloud}
             />
           </div>
-          <div className="flex-column flex-column-half">
-            {this.renderCommand()}
-          </div>
+          <div className="flex-column flex-column-half">{this.renderCommand()}</div>
         </div>
       </div>
     );
   };
 
-  renderFormattedCommand = (...lines: Array<string>) => (
+  renderFormattedCommand = (...lines /*: Array<string> */) => (
+    // keep this "useless" concatentation for the readability reason
+    // eslint-disable-next-line no-useless-concat
     <pre>{lines.join(' ' + '\\' + '\n' + '  ')}</pre>
   );
 
@@ -109,7 +112,7 @@ export default class AnalysisStep extends React.PureComponent {
 
   renderCommandForMaven = () => (
     <JavaMaven
-      host={this.getHost()}
+      host={getHostUrl()}
       organization={this.props.organization}
       token={this.props.token}
     />
@@ -117,7 +120,7 @@ export default class AnalysisStep extends React.PureComponent {
 
   renderCommandForGradle = () => (
     <JavaGradle
-      host={this.getHost()}
+      host={getHostUrl()}
       organization={this.props.organization}
       token={this.props.token}
     />
@@ -126,7 +129,7 @@ export default class AnalysisStep extends React.PureComponent {
   renderCommandForDotNet = () => {
     return (
       <DotNet
-        host={this.getHost()}
+        host={getHostUrl()}
         organization={this.props.organization}
         // $FlowFixMe
         projectKey={this.state.result.projectKey}
@@ -138,7 +141,7 @@ export default class AnalysisStep extends React.PureComponent {
   renderCommandForMSVC = () => {
     return (
       <Msvc
-        host={this.getHost()}
+        host={getHostUrl()}
         organization={this.props.organization}
         // $FlowFixMe
         projectKey={this.state.result.projectKey}
@@ -149,7 +152,7 @@ export default class AnalysisStep extends React.PureComponent {
 
   renderCommandForClangGCC = () => (
     <ClangGCC
-      host={this.getHost()}
+      host={getHostUrl()}
       organization={this.props.organization}
       // $FlowFixMe
       os={this.state.result.os}
@@ -161,7 +164,7 @@ export default class AnalysisStep extends React.PureComponent {
 
   renderCommandForOther = () => (
     <Other
-      host={this.getHost()}
+      host={getHostUrl()}
       organization={this.props.organization}
       // $FlowFixMe
       os={this.state.result.os}

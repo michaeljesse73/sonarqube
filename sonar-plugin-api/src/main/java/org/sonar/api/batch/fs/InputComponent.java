@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -30,8 +30,9 @@ package org.sonar.api.batch.fs;
 public interface InputComponent {
 
   /**
-   * Component key shared by all part of SonarQube (batch, server, WS...). 
+   * Component key shared by all part of SonarQube (scanner, server, WS...). 
    * It doesn't include the branch.
+   * Warning. Do not use in SonarLint.
    */
   String key();
 

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -23,8 +23,9 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -48,22 +49,29 @@ public class ComponentKeyUpdaterDao implements Dao {
 
   private static final Set<String> PROJECT_OR_MODULE_QUALIFIERS = ImmutableSet.of(Qualifiers.PROJECT, Qualifiers.MODULE);
 
-  public void updateKey(DbSession dbSession, String projectUuid, String newKey) {
+  public void updateKey(DbSession dbSession, String projectOrModuleUuid, String newKey) {
     ComponentKeyUpdaterMapper mapper = dbSession.getMapper(ComponentKeyUpdaterMapper.class);
     if (mapper.countResourceByKey(newKey) > 0) {
       throw new IllegalArgumentException("Impossible to update key: a component with key \"" + newKey + "\" already exists.");
     }
 
     // must SELECT first everything
-    ResourceDto project = mapper.selectProject(projectUuid);
+    ResourceDto project = mapper.selectProject(projectOrModuleUuid);
     String projectOldKey = project.getKey();
-    List<ResourceDto> resources = mapper.selectProjectResources(projectUuid);
+    List<ResourceDto> resources = mapper.selectProjectResources(projectOrModuleUuid);
     resources.add(project);
+
+    // add branch components
+    dbSession.getMapper(BranchMapper.class).selectByProjectUuid(projectOrModuleUuid)
+      .stream()
+      .filter(branch -> !projectOrModuleUuid.equals(branch.getUuid()))
+      .forEach(branch -> {
+        resources.addAll(mapper.selectProjectResources(branch.getUuid()));
+        resources.add(mapper.selectProject(branch.getUuid()));
+      });
 
     // and then proceed with the batch UPDATE at once
     runBatchUpdateForAllResources(resources, projectOldKey, newKey, mapper);
-
-    dbSession.commit();
   }
 
   public static void checkIsProjectOrModule(ComponentDto component) {
@@ -102,6 +110,18 @@ public class ComponentKeyUpdaterDao implements Dao {
     ComponentKeyUpdaterMapper mapper = session.getMapper(ComponentKeyUpdaterMapper.class);
     // must SELECT first everything
     Set<ResourceDto> modules = collectAllModules(projectUuid, stringToReplace, mapper);
+
+    // add branches
+    Map<String, String> branchBaseKeys = new HashMap<>();
+    session.getMapper(BranchMapper.class).selectByProjectUuid(projectUuid)
+      .stream()
+      .filter(branch -> !projectUuid.equals(branch.getUuid()))
+      .forEach(branch -> {
+        Set<ResourceDto> branchModules = collectAllModules(branch.getUuid(), stringToReplace, mapper);
+        modules.addAll(branchModules);
+        branchModules.forEach(module -> branchBaseKeys.put(module.getKey(), branchBaseKey(module.getKey())));
+      });
+
     checkNewNameOfAllModules(modules, stringToReplace, replacementString, mapper);
     Map<ResourceDto, List<ResourceDto>> allResourcesByModuleMap = Maps.newHashMap();
     for (ResourceDto module : modules) {
@@ -111,11 +131,20 @@ public class ComponentKeyUpdaterDao implements Dao {
     // and then proceed with the batch UPDATE at once
     for (ResourceDto module : modules) {
       String oldModuleKey = module.getKey();
-      String newModuleKey = computeNewKey(module.getKey(), stringToReplace, replacementString);
+      oldModuleKey = branchBaseKeys.getOrDefault(oldModuleKey, oldModuleKey);
+      String newModuleKey = computeNewKey(oldModuleKey, stringToReplace, replacementString);
       Collection<ResourceDto> resources = Lists.newArrayList(module);
       resources.addAll(allResourcesByModuleMap.get(module));
       runBatchUpdateForAllResources(resources, oldModuleKey, newModuleKey, mapper);
     }
+  }
+
+  private static String branchBaseKey(String key) {
+    int index = key.lastIndexOf(ComponentDto.BRANCH_KEY_SEPARATOR);
+    if (index == -1) {
+      return key;
+    }
+    return key.substring(0, index);
   }
 
   private static void runBatchUpdateForAllResources(Collection<ResourceDto> resources, String oldKey, String newKey, ComponentKeyUpdaterMapper mapper) {
@@ -134,7 +163,7 @@ public class ComponentKeyUpdaterDao implements Dao {
 
   private static Set<ResourceDto> collectAllModules(String projectUuid, String stringToReplace, ComponentKeyUpdaterMapper mapper) {
     ResourceDto project = mapper.selectProject(projectUuid);
-    Set<ResourceDto> modules = Sets.newHashSet();
+    Set<ResourceDto> modules = new HashSet<>();
     if (project.getKey().contains(stringToReplace)) {
       modules.add(project);
     }

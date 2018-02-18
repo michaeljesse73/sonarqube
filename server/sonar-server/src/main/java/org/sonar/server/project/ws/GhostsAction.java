@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -67,10 +67,12 @@ public class GhostsAction implements ProjectsWsAction {
     action.setChangelog(new Change("6.4", "The 'uuid' field is deprecated in the response"));
 
     action
-      .setDescription("List ghost projects.<br /> " +
+      .setDescription("List ghost projects.<br> " +
+        "With the current architecture, it's no more possible to have invisible ghost projects. Therefore, the web service is deprecated.<br> " +
         "Requires 'Administer System' permission.")
-      .setResponseExample(Resources.getResource(getClass(), "projects-example-ghosts.json"))
+      .setResponseExample(Resources.getResource(getClass(), "ghosts-example.json"))
       .setSince("5.2")
+      .setDeprecatedSince("6.6")
       .addPagingParams(100, MAX_LIMIT)
       .addFieldsParam(POSSIBLE_FIELDS)
       .addSearchQuery("sonar", "names", "keys")
@@ -100,10 +102,12 @@ public class GhostsAction implements ProjectsWsAction {
       long nbOfProjects = dbClient.componentDao().countGhostProjects(dbSession, organization.getUuid(), query);
       List<ComponentDto> projects = dbClient.componentDao().selectGhostProjects(dbSession, organization.getUuid(), query,
         searchOptions.getOffset(), searchOptions.getLimit());
-      JsonWriter json = response.newJsonWriter().beginObject();
-      writeProjects(json, projects, desiredFields);
-      searchOptions.writeJson(json, nbOfProjects);
-      json.endObject().close();
+      try (JsonWriter json = response.newJsonWriter()) {
+        json.beginObject();
+        writeProjects(json, projects, desiredFields);
+        searchOptions.writeJson(json, nbOfProjects);
+        json.endObject();
+      }
     }
   }
 
@@ -121,7 +125,7 @@ public class GhostsAction implements ProjectsWsAction {
     for (ComponentDto project : projects) {
       json.beginObject();
       json.prop("uuid", project.uuid());
-      writeIfWished(json, "key", project.key(), fieldsToReturn);
+      writeIfWished(json, "key", project.getDbKey(), fieldsToReturn);
       writeIfWished(json, "name", project.name(), fieldsToReturn);
       writeIfWished(json, "creationDate", project.getCreatedAt(), fieldsToReturn);
       writeIfWished(json, "visibility", project.isPrivate() ? PRIVATE.getLabel() : PUBLIC.getLabel(), fieldsToReturn);

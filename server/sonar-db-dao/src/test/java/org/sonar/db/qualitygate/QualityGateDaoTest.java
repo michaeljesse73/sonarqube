@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,80 +19,216 @@
  */
 package org.sonar.db.qualitygate;
 
-import java.util.Collection;
-import java.util.Iterator;
+import java.util.Collections;
+import java.util.Date;
 import org.junit.Rule;
 import org.junit.Test;
 import org.sonar.api.utils.System2;
+import org.sonar.core.util.Uuids;
 import org.sonar.db.DbSession;
 import org.sonar.db.DbTester;
+import org.sonar.db.organization.OrganizationDto;
 
+import static java.lang.String.format;
+import static java.util.Arrays.asList;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class QualityGateDaoTest {
 
   @Rule
-  public DbTester dbTester = DbTester.create(System2.INSTANCE);
+  public DbTester db = DbTester.create(System2.INSTANCE);
 
-  private DbSession dbSession = dbTester.getSession();
-  private QualityGateDao underTest = dbTester.getDbClient().qualityGateDao();
+  private QualityGateDbTester qualityGateDbTester = new QualityGateDbTester(db);
+  private DbSession dbSession = db.getSession();
+  private QualityGateDao underTest = db.getDbClient().qualityGateDao();
 
   @Test
-  public void testInsert() throws Exception {
-    dbTester.prepareDbUnit(getClass(), "insert.xml");
-    QualityGateDto newQgate = new QualityGateDto().setName("My Quality Gate");
+  public void insert() {
+    QualityGateDto newQgate = new QualityGateDto()
+      .setUuid(Uuids.createFast())
+      .setName("My Quality Gate")
+      .setBuiltIn(false)
+      .setUpdatedAt(new Date());
 
     underTest.insert(dbSession, newQgate);
     dbSession.commit();
 
-    dbTester.assertDbUnitTable(getClass(), "insert-result.xml", "quality_gates", "name");
-    assertThat(newQgate.getId()).isNotNull();
+    QualityGateDto reloaded = underTest.selectById(dbSession, newQgate.getId());
+    assertThat(reloaded.getName()).isEqualTo("My Quality Gate");
+    assertThat(reloaded.getUuid()).isEqualTo(newQgate.getUuid());
+    assertThat(reloaded.isBuiltIn()).isFalse();
+    assertThat(reloaded.getCreatedAt()).isNotNull();
+    assertThat(reloaded.getUpdatedAt()).isNotNull();
   }
 
   @Test
-  public void testSelectAll() throws Exception {
-    dbTester.prepareDbUnit(getClass(), "selectAll.xml");
+  public void associate() {
+    QualityGateDto qgate = db.qualityGates().insertQualityGate(db.getDefaultOrganization());
+    OrganizationDto org = db.organizations().insert();
 
-    Collection<QualityGateDto> allQualityGates = underTest.selectAll(dbSession);
+    underTest.associate(dbSession, Uuids.createFast(), org, qgate);
 
-    assertThat(allQualityGates).hasSize(3);
-    Iterator<QualityGateDto> gatesIterator = allQualityGates.iterator();
-    assertThat(gatesIterator.next().getName()).isEqualTo("Balanced");
-    assertThat(gatesIterator.next().getName()).isEqualTo("Lenient");
-    assertThat(gatesIterator.next().getName()).isEqualTo("Very strict");
+    assertThat(underTest.selectByOrganizationAndUuid(dbSession, org, qgate.getUuid())).isNotNull();
+    assertThat(underTest.selectByOrganizationAndUuid(dbSession, org, qgate.getUuid()))
+      .extracting(QGateWithOrgDto::getId, QGateWithOrgDto::getUuid, QGateWithOrgDto::getOrganizationUuid, QGateWithOrgDto::getName)
+      .containsExactly(qgate.getId(), qgate.getUuid(), org.getUuid(), qgate.getName());
   }
 
   @Test
-  public void testSelectByName() throws Exception {
-    dbTester.prepareDbUnit(getClass(), "selectAll.xml");
+  public void insert_built_in() {
+    underTest.insert(db.getSession(), new QualityGateDto().setName("test").setBuiltIn(true).setUuid(Uuids.createFast()));
+
+    QualityGateDto reloaded = underTest.selectByName(db.getSession(), "test");
+
+    assertThat(reloaded.isBuiltIn()).isTrue();
+  }
+
+  @Test
+  public void select_all() {
+    OrganizationDto organization1 = db.organizations().insert();
+    OrganizationDto organization2 = db.organizations().insert();
+    QGateWithOrgDto qualityGate1 = qualityGateDbTester.insertQualityGate(organization1);
+    QGateWithOrgDto qualityGate2 = qualityGateDbTester.insertQualityGate(organization1);
+    QGateWithOrgDto qualityGateOnOtherOrg = qualityGateDbTester.insertQualityGate(organization2);
+
+    assertThat(underTest.selectAll(dbSession, organization1))
+      .extracting(QualityGateDto::getUuid)
+      .containsExactlyInAnyOrder(qualityGate1.getUuid(), qualityGate2.getUuid());
+  }
+
+  @Test
+  public void testSelectByName() {
+    insertQualityGates();
     assertThat(underTest.selectByName(dbSession, "Balanced").getName()).isEqualTo("Balanced");
     assertThat(underTest.selectByName(dbSession, "Unknown")).isNull();
   }
 
   @Test
-  public void testSelectById() throws Exception {
-    dbTester.prepareDbUnit(getClass(), "selectAll.xml");
-    assertThat(underTest.selectById(dbSession, 1L).getName()).isEqualTo("Very strict");
-    assertThat(underTest.selectById(dbSession, 42L)).isNull();
+  public void testSelectById() {
+    insertQualityGates();
+    assertThat(underTest.selectById(dbSession, underTest.selectByName(dbSession, "Very strict").getId()).getName()).isEqualTo("Very strict");
+    assertThat(underTest.selectById(dbSession, -1L)).isNull();
   }
 
   @Test
-  public void testDelete() throws Exception {
-    dbTester.prepareDbUnit(getClass(), "selectAll.xml");
+  public void select_by_organization_and_uuid() {
+    OrganizationDto organization = db.organizations().insert();
+    QGateWithOrgDto qualityGate = db.qualityGates().insertQualityGate(organization);
+    OrganizationDto otherOrganization = db.organizations().insert();
+    QGateWithOrgDto otherQualityGate = db.qualityGates().insertQualityGate(otherOrganization);
 
-    underTest.delete(new QualityGateDto().setId(1L), dbSession);
-    dbSession.commit();
-
-    dbTester.assertDbUnitTable(getClass(), "delete-result.xml", "quality_gates", "id", "name");
+    assertThat(underTest.selectByOrganizationAndUuid(dbSession, organization, qualityGate.getUuid()).getUuid()).isEqualTo(qualityGate.getUuid());
+    assertThat(underTest.selectByOrganizationAndUuid(dbSession, otherOrganization, qualityGate.getUuid())).isNull();
+    assertThat(underTest.selectByOrganizationAndUuid(dbSession, organization, otherQualityGate.getUuid())).isNull();
   }
 
   @Test
-  public void testUpdate() throws Exception {
-    dbTester.prepareDbUnit(getClass(), "selectAll.xml");
+  public void select_by_organization_and_name() {
+    OrganizationDto organization = db.organizations().insert();
+    QGateWithOrgDto qualityGate1 = db.qualityGates().insertQualityGate(organization);
+    QGateWithOrgDto qualityGate2 = db.qualityGates().insertQualityGate(organization);
+    OrganizationDto otherOrganization = db.organizations().insert();
+    QGateWithOrgDto qualityGate3 = db.qualityGates().insertQualityGate(otherOrganization);
 
-    underTest.update(new QualityGateDto().setId(1L).setName("Not so strict"), dbSession);
+    assertThat(underTest.selectByOrganizationAndName(dbSession, organization, qualityGate1.getName()).getUuid()).isEqualTo(qualityGate1.getUuid());
+    assertThat(underTest.selectByOrganizationAndName(dbSession, otherOrganization, qualityGate3.getName()).getUuid()).isEqualTo(qualityGate3.getUuid());
+    assertThat(underTest.selectByOrganizationAndName(dbSession, organization, "Unknown")).isNull();
+  }
+
+  @Test
+  public void select_by_organization_and_id() {
+    OrganizationDto organization = db.organizations().insert();
+    QGateWithOrgDto qualityGate1 = db.qualityGates().insertQualityGate(organization);
+    QGateWithOrgDto qualityGate2 = db.qualityGates().insertQualityGate(organization);
+    OrganizationDto otherOrganization = db.organizations().insert();
+    QGateWithOrgDto qualityGate3 = db.qualityGates().insertQualityGate(otherOrganization);
+
+    assertThat(underTest.selectByOrganizationAndId(dbSession, organization, qualityGate1.getId()).getUuid()).isEqualTo(qualityGate1.getUuid());
+    assertThat(underTest.selectByOrganizationAndId(dbSession, otherOrganization, qualityGate3.getId()).getUuid()).isEqualTo(qualityGate3.getUuid());
+    assertThat(underTest.selectByOrganizationAndId(dbSession, organization, 123L)).isNull();
+  }
+
+  @Test
+  public void select_default() {
+    OrganizationDto organization = db.organizations().insert();
+    QGateWithOrgDto qualityGate = db.qualityGates().insertQualityGate(organization);
+    db.getDbClient().organizationDao().setDefaultQualityGate(dbSession, organization, qualityGate);
+    OrganizationDto otherOrganization = db.organizations().insert();
+    QGateWithOrgDto otherQualityGate = db.qualityGates().insertQualityGate(otherOrganization);
+    db.getDbClient().organizationDao().setDefaultQualityGate(dbSession, otherOrganization, otherQualityGate);
+
+    assertThat(underTest.selectDefault(dbSession, organization).getUuid()).isEqualTo(qualityGate.getUuid());
+    assertThat(underTest.selectDefault(dbSession, otherOrganization).getUuid()).isEqualTo(otherQualityGate.getUuid());
+  }
+
+  @Test
+  public void delete() {
+    OrganizationDto organization = db.organizations().insert();
+    QGateWithOrgDto qualityGate = qualityGateDbTester.insertQualityGate(organization);
+    QGateWithOrgDto otherQualityGate = qualityGateDbTester.insertQualityGate(organization);
+
+    underTest.delete(qualityGate, dbSession);
     dbSession.commit();
 
-    dbTester.assertDbUnitTable(getClass(), "update-result.xml", "quality_gates", "id", "name");
+    assertThat(underTest.selectByOrganizationAndUuid(dbSession, organization, qualityGate.getUuid())).isNull();
+    assertThat(db.countSql(dbSession, format("select count(*) from org_quality_gates where quality_gate_uuid='%s'", qualityGate.getUuid()))).isZero();
+    assertThat(underTest.selectByOrganizationAndUuid(dbSession, organization, otherQualityGate.getUuid())).isNotNull();
+    assertThat(db.countSql(dbSession, format("select count(*) from org_quality_gates where quality_gate_uuid='%s'", otherQualityGate.getUuid()))).isEqualTo(1);
+  }
+
+  @Test
+  public void delete_by_uuids() {
+    OrganizationDto organization = db.organizations().insert();
+    QGateWithOrgDto qualityGate1 = qualityGateDbTester.insertQualityGate(organization);
+    QGateWithOrgDto qualityGate2 = qualityGateDbTester.insertQualityGate(organization);
+
+    underTest.deleteByUuids(dbSession, asList(qualityGate1.getUuid(), qualityGate2.getUuid()));
+    dbSession.commit();
+
+    assertThat(underTest.selectAll(dbSession, organization).stream())
+      .extracting(QualityGateDto::getUuid)
+      .doesNotContain(qualityGate1.getUuid(), qualityGate2.getUuid());
+  }
+
+  @Test
+  public void delete_by_uuids_does_nothing_on_empty_list() {
+    int nbOfQualityGates = db.countRowsOfTable(dbSession, "quality_gates");
+    underTest.deleteByUuids(dbSession, Collections.emptyList());
+    dbSession.commit();
+
+    assertThat(db.countRowsOfTable(dbSession, "quality_gates")).isEqualTo(nbOfQualityGates);
+  }
+
+  @Test
+  public void deleteOrgQualityGatesByOrganization() {
+    OrganizationDto organization = db.organizations().insert();
+    qualityGateDbTester.insertQualityGate(organization);
+    OrganizationDto otherOrganization = db.organizations().insert();
+    qualityGateDbTester.insertQualityGate(otherOrganization);
+
+    underTest.deleteOrgQualityGatesByOrganization(dbSession, organization);
+    dbSession.commit();
+
+    assertThat(db.select("select organization_uuid as \"organizationUuid\" from org_quality_gates"))
+      .extracting(row -> (String) row.get("organizationUuid"))
+      .containsOnly(otherOrganization.getUuid());
+  }
+
+  @Test
+  public void update() {
+    OrganizationDto organization = db.organizations().insert();
+    QGateWithOrgDto qualityGate = qualityGateDbTester.insertQualityGate(organization, qg -> qg.setName("old name"));
+
+    underTest.update(qualityGate.setName("Not so strict"), dbSession);
+    dbSession.commit();
+
+    QGateWithOrgDto reloaded = underTest.selectByOrganizationAndUuid(dbSession, organization, qualityGate.getUuid());
+    assertThat(reloaded.getName()).isEqualTo("Not so strict");
+  }
+
+  private void insertQualityGates() {
+    qualityGateDbTester.insertQualityGate(db.getDefaultOrganization(), g -> g.setName("Very strict").setBuiltIn(false));
+    qualityGateDbTester.insertQualityGate(db.getDefaultOrganization(), g -> g.setName("Balanced").setBuiltIn(false));
+    qualityGateDbTester.insertQualityGate(db.getDefaultOrganization(), g -> g.setName("Lenient").setBuiltIn(false));
   }
 }

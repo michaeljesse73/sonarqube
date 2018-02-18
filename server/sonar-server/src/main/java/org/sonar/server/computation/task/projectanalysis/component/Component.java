@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -58,7 +58,13 @@ public interface Component {
     }
   }
 
+  enum Status {
+    UNAVAILABLE, SAME, CHANGED, ADDED
+  }
+
   Type getType();
+
+  Status getStatus();
 
   /**
    * Returns the component uuid
@@ -66,9 +72,19 @@ public interface Component {
   String getUuid();
 
   /**
-   * Returns the component key
+   * Returns the component key <b>as defined in database</b>
+   * It may differ from keys listed in scanner report
+   * when analyzing a branch.
    */
   String getKey();
+
+  /**
+   * Returns the key as it will be displayed in the ui.
+   * If legacy branch feature is used, the key will contain the branch name
+   * If new branch feature is used, the key will not contain the branch name
+   */
+  // TODO to be renamed getKey() and rename existing getKey to getDbKey
+  String getPublicKey();
 
   /**
    * The component name.
@@ -112,4 +128,11 @@ public interface Component {
    * @throws IllegalStateException if the Component's type is not {@link Type#SUBVIEW}
    */
   SubViewAttributes getSubViewAttributes();
+
+  /**
+   * The attributes of the Component if it's type is {@link Type#VIEW}.
+   *
+   * @throws IllegalStateException if the Component's type is not {@link Type#VIEW}
+   */
+  ViewAttributes getViewAttributes();
 }

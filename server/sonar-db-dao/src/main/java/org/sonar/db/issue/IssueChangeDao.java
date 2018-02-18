@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -46,6 +46,10 @@ public class IssueChangeDao implements Dao {
 
   public List<IssueChangeDto> selectByTypeAndIssueKeys(DbSession session, Collection<String> issueKeys, String changeType) {
     return executeLargeInputs(issueKeys, issueKeys1 -> mapper(session).selectByIssuesAndType(issueKeys1, changeType));
+  }
+
+  public List<IssueChangeDto> selectByIssueKeys(DbSession session, Collection<String> issueKeys) {
+    return executeLargeInputs(issueKeys, issueKeys1 -> mapper(session).selectByIssues(issueKeys1));
   }
 
   public Optional<IssueChangeDto> selectCommentByKey(DbSession session, String commentKey) {

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,21 +19,22 @@
  */
 // @flow
 import React from 'react';
+import PropTypes from 'prop-types';
 import { translate } from '../../../helpers/l10n';
 
 export default class DefinitionChanges extends React.PureComponent {
   static propTypes = {
-    onSave: React.PropTypes.func.isRequired,
-    onCancel: React.PropTypes.func.isRequired
+    onSave: PropTypes.func.isRequired,
+    onCancel: PropTypes.func.isRequired
   };
 
-  handleSaveClick(e: Object) {
+  handleSaveClick(e /*: Object */) {
     e.preventDefault();
     e.target.blur();
     this.props.onSave();
   }
 
-  handleCancelChange(e: Object) {
+  handleCancelChange(e /*: Object */) {
     e.preventDefault();
     e.target.blur();
     this.props.onCancel();

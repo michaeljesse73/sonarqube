@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -51,7 +51,7 @@ public class EnableAnalysisStepTest {
   @Rule
   public MutableAnalysisMetadataHolderRule analysisMetadataHolder = new MutableAnalysisMetadataHolderRule();
 
-  EnableAnalysisStep underTest = new EnableAnalysisStep(db.getDbClient(), treeRootHolder, analysisMetadataHolder);
+  private EnableAnalysisStep underTest = new EnableAnalysisStep(db.getDbClient(), treeRootHolder, analysisMetadataHolder);
 
   @Test
   public void switch_islast_flag_and_mark_analysis_as_processed() {

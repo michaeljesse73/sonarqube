@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -49,6 +49,8 @@ public class FooBasicProfile extends ProfileDefinition {
     activateRule(profile, FOO_REPOSITORY, "RuleWithChangedParameter", MAJOR);
     activateRule(profile, FOO_REPOSITORY, "RuleWithRemovedParameter", MAJOR);
     activateRule(profile, FOO_REPOSITORY, "RuleWithAddedParameter", MAJOR);
+    activateRule(profile, FOO_REPOSITORY, "ToBeRenamed", MAJOR);
+    activateRule(profile, FOO_REPOSITORY, "ToBeRenamedAndMoved", MAJOR);
     return profile;
   }
 

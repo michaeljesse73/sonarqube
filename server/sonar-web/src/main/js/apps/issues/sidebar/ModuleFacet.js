@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,14 +20,16 @@
 // @flow
 import React from 'react';
 import { sortBy, without } from 'lodash';
-import FacetBox from './components/FacetBox';
-import FacetHeader from './components/FacetHeader';
-import FacetItem from './components/FacetItem';
-import FacetItemsList from './components/FacetItemsList';
-import type { ReferencedComponent } from '../utils';
+import FacetBox from '../../../components/facet/FacetBox';
+import FacetHeader from '../../../components/facet/FacetHeader';
+import FacetItem from '../../../components/facet/FacetItem';
+import FacetItemsList from '../../../components/facet/FacetItemsList';
 import QualifierIcon from '../../../components/shared/QualifierIcon';
 import { translate } from '../../../helpers/l10n';
+import { formatFacetStat } from '../utils';
+/*:: import type { ReferencedComponent } from '../utils'; */
 
+/*::
 type Props = {|
   facetMode: string,
   onChange: (changes: { [string]: Array<string> }) => void,
@@ -37,17 +39,18 @@ type Props = {|
   referencedComponents: { [string]: ReferencedComponent },
   modules: Array<string>
 |};
+*/
 
 export default class ModuleFacet extends React.PureComponent {
-  props: Props;
+  /*:: props: Props; */
+
+  property = 'modules';
 
   static defaultProps = {
     open: true
   };
 
-  property = 'modules';
-
-  handleItemClick = (itemValue: string) => {
+  handleItemClick = (itemValue /*: string */) => {
     const { modules } = this.props;
     const newValue = sortBy(
       modules.includes(itemValue) ? without(modules, itemValue) : [...modules, itemValue]
@@ -63,18 +66,21 @@ export default class ModuleFacet extends React.PureComponent {
     this.props.onChange({ [this.property]: [] });
   };
 
-  getStat(module: string): ?number {
+  getStat(module /*: string */) /*: ?number */ {
     const { stats } = this.props;
     return stats ? stats[module] : null;
   }
 
-  renderName(module: string): React.Element<*> | string {
+  getModuleName(module /*: string */) {
     const { referencedComponents } = this.props;
-    const name = referencedComponents[module] ? referencedComponents[module].name : module;
+    return referencedComponents[module] ? referencedComponents[module].name : module;
+  }
+
+  renderName(module /*: string */) /*: React.Element<*> | string */ {
     return (
       <span>
         <QualifierIcon className="little-spacer-right" qualifier="BRC" />
-        {name}
+        {this.getModuleName(module)}
       </span>
     );
   }
@@ -93,11 +99,10 @@ export default class ModuleFacet extends React.PureComponent {
         {modules.map(module => (
           <FacetItem
             active={this.props.modules.includes(module)}
-            facetMode={this.props.facetMode}
             key={module}
             name={this.renderName(module)}
             onClick={this.handleItemClick}
-            stat={this.getStat(module)}
+            stat={formatFacetStat(this.getStat(module), this.props.facetMode)}
             value={module}
           />
         ))}
@@ -106,6 +111,7 @@ export default class ModuleFacet extends React.PureComponent {
   }
 
   render() {
+    const values = this.props.modules.map(module => this.getModuleName(module));
     return (
       <FacetBox property={this.property}>
         <FacetHeader
@@ -113,7 +119,7 @@ export default class ModuleFacet extends React.PureComponent {
           onClear={this.handleClear}
           onClick={this.handleHeaderClick}
           open={this.props.open}
-          values={this.props.modules.length}
+          values={values}
         />
 
         {this.props.open && this.renderList()}

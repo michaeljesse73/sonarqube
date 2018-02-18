@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,7 +20,6 @@
 package org.sonar.db.user;
 
 import static org.sonar.db.user.UserTokenValidator.checkTokenHash;
-import static org.sonar.db.user.UserTokenValidator.checkTokenName;
 
 public class UserTokenDto {
   private String login;
@@ -42,7 +41,7 @@ public class UserTokenDto {
   }
 
   public UserTokenDto setName(String name) {
-    this.name = checkTokenName(name);
+    this.name = name;
     return this;
   }
 

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -29,17 +29,19 @@ const owaspTags =
   'owasp-a1,owasp-a2,owasp-a3,owasp-a4,owasp-a5,owasp-a6,owasp-a7,owasp-a8,owasp-a9,owasp-a10';
 const sans25Tags = 'sans-top25-porous,sans-top25-risky,sans-top25-insecure';
 
+/*::
 type Props = {
   appState: {
     defaultOrganization: string,
     organizationsEnabled: boolean
   }
 };
+*/
 
-export default function AboutStandards(props: Props) {
+export default function AboutStandards(props /*: Props */) {
   const organization = props.appState.organizationsEnabled
     ? props.appState.defaultOrganization
-    : null;
+    : undefined;
 
   return (
     <div className="boxed-group">

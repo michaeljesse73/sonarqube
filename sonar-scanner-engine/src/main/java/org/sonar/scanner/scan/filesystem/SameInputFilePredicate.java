@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,47 +20,49 @@
 package org.sonar.scanner.scan.filesystem;
 
 import java.util.function.Predicate;
-import org.apache.commons.lang.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.sonar.api.batch.fs.FilePredicate;
 import org.sonar.api.batch.fs.InputFile;
+import org.sonar.api.batch.fs.InputFile.Status;
 import org.sonar.api.batch.fs.internal.DefaultInputFile;
-import org.sonar.scanner.repository.FileData;
-import org.sonar.scanner.repository.ProjectRepositories;
+import org.sonar.api.batch.fs.internal.OperatorPredicate;
+import org.sonar.api.batch.fs.internal.StatusPredicate;
 
 public class SameInputFilePredicate implements Predicate<InputFile> {
-  private static final Logger LOG = LoggerFactory.getLogger(SameInputFilePredicate.class);
-  private final ProjectRepositories projectRepositories;
+  private final StatusDetection statusDetection;
   private final String moduleKeyWithBranch;
+  private final FilePredicate currentPredicate;
 
-  public SameInputFilePredicate(ProjectRepositories projectRepositories, String moduleKeyWithBranch) {
-    this.projectRepositories = projectRepositories;
+  public SameInputFilePredicate(FilePredicate currentPredicate, StatusDetection statusDetection, String moduleKeyWithBranch) {
+    this.currentPredicate = currentPredicate;
+    this.statusDetection = statusDetection;
     this.moduleKeyWithBranch = moduleKeyWithBranch;
   }
 
   @Override
   public boolean test(InputFile inputFile) {
-    FileData fileDataPerPath = projectRepositories.fileData(moduleKeyWithBranch, inputFile.relativePath());
-    if (fileDataPerPath == null) {
-      // ADDED
+    if (hasExplicitFilterOnStatus(currentPredicate)) {
+      // If user explicitly requested a given status, don't change the result
       return true;
     }
-    String previousHash = fileDataPerPath.hash();
-    if (StringUtils.isEmpty(previousHash)) {
-      // ADDED
-      return true;
+
+    // TODO: the inputFile could try to calculate the status itself without generating metadata
+    Status status = statusDetection.getStatusWithoutMetadata(moduleKeyWithBranch, (DefaultInputFile) inputFile);
+    if (status != null) {
+      return status != Status.SAME;
     }
 
     // this will trigger computation of metadata
-    String hash = ((DefaultInputFile) inputFile).hash();
-    if (StringUtils.equals(hash, previousHash)) {
-      // SAME
-      LOG.debug("'{}' filtering unmodified file", inputFile.relativePath());
-      return false;
-    }
+    return inputFile.status() != Status.SAME;
+  }
 
-    // CHANGED
-    return true;
+  static boolean hasExplicitFilterOnStatus(FilePredicate predicate) {
+    if (predicate instanceof StatusPredicate) {
+      return true;
+    }
+    if (predicate instanceof OperatorPredicate) {
+      return ((OperatorPredicate) predicate).operands().stream().anyMatch(SameInputFilePredicate::hasExplicitFilterOnStatus);
+    }
+    return false;
   }
 
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -37,6 +37,7 @@ import org.sonar.server.tester.UserSessionRule;
 import org.sonar.server.ws.TestResponse;
 import org.sonar.server.ws.WsActionTester;
 
+import static java.lang.String.format;
 import static org.sonar.api.web.UserRole.CODEVIEWER;
 import static org.sonar.api.web.UserRole.USER;
 import static org.sonar.db.component.ComponentTesting.newFileDto;
@@ -62,7 +63,7 @@ public class IndexActionTest {
     insertFileWithData(file, newData("public class HelloWorld {", "}"));
 
     TestResponse request = tester.newRequest()
-      .setParam("resource", file.getKey())
+      .setParam("resource", file.getDbKey())
       .execute();
 
     assertJson(request.getInput()).isSimilarTo("[\n" +
@@ -81,7 +82,7 @@ public class IndexActionTest {
     insertFileWithData(file, newData("/**", " */", "public class HelloWorld {", "}", "", "foo"));
 
     TestResponse request = tester.newRequest()
-      .setParam("resource", file.getKey())
+      .setParam("resource", file.getDbKey())
       .setParam("from", "3")
       .setParam("to", "5")
       .execute();
@@ -95,7 +96,7 @@ public class IndexActionTest {
   }
 
   @Test
-  public void fail_when_missing_code_viewer_permission() throws Exception {
+  public void fail_when_missing_code_viewer_permission() {
     ComponentDto project = db.components().insertPrivateProject();
     userSession.addProjectPermission(USER, project);
     ComponentDto file = db.components().insertComponent(newFileDto(project));
@@ -103,7 +104,7 @@ public class IndexActionTest {
     expectedException.expect(ForbiddenException.class);
 
     tester.newRequest()
-      .setParam("resource", file.getKey())
+      .setParam("resource", file.getDbKey())
       .execute();
   }
 
@@ -116,7 +117,21 @@ public class IndexActionTest {
       .execute();
   }
 
-  private static DbFileSources.Data newData(String... lines) throws IOException {
+  @Test
+  public void fail_when_using_branch_db_key() throws Exception {
+    ComponentDto project = db.components().insertMainBranch();
+    ComponentDto branch = db.components().insertProjectBranch(project);
+    userSession.addProjectPermission(USER, project);
+
+    expectedException.expect(NotFoundException.class);
+    expectedException.expectMessage(format("Component key '%s' not found", branch.getDbKey()));
+
+    tester.newRequest()
+      .setParam("resource", branch.getDbKey())
+      .execute();
+  }
+
+  private static DbFileSources.Data newData(String... lines) {
     DbFileSources.Data.Builder dataBuilder = DbFileSources.Data.newBuilder();
     for (int i = 1; i <= lines.length; i++) {
       dataBuilder.addLinesBuilder()
@@ -127,7 +142,7 @@ public class IndexActionTest {
     return dataBuilder.build();
   }
 
-  private void insertFileWithData(ComponentDto file, DbFileSources.Data fileData) throws IOException {
+  private void insertFileWithData(ComponentDto file, DbFileSources.Data fileData) {
     db.getDbClient().fileSourceDao().insert(db.getSession(), new FileSourceDto()
       .setProjectUuid(file.projectUuid())
       .setFileUuid(file.uuid())

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -29,12 +29,12 @@ import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
-import org.sonarqube.ws.WsUserTokens;
+import org.sonarqube.ws.UserTokens;
 import org.sonarqube.ws.client.WsClient;
-import org.sonarqube.ws.client.permission.AddUserWsRequest;
-import org.sonarqube.ws.client.usertoken.GenerateWsRequest;
-import org.sonarqube.ws.client.usertoken.RevokeWsRequest;
-import org.sonarqube.ws.client.usertoken.UserTokensService;
+import org.sonarqube.ws.client.permissions.AddUserRequest;
+import org.sonarqube.ws.client.usertokens.GenerateRequest;
+import org.sonarqube.ws.client.usertokens.RevokeRequest;
+import org.sonarqube.ws.client.usertokens.UserTokensService;
 import util.user.UserRule;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -69,7 +69,7 @@ public class PermissionTest {
   }
 
   @After
-  public void tearDown() throws Exception {
+  public void tearDown() {
     resetSettings(orchestrator, null, "sonar.forceAuthentication");
     userRule.resetUsers();
   }
@@ -79,7 +79,7 @@ public class PermissionTest {
     createUserWithProvisioningAndScanPermissions();
 
     String tokenName = "For test";
-    WsUserTokens.GenerateWsResponse generateWsResponse = userTokensWsClient.generate(new GenerateWsRequest()
+    UserTokens.GenerateWsResponse generateWsResponse = userTokensWsClient.generate(new GenerateRequest()
       .setLogin(A_LOGIN)
       .setName(tokenName));
     SonarScanner sampleProject = SonarScanner.create(projectDir("shared/xoo-sample"));
@@ -90,7 +90,7 @@ public class PermissionTest {
     BuildResult buildResult = orchestrator.executeBuild(sampleProject);
 
     assertThat(buildResult.isSuccess()).isTrue();
-    userTokensWsClient.revoke(new RevokeWsRequest().setLogin(A_LOGIN).setName(tokenName));
+    userTokensWsClient.revoke(new RevokeRequest().setLogin(A_LOGIN).setName(tokenName));
   }
 
   @Test
@@ -136,7 +136,7 @@ public class PermissionTest {
   }
 
   @Test
-  public void run_scanner_with_user_having_scan_permission_only_on_project() throws Exception {
+  public void run_scanner_with_user_having_scan_permission_only_on_project() {
     userRule.createUser(A_LOGIN, A_PASSWORD);
     orchestrator.getServer().provisionProject("sample", "sample");
     addUserPermission(A_LOGIN, "scan", "sample");
@@ -147,7 +147,7 @@ public class PermissionTest {
   }
 
   private void addUserPermission(String login, String permission, @Nullable String projectKey) {
-    adminWsClient.permissions().addUser(new AddUserWsRequest()
+    adminWsClient.permissions().addUser(new AddUserRequest()
       .setLogin(login)
       .setPermission(permission)
       .setProjectKey(projectKey));

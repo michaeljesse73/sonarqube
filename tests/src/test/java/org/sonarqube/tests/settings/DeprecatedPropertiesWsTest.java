@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,6 +22,7 @@ package org.sonarqube.tests.settings;
 import com.google.common.base.Throwables;
 import com.google.gson.Gson;
 import com.sonar.orchestrator.Orchestrator;
+import org.junit.rules.RuleChain;
 import org.sonarqube.tests.Category1Suite;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
@@ -43,8 +44,8 @@ import org.junit.Test;
 import org.sonarqube.ws.client.GetRequest;
 import org.sonarqube.ws.client.WsClient;
 import org.sonarqube.ws.client.WsResponse;
-import org.sonarqube.ws.client.setting.SetRequest;
-import org.sonarqube.ws.client.setting.SettingsService;
+import org.sonarqube.ws.client.settings.SetRequest;
+import org.sonarqube.ws.client.settings.SettingsService;
 import util.user.UserRule;
 
 import static java.net.URLEncoder.encode;
@@ -69,8 +70,10 @@ public class DeprecatedPropertiesWsTest {
   @ClassRule
   public static Orchestrator orchestrator = Category1Suite.ORCHESTRATOR;
 
+  private static UserRule userRule = UserRule.from(orchestrator);
+
   @ClassRule
-  public static UserRule userRule = UserRule.from(orchestrator);
+  public static RuleChain ruleChain = RuleChain.outerRule(orchestrator).around(userRule);
 
   static WsClient adminWsClient;
   static WsClient userWsClient;
@@ -79,7 +82,7 @@ public class DeprecatedPropertiesWsTest {
   static SettingsService adminSettingsService;
 
   @BeforeClass
-  public static void init() throws Exception {
+  public static void init() {
     orchestrator.resetData();
     userRule.createUser(USER_LOGIN, "password");
     adminWsClient = newAdminWsClient(orchestrator);
@@ -90,13 +93,13 @@ public class DeprecatedPropertiesWsTest {
   }
 
   @AfterClass
-  public static void resetAfterClass() throws Exception {
+  public static void resetAfterClass() {
     doResetSettings();
     userRule.deactivateUsers(USER_LOGIN);
   }
 
   @Before
-  public void resetBefore() throws Exception {
+  public void resetBefore() {
     doResetSettings();
   }
 
@@ -156,7 +159,7 @@ public class DeprecatedPropertiesWsTest {
   }
 
   @Test
-  public void secured_setting_not_returned_to_not_admin() throws Exception {
+  public void secured_setting_not_returned_to_not_admin() {
     setProperty("setting.secured", "value", null);
 
     // Admin can see the secured setting
@@ -168,7 +171,7 @@ public class DeprecatedPropertiesWsTest {
   }
 
   @Test
-  public void license_setting_not_returned_to_not_logged() throws Exception {
+  public void license_setting_not_returned_to_not_logged() {
     setProperty("setting.license.secured", "value", null);
 
     // Admin and user can see the license setting
@@ -180,7 +183,7 @@ public class DeprecatedPropertiesWsTest {
   }
 
   @Test
-  public void get_all_global_settings() throws Exception {
+  public void get_all_global_settings() {
     List<Properties.Property> properties = getProperties(null);
     assertThat(properties).isNotEmpty();
     assertThat(properties).extracting("key")
@@ -220,7 +223,7 @@ public class DeprecatedPropertiesWsTest {
   }
 
   @Test
-  public void get_all_component_settings() throws Exception {
+  public void get_all_component_settings() {
     List<Properties.Property> properties = getProperties(PROJECT_KEY);
     assertThat(properties).isNotEmpty();
     assertThat(properties).extracting("key")
@@ -306,11 +309,11 @@ public class DeprecatedPropertiesWsTest {
   }
 
   private static void setProperty(String key, String value, @Nullable String componentKey) {
-    adminSettingsService.set(SetRequest.builder().setKey(key).setValue(value).setComponent(componentKey).build());
+    adminSettingsService.set(new SetRequest().setKey(key).setValue(value).setComponent(componentKey));
   }
 
   private static void setProperty(String key, List<String> values, @Nullable String componentKey) {
-    adminSettingsService.set(SetRequest.builder().setKey(key).setValues(values).setComponent(componentKey).build());
+    adminSettingsService.set(new SetRequest().setKey(key).setValues(values).setComponent(componentKey));
   }
 
   private static List<Properties.Property> getProperties(@Nullable String componentKey) {

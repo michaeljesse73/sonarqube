@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -28,16 +28,19 @@ import org.sonar.api.server.ws.WebService;
 import org.sonar.api.utils.KeyValueFormat;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
+import org.sonar.db.organization.OrganizationDto;
 import org.sonar.db.qualityprofile.QProfileDto;
+import org.sonar.db.rule.RuleDefinitionDto;
+import org.sonar.server.qualityprofile.QProfileRules;
 import org.sonar.server.qualityprofile.RuleActivation;
-import org.sonar.server.qualityprofile.RuleActivator;
 import org.sonar.server.user.UserSession;
 
 import static java.lang.String.format;
+import static java.util.Collections.singletonList;
 import static org.sonar.core.util.Uuids.UUID_EXAMPLE_01;
 import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.ACTION_ACTIVATE_RULE;
+import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.PARAM_KEY;
 import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.PARAM_PARAMS;
-import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.PARAM_PROFILE;
 import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.PARAM_RESET;
 import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.PARAM_RULE;
 import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.PARAM_SEVERITY;
@@ -45,11 +48,11 @@ import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.
 public class ActivateRuleAction implements QProfileWsAction {
 
   private final DbClient dbClient;
-  private final RuleActivator ruleActivator;
+  private final QProfileRules ruleActivator;
   private final UserSession userSession;
   private final QProfileWsSupport wsSupport;
 
-  public ActivateRuleAction(DbClient dbClient, RuleActivator ruleActivator, UserSession userSession, QProfileWsSupport wsSupport) {
+  public ActivateRuleAction(DbClient dbClient, QProfileRules ruleActivator, UserSession userSession, QProfileWsSupport wsSupport) {
     this.dbClient = dbClient;
     this.ruleActivator = ruleActivator;
     this.userSession = userSession;
@@ -60,12 +63,16 @@ public class ActivateRuleAction implements QProfileWsAction {
     WebService.NewAction activate = controller
       .createAction(ACTION_ACTIVATE_RULE)
       .setDescription("Activate a rule on a Quality Profile.<br> " +
-        "Requires to be logged in and the 'Administer Quality Profiles' permission.")
+        "Requires one of the following permissions:" +
+        "<ul>" +
+        "  <li>'Administer Quality Profiles'</li>" +
+        "  <li>Edit right on the specified quality profile</li>" +
+        "</ul>")
       .setHandler(this)
       .setPost(true)
       .setSince("4.4");
 
-    activate.createParam(PARAM_PROFILE)
+    activate.createParam(PARAM_KEY)
       .setDescription("Quality Profile key. Can be obtained through <code>api/qualityprofiles/search</code>")
       .setDeprecatedKey("profile_key", "6.5")
       .setRequired(true)
@@ -94,22 +101,24 @@ public class ActivateRuleAction implements QProfileWsAction {
   public void handle(Request request, Response response) throws Exception {
     userSession.checkLoggedIn();
     try (DbSession dbSession = dbClient.openSession(false)) {
-      String profileKey = request.mandatoryParam(PARAM_PROFILE);
+      String profileKey = request.mandatoryParam(PARAM_KEY);
       QProfileDto profile = wsSupport.getProfile(dbSession, QProfileReference.fromKey(profileKey));
-      wsSupport.checkPermission(dbSession, profile);
-      wsSupport.checkNotBuiltInt(profile);
-      RuleActivation activation = readActivation(request);
-      ruleActivator.activateAndCommit(dbSession, activation, profile);
+      OrganizationDto organization = wsSupport.getOrganization(dbSession, profile);
+      wsSupport.checkCanEdit(dbSession, organization, profile);
+      RuleActivation activation = readActivation(dbSession, request);
+      ruleActivator.activateAndCommit(dbSession, profile, singletonList(activation));
     }
 
     response.noContent();
   }
 
-  private static RuleActivation readActivation(Request request) {
+  private RuleActivation readActivation(DbSession dbSession, Request request) {
     RuleKey ruleKey = RuleKey.parse(request.mandatoryParam(PARAM_RULE));
+    RuleDefinitionDto ruleDefinition = dbClient.ruleDao().selectDefinitionByKey(dbSession, ruleKey)
+      .orElseThrow(() -> new IllegalArgumentException(format("Rule '%s' not found", ruleKey)));
     boolean reset = Boolean.TRUE.equals(request.paramAsBoolean(PARAM_RESET));
     if (reset) {
-      return RuleActivation.createReset(ruleKey);
+      return RuleActivation.createReset(ruleDefinition.getId());
     }
     String severity = request.param(PARAM_SEVERITY);
     Map<String, String> params = null;
@@ -117,7 +126,7 @@ public class ActivateRuleAction implements QProfileWsAction {
     if (paramsAsString != null) {
       params = KeyValueFormat.parse(paramsAsString);
     }
-    return RuleActivation.create(ruleKey, severity, params);
+    return RuleActivation.create(ruleDefinition.getId(), severity, params);
   }
 
 }

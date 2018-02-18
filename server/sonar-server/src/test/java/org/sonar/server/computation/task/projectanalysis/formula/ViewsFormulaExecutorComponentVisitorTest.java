@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,7 +21,6 @@ package org.sonar.server.computation.task.projectanalysis.formula;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
-import org.assertj.core.api.AbstractIterableAssert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.sonar.api.measures.CoreMetrics;
@@ -30,7 +29,6 @@ import org.sonar.server.computation.task.projectanalysis.component.TreeRootHolde
 import org.sonar.server.computation.task.projectanalysis.component.ViewsComponent;
 import org.sonar.server.computation.task.projectanalysis.formula.counter.IntValue;
 import org.sonar.server.computation.task.projectanalysis.measure.Measure;
-import org.sonar.server.computation.task.projectanalysis.measure.MeasureRepoEntry;
 import org.sonar.server.computation.task.projectanalysis.measure.MeasureRepositoryRule;
 import org.sonar.server.computation.task.projectanalysis.metric.Metric;
 import org.sonar.server.computation.task.projectanalysis.metric.MetricRepositoryRule;
@@ -92,7 +90,7 @@ public class ViewsFormulaExecutorComponentVisitorTest {
   public PeriodHolderRule periodsHolder = new PeriodHolderRule().setPeriod(new Period("some mode", null, 95l, "u1"));
 
   @Test
-  public void verify_aggregation_on_value() throws Exception {
+  public void verify_aggregation_on_value() {
     treeRootHolder.setRoot(BALANCED_COMPONENT_TREE);
     addRawMeasure(PROJECT_VIEW_1_REF, 1, LINES_KEY);
     addRawMeasure(PROJECT_VIEW_2_REF, 2, LINES_KEY);
@@ -114,7 +112,7 @@ public class ViewsFormulaExecutorComponentVisitorTest {
   }
 
   @Test
-  public void verify_multi_metric_formula_support_and_aggregation() throws Exception {
+  public void verify_multi_metric_formula_support_and_aggregation() {
     treeRootHolder.setRoot(BALANCED_COMPONENT_TREE);
     addRawMeasure(PROJECT_VIEW_1_REF, 1, LINES_KEY);
     addRawMeasure(PROJECT_VIEW_2_REF, 2, LINES_KEY);
@@ -132,7 +130,7 @@ public class ViewsFormulaExecutorComponentVisitorTest {
   }
 
   @Test
-  public void verify_aggregation_on_variations() throws Exception {
+  public void verify_aggregation_on_variations() {
     treeRootHolder.setRoot(BALANCED_COMPONENT_TREE);
 
     addRawMeasureWithVariation(PROJECT_VIEW_1_REF, NEW_LINES_TO_COVER_KEY, 10);
@@ -150,8 +148,8 @@ public class ViewsFormulaExecutorComponentVisitorTest {
     verifySingleMetricWithVariation(ROOT_REF, 23);
   }
 
-  private AbstractIterableAssert<?, ? extends Iterable<? extends MeasureRepoEntry>, MeasureRepoEntry> verifySingleMetricWithVariation(int componentRef, int variation) {
-    return assertThat(toEntries(measureRepository.getAddedRawMeasures(componentRef)))
+  private void verifySingleMetricWithVariation(int componentRef, int variation) {
+    assertThat(toEntries(measureRepository.getAddedRawMeasures(componentRef)))
       .containsOnly(entryOf(NEW_COVERAGE_KEY, createMeasureWithVariation(variation)));
   }
 
@@ -164,7 +162,7 @@ public class ViewsFormulaExecutorComponentVisitorTest {
   }
 
   @Test
-  public void verify_no_measure_added_on_projectView() throws Exception {
+  public void verify_no_measure_added_on_projectView() {
     ViewsComponent project = ViewsComponent.builder(VIEW, ROOT_REF)
       .addChildren(
         ViewsComponent.builder(SUBVIEW, SUBVIEW_1_REF)
@@ -187,7 +185,7 @@ public class ViewsFormulaExecutorComponentVisitorTest {
   }
 
   @Test
-  public void add_measure_even_if_leaf_is_not_a_PROJECT_VIEW() throws Exception {
+  public void add_measure_even_if_leaf_is_not_a_PROJECT_VIEW() {
     ViewsComponent project = ViewsComponent.builder(VIEW, ROOT_REF)
       .addChildren(
         ViewsComponent.builder(SUBVIEW, SUBVIEW_1_REF)

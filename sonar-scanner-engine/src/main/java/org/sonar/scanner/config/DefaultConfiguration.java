@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,20 +19,12 @@
  */
 package org.sonar.scanner.config;
 
-import java.io.IOException;
-import java.io.StringReader;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import javax.annotation.concurrent.Immutable;
-import org.apache.commons.csv.CSVFormat;
-import org.apache.commons.csv.CSVParser;
-import org.apache.commons.csv.CSVRecord;
 import org.apache.commons.lang.ArrayUtils;
-import org.sonar.api.batch.AnalysisMode;
 import org.sonar.api.config.Configuration;
 import org.sonar.api.config.Encryption;
 import org.sonar.api.config.PropertyDefinition;
@@ -40,9 +32,11 @@ import org.sonar.api.config.PropertyDefinitions;
 import org.sonar.api.utils.MessageException;
 import org.sonar.api.utils.log.Logger;
 import org.sonar.api.utils.log.Loggers;
+import org.sonar.scanner.bootstrap.GlobalAnalysisMode;
 
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang.StringUtils.trim;
+import static org.sonar.core.config.MultivalueProperty.parseAsCsv;
 
 @Immutable
 public abstract class DefaultConfiguration implements Configuration {
@@ -51,20 +45,26 @@ public abstract class DefaultConfiguration implements Configuration {
 
   private final PropertyDefinitions definitions;
   private final Encryption encryption;
-  private final AnalysisMode mode;
-  private final Map<String, String> properties = new HashMap<>();
+  private final GlobalAnalysisMode mode;
+  private final Map<String, String> properties;
 
-  public DefaultConfiguration(PropertyDefinitions propertyDefinitions, Encryption encryption, AnalysisMode mode, Map<String, String> props) {
+  public DefaultConfiguration(PropertyDefinitions propertyDefinitions, Encryption encryption, GlobalAnalysisMode mode, Map<String, String> props) {
     this.definitions = requireNonNull(propertyDefinitions);
     this.encryption = encryption;
     this.mode = mode;
-    props.forEach((k, v) -> {
-      String validKey = definitions.validKey(k);
-      properties.put(validKey, trim(v));
-    });
+    this.properties = unmodifiableMapWithTrimmedValues(definitions, props);
   }
 
-  public AnalysisMode getMode() {
+  protected static Map<String, String> unmodifiableMapWithTrimmedValues(PropertyDefinitions definitions, Map<String, String> props) {
+    Map<String, String> map = new HashMap<>(props.size());
+    props.forEach((k, v) -> {
+      String validKey = definitions.validKey(k);
+      map.put(validKey, trim(v));
+    });
+    return Collections.unmodifiableMap(map);
+  }
+
+  public GlobalAnalysisMode getMode() {
     return mode;
   }
 
@@ -77,7 +77,7 @@ public abstract class DefaultConfiguration implements Configuration {
   }
 
   public Map<String, String> getProperties() {
-    return Collections.unmodifiableMap(properties);
+    return properties;
   }
 
   @Override
@@ -110,23 +110,6 @@ public abstract class DefaultConfiguration implements Configuration {
       return parseAsCsv(effectiveKey, value.get());
     }
     return ArrayUtils.EMPTY_STRING_ARRAY;
-  }
-
-  public static String[] parseAsCsv(String key, String value) {
-    List<String> result = new ArrayList<>();
-    try (CSVParser csvParser = CSVFormat.RFC4180
-      .withHeader((String) null)
-      .withIgnoreSurroundingSpaces(true)
-      .parse(new StringReader(value))) {
-      List<CSVRecord> records = csvParser.getRecords();
-      if (records.isEmpty()) {
-        return ArrayUtils.EMPTY_STRING_ARRAY;
-      }
-      records.get(0).iterator().forEachRemaining(result::add);
-      return result.toArray(new String[result.size()]);
-    } catch (IOException e) {
-      throw new IllegalStateException("Property: '" + key + "' doesn't contain a valid CSV value: '" + value + "'", e);
-    }
   }
 
   private Optional<String> getInternal(String key) {

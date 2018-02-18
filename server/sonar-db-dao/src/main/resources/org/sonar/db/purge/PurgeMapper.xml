@@ -27,9 +27,9 @@
 
   <select id="selectPurgeableAnalysesWithEvents" parameterType="String" resultType="PurgeableAnalysis">
     select
-      s.id as "analysisId", s.uuid as "analysisUuid", s.created_at as "date", ${_true} as "hasEvents", islast as "isLast"
-    from
-      snapshots s
+      s.id as "analysisId", s.uuid as "analysisUuid", s.created_at as "date", ${_true} as "hasEvents", islast as "isLast", ve.name as "version"
+    from snapshots s
+      left outer join events ve on ve.analysis_uuid=s.uuid and ve.category='Version'
     where
       s.component_uuid=#{componentUuid,jdbcType=VARCHAR}
       and s.status='P'
@@ -38,20 +38,30 @@
 
   <select id="selectPurgeableAnalysesWithoutEvents" parameterType="String" resultType="PurgeableAnalysis">
     select
-      s.id as "analysisId", s.uuid as "analysisUuid", s.created_at as "date", ${_false} as "hasEvents", islast as "isLast"
-    from
-      snapshots s
+      s.id as "analysisId", s.uuid as "analysisUuid", s.created_at as "date", ${_false} as "hasEvents", islast as "isLast", NULL as "version"
+    from snapshots s
     where
       s.component_uuid=#{componentUuid,jdbcType=VARCHAR}
       and s.status='P'
       and not exists(select e.id from events e where e.analysis_uuid=s.uuid)
   </select>
 
+    <select id="selectStaleShortLivingBranches" parameterType="map" resultType="String">
+    select
+      pb.uuid
+    from
+      project_branches pb
+    where
+        pb.project_uuid=#{mainBranchProjectUuid,jdbcType=VARCHAR}
+        and pb.branch_type='SHORT'
+        and pb.updated_at &lt; #{toDate}
+  </select>
+
   <select id="selectMetricIdsWithoutHistoricalData" resultType="long">
     select id from metrics where delete_historical_data=${_true}
   </select>
 
-  <select id="selectRootAndModulesOrSubviewsByProjectUuid" resultType="org.sonar.db.purge.IdUuidPair" parameterType="String">
+  <select id="selectRootAndModulesOrSubviewsByProjectUuid" resultType="IdUuidPair" parameterType="String">
     select
       p.id, p.uuid
     from
@@ -63,7 +73,7 @@
       )
       or (
         uuid=#{rootUuid,jdbcType=VARCHAR}
-        and p.scope = 'PRJ' and p.qualifier in ('VW','TRK')
+        and p.scope = 'PRJ' and p.qualifier in ('APP', 'VW','TRK')
       )
   </select>
 
@@ -125,6 +135,15 @@
       </foreach>
   </delete>
 
+  <delete id="deleteAnalysisProperties" parameterType="map">
+    DELETE FROM analysis_properties
+    WHERE
+      snapshot_uuid IN
+      <foreach collection="analysisUuids" open="(" close=")" item="analysisUuid" separator=",">
+        #{analysisUuid,jdbcType=VARCHAR}
+      </foreach>
+  </delete>
+
   <delete id="deleteAnalysisWastedMeasures" parameterType="map">
     delete from project_measures
     <where>
@@ -132,14 +151,10 @@
       <foreach collection="analysisUuids" open="(" close=")" item="analysisUuid" separator=",">
         #{analysisUuid}
       </foreach>
-      and (person_id is not null
-      <if test="metricIds.size()>0">
-        or metric_id in
-        <foreach collection="metricIds" open="(" item="metricId" separator="," close=")">
-          #{metricId}
-        </foreach>
-      </if>
-      )
+      and metric_id in
+      <foreach collection="metricIds" open="(" item="metricId" separator="," close=")">
+        #{metricId,jdbcType=INTEGER}
+      </foreach>
     </where>
   </delete>
 
@@ -255,54 +270,6 @@
     where project_uuid = #{projectUuid,jdbcType=VARCHAR}
   </delete>
 
-  <delete id="deleteIssueChangesByComponentUuids" parameterType="map">
-    delete from issue_changes ic
-    where
-      exists (
-        select
-          1
-        from issues i
-        where
-          i.kee=ic.issue_key
-          and i.component_uuid in
-            <foreach collection="componentUuids" open="(" close=")" item="componentUuid" separator=",">
-              #{componentUuid,jdbcType=VARCHAR}
-            </foreach>
-    )
-  </delete>
-
-  <!-- Mssql -->
-  <delete id="deleteIssueChangesByComponentUuids" databaseId="mssql" parameterType="map">
-    delete issue_changes from issue_changes
-    inner join issues on
-      issue_changes.issue_key=issues.kee
-    where
-      issues.project_uuid  in
-        <foreach collection="componentUuids" open="(" close=")" item="componentUuid" separator=",">
-          #{componentUuid,jdbcType=VARCHAR}
-        </foreach>
-  </delete>
-
-  <!-- Mysql -->
-  <delete id="deleteIssueChangesByComponentUuids" databaseId="mysql" parameterType="map">
-    delete ic from issue_changes as ic, issues as i
-    where
-      ic.issue_key=i.kee
-      and i.component_uuid  in
-        <foreach collection="componentUuids" open="(" close=")" item="componentUuid" separator=",">
-          #{componentUuid,jdbcType=VARCHAR}
-        </foreach>
-  </delete>
-
-  <delete id="deleteIssuesByComponentUuids" parameterType="map">
-    delete from issues
-    where
-      project_uuid  in
-        <foreach collection="componentUuids" open="(" close=")" item="componentUuid" separator=",">
-          #{componentUuid,jdbcType=VARCHAR}
-        </foreach>
-  </delete>
-
   <delete id="deleteFileSourcesByProjectUuid">
     delete from file_sources where project_uuid=#{rootProjectUuid,jdbcType=VARCHAR}
   </delete>
@@ -345,8 +312,44 @@
     </foreach>
   </delete>
 
+  <delete id="deleteCeScannerContextOfCeActivityByProjectUuid">
+    delete from ce_scanner_context
+    where
+      task_uuid in (select uuid from ce_activity where component_uuid=#{projectUuid,jdbcType=VARCHAR})
+  </delete>
+
+  <delete id="deleteCeTaskCharacteristicsOfCeActivityByProjectUuid">
+    delete from ce_task_characteristics
+    where
+      task_uuid in (select uuid from ce_activity where component_uuid=#{projectUuid,jdbcType=VARCHAR})
+  </delete>
+
+  <delete id="deleteCeTaskInputOfCeActivityByProjectUuid">
+    delete from ce_task_input
+    where
+      task_uuid in (select uuid from ce_activity where component_uuid=#{projectUuid,jdbcType=VARCHAR})
+  </delete>
+
   <delete id="deleteCeActivityByProjectUuid">
       delete from ce_activity where component_uuid=#{projectUuid,jdbcType=VARCHAR}
+  </delete>
+
+  <delete id="deleteCeScannerContextOfCeQueueByProjectUuid">
+    delete from ce_scanner_context
+    where
+      task_uuid in (select uuid from ce_queue where component_uuid=#{projectUuid,jdbcType=VARCHAR})
+  </delete>
+
+  <delete id="deleteCeTaskCharacteristicsOfCeQueueByProjectUuid">
+    delete from ce_task_characteristics
+    where
+      task_uuid in (select uuid from ce_queue where component_uuid=#{projectUuid,jdbcType=VARCHAR})
+  </delete>
+
+  <delete id="deleteCeTaskInputOfCeQueueByProjectUuid">
+    delete from ce_task_input
+    where
+      task_uuid in (select uuid from ce_queue where component_uuid=#{projectUuid,jdbcType=VARCHAR})
   </delete>
 
   <delete id="deleteCeQueueByProjectUuid">
@@ -357,5 +360,12 @@
     delete from webhook_deliveries where component_uuid=#{projectUuid,jdbcType=VARCHAR}
   </delete>
 
+  <delete id="deleteBranchByUuid">
+    delete from project_branches where uuid=#{uuid,jdbcType=VARCHAR}
+  </delete>
+
+  <delete id="deleteLiveMeasuresByProjectUuid">
+    delete from live_measures where project_uuid = #{projectUuid,jdbcType=VARCHAR}
+  </delete>
 </mapper>
 

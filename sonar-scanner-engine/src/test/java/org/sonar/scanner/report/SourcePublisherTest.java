@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -30,11 +30,12 @@ import org.junit.rules.TemporaryFolder;
 import org.sonar.api.batch.fs.internal.DefaultInputFile;
 import org.sonar.api.batch.fs.internal.DefaultInputModule;
 import org.sonar.api.batch.fs.internal.TestInputFileBuilder;
-import org.sonar.api.scan.filesystem.PathResolver;
 import org.sonar.scanner.protocol.output.ScannerReportWriter;
+import org.sonar.scanner.scan.branch.BranchConfiguration;
 import org.sonar.scanner.scan.filesystem.InputComponentStore;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
 public class SourcePublisherTest {
 
@@ -57,7 +58,7 @@ public class SourcePublisherTest {
       .build();
 
     DefaultInputModule rootModule = TestInputFileBuilder.newDefaultInputModule(moduleKey, baseDir);
-    InputComponentStore componentStore = new InputComponentStore(new PathResolver(), rootModule);
+    InputComponentStore componentStore = new InputComponentStore(rootModule, mock(BranchConfiguration.class));
     componentStore.put(inputFile);
 
     publisher = new SourcePublisher(componentStore);
@@ -115,4 +116,5 @@ public class SourcePublisherTest {
     File out = writer.getSourceFile(inputFile.batchId());
     assertThat(FileUtils.readFileToString(out, StandardCharsets.UTF_8)).isEqualTo("\n2\n3\n4\n5");
   }
+
 }

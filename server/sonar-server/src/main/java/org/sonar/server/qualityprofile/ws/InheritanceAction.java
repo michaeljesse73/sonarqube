@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -34,9 +34,10 @@ import org.sonar.db.organization.OrganizationDto;
 import org.sonar.db.qualityprofile.ActiveRuleCountQuery;
 import org.sonar.db.qualityprofile.ActiveRuleDao;
 import org.sonar.db.qualityprofile.QProfileDto;
-import org.sonarqube.ws.QualityProfiles.InheritanceWsResponse;
-import org.sonarqube.ws.QualityProfiles.InheritanceWsResponse.QualityProfile;
+import org.sonarqube.ws.Qualityprofiles.InheritanceWsResponse;
+import org.sonarqube.ws.Qualityprofiles.InheritanceWsResponse.QualityProfile;
 
+import static java.util.Collections.singleton;
 import static org.sonar.core.util.Protobuf.setNullable;
 import static org.sonar.db.qualityprofile.ActiveRuleDto.OVERRIDES;
 import static org.sonar.server.qualityprofile.ws.QProfileWsSupport.createOrganizationParam;
@@ -74,7 +75,7 @@ public class InheritanceAction implements QProfileWsAction {
       QProfileDto profile = wsSupport.getProfile(dbSession, reference);
       OrganizationDto organization = wsSupport.getOrganization(dbSession, profile);
       List<QProfileDto> ancestors = ancestors(profile, dbSession);
-      List<QProfileDto> children = dbClient.qualityProfileDao().selectChildren(dbSession, profile);
+      List<QProfileDto> children = dbClient.qualityProfileDao().selectChildren(dbSession, singleton(profile));
       List<QProfileDto> allProfiles = new ArrayList<>();
       allProfiles.add(profile);
       allProfiles.addAll(ancestors);
@@ -85,7 +86,7 @@ public class InheritanceAction implements QProfileWsAction {
     }
   }
 
-  public List<QProfileDto> ancestors(QProfileDto profile, DbSession dbSession) {
+  private List<QProfileDto> ancestors(QProfileDto profile, DbSession dbSession) {
     List<QProfileDto> ancestors = new ArrayList<>();
     collectAncestors(profile, ancestors, dbSession);
     return ancestors;

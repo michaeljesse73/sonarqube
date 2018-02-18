@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -17,7 +17,6 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-
 package org.sonar.server.organization.ws;
 
 import java.util.HashSet;
@@ -28,6 +27,7 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.sonar.api.config.internal.MapSettings;
 import org.sonar.api.server.ws.WebService;
+import org.sonar.api.utils.System2;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
 import org.sonar.db.DbTester;
@@ -38,6 +38,7 @@ import org.sonar.db.permission.template.PermissionTemplateDto;
 import org.sonar.db.permission.template.PermissionTemplateUserDto;
 import org.sonar.db.property.PropertyDto;
 import org.sonar.db.property.PropertyQuery;
+import org.sonar.db.qualityprofile.QProfileDto;
 import org.sonar.db.user.GroupDto;
 import org.sonar.db.user.UserDto;
 import org.sonar.server.es.EsTester;
@@ -79,7 +80,7 @@ public class RemoveMemberActionTest {
   private DbClient dbClient = db.getDbClient();
   private DbSession dbSession = db.getSession();
 
-  private UserIndex userIndex = new UserIndex(es.client());
+  private UserIndex userIndex = new UserIndex(es.client(), System2.INSTANCE);
   private UserIndexer userIndexer = new UserIndexer(dbClient, es.client());
 
   private WsActionTester ws = new WsActionTester(new RemoveMemberAction(dbClient, userSession, userIndexer));
@@ -183,6 +184,21 @@ public class RemoveMemberActionTest {
       .containsOnly(anotherUser.getId());
     assertThat(dbClient.permissionTemplateDao().selectUserPermissionsByTemplateId(dbSession, anotherTemplate.getId())).extracting(PermissionTemplateUserDto::getUserId)
       .containsOnly(user.getId());
+  }
+
+  @Test
+  public void remove_qprofiles_user_permission() {
+    OrganizationDto anotherOrganization = db.organizations().insert();
+    db.organizations().addMember(anotherOrganization, user);
+    QProfileDto profile = db.qualityProfiles().insert(organization);
+    QProfileDto anotherProfile = db.qualityProfiles().insert(anotherOrganization);
+    db.qualityProfiles().addUserPermission(profile, user);
+    db.qualityProfiles().addUserPermission(anotherProfile, user);
+
+    call(organization.getKey(), user.getLogin());
+
+    assertThat(db.getDbClient().qProfileEditUsersDao().exists(dbSession, profile, user)).isFalse();
+    assertThat(db.getDbClient().qProfileEditUsersDao().exists(dbSession, anotherProfile, user)).isTrue();
   }
 
   @Test
@@ -315,7 +331,7 @@ public class RemoveMemberActionTest {
   }
 
   @Test
-  public void remove_org_admin_is_allowed_when_another_org_admin_exists() throws Exception {
+  public void remove_org_admin_is_allowed_when_another_org_admin_exists() {
     OrganizationDto anotherOrganization = db.organizations().insert();
     UserDto admin1 = db.users().insertAdminByUserPermission(anotherOrganization);
     db.organizations().addMember(anotherOrganization, admin1);
@@ -373,8 +389,8 @@ public class RemoveMemberActionTest {
 
   private void insertProperty(String key, @Nullable String value, @Nullable Long resourceId, @Nullable Integer userId) {
     PropertyDto dto = new PropertyDto().setKey(key)
-      .setResourceId(resourceId == null ? null : resourceId)
-      .setUserId(userId == null ? null : userId)
+      .setResourceId(resourceId)
+      .setUserId(userId)
       .setValue(value);
     db.properties().insertProperty(dto);
   }

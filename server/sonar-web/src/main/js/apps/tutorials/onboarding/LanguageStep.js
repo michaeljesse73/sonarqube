@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -23,13 +23,16 @@ import NewProjectForm from './NewProjectForm';
 import RadioToggle from '../../../components/controls/RadioToggle';
 import { translate } from '../../../helpers/l10n';
 
+/*::
 type Props = {|
   onDone: (result: Result) => void,
   onReset: () => void,
   organization?: string,
   sonarCloud: boolean
 |};
+*/
 
+/*::
 type State = {
   language?: string,
   javaBuild?: string,
@@ -37,15 +40,17 @@ type State = {
   os?: string,
   projectKey?: string
 };
+*/
 
-export type Result = State;
+/*::
+export type Result = State; */
 
 export default class LanguageStep extends React.PureComponent {
-  props: Props;
+  /*:: props: Props; */
 
   static defaultProps = { sonarCloud: false };
 
-  state: State = {};
+  state /*: State */ = {};
 
   isConfigured = () => {
     const { language, javaBuild, cFamilyCompiler, os, projectKey } = this.state;
@@ -66,23 +71,23 @@ export default class LanguageStep extends React.PureComponent {
     }
   };
 
-  handleLanguageChange = (language: string) => {
+  handleLanguageChange = (language /*: string */) => {
     this.setState({ language }, this.handleChange);
   };
 
-  handleJavaBuildChange = (javaBuild: string) => {
+  handleJavaBuildChange = (javaBuild /*: string */) => {
     this.setState({ javaBuild }, this.handleChange);
   };
 
-  handleCFamilyCompilerChange = (cFamilyCompiler: string) => {
+  handleCFamilyCompilerChange = (cFamilyCompiler /*: string */) => {
     this.setState({ cFamilyCompiler }, this.handleChange);
   };
 
-  handleOSChange = (os: string) => {
+  handleOSChange = (os /*: string */) => {
     this.setState({ os }, this.handleChange);
   };
 
-  handleProjectKeyDone = (projectKey: string) => {
+  handleProjectKeyDone = (projectKey /*: string */) => {
     this.setState({ projectKey }, this.handleChange);
   };
 
@@ -92,9 +97,7 @@ export default class LanguageStep extends React.PureComponent {
 
   renderJavaBuild = () => (
     <div className="big-spacer-top">
-      <h4 className="spacer-bottom">
-        {translate('onboarding.language.java.build_technology')}
-      </h4>
+      <h4 className="spacer-bottom">{translate('onboarding.language.java.build_technology')}</h4>
       <RadioToggle
         name="java-build"
         onCheck={this.handleJavaBuildChange}
@@ -109,9 +112,7 @@ export default class LanguageStep extends React.PureComponent {
 
   renderCFamilyCompiler = () => (
     <div className="big-spacer-top">
-      <h4 className="spacer-bottom">
-        {translate('onboarding.language.c-family.compiler')}
-      </h4>
+      <h4 className="spacer-bottom">{translate('onboarding.language.c-family.compiler')}</h4>
       <RadioToggle
         name="c-family-compiler"
         onCheck={this.handleCFamilyCompilerChange}
@@ -126,9 +127,7 @@ export default class LanguageStep extends React.PureComponent {
 
   renderOS = () => (
     <div className="big-spacer-top">
-      <h4 className="spacer-bottom">
-        {translate('onboarding.language.os')}
-      </h4>
+      <h4 className="spacer-bottom">{translate('onboarding.language.os')}</h4>
       <RadioToggle
         name="os"
         onCheck={this.handleOSChange}

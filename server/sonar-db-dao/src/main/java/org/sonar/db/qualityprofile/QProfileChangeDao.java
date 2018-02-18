@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -50,8 +50,11 @@ public class QProfileChangeDao implements Dao {
     return mapper(dbSession).selectByQuery(query);
   }
 
-  public int countForQProfileUuid(DbSession dbSession, String profileUuid) {
-    return mapper(dbSession).countForQProfileUuid(profileUuid);
+  /**
+   * Note: offset and limit of the query object will be ignored
+   */
+  public int countByQuery(DbSession dbSession, QProfileChangeQuery query) {
+    return mapper(dbSession).countByQuery(query);
   }
 
   public void deleteByRulesProfileUuids(DbSession dbSession, Collection<String> ruleProfileUuids) {

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -38,7 +38,7 @@ import org.sonar.db.user.GroupDto;
 import org.sonar.server.permission.ws.PermissionWsSupport;
 import org.sonar.server.permission.ws.PermissionsWsAction;
 import org.sonar.server.user.UserSession;
-import org.sonarqube.ws.WsPermissions;
+import org.sonarqube.ws.Permissions;
 
 import static org.sonar.api.server.ws.WebService.Param.PAGE;
 import static org.sonar.api.server.ws.WebService.Param.PAGE_SIZE;
@@ -78,11 +78,12 @@ public class TemplateGroupsAction implements PermissionsWsAction {
       .setHandler(this);
 
     action.createParam(TEXT_QUERY)
-      .setDescription("Limit search to group names that contain the supplied string. Must have at least %d characters.<br/>" +
-        "When this parameter is not set, only group having at least one permission are returned.", SEARCH_QUERY_MIN_LENGTH)
+      .setMinimumLength(SEARCH_QUERY_MIN_LENGTH)
+      .setDescription("Limit search to group names that contain the supplied string. <br/>" +
+        "When this parameter is not set, only group having at least one permission are returned.")
       .setExampleValue("eri");
 
-    createProjectPermissionParameter(action);
+    createProjectPermissionParameter(action, false);
     createTemplateParameters(action);
   }
 
@@ -98,7 +99,7 @@ public class TemplateGroupsAction implements PermissionsWsAction {
       Paging paging = Paging.forPageIndex(wsRequest.mandatoryParamAsInt(PAGE)).withPageSize(wsRequest.mandatoryParamAsInt(PAGE_SIZE)).andTotal(total);
       List<GroupDto> groups = findGroups(dbSession, query, template);
       List<PermissionTemplateGroupDto> groupPermissions = findGroupPermissions(dbSession, groups, template);
-      WsPermissions.WsGroupsResponse groupsResponse = buildResponse(groups, groupPermissions, paging);
+      Permissions.WsGroupsResponse groupsResponse = buildResponse(groups, groupPermissions, paging);
       writeProtobuf(groupsResponse, wsRequest, wsResponse);
     }
   }
@@ -118,13 +119,13 @@ public class TemplateGroupsAction implements PermissionsWsAction {
     return permissionQuery.build();
   }
 
-  private static WsPermissions.WsGroupsResponse buildResponse(List<GroupDto> groups, List<PermissionTemplateGroupDto> groupPermissions, Paging paging) {
+  private static Permissions.WsGroupsResponse buildResponse(List<GroupDto> groups, List<PermissionTemplateGroupDto> groupPermissions, Paging paging) {
     Multimap<Integer, String> permissionsByGroupId = TreeMultimap.create();
     groupPermissions.forEach(groupPermission -> permissionsByGroupId.put(groupPermission.getGroupId(), groupPermission.getPermission()));
-    WsPermissions.WsGroupsResponse.Builder response = WsPermissions.WsGroupsResponse.newBuilder();
+    Permissions.WsGroupsResponse.Builder response = Permissions.WsGroupsResponse.newBuilder();
 
     groups.forEach(group -> {
-      WsPermissions.Group.Builder wsGroup = response.addGroupsBuilder()
+      Permissions.Group.Builder wsGroup = response.addGroupsBuilder()
         .setName(group.getName());
       if (group.getId() != 0) {
         wsGroup.setId(String.valueOf(group.getId()));

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -39,7 +39,7 @@ public class CeQueueInitializerTest {
   private CeQueueInitializer underTest = new CeQueueInitializer(processingScheduler, cleaningScheduler, mock(CeDistributedInformation.class));
 
   @Test
-  public void clean_queue_then_start_scheduler_of_workers() throws IOException {
+  public void clean_queue_then_start_scheduler_of_workers() {
     underTest.onServerStart(server);
 
     verify(processingScheduler).startScheduling();

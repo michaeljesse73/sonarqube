@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,8 +24,8 @@ import javax.annotation.Nullable;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-class EventValidator {
-  private static final int MAX_NAME_LENGTH = 400;
+public class EventValidator {
+  public static final int MAX_NAME_LENGTH = 400;
   private static final int MAX_CATEGORY_LENGTH = 50;
   private static final int MAX_DESCRIPTION_LENGTH = 4000;
 

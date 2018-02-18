@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,7 +19,6 @@
  */
 package org.sonar.server.project.ws;
 
-import org.assertj.core.api.Assertions;
 import org.assertj.core.api.AssertionsForClassTypes;
 import org.junit.Rule;
 import org.junit.Test;
@@ -30,7 +29,7 @@ import org.sonar.db.DbTester;
 import org.sonar.db.component.ComponentDto;
 import org.sonar.db.organization.OrganizationDto;
 import org.sonar.server.component.ComponentUpdater;
-import org.sonar.server.es.ProjectIndexer;
+import org.sonar.server.es.TestProjectIndexers;
 import org.sonar.server.exceptions.BadRequestException;
 import org.sonar.server.exceptions.ForbiddenException;
 import org.sonar.server.favorite.FavoriteUpdater;
@@ -41,14 +40,14 @@ import org.sonar.server.organization.BillingValidationsProxy;
 import org.sonar.server.organization.DefaultOrganizationProvider;
 import org.sonar.server.organization.TestDefaultOrganizationProvider;
 import org.sonar.server.permission.PermissionTemplateService;
+import org.sonar.server.project.ws.CreateAction.CreateRequest;
 import org.sonar.server.tester.UserSessionRule;
 import org.sonar.server.ws.TestRequest;
 import org.sonar.server.ws.WsActionTester;
-import org.sonarqube.ws.WsProjects.CreateWsResponse;
-import org.sonarqube.ws.WsProjects.CreateWsResponse.Project;
-import org.sonarqube.ws.client.project.CreateRequest;
+import org.sonarqube.ws.Projects.CreateWsResponse;
+import org.sonarqube.ws.Projects.CreateWsResponse.Project;
 
-import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.doThrow;
@@ -82,17 +81,16 @@ public class CreateActionTest {
 
   private DefaultOrganizationProvider defaultOrganizationProvider = TestDefaultOrganizationProvider.from(db);
   private BillingValidationsProxy billingValidations = mock(BillingValidationsProxy.class);
-
+  private TestProjectIndexers projectIndexers = new TestProjectIndexers();
   private WsActionTester ws = new WsActionTester(
     new CreateAction(
-      new ProjectsWsSupport(db.getDbClient(), billingValidations),
+      new ProjectsWsSupport(db.getDbClient(), defaultOrganizationProvider, billingValidations),
       db.getDbClient(), userSession,
       new ComponentUpdater(db.getDbClient(), i18n, system2, mock(PermissionTemplateService.class), new FavoriteUpdater(db.getDbClient()),
-        mock(ProjectIndexer.class)),
-      defaultOrganizationProvider));
+        projectIndexers)));
 
   @Test
-  public void create_project() throws Exception {
+  public void create_project() {
     userSession.addPermission(PROVISION_PROJECTS, db.getDefaultOrganization());
 
     CreateWsResponse response = call(CreateRequest.builder()
@@ -104,12 +102,12 @@ public class CreateActionTest {
       .extracting(Project::getKey, Project::getName, Project::getQualifier, Project::getVisibility)
       .containsOnly(DEFAULT_PROJECT_KEY, DEFAULT_PROJECT_NAME, "TRK", "public");
     assertThat(db.getDbClient().componentDao().selectByKey(db.getSession(), DEFAULT_PROJECT_KEY).get())
-      .extracting(ComponentDto::getKey, ComponentDto::name, ComponentDto::qualifier, ComponentDto::scope, ComponentDto::isPrivate)
-      .containsOnly(DEFAULT_PROJECT_KEY, DEFAULT_PROJECT_NAME, "TRK", "PRJ", false);
+      .extracting(ComponentDto::getDbKey, ComponentDto::name, ComponentDto::qualifier, ComponentDto::scope, ComponentDto::isPrivate, ComponentDto::getMainBranchProjectUuid)
+      .containsOnly(DEFAULT_PROJECT_KEY, DEFAULT_PROJECT_NAME, "TRK", "PRJ", false, null);
   }
 
   @Test
-  public void create_project_with_branch() throws Exception {
+  public void create_project_with_branch() {
     userSession.addPermission(PROVISION_PROJECTS, db.getDefaultOrganization());
 
     CreateWsResponse response = call(CreateRequest.builder()
@@ -124,7 +122,7 @@ public class CreateActionTest {
   }
 
   @Test
-  public void create_project_with_deprecated_parameter() throws Exception {
+  public void create_project_with_deprecated_parameter() {
     OrganizationDto organization = db.organizations().insert();
     userSession.addPermission(PROVISION_PROJECTS, organization);
 
@@ -236,9 +234,9 @@ public class CreateActionTest {
   }
 
   @Test
-  public void fail_when_project_already_exists() throws Exception {
+  public void fail_when_project_already_exists() {
     OrganizationDto organization = db.organizations().insert();
-    db.components().insertPublicProject(project -> project.setKey(DEFAULT_PROJECT_KEY));
+    db.components().insertPublicProject(project -> project.setDbKey(DEFAULT_PROJECT_KEY));
     userSession.addPermission(PROVISION_PROJECTS, organization);
 
     expectedException.expect(BadRequestException.class);
@@ -264,7 +262,9 @@ public class CreateActionTest {
   }
 
   @Test
-  public void fail_when_missing_project_parameter() throws Exception {
+  public void fail_when_missing_project_parameter() {
+    userSession.addPermission(PROVISION_PROJECTS, db.getDefaultOrganization());
+
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("The 'project' parameter is missing");
 
@@ -272,7 +272,9 @@ public class CreateActionTest {
   }
 
   @Test
-  public void fail_when_missing_name_parameter() throws Exception {
+  public void fail_when_missing_name_parameter() {
+    userSession.addPermission(PROVISION_PROJECTS, db.getDefaultOrganization());
+
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("The 'name' parameter is missing");
 
@@ -280,7 +282,7 @@ public class CreateActionTest {
   }
 
   @Test
-  public void fail_when_missing_create_project_permission() throws Exception {
+  public void fail_when_missing_create_project_permission() {
     expectedException.expect(ForbiddenException.class);
 
     call(CreateRequest.builder().setKey(DEFAULT_PROJECT_KEY).setName(DEFAULT_PROJECT_NAME).build());
@@ -302,12 +304,12 @@ public class CreateActionTest {
   public void definition() {
     WebService.Action definition = ws.getDef();
 
-    Assertions.assertThat(definition.key()).isEqualTo("create");
-    Assertions.assertThat(definition.since()).isEqualTo("4.0");
-    Assertions.assertThat(definition.isInternal()).isFalse();
-    Assertions.assertThat(definition.responseExampleAsString()).isNotEmpty();
+    assertThat(definition.key()).isEqualTo("create");
+    assertThat(definition.since()).isEqualTo("4.0");
+    assertThat(definition.isInternal()).isFalse();
+    assertThat(definition.responseExampleAsString()).isNotEmpty();
 
-    Assertions.assertThat(definition.params()).extracting(WebService.Param::key).containsExactlyInAnyOrder(
+    assertThat(definition.params()).extracting(WebService.Param::key).containsExactlyInAnyOrder(
       PARAM_VISIBILITY,
       PARAM_ORGANIZATION,
       PARAM_NAME,
@@ -315,17 +317,25 @@ public class CreateActionTest {
       PARAM_BRANCH);
 
     WebService.Param organization = definition.param(PARAM_ORGANIZATION);
-    Assertions.assertThat(organization.description()).isEqualTo("The key of the organization");
-    Assertions.assertThat(organization.isInternal()).isTrue();
-    Assertions.assertThat(organization.isRequired()).isFalse();
-    Assertions.assertThat(organization.since()).isEqualTo("6.3");
+    assertThat(organization.description()).isEqualTo("The key of the organization");
+    assertThat(organization.isInternal()).isTrue();
+    assertThat(organization.isRequired()).isFalse();
+    assertThat(organization.since()).isEqualTo("6.3");
 
     WebService.Param isPrivate = definition.param(PARAM_VISIBILITY);
-    Assertions.assertThat(isPrivate.description()).isNotEmpty();
-    Assertions.assertThat(isPrivate.isInternal()).isTrue();
-    Assertions.assertThat(isPrivate.isRequired()).isFalse();
-    Assertions.assertThat(isPrivate.since()).isEqualTo("6.4");
-    Assertions.assertThat(isPrivate.possibleValues()).containsExactlyInAnyOrder("private", "public");
+    assertThat(isPrivate.description()).isNotEmpty();
+    assertThat(isPrivate.isInternal()).isTrue();
+    assertThat(isPrivate.isRequired()).isFalse();
+    assertThat(isPrivate.since()).isEqualTo("6.4");
+    assertThat(isPrivate.possibleValues()).containsExactlyInAnyOrder("private", "public");
+
+    WebService.Param project = definition.param(PARAM_PROJECT);
+    assertThat(project.isRequired()).isTrue();
+    assertThat(project.maximumLength()).isEqualTo(400);
+
+    WebService.Param name = definition.param(PARAM_NAME);
+    assertThat(name.isRequired()).isTrue();
+    assertThat(name.maximumLength()).isEqualTo(2000);
   }
 
   private CreateWsResponse call(CreateRequest request) {

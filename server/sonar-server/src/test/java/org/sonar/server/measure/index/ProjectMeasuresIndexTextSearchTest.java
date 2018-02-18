@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -27,6 +27,7 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.sonar.api.config.internal.MapSettings;
 import org.sonar.api.resources.Qualifiers;
+import org.sonar.api.utils.System2;
 import org.sonar.db.component.ComponentDto;
 import org.sonar.db.organization.OrganizationDto;
 import org.sonar.db.organization.OrganizationTesting;
@@ -66,7 +67,7 @@ public class ProjectMeasuresIndexTextSearchTest {
 
   private ProjectMeasuresIndexer projectMeasureIndexer = new ProjectMeasuresIndexer(null, es.client());
   private PermissionIndexerTester authorizationIndexerTester = new PermissionIndexerTester(es, projectMeasureIndexer);
-  private ProjectMeasuresIndex underTest = new ProjectMeasuresIndex(es.client(), new AuthorizationTypeSupport(userSession));
+  private ProjectMeasuresIndex underTest = new ProjectMeasuresIndex(es.client(), new AuthorizationTypeSupport(userSession), System2.INSTANCE);
 
   @Test
   public void match_exact_case_insensitive_name() {
@@ -192,8 +193,8 @@ public class ProjectMeasuresIndexTextSearchTest {
   @Test
   public void match_exact_case_insensitive_key() {
     index(
-      newDoc(newPrivateProjectDto(ORG).setUuid("project1").setName("Windows").setKey("project1")),
-      newDoc(newPrivateProjectDto(ORG).setUuid("project2").setName("apachee").setKey("project2")));
+      newDoc(newPrivateProjectDto(ORG).setUuid("project1").setName("Windows").setDbKey("project1")),
+      newDoc(newPrivateProjectDto(ORG).setUuid("project2").setName("apachee").setDbKey("project2")));
 
     assertTextQueryResults("project1", "project1");
     assertTextQueryResults("PROJECT1", "project1");
@@ -203,8 +204,8 @@ public class ProjectMeasuresIndexTextSearchTest {
   @Test
   public void match_key_with_dot() {
     index(
-      newDoc(newPrivateProjectDto(ORG).setUuid("sonarqube").setName("SonarQube").setKey("org.sonarqube")),
-      newDoc(newPrivateProjectDto(ORG).setUuid("sq").setName("SQ").setKey("sonarqube")));
+      newDoc(newPrivateProjectDto(ORG).setUuid("sonarqube").setName("SonarQube").setDbKey("org.sonarqube")),
+      newDoc(newPrivateProjectDto(ORG).setUuid("sq").setName("SQ").setDbKey("sonarqube")));
 
     assertTextQueryResults("org.sonarqube", "sonarqube");
     assertNoResults("orgsonarqube");
@@ -216,8 +217,8 @@ public class ProjectMeasuresIndexTextSearchTest {
   @Test
   public void match_key_with_dash() {
     index(
-      newDoc(newPrivateProjectDto(ORG).setUuid("sonarqube").setName("SonarQube").setKey("org-sonarqube")),
-      newDoc(newPrivateProjectDto(ORG).setUuid("sq").setName("SQ").setKey("sonarqube")));
+      newDoc(newPrivateProjectDto(ORG).setUuid("sonarqube").setName("SonarQube").setDbKey("org-sonarqube")),
+      newDoc(newPrivateProjectDto(ORG).setUuid("sq").setName("SQ").setDbKey("sonarqube")));
 
     assertTextQueryResults("org-sonarqube", "sonarqube");
     assertNoResults("orgsonarqube");
@@ -229,8 +230,8 @@ public class ProjectMeasuresIndexTextSearchTest {
   @Test
   public void match_key_with_colon() {
     index(
-      newDoc(newPrivateProjectDto(ORG).setUuid("sonarqube").setName("SonarQube").setKey("org:sonarqube")),
-      newDoc(newPrivateProjectDto(ORG).setUuid("sq").setName("SQ").setKey("sonarqube")));
+      newDoc(newPrivateProjectDto(ORG).setUuid("sonarqube").setName("SonarQube").setDbKey("org:sonarqube")),
+      newDoc(newPrivateProjectDto(ORG).setUuid("sq").setName("SQ").setDbKey("sonarqube")));
 
     assertTextQueryResults("org:sonarqube", "sonarqube");
     assertNoResults("orgsonarqube");
@@ -241,14 +242,14 @@ public class ProjectMeasuresIndexTextSearchTest {
 
   @Test
   public void match_key_having_all_special_characters() {
-    index(newDoc(newPrivateProjectDto(ORG).setUuid("sonarqube").setName("SonarQube").setKey("org.sonarqube:sonar-sérvèr_ç")));
+    index(newDoc(newPrivateProjectDto(ORG).setUuid("sonarqube").setName("SonarQube").setDbKey("org.sonarqube:sonar-sérvèr_ç")));
 
     assertTextQueryResults("org.sonarqube:sonar-sérvèr_ç", "sonarqube");
   }
 
   @Test
   public void does_not_match_partial_key() {
-    index(newDoc(newPrivateProjectDto(ORG).setUuid("project").setName("some name").setKey("theKey")));
+    index(newDoc(newPrivateProjectDto(ORG).setUuid("project").setName("some name").setDbKey("theKey")));
 
     assertNoResults("theke");
     assertNoResults("hekey");
@@ -258,12 +259,12 @@ public class ProjectMeasuresIndexTextSearchTest {
   public void facets_take_into_account_text_search() {
     index(
       // docs with ncloc<1K
-      newDoc(newPrivateProjectDto(ORG).setName("Windows").setKey("project1"), NCLOC, 0d),
-      newDoc(newPrivateProjectDto(ORG).setName("apachee").setKey("project2"), NCLOC, 999d),
+      newDoc(newPrivateProjectDto(ORG).setName("Windows").setDbKey("project1"), NCLOC, 0d),
+      newDoc(newPrivateProjectDto(ORG).setName("apachee").setDbKey("project2"), NCLOC, 999d),
       // docs with ncloc>=1K and ncloc<10K
-      newDoc(newPrivateProjectDto(ORG).setName("Apache").setKey("project3"), NCLOC, 1_000d),
+      newDoc(newPrivateProjectDto(ORG).setName("Apache").setDbKey("project3"), NCLOC, 1_000d),
       // docs with ncloc>=100K and ncloc<500K
-      newDoc(newPrivateProjectDto(ORG).setName("Apache Foundation").setKey("project4"), NCLOC, 100_000d));
+      newDoc(newPrivateProjectDto(ORG).setName("Apache Foundation").setDbKey("project4"), NCLOC, 100_000d));
 
     assertNclocFacet(new ProjectMeasuresQuery().setQueryText("apache"), 1L, 1L, 0L, 1L, 0L);
     assertNclocFacet(new ProjectMeasuresQuery().setQueryText("PAch"), 1L, 1L, 0L, 1L, 0L);
@@ -275,10 +276,10 @@ public class ProjectMeasuresIndexTextSearchTest {
   @Test
   public void filter_by_metric_take_into_account_text_search() {
     index(
-      newDoc(newPrivateProjectDto(ORG).setUuid("project1").setName("Windows").setKey("project1"), NCLOC, 30_000d),
-      newDoc(newPrivateProjectDto(ORG).setUuid("project2").setName("apachee").setKey("project2"), NCLOC, 40_000d),
-      newDoc(newPrivateProjectDto(ORG).setUuid("project3").setName("Apache").setKey("project3"), NCLOC, 50_000d),
-      newDoc(newPrivateProjectDto(ORG).setUuid("project4").setName("Apache").setKey("project4"), NCLOC, 60_000d));
+      newDoc(newPrivateProjectDto(ORG).setUuid("project1").setName("Windows").setDbKey("project1"), NCLOC, 30_000d),
+      newDoc(newPrivateProjectDto(ORG).setUuid("project2").setName("apachee").setDbKey("project2"), NCLOC, 40_000d),
+      newDoc(newPrivateProjectDto(ORG).setUuid("project3").setName("Apache").setDbKey("project3"), NCLOC, 50_000d),
+      newDoc(newPrivateProjectDto(ORG).setUuid("project4").setName("Apache").setDbKey("project4"), NCLOC, 60_000d));
 
     assertResults(new ProjectMeasuresQuery().setQueryText("apache").addMetricCriterion(MetricCriterion.create(NCLOC, GT, 20_000d)), "project3", "project4", "project2");
     assertResults(new ProjectMeasuresQuery().setQueryText("apache").addMetricCriterion(MetricCriterion.create(NCLOC, LT, 55_000d)), "project3", "project2");
@@ -290,7 +291,7 @@ public class ProjectMeasuresIndexTextSearchTest {
   private void index(ProjectMeasuresDoc... docs) {
     es.putDocuments(INDEX_TYPE_PROJECT_MEASURES, docs);
     stream(docs).forEach(doc -> {
-      PermissionIndexerDao.Dto access = new PermissionIndexerDao.Dto(doc.getId(), System.currentTimeMillis(), Qualifiers.PROJECT);
+      PermissionIndexerDao.Dto access = new PermissionIndexerDao.Dto(doc.getId(), Qualifiers.PROJECT);
       access.allowAnyone();
       authorizationIndexerTester.allow(access);
     });
@@ -300,7 +301,7 @@ public class ProjectMeasuresIndexTextSearchTest {
     return new ProjectMeasuresDoc()
       .setOrganizationUuid(project.getOrganizationUuid())
       .setId(project.uuid())
-      .setKey(project.key())
+      .setKey(project.getDbKey())
       .setName(project.name());
   }
 

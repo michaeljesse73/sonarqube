@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -46,9 +46,12 @@ import org.sonar.server.es.EsTester;
 import org.sonar.server.exceptions.NotFoundException;
 import org.sonar.server.organization.TestDefaultOrganizationProvider;
 import org.sonar.server.qualityprofile.QProfileName;
+import org.sonar.server.qualityprofile.QProfileRules;
+import org.sonar.server.qualityprofile.QProfileRulesImpl;
+import org.sonar.server.qualityprofile.QProfileTree;
+import org.sonar.server.qualityprofile.QProfileTreeImpl;
 import org.sonar.server.qualityprofile.RuleActivation;
 import org.sonar.server.qualityprofile.RuleActivator;
-import org.sonar.server.qualityprofile.RuleActivatorContextFactory;
 import org.sonar.server.qualityprofile.index.ActiveRuleIndexer;
 import org.sonar.server.rule.index.RuleIndex;
 import org.sonar.server.rule.index.RuleIndexDefinition;
@@ -56,14 +59,15 @@ import org.sonar.server.rule.index.RuleIndexer;
 import org.sonar.server.tester.UserSessionRule;
 import org.sonar.server.util.TypeValidations;
 import org.sonar.server.ws.WsActionTester;
-import org.sonarqube.ws.QualityProfiles.InheritanceWsResponse;
+import org.sonarqube.ws.Qualityprofiles.InheritanceWsResponse;
 
 import static java.util.Arrays.asList;
+import static java.util.Collections.singleton;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonar.server.qualityprofile.QProfileTesting.newQProfileDto;
 import static org.sonar.test.JsonAssert.assertJson;
 import static org.sonarqube.ws.MediaTypes.PROTOBUF;
-import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.PARAM_PROFILE;
+import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.PARAM_KEY;
 
 public class InheritanceActionTest {
 
@@ -79,7 +83,8 @@ public class InheritanceActionTest {
   private EsClient esClient;
   private RuleIndexer ruleIndexer;
   private ActiveRuleIndexer activeRuleIndexer;
-  private RuleActivator ruleActivator;
+  private QProfileRules qProfileRules;
+  private QProfileTree qProfileTree;
   private OrganizationDto organization;
 
   private InheritanceAction underTest;
@@ -97,20 +102,17 @@ public class InheritanceActionTest {
       dbClient,
       new QProfileWsSupport(dbClient, userSession, defaultOrganizationProvider),
       new Languages());
+
     ws = new WsActionTester(underTest);
-    ruleActivator = new RuleActivator(
-      System2.INSTANCE,
-      dbClient,
-      new RuleIndex(esClient),
-      new RuleActivatorContextFactory(dbClient),
-      new TypeValidations(new ArrayList<>()),
-      activeRuleIndexer,
-      userSession);
+    RuleIndex ruleIndex = new RuleIndex(esClient, System2.INSTANCE);
+    RuleActivator ruleActivator = new RuleActivator(System2.INSTANCE, dbClient, new TypeValidations(new ArrayList<>()), userSession);
+    qProfileRules = new QProfileRulesImpl(dbClient, ruleActivator, ruleIndex, activeRuleIndexer);
+    qProfileTree = new QProfileTreeImpl(dbClient, ruleActivator, System2.INSTANCE, activeRuleIndexer);
     organization = dbTester.organizations().insert();
   }
 
   @Test
-  public void inheritance_nominal() throws Exception {
+  public void inheritance_nominal() {
     RuleDefinitionDto rule1 = createRule("xoo", "rule1");
     RuleDefinitionDto rule2 = createRule("xoo", "rule2");
     RuleDefinitionDto rule3 = createRule("xoo", "rule3");
@@ -144,7 +146,7 @@ public class InheritanceActionTest {
 
     String response = ws.newRequest()
       .setMethod("GET")
-      .setParam(PARAM_PROFILE, buWide.getKee())
+      .setParam(PARAM_KEY, buWide.getKee())
       .execute()
       .getInput();
 
@@ -156,7 +158,7 @@ public class InheritanceActionTest {
     RuleDefinitionDto rule1 = dbTester.rules().insert();
     RuleDefinitionDto rule2 = dbTester.rules().insert();
     RuleDefinitionDto rule3 = dbTester.rules().insert();
-    ruleIndexer.commitAndIndex(dbTester.getSession(), asList(rule1.getKey(), rule2.getKey(), rule3.getKey()));
+    ruleIndexer.commitAndIndex(dbTester.getSession(), asList(rule1.getId(), rule2.getId(), rule3.getId()));
 
     QProfileDto parent = dbTester.qualityProfiles().insert(organization);
     dbTester.qualityProfiles().activateRule(parent, rule1);
@@ -172,7 +174,7 @@ public class InheritanceActionTest {
     InputStream response = ws.newRequest()
       .setMethod("GET")
       .setMediaType(PROTOBUF)
-      .setParam(PARAM_PROFILE, child.getKee())
+      .setParam(PARAM_KEY, child.getKee())
       .execute()
       .getInputStream();
 
@@ -188,7 +190,7 @@ public class InheritanceActionTest {
   @Test
   public void inheritance_ignores_removed_rules() throws Exception {
     RuleDefinitionDto rule = dbTester.rules().insert(r -> r.setStatus(RuleStatus.REMOVED));
-    ruleIndexer.commitAndIndex(dbTester.getSession(), rule.getKey());
+    ruleIndexer.commitAndIndex(dbTester.getSession(), rule.getId());
 
     QProfileDto profile = dbTester.qualityProfiles().insert(organization);
     dbTester.qualityProfiles().activateRule(profile, rule);
@@ -199,7 +201,7 @@ public class InheritanceActionTest {
     InputStream response = ws.newRequest()
       .setMethod("GET")
       .setMediaType(PROTOBUF)
-      .setParam(PARAM_PROFILE, profile.getKee())
+      .setParam(PARAM_KEY, profile.getKee())
       .execute()
       .getInputStream();
 
@@ -209,13 +211,13 @@ public class InheritanceActionTest {
   }
 
   @Test
-  public void inheritance_no_family() throws Exception {
+  public void inheritance_no_family() {
     // Simple profile, no parent, no child
     QProfileDto remi = createProfile("xoo", "Nobodys Boy", "xoo-nobody-s-boy-01234");
 
     String response = ws.newRequest()
       .setMethod("GET")
-      .setParam(PARAM_PROFILE, remi.getKee())
+      .setParam(PARAM_KEY, remi.getKee())
       .execute()
       .getInput();
 
@@ -223,9 +225,9 @@ public class InheritanceActionTest {
   }
 
   @Test(expected = NotFoundException.class)
-  public void fail_if_not_found() throws Exception {
+  public void fail_if_not_found() {
     ws.newRequest()
-      .setMethod("GET").setParam(PARAM_PROFILE, "polop").execute();
+      .setMethod("GET").setParam(PARAM_KEY, "polop").execute();
   }
 
   @Test
@@ -233,13 +235,14 @@ public class InheritanceActionTest {
     WebService.Action definition = ws.getDef();
 
     assertThat(definition.key()).isEqualTo("inheritance");
-    assertThat(definition.params()).extracting(Param::key).containsExactlyInAnyOrder("profile", "language", "profileName", "organization");
-    Param profile = definition.param("profile");
-    assertThat(profile.deprecatedKey()).isEqualTo("profileKey");
-    Param profileName = definition.param("profileName");
-    assertThat(profileName.deprecatedSince()).isEqualTo("6.5");
+    assertThat(definition.params()).extracting(Param::key).containsExactlyInAnyOrder("key", "language", "qualityProfile", "organization");
+    Param key = definition.param("key");
+    assertThat(key.deprecatedKey()).isEqualTo("profileKey");
+    assertThat(key.deprecatedSince()).isEqualTo("6.6");
+    Param profileName = definition.param("qualityProfile");
+    assertThat(profileName.deprecatedSince()).isNullOrEmpty();
     Param language = definition.param("language");
-    assertThat(language.deprecatedSince()).isEqualTo("6.5");
+    assertThat(language.deprecatedSince()).isNullOrEmpty();
   }
 
   private QProfileDto createProfile(String lang, String name, String key) {
@@ -250,7 +253,7 @@ public class InheritanceActionTest {
   }
 
   private void setParent(QProfileDto profile, QProfileDto parent) {
-    ruleActivator.setParentAndCommit(dbSession, parent, profile);
+    qProfileTree.setParentAndCommit(dbSession, parent, profile);
   }
 
   private RuleDefinitionDto createRule(String lang, String id) {
@@ -262,7 +265,7 @@ public class InheritanceActionTest {
       .setUpdatedAt(now)
       .setCreatedAt(now);
     dbClient.ruleDao().insert(dbSession, rule);
-    ruleIndexer.commitAndIndex(dbSession, rule.getKey());
+    ruleIndexer.commitAndIndex(dbSession, rule.getId());
     return rule;
   }
 
@@ -277,8 +280,8 @@ public class InheritanceActionTest {
   }
 
   private void overrideActiveRuleSeverity(RuleDefinitionDto rule, QProfileDto profile, String severity) {
-    ruleActivator.activate(dbSession, RuleActivation.create(rule.getKey(), severity, null), profile);
-    dbSession.commit();
-    activeRuleIndexer.indexOnStartup(activeRuleIndexer.getIndexTypes());
+    qProfileRules.activateAndCommit(dbSession, profile, singleton(RuleActivation.create(rule.getId(), severity, null)));
+//    dbSession.commit();
+//    activeRuleIndexer.indexOnStartup(activeRuleIndexer.getIndexTypes());
   }
 }

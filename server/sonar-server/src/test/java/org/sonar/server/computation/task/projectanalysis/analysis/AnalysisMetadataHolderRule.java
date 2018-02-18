@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,6 +24,7 @@ import java.util.Map;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 import org.junit.rules.ExternalResource;
+import org.sonar.db.component.BranchType;
 import org.sonar.db.organization.OrganizationDto;
 import org.sonar.server.computation.util.InitializedProperty;
 import org.sonar.server.qualityprofile.QualityProfile;
@@ -33,6 +34,8 @@ import static com.google.common.base.Preconditions.checkState;
 import static java.util.Objects.requireNonNull;
 
 public class AnalysisMetadataHolderRule extends ExternalResource implements MutableAnalysisMetadataHolder {
+
+  private final InitializedProperty<Boolean> organizationsEnabled = new InitializedProperty<>();
 
   private final InitializedProperty<Organization> organization = new InitializedProperty<>();
 
@@ -44,11 +47,27 @@ public class AnalysisMetadataHolderRule extends ExternalResource implements Muta
 
   private final InitializedProperty<Boolean> crossProjectDuplicationEnabled = new InitializedProperty<>();
 
-  private final InitializedProperty<String> branch = new InitializedProperty<>();
+  private final InitializedProperty<Branch> branch = new InitializedProperty<>();
+
+  private final InitializedProperty<Project> project = new InitializedProperty<>();
 
   private final InitializedProperty<Integer> rootComponentRef = new InitializedProperty<>();
 
   private final InitializedProperty<Map<String, QualityProfile>> qProfilesPerLanguage = new InitializedProperty<>();
+
+  private final InitializedProperty<Map<String, ScannerPlugin>> pluginsByKey = new InitializedProperty<>();
+
+  @Override
+  public AnalysisMetadataHolderRule setOrganizationsEnabled(boolean isOrganizationsEnabled) {
+    this.organizationsEnabled.setProperty(isOrganizationsEnabled);
+    return this;
+  }
+
+  @Override
+  public boolean isOrganizationsEnabled() {
+    checkState(organizationsEnabled.isInitialized(), "Organizations enabled flag has not been set");
+    return organizationsEnabled.getProperty();
+  }
 
   @Override
   public AnalysisMetadataHolderRule setOrganization(Organization organization) {
@@ -57,9 +76,9 @@ public class AnalysisMetadataHolderRule extends ExternalResource implements Muta
     return this;
   }
 
-  public AnalysisMetadataHolderRule setOrganizationUuid(String uuid) {
+  public AnalysisMetadataHolderRule setOrganizationUuid(String uuid, String defaultQualityGateUuid) {
     requireNonNull(uuid, "organization uuid can't be null");
-    this.organization.setProperty(Organization.from(new OrganizationDto().setUuid(uuid).setKey("key_" + uuid).setName("name_" + uuid)));
+    this.organization.setProperty(Organization.from(new OrganizationDto().setUuid(uuid).setKey("key_" + uuid).setName("name_" + uuid).setDefaultQualityGateUuid(defaultQualityGateUuid)));
     return this;
   }
 
@@ -137,15 +156,27 @@ public class AnalysisMetadataHolderRule extends ExternalResource implements Muta
   }
 
   @Override
-  public AnalysisMetadataHolderRule setBranch(@Nullable String branch) {
+  public AnalysisMetadataHolderRule setBranch(Branch branch) {
     this.branch.setProperty(branch);
     return this;
   }
 
   @Override
-  public String getBranch() {
+  public Branch getBranch() {
     checkState(branch.isInitialized(), "Branch has not been set");
     return branch.getProperty();
+  }
+
+  @Override
+  public AnalysisMetadataHolderRule setProject(Project p) {
+    this.project.setProperty(p);
+    return this;
+  }
+
+  @Override
+  public Project getProject() {
+    checkState(project.isInitialized(), "Project has not been set");
+    return project.getProperty();
   }
 
   @Override
@@ -170,5 +201,29 @@ public class AnalysisMetadataHolderRule extends ExternalResource implements Muta
   public Map<String, QualityProfile> getQProfilesByLanguage() {
     checkState(qProfilesPerLanguage.isInitialized(), "QProfile per language has not been set");
     return qProfilesPerLanguage.getProperty();
+  }
+
+  @Override
+  public AnalysisMetadataHolderRule setScannerPluginsByKey(Map<String, ScannerPlugin> plugins) {
+    this.pluginsByKey.setProperty(plugins);
+    return this;
+  }
+
+  @Override
+  public Map<String, ScannerPlugin> getScannerPluginsByKey() {
+    checkState(pluginsByKey.isInitialized(), "Plugins per key has not been set");
+    return pluginsByKey.getProperty();
+  }
+
+  @Override
+  public boolean isShortLivingBranch() {
+    Branch property = this.branch.getProperty();
+    return property != null && property.getType() == BranchType.SHORT;
+  }
+
+  @Override
+  public boolean isLongLivingBranch() {
+    Branch property = this.branch.getProperty();
+    return property != null && property.getType() == BranchType.LONG;
   }
 }

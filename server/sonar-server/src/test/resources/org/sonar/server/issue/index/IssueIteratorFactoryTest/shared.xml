@@ -4,7 +4,8 @@
          name="Avoid Cycles"
          plugin_rule_key="AvoidCycles"
          plugin_config_key="[null]"
-         plugin_name="squid"/>
+         plugin_name="squid"
+         scope="MAIN"/>
 
   <projects organization_uuid="org1"
             uuid="PROJECT1"
@@ -36,7 +37,7 @@
             uuid="DIR1"
             uuid_path="NOT_USED"
             root_uuid="MODULE1"
-            project_uuid="MODULE1"
+            project_uuid="PROJECT1"
             path="src/main/java"
             module_uuid_path=".PROJECT1.MODULE1."
             id="70"
@@ -49,7 +50,7 @@
             uuid="FILE1"
             uuid_path="NOT_USED"
             root_uuid="MODULE1"
-            project_uuid="MODULE1"
+            project_uuid="PROJECT1"
             path="src/main/java/Action.java"
             module_uuid_path=".PROJECT1."
             id="100"

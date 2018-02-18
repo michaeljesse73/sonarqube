@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -45,7 +45,6 @@ import org.sonar.db.component.ComponentDto;
 import org.sonar.db.component.ComponentTreeQuery;
 import org.sonar.db.component.ComponentTreeQuery.Strategy;
 import org.sonar.db.source.FileSourceDto;
-import org.sonar.server.computation.task.projectanalysis.analysis.Analysis;
 import org.sonar.server.computation.task.projectanalysis.analysis.AnalysisMetadataHolder;
 import org.sonar.server.computation.task.projectanalysis.component.Component;
 import org.sonar.server.computation.task.projectanalysis.component.CrawlerDepthLimit;
@@ -93,8 +92,7 @@ public class FileMoveDetectionStep implements ComputationStep {
   @Override
   public void execute() {
     // do nothing if no files in db (first analysis)
-    Analysis baseProjectAnalysis = analysisMetadataHolder.getBaseAnalysis();
-    if (baseProjectAnalysis == null) {
+    if (analysisMetadataHolder.isFirstAnalysis()) {
       LOG.debug("First analysis. Do nothing.");
       return;
     }
@@ -161,7 +159,7 @@ public class FileMoveDetectionStep implements ComputationStep {
           .setStrategy(Strategy.LEAVES)
           .build());
       return from(componentDtos)
-        .transform(componentDto -> new DbComponent(componentDto.getId(), componentDto.key(), componentDto.uuid(), componentDto.path()))
+        .transform(componentDto -> new DbComponent(componentDto.getId(), componentDto.getDbKey(), componentDto.uuid(), componentDto.path()))
         .uniqueIndex(DbComponent::getKey);
     }
   }

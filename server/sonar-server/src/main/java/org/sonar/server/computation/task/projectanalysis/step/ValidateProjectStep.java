@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,8 +25,6 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
-import org.sonar.api.resources.Qualifiers;
-import org.sonar.api.resources.Scopes;
 import org.sonar.api.utils.MessageException;
 import org.sonar.core.component.ComponentKeys;
 import org.sonar.db.DbClient;
@@ -51,8 +49,7 @@ import static org.sonar.api.utils.DateUtils.formatDateTime;
 /**
  * Validate project and modules. It will fail in the following cases :
  * <ol>
- * <li>branch is not valid</li>
- * <li>project or module key is not valid</li>
+ * <li>module key is not valid</li>
  * <li>module key already exists in another project (same module key cannot exists in different projects)</li>
  * <li>module key is already used as a project key</li>
  * <li>date of the analysis is before last analysis</li>
@@ -67,7 +64,8 @@ public class ValidateProjectStep implements ComputationStep {
   private final TreeRootHolder treeRootHolder;
   private final AnalysisMetadataHolder analysisMetadataHolder;
 
-  public ValidateProjectStep(DbClient dbClient, BatchReportReader reportReader, TreeRootHolder treeRootHolder, AnalysisMetadataHolder analysisMetadataHolder) {
+  public ValidateProjectStep(DbClient dbClient, BatchReportReader reportReader, TreeRootHolder treeRootHolder,
+    AnalysisMetadataHolder analysisMetadataHolder) {
     this.dbClient = dbClient;
     this.reportReader = reportReader;
     this.treeRootHolder = treeRootHolder;
@@ -79,7 +77,7 @@ public class ValidateProjectStep implements ComputationStep {
     try (DbSession dbSession = dbClient.openSession(false)) {
       Component root = treeRootHolder.getRoot();
       List<ComponentDto> baseModules = dbClient.componentDao().selectEnabledModulesFromProjectKey(dbSession, root.getKey());
-      Map<String, ComponentDto> baseModulesByKey = from(baseModules).uniqueIndex(ComponentDto::key);
+      Map<String, ComponentDto> baseModulesByKey = from(baseModules).uniqueIndex(ComponentDto::getDbKey);
       ValidateProjectsVisitor visitor = new ValidateProjectsVisitor(dbSession, dbClient.componentDao(), baseModulesByKey);
       new DepthTraversalTypeAwareCrawler(visitor).visit(root);
 
@@ -114,32 +112,9 @@ public class ValidateProjectStep implements ComputationStep {
     public void visitProject(Component rawProject) {
       this.rawProject = rawProject;
       String rawProjectKey = rawProject.getKey();
-      validateBranch();
-      validateBatchKey(rawProject);
 
       Optional<ComponentDto> baseProject = loadBaseComponent(rawProjectKey);
-      validateRootIsProject(baseProject);
-      validateProjectKey(baseProject, rawProjectKey);
       validateAnalysisDate(baseProject);
-    }
-
-    private void validateRootIsProject(Optional<ComponentDto> baseProject) {
-      if (baseProject.isPresent()) {
-        ComponentDto componentDto = baseProject.get();
-        if (!Qualifiers.PROJECT.equals(componentDto.qualifier()) || !Scopes.PROJECT.equals(componentDto.scope())) {
-          validationMessages.add(format("Component (uuid=%s, key=%s) is not a project", rawProject.getUuid(), rawProject.getKey()));
-        }
-      }
-    }
-
-    private void validateProjectKey(Optional<ComponentDto> baseProject, String rawProjectKey) {
-      if (baseProject.isPresent() && !baseProject.get().projectUuid().equals(baseProject.get().uuid())) {
-        // Project key is already used as a module of another project
-        ComponentDto anotherBaseProject = componentDao.selectOrFailByUuid(session, baseProject.get().projectUuid());
-        validationMessages.add(format("The project \"%s\" is already defined in SonarQube but as a module of project \"%s\". "
-          + "If you really want to stop directly analysing project \"%s\", please first delete it from SonarQube and then relaunch the analysis of project \"%s\".",
-          rawProjectKey, anotherBaseProject.key(), anotherBaseProject.key(), rawProjectKey));
-      }
     }
 
     private void validateAnalysisDate(Optional<ComponentDto> baseProject) {
@@ -181,7 +156,7 @@ public class ValidateProjectStep implements ComputationStep {
     private void validateModuleKeyIsNotAlreadyUsedInAnotherProject(ComponentDto baseModule, String rawModuleKey) {
       if (!baseModule.projectUuid().equals(baseModule.uuid()) && !baseModule.projectUuid().equals(rawProject.getUuid())) {
         ComponentDto projectModule = componentDao.selectOrFailByUuid(session, baseModule.projectUuid());
-        validationMessages.add(format("Module \"%s\" is already part of project \"%s\"", rawModuleKey, projectModule.key()));
+        validationMessages.add(format("Module \"%s\" is already part of project \"%s\"", rawModuleKey, projectModule.getDbKey()));
       }
     }
 
@@ -190,17 +165,6 @@ public class ValidateProjectStep implements ComputationStep {
       if (!ComponentKeys.isValidModuleKey(batchKey)) {
         validationMessages.add(format("\"%s\" is not a valid project or module key. "
           + "Allowed characters are alphanumeric, '-', '_', '.' and ':', with at least one non-digit.", batchKey));
-      }
-    }
-
-    private void validateBranch() {
-      String branch = analysisMetadataHolder.getBranch();
-      if (branch == null) {
-        return;
-      }
-      if (!ComponentKeys.isValidBranch(branch)) {
-        validationMessages.add(format("\"%s\" is not a valid branch name. "
-          + "Allowed characters are alphanumeric, '-', '_', '.' and '/'.", branch));
       }
     }
 

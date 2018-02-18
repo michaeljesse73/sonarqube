@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -52,7 +52,7 @@ public class ScannerPerformanceSuite {
     .build();
 
   @BeforeClass
-  public static void setUp() throws IOException {
+  public static void setUp() {
     // Execute a first analysis to prevent any side effects with cache of plugin JAR files
     ORCHESTRATOR.executeBuild(AbstractPerfTest.newScanner("-Xmx512m -server", "sonar.profile", "one-xoo-issue-per-line"));
   }

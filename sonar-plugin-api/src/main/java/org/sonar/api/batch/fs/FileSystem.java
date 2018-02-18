@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -55,7 +55,7 @@ import org.sonar.api.batch.ScannerSide;
 public interface FileSystem {
 
   /**
-   * Absolute base directory of module
+   * Absolute base directory of module.
    */
   File baseDir();
 
@@ -101,7 +101,9 @@ public interface FileSystem {
    * @throws IllegalArgumentException is File is null or not a directory.
    * 
    * @since 4.5
+   * @deprecated since 6.6 Ability to report issues or measures on directories will soon be dropped. Report issues on project if needed. 
    */
+  @Deprecated
   @CheckForNull
   InputDir inputDir(File dir);
 
@@ -136,7 +138,9 @@ public interface FileSystem {
   /**
    * Files matching the given predicate.
    * @see #predicates()
+   * @deprecated since 6.6 Plugins should avoid working with {@link File} and prefer working with {@link InputFile}
    */
+  @Deprecated
   Iterable<File> files(FilePredicate predicate);
 
   /**

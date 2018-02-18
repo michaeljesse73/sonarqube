@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,6 +18,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import React from 'react';
+import PropTypes from 'prop-types';
 import NameCell from './NameCell';
 import PermissionCell from './PermissionCell';
 import ActionsCell from './ActionsCell';
@@ -25,9 +26,9 @@ import { PermissionTemplateType, CallbackType } from '../propTypes';
 
 export default class ListItem extends React.PureComponent {
   static propTypes = {
-    organization: React.PropTypes.object,
+    organization: PropTypes.object,
     permissionTemplate: PermissionTemplateType.isRequired,
-    topQualifiers: React.PropTypes.array.isRequired,
+    topQualifiers: PropTypes.array.isRequired,
     refresh: CallbackType
   };
 

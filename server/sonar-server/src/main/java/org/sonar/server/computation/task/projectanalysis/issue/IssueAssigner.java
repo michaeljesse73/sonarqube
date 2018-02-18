@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -28,6 +28,7 @@ import org.sonar.api.utils.log.Logger;
 import org.sonar.api.utils.log.Loggers;
 import org.sonar.core.issue.DefaultIssue;
 import org.sonar.core.issue.IssueChangeContext;
+import org.sonar.db.issue.IssueDto;
 import org.sonar.server.computation.task.projectanalysis.analysis.AnalysisMetadataHolder;
 import org.sonar.server.computation.task.projectanalysis.component.Component;
 import org.sonar.server.computation.task.projectanalysis.scm.ScmInfo;
@@ -40,11 +41,7 @@ import static org.sonar.core.issue.IssueChangeContext.createScan;
 /**
  * Detect the SCM author and SQ assignee.
  * <p/>
- * It relies on:
- * <ul>
- *   <li>SCM information sent in the report for modified files</li>
- *   <li>sources lines stored in database for non-modified files</li>
- * </ul>
+ * It relies on SCM information which comes from both the report and database.
  */
 public class IssueAssigner extends IssueVisitor {
 
@@ -70,18 +67,24 @@ public class IssueAssigner extends IssueVisitor {
 
   @Override
   public void onIssue(Component component, DefaultIssue issue) {
-    boolean authorWasSet = false;
     if (issue.authorLogin() == null) {
       loadScmChangesets(component);
       String scmAuthor = guessScmAuthor(issue);
+
       if (!Strings.isNullOrEmpty(scmAuthor)) {
-        issueUpdater.setNewAuthor(issue, scmAuthor, changeContext);
-        authorWasSet = true;
+        if (scmAuthor.length() <= IssueDto.AUTHOR_MAX_SIZE) {
+          issueUpdater.setNewAuthor(issue, scmAuthor, changeContext);
+        } else {
+          LOGGER.debug("SCM account '{}' is too long to be stored as issue author", scmAuthor);
+        }
       }
-    }
-    if (authorWasSet && issue.assignee() == null) {
-      String assigneeLogin = StringUtils.defaultIfEmpty(scmAccountToUser.getNullable(issue.authorLogin()), defaultAssignee.loadDefaultAssigneeLogin());
-      issueUpdater.setNewAssignee(issue, assigneeLogin, changeContext);
+
+      if (issue.assignee() == null) {
+        String author = Strings.isNullOrEmpty(scmAuthor) ? null : scmAccountToUser.getNullable(scmAuthor);
+        String assigneeLogin = StringUtils.defaultIfEmpty(author, defaultAssignee.loadDefaultAssigneeLogin());
+
+        issueUpdater.setNewAssignee(issue, assigneeLogin, changeContext);
+      }
     }
   }
 

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,12 +22,14 @@ package org.sonar.process;
 import java.io.File;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.sonar.process.sharedmemoryfile.DefaultProcessCommands;
+import org.sonar.process.sharedmemoryfile.ProcessCommands;
 
 public class ProcessEntryPoint implements Stoppable {
 
   public static final String PROPERTY_PROCESS_KEY = "process.key";
   public static final String PROPERTY_PROCESS_INDEX = "process.index";
-  public static final String PROPERTY_TERMINATION_TIMEOUT = "process.terminationTimeout";
+  public static final String PROPERTY_TERMINATION_TIMEOUT_MS = "process.terminationTimeout";
   public static final String PROPERTY_SHARED_PATH = "process.sharedDir";
 
   private final Props props;
@@ -97,14 +99,14 @@ public class ProcessEntryPoint implements Stoppable {
     try {
       launch(logger);
     } catch (Exception e) {
-      logger.warn("Fail to start " + getKey(), e);
+      logger.warn("Fail to start {}", getKey(), e);
     } finally {
       stop();
     }
   }
 
   private void launch(Logger logger) throws InterruptedException {
-    logger.info("Starting " + getKey());
+    logger.info("Starting {}", getKey());
     Runtime.getRuntime().addShutdownHook(shutdownHook);
     stopWatcher.start();
 
@@ -169,7 +171,7 @@ public class ProcessEntryPoint implements Stoppable {
   @Override
   public void stopAsync() {
     if (lifecycle.tryToMoveTo(Lifecycle.State.STOPPING)) {
-      stopperThread = new StopperThread(monitored, commands, Long.parseLong(props.nonNullValue(PROPERTY_TERMINATION_TIMEOUT)));
+      stopperThread = new StopperThread(monitored, commands, Long.parseLong(props.nonNullValue(PROPERTY_TERMINATION_TIMEOUT_MS)));
       stopperThread.start();
       stopWatcher.stopWatching();
     }

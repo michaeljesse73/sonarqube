@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -32,9 +32,9 @@ import org.sonar.scanner.protocol.Constants;
 import org.sonar.scanner.protocol.output.ScannerReport;
 import org.sonar.scanner.protocol.output.ScannerReport.TextRange;
 import org.sonar.server.computation.task.projectanalysis.batch.BatchReportReaderRule;
-import org.sonar.server.computation.task.projectanalysis.component.TreeRootHolderRule;
 import org.sonar.server.computation.task.projectanalysis.component.Component;
 import org.sonar.server.computation.task.projectanalysis.component.ReportComponent;
+import org.sonar.server.computation.task.projectanalysis.component.TreeRootHolderRule;
 import org.sonar.server.computation.task.projectanalysis.issue.commonrule.CommonRuleEngine;
 import org.sonar.server.computation.task.projectanalysis.issue.filter.IssueFilter;
 import org.sonar.server.computation.task.projectanalysis.source.SourceLinesRepositoryRule;
@@ -49,10 +49,10 @@ import static org.mockito.Mockito.when;
 
 public class TrackerRawInputFactoryTest {
 
-  static int FILE_REF = 2;
+  private static int FILE_REF = 2;
 
-  static ReportComponent PROJECT = ReportComponent.builder(Component.Type.PROJECT, 1).setKey("PROJECT_KEY_2").setUuid("PROJECT_UUID_1").build();
-  static ReportComponent FILE = ReportComponent.builder(Component.Type.FILE, FILE_REF).setKey("FILE_KEY_2").setUuid("FILE_UUID_2").build();
+  private static ReportComponent PROJECT = ReportComponent.builder(Component.Type.PROJECT, 1).build();
+  private static ReportComponent FILE = ReportComponent.builder(Component.Type.FILE, FILE_REF).build();
 
   @Rule
   public TreeRootHolderRule treeRootHolder = new TreeRootHolderRule().setRoot(PROJECT);
@@ -70,7 +70,7 @@ public class TrackerRawInputFactoryTest {
   TrackerRawInputFactory underTest = new TrackerRawInputFactory(treeRootHolder, reportReader, fileSourceRepository, commonRuleEngine, issueFilter);
 
   @Test
-  public void load_source_hash_sequences() throws Exception {
+  public void load_source_hash_sequences() {
     fileSourceRepository.addLines(FILE_REF, "line 1;", "line 2;");
     Input<DefaultIssue> input = underTest.create(FILE);
 
@@ -83,7 +83,7 @@ public class TrackerRawInputFactoryTest {
   }
 
   @Test
-  public void load_source_hash_sequences_only_on_files() throws Exception {
+  public void load_source_hash_sequences_only_on_files() {
     Input<DefaultIssue> input = underTest.create(PROJECT);
 
     assertThat(input.getLineHashSequence()).isNotNull();
@@ -91,7 +91,7 @@ public class TrackerRawInputFactoryTest {
   }
 
   @Test
-  public void load_issues_from_report() throws Exception {
+  public void load_issues_from_report() {
     when(issueFilter.accept(any(DefaultIssue.class), eq(FILE))).thenReturn(true);
     fileSourceRepository.addLines(FILE_REF, "line 1;", "line 2;");
     ScannerReport.Issue reportIssue = ScannerReport.Issue.newBuilder()
@@ -124,7 +124,7 @@ public class TrackerRawInputFactoryTest {
   }
 
   @Test
-  public void ignore_issue_from_report() throws Exception {
+  public void ignore_issue_from_report() {
     when(issueFilter.accept(any(DefaultIssue.class), eq(FILE))).thenReturn(false);
     fileSourceRepository.addLines(FILE_REF, "line 1;", "line 2;");
     ScannerReport.Issue reportIssue = ScannerReport.Issue.newBuilder()
@@ -143,7 +143,7 @@ public class TrackerRawInputFactoryTest {
   }
 
   @Test
-  public void ignore_report_issues_on_common_rules() throws Exception {
+  public void ignore_report_issues_on_common_rules() {
     fileSourceRepository.addLines(FILE_REF, "line 1;", "line 2;");
     ScannerReport.Issue reportIssue = ScannerReport.Issue.newBuilder()
       .setMsg("the message")
@@ -159,7 +159,7 @@ public class TrackerRawInputFactoryTest {
   }
 
   @Test
-  public void load_issues_of_compute_engine_common_rules() throws Exception {
+  public void load_issues_of_compute_engine_common_rules() {
     when(issueFilter.accept(any(DefaultIssue.class), eq(FILE))).thenReturn(true);
     fileSourceRepository.addLines(FILE_REF, "line 1;", "line 2;");
     DefaultIssue ceIssue = new DefaultIssue()
@@ -175,7 +175,7 @@ public class TrackerRawInputFactoryTest {
   }
 
   @Test
-  public void ignore_issue_from_common_rule() throws Exception {
+  public void ignore_issue_from_common_rule() {
     when(issueFilter.accept(any(DefaultIssue.class), eq(FILE))).thenReturn(false);
     fileSourceRepository.addLines(FILE_REF, "line 1;", "line 2;");
     DefaultIssue ceIssue = new DefaultIssue()
@@ -190,7 +190,8 @@ public class TrackerRawInputFactoryTest {
   }
 
   private void assertInitializedIssue(DefaultIssue issue) {
-    assertThat(issue.componentKey()).isEqualTo(FILE.getKey());
+    assertThat(issue.projectKey()).isEqualTo(PROJECT.getPublicKey());
+    assertThat(issue.componentKey()).isEqualTo(FILE.getPublicKey());
     assertThat(issue.componentUuid()).isEqualTo(FILE.getUuid());
     assertThat(issue.resolution()).isNull();
     assertThat(issue.status()).isEqualTo(Issue.STATUS_OPEN);

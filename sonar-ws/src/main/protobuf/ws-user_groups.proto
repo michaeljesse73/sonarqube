@@ -23,7 +23,7 @@ package sonarqube.ws.usergroup;
 import "ws-commons.proto";
 
 option java_package = "org.sonarqube.ws";
-option java_outer_classname = "WsUserGroups";
+option java_outer_classname = "UserGroups";
 option optimize_for = SPEED;
 
 // WS api/user_groups/create

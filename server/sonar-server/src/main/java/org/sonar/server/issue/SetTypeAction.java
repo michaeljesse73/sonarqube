@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -59,6 +59,11 @@ public class SetTypeAction extends Action {
   public boolean execute(Map<String, Object> properties, Context context) {
     String type = verifyTypeParameter(properties);
     return issueUpdater.setType(context.issue(), RuleType.valueOf(type), context.issueChangeContext());
+  }
+
+  @Override
+  public boolean shouldRefreshMeasures() {
+    return true;
   }
 
   private static String verifyTypeParameter(Map<String, Object> properties) {

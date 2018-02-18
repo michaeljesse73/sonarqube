@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,15 +19,21 @@
  */
 package org.sonar.db.component;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
+import static org.apache.commons.lang.StringUtils.repeat;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonar.api.utils.DateUtils.parseDate;
 
 public class SnapshotDtoTest {
 
+  @Rule
+  public ExpectedException expectedException = ExpectedException.none();
+
   @Test
-  public void test_getter_and_setter() throws Exception {
+  public void test_getter_and_setter() {
     SnapshotDto snapshotDto = new SnapshotDto()
       .setId(10L)
       .setBuildDate(parseDate("2014-07-02").getTime())
@@ -48,4 +54,17 @@ public class SnapshotDtoTest {
     assertThat(snapshotDto.getPeriodDate()).isEqualTo(parseDate("2014-06-01").getTime());
   }
 
+  @Test
+  public void fail_if_version_name_is_longer_then_100_characters() {
+    SnapshotDto snapshotDto = new SnapshotDto();
+    snapshotDto.setVersion(null);
+    snapshotDto.setVersion("1.0");
+    snapshotDto.setVersion(repeat("a", 100));
+
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("Event name length (101) is longer than the maximum authorized (100). " +
+      "'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' was provided.");
+
+    snapshotDto.setVersion(repeat("a", 101));
+  }
 }

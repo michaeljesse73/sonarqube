@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -61,7 +61,7 @@ public class RuleDtoTest {
 
   @Test
   public void tags_are_optional() {
-    RuleDto dto = new RuleDto().setTags(Collections.<String>emptySet());
+    RuleDto dto = new RuleDto().setTags(Collections.emptySet());
     assertThat(dto.getTags()).isEmpty();
   }
 }

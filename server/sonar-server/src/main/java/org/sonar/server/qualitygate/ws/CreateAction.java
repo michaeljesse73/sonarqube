@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,58 +24,70 @@ import org.sonar.api.server.ws.Response;
 import org.sonar.api.server.ws.WebService;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
-import org.sonar.db.qualitygate.QualityGateDto;
-import org.sonar.server.organization.DefaultOrganizationProvider;
+import org.sonar.db.organization.OrganizationDto;
 import org.sonar.db.permission.OrganizationPermission;
+import org.sonar.db.qualitygate.QualityGateDto;
 import org.sonar.server.qualitygate.QualityGateUpdater;
 import org.sonar.server.user.UserSession;
-import org.sonarqube.ws.WsQualityGates.CreateWsResponse;
+import org.sonarqube.ws.Qualitygates.CreateResponse;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static org.sonar.server.qualitygate.ws.QualityGatesWsParameters.ACTION_CREATE;
+import static org.sonar.server.qualitygate.ws.QualityGatesWsParameters.PARAM_NAME;
 import static org.sonar.server.ws.WsUtils.writeProtobuf;
-import static org.sonarqube.ws.client.qualitygate.QualityGatesWsParameters.ACTION_CREATE;
-import static org.sonarqube.ws.client.qualitygate.QualityGatesWsParameters.PARAM_NAME;
 
 public class CreateAction implements QualityGatesWsAction {
+
+  public static final int NAME_MAXIMUM_LENGTH = 100;
 
   private final DbClient dbClient;
   private final UserSession userSession;
   private final QualityGateUpdater qualityGateUpdater;
-  private final DefaultOrganizationProvider defaultOrganizationProvider;
+  private final QualityGatesWsSupport wsSupport;
 
   public CreateAction(DbClient dbClient, UserSession userSession, QualityGateUpdater qualityGateUpdater,
-    DefaultOrganizationProvider defaultOrganizationProvider) {
+    QualityGatesWsSupport wsSupport) {
     this.dbClient = dbClient;
     this.userSession = userSession;
     this.qualityGateUpdater = qualityGateUpdater;
-    this.defaultOrganizationProvider = defaultOrganizationProvider;
+    this.wsSupport = wsSupport;
   }
 
   @Override
   public void define(WebService.NewController controller) {
     WebService.NewAction action = controller.createAction(ACTION_CREATE)
-      .setDescription("Create a Quality Gate. Require Administer Quality Gates permission")
-      .setSince("4.3")
       .setPost(true)
+      .setDescription("Create a Quality Gate.<br>" +
+        "Requires the 'Administer Quality Gates' permission.")
+      .setSince("4.3")
+      .setResponseExample(getClass().getResource("create-example.json"))
       .setHandler(this);
 
     action.createParam(PARAM_NAME)
-      .setDescription("The name of the quality gate to create")
       .setRequired(true)
+      .setMaximumLength(NAME_MAXIMUM_LENGTH)
+      .setDescription("The name of the quality gate to create")
       .setExampleValue("My Quality Gate");
+
+    wsSupport.createOrganizationParam(action);
   }
 
   @Override
   public void handle(Request request, Response response) {
-    userSession.checkPermission(OrganizationPermission.ADMINISTER_QUALITY_GATES, defaultOrganizationProvider.get().getUuid());
-
     try (DbSession dbSession = dbClient.openSession(false)) {
-      QualityGateDto newQualityGate = qualityGateUpdater.create(dbSession, request.mandatoryParam(PARAM_NAME));
-      CreateWsResponse.Builder createWsResponse = CreateWsResponse.newBuilder()
+      OrganizationDto organizationDto = wsSupport.getOrganization(dbSession, request);
+
+      userSession.checkPermission(OrganizationPermission.ADMINISTER_QUALITY_GATES, organizationDto.getUuid());
+
+      String name = request.mandatoryParam(PARAM_NAME);
+      checkArgument(!name.isEmpty(), "The 'name' parameter is empty");
+
+      QualityGateDto newQualityGate = qualityGateUpdater.create(dbSession, organizationDto, name);
+      CreateResponse.Builder createResponse = CreateResponse.newBuilder()
         .setId(newQualityGate.getId())
         .setName(newQualityGate.getName());
-      writeProtobuf(createWsResponse.build(), request, response);
       dbSession.commit();
+      writeProtobuf(createResponse.build(), request, response);
     }
   }
-
 }

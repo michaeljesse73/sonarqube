@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -59,7 +59,7 @@ public class IssueFinderTest {
   private IssueFinder underTest = new IssueFinder(db.getDbClient(), userSession);
 
   @Test
-  public void get_by_issue_key() throws Exception {
+  public void get_by_issue_key() {
     IssueDto issueDto = insertIssue();
     String permission = USER;
     addProjectPermission(issueDto, permission);
@@ -71,7 +71,7 @@ public class IssueFinderTest {
   }
 
   @Test
-  public void fail_when_issue_key_does_not_exist() throws Exception {
+  public void fail_when_issue_key_does_not_exist() {
     IssueDto issueDto = insertIssue();
     addProjectPermission(issueDto, USER);
 
@@ -81,7 +81,7 @@ public class IssueFinderTest {
   }
 
   @Test
-  public void fail_when_not_enough_permission() throws Exception {
+  public void fail_when_not_enough_permission() {
     IssueDto issueDto = insertIssue();
     addProjectPermission(issueDto, CODEVIEWER);
 

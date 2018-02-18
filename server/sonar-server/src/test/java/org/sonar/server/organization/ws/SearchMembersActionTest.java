@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -17,16 +17,18 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-
 package org.sonar.server.organization.ws;
 
 import java.util.stream.IntStream;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nullable;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.sonar.api.config.internal.MapSettings;
 import org.sonar.api.server.ws.WebService;
 import org.sonar.api.server.ws.WebService.Param;
+import org.sonar.api.utils.System2;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbTester;
 import org.sonar.db.organization.OrganizationDto;
@@ -47,7 +49,6 @@ import org.sonar.server.ws.WsActionTester;
 import org.sonarqube.ws.Common.Paging;
 import org.sonarqube.ws.Organizations.SearchMembersWsResponse;
 import org.sonarqube.ws.Organizations.User;
-import org.sonarqube.ws.client.organization.SearchMembersWsRequest;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
@@ -70,9 +71,9 @@ public class SearchMembersActionTest {
   private DefaultOrganizationProvider organizationProvider = TestDefaultOrganizationProvider.from(db);
   private UserIndexer indexer = new UserIndexer(dbClient, es.client());
 
-  private WsActionTester ws = new WsActionTester(new SearchMembersAction(dbClient, new UserIndex(es.client()), organizationProvider, userSession, new AvatarResolverImpl()));
+  private WsActionTester ws = new WsActionTester(new SearchMembersAction(dbClient, new UserIndex(es.client(), System2.INSTANCE), organizationProvider, userSession, new AvatarResolverImpl()));
 
-  private SearchMembersWsRequest request = new SearchMembersWsRequest();
+  private SearchMembersRequest request = new SearchMembersRequest();
 
   @Test
   public void empty_response() {
@@ -267,7 +268,7 @@ public class SearchMembersActionTest {
     request.setPageSize(501);
 
     expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("Page size must lower than or equal to 500");
+    expectedException.expectMessage("'ps' value (501) must be less than 500");
 
     call();
   }
@@ -327,5 +328,63 @@ public class SearchMembersActionTest {
     setNullable(request.getSelected(), s -> wsRequest.setParam(Param.SELECTED, s));
 
     return wsRequest.executeProtobuf(SearchMembersWsResponse.class);
+  }
+
+  private static class SearchMembersRequest {
+    private String organization;
+    private String selected;
+    private String query;
+    private Integer page;
+    private Integer pageSize;
+
+    @CheckForNull
+    public String getOrganization() {
+      return organization;
+    }
+
+    public SearchMembersRequest setOrganization(@Nullable String organization) {
+      this.organization = organization;
+      return this;
+    }
+
+    @CheckForNull
+    public String getSelected() {
+      return selected;
+    }
+
+    public SearchMembersRequest setSelected(@Nullable String selected) {
+      this.selected = selected;
+      return this;
+    }
+
+    @CheckForNull
+    public String getQuery() {
+      return query;
+    }
+
+    public SearchMembersRequest setQuery(@Nullable String query) {
+      this.query = query;
+      return this;
+    }
+
+    @CheckForNull
+    public Integer getPage() {
+      return page;
+    }
+
+    public SearchMembersRequest setPage(@Nullable Integer page) {
+      this.page = page;
+      return this;
+    }
+
+    @CheckForNull
+    public Integer getPageSize() {
+      return pageSize;
+    }
+
+    public SearchMembersRequest setPageSize(@Nullable Integer pageSize) {
+      this.pageSize = pageSize;
+      return this;
+    }
   }
 }

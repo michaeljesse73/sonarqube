@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,9 +24,12 @@ import org.sonar.api.server.ws.Request;
 import org.sonar.api.server.ws.WebService;
 import org.sonar.db.organization.OrganizationDto;
 import org.sonar.server.organization.OrganizationValidation;
-import org.sonarqube.ws.Organizations;
+import org.sonarqube.ws.Organizations.Organization;
 
 import static org.sonar.core.util.Protobuf.setNullable;
+import static org.sonar.server.organization.OrganizationValidation.DESCRIPTION_MAX_LENGTH;
+import static org.sonar.server.organization.OrganizationValidation.NAME_MAX_LENGTH;
+import static org.sonar.server.organization.OrganizationValidation.URL_MAX_LENGTH;
 
 /**
  * Factorizes code and constants between Organization WS's actions.
@@ -80,39 +83,42 @@ public class OrganizationsWsSupport {
   void addOrganizationDetailsParams(WebService.NewAction action, boolean isNameRequired) {
     action.createParam(PARAM_NAME)
       .setRequired(isNameRequired)
+      .setMaximumLength(NAME_MAX_LENGTH)
       .setDescription("Name of the organization. <br />" +
         "It must be between 2 and 64 chars longs.")
       .setExampleValue("Foo Company");
 
     action.createParam(PARAM_DESCRIPTION)
       .setRequired(false)
+      .setMaximumLength(DESCRIPTION_MAX_LENGTH)
       .setDescription("Description of the organization.<br/> It must be less than 256 chars long.")
       .setExampleValue("The Foo company produces quality software for Bar.");
 
     action.createParam(PARAM_URL)
       .setRequired(false)
+      .setMaximumLength(URL_MAX_LENGTH)
       .setDescription("URL of the organization.<br/> It must be less than 256 chars long.")
       .setExampleValue("https://www.foo.com");
 
     action.createParam(PARAM_AVATAR_URL)
       .setRequired(false)
+      .setMaximumLength(URL_MAX_LENGTH)
       .setDescription("URL of the organization avatar.<br/> It must be less than 256 chars long.")
       .setExampleValue("https://www.foo.com/foo.png");
   }
 
-  Organizations.Organization toOrganization(OrganizationDto dto) {
-    return toOrganization(Organizations.Organization.newBuilder(), dto);
+  Organization.Builder toOrganization(OrganizationDto dto) {
+    return toOrganization(Organization.newBuilder(), dto);
   }
 
-  Organizations.Organization toOrganization(Organizations.Organization.Builder builder, OrganizationDto dto) {
+  Organization.Builder toOrganization(Organization.Builder builder, OrganizationDto dto) {
     builder
-      .clear()
       .setName(dto.getName())
       .setKey(dto.getKey())
       .setGuarded(dto.isGuarded());
     setNullable(dto.getDescription(), builder::setDescription);
     setNullable(dto.getUrl(), builder::setUrl);
     setNullable(dto.getAvatarUrl(), builder::setAvatar);
-    return builder.build();
+    return builder;
   }
 }

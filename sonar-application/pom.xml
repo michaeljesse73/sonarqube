@@ -1,11 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
     <groupId>org.sonarsource.sonarqube</groupId>
     <artifactId>sonarqube</artifactId>
-    <version>6.5-SNAPSHOT</version>
+    <version>7.1-SNAPSHOT</version>
   </parent>
 
   <artifactId>sonar-application</artifactId>
@@ -27,8 +29,14 @@
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>sonar-process-monitor</artifactId>
+      <artifactId>sonar-main</artifactId>
       <version>${project.version}</version>
+    </dependency>
+    <!--must declare this dependency of sonar-process-monitor here, again,-->
+    <!--to allow copying it and its dependencies into lib/common-->
+    <dependency>
+      <groupId>org.elasticsearch.client</groupId>
+      <artifactId>transport</artifactId>
     </dependency>
 
     <dependency>
@@ -36,21 +44,10 @@
       <artifactId>jsr305</artifactId>
       <scope>provided</scope>
     </dependency>
-    <dependency>
-      <groupId>org.elasticsearch</groupId>
-      <artifactId>elasticsearch</artifactId>
-      <scope>provided</scope>
-    </dependency>
 
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>sonar-server</artifactId>
-      <version>${project.version}</version>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>sonar-search</artifactId>
       <version>${project.version}</version>
       <scope>provided</scope>
     </dependency>
@@ -115,6 +112,12 @@
       <scope>provided</scope>
     </dependency>
     <dependency>
+      <groupId>org.sonarsource.flex</groupId>
+      <artifactId>sonar-flex-plugin</artifactId>
+      <type>sonar-plugin</type>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
       <groupId>org.sonarsource.scm.git</groupId>
       <artifactId>sonar-scm-git-plugin</artifactId>
       <type>sonar-plugin</type>
@@ -139,8 +142,8 @@
       <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>org.sonarsource.flex</groupId>
-      <artifactId>sonar-flex-plugin</artifactId>
+      <groupId>org.sonarsource.typescript</groupId>
+      <artifactId>sonar-typescript-plugin</artifactId>
       <type>sonar-plugin</type>
       <scope>provided</scope>
     </dependency>
@@ -185,7 +188,8 @@
           <archive>
             <index>true</index>
             <manifest>
-              <addClasspath>false</addClasspath>
+              <addClasspath>true</addClasspath>
+              <classpathPrefix>common</classpathPrefix>
               <mainClass>org.sonar.application.App</mainClass>
             </manifest>
             <manifestEntries>
@@ -196,24 +200,24 @@
         </configuration>
       </plugin>
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-shade-plugin</artifactId>
-        <executions>
-          <execution>
-            <phase>package</phase>
-            <goals>
-              <goal>shade</goal>
-            </goals>
-            <configuration>
-              <keepDependenciesWithProvidedScope>false</keepDependenciesWithProvidedScope>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
         <artifactId>maven-assembly-plugin</artifactId>
         <executions>
           <execution>
+            <id>assemble-common-lib-dir</id>
+            <phase>prepare-package</phase>
+            <goals>
+              <goal>single</goal>
+            </goals>
+            <configuration>
+              <appendAssemblyId>false</appendAssemblyId>
+              <finalName>common</finalName>
+              <descriptors>
+                <descriptor>assembly-common.xml</descriptor>
+              </descriptors>
+            </configuration>
+          </execution>
+          <execution>
+            <id>assemble-distribution-zip</id>
             <phase>package</phase>
             <goals>
               <goal>single</goal>
@@ -242,8 +246,8 @@
             <configuration>
               <rules>
                 <requireFilesSize>
-                  <minsize>138000000</minsize>
-                  <maxsize>146000000</maxsize>
+                  <minsize>155000000</minsize>
+                  <maxsize>170000000</maxsize>
                   <files>
                     <file>${project.build.directory}/sonarqube-${project.version}.zip</file>
                   </files>

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,28 +21,49 @@ package org.sonarqube.tests.user;
 
 import com.sonar.orchestrator.Orchestrator;
 import java.util.concurrent.TimeUnit;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.DisableOnDebug;
 import org.junit.rules.TestRule;
 import org.junit.rules.Timeout;
+import org.sonarqube.qa.util.Tester;
 import org.sonarqube.tests.Byteman;
-import org.sonarqube.tests.Tester;
-import org.sonarqube.ws.WsUsers.CreateWsResponse.User;
-import org.sonarqube.ws.client.user.SearchRequest;
-import org.sonarqube.ws.client.user.UpdateRequest;
+import org.sonarqube.ws.Users.CreateWsResponse.User;
+import org.sonarqube.ws.client.users.SearchRequest;
+import org.sonarqube.ws.client.users.UpdateRequest;
+import util.ItUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.sonarqube.tests.Byteman.Process.WEB;
 import static util.ItUtils.expectHttpError;
 
 public class UserEsResilienceTest {
 
   @ClassRule
   public static final Orchestrator orchestrator;
+  private static final Byteman byteman;
 
   static {
-    orchestrator = Byteman.enableScript(Orchestrator.builderEnv(), "resilience/user_indexer.btm").build();
+    byteman = new Byteman(Orchestrator.builderEnv(), WEB);
+    orchestrator = byteman
+      .getOrchestratorBuilder()
+      .setServerProperty("sonar.search.recovery.delayInMs", "1000")
+      .setServerProperty("sonar.search.recovery.minAgeInMs", "3000")
+      .addPlugin(ItUtils.xooPlugin())
+      .build();
+  }
+
+  @Before
+  public void before() throws Exception {
+    byteman.activateScript("resilience/user_indexer.btm");
+  }
+
+  @After
+  public void after() throws Exception {
+    byteman.deactivateAllRules();
   }
 
   @Rule
@@ -77,7 +98,7 @@ public class UserEsResilienceTest {
     // Renaming is not propagated to index as long as recovery does not
     // run.
     String newName = "renamed";
-    tester.users().service().update(UpdateRequest.builder().setLogin(login).setName(newName).build());
+    tester.users().service().update(new UpdateRequest().setLogin(login).setName(newName));
     assertThat(isReturnedInSearch(newName)).isFalse();
 
     while (!isReturnedInSearch(newName)) {
@@ -108,7 +129,7 @@ public class UserEsResilienceTest {
     // Renaming is not propagated to index as long as recovery does not
     // run.
     String newName = "renamed";
-    expectHttpError(500, () -> tester.users().service().update(UpdateRequest.builder().setLogin(login).setName(newName).build()));
+    expectHttpError(500, () -> tester.users().service().update(new UpdateRequest().setLogin(login).setName(newName)));
     assertThat(isReturnedInSearch(newName)).isFalse();
 
     while (!isReturnedInSearch(newName)) {
@@ -118,7 +139,7 @@ public class UserEsResilienceTest {
   }
 
   private boolean isReturnedInSearch(String name) {
-    return tester.users().service().search(SearchRequest.builder().setQuery(name).build()).getUsersCount() == 1L;
+    return tester.users().service().search(new SearchRequest().setQ(name)).getUsersCount() == 1L;
   }
 
 }

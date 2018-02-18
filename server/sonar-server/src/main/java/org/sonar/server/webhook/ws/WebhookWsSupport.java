@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,6 +19,7 @@
  */
 package org.sonar.server.webhook.ws;
 
+import org.sonar.core.util.Protobuf;
 import org.sonar.db.component.ComponentDto;
 import org.sonar.db.webhook.WebhookDeliveryDto;
 import org.sonar.db.webhook.WebhookDeliveryLiteDto;
@@ -39,23 +40,17 @@ class WebhookWsSupport {
       .setName(dto.getName())
       .setUrl(dto.getUrl())
       .setSuccess(dto.isSuccess())
-      .setCeTaskId(dto.getCeTaskUuid())
-      .setComponentKey(component.getKey());
-    if (dto.getHttpStatus() != null) {
-      builder.setHttpStatus(dto.getHttpStatus());
-    }
-    if (dto.getDurationMs() != null) {
-      builder.setDurationMs(dto.getDurationMs());
-    }
+      .setComponentKey(component.getDbKey());
+    Protobuf.setNullable(dto.getCeTaskUuid(), builder::setCeTaskId);
+    Protobuf.setNullable(dto.getHttpStatus(), builder::setHttpStatus);
+    Protobuf.setNullable(dto.getDurationMs(), builder::setDurationMs);
     return builder;
   }
 
   static Webhooks.Delivery.Builder copyDtoToProtobuf(ComponentDto component, WebhookDeliveryDto dto, Webhooks.Delivery.Builder builder) {
     copyDtoToProtobuf(component, (WebhookDeliveryLiteDto) dto, builder);
     builder.setPayload(dto.getPayload());
-    if (dto.getErrorStacktrace() != null) {
-      builder.setErrorStacktrace(dto.getErrorStacktrace());
-    }
+    Protobuf.setNullable(dto.getErrorStacktrace(), builder::setErrorStacktrace);
     return builder;
   }
 }

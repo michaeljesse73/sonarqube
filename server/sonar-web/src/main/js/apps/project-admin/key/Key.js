@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,12 +18,14 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import React from 'react';
+import PropTypes from 'prop-types';
 import Helmet from 'react-helmet';
 import { connect } from 'react-redux';
 import Header from './Header';
 import UpdateForm from './UpdateForm';
 import BulkUpdate from './BulkUpdate';
 import FineGrainedUpdate from './FineGrainedUpdate';
+import { reloadUpdateKeyPage } from './utils';
 import { fetchProjectModules, changeKey } from '../store/actions';
 import { translate } from '../../../helpers/l10n';
 import {
@@ -31,19 +33,18 @@ import {
   closeAllGlobalMessages,
   addGlobalSuccessMessage
 } from '../../../store/globalMessages/duck';
-import { parseError } from '../../code/utils';
-import { reloadUpdateKeyPage } from './utils';
+import { parseError } from '../../../helpers/request';
 import RecentHistory from '../../../app/components/RecentHistory';
-import { getProjectAdminProjectModules, getComponent } from '../../../store/rootReducer';
+import { getProjectAdminProjectModules } from '../../../store/rootReducer';
 
 class Key extends React.PureComponent {
   static propTypes = {
-    component: React.PropTypes.object.isRequired,
-    fetchProjectModules: React.PropTypes.func.isRequired,
-    changeKey: React.PropTypes.func.isRequired,
-    addGlobalErrorMessage: React.PropTypes.func.isRequired,
-    addGlobalSuccessMessage: React.PropTypes.func.isRequired,
-    closeAllGlobalMessages: React.PropTypes.func.isRequired
+    component: PropTypes.object,
+    fetchProjectModules: PropTypes.func.isRequired,
+    changeKey: PropTypes.func.isRequired,
+    addGlobalErrorMessage: PropTypes.func.isRequired,
+    addGlobalSuccessMessage: PropTypes.func.isRequired,
+    closeAllGlobalMessages: PropTypes.func.isRequired
   };
 
   state = {
@@ -93,13 +94,14 @@ class Key extends React.PureComponent {
 
         {modules == null && <i className="spinner" />}
 
-        {noModules &&
+        {noModules && (
           <div>
             <UpdateForm component={component} onKeyChange={this.handleChangeKey.bind(this)} />
-          </div>}
+          </div>
+        )}
 
-        {hasModules &&
-          <div>
+        {hasModules && (
+          <div className="boxed-group boxed-group-inner">
             <div className="big-spacer-bottom">
               <ul className="tabs">
                 <li>
@@ -125,22 +127,23 @@ class Key extends React.PureComponent {
 
             {tab === 'bulk' && <BulkUpdate component={component} />}
 
-            {tab === 'fine' &&
+            {tab === 'fine' && (
               <FineGrainedUpdate
                 component={component}
                 modules={modules}
                 onKeyChange={this.handleChangeKey.bind(this)}
                 onSuccess={this.props.closeAllGlobalMessages}
                 onError={this.props.addGlobalErrorMessage}
-              />}
-          </div>}
+              />
+            )}
+          </div>
+        )}
       </div>
     );
   }
 }
 
 const mapStateToProps = (state, ownProps) => ({
-  component: getComponent(state, ownProps.location.query.id),
   modules: getProjectAdminProjectModules(state, ownProps.location.query.id)
 });
 

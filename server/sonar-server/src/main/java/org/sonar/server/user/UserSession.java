@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -66,6 +66,12 @@ public interface UserSession {
    * benefits from all the permissions on all organizations and projects.
    */
   boolean isRoot();
+
+  /**
+   * Ensures that {@link #isRoot()} returns {@code true} otherwise throws a
+   * {@link org.sonar.server.exceptions.ForbiddenException}.
+   */
+  UserSession checkIsRoot();
 
   /**
    * Ensures that user is logged in otherwise throws {@link org.sonar.server.exceptions.UnauthorizedException}.

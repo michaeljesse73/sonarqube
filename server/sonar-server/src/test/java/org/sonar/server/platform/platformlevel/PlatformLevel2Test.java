@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -26,13 +26,16 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.sonar.api.utils.System2;
 import org.sonar.core.platform.PluginRepository;
-import org.sonar.process.ProcessProperties;
 import org.sonar.server.platform.Platform;
-import org.sonar.server.platform.cluster.Cluster;
+import org.sonar.server.platform.WebServer;
 import org.sonar.server.platform.db.migration.charset.DatabaseCharsetChecker;
+import org.sonar.server.startup.ClusterConfigurationCheck;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.sonar.process.ProcessProperties.Property.PATH_DATA;
+import static org.sonar.process.ProcessProperties.Property.PATH_HOME;
+import static org.sonar.process.ProcessProperties.Property.PATH_TEMP;
 
 public class PlatformLevel2Test {
 
@@ -44,9 +47,9 @@ public class PlatformLevel2Test {
   @Before
   public void setUp() throws Exception {
     // these are mandatory settings declared by bootstrap process
-    props.setProperty(ProcessProperties.PATH_HOME, tempFolder.newFolder().getAbsolutePath());
-    props.setProperty(ProcessProperties.PATH_DATA, tempFolder.newFolder().getAbsolutePath());
-    props.setProperty(ProcessProperties.PATH_TEMP, tempFolder.newFolder().getAbsolutePath());
+    props.setProperty(PATH_HOME.getKey(), tempFolder.newFolder().getAbsolutePath());
+    props.setProperty(PATH_DATA.getKey(), tempFolder.newFolder().getAbsolutePath());
+    props.setProperty(PATH_TEMP.getKey(), tempFolder.newFolder().getAbsolutePath());
   }
 
   @Test
@@ -58,7 +61,7 @@ public class PlatformLevel2Test {
     underTest.configure();
 
     // some level1 components
-    assertThat(underTest.getOptional(Cluster.class)).isPresent();
+    assertThat(underTest.getOptional(WebServer.class)).isPresent();
     assertThat(underTest.getOptional(System2.class)).isPresent();
 
     // level2 component that does not depend on cluster state
@@ -77,12 +80,37 @@ public class PlatformLevel2Test {
     PlatformLevel2 underTest = new PlatformLevel2(level1);
     underTest.configure();
 
-    assertThat(underTest.get(Cluster.class).isStartupLeader()).isFalse();
+    assertThat(underTest.get(WebServer.class).isStartupLeader()).isFalse();
 
     // level2 component that does not depend on cluster state
     assertThat(underTest.getOptional(PluginRepository.class)).isPresent();
 
     // level2 component that is injected only on "startup leaders"
     assertThat(underTest.getOptional(DatabaseCharsetChecker.class)).isNotPresent();
+  }
+
+  @Test
+  public void add_ClusterConfigurationCheck_when_cluster_mode_activated() {
+    props.setProperty("sonar.cluster.enabled", "true");
+    PlatformLevel1 level1 = new PlatformLevel1(mock(Platform.class), props);
+    level1.configure();
+
+    PlatformLevel2 underTest = new PlatformLevel2(level1);
+    underTest.configure();
+
+    assertThat(underTest.getOptional(ClusterConfigurationCheck.class)).isPresent();
+  }
+
+  @Test
+  public void do_NOT_add_ClusterConfigurationCheck_when_cluster_mode_NOT_activated() {
+    props.setProperty("sonar.cluster.enabled", "false");
+    PlatformLevel1 level1 = new PlatformLevel1(mock(Platform.class), props);
+    level1.configure();
+
+    PlatformLevel2 underTest = new PlatformLevel2(level1);
+    underTest.configure();
+
+    assertThat(underTest.getOptional(ClusterConfigurationCheck.class)).isNotPresent();
+
   }
 }

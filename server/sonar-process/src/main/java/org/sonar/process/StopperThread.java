@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,6 +25,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import org.sonar.process.sharedmemoryfile.ProcessCommands;
 
 /**
  * Gracefully stops process in a timely fashion
@@ -32,29 +33,24 @@ import java.util.concurrent.TimeUnit;
 class StopperThread extends Thread {
 
   private final Monitored monitored;
-  private final long terminationTimeout;
+  private final long terminationTimeoutMs;
   private final ProcessCommands commands;
 
-  StopperThread(Monitored monitored, ProcessCommands commands, long terminationTimeout) {
+  StopperThread(Monitored monitored, ProcessCommands commands, long terminationTimeoutMs) {
     super("Stopper");
     this.monitored = monitored;
-    this.terminationTimeout = terminationTimeout;
+    this.terminationTimeoutMs = terminationTimeoutMs;
     this.commands = commands;
   }
 
   @Override
   public void run() {
     ExecutorService executor = Executors.newSingleThreadExecutor();
-    Future future = executor.submit(new Runnable() {
-      @Override
-      public void run() {
-        monitored.stop();
-      }
-    });
     try {
-      future.get(terminationTimeout, TimeUnit.MILLISECONDS);
+      Future future = executor.submit(monitored::stop);
+      future.get(terminationTimeoutMs, TimeUnit.MILLISECONDS);
     } catch (Exception e) {
-      LoggerFactory.getLogger(getClass()).error(String.format("Can not stop in %dms", terminationTimeout), e);
+      LoggerFactory.getLogger(getClass()).error("Can not stop in {}ms", terminationTimeoutMs, e);
     }
     executor.shutdownNow();
     commands.endWatch();

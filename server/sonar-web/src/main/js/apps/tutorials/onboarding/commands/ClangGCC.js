@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,6 +24,7 @@ import SQScanner from './SQScanner';
 import BuildWrapper from './BuildWrapper';
 import { translate } from '../../../../helpers/l10n';
 
+/*::
 type Props = {
   host: string,
   os: string,
@@ -31,6 +32,7 @@ type Props = {
   projectKey: string,
   token: string
 };
+*/
 
 const executables = {
   linux: 'build-wrapper-linux-x86-64',
@@ -38,7 +40,7 @@ const executables = {
   mac: 'build-wrapper-macosx-x86'
 };
 
-export default function ClangGCC(props: Props) {
+export default function ClangGCC(props /*: Props */) {
   const command1 = `${executables[props.os]} --out-dir bw-output make clean all`;
 
   const command2 = [
@@ -65,8 +67,8 @@ export default function ClangGCC(props: Props) {
           __html: translate('onboarding.analysis.sq_scanner.execute.text')
         }}
       />
-      <Command command={command1} />
-      <Command command={command2} />
+      <Command command={command1} isOneLine={true} />
+      <Command command={command2} isOneLine={props.os === 'win'} />
       <p
         className="big-spacer-top markdown"
         dangerouslySetInnerHTML={{ __html: translate('onboarding.analysis.sq_scanner.docs') }}

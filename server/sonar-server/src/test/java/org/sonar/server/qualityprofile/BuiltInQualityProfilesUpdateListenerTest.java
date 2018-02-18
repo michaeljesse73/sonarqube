@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,8 +22,6 @@ package org.sonar.server.qualityprofile;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import java.util.Random;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import org.assertj.core.groups.Tuple;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
@@ -32,12 +30,14 @@ import org.sonar.api.notifications.Notification;
 import org.sonar.api.resources.Language;
 import org.sonar.api.resources.Languages;
 import org.sonar.db.qualityprofile.ActiveRuleKey;
+import org.sonar.db.rule.RuleDefinitionDto;
 import org.sonar.server.notification.NotificationManager;
 import org.sonar.server.qualityprofile.BuiltInQualityProfilesNotification.Profile;
 
+import static java.util.Arrays.asList;
 import static org.apache.commons.lang.RandomStringUtils.randomAlphanumeric;
-import static org.assertj.core.api.Java6Assertions.assertThat;
-import static org.assertj.core.api.Java6Assertions.tuple;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -50,12 +50,11 @@ import static org.sonar.server.qualityprofile.ActiveRuleChange.Type.UPDATED;
 
 public class BuiltInQualityProfilesUpdateListenerTest {
 
-  private static final Random RANDOM = new Random();
   private NotificationManager notificationManager = mock(NotificationManager.class);
   private MapSettings settings = new MapSettings();
 
   @Test
-  public void add_profile_to_notification_for_added_rules() throws Exception {
+  public void add_profile_to_notification_for_added_rules() {
     enableNotificationInGlobalSettings();
     Multimap<QProfileName, ActiveRuleChange> profiles = ArrayListMultimap.create();
     Languages languages = new Languages();
@@ -73,7 +72,7 @@ public class BuiltInQualityProfilesUpdateListenerTest {
   }
 
   @Test
-  public void add_profile_to_notification_for_updated_rules() throws Exception {
+  public void add_profile_to_notification_for_updated_rules() {
     enableNotificationInGlobalSettings();
     Multimap<QProfileName, ActiveRuleChange> profiles = ArrayListMultimap.create();
     Languages languages = new Languages();
@@ -91,7 +90,7 @@ public class BuiltInQualityProfilesUpdateListenerTest {
   }
 
   @Test
-  public void add_profile_to_notification_for_removed_rules() throws Exception {
+  public void add_profile_to_notification_for_removed_rules() {
     enableNotificationInGlobalSettings();
     Multimap<QProfileName, ActiveRuleChange> profiles = ArrayListMultimap.create();
     Languages languages = new Languages();
@@ -109,7 +108,7 @@ public class BuiltInQualityProfilesUpdateListenerTest {
   }
 
   @Test
-  public void add_multiple_profiles_to_notification() throws Exception {
+  public void add_multiple_profiles_to_notification() {
     enableNotificationInGlobalSettings();
     Multimap<QProfileName, ActiveRuleChange> profiles = ArrayListMultimap.create();
     Languages languages = new Languages();
@@ -128,13 +127,13 @@ public class BuiltInQualityProfilesUpdateListenerTest {
   }
 
   @Test
-  public void add_start_and_end_dates_to_notification() throws Exception {
+  public void add_start_and_end_dates_to_notification() {
     enableNotificationInGlobalSettings();
     Multimap<QProfileName, ActiveRuleChange> profiles = ArrayListMultimap.create();
     Languages languages = new Languages();
     addProfile(profiles, languages, ACTIVATED);
-    long startDate = RANDOM.nextInt(5000);
-    long endDate = startDate + RANDOM.nextInt(5000);
+    long startDate = 10_000_000_000L;
+    long endDate = 15_000_000_000L;
 
     BuiltInQualityProfilesUpdateListener underTest = new BuiltInQualityProfilesUpdateListener(notificationManager, languages, settings.asConfig());
     underTest.onChange(profiles, startDate, endDate);
@@ -162,13 +161,16 @@ public class BuiltInQualityProfilesUpdateListenerTest {
 
   private Tuple addProfile(Multimap<QProfileName, ActiveRuleChange> profiles, Languages languages, ActiveRuleChange.Type type) {
     String profileName = randomLowerCaseText();
+    int ruleId1 = new Random().nextInt(952);
+    int ruleId2 = new Random().nextInt(952);
     Language language = newLanguage(randomLowerCaseText(), randomLowerCaseText());
     languages.add(language);
-    int numberOfChanges = RANDOM.nextInt(1000);
-    profiles.putAll(
-      new QProfileName(language.getKey(), profileName),
-      IntStream.range(0, numberOfChanges).mapToObj(i -> new ActiveRuleChange(type, ActiveRuleKey.parse("qp:repo:rule" + i))).collect(Collectors.toSet()));
-    return tuple(profileName, language.getKey(), language.getName(), numberOfChanges);
+    profiles.putAll(new QProfileName(language.getKey(), profileName),
+      asList(new ActiveRuleChange(
+        type,
+        ActiveRuleKey.parse("qp:repo:rule1"), new RuleDefinitionDto().setId(ruleId1)),
+        new ActiveRuleChange(type, ActiveRuleKey.parse("qp:repo:rule2"), new RuleDefinitionDto().setId(ruleId2))));
+    return tuple(profileName, language.getKey(), language.getName(), 2);
   }
 
   private static String randomLowerCaseText() {

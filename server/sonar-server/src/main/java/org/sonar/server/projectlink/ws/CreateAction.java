@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -29,20 +29,18 @@ import org.sonar.db.component.ComponentDto;
 import org.sonar.db.component.ComponentLinkDto;
 import org.sonar.server.component.ComponentFinder;
 import org.sonar.server.user.UserSession;
-import org.sonarqube.ws.WsProjectLinks;
-import org.sonarqube.ws.WsProjectLinks.CreateWsResponse;
-import org.sonarqube.ws.client.projectlinks.CreateWsRequest;
+import org.sonarqube.ws.ProjectLinks;
+import org.sonarqube.ws.ProjectLinks.CreateWsResponse;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static org.sonar.core.util.Slug.slugify;
 import static org.sonar.core.util.Uuids.UUID_EXAMPLE_01;
 import static org.sonar.server.ws.KeyExamples.KEY_PROJECT_EXAMPLE_001;
 import static org.sonar.server.ws.WsUtils.writeProtobuf;
-import static org.sonarqube.ws.client.projectlinks.ProjectLinksWsParameters.ACTION_CREATE;
-import static org.sonarqube.ws.client.projectlinks.ProjectLinksWsParameters.PARAM_NAME;
-import static org.sonarqube.ws.client.projectlinks.ProjectLinksWsParameters.PARAM_PROJECT_ID;
-import static org.sonarqube.ws.client.projectlinks.ProjectLinksWsParameters.PARAM_PROJECT_KEY;
-import static org.sonarqube.ws.client.projectlinks.ProjectLinksWsParameters.PARAM_URL;
+import static org.sonar.server.projectlink.ws.ProjectLinksWsParameters.ACTION_CREATE;
+import static org.sonar.server.projectlink.ws.ProjectLinksWsParameters.PARAM_NAME;
+import static org.sonar.server.projectlink.ws.ProjectLinksWsParameters.PARAM_PROJECT_ID;
+import static org.sonar.server.projectlink.ws.ProjectLinksWsParameters.PARAM_PROJECT_KEY;
+import static org.sonar.server.projectlink.ws.ProjectLinksWsParameters.PARAM_URL;
 
 public class CreateAction implements ProjectLinksWsAction {
   private final DbClient dbClient;
@@ -80,25 +78,25 @@ public class CreateAction implements ProjectLinksWsAction {
 
     action.createParam(PARAM_NAME)
       .setRequired(true)
+      .setMaximumLength(LINK_NAME_MAX_LENGTH)
       .setDescription("Link name")
       .setExampleValue("Custom");
 
     action.createParam(PARAM_URL)
       .setRequired(true)
+      .setMaximumLength(LINK_URL_MAX_LENGTH)
       .setDescription("Link url")
       .setExampleValue("http://example.com");
   }
 
   @Override
   public void handle(Request request, Response response) throws Exception {
-    CreateWsRequest searchWsRequest = toCreateWsRequest(request);
+    CreateRequest searchWsRequest = toCreateWsRequest(request);
     CreateWsResponse createWsResponse = doHandle(searchWsRequest);
     writeProtobuf(createWsResponse, request, response);
   }
 
-  private CreateWsResponse doHandle(CreateWsRequest createWsRequest) {
-    validateRequest(createWsRequest);
-
+  private CreateWsResponse doHandle(CreateRequest createWsRequest) {
     String name = createWsRequest.getName();
     String url = createWsRequest.getUrl();
 
@@ -120,7 +118,7 @@ public class CreateAction implements ProjectLinksWsAction {
   }
 
   private static CreateWsResponse buildResponse(ComponentLinkDto link) {
-    return CreateWsResponse.newBuilder().setLink(WsProjectLinks.Link.newBuilder()
+    return CreateWsResponse.newBuilder().setLink(ProjectLinks.Link.newBuilder()
       .setId(String.valueOf(link.getId()))
       .setName(link.getName())
       .setType(link.getType())
@@ -128,7 +126,7 @@ public class CreateAction implements ProjectLinksWsAction {
       .build();
   }
 
-  private ComponentDto getComponentByUuidOrKey(DbSession dbSession, CreateWsRequest request) {
+  private ComponentDto getComponentByUuidOrKey(DbSession dbSession, CreateRequest request) {
     return componentFinder.getRootComponentByUuidOrKey(
       dbSession,
       request.getProjectId(),
@@ -136,21 +134,60 @@ public class CreateAction implements ProjectLinksWsAction {
       ComponentFinder.ParamNames.PROJECT_ID_AND_KEY);
   }
 
-  private static CreateWsRequest toCreateWsRequest(Request request) {
-    return new CreateWsRequest()
+  private static CreateRequest toCreateWsRequest(Request request) {
+    return new CreateRequest()
       .setProjectId(request.param(PARAM_PROJECT_ID))
       .setProjectKey(request.param(PARAM_PROJECT_KEY))
       .setName(request.mandatoryParam(PARAM_NAME))
       .setUrl(request.mandatoryParam(PARAM_URL));
   }
 
-  private static void validateRequest(CreateWsRequest request) {
-    checkArgument(request.getName().length() <= LINK_NAME_MAX_LENGTH, "Link name cannot be longer than %s characters", LINK_NAME_MAX_LENGTH);
-    checkArgument(request.getUrl().length() <= LINK_URL_MAX_LENGTH, "Link url cannot be longer than %s characters", LINK_URL_MAX_LENGTH);
-  }
-
   private static String nameToType(String name) {
     String slugified = slugify(name);
     return slugified.substring(0, Math.min(slugified.length(), LINK_TYPE_MAX_LENGTH));
+  }
+
+  private static class CreateRequest {
+
+    private String name;
+    private String projectId;
+    private String projectKey;
+    private String url;
+
+    public CreateRequest setName(String name) {
+      this.name = name;
+      return this;
+    }
+
+    public String getName() {
+      return name;
+    }
+
+    public CreateRequest setProjectId(String projectId) {
+      this.projectId = projectId;
+      return this;
+    }
+
+    public String getProjectId() {
+      return projectId;
+    }
+
+    public CreateRequest setProjectKey(String projectKey) {
+      this.projectKey = projectKey;
+      return this;
+    }
+
+    public String getProjectKey() {
+      return projectKey;
+    }
+
+    public CreateRequest setUrl(String url) {
+      this.url = url;
+      return this;
+    }
+
+    public String getUrl() {
+      return url;
+    }
   }
 }

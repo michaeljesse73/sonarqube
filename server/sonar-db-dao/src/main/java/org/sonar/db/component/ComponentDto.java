@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -17,7 +17,6 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-
 package org.sonar.db.component;
 
 import com.google.common.base.Joiner;
@@ -27,16 +26,26 @@ import java.util.Date;
 import java.util.List;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.builder.ToStringBuilder;
-import org.sonar.api.component.Component;
 import org.sonar.api.resources.Scopes;
+import org.sonar.db.WildcardPosition;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static java.lang.String.format;
+import static org.sonar.db.DaoDatabaseUtils.buildLikeValue;
 import static org.sonar.db.component.ComponentValidator.checkComponentKey;
 import static org.sonar.db.component.ComponentValidator.checkComponentName;
 import static org.sonar.db.component.DbTagsReader.readDbTags;
 
-public class ComponentDto implements Component {
+public class ComponentDto {
+
+  /**
+   * Separator used to generate the key of the branch
+   */
+  public static final String BRANCH_KEY_SEPARATOR = ":BRANCH:";
+
+  private static final Splitter BRANCH_KEY_SPLITTER = Splitter.on(BRANCH_KEY_SEPARATOR);
 
   public static final String UUID_PATH_SEPARATOR = ".";
   public static final String UUID_PATH_OF_ROOT = UUID_PATH_SEPARATOR;
@@ -107,10 +116,29 @@ public class ComponentDto implements Component {
    */
   private String rootUuid;
 
+  /**
+   * On non-main branches only, {@link #uuid} of the main branch that represents
+   * the project ({@link #qualifier}="TRK").x
+   * It is propagated to all the components of the branch.
+   *
+   * Value is null on the main-branch components and on other kinds of components
+   * (applications, portfolios).
+   *
+   * Value must be used for loading settings, checking permissions, running webhooks,
+   * selecting Quality profiles/gates and any other project-related operations.
+   *
+   * Example:
+   * - project P : kee=P, uuid=U1, qualifier=TRK, project_uuid=U1, main_branch_project_uuid=NULL
+   * - file F of project P : kee=P:F, uuid=U2, qualifier=FIL, project_uuid=U1, main_branch_project_uuid=NULL
+   * - branch B of project P : kee=P:BRANCH:B, uuid=U3, qualifier=TRK, project_uuid=U3, main_branch_project_uuid=U1
+   * - file F in branch B of project P : kee=P:F:BRANCH:B, uuid=U4, qualifier=FIL, project_uuid=U3, main_branch_project_uuid=U1
+   */
+  @Nullable
+  private String mainBranchProjectUuid;
+
   private String moduleUuid;
   private String moduleUuidPath;
   private String copyComponentUuid;
-  private String developerUuid;
   private String scope;
   private String qualifier;
   private String path;
@@ -124,12 +152,15 @@ public class ComponentDto implements Component {
   private boolean isPrivate = false;
 
   private Date createdAt;
-  private Long authorizationUpdatedAt;
 
   public static String formatUuidPathFromParent(ComponentDto parent) {
     checkArgument(!Strings.isNullOrEmpty(parent.getUuidPath()));
     checkArgument(!Strings.isNullOrEmpty(parent.uuid()));
     return parent.getUuidPath() + parent.uuid() + UUID_PATH_SEPARATOR;
+  }
+
+  public String getUuidPathLikeIncludingSelf() {
+    return buildLikeValue(formatUuidPathFromParent(this), WildcardPosition.AFTER);
   }
 
   public Long getId() {
@@ -171,13 +202,48 @@ public class ComponentDto implements Component {
   /**
    * List of ancestor UUIDs, ordered by depth in tree.
    */
-  List<String> getUuidPathAsList() {
+  public List<String> getUuidPathAsList() {
     return UUID_PATH_SPLITTER.splitToList(uuidPath);
   }
 
-  @Override
-  public String key() {
+  /**
+   * Used my MyBatis mapper
+   */
+  private String getKee(){
     return kee;
+  }
+
+  /**
+   * Used my MyBatis mapper
+   */
+  private void setKee(String kee){
+    this.kee = kee;
+  }
+
+  public String getDbKey() {
+    return kee;
+  }
+
+  public ComponentDto setDbKey(String key) {
+    this.kee = checkComponentKey(key);
+    return this;
+  }
+
+  /**
+   * The key to be displayed to user, doesn't contain information on branches
+   */
+  public String getKey() {
+    List<String> split = BRANCH_KEY_SPLITTER.splitToList(kee);
+    return split.size() == 2 ? split.get(0) : kee;
+  }
+
+  /**
+   * @return the key of the branch. It will be null on the main branch and when the component is not on a branch
+   */
+  @CheckForNull
+  public String getBranch() {
+    List<String> split = BRANCH_KEY_SPLITTER.splitToList(kee);
+    return split.size() == 2 ? split.get(1) : null;
   }
 
   public String scope() {
@@ -189,7 +255,6 @@ public class ComponentDto implements Component {
     return this;
   }
 
-  @Override
   public String qualifier() {
     return qualifier;
   }
@@ -251,7 +316,6 @@ public class ComponentDto implements Component {
   }
 
   @CheckForNull
-  @Override
   public String path() {
     return path;
   }
@@ -261,7 +325,6 @@ public class ComponentDto implements Component {
     return this;
   }
 
-  @Override
   public String name() {
     return name;
   }
@@ -271,7 +334,6 @@ public class ComponentDto implements Component {
     return this;
   }
 
-  @Override
   public String longName() {
     return longName;
   }
@@ -301,12 +363,26 @@ public class ComponentDto implements Component {
     return this;
   }
 
+  /**
+   * Use {@link #projectUuid()}, {@link #moduleUuid()} or {@link #moduleUuidPath()}
+   */
+  @Deprecated
   public String getRootUuid() {
     return rootUuid;
   }
 
   public ComponentDto setRootUuid(String rootUuid) {
     this.rootUuid = rootUuid;
+    return this;
+  }
+
+  @Nullable
+  public String getMainBranchProjectUuid() {
+    return mainBranchProjectUuid;
+  }
+
+  public ComponentDto setMainBranchProjectUuid(@Nullable String s) {
+    this.mainBranchProjectUuid = s;
     return this;
   }
 
@@ -329,44 +405,12 @@ public class ComponentDto implements Component {
     return this;
   }
 
-  @CheckForNull
-  public String getDeveloperUuid() {
-    return developerUuid;
-  }
-
-  public ComponentDto setDeveloperUuid(@Nullable String developerUuid) {
-    this.developerUuid = developerUuid;
-    return this;
-  }
-
   public Date getCreatedAt() {
     return createdAt;
   }
 
   public ComponentDto setCreatedAt(Date datetime) {
     this.createdAt = datetime;
-    return this;
-  }
-
-  /**
-   * Only available on projects
-   */
-  @CheckForNull
-  public Long getAuthorizationUpdatedAt() {
-    return authorizationUpdatedAt;
-  }
-
-  public ComponentDto setAuthorizationUpdatedAt(@Nullable Long authorizationUpdatedAt) {
-    this.authorizationUpdatedAt = authorizationUpdatedAt;
-    return this;
-  }
-
-  public String getKey() {
-    return key();
-  }
-
-  public ComponentDto setKey(String key) {
-    this.kee = checkComponentKey(key);
     return this;
   }
 
@@ -436,16 +480,53 @@ public class ComponentDto implements Component {
       .append("moduleUuid", moduleUuid)
       .append("moduleUuidPath", moduleUuidPath)
       .append("rootUuid", rootUuid)
+      .append("mainBranchProjectUuid", mainBranchProjectUuid)
       .append("copyComponentUuid", copyComponentUuid)
-      .append("developerUuid", developerUuid)
       .append("path", path)
       .append("deprecatedKey", deprecatedKey)
       .append("name", name)
       .append("longName", longName)
       .append("language", language)
       .append("enabled", enabled)
-      .append("authorizationUpdatedAt", authorizationUpdatedAt)
       .append("private", isPrivate)
       .toString();
   }
+
+  public ComponentDto copy() {
+    ComponentDto copy = new ComponentDto();
+    copy.projectUuid = projectUuid;
+    copy.id = id;
+    copy.organizationUuid = organizationUuid;
+    copy.kee = kee;
+    copy.uuid = uuid;
+    copy.uuidPath = uuidPath;
+    copy.projectUuid = projectUuid;
+    copy.rootUuid = rootUuid;
+    copy.mainBranchProjectUuid = mainBranchProjectUuid;
+    copy.moduleUuid = moduleUuid;
+    copy.moduleUuidPath = moduleUuidPath;
+    copy.copyComponentUuid = copyComponentUuid;
+    copy.scope = scope;
+    copy.qualifier = qualifier;
+    copy.path = path;
+    copy.deprecatedKey = deprecatedKey;
+    copy.name = name;
+    copy.longName = longName;
+    copy.language = language;
+    copy.description = description;
+    copy.tags = tags;
+    copy.enabled = enabled;
+    copy.isPrivate = isPrivate;
+    copy.createdAt = createdAt;
+    return copy;
+  }
+
+  public static String generateBranchKey(String componentKey, String branch) {
+    return format("%s%s%s", componentKey, BRANCH_KEY_SEPARATOR, branch);
+  }
+
+  public static String removeBranchFromKey(String componentKey) {
+    return StringUtils.substringBeforeLast(componentKey, ComponentDto.BRANCH_KEY_SEPARATOR);
+  }
+
 }

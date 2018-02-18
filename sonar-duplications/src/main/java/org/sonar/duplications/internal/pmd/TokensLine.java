@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,7 +19,6 @@
  */
 package org.sonar.duplications.internal.pmd;
 
-import com.google.common.base.Preconditions;
 import org.sonar.duplications.CodeFragment;
 
 /**
@@ -36,7 +35,9 @@ public class TokensLine implements CodeFragment {
   private final int endUnit;
 
   public TokensLine(int startUnit, int endUnit, int startLine, String value) {
-    Preconditions.checkArgument(startLine > 0);
+    if (startLine <= 0) {
+      throw new IllegalArgumentException("Start line should be strictly positive");
+    }
     // TODO do we have requirements for length and hashcode ?
     this.startLine = startLine;
     this.value = value;

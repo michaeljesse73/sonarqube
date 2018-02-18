@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,11 +19,20 @@
  */
 package org.sonar.server.computation.task.projectanalysis.qualitygate;
 
-import com.google.common.base.Optional;
+import java.util.Optional;
+import org.sonar.server.computation.task.projectanalysis.analysis.Organization;
 
 public interface QualityGateService {
+
   /**
-   * Retrieve the {@link QualityGate} from the database with the specified id, it it exists.
+   * Retrieve the {@link QualityGate} from the database with the specified id, if it exists.
    */
   Optional<QualityGate> findById(long id);
+
+  /**
+   * Retrieve the {@link QualityGate} from the database with the specified uuid.
+   * @throws IllegalStateException if database is corrupted and default gate can't be found.
+   */
+  QualityGate findDefaultQualityGate(Organization organizationDto);
+
 }

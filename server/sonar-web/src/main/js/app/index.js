@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -23,7 +23,10 @@ import startReactApp from './utils/startReactApp';
 import installExtensionsHandler from './utils/installExtensionsHandler';
 import { installGlobal } from '../helpers/l10n';
 import '../helpers/isolatedScroll';
-import './styles/index';
+// styles
+import '../components/ui/Level.css';
+import '../components/ui/Rating.css';
+import './styles/sonar.css';
 
 startAjaxMonitoring();
 installGlobal();

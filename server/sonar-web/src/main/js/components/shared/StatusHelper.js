@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -23,7 +23,11 @@ import StatusIcon from './StatusIcon';
 import { translate } from '../../helpers/l10n';
 
 export default function StatusHelper(
-  props: { resolution?: string, status: string, className?: string }
+  props /*: {
+  resolution?: string,
+  status: string,
+  className?: string
+} */
 ) {
   const resolution =
     props.resolution != null && ` (${translate('issue.resolution', props.resolution)})`;

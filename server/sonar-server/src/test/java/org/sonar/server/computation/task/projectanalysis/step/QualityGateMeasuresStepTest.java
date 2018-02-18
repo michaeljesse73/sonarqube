@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -89,7 +89,7 @@ public class QualityGateMeasuresStepTest {
 
   private EvaluationResultTextConverter resultTextConverter = mock(EvaluationResultTextConverter.class);
   private QualityGateMeasuresStep underTest = new QualityGateMeasuresStep(treeRootHolder, qualityGateHolder, qualityGateStatusHolder, measureRepository, metricRepository,
-    resultTextConverter);
+    resultTextConverter, new SmallChangesetQualityGateSpecialCase(measureRepository, metricRepository));
 
   @Before
   public void setUp() {
@@ -103,7 +103,7 @@ public class QualityGateMeasuresStepTest {
     // mock response of asText to any argument to return the result of dumbResultTextAnswer method
     when(resultTextConverter.asText(any(Condition.class), any(EvaluationResult.class))).thenAnswer(new Answer<String>() {
       @Override
-      public String answer(InvocationOnMock invocation) throws Throwable {
+      public String answer(InvocationOnMock invocation) {
         Condition condition = (Condition) invocation.getArguments()[0];
         EvaluationResult evaluationResult = (EvaluationResult) invocation.getArguments()[1];
         return dumbResultTextAnswer(condition, evaluationResult.getLevel(), evaluationResult.getValue());
@@ -161,7 +161,7 @@ public class QualityGateMeasuresStepTest {
       .hasQualityGateLevel(OK)
       .hasQualityGateText("");
     assertThat(getQGDetailsMeasure())
-      .hasValue(new QualityGateDetailsData(OK, Collections.<EvaluatedCondition>emptyList()).toJson());
+      .hasValue(new QualityGateDetailsData(OK, Collections.emptyList(), false).toJson());
 
     QualityGateStatusHolderAssertions.assertThat(qualityGateStatusHolder)
       .hasStatus(QualityGateStatus.OK)
@@ -189,7 +189,7 @@ public class QualityGateMeasuresStepTest {
       .hasQualityGateLevel(OK)
       .hasQualityGateText(dumbResultTextAnswer(equals2Condition, OK, rawValue));
     assertThat(getQGDetailsMeasure().get())
-      .hasValue(new QualityGateDetailsData(OK, of(new EvaluatedCondition(equals2Condition, OK, rawValue))).toJson());
+      .hasValue(new QualityGateDetailsData(OK, of(new EvaluatedCondition(equals2Condition, OK, rawValue)), false).toJson());
 
     QualityGateStatusHolderAssertions.assertThat(qualityGateStatusHolder)
       .hasStatus(QualityGateStatus.OK)
@@ -226,7 +226,7 @@ public class QualityGateMeasuresStepTest {
     assertThat(getQGDetailsMeasure())
       .hasValue(new QualityGateDetailsData(ERROR, of(
         new EvaluatedCondition(equals1ErrorCondition, ERROR, rawValue),
-        new EvaluatedCondition(equals1WarningCondition, WARN, rawValue))).toJson());
+        new EvaluatedCondition(equals1WarningCondition, WARN, rawValue)), false).toJson());
 
     QualityGateStatusHolderAssertions.assertThat(qualityGateStatusHolder)
       .hasStatus(QualityGateStatus.ERROR)
@@ -264,7 +264,7 @@ public class QualityGateMeasuresStepTest {
     assertThat(getQGDetailsMeasure())
       .hasValue(new QualityGateDetailsData(WARN, of(
         new EvaluatedCondition(equals2Condition, OK, rawValue),
-        new EvaluatedCondition(equals1WarningCondition, WARN, rawValue))).toJson());
+        new EvaluatedCondition(equals1WarningCondition, WARN, rawValue)), false).toJson());
 
     QualityGateStatusHolderAssertions.assertThat(qualityGateStatusHolder)
       .hasStatus(QualityGateStatus.WARN)

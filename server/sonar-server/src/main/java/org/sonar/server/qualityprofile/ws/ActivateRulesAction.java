@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,9 +25,10 @@ import org.sonar.api.server.ws.Response;
 import org.sonar.api.server.ws.WebService;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
+import org.sonar.db.organization.OrganizationDto;
 import org.sonar.db.qualityprofile.QProfileDto;
 import org.sonar.server.qualityprofile.BulkChangeResult;
-import org.sonar.server.qualityprofile.RuleActivator;
+import org.sonar.server.qualityprofile.QProfileRules;
 import org.sonar.server.rule.ws.RuleQueryFactory;
 import org.sonar.server.user.UserSession;
 
@@ -36,21 +37,21 @@ import static org.sonar.server.qualityprofile.ws.BulkChangeWsResponse.writeRespo
 import static org.sonar.server.qualityprofile.ws.QProfileReference.fromKey;
 import static org.sonar.server.rule.ws.SearchAction.defineRuleSearchParameters;
 import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.ACTION_ACTIVATE_RULES;
-import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.PARAM_TARGET_PROFILE;
+import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.PARAM_TARGET_KEY;
 import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.PARAM_TARGET_SEVERITY;
 
 public class ActivateRulesAction implements QProfileWsAction {
 
   private final RuleQueryFactory ruleQueryFactory;
   private final UserSession userSession;
-  private final RuleActivator ruleActivator;
+  private final QProfileRules qProfileRules;
   private final DbClient dbClient;
   private final QProfileWsSupport wsSupport;
 
-  public ActivateRulesAction(RuleQueryFactory ruleQueryFactory, UserSession userSession, RuleActivator ruleActivator, QProfileWsSupport wsSupport, DbClient dbClient) {
+  public ActivateRulesAction(RuleQueryFactory ruleQueryFactory, UserSession userSession, QProfileRules qProfileRules, QProfileWsSupport wsSupport, DbClient dbClient) {
     this.ruleQueryFactory = ruleQueryFactory;
     this.userSession = userSession;
-    this.ruleActivator = ruleActivator;
+    this.qProfileRules = qProfileRules;
     this.dbClient = dbClient;
     this.wsSupport = wsSupport;
   }
@@ -59,15 +60,19 @@ public class ActivateRulesAction implements QProfileWsAction {
     WebService.NewAction activate = controller
       .createAction(ACTION_ACTIVATE_RULES)
       .setDescription("Bulk-activate rules on one quality profile.<br> " +
-        "Requires to be logged in and the 'Administer Quality Profiles' permission.")
+        "Requires one of the following permissions:" +
+        "<ul>" +
+        "  <li>'Administer Quality Profiles'</li>" +
+        "  <li>Edit right on the specified quality profile</li>" +
+        "</ul>")
       .setPost(true)
       .setSince("4.4")
       .setHandler(this);
 
     defineRuleSearchParameters(activate);
 
-    activate.createParam(PARAM_TARGET_PROFILE)
-      .setDescription("Quality Profile key on which the rule activation is done. To retrieve a profile key please see <code>api/qualityprofiles/search</code>")
+    activate.createParam(PARAM_TARGET_KEY)
+      .setDescription("Quality Profile key on which the rule activation is done. To retrieve a quality profile key please see <code>api/qualityprofiles/search</code>")
       .setDeprecatedKey("profile_key", "6.5")
       .setRequired(true)
       .setExampleValue(UUID_EXAMPLE_03);
@@ -80,14 +85,15 @@ public class ActivateRulesAction implements QProfileWsAction {
 
   @Override
   public void handle(Request request, Response response) throws Exception {
-    String qualityProfileKey = request.mandatoryParam(PARAM_TARGET_PROFILE);
+    String qualityProfileKey = request.mandatoryParam(PARAM_TARGET_KEY);
     userSession.checkLoggedIn();
     BulkChangeResult result;
     try (DbSession dbSession = dbClient.openSession(false)) {
       QProfileDto profile = wsSupport.getProfile(dbSession, fromKey(qualityProfileKey));
-      wsSupport.checkPermission(dbSession, profile);
+      OrganizationDto organization = wsSupport.getOrganization(dbSession, profile);
+      wsSupport.checkCanEdit(dbSession, organization, profile);
       wsSupport.checkNotBuiltInt(profile);
-      result = ruleActivator.bulkActivateAndCommit(dbSession, ruleQueryFactory.createRuleQuery(dbSession, request), profile, request.param(PARAM_TARGET_SEVERITY));
+      result = qProfileRules.bulkActivateAndCommit(dbSession, profile, ruleQueryFactory.createRuleQuery(dbSession, request), request.param(PARAM_TARGET_SEVERITY));
     }
 
     writeResponse(result, response);

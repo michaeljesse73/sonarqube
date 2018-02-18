@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,11 +21,9 @@ package org.sonar.server.computation.task.projectanalysis.step;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.IntStream;
-import java.util.stream.StreamSupport;
 import org.sonar.server.computation.task.projectanalysis.component.Component;
 import org.sonar.server.computation.task.projectanalysis.component.PathAwareCrawler;
 import org.sonar.server.computation.task.projectanalysis.component.TreeRootHolder;
@@ -66,7 +64,7 @@ public class NewSizeMeasuresStep implements ComputationStep {
   private final NewDuplicationFormula duplicationFormula;
 
   public NewSizeMeasuresStep(TreeRootHolder treeRootHolder, PeriodHolder periodHolder, MetricRepository metricRepository, MeasureRepository measureRepository,
-                             ScmInfoRepository scmInfoRepository, DuplicationRepository duplicationRepository) {
+    ScmInfoRepository scmInfoRepository, DuplicationRepository duplicationRepository) {
     this.treeRootHolder = treeRootHolder;
     this.periodHolder = periodHolder;
     this.metricRepository = metricRepository;
@@ -128,13 +126,13 @@ public class NewSizeMeasuresStep implements ComputationStep {
     }
 
     private void initNewLines(ScmInfo scmInfo, Period period) {
-      StreamSupport.stream(scmInfo.getAllChangesets().spliterator(), false)
+      scmInfo.getAllChangesets().values().stream()
         .filter(changeset -> isLineInPeriod(changeset, period))
         .forEach(changeset -> newLines.increment(1));
     }
 
     private void initNewDuplicated(Component component, ScmInfo scmInfo, Period period) {
-      DuplicationCounters duplicationCounters = new DuplicationCounters(scmInfo, period);
+      DuplicationCounters duplicationCounters = new DuplicationCounters(scmInfo, period, scmInfo.getAllChangesets().size());
       Iterable<Duplication> duplications = duplicationRepository.getDuplications(component);
       for (Duplication duplication : duplications) {
         duplicationCounters.addBlock(duplication.getOriginal());
@@ -159,15 +157,16 @@ public class NewSizeMeasuresStep implements ComputationStep {
     private final Set<Integer> lineCounts;
     private int blockCounts;
 
-    private DuplicationCounters(ScmInfo scmInfo, Period period) {
+    private DuplicationCounters(ScmInfo scmInfo, Period period, int changesetSize) {
       this.scmInfo = scmInfo;
       this.period = period;
-      this.lineCounts = new HashSet<>(Iterables.size(scmInfo.getAllChangesets()));
+      this.lineCounts = new HashSet<>(changesetSize);
     }
 
     void addBlock(TextBlock textBlock) {
       Boolean[] newBlock = new Boolean[] {false};
       IntStream.rangeClosed(textBlock.getStart(), textBlock.getEnd())
+        .filter(scmInfo::hasChangesetForLine)
         .filter(line -> isLineInPeriod(line, period))
         .forEach(line -> {
           lineCounts.add(line);

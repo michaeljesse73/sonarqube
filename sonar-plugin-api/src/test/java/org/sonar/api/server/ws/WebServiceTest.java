@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -299,6 +299,48 @@ public class WebServiceTest {
     WebService.Action action = context.controller("api/rule").action("create");
     // no possible values -> return null but not empty
     assertThat(action.param("status").possibleValues()).isNull();
+  }
+
+  @Test
+  public void param_with_maximum_length() {
+    ((WebService) context -> {
+      NewController newController = context.createController("api/custom_measures");
+      NewAction create = newDefaultAction(newController, "create");
+      create.createParam("string_value")
+        .setMaximumLength(24);
+      newController.done();
+    }).define(context);
+
+    WebService.Action action = context.controller("api/custom_measures").action("create");
+    assertThat(action.param("string_value").maximumLength()).isEqualTo(24);
+  }
+
+  @Test
+  public void param_with_minimum_length() {
+    ((WebService) context -> {
+      NewController newController = context.createController("api/custom_measures");
+      NewAction create = newDefaultAction(newController, "create");
+      create.createParam("string_value")
+        .setMinimumLength(3);
+      newController.done();
+    }).define(context);
+
+    WebService.Action action = context.controller("api/custom_measures").action("create");
+    assertThat(action.param("string_value").minimumLength()).isEqualTo(3);
+  }
+
+  @Test
+  public void param_with_maximum_value() {
+    ((WebService) context -> {
+      NewController newController = context.createController("api/custom_measures");
+      NewAction create = newDefaultAction(newController, "create");
+      create.createParam("numeric_value")
+        .setMaximumValue(10);
+      newController.done();
+    }).define(context);
+
+    WebService.Action action = context.controller("api/custom_measures").action("create");
+    assertThat(action.param("numeric_value").maximumValue()).isEqualTo(10);
   }
 
   @Test

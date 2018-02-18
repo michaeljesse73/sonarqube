@@ -21,7 +21,7 @@ syntax = "proto2";
 package sonarqube.ws.batch;
 
 option java_package = "org.sonarqube.ws";
-option java_outer_classname = "WsBatch";
+option java_outer_classname = "Batch";
 
 option optimize_for = SPEED;
 

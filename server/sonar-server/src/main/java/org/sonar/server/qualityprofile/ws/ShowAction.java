@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -38,10 +38,10 @@ import org.sonar.db.qualityprofile.QProfileDto;
 import org.sonar.server.es.SearchOptions;
 import org.sonar.server.rule.index.RuleIndex;
 import org.sonar.server.rule.index.RuleQuery;
-import org.sonarqube.ws.QualityProfiles;
-import org.sonarqube.ws.QualityProfiles.ShowResponse;
-import org.sonarqube.ws.QualityProfiles.ShowResponse.CompareToSonarWay;
-import org.sonarqube.ws.QualityProfiles.ShowResponse.QualityProfile;
+import org.sonarqube.ws.Qualityprofiles;
+import org.sonarqube.ws.Qualityprofiles.ShowResponse;
+import org.sonarqube.ws.Qualityprofiles.ShowResponse.CompareToSonarWay;
+import org.sonarqube.ws.Qualityprofiles.ShowResponse.QualityProfile;
 
 import static java.util.Collections.singletonList;
 import static org.sonar.api.rule.RuleStatus.DEPRECATED;
@@ -52,7 +52,7 @@ import static org.sonar.server.ws.WsUtils.checkFound;
 import static org.sonar.server.ws.WsUtils.writeProtobuf;
 import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.ACTION_SHOW;
 import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.PARAM_COMPARE_TO_SONAR_WAY;
-import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.PARAM_PROFILE;
+import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.PARAM_KEY;
 
 public class ShowAction implements QProfileWsAction {
 
@@ -74,15 +74,16 @@ public class ShowAction implements QProfileWsAction {
   @Override
   public void define(WebService.NewController controller) {
     NewAction show = controller.createAction(ACTION_SHOW)
-      .setSince("6.5")
       .setDescription("Show a quality profile")
+      .setSince("6.5")
       .setResponseExample(getClass().getResource("show-example.json"))
       .setInternal(true)
       .setHandler(this);
 
-    show.createParam(PARAM_PROFILE)
+    show.createParam(PARAM_KEY)
       .setDescription("Quality profile key")
       .setExampleValue(UUID_EXAMPLE_01)
+      .setDeprecatedKey("profile", "6.6")
       .setRequired(true);
 
     show.createParam(PARAM_COMPARE_TO_SONAR_WAY)
@@ -95,7 +96,7 @@ public class ShowAction implements QProfileWsAction {
   @Override
   public void handle(Request request, Response response) throws Exception {
     try (DbSession dbSession = dbClient.openSession(false)) {
-      QProfileDto profile = qProfileWsSupport.getProfile(dbSession, QProfileReference.fromKey(request.mandatoryParam(PARAM_PROFILE)));
+      QProfileDto profile = qProfileWsSupport.getProfile(dbSession, QProfileReference.fromKey(request.mandatoryParam(PARAM_KEY)));
       OrganizationDto organization = qProfileWsSupport.getOrganization(dbSession, profile);
       boolean isDefault = dbClient.defaultQProfileDao().isDefault(dbSession, profile.getOrganizationUuid(), profile.getKee());
       ActiveRuleCountQuery.Builder builder = ActiveRuleCountQuery.builder().setOrganization(organization);
@@ -153,7 +154,7 @@ public class ShowAction implements QProfileWsAction {
 
   private static ShowResponse buildResponse(QProfileDto profile, boolean isDefault, Language language, long activeRules, long deprecatedActiveRules, long projects,
                                             @Nullable CompareToSonarWay compareToSonarWay) {
-    ShowResponse.Builder showResponseBuilder = QualityProfiles.ShowResponse.newBuilder();
+    ShowResponse.Builder showResponseBuilder = Qualityprofiles.ShowResponse.newBuilder();
     QualityProfile.Builder profileBuilder = QualityProfile.newBuilder()
       .setKey(profile.getKee())
       .setName(profile.getName())

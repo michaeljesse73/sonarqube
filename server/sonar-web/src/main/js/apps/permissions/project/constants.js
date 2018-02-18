@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -27,5 +27,6 @@ export const PERMISSIONS_ORDER_BY_QUALIFIER = {
   TRK: PERMISSIONS_ORDER_FOR_PROJECT,
   VW: PERMISSIONS_ORDER_FOR_VIEW,
   SVW: PERMISSIONS_ORDER_FOR_VIEW,
+  APP: PERMISSIONS_ORDER_FOR_VIEW,
   DEV: PERMISSIONS_ORDER_FOR_DEV
 };

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,6 +19,7 @@
  */
 package org.sonar.scanner.util;
 
+import javax.annotation.Nullable;
 import org.sonar.api.utils.log.Logger;
 import org.sonar.api.utils.log.Loggers;
 
@@ -28,7 +29,7 @@ public class ProgressReport implements Runnable {
   private final long period;
   private String message = "";
   private final Thread thread;
-  private String stopMessage = "";
+  private String stopMessage = null;
 
   public ProgressReport(String threadName, long period) {
     this.period = period;
@@ -47,7 +48,9 @@ public class ProgressReport implements Runnable {
         break;
       }
     }
-    log(stopMessage);
+    if (stopMessage != null) {
+      log(stopMessage);
+    }
   }
 
   public void start(String startMessage) {
@@ -59,7 +62,7 @@ public class ProgressReport implements Runnable {
     this.message = message;
   }
 
-  public void stop(String stopMessage) {
+  public void stop(@Nullable String stopMessage) {
     this.stopMessage = stopMessage;
     thread.interrupt();
     try {

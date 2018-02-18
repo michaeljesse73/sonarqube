@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -46,8 +46,8 @@ public class ComponentIssuesRepositoryImpl implements MutableComponentIssuesRepo
   public List<DefaultIssue> getIssues(Component component) {
     checkState(this.component != null && this.issues != null, "Issues have not been initialized");
     checkArgument(component.equals(this.component),
-      String.format("Only issues from component '%s' are available, but wanted component is '%s'.",
-        this.component.getReportAttributes().getRef(), component.getReportAttributes().getRef()));
+      "Only issues from component '%s' are available, but wanted component is '%s'.",
+      this.component.getReportAttributes().getRef(), component.getReportAttributes().getRef());
     return issues;
   }
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,6 +20,7 @@
 package org.sonar.server.organization;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -40,6 +41,7 @@ import org.sonar.db.permission.OrganizationPermission;
 import org.sonar.db.permission.UserPermissionDto;
 import org.sonar.db.permission.template.PermissionTemplateCharacteristicDto;
 import org.sonar.db.permission.template.PermissionTemplateDto;
+import org.sonar.db.qualitygate.QualityGateDto;
 import org.sonar.db.qualityprofile.DefaultQProfileDto;
 import org.sonar.db.qualityprofile.OrgQProfileDto;
 import org.sonar.db.user.GroupDto;
@@ -75,8 +77,7 @@ public class OrganizationCreationImpl implements OrganizationCreation {
 
   public OrganizationCreationImpl(DbClient dbClient, System2 system2, UuidFactory uuidFactory,
     OrganizationValidation organizationValidation, Configuration config, UserIndexer userIndexer,
-    BuiltInQProfileRepository builtInQProfileRepository,
-    DefaultGroupCreator defaultGroupCreator) {
+    BuiltInQProfileRepository builtInQProfileRepository, DefaultGroupCreator defaultGroupCreator) {
     this.dbClient = dbClient;
     this.system2 = system2;
     this.uuidFactory = uuidFactory;
@@ -95,9 +96,10 @@ public class OrganizationCreationImpl implements OrganizationCreation {
       throw new KeyConflictException(format("Organization key '%s' is already used", key));
     }
 
-    OrganizationDto organization = insertOrganization(dbSession, newOrganization, dto -> {
-    });
+    QualityGateDto builtInQualityGate = dbClient.qualityGateDao().selectBuiltIn(dbSession);
+    OrganizationDto organization = insertOrganization(dbSession, newOrganization, builtInQualityGate);
     insertOrganizationMember(dbSession, organization, userCreator.getId());
+    dbClient.qualityGateDao().associate(dbSession, uuidFactory.create(), organization, builtInQualityGate);
     GroupDto ownerGroup = insertOwnersGroup(dbSession, organization);
     GroupDto defaultGroup = defaultGroupCreator.create(dbSession, organization.getUuid());
     insertDefaultTemplateOnGroups(dbSession, organization, ownerGroup, defaultGroup);
@@ -132,10 +134,12 @@ public class OrganizationCreationImpl implements OrganizationCreation {
       newOrganization.getKey(),
       newUser.getLogin());
 
-    OrganizationDto organization = insertOrganization(dbSession, newOrganization,
+    QualityGateDto builtInQualityGate = dbClient.qualityGateDao().selectBuiltIn(dbSession);
+    OrganizationDto organization = insertOrganization(dbSession, newOrganization, builtInQualityGate,
       dto -> dto.setGuarded(true).setUserId(newUser.getId()));
     insertOrganizationMember(dbSession, organization, newUser.getId());
     GroupDto defaultGroup = defaultGroupCreator.create(dbSession, organization.getUuid());
+    dbClient.qualityGateDao().associate(dbSession, uuidFactory.create(), organization, builtInQualityGate);
     OrganizationPermission.all()
       .forEach(p -> insertUserPermissions(dbSession, newUser, organization, p));
     insertPersonalOrgDefaultTemplate(dbSession, organization, defaultGroup);
@@ -180,15 +184,16 @@ public class OrganizationCreationImpl implements OrganizationCreation {
     organizationValidation.checkAvatar(newOrganization.getAvatar());
   }
 
-  private OrganizationDto insertOrganization(DbSession dbSession, NewOrganization newOrganization, Consumer<OrganizationDto> extendCreation) {
+  private OrganizationDto insertOrganization(DbSession dbSession, NewOrganization newOrganization, QualityGateDto builtInQualityGate, Consumer<OrganizationDto>... extendCreation) {
     OrganizationDto res = new OrganizationDto()
       .setUuid(uuidFactory.create())
       .setName(newOrganization.getName())
       .setKey(newOrganization.getKey())
       .setDescription(newOrganization.getDescription())
       .setUrl(newOrganization.getUrl())
+      .setDefaultQualityGateUuid(builtInQualityGate.getUuid())
       .setAvatarUrl(newOrganization.getAvatar());
-    extendCreation.accept(res);
+    Arrays.stream(extendCreation).forEach(c -> c.accept(res));
     dbClient.organizationDao().insert(dbSession, res, false);
     return res;
   }

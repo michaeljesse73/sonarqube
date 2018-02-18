@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -73,7 +73,7 @@ class ProjectsTextSearchQueryFactory {
     PREFIX_IGNORE_CASE {
       @Override
       QueryBuilder getQuery(String queryText) {
-        String lowerCaseQueryText = queryText.toLowerCase(Locale.getDefault());
+        String lowerCaseQueryText = queryText.toLowerCase(Locale.ENGLISH);
         return prefixAndPartialQuery(lowerCaseQueryText, SORTABLE_ANALYZER.subField(FIELD_NAME), FIELD_NAME)
           .boost(3f);
       }

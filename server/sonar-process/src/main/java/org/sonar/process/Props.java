@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,13 +19,11 @@
  */
 package org.sonar.process;
 
-import org.apache.commons.lang.StringUtils;
-
-import javax.annotation.CheckForNull;
-import javax.annotation.Nullable;
-
 import java.io.File;
 import java.util.Properties;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nullable;
+import org.apache.commons.lang.StringUtils;
 
 public class Props {
 
@@ -33,7 +31,8 @@ public class Props {
   private final Encryption encryption;
 
   public Props(Properties props) {
-    this.properties = props;
+    this.properties = new Properties();
+    props.forEach((k, v) -> this.properties.put(k.toString().trim(), v == null ? null : v.toString().trim()));
     this.encryption = new Encryption(props.getProperty(AesCipher.ENCRYPTION_SECRET_KEY_PATH));
   }
 
@@ -117,4 +116,5 @@ public class Props {
       properties.setProperty(key, value);
     }
   }
+
 }

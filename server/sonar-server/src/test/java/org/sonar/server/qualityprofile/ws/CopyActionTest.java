@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -84,6 +84,7 @@ public class CopyActionTest {
 
     assertThat(definition.key()).isEqualTo("copy");
     assertThat(definition.isInternal()).isFalse();
+    assertThat(definition.responseExampleAsString()).isNotEmpty();
     assertThat(definition.since()).isEqualTo("5.2");
     assertThat(definition.isPost()).isTrue();
 
@@ -93,7 +94,27 @@ public class CopyActionTest {
   }
 
   @Test
-  public void create_profile_with_specified_name_and_copy_rules_from_source_profile() throws Exception {
+  public void example() {
+    OrganizationDto organization = db.organizations().insert();
+    logInAsQProfileAdministrator(organization);
+    QProfileDto parent = db.qualityProfiles().insert(organization, p -> p.setKee("AU-TpxcA-iU5OvuD2FL2"));
+    QProfileDto profile = db.qualityProfiles().insert(organization, p -> p.setKee("old")
+      .setLanguage("Java")
+      .setParentKee(parent.getKee()));
+    String profileUuid = profile.getRulesProfileUuid();
+
+    String response = tester.newRequest()
+      .setMethod("POST")
+      .setParam("fromKey", profile.getKee())
+      .setParam("toName", "My New Profile")
+      .execute()
+      .getInput();
+
+    assertJson(response).ignoreFields("key").isSimilarTo(getClass().getResource("copy-example.json"));
+  }
+
+  @Test
+  public void create_profile_with_specified_name_and_copy_rules_from_source_profile() {
     OrganizationDto organization = db.organizations().insert();
     logInAsQProfileAdministrator(organization);
 
@@ -113,8 +134,7 @@ public class CopyActionTest {
       "  \"isDefault\": false," +
       "  \"isInherited\": false" +
       "}");
-    QProfileDto loadedProfile = db.getDbClient().qualityProfileDao().selectByNameAndLanguage(db.getSession(), organization, "target-name", sourceProfile.getLanguage()
-    );
+    QProfileDto loadedProfile = db.getDbClient().qualityProfileDao().selectByNameAndLanguage(db.getSession(), organization, "target-name", sourceProfile.getLanguage());
     assertThat(loadedProfile.getKee()).isEqualTo(generatedUuid);
     assertThat(loadedProfile.getParentKee()).isNull();
 
@@ -127,7 +147,7 @@ public class CopyActionTest {
   }
 
   @Test
-  public void copy_rules_on_existing_profile_in_default_organization() throws Exception {
+  public void copy_rules_on_existing_profile_in_default_organization() {
     OrganizationDto organization = db.organizations().insert();
     logInAsQProfileAdministrator(organization);
     QProfileDto sourceProfile = db.qualityProfiles().insert(organization, p -> p.setLanguage(A_LANGUAGE));
@@ -155,7 +175,7 @@ public class CopyActionTest {
   }
 
   @Test
-  public void create_profile_with_same_parent_as_source_profile() throws Exception {
+  public void create_profile_with_same_parent_as_source_profile() {
     OrganizationDto organization = db.organizations().insert();
     logInAsQProfileAdministrator(organization);
 
@@ -177,8 +197,7 @@ public class CopyActionTest {
       "  \"isDefault\": false," +
       "  \"isInherited\": true" +
       "}");
-    QProfileDto loadedProfile = db.getDbClient().qualityProfileDao().selectByNameAndLanguage(db.getSession(), organization, "target-name", sourceProfile.getLanguage()
-    );
+    QProfileDto loadedProfile = db.getDbClient().qualityProfileDao().selectByNameAndLanguage(db.getSession(), organization, "target-name", sourceProfile.getLanguage());
     assertThat(loadedProfile.getKee()).isEqualTo(generatedUuid);
     assertThat(loadedProfile.getParentKee()).isEqualTo(parentProfile.getKee());
 
@@ -237,7 +256,7 @@ public class CopyActionTest {
   }
 
   @Test
-  public void fail_if_parameter_fromKey_is_missing() throws Exception {
+  public void fail_if_parameter_fromKey_is_missing() {
     OrganizationDto organization = db.organizations().insert();
     logInAsQProfileAdministrator(organization);
 
@@ -250,7 +269,7 @@ public class CopyActionTest {
   }
 
   @Test
-  public void fail_if_parameter_toName_is_missing() throws Exception {
+  public void fail_if_parameter_toName_is_missing() {
     OrganizationDto organization = db.organizations().insert();
     logInAsQProfileAdministrator(organization);
 

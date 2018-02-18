@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -28,6 +28,7 @@ import java.util.Optional;
 import java.util.Set;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
+import org.sonar.api.server.ws.Change;
 import org.sonar.api.server.ws.Request;
 import org.sonar.api.server.ws.Response;
 import org.sonar.api.server.ws.WebService;
@@ -41,7 +42,7 @@ import org.sonar.db.component.ComponentDto;
 import org.sonar.db.permission.OrganizationPermission;
 import org.sonar.server.user.UserSession;
 import org.sonar.server.ws.WsUtils;
-import org.sonarqube.ws.WsCe;
+import org.sonarqube.ws.Ce;
 
 import static org.sonar.core.permission.GlobalPermissions.SCAN_EXECUTION;
 import static org.sonar.server.user.AbstractUserSession.insufficientPrivilegesException;
@@ -72,6 +73,8 @@ public class TaskAction implements CeWsAction {
         "Since 6.1, field \"logs\" is deprecated and its value is always false.")
       .setResponseExample(getClass().getResource("task-example.json"))
       .setSince("5.2")
+      .setChangelog(
+        new Change("6.6", "fields \"branch\" and \"branchType\" added"))
       .setHandler(this);
 
     action
@@ -89,12 +92,12 @@ public class TaskAction implements CeWsAction {
   public void handle(Request wsRequest, Response wsResponse) throws Exception {
     String taskUuid = wsRequest.mandatoryParam(PARAM_TASK_UUID);
     try (DbSession dbSession = dbClient.openSession(false)) {
-      WsCe.TaskResponse.Builder wsTaskResponse = WsCe.TaskResponse.newBuilder();
+      Ce.TaskResponse.Builder wsTaskResponse = Ce.TaskResponse.newBuilder();
       Optional<CeQueueDto> queueDto = dbClient.ceQueueDao().selectByUuid(dbSession, taskUuid);
       if (queueDto.isPresent()) {
         com.google.common.base.Optional<ComponentDto> component = loadComponent(dbSession, queueDto.get().getComponentUuid());
         checkPermission(component);
-        wsTaskResponse.setTask(wsTaskFormatter.formatQueue(dbSession, queueDto.get(), component));
+        wsTaskResponse.setTask(wsTaskFormatter.formatQueue(dbSession, queueDto.get()));
       } else {
         CeActivityDto ceActivityDto = WsUtils.checkFoundWithOptional(dbClient.ceActivityDao().selectByUuid(dbSession, taskUuid), "No activity found for task '%s'", taskUuid);
         com.google.common.base.Optional<ComponentDto> component = loadComponent(dbSession, ceActivityDto.getComponentUuid());
@@ -102,7 +105,7 @@ public class TaskAction implements CeWsAction {
         Set<AdditionalField> additionalFields = AdditionalField.getFromRequest(wsRequest);
         maskErrorStacktrace(ceActivityDto, additionalFields);
         wsTaskResponse.setTask(
-          wsTaskFormatter.formatActivity(dbSession, ceActivityDto, component, extractScannerContext(dbSession, ceActivityDto, additionalFields)));
+          wsTaskFormatter.formatActivity(dbSession, ceActivityDto, extractScannerContext(dbSession, ceActivityDto, additionalFields)));
       }
       writeProtobuf(wsTaskResponse.build(), wsRequest, wsResponse);
     }

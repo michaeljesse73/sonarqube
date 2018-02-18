@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,13 +22,14 @@ import React from 'react';
 import { translate } from '../../../helpers/l10n';
 
 export default class IssueMessage extends React.PureComponent {
-  props: {
+  /*:: props: {
     message: string,
     rule: string,
     organization: string
   };
+*/
 
-  handleClick = (e: MouseEvent) => {
+  handleClick = (e /*: MouseEvent */) => {
     e.preventDefault();
     e.stopPropagation();
     const Workspace = require('../../workspace/main').default;

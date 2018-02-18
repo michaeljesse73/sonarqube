@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -26,8 +26,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
 import java.io.Serializable;
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -50,7 +48,7 @@ import org.sonar.api.rules.RuleType;
 import org.sonar.api.utils.Duration;
 import org.sonar.core.issue.tracking.Trackable;
 
-import static java.lang.String.format;
+import static org.sonar.api.utils.DateUtils.truncateToSeconds;
 
 public class DefaultIssue implements Issue, Trackable, org.sonar.api.ce.measure.Issue {
 
@@ -96,10 +94,13 @@ public class DefaultIssue implements Issue, Trackable, org.sonar.api.ce.measure.
   // all changes
   private List<FieldDiffs> changes = null;
 
-  // true if the the issue did not exist in the previous scan.
+  // true if the issue did not exist in the previous scan.
   private boolean isNew = true;
 
-  // True if the the issue did exist in the previous scan but not in the current one. That means
+  // true if the issue is being copied between branch
+  private boolean isCopied = false;
+
+  // True if the issue did exist in the previous scan but not in the current one. That means
   // that this issue should be closed.
   private boolean beingClosed = false;
 
@@ -178,17 +179,13 @@ public class DefaultIssue implements Issue, Trackable, org.sonar.api.ce.measure.
     return this;
   }
 
-  /**
-   * Can be null on Views or Devs
-   */
   @Override
-  @CheckForNull
   public String projectUuid() {
     return projectUuid;
   }
 
-  public DefaultIssue setProjectUuid(@Nullable String projectUuid) {
-    this.projectUuid = projectUuid;
+  public DefaultIssue setProjectUuid(String s) {
+    this.projectUuid = s;
     return this;
   }
 
@@ -260,7 +257,7 @@ public class DefaultIssue implements Issue, Trackable, org.sonar.api.ce.measure.
   }
 
   public DefaultIssue setLine(@Nullable Integer l) {
-    Preconditions.checkArgument(l == null || l > 0, format("Line must be null or greater than zero (got %d)", l));
+    Preconditions.checkArgument(l == null || l > 0, "Line must be null or greater than zero (got %d)", l);
     this.line = l;
     return this;
   }
@@ -282,7 +279,7 @@ public class DefaultIssue implements Issue, Trackable, org.sonar.api.ce.measure.
   }
 
   public DefaultIssue setGap(@Nullable Double d) {
-    Preconditions.checkArgument(d == null || d >= 0, format("Gap must be greater than or equal 0 (got %s)", d));
+    Preconditions.checkArgument(d == null || d >= 0, "Gap must be greater than or equal 0 (got %s)", d);
     this.gap = d;
     return this;
   }
@@ -369,16 +366,6 @@ public class DefaultIssue implements Issue, Trackable, org.sonar.api.ce.measure.
     return this;
   }
 
-  @CheckForNull
-  private static Date truncateToSeconds(@Nullable Date d) {
-    if (d == null) {
-      return null;
-    }
-    Instant instant = d.toInstant();
-    instant = instant.truncatedTo(ChronoUnit.SECONDS);
-    return Date.from(instant);
-  }
-
   @Override
   @CheckForNull
   public Date updateDate() {
@@ -414,6 +401,16 @@ public class DefaultIssue implements Issue, Trackable, org.sonar.api.ce.measure.
   @Override
   public boolean isNew() {
     return isNew;
+  }
+
+  @Override
+  public boolean isCopied() {
+    return isCopied;
+  }
+
+  public DefaultIssue setCopied(boolean b) {
+    isCopied = b;
+    return this;
   }
 
   public DefaultIssue setNew(boolean b) {
@@ -485,7 +482,7 @@ public class DefaultIssue implements Issue, Trackable, org.sonar.api.ce.measure.
 
   @Override
   public Map<String, String> attributes() {
-    return attributes == null ? Collections.<String, String>emptyMap() : ImmutableMap.copyOf(attributes);
+    return attributes == null ? Collections.emptyMap() : ImmutableMap.copyOf(attributes);
   }
 
   public DefaultIssue setAttributes(@Nullable Map<String, String> map) {
@@ -650,5 +647,15 @@ public class DefaultIssue implements Issue, Trackable, org.sonar.api.ce.measure.
   @Override
   public RuleKey getRuleKey() {
     return ruleKey;
+  }
+
+  @Override
+  public String getStatus() {
+    return status;
+  }
+
+  @Override
+  public Date getCreationDate() {
+    return creationDate;
   }
 }

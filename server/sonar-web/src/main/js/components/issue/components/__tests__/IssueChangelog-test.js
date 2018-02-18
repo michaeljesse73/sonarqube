@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -27,11 +27,6 @@ const issue = {
   author: 'john.david.dalton@gmail.com',
   creationDate: '2017-03-01T09:36:01+0100'
 };
-
-jest.mock('moment', () => () => ({
-  format: () => 'March 1, 2017 9:36 AM',
-  fromNow: () => 'a month ago'
-}));
 
 it('should render correctly', () => {
   const element = shallow(

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -53,6 +53,7 @@ import org.sonar.xoo.rule.OneIssuePerDirectorySensor;
 import org.sonar.xoo.rule.OneIssuePerFileSensor;
 import org.sonar.xoo.rule.OneIssuePerLineSensor;
 import org.sonar.xoo.rule.OneIssuePerModuleSensor;
+import org.sonar.xoo.rule.OneIssuePerTestFileSensor;
 import org.sonar.xoo.rule.OneIssuePerUnknownFileSensor;
 import org.sonar.xoo.rule.OneVulnerabilityIssuePerModuleSensor;
 import org.sonar.xoo.rule.RandomAccessSensor;
@@ -60,6 +61,7 @@ import org.sonar.xoo.rule.SaveDataTwiceSensor;
 import org.sonar.xoo.rule.Xoo2BasicProfile;
 import org.sonar.xoo.rule.Xoo2SonarWayProfile;
 import org.sonar.xoo.rule.XooBasicProfile;
+import org.sonar.xoo.rule.XooBuiltInQualityProfilesDefinition;
 import org.sonar.xoo.rule.XooEmptyProfile;
 import org.sonar.xoo.rule.XooFakeExporter;
 import org.sonar.xoo.rule.XooFakeImporter;
@@ -126,6 +128,7 @@ public class XooPlugin implements Plugin {
       OneIssuePerLineSensor.class,
       OneDayDebtPerFileSensor.class,
       OneIssuePerFileSensor.class,
+      OneIssuePerTestFileSensor.class,
       OneIssuePerDirectorySensor.class,
       OneIssuePerModuleSensor.class,
       OneIssueOnDirPerFileSensor.class,
@@ -160,6 +163,9 @@ public class XooPlugin implements Plugin {
 
     if (context.getSonarQubeVersion().isGreaterThanOrEqual(Version.create(5, 5))) {
       context.addExtension(CpdTokenizerSensor.class);
+    }
+    if (context.getSonarQubeVersion().isGreaterThanOrEqual(Version.create(6,6))) {
+      context.addExtension(XooBuiltInQualityProfilesDefinition.class);
     }
   }
 

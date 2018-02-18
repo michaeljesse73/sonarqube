@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,53 +20,41 @@
 // @flow
 import React from 'react';
 import Helmet from 'react-helmet';
-import { connect } from 'react-redux';
 import PageHeader from './PageHeader';
 import CategoryDefinitionsList from './CategoryDefinitionsList';
 import AllCategoriesList from './AllCategoriesList';
 import WildcardsHelp from './WildcardsHelp';
-import { fetchSettings } from '../store/actions';
-import { getSettingsAppDefaultCategory } from '../../../store/rootReducer';
 import { translate } from '../../../helpers/l10n';
 import '../styles.css';
 
+/*::
 type Props = {
-  component: { key: string },
+  component?: { key: string },
   defaultCategory: ?string,
   fetchSettings(componentKey: ?string): Promise<*>,
   location: { query: {} }
 };
+*/
 
+/*::
 type State = {
   loaded: boolean
 };
+*/
 
-class App extends React.PureComponent {
-  props: Props;
-  state: State = { loaded: false };
+export default class App extends React.PureComponent {
+  /*:: props: Props; */
+  state /*: State */ = { loaded: false };
 
   componentDidMount() {
-    const html = document.querySelector('html');
-    if (html) {
-      html.classList.add('dashboard-page');
-    }
     const componentKey = this.props.component ? this.props.component.key : null;
-    this.props.fetchSettings(componentKey).then(() => {
-      this.setState({ loaded: true });
-    });
+    this.props.fetchSettings(componentKey).then(() => this.setState({ loaded: true }));
   }
 
-  componentDidUpdate(prevProps) {
+  componentDidUpdate(prevProps /*: Props*/) {
     if (prevProps.component !== this.props.component) {
       const componentKey = this.props.component ? this.props.component.key : null;
       this.props.fetchSettings(componentKey);
-    }
-  }
-
-  componentWillUnmount() {
-    const html = document.querySelector('html');
-    if (html) {
-      html.classList.remove('dashboard-page');
     }
   }
 
@@ -83,6 +71,7 @@ class App extends React.PureComponent {
         <Helmet title={translate('settings.page')} />
 
         <PageHeader component={this.props.component} />
+
         <div className="side-tabs-layout settings-layout">
           <div className="side-tabs-side">
             <AllCategoriesList
@@ -93,7 +82,6 @@ class App extends React.PureComponent {
           </div>
           <div className="side-tabs-main">
             <CategoryDefinitionsList component={this.props.component} category={selectedCategory} />
-
             {selectedCategory === 'exclusions' && <WildcardsHelp />}
           </div>
         </div>
@@ -101,9 +89,3 @@ class App extends React.PureComponent {
     );
   }
 }
-
-const mapStateToProps = state => ({
-  defaultCategory: getSettingsAppDefaultCategory(state)
-});
-
-export default connect(mapStateToProps, { fetchSettings })(App);

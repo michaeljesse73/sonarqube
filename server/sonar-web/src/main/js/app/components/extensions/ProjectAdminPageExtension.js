@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,11 +20,11 @@
 // @flow
 import React from 'react';
 import { connect } from 'react-redux';
-import Extension from './Extension';
+import ExtensionContainer from './ExtensionContainer';
 import ExtensionNotFound from './ExtensionNotFound';
-import { getComponent } from '../../../store/rootReducer';
 import { addGlobalErrorMessage } from '../../../store/globalMessages/duck';
 
+/*::
 type Props = {
   component: {
     configuration?: {
@@ -37,22 +37,21 @@ type Props = {
     pluginKey: string
   }
 };
+*/
 
-function ProjectAdminPageExtension(props: Props) {
+function ProjectAdminPageExtension(props /*: Props */) {
   const { extensionKey, pluginKey } = props.params;
   const { component } = props;
   const extension =
     component.configuration &&
     component.configuration.extensions.find(p => p.key === `${pluginKey}/${extensionKey}`);
-  return extension
-    ? <Extension extension={extension} options={{ component }} />
-    : <ExtensionNotFound />;
+  return extension ? (
+    <ExtensionContainer extension={extension} options={{ component }} />
+  ) : (
+    <ExtensionNotFound />
+  );
 }
-
-const mapStateToProps = (state, ownProps: Props) => ({
-  component: getComponent(state, ownProps.location.query.id)
-});
 
 const mapDispatchToProps = { onFail: addGlobalErrorMessage };
 
-export default connect(mapStateToProps, mapDispatchToProps)(ProjectAdminPageExtension);
+export default connect(null, mapDispatchToProps)(ProjectAdminPageExtension);

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -56,7 +56,7 @@ public class LogsIteratorInputStreamTest {
   }
 
   @Test
-  public void constructor_throws_IAE_when_ClosableIterator_is_empty() throws IOException {
+  public void constructor_throws_IAE_when_ClosableIterator_is_empty() {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("LogsIterator can't be empty or already read");
 
@@ -64,7 +64,7 @@ public class LogsIteratorInputStreamTest {
   }
 
   @Test
-  public void constructor_throws_IAE_when_ClosableIterator_has_already_been_read() throws IOException {
+  public void constructor_throws_IAE_when_ClosableIterator_has_already_been_read() {
     CloseableIterator<String> iterator = CloseableIterator.from(Arrays.asList("line1").iterator());
 
     // read iterator to the end

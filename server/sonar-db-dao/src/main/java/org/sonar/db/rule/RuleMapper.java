@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,6 +20,7 @@
 package org.sonar.db.rule;
 
 import java.util.List;
+import java.util.Set;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.session.ResultHandler;
 import org.sonar.db.es.RuleExtensionId;
@@ -54,7 +55,7 @@ public interface RuleMapper {
 
   void scrollIndexingRules(ResultHandler<RuleForIndexingDto> handler);
 
-  List<RuleForIndexingDto> selectIndexingRulesByKeys(@Param("ruleKeys") List<RuleKey> keys);
+  List<RuleForIndexingDto> selectIndexingRulesByIds(@Param("ruleIds") List<Integer> ruleIds);
 
   void scrollIndexingRuleExtensions(ResultHandler<RuleExtensionForIndexingDto> handler);
 
@@ -83,4 +84,10 @@ public interface RuleMapper {
   void updateParameter(RuleParamDto param);
 
   void deleteParameter(Integer paramId);
+
+  Set<DeprecatedRuleKeyDto> selectAllDeprecatedRuleKeys();
+
+  void deleteDeprecatedRuleKeys(@Param("uuids") List<String> uuids);
+
+  void insertDeprecatedRuleKey(DeprecatedRuleKeyDto deprecatedRuleKeyDto);
 }

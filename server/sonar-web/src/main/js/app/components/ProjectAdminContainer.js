@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,18 +18,18 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import React from 'react';
-import { connect } from 'react-redux';
-import { getComponent } from '../../store/rootReducer';
 import handleRequiredAuthorization from '../utils/handleRequiredAuthorization';
 
-class ProjectAdminContainer extends React.PureComponent {
+export default class ProjectAdminContainer extends React.PureComponent {
+  /*::
   props: {
-    project: {
+    component: {
       configuration?: {
         showSettings: boolean
       }
     }
   };
+  */
 
   componentDidMount() {
     this.checkPermissions();
@@ -40,7 +40,7 @@ class ProjectAdminContainer extends React.PureComponent {
   }
 
   isProjectAdmin() {
-    const { configuration } = this.props.project;
+    const { configuration } = this.props.component;
     return configuration != null && configuration.showSettings;
   }
 
@@ -55,12 +55,7 @@ class ProjectAdminContainer extends React.PureComponent {
       return null;
     }
 
-    return this.props.children;
+    const { children, ...props } = this.props;
+    return React.cloneElement(children, props);
   }
 }
-
-const mapStateToProps = (state, ownProps) => ({
-  project: getComponent(state, ownProps.location.query.id)
-});
-
-export default connect(mapStateToProps)(ProjectAdminContainer);

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,6 +25,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.sonar.api.notifications.Notification;
 import org.sonar.api.notifications.NotificationChannel;
+import org.sonar.api.web.UserRole;
 import org.sonar.server.notification.NotificationDispatcher;
 import org.sonar.server.notification.NotificationManager;
 
@@ -58,7 +59,7 @@ public class MyNewIssuesNotificationDispatcherTest {
     Multimap<String, NotificationChannel> recipients = HashMultimap.create();
     recipients.put("user1", emailChannel);
     recipients.put("user2", twitterChannel);
-    when(notificationManager.findNotificationSubscribers(underTest, "struts")).thenReturn(recipients);
+    when(notificationManager.findSubscribedRecipientsForDispatcher(underTest, "struts", new NotificationManager.SubscriberPermissionsOnProject(UserRole.USER))).thenReturn(recipients);
 
     Notification notification = new Notification(MyNewIssuesNotification.MY_NEW_ISSUES_NOTIF_TYPE)
       .setFieldValue("projectKey", "struts")

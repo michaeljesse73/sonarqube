@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -34,7 +34,9 @@ export default function MarkdownHelp() {
         <tbody>
           <tr>
             <td>*this text is bold*</td>
-            <td className="markdown"><strong>this text is bold</strong></td>
+            <td className="markdown">
+              <strong>this text is bold</strong>
+            </td>
           </tr>
           <tr>
             <td>{'http://sonarqube.org'}</td>
@@ -43,11 +45,11 @@ export default function MarkdownHelp() {
             </td>
           </tr>
           <tr>
-            <td className="text-top">
-              [SonarQube™ Home Page](http://www.sonarqube.org)
-            </td>
+            <td className="text-top">[SonarQube™ Home Page](http://www.sonarqube.org)</td>
             <td className="markdown text-top">
-              <a href="http://www.sonarqube.org" target="_blank">SonarQube™ Home Page</a>
+              <a href="http://www.sonarqube.org" target="_blank">
+                SonarQube™ Home Page
+              </a>
             </td>
           </tr>
           <tr>
@@ -94,15 +96,20 @@ export default function MarkdownHelp() {
           </tr>
           <tr>
             <td className="text-top">``Lists#newArrayList()``</td>
-            <td className="markdown text-top"><code>Lists#newArrayList()</code></td>
+            <td className="markdown text-top">
+              <code>Lists#newArrayList()</code>
+            </td>
           </tr>
           <tr>
             <td className="text-top">
               ``<br />
               // code on multiple lines<br />
-              {'public void foo() {'}<br />
-              &nbsp;&nbsp;{'// do some logic here'}<br />
-              {'}'}<br />
+              {'public void foo() {'}
+              <br />
+              &nbsp;&nbsp;{'// do some logic here'}
+              <br />
+              {'}'}
+              <br />
               ``
             </td>
             <td className="markdown text-top">

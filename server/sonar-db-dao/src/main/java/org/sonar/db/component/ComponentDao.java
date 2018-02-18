@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -17,7 +17,6 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-
 package org.sonar.db.component;
 
 import com.google.common.base.Optional;
@@ -29,6 +28,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.stream.Stream;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 import org.apache.ibatis.session.ResultHandler;
@@ -43,26 +43,27 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Collections.emptyList;
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang.StringUtils.isBlank;
+import static org.sonar.core.util.stream.MoreCollectors.toList;
 import static org.sonar.db.DaoDatabaseUtils.buildLikeValue;
 import static org.sonar.db.DatabaseUtils.executeLargeInputs;
 import static org.sonar.db.DatabaseUtils.executeLargeUpdates;
 import static org.sonar.db.WildcardPosition.BEFORE_AND_AFTER;
+import static org.sonar.db.component.ComponentDto.generateBranchKey;
 
 public class ComponentDao implements Dao {
 
   private static List<ComponentDto> selectByQueryImpl(DbSession session, @Nullable String organizationUuid, ComponentQuery query, int offset, int limit) {
-    Set<Long> componentIds = query.getComponentIds();
-    if (componentIds != null && componentIds.isEmpty()) {
+    if (query.hasEmptySetOfComponents()) {
       return emptyList();
     }
     return mapper(session).selectByQuery(organizationUuid, query, new RowBounds(offset, limit));
   }
 
   private static int countByQueryImpl(DbSession session, @Nullable String organizationUuid, ComponentQuery query) {
-    Set<Long> componentIds = query.getComponentIds();
-    if (componentIds != null && componentIds.isEmpty()) {
+    if (query.hasEmptySetOfComponents()) {
       return 0;
     }
+
     return mapper(session).countByQuery(organizationUuid, query);
   }
 
@@ -120,11 +121,11 @@ public class ComponentDao implements Dao {
     return countByQueryImpl(session, organizationUuid, query);
   }
 
-  public List<ComponentDto> selectSubProjectsByComponentUuids(DbSession session, Collection<String> keys) {
-    if (keys.isEmpty()) {
+  public List<ComponentDto> selectSubProjectsByComponentUuids(DbSession session, Collection<String> uuids) {
+    if (uuids.isEmpty()) {
       return emptyList();
     }
-    return mapper(session).selectSubProjectsByComponentUuids(keys);
+    return mapper(session).selectSubProjectsByComponentUuids(uuids);
   }
 
   public List<ComponentDto> selectDescendantModules(DbSession session, String rootComponentUuid) {
@@ -162,12 +163,22 @@ public class ComponentDao implements Dao {
     return mapper(session).selectComponentsFromProjectKeyAndScope(projectKey, null, false);
   }
 
+  public List<KeyWithUuidDto> selectUuidsByKeyFromProjectKey(DbSession session, String projectKey) {
+    return mapper(session).selectUuidsByKeyFromProjectKey(projectKey);
+  }
+
   public List<ComponentDto> selectEnabledModulesFromProjectKey(DbSession session, String projectKey) {
     return mapper(session).selectComponentsFromProjectKeyAndScope(projectKey, Scopes.PROJECT, true);
   }
 
   public List<ComponentDto> selectByKeys(DbSession session, Collection<String> keys) {
     return executeLargeInputs(keys, mapper(session)::selectByKeys);
+  }
+
+  public List<ComponentDto> selectByKeysAndBranch(DbSession session, Collection<String> keys, String branch) {
+    List<String> dbKeys = keys.stream().map(k -> generateBranchKey(k, branch)).collect(toList());
+    List<String> allKeys = Stream.of(keys, dbKeys).flatMap(Collection::stream).collect(toList());
+    return executeLargeInputs(allKeys, subKeys -> mapper(session).selectByKeysAndBranch(subKeys, branch));
   }
 
   public List<ComponentDto> selectComponentsHavingSameKeyOrderedById(DbSession session, String key) {
@@ -215,8 +226,12 @@ public class ComponentDao implements Dao {
     return Optional.fromNullable(mapper(session).selectByKey(key));
   }
 
+  public java.util.Optional<ComponentDto> selectByKeyAndBranch(DbSession session, String key, String branch) {
+    return java.util.Optional.ofNullable(mapper(session).selectByKeyAndBranch(key, generateBranchKey(key, branch), branch));
+  }
+
   public List<UuidWithProjectUuidDto> selectAllViewsAndSubViews(DbSession session) {
-    return mapper(session).selectUuidsForQualifiers(Qualifiers.VIEW, Qualifiers.SUBVIEW);
+    return mapper(session).selectUuidsForQualifiers(Qualifiers.APP, Qualifiers.VIEW, Qualifiers.SUBVIEW);
   }
 
   public List<String> selectProjectsFromView(DbSession session, String viewUuid, String projectViewUuid) {
@@ -224,8 +239,10 @@ public class ComponentDao implements Dao {
   }
 
   /**
-   * Returns all projects (Scope {@link org.sonar.api.resources.Scopes#PROJECT} and qualifier
-   * {@link org.sonar.api.resources.Qualifiers#PROJECT}) which are enabled.
+   * Returns all projects (Scope {@link Scopes#PROJECT} and qualifier
+   * {@link Qualifiers#PROJECT}) which are enabled.
+   *
+   * Branches are not returned.
    *
    * Used by Views.
    */
@@ -235,34 +252,11 @@ public class ComponentDao implements Dao {
 
   /**
    * Select all root components (projects and views), including disabled ones, for a given organization.
+   *
+   * Branches are not returned
    */
   public List<ComponentDto> selectAllRootsByOrganization(DbSession dbSession, String organizationUuid) {
     return mapper(dbSession).selectAllRootsByOrganization(organizationUuid);
-  }
-
-  /**
-   * Select a page of provisioned (root) components. Results are ordered by ascending name.
-   * @param dbSession
-   * @param organizationUuid uuid of the organization
-   * @param textQuery optional text query to match component name or key
-   * @param qualifiers filter on qualifiers. Must not be null nor empty
-   * @param rowBounds pagination
-   */
-  public List<ComponentDto> selectProvisioned(DbSession dbSession, String organizationUuid, @Nullable String textQuery, Set<String> qualifiers, RowBounds rowBounds) {
-    checkArgument(!qualifiers.isEmpty(), "qualifiers must not be empty");
-    return mapper(dbSession).selectProvisioned(organizationUuid, buildUpperLikeSql(textQuery), qualifiers, rowBounds);
-  }
-
-  /**
-   * Count number of provisioned (root) components.
-   * @param dbSession
-   * @param organizationUuid uuid of the organization
-   * @param textQuery optional text query to match component name or key
-   * @param qualifiers filter on qualifiers. Must not be null nor empty
-   */
-  public int countProvisioned(DbSession dbSession, String organizationUuid, @Nullable String textQuery, Set<String> qualifiers) {
-    checkArgument(!qualifiers.isEmpty(), "qualifiers must not be empty");
-    return mapper(dbSession).countProvisioned(organizationUuid, buildUpperLikeSql(textQuery), qualifiers);
   }
 
   public List<ComponentDto> selectGhostProjects(DbSession session, String organizationUuid, @Nullable String query, int offset, int limit) {
@@ -279,9 +273,8 @@ public class ComponentDao implements Dao {
    * @param projectUuid the project uuid, which is selected with all of its children
    * @param handler the action to be applied to every result
    */
-  public void selectForIndexing(DbSession session, @Nullable String projectUuid, ResultHandler<ComponentDto> handler) {
-    requireNonNull(handler);
-    mapper(session).selectForIndexing(projectUuid, handler);
+  public void scrollForIndexing(DbSession session, @Nullable String projectUuid, ResultHandler<ComponentDto> handler) {
+    mapper(session).scrollForIndexing(projectUuid, handler);
   }
 
   /**
@@ -348,5 +341,9 @@ public class ComponentDao implements Dao {
 
   public void delete(DbSession session, long componentId) {
     mapper(session).delete(componentId);
+  }
+
+  public List<KeyWithUuidDto> selectComponentKeysHavingIssuesToMerge(DbSession dbSession, String mergeBranchUuid) {
+    return mapper(dbSession).selectComponentKeysHavingIssuesToMerge(mergeBranchUuid);
   }
 }

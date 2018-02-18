@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -66,8 +66,8 @@ public class DeprecatedIssueWrapper implements Issue {
 
   @Override
   public String severity() {
-    Severity overridenSeverity = newIssue.overriddenSeverity();
-    return overridenSeverity != null ? overridenSeverity.name() : null;
+    Severity overriddenSeverity = newIssue.overriddenSeverity();
+    return overriddenSeverity != null ? overriddenSeverity.name() : null;
   }
 
   @Override
@@ -157,6 +157,11 @@ public class DeprecatedIssueWrapper implements Issue {
 
   @Override
   public boolean isNew() {
+    return false;
+  }
+
+  @Override
+  public boolean isCopied() {
     return false;
   }
 

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -27,39 +27,36 @@ import IssueTransition from './IssueTransition';
 import IssueType from './IssueType';
 import { updateIssue } from '../actions';
 import { translate, translateWithParameters } from '../../../helpers/l10n';
-import type { Issue } from '../types';
+/*:: import type { Issue } from '../types'; */
 
+/*::
 type Props = {
   issue: Issue,
-  currentPopup: string,
+  currentPopup: ?string,
   onAssign: string => void,
   onChange: Issue => void,
   onFail: Error => void,
   togglePopup: (string, boolean | void) => void
 };
+*/
 
+/*::
 type State = {
   commentPlaceholder: string
 };
+*/
 
 export default class IssueActionsBar extends React.PureComponent {
-  props: Props;
-  state: State = {
+  /*:: props: Props; */
+  state /*: State */ = {
     commentPlaceholder: ''
   };
 
-  componentDidUpdate(prevProps: Props) {
-    const { resolution } = this.props.issue;
-    if (!prevProps.issue.resolution && ['FALSE-POSITIVE', 'WONTFIX'].includes(resolution)) {
-      this.toggleComment(true, translate('issue.comment.tell_why'));
-    }
-  }
-
   setIssueProperty = (
-    property: string,
-    popup: string,
-    apiCall: Object => Promise<*>,
-    value: string
+    property /*: string */,
+    popup /*: string */,
+    apiCall /*: Object => Promise<*> */,
+    value /*: string */
   ) => {
     const { issue } = this.props;
     if (issue[property] !== value) {
@@ -75,9 +72,16 @@ export default class IssueActionsBar extends React.PureComponent {
     this.props.togglePopup(popup, false);
   };
 
-  toggleComment = (open?: boolean, placeholder?: string) => {
+  toggleComment = (open /*: boolean | void */, placeholder /*: string | void */) => {
     this.setState({ commentPlaceholder: placeholder || '' });
     this.props.togglePopup('comment', open);
+  };
+
+  handleTransition = (issue /*: Issue */) => {
+    this.props.onChange(issue);
+    if (['FALSE-POSITIVE', 'WONTFIX'].includes(issue.resolution)) {
+      this.toggleComment(true, translate('issue.comment.tell_why'));
+    }
   };
 
   render() {
@@ -117,7 +121,7 @@ export default class IssueActionsBar extends React.PureComponent {
                     isOpen={this.props.currentPopup === 'transition' && hasTransitions}
                     issue={issue}
                     hasTransitions={hasTransitions}
-                    onChange={this.props.onChange}
+                    onChange={this.handleTransition}
                     onFail={this.props.onFail}
                     togglePopup={this.props.togglePopup}
                   />
@@ -132,13 +136,14 @@ export default class IssueActionsBar extends React.PureComponent {
                     togglePopup={this.props.togglePopup}
                   />
                 </li>
-                {issue.effort &&
+                {issue.effort && (
                   <li className="issue-meta">
                     <span className="issue-meta-label">
                       {translateWithParameters('issue.x_effort', issue.effort)}
                     </span>
-                  </li>}
-                {canComment &&
+                  </li>
+                )}
+                {canComment && (
                   <IssueCommentAction
                     commentPlaceholder={this.state.commentPlaceholder}
                     currentPopup={this.props.currentPopup}
@@ -146,7 +151,8 @@ export default class IssueActionsBar extends React.PureComponent {
                     onChange={this.props.onChange}
                     onFail={this.props.onFail}
                     toggleComment={this.toggleComment}
-                  />}
+                  />
+                )}
               </ul>
             </td>
             <td className="issue-table-meta-cell">

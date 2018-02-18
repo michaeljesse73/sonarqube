@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,40 +19,39 @@
  */
 // @flow
 import React from 'react';
-import Modal from 'react-modal';
+import Modal from '../../../../components/controls/Modal';
 import { translate, translateWithParameters } from '../../../../helpers/l10n';
 
+/*::
 type Props = {
   component: {
-    name: string
+    name: string,
+    qualifier: string
   },
   onClose: () => void,
   onConfirm: () => void
 };
+*/
 
 export default class PublicProjectDisclaimer extends React.PureComponent {
-  props: Props;
+  /*:: props: Props; */
 
-  handleCancelClick = (event: Event) => {
+  handleCancelClick = (event /*: Event */) => {
     event.preventDefault();
     this.props.onClose();
   };
 
-  handleConfirmClick = (event: Event) => {
+  handleConfirmClick = (event /*: Event */) => {
     event.preventDefault();
     this.props.onConfirm();
     this.props.onClose();
   };
 
   render() {
-    return (
-      <Modal
-        isOpen={true}
-        contentLabel="modal form"
-        className="modal"
-        overlayClassName="modal-overlay"
-        onRequestClose={this.props.onClose}>
+    const { qualifier } = this.props.component;
 
+    return (
+      <Modal contentLabel="modal form" onRequestClose={this.props.onClose}>
         <header className="modal-head">
           <h2>
             {translateWithParameters('projects_role.turn_x_to_public', this.props.component.name)}
@@ -60,19 +59,20 @@ export default class PublicProjectDisclaimer extends React.PureComponent {
         </header>
 
         <div className="modal-body">
-          <p>{translate('projects_role.are_you_sure_to_turn_project_to_public')}</p>
+          <p>{translate('projects_role.are_you_sure_to_turn_project_to_public', qualifier)}</p>
           <p className="spacer-top">
-            {translate('projects_role.are_you_sure_to_turn_project_to_public.2')}
+            {translate('projects_role.are_you_sure_to_turn_project_to_public.2', qualifier)}
           </p>
         </div>
 
         <footer className="modal-foot">
           <button id="confirm-turn-to-public" onClick={this.handleConfirmClick}>
-            {translate('projects_role.turn_project_to_public')}
+            {translate('projects_role.turn_project_to_public', qualifier)}
           </button>
-          <a href="#" onClick={this.handleCancelClick}>{translate('cancel')}</a>
+          <a href="#" onClick={this.handleCancelClick}>
+            {translate('cancel')}
+          </a>
         </footer>
-
       </Modal>
     );
   }

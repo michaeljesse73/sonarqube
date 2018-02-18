@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -48,21 +48,21 @@ import org.sonar.server.issue.workflow.Transition;
 import org.sonar.server.ws.WsResponseCommonFormat;
 import org.sonarqube.ws.Common;
 import org.sonarqube.ws.Issues;
+import org.sonarqube.ws.Issues.Actions;
+import org.sonarqube.ws.Issues.Comment;
+import org.sonarqube.ws.Issues.Comments;
+import org.sonarqube.ws.Issues.Component;
+import org.sonarqube.ws.Issues.Flow;
+import org.sonarqube.ws.Issues.Issue;
+import org.sonarqube.ws.Issues.Location;
+import org.sonarqube.ws.Issues.Operation;
+import org.sonarqube.ws.Issues.SearchWsResponse;
+import org.sonarqube.ws.Issues.Transitions;
+import org.sonarqube.ws.Issues.Users;
 
 import static com.google.common.base.Strings.emptyToNull;
 import static com.google.common.base.Strings.nullToEmpty;
 import static org.sonar.core.util.Protobuf.setNullable;
-import static org.sonarqube.ws.Issues.Actions;
-import static org.sonarqube.ws.Issues.Comment;
-import static org.sonarqube.ws.Issues.Comments;
-import static org.sonarqube.ws.Issues.Component;
-import static org.sonarqube.ws.Issues.Flow;
-import static org.sonarqube.ws.Issues.Issue;
-import static org.sonarqube.ws.Issues.Location;
-import static org.sonarqube.ws.Issues.Operation;
-import static org.sonarqube.ws.Issues.SearchWsResponse;
-import static org.sonarqube.ws.Issues.Transitions;
-import static org.sonarqube.ws.Issues.Users;
 
 public class SearchResponseFormat {
 
@@ -89,7 +89,7 @@ public class SearchResponseFormat {
     if (facets != null) {
       formatFacets(facets, response);
     }
-    if (fields.contains(SearchAdditionalField.RULES)) {
+    if (fields.contains(SearchAdditionalField.RULE_IDS_AND_KEYS)) {
       response.setRules(formatRules(data));
     }
     if (fields.contains(SearchAdditionalField.USERS)) {
@@ -160,12 +160,13 @@ public class SearchResponseFormat {
 
     ComponentDto component = data.getComponentByUuid(dto.getComponentUuid());
     issueBuilder.setOrganization(data.getOrganizationKey(component.getOrganizationUuid()));
-    issueBuilder.setComponent(component.key());
+    issueBuilder.setComponent(component.getKey());
+    setNullable(component.getBranch(), issueBuilder::setBranch);
     ComponentDto project = data.getComponentByUuid(dto.getProjectUuid());
     if (project != null) {
       issueBuilder.setProject(project.getKey());
       ComponentDto subProject = data.getComponentByUuid(dto.getModuleUuid());
-      if (subProject != null && !subProject.getKey().equals(project.getKey())) {
+      if (subProject != null && !subProject.getDbKey().equals(project.getDbKey())) {
         issueBuilder.setSubProject(subProject.getKey());
       }
     }
@@ -183,6 +184,7 @@ public class SearchResponseFormat {
       issueBuilder.setEffort(effortValue);
     }
     setNullable(dto.getLine(), issueBuilder::setLine);
+    setNullable(emptyToNull(dto.getChecksum()), issueBuilder::setHash);
     completeIssueLocations(dto, issueBuilder);
     issueBuilder.setAuthor(nullToEmpty(dto.getAuthorLogin()));
     setNullable(dto.getIssueCreationDate(), issueBuilder::setCreationDate, DateUtils::formatDateTime);
@@ -270,7 +272,7 @@ public class SearchResponseFormat {
           .setKey(comment.getKey())
           .setLogin(nullToEmpty(comment.getUserLogin()))
           .setUpdatable(data.isUpdatableComment(comment.getKey()))
-          .setCreatedAt(DateUtils.formatDateTime(new Date(comment.getCreatedAt())));
+          .setCreatedAt(DateUtils.formatDateTime(new Date(comment.getIssueChangeCreationDate())));
         if (markdown != null) {
           wsComment
             .setHtmlText(Markdown.convertToHtml(markdown))
@@ -300,12 +302,13 @@ public class SearchResponseFormat {
       String uuid = dto.uuid();
       Component.Builder builder = Component.newBuilder()
         .setOrganization(data.getOrganizationKey(dto.getOrganizationUuid()))
-        .setKey(dto.key())
+        .setKey(dto.getKey())
         .setUuid(uuid)
         .setQualifier(dto.qualifier())
         .setName(nullToEmpty(dto.name()))
         .setLongName(nullToEmpty(dto.longName()))
         .setEnabled(dto.isEnabled());
+      setNullable(dto.getBranch(), builder::setBranch);
       String path = dto.path();
       // path is not applicable to the components that are not files.
       // Value must not be "" in this case.
@@ -334,7 +337,7 @@ public class SearchResponseFormat {
       .setLogin(user.getLogin())
       .setName(nullToEmpty(user.getName()))
       .setActive(user.isActive());
-    setNullable(user.getEmail(), email -> builder.setAvatar(avatarFactory.create(user)));
+    setNullable(emptyToNull(user.getEmail()), email -> builder.setAvatar(avatarFactory.create(user)));
     return builder;
   }
 

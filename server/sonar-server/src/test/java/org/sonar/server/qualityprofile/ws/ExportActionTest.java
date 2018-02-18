@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -48,8 +48,8 @@ import org.sonar.server.ws.WsActionTester;
 
 import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.PARAM_KEY;
 import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.PARAM_LANGUAGE;
-import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.PARAM_PROFILE;
 
 public class ExportActionTest {
 
@@ -73,16 +73,22 @@ public class ExportActionTest {
 
     assertThat(definition.isPost()).isFalse();
     assertThat(definition.isInternal()).isFalse();
-    assertThat(definition.params()).extracting(WebService.Param::key).containsExactlyInAnyOrder("profile", "language", "name", "organization");
+    assertThat(definition.params()).extracting(WebService.Param::key).containsExactlyInAnyOrder("key", "language", "qualityProfile", "organization");
+
     WebService.Param organizationParam = definition.param("organization");
     assertThat(organizationParam.since()).isEqualTo("6.4");
     assertThat(organizationParam.isInternal()).isTrue();
-    WebService.Param profile = definition.param("profile");
-    assertThat(profile.since()).isEqualTo("6.5");
-    WebService.Param name = definition.param("name");
-    assertThat(name.deprecatedSince()).isEqualTo("6.5");
+
+    WebService.Param key = definition.param("key");
+    assertThat(key.since()).isEqualTo("6.5");
+    assertThat(key.deprecatedSince()).isEqualTo("6.6");
+
+    WebService.Param name = definition.param("qualityProfile");
+    assertThat(name.deprecatedSince()).isNullOrEmpty();
+    assertThat(name.deprecatedKey()).isEqualTo("name");
+
     WebService.Param language = definition.param("language");
-    assertThat(language.deprecatedSince()).isEqualTo("6.5");
+    assertThat(language.deprecatedSince()).isNullOrEmpty();
   }
 
   @Test
@@ -91,7 +97,7 @@ public class ExportActionTest {
 
     assertThat(definition.isPost()).isFalse();
     assertThat(definition.isInternal()).isFalse();
-    assertThat(definition.params()).extracting("key").containsExactlyInAnyOrder("profile", "language", "name", "organization", "exporterKey");
+    assertThat(definition.params()).extracting("key").containsExactlyInAnyOrder("key", "language", "qualityProfile", "organization", "exporterKey");
     WebService.Param exportersParam = definition.param("exporterKey");
     assertThat(exportersParam.possibleValues()).containsOnly("polop", "palap");
     assertThat(exportersParam.deprecatedKey()).isEqualTo("format");
@@ -105,7 +111,7 @@ public class ExportActionTest {
 
     WsActionTester tester = newWsActionTester(newExporter("polop"), newExporter("palap"));
     String result = tester.newRequest()
-      .setParam(PARAM_PROFILE, profile.getKee())
+      .setParam(PARAM_KEY, profile.getKee())
       .setParam("exporterKey", "polop").execute()
       .getInput();
 
@@ -119,7 +125,7 @@ public class ExportActionTest {
 
     WsActionTester ws = newWsActionTester(newExporter("polop"), newExporter("palap"));
     ws.newRequest()
-      .setParam(PARAM_PROFILE, "PROFILE-KEY-404")
+      .setParam(PARAM_KEY, "PROFILE-KEY-404")
       .setParam("exporterKey", "polop").execute()
       .getInput();
   }
@@ -129,11 +135,11 @@ public class ExportActionTest {
     QProfileDto profile = createProfile(db.getDefaultOrganization(), false);
 
     expectedException.expect(BadRequestException.class);
-    expectedException.expectMessage("Either 'profile' or 'language' must be provided.");
+    expectedException.expectMessage("Either 'key' or 'language' must be provided");
 
     WsActionTester ws = newWsActionTester(newExporter("polop"), newExporter("palap"));
     ws.newRequest()
-      .setParam(PARAM_PROFILE, profile.getKee())
+      .setParam(PARAM_KEY, profile.getKee())
       .setParam(PARAM_LANGUAGE, profile.getLanguage())
       .setParam("exporterKey", "polop").execute()
       .getInput();
@@ -146,7 +152,7 @@ public class ExportActionTest {
     WsActionTester tester = newWsActionTester(newExporter("polop"), newExporter("palap"));
     String result = tester.newRequest()
       .setParam("language", profile.getLanguage())
-      .setParam("name", profile.getName())
+      .setParam("qualityProfile", profile.getName())
       .setParam("exporterKey", "polop").execute()
       .getInput();
 
@@ -162,7 +168,7 @@ public class ExportActionTest {
     String result = tester.newRequest()
       .setParam("organization", organization.getKey())
       .setParam("language", profile.getLanguage())
-      .setParam("name", profile.getName())
+      .setParam("qualityProfile", profile.getName())
       .setParam("exporterKey", "polop").execute()
       .getInput();
 
@@ -185,7 +191,7 @@ public class ExportActionTest {
   }
 
   @Test
-  public void export_default_profile() throws Exception {
+  public void export_default_profile() {
     QProfileDto nonDefaultProfile = createProfile(db.getDefaultOrganization(), false);
     QProfileDto defaultProfile = createProfile(db.getDefaultOrganization(), true);
 
@@ -200,7 +206,7 @@ public class ExportActionTest {
   }
 
   @Test
-  public void throw_NotFoundException_if_profile_with_specified_name_does_not_exist_in_default_organization() throws Exception {
+  public void throw_NotFoundException_if_profile_with_specified_name_does_not_exist_in_default_organization() {
     expectedException.expect(NotFoundException.class);
 
     newWsActionTester().newRequest()
@@ -209,7 +215,7 @@ public class ExportActionTest {
   }
 
   @Test
-  public void throw_IAE_if_export_with_specified_key_does_not_exist() throws Exception {
+  public void throw_IAE_if_export_with_specified_key_does_not_exist() {
     QProfileDto profile = createProfile(db.getDefaultOrganization(), true);
 
     expectedException.expect(IllegalArgumentException.class);
@@ -221,13 +227,13 @@ public class ExportActionTest {
   }
 
   @Test
-  public void return_backup_when_exporter_is_not_specified() throws Exception {
+  public void return_backup_when_exporter_is_not_specified() {
     OrganizationDto organization = db.getDefaultOrganization();
     QProfileDto profile = createProfile(organization, false);
 
     String result = newWsActionTester(newExporter("polop")).newRequest()
       .setParam("language", profile.getLanguage())
-      .setParam("name", profile.getName())
+      .setParam("qualityProfile", profile.getName())
       .execute()
       .getInput();
 

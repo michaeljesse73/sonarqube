@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,6 +25,10 @@ import com.tngtech.java.junit.dataprovider.DataProviderRunner;
 import com.tngtech.java.junit.dataprovider.UseDataProvider;
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
+import java.util.Random;
+import javax.annotation.Nullable;
+import org.apache.commons.lang.RandomStringUtils;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -35,9 +39,14 @@ import org.sonar.api.ce.posttask.PostProjectAnalysisTask;
 import org.sonar.api.ce.posttask.Project;
 import org.sonar.api.utils.System2;
 import org.sonar.ce.queue.CeTask;
+import org.sonar.db.component.BranchType;
+import org.sonar.db.organization.OrganizationDto;
 import org.sonar.scanner.protocol.output.ScannerReport;
 import org.sonar.server.computation.task.projectanalysis.analysis.AnalysisMetadataHolderRule;
+import org.sonar.server.computation.task.projectanalysis.analysis.Branch;
+import org.sonar.server.computation.task.projectanalysis.analysis.Organization;
 import org.sonar.server.computation.task.projectanalysis.batch.BatchReportReaderRule;
+import org.sonar.server.computation.task.projectanalysis.component.DefaultBranchImpl;
 import org.sonar.server.computation.task.projectanalysis.metric.Metric;
 import org.sonar.server.computation.task.projectanalysis.qualitygate.Condition;
 import org.sonar.server.computation.task.projectanalysis.qualitygate.ConditionStatus;
@@ -73,10 +82,13 @@ public class PostProjectAnalysisTasksExecutorTest {
   @Rule
   public BatchReportReaderRule reportReader = new BatchReportReaderRule();
 
+  private String organizationUuid = "org1";
+  private String organizationKey = organizationUuid + "_key";
+  private String organizationName = organizationUuid + "_name";
   private System2 system2 = mock(System2.class);
   private ArgumentCaptor<PostProjectAnalysisTask.ProjectAnalysis> projectAnalysisArgumentCaptor = ArgumentCaptor.forClass(PostProjectAnalysisTask.ProjectAnalysis.class);
   private CeTask ceTask = new CeTask.Builder()
-    .setOrganizationUuid("org1")
+    .setOrganizationUuid(organizationUuid)
     .setType("type")
     .setUuid("uuid")
     .setComponentKey("component key")
@@ -95,6 +107,13 @@ public class PostProjectAnalysisTasksExecutorTest {
     qualityGateStatusHolder.setStatus(QualityGateStatus.OK, ImmutableMap.of(
       CONDITION_1, ConditionStatus.create(ConditionStatus.EvaluationStatus.OK, "value"),
       CONDITION_2, ConditionStatus.NO_VALUE_STATUS));
+    Branch branch = mock(Branch.class);
+    when(branch.getType()).thenReturn(BranchType.LONG);
+    analysisMetadataHolder
+      .setBranch(branch)
+      .setOrganizationsEnabled(new Random().nextBoolean())
+      .setOrganization(Organization.from(
+      new OrganizationDto().setKey(organizationKey).setName(organizationName).setUuid(organizationUuid).setDefaultQualityGateUuid("foo")));
   }
 
   @Test
@@ -114,7 +133,7 @@ public class PostProjectAnalysisTasksExecutorTest {
     new PostProjectAnalysisTasksExecutor(
       ceTask, analysisMetadataHolder, qualityGateHolder, qualityGateStatusHolder, reportReader,
       system2, new PostProjectAnalysisTask[] {postProjectAnalysisTask1, postProjectAnalysisTask2})
-        .finished(allStepsExecuted);
+      .finished(allStepsExecuted);
 
     inOrder.verify(postProjectAnalysisTask1).finished(projectAnalysisArgumentCaptor.capture());
     inOrder.verify(postProjectAnalysisTask2).finished(projectAnalysisArgumentCaptor.capture());
@@ -123,6 +142,36 @@ public class PostProjectAnalysisTasksExecutorTest {
     List<PostProjectAnalysisTask.ProjectAnalysis> allValues = projectAnalysisArgumentCaptor.getAllValues();
     assertThat(allValues).hasSize(2);
     assertThat(allValues.get(0)).isSameAs(allValues.get(1));
+  }
+
+  @Test
+  @UseDataProvider("booleanValues")
+  public void organization_is_null_when_organization_are_disabled(boolean allStepsExecuted) {
+    analysisMetadataHolder
+      .setOrganizationsEnabled(false)
+      .setOrganization(Organization.from(
+      new OrganizationDto().setKey(organizationKey).setName(organizationName).setUuid(organizationUuid).setDefaultQualityGateUuid("foo")));
+    underTest.finished(allStepsExecuted);
+
+    verify(postProjectAnalysisTask).finished(projectAnalysisArgumentCaptor.capture());
+
+    assertThat(projectAnalysisArgumentCaptor.getValue().getOrganization()).isEmpty();
+  }
+
+  @Test
+  @UseDataProvider("booleanValues")
+  public void organization_is_not_null_when_organization_are_enabled(boolean allStepsExecuted) {
+    analysisMetadataHolder
+      .setOrganizationsEnabled(true)
+      .setOrganization(Organization.from(
+      new OrganizationDto().setKey(organizationKey).setName(organizationName).setUuid(organizationUuid).setDefaultQualityGateUuid("foo")));
+    underTest.finished(allStepsExecuted);
+
+    verify(postProjectAnalysisTask).finished(projectAnalysisArgumentCaptor.capture());
+
+    org.sonar.api.ce.posttask.Organization organization = projectAnalysisArgumentCaptor.getValue().getOrganization().get();
+    assertThat(organization.getKey()).isEqualTo(organizationKey);
+    assertThat(organization.getName()).isEqualTo(organizationName);
   }
 
   @Test
@@ -161,7 +210,8 @@ public class PostProjectAnalysisTasksExecutorTest {
 
   @Test
   public void date_comes_from_AnalysisMetadataHolder() {
-    analysisMetadataHolder.setAnalysisDate(8465132498L);
+    analysisMetadataHolder.setAnalysisDate(8_465_132_498L);
+    analysisMetadataHolder.setUuid(RandomStringUtils.randomAlphanumeric(40));
 
     underTest.finished(true);
 
@@ -184,24 +234,87 @@ public class PostProjectAnalysisTasksExecutorTest {
   }
 
   @Test
-  public void analysisDate_comes_from_AnalysisMetadataHolder_when_set() {
+  public void analysisDate_and_analysisUuid_comes_from_AnalysisMetadataHolder_when_set() {
     analysisMetadataHolder.setAnalysisDate(8465132498L);
+    analysisMetadataHolder.setUuid(RandomStringUtils.randomAlphanumeric(40));
 
     underTest.finished(true);
 
     verify(postProjectAnalysisTask).finished(projectAnalysisArgumentCaptor.capture());
 
-    assertThat(projectAnalysisArgumentCaptor.getValue().getAnalysisDate())
-      .contains(new Date(analysisMetadataHolder.getAnalysisDate()));
+    assertThat(projectAnalysisArgumentCaptor.getValue().getAnalysis().get().getDate())
+      .isEqualTo(new Date(analysisMetadataHolder.getAnalysisDate()));
+    assertThat(projectAnalysisArgumentCaptor.getValue().getAnalysis().get().getAnalysisUuid())
+      .isEqualTo(analysisMetadataHolder.getUuid());
   }
 
   @Test
-  public void analysisDate_is_empty_when_not_set_in_AnalysisMetadataHolder() {
+  public void analysis_is_empty_when_not_set_in_AnalysisMetadataHolder() {
     underTest.finished(false);
 
     verify(postProjectAnalysisTask).finished(projectAnalysisArgumentCaptor.capture());
 
-    assertThat(projectAnalysisArgumentCaptor.getValue().getAnalysisDate()).isEmpty();
+    assertThat(projectAnalysisArgumentCaptor.getValue().getAnalysis()).isEmpty();
+  }
+
+  @Test
+  public void branch_is_empty_when_legacy_branch_implementation_is_used() {
+    analysisMetadataHolder.setBranch(new DefaultBranchImpl("feature/foo"));
+
+    underTest.finished(true);
+
+    verify(postProjectAnalysisTask).finished(projectAnalysisArgumentCaptor.capture());
+
+    assertThat(projectAnalysisArgumentCaptor.getValue().getBranch()).isEmpty();
+  }
+
+  @Test
+  public void branch_comes_from_AnalysisMetadataHolder_when_set() {
+    analysisMetadataHolder.setBranch(new Branch() {
+      @Override
+      public BranchType getType() {
+        return BranchType.SHORT;
+      }
+
+      @Override
+      public boolean isMain() {
+        return false;
+      }
+
+      @Override
+      public boolean isLegacyFeature() {
+        return false;
+      }
+
+      @Override
+      public Optional<String> getMergeBranchUuid() {
+        return Optional.empty();
+      }
+
+      @Override
+      public String getName() {
+        return "feature/foo";
+      }
+
+      @Override
+      public boolean supportsCrossProjectCpd() {
+        throw new UnsupportedOperationException();
+      }
+
+      @Override
+      public String generateKey(ScannerReport.Component module, @Nullable ScannerReport.Component fileOrDir) {
+        throw new UnsupportedOperationException();
+      }
+    });
+
+    underTest.finished(true);
+
+    verify(postProjectAnalysisTask).finished(projectAnalysisArgumentCaptor.capture());
+
+    org.sonar.api.ce.posttask.Branch branch = projectAnalysisArgumentCaptor.getValue().getBranch().get();
+    assertThat(branch.isMain()).isFalse();
+    assertThat(branch.getName()).hasValue("feature/foo");
+    assertThat(branch.getType()).isEqualTo(BranchImpl.Type.SHORT);
   }
 
   @Test
@@ -252,7 +365,7 @@ public class PostProjectAnalysisTasksExecutorTest {
     new PostProjectAnalysisTasksExecutor(
       ceTask, analysisMetadataHolder, qualityGateHolder, qualityGateStatusHolder, reportReader,
       system2, new PostProjectAnalysisTask[] {postProjectAnalysisTask1, postProjectAnalysisTask2, postProjectAnalysisTask3})
-        .finished(allStepsExecuted);
+      .finished(allStepsExecuted);
 
     inOrder.verify(postProjectAnalysisTask1).finished(projectAnalysisArgumentCaptor.capture());
     inOrder.verify(postProjectAnalysisTask2).finished(projectAnalysisArgumentCaptor.capture());

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,7 +19,6 @@
  */
 package org.sonar.server.project.ws;
 
-import com.google.common.io.Resources;
 import org.apache.commons.lang.StringUtils;
 import org.junit.Rule;
 import org.junit.Test;
@@ -64,19 +63,22 @@ public class ProvisionedActionTest {
 
   private TestDefaultOrganizationProvider defaultOrganizationProvider = TestDefaultOrganizationProvider.from(db);
   private DbClient dbClient = db.getDbClient();
-  private WsActionTester underTest = new WsActionTester(new ProvisionedAction(new ProjectsWsSupport(dbClient, mock(BillingValidationsProxy.class)),
-    dbClient, userSessionRule, defaultOrganizationProvider));
+
+  private WsActionTester ws = new WsActionTester(
+    new ProvisionedAction(new ProjectsWsSupport(dbClient, defaultOrganizationProvider, mock(BillingValidationsProxy.class)), dbClient, userSessionRule));
 
   @Test
-  public void verify_definition() {
-    WebService.Action action = underTest.getDef();
+  public void definition() {
+    WebService.Action action = ws.getDef();
 
-    assertThat(action.description()).isEqualTo("Get the list of provisioned projects.<br /> " +
+    assertThat(action.description()).isEqualTo("Get the list of provisioned projects.<br> " +
+      "Web service is deprecated. Use api/projects/search instead, with onProvisionedOnly=true.<br> " +
       "Require 'Create Projects' permission.");
     assertThat(action.since()).isEqualTo("5.2");
     assertThat(action.changelog()).extracting(Change::getVersion, Change::getDescription).containsExactlyInAnyOrder(
       tuple("6.4", "The 'uuid' field is deprecated in the response"),
       tuple("6.4", "Paging response fields is now in a Paging object"));
+    assertThat(action.deprecatedSince()).isEqualTo("6.6");
 
     assertThat(action.params()).hasSize(5);
 
@@ -88,14 +90,14 @@ public class ProvisionedActionTest {
   }
 
   @Test
-  public void all_provisioned_projects_without_analyzed_projects() throws Exception {
+  public void all_provisioned_projects_without_analyzed_projects() {
     OrganizationDto org = db.organizations().insert();
     ComponentDto analyzedProject = ComponentTesting.newPrivateProjectDto(org, "analyzed-uuid-1");
     db.components().insertComponents(newProvisionedProject(org, "1"), newProvisionedProject(org, "2"), analyzedProject);
     db.components().insertSnapshot(SnapshotTesting.newAnalysis(analyzedProject));
     userSessionRule.logIn().addPermission(PROVISION_PROJECTS, org);
 
-    TestResponse result = underTest.newRequest()
+    TestResponse result = ws.newRequest()
       .setParam(PARAM_ORGANIZATION, org.getKey())
       .execute();
 
@@ -121,14 +123,14 @@ public class ProvisionedActionTest {
   }
 
   @Test
-  public void provisioned_projects_with_correct_pagination() throws Exception {
+  public void provisioned_projects_with_correct_pagination() {
     OrganizationDto org = db.organizations().insert();
     for (int i = 1; i <= 10; i++) {
       db.components().insertComponent(newProvisionedProject(org, String.valueOf(i)));
     }
     userSessionRule.logIn().addPermission(PROVISION_PROJECTS, org);
 
-    TestRequest request = underTest.newRequest()
+    TestRequest request = ws.newRequest()
       .setParam(PARAM_ORGANIZATION, org.getKey())
       .setParam(Param.PAGE, "3")
       .setParam(Param.PAGE_SIZE, "4");
@@ -139,12 +141,12 @@ public class ProvisionedActionTest {
   }
 
   @Test
-  public void provisioned_projects_with_desired_fields() throws Exception {
+  public void provisioned_projects_with_desired_fields() {
     OrganizationDto organization = db.organizations().insert();
     db.components().insertComponent(newProvisionedProject(organization, "1"));
     userSessionRule.logIn().addPermission(PROVISION_PROJECTS, organization);
 
-    String jsonOutput = underTest.newRequest()
+    String jsonOutput = ws.newRequest()
       .setParam(PARAM_ORGANIZATION, organization.getKey())
       .setParam(Param.FIELDS, "key")
       .execute().getInput();
@@ -155,12 +157,12 @@ public class ProvisionedActionTest {
   }
 
   @Test
-  public void provisioned_projects_with_query() throws Exception {
+  public void provisioned_projects_with_query() {
     OrganizationDto org = db.organizations().insert();
     db.components().insertComponents(newProvisionedProject(org, "1"), newProvisionedProject(org, "2"));
     userSessionRule.logIn().addPermission(PROVISION_PROJECTS, org);
 
-    String jsonOutput = underTest.newRequest()
+    String jsonOutput = ws.newRequest()
       .setParam(PARAM_ORGANIZATION, org.getKey())
       .setParam(Param.TEXT_QUERY, "PROVISIONED-name-2")
       .execute().getInput();
@@ -171,42 +173,41 @@ public class ProvisionedActionTest {
   }
 
   @Test
-  public void provisioned_projects_as_defined_in_the_example() throws Exception {
+  public void provisioned_projects_as_defined_in_the_example() {
     OrganizationDto org = db.organizations().insert();
     ComponentDto hBaseProject = ComponentTesting.newPrivateProjectDto(org, "ce4c03d6-430f-40a9-b777-ad877c00aa4d")
-      .setKey("org.apache.hbas:hbase")
+      .setDbKey("org.apache.hbas:hbase")
       .setName("HBase")
       .setCreatedAt(DateUtils.parseDateTime("2015-03-04T23:03:44+0100"))
       .setPrivate(false);
     ComponentDto roslynProject = ComponentTesting.newPrivateProjectDto(org, "c526ef20-131b-4486-9357-063fa64b5079")
-      .setKey("com.microsoft.roslyn:roslyn")
+      .setDbKey("com.microsoft.roslyn:roslyn")
       .setName("Roslyn")
       .setCreatedAt(DateUtils.parseDateTime("2013-03-04T23:03:44+0100"));
     db.components().insertComponents(hBaseProject, roslynProject);
     userSessionRule.logIn().addPermission(PROVISION_PROJECTS, org);
 
-    TestResponse result = underTest.newRequest()
+    TestResponse result = ws.newRequest()
       .setParam(PARAM_ORGANIZATION, org.getKey())
       .execute();
 
-    assertJson(result.getInput())
-      .isSimilarTo(Resources.getResource(getClass(), "projects-example-provisioned.json"));
+    assertJson(result.getInput()).isSimilarTo(ws.getDef().responseExampleAsString());
   }
 
   @Test
-  public void fail_when_not_enough_privileges() throws Exception {
+  public void fail_when_not_enough_privileges() {
     OrganizationDto organization = db.organizations().insert();
     db.components().insertComponent(newProvisionedProject(organization, "1"));
     userSessionRule.logIn().addPermission(SCAN, organization);
 
     expectedException.expect(ForbiddenException.class);
 
-    underTest.newRequest().execute();
+    ws.newRequest().execute();
   }
 
   @Test
   public void fail_with_NotFoundException_when_organization_with_specified_key_does_not_exist() {
-    TestRequest request = underTest.newRequest()
+    TestRequest request = ws.newRequest()
       .setParam(PARAM_ORGANIZATION, "foo");
     userSessionRule.logIn();
 
@@ -220,6 +221,6 @@ public class ProvisionedActionTest {
     return ComponentTesting
       .newPrivateProjectDto(organizationDto, "provisioned-uuid-" + uuid)
       .setName("provisioned-name-" + uuid)
-      .setKey("provisioned-key-" + uuid);
+      .setDbKey("provisioned-key-" + uuid);
   }
 }

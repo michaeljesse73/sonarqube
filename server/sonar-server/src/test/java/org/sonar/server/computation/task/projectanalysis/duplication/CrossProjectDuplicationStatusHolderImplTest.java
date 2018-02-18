@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,12 +25,13 @@ import org.junit.rules.ExpectedException;
 import org.sonar.api.utils.log.LogTester;
 import org.sonar.api.utils.log.LoggerLevel;
 import org.sonar.server.computation.task.projectanalysis.analysis.AnalysisMetadataHolderRule;
+import org.sonar.server.computation.task.projectanalysis.analysis.Branch;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class CrossProjectDuplicationStatusHolderImplTest {
-
-  private static String BRANCH = "origin/master";
 
   @Rule
   public ExpectedException thrown = ExpectedException.none();
@@ -42,10 +43,10 @@ public class CrossProjectDuplicationStatusHolderImplTest {
   private CrossProjectDuplicationStatusHolderImpl underTest = new CrossProjectDuplicationStatusHolderImpl(analysisMetadataHolder);
 
   @Test
-  public void cross_project_duplication_is_enabled_when_enabled_in_report_and_no_branch() throws Exception {
+  public void cross_project_duplication_is_enabled_when_enabled_in_report_and_no_branch() {
     analysisMetadataHolder
       .setCrossProjectDuplicationEnabled(true)
-      .setBranch(null);
+      .setBranch(newBranch(true));
     underTest.start();
 
     assertThat(underTest.isEnabled()).isTrue();
@@ -53,10 +54,10 @@ public class CrossProjectDuplicationStatusHolderImplTest {
   }
 
   @Test
-  public void cross_project_duplication_is_disabled_when_not_enabled_in_report() throws Exception {
+  public void cross_project_duplication_is_disabled_when_not_enabled_in_report() {
     analysisMetadataHolder
       .setCrossProjectDuplicationEnabled(false)
-      .setBranch(null);
+      .setBranch(newBranch(true));
     underTest.start();
 
     assertThat(underTest.isEnabled()).isFalse();
@@ -64,10 +65,10 @@ public class CrossProjectDuplicationStatusHolderImplTest {
   }
 
   @Test
-  public void cross_project_duplication_is_disabled_when_branch_is_used() throws Exception {
+  public void cross_project_duplication_is_disabled_when_branch_is_used() {
     analysisMetadataHolder
       .setCrossProjectDuplicationEnabled(true)
-      .setBranch(BRANCH);
+      .setBranch(newBranch(false));
     underTest.start();
 
     assertThat(underTest.isEnabled()).isFalse();
@@ -75,10 +76,10 @@ public class CrossProjectDuplicationStatusHolderImplTest {
   }
 
   @Test
-  public void cross_project_duplication_is_disabled_when_not_enabled_in_report_and_when_branch_is_used() throws Exception {
+  public void cross_project_duplication_is_disabled_when_not_enabled_in_report_and_when_branch_is_used() {
     analysisMetadataHolder
       .setCrossProjectDuplicationEnabled(false)
-      .setBranch(BRANCH);
+      .setBranch(newBranch(false));
     underTest.start();
 
     assertThat(underTest.isEnabled()).isFalse();
@@ -86,10 +87,10 @@ public class CrossProjectDuplicationStatusHolderImplTest {
   }
 
   @Test
-  public void flag_is_build_in_start() throws Exception {
+  public void flag_is_build_in_start() {
     analysisMetadataHolder
       .setCrossProjectDuplicationEnabled(true)
-      .setBranch(null);
+      .setBranch(newBranch(true));
     underTest.start();
     assertThat(underTest.isEnabled()).isTrue();
 
@@ -99,10 +100,16 @@ public class CrossProjectDuplicationStatusHolderImplTest {
   }
 
   @Test
-  public void isEnabled_throws_ISE_when_start_have_not_been_called_before() throws Exception {
+  public void isEnabled_throws_ISE_when_start_have_not_been_called_before() {
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("Flag hasn't been initialized, the start() should have been called before");
 
     underTest.isEnabled();
+  }
+
+  private static Branch newBranch(boolean supportsCrossProjectCpd) {
+    Branch branch = mock(Branch.class);
+    when(branch.supportsCrossProjectCpd()).thenReturn(supportsCrossProjectCpd);
+    return branch;
   }
 }

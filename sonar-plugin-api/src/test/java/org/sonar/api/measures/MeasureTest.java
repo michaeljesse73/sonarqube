@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -43,18 +43,6 @@ public class MeasureTest {
   public void valueShouldNotBeNaN() {
     thrown.expect(IllegalArgumentException.class);
     new Measure("metric_key").setValue(Double.NaN);
-  }
-
-  @Test
-  public void defaultPersistenceModeIsFull() {
-    assertThat(new Measure(CoreMetrics.LINES, 32.0).getPersistenceMode()).isEqualTo(PersistenceMode.FULL);
-  }
-
-  @Test
-  public void persistenceModeIsDatabaseForBigDataMeasures() {
-    Measure bigDataMeasure = new Measure(CoreMetrics.COVERAGE_LINE_HITS_DATA, "long data")
-      .setPersistenceMode(PersistenceMode.DATABASE);
-    assertThat(bigDataMeasure.getPersistenceMode()).isEqualTo(PersistenceMode.DATABASE);
   }
 
   @Test
@@ -110,23 +98,6 @@ public class MeasureTest {
 
     // same key
     measure2.setMetric(CoreMetrics.COVERAGE);
-    assertThat(measure1.equals(measure2)).isTrue();
-    assertThat(measure2.equals(measure1)).isTrue();
-    assertThat(measure1.hashCode()).isEqualTo(measure2.hashCode());
-
-    // different committer
-    measure1.setPersonId(1);
-    assertThat(measure1.equals(measure2)).isFalse();
-    assertThat(measure2.equals(measure1)).isFalse();
-    assertThat(measure1.hashCode()).isNotEqualTo(measure2.hashCode());
-
-    measure2.setPersonId(2);
-    assertThat(measure1.equals(measure2)).isFalse();
-    assertThat(measure2.equals(measure1)).isFalse();
-    assertThat(measure1.hashCode()).isNotEqualTo(measure2.hashCode());
-
-    // same committer
-    measure2.setPersonId(1);
     assertThat(measure1.equals(measure2)).isTrue();
     assertThat(measure2.equals(measure1)).isTrue();
     assertThat(measure1.hashCode()).isEqualTo(measure2.hashCode());

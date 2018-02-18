@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -36,7 +36,7 @@ public class VarcharColumnDefTest {
   public ExpectedException thrown = ExpectedException.none();
 
   @Test
-  public void build_string_column_def() throws Exception {
+  public void build_string_column_def() {
     VarcharColumnDef def = new VarcharColumnDef.Builder()
       .setColumnName("issues")
       .setLimit(10)
@@ -51,7 +51,7 @@ public class VarcharColumnDefTest {
   }
 
   @Test
-  public void build_string_column_def_with_only_required_attributes() throws Exception {
+  public void build_string_column_def_with_only_required_attributes() {
     VarcharColumnDef def = new VarcharColumnDef.Builder()
       .setColumnName("issues")
       .setLimit(10)
@@ -64,7 +64,7 @@ public class VarcharColumnDefTest {
   }
 
   @Test
-  public void generate_sql_type() throws Exception {
+  public void generate_sql_type() {
     VarcharColumnDef def = new VarcharColumnDef.Builder()
       .setColumnName("issues")
       .setLimit(10)
@@ -75,11 +75,11 @@ public class VarcharColumnDefTest {
     assertThat(def.generateSqlType(new PostgreSql())).isEqualTo("VARCHAR (10)");
     assertThat(def.generateSqlType(new MySql())).isEqualTo("VARCHAR (10)");
     assertThat(def.generateSqlType(new MsSql())).isEqualTo("NVARCHAR (10)");
-    assertThat(def.generateSqlType(new Oracle())).isEqualTo("VARCHAR (10 CHAR)");
+    assertThat(def.generateSqlType(new Oracle())).isEqualTo("VARCHAR2 (10 CHAR)");
   }
 
   @Test
-  public void generateSqlType_does_not_set_unit_on_oracle_if_legacy_mode() throws Exception {
+  public void generateSqlType_does_not_set_unit_on_oracle_if_legacy_mode() {
     VarcharColumnDef def = new VarcharColumnDef.Builder()
       .setColumnName("issues")
       .setLimit(10)
@@ -87,11 +87,11 @@ public class VarcharColumnDefTest {
       .setIgnoreOracleUnit(true)
       .build();
 
-    assertThat(def.generateSqlType(new Oracle())).isEqualTo("VARCHAR (10)");
+    assertThat(def.generateSqlType(new Oracle())).isEqualTo("VARCHAR2 (10)");
   }
 
   @Test
-  public void fail_with_NPE_if_name_is_null() throws Exception {
+  public void fail_with_NPE_if_name_is_null() {
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("Column name cannot be null");
 
@@ -100,7 +100,7 @@ public class VarcharColumnDefTest {
   }
 
   @Test
-  public void fail_with_NPE_if_no_name() throws Exception {
+  public void fail_with_NPE_if_no_name() {
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("Column name cannot be null");
 
@@ -109,7 +109,7 @@ public class VarcharColumnDefTest {
   }
 
   @Test
-  public void fail_with_NPE_if_size_is_null() throws Exception {
+  public void fail_with_NPE_if_size_is_null() {
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("Limit cannot be null");
 

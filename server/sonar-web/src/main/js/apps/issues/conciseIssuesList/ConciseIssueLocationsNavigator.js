@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,8 +20,9 @@
 // @flow
 import React from 'react';
 import ConciseIssueLocationsNavigatorLocation from './ConciseIssueLocationsNavigatorLocation';
-import type { Issue } from '../../../components/issue/types';
+/*:: import type { Issue } from '../../../components/issue/types'; */
 
+/*::
 type Props = {|
   issue: Issue,
   onLocationSelect: number => void,
@@ -29,11 +30,12 @@ type Props = {|
   selectedFlowIndex: ?number,
   selectedLocationIndex: ?number
 |};
+*/
 
 export default class ConciseIssueLocationsNavigator extends React.PureComponent {
-  props: Props;
+  /*:: props: Props; */
 
-  handleClick = (index: number) => (event: Event) => {
+  handleClick = (index /*: number */) => (event /*: Event */) => {
     event.preventDefault();
     this.props.onLocationSelect(index);
   };
@@ -42,11 +44,12 @@ export default class ConciseIssueLocationsNavigator extends React.PureComponent 
     const { selectedFlowIndex, selectedLocationIndex } = this.props;
     const { flows, secondaryLocations } = this.props.issue;
 
-    const locations = selectedFlowIndex != null
-      ? flows[selectedFlowIndex]
-      : flows.length > 0 ? flows[0] : secondaryLocations;
+    const locations =
+      selectedFlowIndex != null
+        ? flows[selectedFlowIndex]
+        : flows.length > 0 ? flows[0] : secondaryLocations;
 
-    if (locations == null || locations.length === 0) {
+    if (locations == null || locations.length === 0 || locations.every(location => !location.msg)) {
       return null;
     }
 

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,10 +25,11 @@ import org.sonar.api.platform.Server;
 import org.sonar.api.server.authentication.BaseIdentityProvider;
 import org.sonar.api.server.authentication.UserIdentity;
 import org.sonar.db.user.UserDto;
+import org.sonar.server.authentication.event.AuthenticationEvent.Source;
 import org.sonar.server.user.ThreadLocalUserSession;
 import org.sonar.server.user.UserSessionFactory;
 
-import static org.sonar.server.authentication.event.AuthenticationEvent.Source;
+import static org.sonar.server.authentication.UserIdentityAuthenticator.ExistingEmailStrategy.FORBID;
 
 public class BaseContextFactory {
 
@@ -79,7 +80,7 @@ public class BaseContextFactory {
 
     @Override
     public void authenticate(UserIdentity userIdentity) {
-      UserDto userDto = userIdentityAuthenticator.authenticate(userIdentity, identityProvider, Source.external(identityProvider));
+      UserDto userDto = userIdentityAuthenticator.authenticate(userIdentity, identityProvider, Source.external(identityProvider), FORBID);
       jwtHttpHandler.generateToken(userDto, request, response);
       threadLocalUserSession.set(userSessionFactory.create(userDto));
     }

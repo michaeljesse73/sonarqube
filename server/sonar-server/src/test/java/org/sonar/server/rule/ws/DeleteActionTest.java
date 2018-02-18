@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -34,7 +34,7 @@ import org.sonar.server.exceptions.ForbiddenException;
 import org.sonar.server.exceptions.UnauthorizedException;
 import org.sonar.server.organization.DefaultOrganizationProvider;
 import org.sonar.server.organization.TestDefaultOrganizationProvider;
-import org.sonar.server.qualityprofile.RuleActivator;
+import org.sonar.server.qualityprofile.QProfileRules;
 import org.sonar.server.rule.index.RuleIndexDefinition;
 import org.sonar.server.rule.index.RuleIndexer;
 import org.sonar.server.tester.UserSessionRule;
@@ -63,14 +63,14 @@ public class DeleteActionTest {
   private DbClient dbClient = dbTester.getDbClient();
   private DbSession dbSession = dbTester.getSession();
   private RuleIndexer ruleIndexer = spy(new RuleIndexer(esTester.client(), dbClient));
-  private RuleActivator ruleActivator = mock(RuleActivator.class);
+  private QProfileRules qProfileRules = mock(QProfileRules.class);
   private DefaultOrganizationProvider defaultOrganizationProvider = TestDefaultOrganizationProvider.fromUuid("ORG1");
   private RuleWsSupport ruleWsSupport = new RuleWsSupport(mock(DbClient.class), userSession, defaultOrganizationProvider);
-  private DeleteAction underTest = new DeleteAction(System2.INSTANCE, ruleIndexer, dbClient, ruleActivator, ruleWsSupport);
+  private DeleteAction underTest = new DeleteAction(System2.INSTANCE, ruleIndexer, dbClient, qProfileRules, ruleWsSupport);
   private WsActionTester tester = new WsActionTester(underTest);
 
   @Test
-  public void delete_custom_rule() throws Exception {
+  public void delete_custom_rule() {
     logInAsQProfileAdministrator();
 
     RuleDefinitionDto templateRule = dbTester.rules().insert(
@@ -87,7 +87,7 @@ public class DeleteActionTest {
       .setParam("key", customRule.getKey().toString())
       .execute();
 
-    verify(ruleIndexer).commitAndIndex(any(), eq(customRule.getKey()));
+    verify(ruleIndexer).commitAndIndex(any(), eq(customRule.getId()));
 
     // Verify custom rule has status REMOVED
     RuleDefinitionDto customRuleReloaded = dbClient.ruleDao().selectOrFailDefinitionByKey(dbSession, customRule.getKey());
@@ -97,7 +97,7 @@ public class DeleteActionTest {
   }
 
   @Test
-  public void throw_ForbiddenException_if_not_profile_administrator() throws Exception {
+  public void throw_ForbiddenException_if_not_profile_administrator() {
     userSession.logIn();
 
     thrown.expect(ForbiddenException.class);
@@ -109,7 +109,7 @@ public class DeleteActionTest {
   }
 
   @Test
-  public void throw_UnauthorizedException_if_not_logged_in() throws Exception {
+  public void throw_UnauthorizedException_if_not_logged_in() {
     thrown.expect(UnauthorizedException.class);
 
     tester.newRequest()

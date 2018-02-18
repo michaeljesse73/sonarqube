@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -82,12 +82,13 @@ public class IssueUpdaterTest {
   private NotificationManager notificationManager = mock(NotificationManager.class);
   private ArgumentCaptor<IssueChangeNotification> notificationArgumentCaptor = ArgumentCaptor.forClass(IssueChangeNotification.class);
 
-  private IssueIndexer issueIndexer = new IssueIndexer(esTester.client(), new IssueIteratorFactory(dbClient));
+  private IssueIndexer issueIndexer = new IssueIndexer(esTester.client(), dbClient, new IssueIteratorFactory(dbClient));
+  private TestIssueChangePostProcessor issueChangePostProcessor = new TestIssueChangePostProcessor();
   private IssueUpdater underTest = new IssueUpdater(dbClient,
-    new ServerIssueStorage(system2, new DefaultRuleFinder(dbClient, defaultOrganizationProvider), dbClient, issueIndexer), notificationManager);
+    new ServerIssueStorage(system2, new DefaultRuleFinder(dbClient, defaultOrganizationProvider), dbClient, issueIndexer), notificationManager, issueChangePostProcessor);
 
   @Test
-  public void update_issue() throws Exception {
+  public void update_issue() {
     DefaultIssue issue = issueDbTester.insertIssue(newIssue().setSeverity(MAJOR)).toDefaultIssue();
     IssueChangeContext context = IssueChangeContext.createUser(new Date(), "john");
     issueFieldsSetter.setSeverity(issue, BLOCKER, context);
@@ -99,7 +100,7 @@ public class IssueUpdaterTest {
   }
 
   @Test
-  public void verify_notification() throws Exception {
+  public void verify_notification() {
     RuleDto rule = ruleDbTester.insertRule(newRuleDto());
     ComponentDto project = componentDbTester.insertPrivateProject();
     ComponentDto file = componentDbTester.insertComponent(newFileDto(project));
@@ -114,9 +115,9 @@ public class IssueUpdaterTest {
     assertThat(issueChangeNotification.getFieldValue("key")).isEqualTo(issue.key());
     assertThat(issueChangeNotification.getFieldValue("old.severity")).isEqualTo(MAJOR);
     assertThat(issueChangeNotification.getFieldValue("new.severity")).isEqualTo(BLOCKER);
-    assertThat(issueChangeNotification.getFieldValue("componentKey")).isEqualTo(file.key());
+    assertThat(issueChangeNotification.getFieldValue("componentKey")).isEqualTo(file.getDbKey());
     assertThat(issueChangeNotification.getFieldValue("componentName")).isEqualTo(file.longName());
-    assertThat(issueChangeNotification.getFieldValue("projectKey")).isEqualTo(project.key());
+    assertThat(issueChangeNotification.getFieldValue("projectKey")).isEqualTo(project.getDbKey());
     assertThat(issueChangeNotification.getFieldValue("projectName")).isEqualTo(project.name());
     assertThat(issueChangeNotification.getFieldValue("ruleName")).isEqualTo(rule.getName());
     assertThat(issueChangeNotification.getFieldValue("changeAuthor")).isEqualTo("john");
@@ -124,7 +125,27 @@ public class IssueUpdaterTest {
   }
 
   @Test
-  public void verify_notification_when_issue_is_linked_on_removed_rule() throws Exception {
+  public void verify_notification_on_branch() {
+    RuleDto rule = ruleDbTester.insertRule(newRuleDto());
+    ComponentDto project = componentDbTester.insertMainBranch();
+    ComponentDto branch = componentDbTester.insertProjectBranch(project);
+    ComponentDto file = componentDbTester.insertComponent(newFileDto(branch));
+    DefaultIssue issue = issueDbTester.insertIssue(IssueTesting.newIssue(rule.getDefinition(), branch, file)).setSeverity(MAJOR).toDefaultIssue();
+    IssueChangeContext context = IssueChangeContext.createUser(new Date(), "john");
+    issueFieldsSetter.setSeverity(issue, BLOCKER, context);
+
+    underTest.saveIssue(dbTester.getSession(), issue, context, "increase severity");
+
+    verify(notificationManager).scheduleForSending(notificationArgumentCaptor.capture());
+    IssueChangeNotification issueChangeNotification = notificationArgumentCaptor.getValue();
+    assertThat(issueChangeNotification.getFieldValue("key")).isEqualTo(issue.key());
+    assertThat(issueChangeNotification.getFieldValue("projectKey")).isEqualTo(project.getDbKey());
+    assertThat(issueChangeNotification.getFieldValue("projectName")).isEqualTo(project.name());
+    assertThat(issueChangeNotification.getFieldValue("branch")).isEqualTo(branch.getBranch());
+  }
+
+  @Test
+  public void verify_notification_when_issue_is_linked_on_removed_rule() {
     RuleDto rule = ruleDbTester.insertRule(newRuleDto().setStatus(RuleStatus.REMOVED));
     ComponentDto project = componentDbTester.insertPrivateProject();
     ComponentDto file = componentDbTester.insertComponent(newFileDto(project));
@@ -155,7 +176,7 @@ public class IssueUpdaterTest {
     IssueChangeContext context = IssueChangeContext.createUser(new Date(), "john");
     issueFieldsSetter.setSeverity(issue, BLOCKER, context);
 
-    SearchResponseData preloadedSearchResponseData = underTest.saveIssueAndPreloadSearchResponseData(dbTester.getSession(), issue, context, null);
+    SearchResponseData preloadedSearchResponseData = underTest.saveIssueAndPreloadSearchResponseData(dbTester.getSession(), issue, context, null, true);
 
     assertThat(preloadedSearchResponseData.getIssues())
       .hasSize(1);
@@ -167,6 +188,7 @@ public class IssueUpdaterTest {
     assertThat(preloadedSearchResponseData.getComponents())
       .extracting(ComponentDto::uuid)
       .containsOnly(project.uuid(), file.uuid());
+    assertThat(issueChangePostProcessor.calledComponents()).containsExactlyInAnyOrder(file);
   }
 
   @Test
@@ -179,7 +201,7 @@ public class IssueUpdaterTest {
     IssueChangeContext context = IssueChangeContext.createUser(new Date(), "john");
     issueFieldsSetter.setSeverity(issue, BLOCKER, context);
 
-    SearchResponseData preloadedSearchResponseData = underTest.saveIssueAndPreloadSearchResponseData(dbTester.getSession(), issue, context, null);
+    SearchResponseData preloadedSearchResponseData = underTest.saveIssueAndPreloadSearchResponseData(dbTester.getSession(), issue, context, null, false);
 
     assertThat(preloadedSearchResponseData.getIssues())
       .hasSize(1);

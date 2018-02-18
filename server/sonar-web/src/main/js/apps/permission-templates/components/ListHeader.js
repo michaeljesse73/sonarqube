@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,29 +18,32 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import React from 'react';
+import PropTypes from 'prop-types';
 import Tooltip from '../../../components/controls/Tooltip';
 import { translate } from '../../../helpers/l10n';
 
 export default class ListHeader extends React.PureComponent {
   static propTypes = {
-    organization: React.PropTypes.object,
-    permissions: React.PropTypes.array.isRequired
+    organization: PropTypes.object,
+    permissions: PropTypes.array.isRequired
   };
 
   renderTooltip = permission =>
-    (permission.key === 'user' || permission.key === 'codeviewer'
-      ? <div>
-          {permission.description}
-          <div className="alert alert-warning spacer-top">
-            {translate('projects_role.public_projects_warning')}
-          </div>
+    permission.key === 'user' || permission.key === 'codeviewer' ? (
+      <div>
+        {translate('projects_role', permission.key, 'desc')}
+        <div className="alert alert-warning spacer-top">
+          {translate('projects_role.public_projects_warning')}
         </div>
-      : permission.description);
+      </div>
+    ) : (
+      translate('projects_role', permission.key, 'desc')
+    );
 
   render() {
     const cells = this.props.permissions.map(permission => (
       <th key={permission.key} className="permission-column">
-        {permission.name}
+        {translate('projects_role', permission.key)}
         <Tooltip overlay={this.renderTooltip(permission)}>
           <i className="icon-help little-spacer-left" />
         </Tooltip>

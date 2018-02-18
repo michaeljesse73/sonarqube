@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,6 +19,7 @@
  */
 // @flow
 import React from 'react';
+import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 import classNames from 'classnames';
 import Input from './inputs/Input';
@@ -42,21 +43,21 @@ import {
 } from '../../../store/rootReducer';
 
 class Definition extends React.PureComponent {
-  mounted: boolean;
-  timeout: number;
+  /*:: mounted: boolean; */
+  /*:: timeout: number; */
 
   static propTypes = {
-    component: React.PropTypes.object,
-    setting: React.PropTypes.object.isRequired,
-    changedValue: React.PropTypes.any,
-    loading: React.PropTypes.bool.isRequired,
-    validationMessage: React.PropTypes.string,
+    component: PropTypes.object,
+    setting: PropTypes.object.isRequired,
+    changedValue: PropTypes.any,
+    loading: PropTypes.bool.isRequired,
+    validationMessage: PropTypes.string,
 
-    changeValue: React.PropTypes.func.isRequired,
-    cancelChange: React.PropTypes.func.isRequired,
-    saveValue: React.PropTypes.func.isRequired,
-    resetValue: React.PropTypes.func.isRequired,
-    passValidation: React.PropTypes.func.isRequired
+    changeValue: PropTypes.func.isRequired,
+    cancelChange: PropTypes.func.isRequired,
+    saveValue: PropTypes.func.isRequired,
+    resetValue: PropTypes.func.isRequired,
+    passValidation: PropTypes.func.isRequired
   };
 
   state = {
@@ -77,15 +78,15 @@ class Definition extends React.PureComponent {
     }
   }
 
-  handleChange(value) {
+  handleChange = value => {
     clearTimeout(this.timeout);
     this.props.changeValue(this.props.setting.definition.key, value);
     if (this.props.setting.definition.type === TYPE_PASSWORD) {
       this.handleSave();
     }
-  }
+  };
 
-  handleReset() {
+  handleReset = () => {
     const componentKey = this.props.component ? this.props.component.key : null;
     const { definition } = this.props.setting;
     return this.props
@@ -97,26 +98,29 @@ class Definition extends React.PureComponent {
       .catch(() => {
         /* do nothing */
       });
-  }
+  };
 
-  handleCancel() {
-    this.props.cancelChange(this.props.setting.definition.key);
-    this.props.passValidation(this.props.setting.definition.key);
-  }
-
-  handleSave() {
-    this.safeSetState({ success: false });
+  handleCancel = () => {
     const componentKey = this.props.component ? this.props.component.key : null;
-    this.props
-      .saveValue(this.props.setting.definition.key, componentKey)
-      .then(() => {
-        this.safeSetState({ success: true });
-        this.timeout = setTimeout(() => this.safeSetState({ success: false }), 3000);
-      })
-      .catch(() => {
-        /* do nothing */
-      });
-  }
+    this.props.cancelChange(this.props.setting.definition.key, componentKey);
+    this.props.passValidation(this.props.setting.definition.key);
+  };
+
+  handleSave = () => {
+    if (this.props.changedValue != null) {
+      this.safeSetState({ success: false });
+      const componentKey = this.props.component ? this.props.component.key : null;
+      this.props
+        .saveValue(this.props.setting.definition.key, componentKey)
+        .then(() => {
+          this.safeSetState({ success: true });
+          this.timeout = setTimeout(() => this.safeSetState({ success: false }), 3000);
+        })
+        .catch(() => {
+          /* do nothing */
+        });
+    }
+  };
 
   render() {
     const { setting, changedValue, loading } = this.props;
@@ -151,51 +155,55 @@ class Definition extends React.PureComponent {
         </div>
 
         <div className="settings-definition-right">
-          <Input setting={setting} value={effectiveValue} onChange={this.handleChange.bind(this)} />
+          <div className="settings-definition-state">
+            {loading && (
+              <span className="text-info">
+                <i className="spinner spacer-right" />
+                {translate('settings.state.saving')}
+              </span>
+            )}
 
-          {!hasValueChanged &&
+            {!loading &&
+              this.props.validationMessage != null && (
+                <span className="text-danger">
+                  <i className="icon-alert-error spacer-right" />
+                  <span>
+                    {translateWithParameters(
+                      'settings.state.validation_failed',
+                      this.props.validationMessage
+                    )}
+                  </span>
+                </span>
+              )}
+
+            {!loading &&
+              this.state.success && (
+                <span className="text-success">
+                  <i className="icon-check spacer-right" />
+                  {translate('settings.state.saved')}
+                </span>
+              )}
+          </div>
+
+          <Input
+            setting={setting}
+            value={effectiveValue}
+            onCancel={this.handleCancel}
+            onChange={this.handleChange}
+            onSave={this.handleSave}
+          />
+
+          {!hasValueChanged && (
             <DefinitionDefaults
               setting={setting}
               isDefault={isDefault}
-              onReset={() => this.handleReset()}
-            />}
+              onReset={this.handleReset}
+            />
+          )}
 
-          {hasValueChanged &&
-            <DefinitionChanges
-              onSave={this.handleSave.bind(this)}
-              onCancel={this.handleCancel.bind(this)}
-            />}
-
-          <div className="settings-definition-state">
-            {loading &&
-              <span className="text-info">
-                <span className="settings-definition-state-icon">
-                  <i className="spinner" />
-                </span>
-                {translate('settings.state.saving')}
-              </span>}
-
-            {!loading &&
-              this.props.validationMessage != null &&
-              <span className="text-danger">
-                <span className="settings-definition-state-icon">
-                  <i className="icon-alert-error" />
-                </span>
-                {translateWithParameters(
-                  'settings.state.validation_failed',
-                  this.props.validationMessage
-                )}
-              </span>}
-
-            {!loading &&
-              this.state.success &&
-              <span className="text-success">
-                <span className="settings-definition-state-icon">
-                  <i className="icon-check" />
-                </span>
-                {translate('settings.state.saved')}
-              </span>}
-          </div>
+          {hasValueChanged && (
+            <DefinitionChanges onSave={this.handleSave} onCancel={this.handleCancel} />
+          )}
         </div>
       </div>
     );

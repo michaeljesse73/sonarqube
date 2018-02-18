@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,12 +20,14 @@
 // @flow
 import React from 'react';
 import { sortBy, without } from 'lodash';
-import FacetBox from './components/FacetBox';
-import FacetHeader from './components/FacetHeader';
-import FacetItem from './components/FacetItem';
-import FacetItemsList from './components/FacetItemsList';
+import FacetBox from '../../../components/facet/FacetBox';
+import FacetHeader from '../../../components/facet/FacetHeader';
+import FacetItem from '../../../components/facet/FacetItem';
+import FacetItemsList from '../../../components/facet/FacetItemsList';
+import { formatFacetStat } from '../utils';
 import { translate } from '../../../helpers/l10n';
 
+/*::
 type Props = {|
   facetMode: string,
   onChange: (changes: {}) => void,
@@ -34,17 +36,18 @@ type Props = {|
   stats?: { [string]: number },
   authors: Array<string>
 |};
+*/
 
 export default class AuthorFacet extends React.PureComponent {
-  props: Props;
+  /*:: props: Props; */
+
+  property = 'authors';
 
   static defaultProps = {
     open: true
   };
 
-  property = 'authors';
-
-  handleItemClick = (itemValue: string) => {
+  handleItemClick = (itemValue /*: string */) => {
     const { authors } = this.props;
     const newValue = sortBy(
       authors.includes(itemValue) ? without(authors, itemValue) : [...authors, itemValue]
@@ -60,7 +63,7 @@ export default class AuthorFacet extends React.PureComponent {
     this.props.onChange({ [this.property]: [] });
   };
 
-  getStat(author: string): ?number {
+  getStat(author /*: string */) /*: ?number */ {
     const { stats } = this.props;
     return stats ? stats[author] : null;
   }
@@ -79,11 +82,10 @@ export default class AuthorFacet extends React.PureComponent {
         {authors.map(author => (
           <FacetItem
             active={this.props.authors.includes(author)}
-            facetMode={this.props.facetMode}
             key={author}
             name={author}
             onClick={this.handleItemClick}
-            stat={this.getStat(author)}
+            stat={formatFacetStat(this.getStat(author), this.props.facetMode)}
             value={author}
           />
         ))}
@@ -99,7 +101,7 @@ export default class AuthorFacet extends React.PureComponent {
           onClear={this.handleClear}
           onClick={this.handleHeaderClick}
           open={this.props.open}
-          values={this.props.authors.length}
+          values={this.props.authors}
         />
 
         {this.props.open && this.renderList()}

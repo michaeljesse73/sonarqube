@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,9 +19,9 @@
  */
 // @flow
 import React from 'react';
-import { shallow } from 'enzyme';
+import { mount } from 'enzyme';
 import Command from '../Command';
 
 it('renders correctly', () => {
-  expect(shallow(<Command command={'foo\nbar'} />)).toMatchSnapshot();
+  expect(mount(<Command command={'foo\nbar'} />)).toMatchSnapshot();
 });

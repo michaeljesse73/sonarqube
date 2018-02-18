@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -37,20 +37,25 @@ import org.sonar.db.DbSession;
 import org.sonar.db.DbTester;
 import org.sonar.db.component.ComponentDto;
 import org.sonar.db.component.SnapshotDto;
+import org.sonar.db.measure.MeasureDto;
 import org.sonar.db.metric.MetricDto;
+import org.sonar.db.organization.OrganizationDto;
 import org.sonar.server.component.TestComponentFinder;
 import org.sonar.server.exceptions.ForbiddenException;
 import org.sonar.server.exceptions.NotFoundException;
+import org.sonar.server.measure.ws.SearchHistoryAction.Builder;
+import org.sonar.server.measure.ws.SearchHistoryAction.SearchHistoryRequest;
 import org.sonar.server.tester.UserSessionRule;
 import org.sonar.server.ws.TestRequest;
 import org.sonar.server.ws.WsActionTester;
 import org.sonarqube.ws.Common.Paging;
-import org.sonarqube.ws.WsMeasures.SearchHistoryResponse;
-import org.sonarqube.ws.WsMeasures.SearchHistoryResponse.HistoryMeasure;
-import org.sonarqube.ws.WsMeasures.SearchHistoryResponse.HistoryValue;
-import org.sonarqube.ws.client.measure.SearchHistoryRequest;
+import org.sonarqube.ws.Measures.SearchHistoryResponse;
+import org.sonarqube.ws.Measures.SearchHistoryResponse.HistoryMeasure;
+import org.sonarqube.ws.Measures.SearchHistoryResponse.HistoryValue;
 
 import static com.google.common.collect.Lists.newArrayList;
+import static java.lang.Double.parseDouble;
+import static java.lang.String.format;
 import static java.util.Collections.singletonList;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
@@ -64,10 +69,11 @@ import static org.sonar.db.component.SnapshotTesting.newAnalysis;
 import static org.sonar.db.measure.MeasureTesting.newMeasureDto;
 import static org.sonar.db.metric.MetricTesting.newMetricDto;
 import static org.sonar.test.JsonAssert.assertJson;
-import static org.sonarqube.ws.client.measure.MeasuresWsParameters.PARAM_COMPONENT;
-import static org.sonarqube.ws.client.measure.MeasuresWsParameters.PARAM_FROM;
-import static org.sonarqube.ws.client.measure.MeasuresWsParameters.PARAM_METRICS;
-import static org.sonarqube.ws.client.measure.MeasuresWsParameters.PARAM_TO;
+import static org.sonar.server.component.ws.MeasuresWsParameters.PARAM_BRANCH;
+import static org.sonar.server.component.ws.MeasuresWsParameters.PARAM_COMPONENT;
+import static org.sonar.server.component.ws.MeasuresWsParameters.PARAM_FROM;
+import static org.sonar.server.component.ws.MeasuresWsParameters.PARAM_METRICS;
+import static org.sonar.server.component.ws.MeasuresWsParameters.PARAM_TO;
 
 public class SearchHistoryActionTest {
 
@@ -89,7 +95,7 @@ public class SearchHistoryActionTest {
   private MetricDto complexityMetric;
   private MetricDto nclocMetric;
   private MetricDto newViolationMetric;
-  private SearchHistoryRequest.Builder wsRequest;
+  private Builder wsRequest;
 
   @Before
   public void setUp() {
@@ -100,7 +106,7 @@ public class SearchHistoryActionTest {
     complexityMetric = insertComplexityMetric();
     newViolationMetric = insertNewViolationMetric();
     metrics = newArrayList(nclocMetric.getKey(), complexityMetric.getKey(), newViolationMetric.getKey());
-    wsRequest = SearchHistoryRequest.builder().setComponent(project.getKey()).setMetrics(metrics);
+    wsRequest = SearchHistoryRequest.builder().setComponent(project.getDbKey()).setMetrics(metrics);
   }
 
   @Test
@@ -108,7 +114,7 @@ public class SearchHistoryActionTest {
     project = db.components().insertPrivateProject();
     userSession.addProjectPermission(UserRole.USER, project);
     wsRequest
-      .setComponent(project.getKey())
+      .setComponent(project.getDbKey())
       .setMetrics(singletonList(complexityMetric.getKey()));
 
     SearchHistoryResponse result = call();
@@ -127,7 +133,7 @@ public class SearchHistoryActionTest {
     analysis = db.components().insertSnapshot(project);
     userSession.addProjectPermission(UserRole.USER, project);
     wsRequest
-      .setComponent(project.getKey())
+      .setComponent(project.getDbKey())
       .setMetrics(singletonList(complexityMetric.getKey()));
 
     SearchHistoryResponse result = call();
@@ -197,7 +203,7 @@ public class SearchHistoryActionTest {
       .map(a -> formatDateTime(a.getCreatedAt()))
       .collect(MoreCollectors.toList());
     db.commit();
-    wsRequest.setComponent(project.getKey()).setPage(2).setPageSize(3);
+    wsRequest.setComponent(project.getDbKey()).setPage(2).setPageSize(3);
 
     SearchHistoryResponse result = call();
 
@@ -216,7 +222,7 @@ public class SearchHistoryActionTest {
       .map(a -> formatDateTime(a.getCreatedAt()))
       .collect(MoreCollectors.toList());
     db.commit();
-    wsRequest.setComponent(project.getKey()).setFrom(analysisDates.get(1)).setTo(analysisDates.get(3));
+    wsRequest.setComponent(project.getDbKey()).setFrom(analysisDates.get(1)).setTo(analysisDates.get(3));
 
     SearchHistoryResponse result = call();
 
@@ -231,7 +237,7 @@ public class SearchHistoryActionTest {
     dbClient.metricDao().insert(dbSession, newMetricDto().setKey("new_optimized").setValueType(ValueType.INT.name()).setOptimizedBestValue(true).setBestValue(789d));
     db.commit();
     ComponentDto file = db.components().insertComponent(newFileDto(project));
-    wsRequest.setComponent(file.getKey()).setMetrics(Arrays.asList("optimized", "new_optimized"));
+    wsRequest.setComponent(file.getDbKey()).setMetrics(Arrays.asList("optimized", "new_optimized"));
 
     SearchHistoryResponse result = call();
 
@@ -240,7 +246,7 @@ public class SearchHistoryActionTest {
     assertThat(result.getMeasuresList().get(1).getHistoryList()).extracting(HistoryValue::getValue).containsExactly("456");
 
     // Best value is not applied to project
-    wsRequest.setComponent(project.getKey());
+    wsRequest.setComponent(project.getDbKey());
     result = call();
     assertThat(result.getMeasuresList().get(0).getHistoryCount()).isEqualTo(1);
     assertThat(result.getMeasuresList().get(0).getHistory(0).hasDate()).isTrue();
@@ -259,17 +265,42 @@ public class SearchHistoryActionTest {
   }
 
   @Test
-  public void do_not_return_developer_measures() {
-    wsRequest.setMetrics(singletonList(complexityMetric.getKey()));
-    dbClient.measureDao().insert(dbSession, newMeasureDto(complexityMetric, project, analysis).setDeveloperId(42L));
-    db.commit();
+  public void branch() {
+    ComponentDto project = db.components().insertPrivateProject();
+    userSession.addProjectPermission(UserRole.USER, project);
+    ComponentDto branch = db.components().insertProjectBranch(project, b -> b.setKey("my_branch"));
+    ComponentDto file = db.components().insertComponent(newFileDto(branch));
+    SnapshotDto analysis = db.components().insertSnapshot(branch);
+    MeasureDto measure = db.measures().insertMeasure(file, analysis, nclocMetric, m -> m.setValue(2d));
 
-    SearchHistoryResponse result = call();
+    SearchHistoryResponse result = ws.newRequest()
+      .setParam(PARAM_COMPONENT, file.getKey())
+      .setParam(PARAM_BRANCH, "my_branch")
+      .setParam(PARAM_METRICS, "ncloc")
+      .executeProtobuf(SearchHistoryResponse.class);
 
-    assertThat(result.getMeasuresCount()).isEqualTo(1);
-    assertThat(result.getMeasures(0).getHistoryCount()).isEqualTo(1);
-    assertThat(result.getMeasures(0).getHistory(0).hasDate()).isTrue();
-    assertThat(result.getMeasures(0).getHistory(0).hasValue()).isFalse();
+    assertThat(result.getMeasuresList()).extracting(HistoryMeasure::getMetric).hasSize(1);
+    HistoryMeasure historyMeasure = result.getMeasures(0);
+    assertThat(historyMeasure.getMetric()).isEqualTo(nclocMetric.getKey());
+    assertThat(historyMeasure.getHistoryList())
+      .extracting(m -> parseDouble(m.getValue()))
+      .containsExactlyInAnyOrder(measure.getValue());
+  }
+
+  @Test
+  public void fail_when_using_branch_db_key() throws Exception {
+    OrganizationDto organization = db.organizations().insert();
+    ComponentDto project = db.components().insertMainBranch(organization);
+    userSession.logIn().addProjectPermission(UserRole.USER, project);
+    ComponentDto branch = db.components().insertProjectBranch(project);
+
+    expectedException.expect(NotFoundException.class);
+    expectedException.expectMessage(format("Component key '%s' not found", branch.getDbKey()));
+
+    ws.newRequest()
+      .setParam(PARAM_COMPONENT, branch.getDbKey())
+      .setParam(PARAM_METRICS, "ncloc")
+      .execute();
   }
 
   @Test
@@ -303,7 +334,7 @@ public class SearchHistoryActionTest {
   @Test
   public void fail_when_component_is_removed() {
     ComponentDto project = db.components().insertComponent(newPrivateProjectDto(db.getDefaultOrganization()));
-    db.components().insertComponent(newFileDto(project).setKey("file-key").setEnabled(false));
+    db.components().insertComponent(newFileDto(project).setDbKey("file-key").setEnabled(false));
     userSession.addProjectPermission(UserRole.USER, project);
 
     expectedException.expect(NotFoundException.class);
@@ -311,6 +342,23 @@ public class SearchHistoryActionTest {
 
     ws.newRequest()
       .setParam(PARAM_COMPONENT, "file-key")
+      .setParam(PARAM_METRICS, "ncloc")
+      .execute();
+  }
+
+  @Test
+  public void fail_if_branch_does_not_exist() {
+    ComponentDto project = db.components().insertPrivateProject();
+    ComponentDto file = db.components().insertComponent(newFileDto(project));
+    userSession.addProjectPermission(UserRole.USER, project);
+    db.components().insertProjectBranch(project, b -> b.setKey("my_branch"));
+
+    expectedException.expect(NotFoundException.class);
+    expectedException.expectMessage(String.format("Component '%s' on branch '%s' not found", file.getKey(), "another_branch"));
+
+    ws.newRequest()
+      .setParam(PARAM_COMPONENT, file.getKey())
+      .setParam(PARAM_BRANCH, "another_branch")
       .setParam(PARAM_METRICS, "ncloc")
       .execute();
   }
@@ -324,6 +372,12 @@ public class SearchHistoryActionTest {
     assertThat(definition.isPost()).isFalse();
     assertThat(definition.isInternal()).isFalse();
     assertThat(definition.since()).isEqualTo("6.3");
+    assertThat(definition.params()).hasSize(7);
+
+    Param branch = definition.param("branch");
+    assertThat(branch.since()).isEqualTo("6.6");
+    assertThat(branch.isInternal()).isTrue();
+    assertThat(branch.isRequired()).isFalse();
   }
 
   @Test
@@ -340,7 +394,7 @@ public class SearchHistoryActionTest {
     db.commit();
 
     String result = ws.newRequest()
-      .setParam(PARAM_COMPONENT, project.getKey())
+      .setParam(PARAM_COMPONENT, project.getDbKey())
       .setParam(PARAM_METRICS, String.join(",", metrics))
       .execute().getInput();
 

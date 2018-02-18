@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,6 +19,7 @@
  */
 package org.sonar.server.rule;
 
+import com.google.common.collect.ImmutableSet;
 import org.junit.Before;
 import org.junit.Test;
 import org.sonar.api.rule.RuleStatus;
@@ -28,10 +29,14 @@ import org.sonar.api.utils.System2;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
 import org.sonar.db.DbTester;
+import org.sonar.db.organization.OrganizationDto;
+import org.sonar.db.rule.RuleDefinitionDto;
 import org.sonar.db.rule.RuleDto;
+import org.sonar.db.rule.RuleDto.Scope;
 import org.sonar.server.organization.DefaultOrganizationProvider;
 import org.sonar.server.organization.TestDefaultOrganizationProvider;
 
+import static org.apache.commons.lang.RandomStringUtils.randomAlphanumeric;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class DefaultRuleFinderTest {
@@ -49,6 +54,7 @@ public class DefaultRuleFinderTest {
     .setRuleKey("com.puppycrawl.tools.checkstyle.checks.header.HeaderCheck")
     .setRepositoryKey("checkstyle")
     .setSeverity(4)
+    .setScope(Scope.MAIN)
     .setStatus(RuleStatus.READY);
 
   private RuleDto rule2 = new RuleDto()
@@ -57,6 +63,7 @@ public class DefaultRuleFinderTest {
     .setRuleKey("DisabledCheck")
     .setRepositoryKey("checkstyle")
     .setSeverity(4)
+    .setScope(Scope.MAIN)
     .setStatus(RuleStatus.REMOVED);
 
   private RuleDto rule3 = new RuleDto()
@@ -65,6 +72,7 @@ public class DefaultRuleFinderTest {
     .setRuleKey("com.puppycrawl.tools.checkstyle.checks.annotation.AnnotationUseStyleCheck")
     .setRepositoryKey("checkstyle")
     .setSeverity(4)
+    .setScope(Scope.MAIN)
     .setStatus(RuleStatus.READY);
 
   private RuleDto rule4 = new RuleDto()
@@ -73,6 +81,7 @@ public class DefaultRuleFinderTest {
     .setRuleKey("CallSuperFirst")
     .setRepositoryKey("pmd")
     .setSeverity(2)
+    .setScope(Scope.MAIN)
     .setStatus(RuleStatus.READY);
 
   private DefaultRuleFinder underTest = new DefaultRuleFinder(dbClient, defaultOrganizationProvider);
@@ -133,4 +142,34 @@ public class DefaultRuleFinderTest {
     assertThat(underTest.findAll(RuleQuery.create())).extracting("id").containsOnly(rule1.getId(), rule3.getId(), rule4.getId());
   }
 
+  @Test
+  public void findById_populates_system_tags_but_not_tags() {
+    RuleDefinitionDto ruleDefinition = dbTester.rules()
+      .insert(t -> t.setSystemTags(ImmutableSet.of(randomAlphanumeric(5), randomAlphanumeric(6))));
+    OrganizationDto organization = dbTester.organizations().insert();
+    dbTester.rules().insertRule(organization);
+
+    Rule rule = underTest.findById(ruleDefinition.getId());
+    assertThat(rule.getSystemTags())
+      .containsOnlyElementsOf(ruleDefinition.getSystemTags());
+    assertThat(rule.getTags()).isEmpty();
+  }
+
+  @Test
+  public void findByKey_populates_system_tags_but_not_tags() {
+    RuleDefinitionDto ruleDefinition = dbTester.rules()
+      .insert(t -> t.setSystemTags(ImmutableSet.of(randomAlphanumeric(5), randomAlphanumeric(6))));
+    OrganizationDto organization = dbTester.organizations().insert();
+    dbTester.rules().insertRule(organization);
+
+    Rule rule = underTest.findByKey(ruleDefinition.getKey());
+    assertThat(rule.getSystemTags())
+      .containsOnlyElementsOf(ruleDefinition.getSystemTags());
+    assertThat(rule.getTags()).isEmpty();
+
+    rule = underTest.findByKey(ruleDefinition.getRepositoryKey(), ruleDefinition.getRuleKey());
+    assertThat(rule.getSystemTags())
+      .containsOnlyElementsOf(ruleDefinition.getSystemTags());
+    assertThat(rule.getTags()).isEmpty();
+  }
 }

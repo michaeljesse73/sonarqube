@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -36,8 +36,6 @@ it('render uncovered line', () => {
   const onClick = jest.fn();
   const wrapper = shallow(<LineCoverage line={line} onClick={onClick} />);
   expect(wrapper).toMatchSnapshot();
-  click(wrapper.find('[tabIndex]'));
-  expect(onClick).toHaveBeenCalled();
 });
 
 it('render line with unknown coverage', () => {

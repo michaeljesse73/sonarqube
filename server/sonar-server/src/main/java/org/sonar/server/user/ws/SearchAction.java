@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,10 +20,13 @@
 package org.sonar.server.user.ws;
 
 import com.google.common.collect.Multimap;
+
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 import org.sonar.api.server.ws.Change;
 import org.sonar.api.server.ws.Request;
@@ -40,12 +43,12 @@ import org.sonar.server.user.UserSession;
 import org.sonar.server.user.index.UserDoc;
 import org.sonar.server.user.index.UserIndex;
 import org.sonar.server.user.index.UserQuery;
-import org.sonarqube.ws.WsUsers;
-import org.sonarqube.ws.WsUsers.SearchWsResponse;
-import org.sonarqube.ws.client.user.SearchRequest;
+import org.sonarqube.ws.Users;
+import org.sonarqube.ws.Users.SearchWsResponse;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Strings.emptyToNull;
 import static org.sonar.api.server.ws.WebService.Param.FIELDS;
 import static org.sonar.api.server.ws.WebService.Param.PAGE;
 import static org.sonar.api.server.ws.WebService.Param.PAGE_SIZE;
@@ -64,10 +67,10 @@ import static org.sonar.server.user.ws.UserJsonWriter.FIELD_NAME;
 import static org.sonar.server.user.ws.UserJsonWriter.FIELD_SCM_ACCOUNTS;
 import static org.sonar.server.user.ws.UserJsonWriter.FIELD_TOKENS_COUNT;
 import static org.sonar.server.ws.WsUtils.writeProtobuf;
-import static org.sonarqube.ws.WsUsers.SearchWsResponse.Groups;
-import static org.sonarqube.ws.WsUsers.SearchWsResponse.ScmAccounts;
-import static org.sonarqube.ws.WsUsers.SearchWsResponse.User;
-import static org.sonarqube.ws.WsUsers.SearchWsResponse.newBuilder;
+import static org.sonarqube.ws.Users.SearchWsResponse.Groups;
+import static org.sonarqube.ws.Users.SearchWsResponse.ScmAccounts;
+import static org.sonarqube.ws.Users.SearchWsResponse.User;
+import static org.sonarqube.ws.Users.SearchWsResponse.newBuilder;
 
 public class SearchAction implements UsersWsAction {
 
@@ -104,16 +107,17 @@ public class SearchAction implements UsersWsAction {
     action.addPagingParams(50, MAX_LIMIT);
 
     action.createParam(TEXT_QUERY)
+      .setMinimumLength(2)
       .setDescription("Filter on login or name.");
   }
 
   @Override
   public void handle(Request request, Response response) throws Exception {
-    WsUsers.SearchWsResponse wsResponse = doHandle(toSearchRequest(request));
+    Users.SearchWsResponse wsResponse = doHandle(toSearchRequest(request));
     writeProtobuf(wsResponse, request, response);
   }
 
-  private WsUsers.SearchWsResponse doHandle(SearchRequest request) {
+  private Users.SearchWsResponse doHandle(SearchRequest request) {
     SearchOptions options = new SearchOptions().setPage(request.getPage(), request.getPageSize());
     List<String> fields = request.getPossibleFields();
     SearchResult<UserDoc> result = userIndex.search(UserQuery.builder().setTextQuery(request.getQuery()).build(), options);
@@ -144,7 +148,7 @@ public class SearchAction implements UsersWsAction {
       .setLogin(user.getLogin());
     setIfNeeded(FIELD_NAME, fields, user.getName(), userBuilder::setName);
     if (userSession.isLoggedIn()) {
-      setIfNeeded(FIELD_AVATAR, fields, user.getEmail(), u -> userBuilder.setAvatar(avatarResolver.create(user)));
+      setIfNeeded(FIELD_AVATAR, fields, emptyToNull(user.getEmail()), u -> userBuilder.setAvatar(avatarResolver.create(user)));
       setIfNeeded(FIELD_ACTIVE, fields, user.isActive(), userBuilder::setActive);
       setIfNeeded(FIELD_LOCAL, fields, user.isLocal(), userBuilder::setLocal);
       setIfNeeded(FIELD_EXTERNAL_IDENTITY, fields, user.getExternalIdentity(), userBuilder::setExternalIdentity);
@@ -186,4 +190,76 @@ public class SearchAction implements UsersWsAction {
       .build();
   }
 
+  private static class SearchRequest {
+
+    private final Integer page;
+    private final Integer pageSize;
+    private final String query;
+    private final List<String> possibleFields;
+
+    private SearchRequest(Builder builder) {
+      this.page = builder.page;
+      this.pageSize = builder.pageSize;
+      this.query = builder.query;
+      this.possibleFields = builder.additionalFields;
+    }
+
+    @CheckForNull
+    public Integer getPage() {
+      return page;
+    }
+
+    @CheckForNull
+    public Integer getPageSize() {
+      return pageSize;
+    }
+
+    @CheckForNull
+    public String getQuery() {
+      return query;
+    }
+
+    public List<String> getPossibleFields() {
+      return possibleFields;
+    }
+
+    public static Builder builder() {
+      return new Builder();
+    }
+  }
+
+  private static class Builder {
+    private Integer page;
+    private Integer pageSize;
+    private String query;
+    private List<String> additionalFields = new ArrayList<>();
+
+    private Builder() {
+      // enforce factory method use
+    }
+
+    public Builder setPage(@Nullable Integer page) {
+      this.page = page;
+      return this;
+    }
+
+    public Builder setPageSize(@Nullable Integer pageSize) {
+      this.pageSize = pageSize;
+      return this;
+    }
+
+    public Builder setQuery(@Nullable String query) {
+      this.query = query;
+      return this;
+    }
+
+    public Builder setPossibleFields(List<String> possibleFields) {
+      this.additionalFields = possibleFields;
+      return this;
+    }
+
+    public SearchRequest build() {
+      return new SearchRequest(this);
+    }
+  }
 }

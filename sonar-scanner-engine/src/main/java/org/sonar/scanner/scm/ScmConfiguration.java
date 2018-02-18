@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,7 +21,8 @@ package org.sonar.scanner.scm;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
-
+import java.util.stream.Collectors;
+import javax.annotation.CheckForNull;
 import org.apache.commons.lang.StringUtils;
 import org.picocontainer.Startable;
 import org.sonar.api.CoreProperties;
@@ -34,10 +35,9 @@ import org.sonar.api.batch.ScannerSide;
 import org.sonar.api.batch.fs.internal.InputModuleHierarchy;
 import org.sonar.api.batch.scm.ScmProvider;
 import org.sonar.api.config.Configuration;
+import org.sonar.api.utils.MessageException;
 import org.sonar.api.utils.log.Logger;
 import org.sonar.api.utils.log.Loggers;
-
-import com.google.common.base.Joiner;
 
 @Properties({
   @Property(
@@ -53,7 +53,7 @@ import com.google.common.base.Joiner;
 })
 @InstantiationStrategy(InstantiationStrategy.PER_BATCH)
 @ScannerSide
-public final class ScmConfiguration implements Startable {
+public class ScmConfiguration implements Startable {
   private static final Logger LOG = Loggers.get(ScmConfiguration.class);
 
   public static final String FORCE_RELOAD_KEY = "sonar.scm.forceReloadAll";
@@ -105,7 +105,8 @@ public final class ScmConfiguration implements Startable {
     if (providerPerKey.containsKey(forcedProviderKey)) {
       this.provider = providerPerKey.get(forcedProviderKey);
     } else {
-      String supportedProviders = providerPerKey.isEmpty() ? "No SCM provider installed" : ("Supported SCM providers are " + Joiner.on(",").join(providerPerKey.keySet()));
+      String supportedProviders = providerPerKey.isEmpty() ? "No SCM provider installed"
+        : ("Supported SCM providers are " + providerPerKey.keySet().stream().collect(Collectors.joining(",")));
       throw new IllegalArgumentException("SCM provider was set to \"" + forcedProviderKey + "\" but no SCM provider found for this key. " + supportedProviders);
     }
   }
@@ -123,17 +124,18 @@ public final class ScmConfiguration implements Startable {
 
   private void autodetection() {
     for (ScmProvider installedProvider : providerPerKey.values()) {
-      if (installedProvider.supports(moduleHierarchy.root().getBaseDir())) {
+      if (installedProvider.supports(moduleHierarchy.root().getBaseDir().toFile())) {
         if (this.provider == null) {
           this.provider = installedProvider;
         } else {
-          throw new IllegalStateException("SCM provider autodetection failed. Both " + this.provider.key() + " and " + installedProvider.key()
+          throw MessageException.of("SCM provider autodetection failed. Both " + this.provider.key() + " and " + installedProvider.key()
             + " claim to support this project. Please use " + CoreProperties.SCM_PROVIDER_KEY + " to define SCM of your project.");
         }
       }
     }
   }
 
+  @CheckForNull
   public ScmProvider provider() {
     return provider;
   }

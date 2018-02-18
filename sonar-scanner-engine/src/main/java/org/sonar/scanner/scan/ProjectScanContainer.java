@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,6 +19,7 @@
  */
 package org.sonar.scanner.scan;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.commons.lang.StringUtils;
 import org.sonar.api.CoreProperties;
 import org.sonar.api.batch.InstantiationStrategy;
@@ -30,6 +31,7 @@ import org.sonar.api.resources.ResourceTypes;
 import org.sonar.api.scan.filesystem.PathResolver;
 import org.sonar.api.utils.log.Logger;
 import org.sonar.api.utils.log.Loggers;
+import org.sonar.core.config.ScannerProperties;
 import org.sonar.core.metric.ScannerMetrics;
 import org.sonar.core.platform.ComponentContainer;
 import org.sonar.scanner.ProjectAnalysisInfo;
@@ -39,6 +41,7 @@ import org.sonar.scanner.analysis.DefaultAnalysisMode;
 import org.sonar.scanner.bootstrap.ExtensionInstaller;
 import org.sonar.scanner.bootstrap.ExtensionMatcher;
 import org.sonar.scanner.bootstrap.ExtensionUtils;
+import org.sonar.scanner.bootstrap.GlobalAnalysisMode;
 import org.sonar.scanner.bootstrap.MetricProvider;
 import org.sonar.scanner.cpd.CpdExecutor;
 import org.sonar.scanner.cpd.CpdSettings;
@@ -47,7 +50,6 @@ import org.sonar.scanner.deprecated.test.TestPlanBuilder;
 import org.sonar.scanner.deprecated.test.TestableBuilder;
 import org.sonar.scanner.events.EventBus;
 import org.sonar.scanner.index.DefaultIndex;
-import org.sonar.scanner.issue.DefaultIssueCallback;
 import org.sonar.scanner.issue.DefaultProjectIssues;
 import org.sonar.scanner.issue.IssueCache;
 import org.sonar.scanner.issue.tracking.DefaultServerLineHashesLoader;
@@ -85,14 +87,18 @@ import org.sonar.scanner.rule.DefaultActiveRulesLoader;
 import org.sonar.scanner.rule.DefaultRulesLoader;
 import org.sonar.scanner.rule.RulesLoader;
 import org.sonar.scanner.rule.RulesProvider;
+import org.sonar.scanner.scan.branch.BranchConfiguration;
+import org.sonar.scanner.scan.branch.BranchConfigurationProvider;
+import org.sonar.scanner.scan.branch.BranchType;
+import org.sonar.scanner.scan.branch.ProjectBranchesProvider;
 import org.sonar.scanner.scan.filesystem.BatchIdGenerator;
 import org.sonar.scanner.scan.filesystem.InputComponentStoreProvider;
+import org.sonar.scanner.scan.filesystem.StatusDetection;
 import org.sonar.scanner.scan.measure.DefaultMetricFinder;
 import org.sonar.scanner.scan.measure.DeprecatedMetricFinder;
 import org.sonar.scanner.scan.measure.MeasureCache;
+import org.sonar.scanner.scm.ScmChangedFilesProvider;
 import org.sonar.scanner.storage.Storages;
-
-import com.google.common.annotations.VisibleForTesting;
 
 public class ProjectScanContainer extends ComponentContainer {
 
@@ -111,7 +117,7 @@ public class ProjectScanContainer extends ComponentContainer {
     addBatchExtensions();
     ProjectLock lock = getComponentByType(ProjectLock.class);
     lock.tryLock();
-    getComponentByType(WorkDirectoryCleaner.class).execute();
+    getComponentByType(WorkDirectoriesInitializer.class).execute();
     Settings settings = getComponentByType(Settings.class);
     if (settings != null && settings.getBoolean(CoreProperties.PROFILING_LOG_PROPERTY)) {
       add(PhasesSumUpTimeProfiler.class);
@@ -124,9 +130,8 @@ public class ProjectScanContainer extends ComponentContainer {
   private void addBatchComponents() {
     add(
       props,
-      DefaultAnalysisMode.class,
       ProjectReactorBuilder.class,
-      WorkDirectoryCleaner.class,
+      WorkDirectoriesInitializer.class,
       new MutableProjectReactorProvider(),
       ProjectBuildersExecutor.class,
       ProjectLock.class,
@@ -139,6 +144,9 @@ public class ProjectScanContainer extends ComponentContainer {
       DefaultIndex.class,
       Storages.class,
       new RulesProvider(),
+      new BranchConfigurationProvider(),
+      new ProjectBranchesProvider(),
+      DefaultAnalysisMode.class,
       new ProjectRepositoriesProvider(),
 
       // temp
@@ -151,13 +159,14 @@ public class ProjectScanContainer extends ComponentContainer {
       new InputModuleHierarchyProvider(),
       DefaultComponentTree.class,
       BatchIdGenerator.class,
+      new ScmChangedFilesProvider(),
+      StatusDetection.class,
 
       // rules
       new ActiveRulesProvider(),
       new QualityProfileProvider(),
 
       // issues
-      DefaultIssueCallback.class,
       IssueCache.class,
       DefaultProjectIssues.class,
       IssueTransition.class,
@@ -227,10 +236,9 @@ public class ProjectScanContainer extends ComponentContainer {
 
   @Override
   protected void doAfterStart() {
-    DefaultAnalysisMode analysisMode = getComponentByType(DefaultAnalysisMode.class);
+    GlobalAnalysisMode analysisMode = getComponentByType(GlobalAnalysisMode.class);
     InputModuleHierarchy tree = getComponentByType(InputModuleHierarchy.class);
 
-    analysisMode.printMode();
     LOG.info("Project key: {}", tree.root().key());
     String organization = props.property("sonar.organization");
     if (StringUtils.isNotEmpty(organization)) {
@@ -239,26 +247,45 @@ public class ProjectScanContainer extends ComponentContainer {
     String branch = tree.root().definition().getBranch();
     if (branch != null) {
       LOG.info("Branch key: {}", branch);
+      LOG.warn("The use of \"sonar.branch\" is deprecated and replaced by \"{}\". See {}.",
+        ScannerProperties.BRANCH_NAME, ScannerProperties.BRANCHES_DOC_LINK);
+    }
+
+    String branchName = props.property(ScannerProperties.BRANCH_NAME);
+    if (branchName != null) {
+      BranchConfiguration branchConfig = getComponentByType(BranchConfiguration.class);
+      LOG.info("Branch name: {}, type: {}", branchName, toDisplayName(branchConfig.branchType()));
     }
 
     LOG.debug("Start recursive analysis of project modules");
-    scanRecursively(tree, tree.root());
+    scanRecursively(tree, tree.root(), analysisMode);
 
     if (analysisMode.isMediumTest()) {
       getComponentByType(ScanTaskObservers.class).notifyEndOfScanTask();
     }
   }
 
-  private void scanRecursively(InputModuleHierarchy tree, DefaultInputModule module) {
-    for (DefaultInputModule child : tree.children(module)) {
-      scanRecursively(tree, child);
+  private static String toDisplayName(BranchType branchType) {
+    switch (branchType) {
+      case LONG:
+        return "long living";
+      case SHORT:
+        return "short living";
+      default:
+        throw new UnsupportedOperationException("unknown branch type: " + branchType);
     }
-    scan(module);
+  }
+
+  private void scanRecursively(InputModuleHierarchy tree, DefaultInputModule module, GlobalAnalysisMode analysisMode) {
+    for (DefaultInputModule child : tree.children(module)) {
+      scanRecursively(tree, child, analysisMode);
+    }
+    scan(module, analysisMode);
   }
 
   @VisibleForTesting
-  void scan(DefaultInputModule module) {
-    new ModuleScanContainer(this, module).execute();
+  void scan(DefaultInputModule module, GlobalAnalysisMode analysisMode) {
+    new ModuleScanContainer(this, module, analysisMode).execute();
   }
 
   static class BatchExtensionFilter implements ExtensionMatcher {

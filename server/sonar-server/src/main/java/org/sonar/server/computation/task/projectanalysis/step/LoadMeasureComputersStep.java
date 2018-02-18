@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -222,8 +222,8 @@ public class LoadMeasureComputersStep implements ComputationStep {
   private class ValidateOutputMetric implements Predicate<String> {
     @Override
     public boolean apply(@Nonnull String metric) {
-      checkState(!CORE_METRIC_KEYS.contains(metric), "Metric '%s' cannot be used as an output metric as it's a core metric", metric);
-      checkState(pluginMetricKeys.contains(metric), "Metric '%s' cannot be used as an output metric as no plugin declare this metric", metric);
+      checkState(!CORE_METRIC_KEYS.contains(metric), "Metric '%s' cannot be used as an output metric because it's a core metric", metric);
+      checkState(pluginMetricKeys.contains(metric), "Metric '%s' cannot be used as an output metric because no plugins declare this metric", metric);
       return true;
     }
   }

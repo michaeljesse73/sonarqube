@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,9 +21,11 @@ import $ from 'jquery';
 import Backbone from 'backbone';
 import { debounce, throttle } from 'lodash';
 import escapeHtml from 'escape-html';
-import { translate } from '../../helpers/l10n';
 import ItemTemplate from './templates/item.hbs';
 import ListTemplate from './templates/list.hbs';
+import { translate } from '../../helpers/l10n';
+import './styles.css';
+import '../controls/SearchBox.css';
 
 let showError = null;
 
@@ -107,10 +109,9 @@ const SelectListItemView = Backbone.View.extend({
 
   remove(postpone) {
     if (postpone) {
-      const that = this;
-      that.$el.addClass(this.model.get('selected') ? 'added' : 'removed');
-      setTimeout(function() {
-        Backbone.View.prototype.remove.call(that, arguments);
+      this.$el.addClass(this.model.get('selected') ? 'added' : 'removed');
+      setTimeout(() => {
+        Backbone.View.prototype.remove.call(this, arguments);
       }, 500);
     } else {
       Backbone.View.prototype.remove.call(this, arguments);
@@ -160,7 +161,8 @@ const SelectListView = Backbone.View.extend({
   events: {
     'click .select-list-control-button[name=selected]': 'showSelected',
     'click .select-list-control-button[name=deselected]': 'showDeselected',
-    'click .select-list-control-button[name=all]': 'showAll'
+    'click .select-list-control-button[name=all]': 'showAll',
+    'click .js-reset': 'onResetClick'
   },
 
   initialize(options) {
@@ -203,9 +205,12 @@ const SelectListView = Backbone.View.extend({
 
     this.$listContainer = this.$('.select-list-list-container');
     if (!this.settings.readOnly) {
-      this.$listContainer.height(this.settings.height).css('overflow', 'auto').on('scroll', () => {
-        that.scroll();
-      });
+      this.$listContainer
+        .height(this.settings.height)
+        .css('overflow', 'auto')
+        .on('scroll', () => {
+          that.scroll();
+        });
     } else {
       this.$listContainer.addClass('select-list-list-container-readonly');
     }
@@ -231,7 +236,10 @@ const SelectListView = Backbone.View.extend({
       }
 
       that.$el.prevAll('.alert').remove();
-      $('<div>').addClass('alert alert-danger').text(message).insertBefore(that.$el);
+      $('<div>')
+        .addClass('alert alert-danger')
+        .text(message)
+        .insertBefore(that.$el);
     };
 
     if (this.settings.readOnly) {
@@ -325,6 +333,7 @@ const SelectListView = Backbone.View.extend({
 
     this.$('.select-list-check-control').toggleClass('disabled', hasQuery);
     this.$('.select-list-search-control').toggleClass('disabled', !hasQuery);
+    this.$('.js-reset').toggleClass('hidden', !hasQuery);
 
     if (hasQuery) {
       this.showFetchSpinner();
@@ -344,6 +353,15 @@ const SelectListView = Backbone.View.extend({
     } else {
       this.filterBySelection();
     }
+  },
+
+  onResetClick(e) {
+    e.preventDefault();
+    e.currentTarget.blur();
+    this.$('.select-list-search-control input')
+      .val('')
+      .focus()
+      .trigger('search');
   },
 
   searchByQuery(query) {
@@ -370,8 +388,8 @@ const SelectListView = Backbone.View.extend({
  * SelectList Entry Point
  */
 
-window.SelectList = function(options) {
-  this.settings = $.extend(window.SelectList.defaults, options);
+const SelectList = function(options) {
+  this.settings = $.extend(this.defaults, options);
 
   this.collection = new SelectListCollection({
     parse: this.settings.parse
@@ -392,12 +410,12 @@ window.SelectList = function(options) {
  * SelectList API Methods
  */
 
-window.SelectList.prototype.filter = function(filter) {
+SelectList.prototype.filter = function(filter) {
   this.view.filterBySelection(filter);
   return this;
 };
 
-window.SelectList.prototype.search = function(query) {
+SelectList.prototype.search = function(query) {
   this.view.searchByQuery(query);
   return this;
 };
@@ -406,7 +424,7 @@ window.SelectList.prototype.search = function(query) {
  * SelectList Defaults
  */
 
-window.SelectList.defaults = {
+SelectList.prototype.defaults = {
   width: '50%',
   height: 400,
 
@@ -438,3 +456,5 @@ window.SelectList.defaults = {
 
   errorMessage: 'Something gone wrong, try to reload the page and try again.'
 };
+
+export default SelectList;

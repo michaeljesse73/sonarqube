@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,6 +24,11 @@ import javax.annotation.CheckForNull;
 import org.sonar.server.qualityprofile.QualityProfile;
 
 public interface AnalysisMetadataHolder {
+
+  /**
+   * @throws IllegalStateException if organizations enabled flag has not been set
+   */
+  boolean isOrganizationsEnabled();
 
   /**
    * Returns the organization the analysis belongs to.
@@ -64,15 +69,44 @@ public interface AnalysisMetadataHolder {
   Analysis getBaseAnalysis();
 
   /**
+   * Convenience method equivalent to do the check using {@link #getBranch()}
+   *
+   * @throws IllegalStateException if branch has not been set
+   */
+  boolean isShortLivingBranch();
+
+  /**
+   * Convenience method equivalent to do the check using {@link #getBranch()}
+   *
+   * @throws IllegalStateException if branch has not been set
+   */
+  boolean isLongLivingBranch();
+
+  /**
    * @throws IllegalStateException if cross project duplication flag has not been set
    */
   boolean isCrossProjectDuplicationEnabled();
 
   /**
-   * @throws IllegalStateException if branch has not been set
+   * Branch being analyzed. Can be of any type: long or short, main or not. 
    */
-  @CheckForNull
-  String getBranch();
+  Branch getBranch();
+
+  /**
+   * The project as represented by the main branch. It is used to load settings
+   * like Quality gates, webhooks and configuration.
+   *
+   * In case of analysis of main branch, the returned value is the main branch,
+   * so its uuid and key are the same in
+   * {@link org.sonar.server.computation.task.projectanalysis.component.TreeRootHolder#getRoot().
+   *
+   * In case of analysis of non-main branch or pull request, the returned value
+   * is the main branch. Its uuid and key are different than
+   * {@link org.sonar.server.computation.task.projectanalysis.component.TreeRootHolder#getRoot().
+   *
+   * @throws IllegalStateException if project has not been set
+   */
+  Project getProject();
 
   /**
    * @throws IllegalStateException if root component ref has not been set
@@ -80,5 +114,10 @@ public interface AnalysisMetadataHolder {
   int getRootComponentRef();
 
   Map<String, QualityProfile> getQProfilesByLanguage();
+
+  /**
+   * Plugins used during the analysis on scanner side
+   */
+  Map<String, ScannerPlugin> getScannerPluginsByKey();
 
 }

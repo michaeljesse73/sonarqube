@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -31,11 +31,7 @@ function Security(props) {
   return (
     <div className="account-body account-container">
       <Helmet title={translate('my_account.security')} />
-
-      <Tokens user={user} />
-
-      {user.local && <hr className="account-separator" />}
-
+      <Tokens login={user.login} />
       {user.local && <Password user={user} />}
     </div>
   );

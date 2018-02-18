@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -29,18 +29,20 @@ import IssueTypeIcon from '../../../components/ui/IssueTypeIcon';
 import Avatar from '../../../components/ui/Avatar';
 import { translate } from '../../../helpers/l10n';
 import { fileFromPath, limitComponentName } from '../../../helpers/path';
-import type { Issue } from '../types';
+/*:: import type { Issue } from '../types'; */
 
+/*::
 type Props = {|
   issue: Issue,
   onFilter: (property: string, issue: Issue) => void,
   popupPosition?: {}
 |};
+*/
 
 export default class SimilarIssuesPopup extends React.PureComponent {
-  props: Props;
+  /*:: props: Props; */
 
-  handleSelect = (property: string) => {
+  handleSelect = (property /*: string */) => {
     this.props.onFilter(property, this.props.issue);
   };
 
@@ -69,7 +71,11 @@ export default class SimilarIssuesPopup extends React.PureComponent {
           <h6>{translate('issue.filter_similar_issues')}</h6>
         </header>
 
-        <SelectList currentItem={items[0]} items={items} onSelect={this.handleSelect}>
+        <SelectList
+          className="issues-similar-issues-menu"
+          currentItem={items[0]}
+          items={items}
+          onSelect={this.handleSelect}>
           <SelectListItem item="type">
             <IssueTypeIcon className="little-spacer-right" query={issue.type} />
             {translate('issue.type', issue.type)}
@@ -90,23 +96,25 @@ export default class SimilarIssuesPopup extends React.PureComponent {
           </SelectListItem>
 
           <SelectListItem item="assignee">
-            {issue.assignee != null
-              ? <span>
-                  {translate('assigned_to')}
-                  <Avatar
-                    className="little-spacer-left little-spacer-right"
-                    hash={issue.assigneeAvatar}
-                    name={issue.assigneeName}
-                    size={16}
-                  />
-                  {issue.assigneeName}
-                </span>
-              : translate('unassigned')}
+            {issue.assignee != null ? (
+              <span>
+                {translate('assigned_to')}
+                <Avatar
+                  className="little-spacer-left little-spacer-right"
+                  hash={issue.assigneeAvatar}
+                  name={issue.assigneeName}
+                  size={16}
+                />
+                {issue.assigneeName}
+              </span>
+            ) : (
+              translate('unassigned')
+            )}
           </SelectListItem>
 
-          <SelectListItem item="rule">
-            {limitComponentName(issue.ruleName)}
-          </SelectListItem>
+          <li className="divider" />
+
+          <SelectListItem item="rule">{limitComponentName(issue.ruleName)}</SelectListItem>
 
           {issue.tags != null &&
             issue.tags.map(tag => (
@@ -116,16 +124,19 @@ export default class SimilarIssuesPopup extends React.PureComponent {
               </SelectListItem>
             ))}
 
+          <li className="divider" />
+
           <SelectListItem item="project">
             <QualifierIcon className="little-spacer-right" qualifier="TRK" />
             {issue.projectName}
           </SelectListItem>
 
-          {issue.subProject != null &&
+          {issue.subProject != null && (
             <SelectListItem item="module">
               <QualifierIcon className="little-spacer-right" qualifier="BRC" />
               {issue.subProjectName}
-            </SelectListItem>}
+            </SelectListItem>
+          )}
 
           <SelectListItem item="file">
             <QualifierIcon className="little-spacer-right" qualifier={issue.componentQualifier} />

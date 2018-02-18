@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -28,9 +28,8 @@ import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
 import org.sonar.db.user.UserDto;
 import org.sonar.server.user.UserSession;
-import org.sonarqube.ws.WsRoot;
+import org.sonarqube.ws.Roots;
 
-import static org.sonar.server.user.AbstractUserSession.insufficientPrivilegesException;
 import static org.sonar.server.ws.WsUtils.writeProtobuf;
 
 public class SearchAction implements RootsWsAction {
@@ -45,38 +44,38 @@ public class SearchAction implements RootsWsAction {
   @Override
   public void define(WebService.NewController controller) {
     controller.createAction("search")
-      .setInternal(true)
-      .setPost(false)
-      .setDescription("Search for root users.<br/>" +
-        "Requires to be root.")
-      .setSince("6.2")
-      .setResponseExample(getClass().getResource("search-example.json"))
-      .setHandler(this);
+        .setInternal(true)
+        .setPost(false)
+        .setDescription("Search for root users.<br/>" +
+            "Requires to be root.")
+        .setSince("6.2")
+        .setResponseExample(getClass().getResource("search-example.json"))
+        .setHandler(this);
   }
 
   @Override
   public void handle(Request request, Response response) throws Exception {
-    checkIsRoot();
+    userSession.checkIsRoot();
 
     try (DbSession dbSession = dbClient.openSession(false)) {
       List<UserDto> userDtos = dbClient.userDao().selectUsers(
-        dbSession,
-        UserQuery.builder()
-          .mustBeRoot()
-          .build());
+          dbSession,
+          UserQuery.builder()
+              .mustBeRoot()
+              .build());
 
       writeResponse(request, response, userDtos);
     }
   }
 
   private static void writeResponse(Request request, Response response, List<UserDto> dtos) {
-    WsRoot.SearchWsResponse.Builder responseBuilder = WsRoot.SearchWsResponse.newBuilder();
-    WsRoot.Root.Builder rootBuilder = WsRoot.Root.newBuilder();
+    Roots.SearchResponse.Builder responseBuilder = Roots.SearchResponse.newBuilder();
+    Roots.RootContent.Builder rootBuilder = Roots.RootContent.newBuilder();
     dtos.forEach(dto -> responseBuilder.addRoots(toRoot(rootBuilder, dto)));
     writeProtobuf(responseBuilder.build(), request, response);
   }
 
-  private static WsRoot.Root toRoot(WsRoot.Root.Builder builder, UserDto dto) {
+  private static Roots.RootContent toRoot(Roots.RootContent.Builder builder, UserDto dto) {
     builder.clear();
     builder.setLogin(dto.getLogin());
     if (dto.getName() != null) {
@@ -87,12 +86,5 @@ public class SearchAction implements RootsWsAction {
     }
     return builder.build();
   }
-
-  private void checkIsRoot() {
-    if (!userSession.isRoot()) {
-      throw insufficientPrivilegesException();
-    }
-  }
-
 
 }

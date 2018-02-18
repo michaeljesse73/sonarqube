@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,10 +21,12 @@
 import React from 'react';
 import ComponentBreadcrumbs from './ComponentBreadcrumbs';
 import Issue from '../../../components/issue/Issue';
-import type { Issue as IssueType } from '../../../components/issue/types';
-import type { Component } from '../utils';
+/*:: import type { Issue as IssueType } from '../../../components/issue/types'; */
+/*:: import type { Component } from '../utils'; */
 
+/*::
 type Props = {|
+  branch?: string,
   checked: boolean,
   component?: Component,
   issue: IssueType,
@@ -32,19 +34,25 @@ type Props = {|
   onCheck?: string => void,
   onClick: string => void,
   onFilterChange: (changes: {}) => void,
+  onPopupToggle: (issue: string, popupName: string, open: ?boolean ) => void,
+  openPopup: ?string,
+  organization?: { key: string },
   previousIssue: ?Object,
   selected: boolean
 |};
+*/
 
+/*::
 type State = {
   similarIssues: boolean
 };
+*/
 
 export default class ListItem extends React.PureComponent {
-  props: Props;
-  state: State = { similarIssues: false };
+  /*:: props: Props; */
+  state /*: State */ = { similarIssues: false };
 
-  handleFilter = (property: string, issue: IssueType) => {
+  handleFilter = (property /*: string */, issue /*: IssueType */) => {
     const { onFilterChange } = this.props;
 
     const issuesReset = { issues: [] };
@@ -81,23 +89,33 @@ export default class ListItem extends React.PureComponent {
   };
 
   render() {
-    const { component, issue, previousIssue } = this.props;
+    const { branch, component, issue, previousIssue } = this.props;
 
     const displayComponent = previousIssue == null || previousIssue.component !== issue.component;
 
     return (
       <div className="issues-workspace-list-item">
-        {displayComponent &&
+        {displayComponent && (
           <div className="issues-workspace-list-component">
-            <ComponentBreadcrumbs component={component} issue={this.props.issue} />
-          </div>}
+            <ComponentBreadcrumbs
+              branch={branch}
+              component={component}
+              issue={this.props.issue}
+              organization={this.props.organization}
+            />
+          </div>
+        )}
         <Issue
+          branch={branch}
           checked={this.props.checked}
+          displayLocationsLink={false}
           issue={issue}
           onChange={this.props.onChange}
           onCheck={this.props.onCheck}
           onClick={this.props.onClick}
           onFilter={this.handleFilter}
+          onPopupToggle={this.props.onPopupToggle}
+          openPopup={this.props.openPopup}
           selected={this.props.selected}
         />
       </div>

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -36,7 +36,7 @@ import java.util.stream.Collectors;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 import org.sonar.api.rule.RuleKey;
-import org.sonar.api.rules.ActiveRuleParam;
+import org.sonar.api.server.profile.BuiltInQualityProfilesDefinition;
 import org.sonar.api.server.rule.RuleParamType;
 import org.sonar.api.utils.System2;
 import org.sonar.core.util.UuidFactory;
@@ -139,8 +139,8 @@ public class BuiltInQProfileInsertImpl implements BuiltInQProfileInsert {
     return dto;
   }
 
-  private ActiveRuleChange insertActiveRule(DbSession dbSession, RulesProfileDto rulesProfileDto, org.sonar.api.rules.ActiveRule activeRule, long now) {
-    RuleKey ruleKey = RuleKey.of(activeRule.getRepositoryKey(), activeRule.getRuleKey());
+  private ActiveRuleChange insertActiveRule(DbSession dbSession, RulesProfileDto rulesProfileDto, BuiltInQProfile.ActiveRule activeRule, long now) {
+    RuleKey ruleKey = activeRule.getRuleKey();
     RuleDefinitionDto ruleDefinitionDto = ruleRepository.getDefinition(ruleKey)
       .orElseThrow(() -> new IllegalStateException("RuleDefinition not found for key " + ruleKey));
 
@@ -148,24 +148,25 @@ public class BuiltInQProfileInsertImpl implements BuiltInQProfileInsert {
     dto.setProfileId(rulesProfileDto.getId());
     dto.setRuleId(ruleDefinitionDto.getId());
     dto.setKey(ActiveRuleKey.of(rulesProfileDto, ruleDefinitionDto.getKey()));
-    dto.setSeverity(firstNonNull(activeRule.getSeverity().name(), ruleDefinitionDto.getSeverityString()));
+    dto.setSeverity(firstNonNull(activeRule.getBuiltIn().overriddenSeverity(), ruleDefinitionDto.getSeverityString()));
     dto.setUpdatedAt(now);
     dto.setCreatedAt(now);
     dbClient.activeRuleDao().insert(dbSession, dto);
 
-    List<ActiveRuleParamDto> paramDtos = insertActiveRuleParams(dbSession, activeRule, ruleKey, dto);
+    List<ActiveRuleParamDto> paramDtos = insertActiveRuleParams(dbSession, activeRule, dto);
 
-    ActiveRuleChange change = new ActiveRuleChange(ActiveRuleChange.Type.ACTIVATED, dto);
+    ActiveRuleChange change = new ActiveRuleChange(ActiveRuleChange.Type.ACTIVATED, dto, ruleDefinitionDto);
     change.setSeverity(dto.getSeverityString());
     paramDtos.forEach(paramDto -> change.setParameter(paramDto.getKey(), paramDto.getValue()));
     return change;
   }
 
-  private List<ActiveRuleParamDto> insertActiveRuleParams(DbSession session, org.sonar.api.rules.ActiveRule activeRule, RuleKey ruleKey, ActiveRuleDto activeRuleDto) {
-    Map<String, String> valuesByParamKey = activeRule.getActiveRuleParams()
+  private List<ActiveRuleParamDto> insertActiveRuleParams(DbSession session, BuiltInQProfile.ActiveRule activeRule,
+    ActiveRuleDto activeRuleDto) {
+    Map<String, String> valuesByParamKey = activeRule.getBuiltIn().overriddenParams()
       .stream()
-      .collect(MoreCollectors.uniqueIndex(ActiveRuleParam::getParamKey, ActiveRuleParam::getValue));
-    return ruleRepository.getRuleParams(ruleKey)
+      .collect(MoreCollectors.uniqueIndex(BuiltInQualityProfilesDefinition.OverriddenParam::key, BuiltInQualityProfilesDefinition.OverriddenParam::overriddenValue));
+    return ruleRepository.getRuleParams(activeRule.getRuleKey())
       .stream()
       .map(param -> {
         String activeRuleValue = valuesByParamKey.get(param.getName());

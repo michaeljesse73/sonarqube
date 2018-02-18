@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -28,15 +28,16 @@ import javax.annotation.concurrent.Immutable;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
-import static java.util.Arrays.asList;
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang.StringUtils.trimToNull;
 
 @Immutable
 public class ComponentImpl implements Component {
   private final Type type;
+  private final Status status;
   private final String name;
   private final String key;
+  private final String publicKey;
   private final String uuid;
 
   @CheckForNull
@@ -49,7 +50,9 @@ public class ComponentImpl implements Component {
 
   private ComponentImpl(Builder builder) {
     this.type = builder.type;
+    this.status = builder.status;
     this.key = builder.key;
+    this.publicKey = builder.publicKey;
     this.name = builder.name;
     this.description = builder.description;
     this.uuid = builder.uuid;
@@ -64,6 +67,11 @@ public class ComponentImpl implements Component {
   }
 
   @Override
+  public Status getStatus() {
+    return status;
+  }
+
+  @Override
   public String getUuid() {
     return uuid;
   }
@@ -71,6 +79,11 @@ public class ComponentImpl implements Component {
   @Override
   public String getKey() {
     return key;
+  }
+
+  @Override
+  public String getPublicKey() {
+    return publicKey;
   }
 
   @Override
@@ -110,6 +123,11 @@ public class ComponentImpl implements Component {
     throw new IllegalStateException("Only component of type SUBVIEW have a SubViewAttributes object");
   }
 
+  @Override
+  public ViewAttributes getViewAttributes() {
+    throw new IllegalStateException("Only component of type VIEW have a ViewAttributes object");
+  }
+
   public static Builder builder(Type type) {
     return new Builder(type);
   }
@@ -120,11 +138,14 @@ public class ComponentImpl implements Component {
     private static final String UUID_CANNOT_BE_NULL = "uuid can't be null";
     private static final String REPORT_ATTRIBUTES_CANNOT_BE_NULL = "reportAttributes can't be null";
     private static final String NAME_CANNOT_BE_NULL = "name can't be null";
+    private static final String STATUS_CANNOT_BE_NULL = "status can't be null";
 
     private final Type type;
+    private Status status;
     private ReportAttributes reportAttributes;
     private String uuid;
     private String key;
+    private String publicKey;
     private String name;
     private String description;
     private FileAttributes fileAttributes;
@@ -149,8 +170,18 @@ public class ComponentImpl implements Component {
       return uuid;
     }
 
+    public Builder setStatus(Status status) {
+      this.status = requireNonNull(status, STATUS_CANNOT_BE_NULL);
+      return this;
+    }
+
     public Builder setKey(String s) {
       this.key = requireNonNull(s, KEY_CANNOT_BE_NULL);
+      return this;
+    }
+
+    public Builder setPublicKey(String publicKey) {
+      this.publicKey = requireNonNull(publicKey);
       return this;
     }
 
@@ -169,11 +200,11 @@ public class ComponentImpl implements Component {
       return this;
     }
 
-    public Builder addChildren(Component... c) {
-      for (Component component : c) {
+    public Builder addChildren(List<Component> components) {
+      for (Component component : components) {
         checkArgument(component.getType().isReportType());
       }
-      this.children.addAll(asList(c));
+      this.children.addAll(components);
       return this;
     }
 
@@ -182,6 +213,7 @@ public class ComponentImpl implements Component {
       requireNonNull(uuid, UUID_CANNOT_BE_NULL);
       requireNonNull(key, KEY_CANNOT_BE_NULL);
       requireNonNull(name, NAME_CANNOT_BE_NULL);
+      requireNonNull(status, STATUS_CANNOT_BE_NULL);
       return new ComponentImpl(this);
     }
   }

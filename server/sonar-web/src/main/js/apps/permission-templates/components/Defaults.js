@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,20 +18,22 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import React from 'react';
+import PropTypes from 'prop-types';
 import { sortBy } from 'lodash';
-import { translate } from '../../../helpers/l10n';
+import { translate, translateWithParameters } from '../../../helpers/l10n';
 import { PermissionTemplateType } from '../propTypes';
 
 export default class Defaults extends React.PureComponent {
   static propTypes = {
-    organization: React.PropTypes.object,
+    organization: PropTypes.object,
     permissionTemplate: PermissionTemplateType.isRequired
   };
 
   render() {
-    const qualifiersToDisplay = this.props.organization && !this.props.organization.isDefault
-      ? ['TRK']
-      : this.props.permissionTemplate.defaultFor;
+    const qualifiersToDisplay =
+      this.props.organization && !this.props.organization.isDefault
+        ? ['TRK']
+        : this.props.permissionTemplate.defaultFor;
 
     const qualifiers = sortBy(qualifiersToDisplay)
       .map(qualifier => translate('qualifiers', qualifier))
@@ -40,7 +42,7 @@ export default class Defaults extends React.PureComponent {
     return (
       <div>
         <span className="badge spacer-right">
-          {translate('default')} for {qualifiers}
+          {translateWithParameters('permission_template.default_for', qualifiers)}
         </span>
       </div>
     );

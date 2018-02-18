@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,47 +19,59 @@
  */
 // @flow
 import React from 'react';
-import Select from 'react-select';
 import ProjectActivityEventSelectOption from './ProjectActivityEventSelectOption';
 import ProjectActivityEventSelectValue from './ProjectActivityEventSelectValue';
-import { EVENT_TYPES } from '../utils';
+import ProjectActivityDateInput from './ProjectActivityDateInput';
+import { EVENT_TYPES, APPLICATION_EVENT_TYPES } from '../utils';
+import Select from '../../../components/controls/Select';
 import { translate } from '../../../helpers/l10n';
-import type { RawQuery } from '../../../helpers/query';
+/*:: import type { RawQuery } from '../../../helpers/query'; */
 
+/*::
 type Props = {
-  updateQuery: RawQuery => void,
-  category?: string
+  category?: string,
+  from: ?Date,
+  project: { qualifier: string },
+  to: ?Date,
+  updateQuery: RawQuery => void
 };
+*/
 
 export default class ProjectActivityPageHeader extends React.PureComponent {
-  options: Array<{ label: string, value: string }>;
-  props: Props;
+  /*:: options: Array<{ label: string, value: string }>; */
+  /*:: props: Props; */
 
-  constructor(props: Props) {
-    super(props);
-    this.options = EVENT_TYPES.map(category => ({
+  handleCategoryChange = (option /*: ?{ value: string } */) =>
+    this.props.updateQuery({ category: option ? option.value : '' });
+
+  render() {
+    const eventTypes =
+      this.props.project.qualifier === 'APP' ? APPLICATION_EVENT_TYPES : EVENT_TYPES;
+    this.options = eventTypes.map(category => ({
       label: translate('event.category', category),
       value: category
     }));
-  }
 
-  handleCategoryChange = (option: ?{ value: string }) => {
-    this.props.updateQuery({ category: option ? option.value : '' });
-  };
-
-  render() {
     return (
       <header className="page-header">
-        <Select
-          className="input-medium"
-          placeholder={translate('project_activity.filter_events') + '...'}
-          clearable={true}
-          searchable={false}
-          value={this.props.category}
-          optionComponent={ProjectActivityEventSelectOption}
-          valueComponent={ProjectActivityEventSelectValue}
-          options={this.options}
-          onChange={this.handleCategoryChange}
+        {!['VW', 'SVW'].includes(this.props.project.qualifier) && (
+          <Select
+            className="input-medium pull-left big-spacer-right"
+            placeholder={translate('project_activity.filter_events') + '...'}
+            clearable={true}
+            searchable={false}
+            value={this.props.category}
+            optionComponent={ProjectActivityEventSelectOption}
+            valueComponent={ProjectActivityEventSelectValue}
+            options={this.options}
+            onChange={this.handleCategoryChange}
+          />
+        )}
+        <ProjectActivityDateInput
+          className="pull-left"
+          from={this.props.from}
+          to={this.props.to}
+          onChange={this.props.updateQuery}
         />
       </header>
     );

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -77,7 +77,9 @@ public class TrackerRawInputFactory {
     protected LineHashSequence loadLineHashSequence() {
       List<String> lines;
       if (component.getType() == Component.Type.FILE) {
-        lines = newArrayList(sourceLinesRepository.readLines(component));
+        try (CloseableIterator<String> linesIt = sourceLinesRepository.readLines(component)) {
+          lines = newArrayList(linesIt);
+        }
       } else {
         lines = Collections.emptyList();
       }
@@ -159,9 +161,9 @@ public class TrackerRawInputFactory {
       issue.setResolution(null);
       issue.setStatus(Issue.STATUS_OPEN);
       issue.setComponentUuid(component.getUuid());
-      issue.setComponentKey(component.getKey());
+      issue.setComponentKey(component.getPublicKey());
       issue.setProjectUuid(treeRootHolder.getRoot().getUuid());
-      issue.setProjectKey(treeRootHolder.getRoot().getKey());
+      issue.setProjectKey(treeRootHolder.getRoot().getPublicKey());
       return issue;
     }
 

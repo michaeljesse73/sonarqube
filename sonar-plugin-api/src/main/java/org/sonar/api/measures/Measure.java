@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -60,8 +60,6 @@ public class Measure<G extends Serializable> implements Serializable {
   protected Double variation4;
   protected Double variation5;
   protected String url;
-  protected Integer personId;
-  protected PersistenceMode persistenceMode = PersistenceMode.FULL;
 
   public Measure(String metricKey) {
     this.metricKey = metricKey;
@@ -146,36 +144,6 @@ public class Measure<G extends Serializable> implements Serializable {
    * Creates an empty measure
    */
   public Measure() {
-  }
-
-  /**
-   * Gets the persistence mode of the measure. Default persistence mode is FULL, except when instantiating the measure with a String
-   * parameter.
-   */
-  public PersistenceMode getPersistenceMode() {
-    return persistenceMode;
-  }
-
-  /**
-   * <p>
-   * Sets the persistence mode of a measure.
-   * 
-   * <p>
-   * <b>WARNING : </b>Being able to reuse measures saved in memory is only possible within the same tree. In a multi-module project for
-   * example, a measure save in memory at the module level will not be accessible by the root project. In that case, database should be
-   * used.
-   * 
-   *
-   * @param mode the mode
-   * @return the measure object instance
-   */
-  public Measure<G> setPersistenceMode(@Nullable PersistenceMode mode) {
-    if (mode == null) {
-      this.persistenceMode = PersistenceMode.FULL;
-    } else {
-      this.persistenceMode = mode;
-    }
-    return this;
   }
 
   /**
@@ -609,17 +577,20 @@ public class Measure<G extends Serializable> implements Serializable {
 
   /**
    * @since 2.14
+   * @deprecated in 6.5 with end of support of Developer cockpit plugin. Always return {@code null}.
    */
   @CheckForNull
+  @Deprecated
   public Integer getPersonId() {
-    return personId;
+    return null;
   }
 
   /**
    * @since 2.14
+   * @deprecated in 6.5 with end of support of Developer cockpit plugin.
    */
+  @Deprecated
   public Measure<G> setPersonId(@Nullable Integer i) {
-    this.personId = i;
     return this;
   }
 
@@ -663,17 +634,12 @@ public class Measure<G extends Serializable> implements Serializable {
     }
 
     Measure measure = (Measure) o;
-    if (metricKey != null ? !metricKey.equals(measure.metricKey) : (measure.metricKey != null)) {
-      return false;
-    }
-    return !(personId != null ? !personId.equals(measure.personId) : (measure.personId != null));
+    return metricKey != null ? metricKey.equals(measure.metricKey) : (measure.metricKey == null);
   }
 
   @Override
   public int hashCode() {
-    int result = metricKey != null ? metricKey.hashCode() : 0;
-    result = 31 * result + (personId != null ? personId.hashCode() : 0);
-    return result;
+    return metricKey != null ? metricKey.hashCode() : 0;
   }
 
   @Override

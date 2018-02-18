@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -40,6 +40,7 @@ import org.sonar.db.measure.custom.CustomMeasureDto;
 import org.sonar.db.metric.MetricDto;
 import org.sonar.db.metric.MetricTesting;
 import org.sonar.db.organization.OrganizationDto;
+import org.sonar.db.permission.OrganizationPermission;
 import org.sonar.db.user.UserDto;
 import org.sonar.server.component.TestComponentFinder;
 import org.sonar.server.es.EsTester;
@@ -96,7 +97,7 @@ public class CreateActionTest {
     dbSession.commit();
 
     OrganizationDto organizationDto = db.organizations().insert();
-    project = ComponentTesting.newPrivateProjectDto(organizationDto, DEFAULT_PROJECT_UUID).setKey(DEFAULT_PROJECT_KEY);
+    project = ComponentTesting.newPrivateProjectDto(organizationDto, DEFAULT_PROJECT_UUID).setDbKey(DEFAULT_PROJECT_KEY);
     dbClient.componentDao().insert(dbSession, project);
     dbSession.commit();
     userSession.logIn("login").addProjectPermission(UserRole.ADMIN, project);
@@ -315,7 +316,7 @@ public class CreateActionTest {
   @Test
   public void fail_when_project_id_nor_project_key_provided() throws Exception {
     expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("Either 'projectId' or 'projectKey' must be provided, not both");
+    expectedException.expectMessage("Either 'projectId' or 'projectKey' must be provided");
     MetricDto metric = insertMetric(STRING);
 
     newRequest()
@@ -327,7 +328,7 @@ public class CreateActionTest {
   @Test
   public void fail_when_project_id_and_project_key_are_provided() throws Exception {
     expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("Either 'projectId' or 'projectKey' must be provided, not both");
+    expectedException.expectMessage("Either 'projectId' or 'projectKey' must be provided");
     MetricDto metric = insertMetric(STRING);
 
     newRequest()
@@ -367,7 +368,7 @@ public class CreateActionTest {
   @Test
   public void fail_when_metric_id_nor_metric_key_is_provided() throws Exception {
     expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("The metric id or the metric key must be provided, not both.");
+    expectedException.expectMessage("Either the metric id or the metric key must be provided");
     insertMetric(STRING);
 
     newRequest()
@@ -379,7 +380,7 @@ public class CreateActionTest {
   @Test
   public void fail_when_metric_id_and_metric_key_are_provided() throws Exception {
     expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("The metric id or the metric key must be provided, not both.");
+    expectedException.expectMessage("Either the metric id or the metric key must be provided");
     MetricDto metric = insertMetric(STRING);
 
     newRequest()
@@ -435,8 +436,8 @@ public class CreateActionTest {
   }
 
   @Test
-  public void fail_when_not_project_administrator() throws Exception {
-    userSession.logIn();
+  public void fail_when_system_administrator() throws Exception {
+    userSession.logIn().setSystemAdministrator().addPermission(OrganizationPermission.ADMINISTER, db.getDefaultOrganization());
     MetricDto metric = insertMetric(STRING);
 
     expectedException.expect(ForbiddenException.class);
@@ -452,7 +453,7 @@ public class CreateActionTest {
   public void fail_when_not_a_project() throws Exception {
     MetricDto metric = MetricTesting.newMetricDto().setEnabled(true).setValueType(STRING.name()).setKey("metric-key");
     dbClient.metricDao().insert(dbSession, metric);
-    dbClient.componentDao().insert(dbSession, ComponentTesting.newDirectory(project, "directory-uuid", "path/to/directory").setKey("directory-key"));
+    dbClient.componentDao().insert(dbSession, ComponentTesting.newDirectory(project, "directory-uuid", "path/to/directory").setDbKey("directory-key"));
     dbSession.commit();
 
     expectedException.expect(ServerException.class);

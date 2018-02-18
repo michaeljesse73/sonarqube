@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,6 +22,7 @@ package org.sonar.server.plugins.ws;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
@@ -34,7 +35,10 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.sonar.api.utils.text.JsonWriter;
 import org.sonar.core.platform.PluginInfo;
+import org.sonar.core.platform.RemotePluginFile;
+import org.sonar.db.plugin.PluginDto;
 import org.sonar.server.plugins.UpdateCenterMatrixFactory;
+import org.sonar.server.plugins.edition.EditionBundledPlugins;
 import org.sonar.updatecenter.common.Artifact;
 import org.sonar.updatecenter.common.Plugin;
 import org.sonar.updatecenter.common.PluginUpdate;
@@ -47,29 +51,37 @@ import static com.google.common.collect.Iterables.filter;
 import static com.google.common.collect.Iterables.transform;
 import static java.lang.String.CASE_INSENSITIVE_ORDER;
 import static org.apache.commons.lang.StringUtils.isNotBlank;
+import static org.sonar.server.plugins.edition.EditionBundledPlugins.isEditionBundled;
 
 public class PluginWSCommons {
-  static final String PROPERTY_KEY = "key";
-  static final String PROPERTY_NAME = "name";
-  static final String PROPERTY_DESCRIPTION = "description";
-  static final String PROPERTY_LICENSE = "license";
-  static final String PROPERTY_VERSION = "version";
-  static final String PROPERTY_CATEGORY = "category";
-  static final String PROPERTY_ORGANIZATION_NAME = "organizationName";
-  static final String PROPERTY_ORGANIZATION_URL = "organizationUrl";
-  static final String PROPERTY_DATE = "date";
-  static final String PROPERTY_STATUS = "status";
-  static final String PROPERTY_HOMEPAGE_URL = "homepageUrl";
-  static final String PROPERTY_ISSUE_TRACKER_URL = "issueTrackerUrl";
-  static final String OBJECT_ARTIFACT = "artifact";
-  static final String PROPERTY_URL = "url";
-  static final String PROPERTY_TERMS_AND_CONDITIONS_URL = "termsAndConditionsUrl";
-  static final String OBJECT_UPDATE = "update";
-  static final String OBJECT_RELEASE = "release";
-  static final String ARRAY_REQUIRES = "requires";
-  static final String PROPERTY_UPDATE_CENTER_REFRESH = "updateCenterRefresh";
-  static final String PROPERTY_IMPLEMENTATION_BUILD = "implementationBuild";
-  static final String PROPERTY_CHANGE_LOG_URL = "changeLogUrl";
+  private static final String PROPERTY_KEY = "key";
+  private static final String PROPERTY_NAME = "name";
+  private static final String PROPERTY_HASH = "hash";
+  private static final String PROPERTY_COMPRESSED_HASH = "compressedHash";
+  private static final String PROPERTY_FILENAME = "filename";
+  private static final String PROPERTY_COMPRESSED_FILENAME = "compressedFilename";
+  private static final String PROPERTY_SONARLINT_SUPPORTED = "sonarLintSupported";
+  private static final String PROPERTY_DESCRIPTION = "description";
+  private static final String PROPERTY_LICENSE = "license";
+  private static final String PROPERTY_VERSION = "version";
+  private static final String PROPERTY_CATEGORY = "category";
+  private static final String PROPERTY_ORGANIZATION_NAME = "organizationName";
+  private static final String PROPERTY_ORGANIZATION_URL = "organizationUrl";
+  private static final String PROPERTY_DATE = "date";
+  private static final String PROPERTY_UPDATED_AT = "updatedAt";
+  private static final String PROPERTY_STATUS = "status";
+  private static final String PROPERTY_HOMEPAGE_URL = "homepageUrl";
+  private static final String PROPERTY_ISSUE_TRACKER_URL = "issueTrackerUrl";
+  private static final String PROPERTY_EDITION_BUNDLED = "editionBundled";
+  private static final String OBJECT_ARTIFACT = "artifact";
+  private static final String PROPERTY_URL = "url";
+  private static final String PROPERTY_TERMS_AND_CONDITIONS_URL = "termsAndConditionsUrl";
+  private static final String OBJECT_UPDATE = "update";
+  private static final String OBJECT_RELEASE = "release";
+  private static final String ARRAY_REQUIRES = "requires";
+  private static final String PROPERTY_UPDATE_CENTER_REFRESH = "updateCenterRefresh";
+  private static final String PROPERTY_IMPLEMENTATION_BUILD = "implementationBuild";
+  private static final String PROPERTY_CHANGE_LOG_URL = "changeLogUrl";
 
   public static final Ordering<PluginInfo> NAME_KEY_PLUGIN_METADATA_COMPARATOR = Ordering.natural()
     .onResultOf(PluginInfo::getName)
@@ -81,11 +93,22 @@ public class PluginWSCommons {
   public static final Comparator<PluginUpdate> NAME_KEY_PLUGIN_UPDATE_ORDERING = Ordering.from(NAME_KEY_PLUGIN_ORDERING)
     .onResultOf(PluginUpdateToPlugin.INSTANCE);
 
-  void writePluginInfo(JsonWriter json, PluginInfo pluginInfo, @Nullable String category) {
+  void writePluginInfo(JsonWriter json, PluginInfo pluginInfo, @Nullable String category, @Nullable PluginDto pluginDto, @Nullable RemotePluginFile compressedPlugin) {
     json.beginObject();
 
     json.prop(PROPERTY_KEY, pluginInfo.getKey());
     json.prop(PROPERTY_NAME, pluginInfo.getName());
+    if (pluginDto != null) {
+      json.prop(PROPERTY_FILENAME, pluginInfo.getNonNullJarFile().getName());
+      json.prop(PROPERTY_SONARLINT_SUPPORTED, pluginInfo.isSonarLintSupported());
+      json.prop(PROPERTY_HASH, pluginDto.getFileHash());
+      json.prop(PROPERTY_UPDATED_AT, pluginDto.getUpdatedAt());
+    }
+    if (compressedPlugin != null) {
+      json.prop(PROPERTY_COMPRESSED_FILENAME, compressedPlugin.getFilename());
+      json.prop(PROPERTY_COMPRESSED_HASH, compressedPlugin.getHash());
+    }
+
     json.prop(PROPERTY_DESCRIPTION, pluginInfo.getDescription());
     Version version = pluginInfo.getVersion();
     if (version != null) {
@@ -96,6 +119,7 @@ public class PluginWSCommons {
     json.prop(PROPERTY_LICENSE, pluginInfo.getLicense());
     json.prop(PROPERTY_ORGANIZATION_NAME, pluginInfo.getOrganizationName());
     json.prop(PROPERTY_ORGANIZATION_URL, pluginInfo.getOrganizationUrl());
+    json.prop(PROPERTY_EDITION_BUNDLED, EditionBundledPlugins.isEditionBundled(pluginInfo));
     json.prop(PROPERTY_HOMEPAGE_URL, pluginInfo.getHomepageUrl());
     json.prop(PROPERTY_ISSUE_TRACKER_URL, pluginInfo.getIssueTrackerUrl());
     json.prop(PROPERTY_IMPLEMENTATION_BUILD, pluginInfo.getImplementationBuild());
@@ -104,11 +128,22 @@ public class PluginWSCommons {
   }
 
   public void writePluginInfoList(JsonWriter json, Iterable<PluginInfo> plugins, Map<String, Plugin> compatiblePluginsByKey, String propertyName) {
+    writePluginInfoList(json, plugins, compatiblePluginsByKey, propertyName, null, null);
+  }
+
+  public void writePluginInfoList(JsonWriter json, Iterable<PluginInfo> plugins, Map<String, Plugin> compatiblePluginsByKey, String propertyName,
+    @Nullable Map<String, PluginDto> pluginDtos, @Nullable Map<String, RemotePluginFile> compressedPlugins) {
     json.name(propertyName);
     json.beginArray();
     for (PluginInfo pluginInfo : copyOf(NAME_KEY_PLUGIN_METADATA_COMPARATOR, plugins)) {
+      PluginDto pluginDto = null;
+      if (pluginDtos != null) {
+        pluginDto = pluginDtos.get(pluginInfo.getKey());
+        Preconditions.checkNotNull(pluginDto, "Plugin %s is installed but not in DB", pluginInfo.getKey());
+      }
+      RemotePluginFile compressedPlugin = compressedPlugins != null ? compressedPlugins.get(pluginInfo.getKey()) : null;
       Plugin plugin = compatiblePluginsByKey.get(pluginInfo.getKey());
-      writePluginInfo(json, pluginInfo, categoryOrNull(plugin));
+      writePluginInfo(json, pluginInfo, categoryOrNull(plugin), pluginDto, compressedPlugin);
     }
     json.endArray();
   }
@@ -124,6 +159,7 @@ public class PluginWSCommons {
     jsonWriter.prop(PROPERTY_ORGANIZATION_URL, plugin.getOrganizationUrl());
     jsonWriter.prop(PROPERTY_HOMEPAGE_URL, plugin.getHomepageUrl());
     jsonWriter.prop(PROPERTY_ISSUE_TRACKER_URL, plugin.getIssueTrackerUrl());
+    jsonWriter.prop(PROPERTY_EDITION_BUNDLED, isEditionBundled(plugin));
   }
 
   public void writePluginUpdate(JsonWriter json, PluginUpdate pluginUpdate) {
@@ -277,7 +313,7 @@ public class PluginWSCommons {
 
   private static List<Plugin> compatiblePlugins(UpdateCenterMatrixFactory updateCenterMatrixFactory) {
     Optional<UpdateCenter> updateCenter = updateCenterMatrixFactory.getUpdateCenter(false);
-    return updateCenter.isPresent() ? updateCenter.get().findAllCompatiblePlugins() : Collections.<Plugin>emptyList();
+    return updateCenter.isPresent() ? updateCenter.get().findAllCompatiblePlugins() : Collections.emptyList();
   }
 
   static ImmutableMap<String, Plugin> compatiblePluginsByKey(UpdateCenterMatrixFactory updateCenterMatrixFactory) {

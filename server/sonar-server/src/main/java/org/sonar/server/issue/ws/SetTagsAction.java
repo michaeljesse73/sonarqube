@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -105,7 +105,7 @@ public class SetTagsAction implements IssuesWsAction {
       DefaultIssue issue = issueDto.toDefaultIssue();
       IssueChangeContext context = IssueChangeContext.createUser(new Date(), userSession.getLogin());
       if (issueFieldsSetter.setTags(issue, tags, context)) {
-        return issueUpdater.saveIssueAndPreloadSearchResponseData(session, issue, context, null);
+        return issueUpdater.saveIssueAndPreloadSearchResponseData(session, issue, context, null, false);
       }
       return new SearchResponseData(issueDto);
     }

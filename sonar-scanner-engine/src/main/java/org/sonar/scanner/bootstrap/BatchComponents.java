@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,7 +22,6 @@ package org.sonar.scanner.bootstrap;
 import com.google.common.collect.Lists;
 import java.util.Collection;
 import java.util.List;
-import org.sonar.api.batch.AnalysisMode;
 import org.sonar.core.component.DefaultResourceTypes;
 import org.sonar.core.config.CorePropertyDefinitions;
 import org.sonar.core.issue.tracking.Tracker;
@@ -31,12 +30,7 @@ import org.sonar.scanner.genericcoverage.GenericCoverageSensor;
 import org.sonar.scanner.genericcoverage.GenericTestExecutionSensor;
 import org.sonar.scanner.issue.tracking.ServerIssueFromWs;
 import org.sonar.scanner.issue.tracking.TrackedIssue;
-import org.sonar.scanner.scan.report.ConsoleReport;
-import org.sonar.scanner.scan.report.HtmlReport;
-import org.sonar.scanner.scan.report.IssuesReportBuilder;
 import org.sonar.scanner.scan.report.JSONReport;
-import org.sonar.scanner.scan.report.RuleNameProvider;
-import org.sonar.scanner.scan.report.SourceProvider;
 import org.sonar.scanner.scm.ScmConfiguration;
 import org.sonar.scanner.scm.ScmPublisher;
 import org.sonar.scanner.source.ZeroCoverageSensor;
@@ -49,7 +43,7 @@ public class BatchComponents {
     // only static stuff
   }
 
-  public static Collection<Object> all(AnalysisMode analysisMode) {
+  public static Collection<Object> all(GlobalAnalysisMode analysisMode) {
     List<Object> components = Lists.newArrayList(
       DefaultResourceTypes.get(),
 
@@ -79,14 +73,7 @@ public class BatchComponents {
     } else {
       // Issues tracking
       components.add(new Tracker<TrackedIssue, ServerIssueFromWs>());
-
-      // Issues report
-      components.add(ConsoleReport.class);
       components.add(JSONReport.class);
-      components.add(HtmlReport.class);
-      components.add(IssuesReportBuilder.class);
-      components.add(SourceProvider.class);
-      components.add(RuleNameProvider.class);
     }
     return components;
   }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -28,9 +28,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.function.Predicate;
-import java.util.stream.Stream;
+import java.util.stream.Collectors;
 import org.sonar.api.issue.DefaultTransitions;
 import org.sonar.api.rule.RuleKey;
 import org.sonar.api.rule.Severity;
@@ -54,6 +53,7 @@ import org.sonar.db.rule.RuleDefinitionDto;
 import org.sonar.server.issue.Action;
 import org.sonar.server.issue.AddTagsAction;
 import org.sonar.server.issue.AssignAction;
+import org.sonar.server.issue.IssueChangePostProcessor;
 import org.sonar.server.issue.IssueStorage;
 import org.sonar.server.issue.RemoveTagsAction;
 import org.sonar.server.issue.notification.IssueChangeNotification;
@@ -105,14 +105,18 @@ public class BulkChangeAction implements IssuesWsAction {
   private final IssueStorage issueStorage;
   private final NotificationManager notificationService;
   private final List<Action> actions;
+  private final IssueChangePostProcessor issueChangePostProcessor;
 
-  public BulkChangeAction(System2 system2, UserSession userSession, DbClient dbClient, IssueStorage issueStorage, NotificationManager notificationService, List<Action> actions) {
+  public BulkChangeAction(System2 system2, UserSession userSession, DbClient dbClient, IssueStorage issueStorage,
+    NotificationManager notificationService, List<Action> actions,
+    IssueChangePostProcessor issueChangePostProcessor) {
     this.system2 = system2;
     this.userSession = userSession;
     this.dbClient = dbClient;
     this.issueStorage = issueStorage;
     this.notificationService = notificationService;
     this.actions = actions;
+    this.issueChangePostProcessor = issueChangePostProcessor;
   }
 
   @Override
@@ -175,39 +179,49 @@ public class BulkChangeAction implements IssuesWsAction {
   public void handle(Request request, Response response) throws Exception {
     userSession.checkLoggedIn();
     try (DbSession dbSession = dbClient.openSession(false)) {
-      Issues.BulkChangeWsResponse wsResponse = Stream.of(request)
-        .map(loadData(dbSession))
-        .map(executeBulkChange())
-        .map(toWsResponse())
-        .collect(MoreCollectors.toOneElement());
-      writeProtobuf(wsResponse, request, response);
+      BulkChangeResult result = executeBulkChange(dbSession, request);
+      writeProtobuf(toWsResponse(result), request, response);
     }
   }
 
-  private Function<Request, BulkChangeData> loadData(DbSession dbSession) {
-    return request -> new BulkChangeData(dbSession, request);
+  private BulkChangeResult executeBulkChange(DbSession dbSession, Request request) {
+    BulkChangeData bulkChangeData = new BulkChangeData(dbSession, request);
+    BulkChangeResult result = new BulkChangeResult(bulkChangeData.issues.size());
+    IssueChangeContext issueChangeContext = IssueChangeContext.createUser(new Date(system2.now()), userSession.getLogin());
+
+    List<DefaultIssue> items = bulkChangeData.issues.stream()
+      .filter(bulkChange(issueChangeContext, bulkChangeData, result))
+      .collect(MoreCollectors.toList());
+    issueStorage.save(items);
+
+    refreshLiveMeasures(dbSession, bulkChangeData, result);
+
+    items.forEach(sendNotification(issueChangeContext, bulkChangeData));
+
+    return result;
   }
 
-  private Function<BulkChangeData, BulkChangeResult> executeBulkChange() {
-    return bulkChangeData -> {
-      BulkChangeResult result = new BulkChangeResult(bulkChangeData.issues.size());
-      IssueChangeContext issueChangeContext = IssueChangeContext.createUser(new Date(system2.now()), userSession.getLogin());
+  private void refreshLiveMeasures(DbSession dbSession, BulkChangeData data, BulkChangeResult result) {
+    if (!data.shouldRefreshMeasures()) {
+      return;
+    }
+    Set<String> touchedComponentUuids = result.success.stream()
+      .map(DefaultIssue::componentUuid)
+      .collect(Collectors.toSet());
+    List<ComponentDto> touchedComponents = touchedComponentUuids.stream()
+      .map(data.componentsByUuid::get)
+      .collect(MoreCollectors.toList(touchedComponentUuids.size()));
 
-      List<DefaultIssue> items = bulkChangeData.issues.stream()
-        .filter(bulkChange(issueChangeContext, bulkChangeData, result))
-        .collect(MoreCollectors.toList());
-      issueStorage.save(items);
-      items.forEach(sendNotification(issueChangeContext, bulkChangeData));
-      return result;
-    };
+    List<DefaultIssue> changedIssues = data.issues.stream().filter(result.success::contains).collect(MoreCollectors.toList());
+    issueChangePostProcessor.process(dbSession, changedIssues, touchedComponents);
   }
 
-  private Predicate<DefaultIssue> bulkChange(IssueChangeContext issueChangeContext, BulkChangeData bulkChangeData, BulkChangeResult result) {
+  private static Predicate<DefaultIssue> bulkChange(IssueChangeContext issueChangeContext, BulkChangeData bulkChangeData, BulkChangeResult result) {
     return issue -> {
       ActionContext actionContext = new ActionContext(issue, issueChangeContext, bulkChangeData.projectsByUuid.get(issue.projectUuid()));
       bulkChangeData.getActionsWithoutComment().forEach(applyAction(actionContext, bulkChangeData, result));
       addCommentIfNeeded(actionContext, bulkChangeData);
-      return result.success.contains(issue.key());
+      return result.success.contains(issue);
     };
   }
 
@@ -243,12 +257,12 @@ public class BulkChangeAction implements IssuesWsAction {
     };
   }
 
-  private static Function<BulkChangeResult, Issues.BulkChangeWsResponse> toWsResponse() {
-    return bulkChangeResult -> Issues.BulkChangeWsResponse.newBuilder()
-      .setTotal(bulkChangeResult.getTotal())
-      .setSuccess(bulkChangeResult.getSuccess())
-      .setIgnored((long) bulkChangeResult.getTotal() - (bulkChangeResult.getSuccess() + bulkChangeResult.getFailures()))
-      .setFailures(bulkChangeResult.getFailures())
+  private static Issues.BulkChangeWsResponse toWsResponse(BulkChangeResult result) {
+    return Issues.BulkChangeWsResponse.newBuilder()
+      .setTotal(result.countTotal())
+      .setSuccess(result.countSuccess())
+      .setIgnored((long) result.countTotal() - (result.countSuccess() + result.countFailures()))
+      .setFailures(result.countFailures())
       .build();
   }
 
@@ -357,11 +371,15 @@ public class BulkChangeAction implements IssuesWsAction {
       long actionsDefined = actions.stream().filter(action -> !action.equals(COMMENT_KEY)).count();
       checkArgument(actionsDefined > 0, "At least one action must be provided");
     }
+
+    private boolean shouldRefreshMeasures() {
+      return availableActions.stream().anyMatch(Action::shouldRefreshMeasures);
+    }
   }
 
   private static class BulkChangeResult {
     private final int total;
-    private Set<String> success = new HashSet<>();
+    private final Set<DefaultIssue> success = new HashSet<>();
     private int failures = 0;
 
     BulkChangeResult(int total) {
@@ -369,22 +387,22 @@ public class BulkChangeAction implements IssuesWsAction {
     }
 
     void increaseSuccess(DefaultIssue issue) {
-      this.success.add(issue.key());
+      this.success.add(issue);
     }
 
     void increaseFailure() {
       this.failures++;
     }
 
-    public int getTotal() {
+    int countTotal() {
       return total;
     }
 
-    public int getSuccess() {
+    int countSuccess() {
       return success.size();
     }
 
-    public int getFailures() {
+    int countFailures() {
       return failures;
     }
   }

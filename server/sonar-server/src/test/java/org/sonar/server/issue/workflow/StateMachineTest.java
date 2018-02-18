@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -28,7 +28,7 @@ public class StateMachineTest {
   public void keep_order_of_state_keys() {
     StateMachine machine = StateMachine.builder().states("OPEN", "RESOLVED", "CLOSED").build();
 
-    assertThat(machine.stateKeys()).containsSequence("OPEN", "RESOLVED", "CLOSED");
+    assertThat(machine.stateKeys()).containsSubsequence("OPEN", "RESOLVED", "CLOSED");
   }
 
   @Test

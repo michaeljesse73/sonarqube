@@ -1,3 +1,22 @@
+/*
+ * SonarQube
+ * Copyright (C) 2009-2018 SonarSource SA
+ * mailto:info AT sonarsource DOT com
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
 .project-activity-page {
   min-height: 600px;
   height: calc(100vh - 250px);
@@ -40,7 +59,14 @@
   overflow: auto;
   flex-grow: 1;
   flex-shrink: 0;
-  padding-top: 52px;
+}
+
+.project-activity-graphs {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
 }
 
 .project-activity-graph-container {
@@ -54,6 +80,7 @@
 
 .project-activity-graph {
   flex: 1;
+  overflow: hidden;
 }
 
 .project-activity-graph-legends {
@@ -62,7 +89,56 @@
   text-align: center;
 }
 
-.project-activity-days-list {}
+.project-activity-graph-legend-actionable {
+  display: inline-block;
+  padding: 4px 8px 4px 12px;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 12px;
+}
+
+.project-activity-graph-legend-actionable:not(.alert-warning) {
+  border-color: var(--barBorderColor);
+}
+
+.project-activity-graph-tooltip {
+  padding: 8px;
+}
+
+.project-activity-graph-tooltip-line {
+  height: 20px;
+}
+
+.project-activity-graph-tooltip-line + .project-activity-graph-tooltip-line {
+  padding-top: 4px;
+}
+
+.project-activity-graph-tooltip-line .project-activity-event-icon {
+  margin-top: 1px;
+}
+
+.project-activity-graph-tooltip-issues-line {
+  height: 26px;
+  padding-bottom: 4px;
+}
+
+.project-activity-graph-tooltip-separator {
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
+.project-activity-graph-tooltip-separator hr {
+  margin-top: 8px;
+  margin-bottom: 8px;
+}
+
+.project-activity-graph-tooltip-title,
+.project-activity-graph-tooltip-value {
+  font-weight: bold;
+}
+
+.project-activity-days-list {
+}
 
 .project-activity-day {
   margin-top: 8px;
@@ -79,14 +155,24 @@
   font-weight: bold;
 }
 
-.project-activity-analyses-list {}
+.project-activity-analyses-list {
+}
 
 .project-activity-analysis {
   position: relative;
   min-height: 20px;
   padding: 4px;
-  border-top: 1px solid #e6e6e6;
-  border-bottom: 1px solid #e6e6e6;
+  border-top: 1px solid var(--barBorderColor);
+  border-bottom: 1px solid var(--barBorderColor);
+  cursor: pointer;
+}
+
+.project-activity-analysis.selected {
+  background-color: #ecf6fe;
+}
+
+.project-activity-analysis:focus {
+  outline: none;
 }
 
 .project-activity-analysis:hover {
@@ -98,7 +184,7 @@
 }
 
 .project-activity-analysis-actions {
-  float: right;
+  float: left;
 }
 
 .project-activity-time {
@@ -106,7 +192,7 @@
   width: 54px;
   line-height: 20px;
   box-sizing: border-box;
-  font-size: 12px;
+  font-size: var(--smallFontSize);
   font-weight: bold;
   text-align: right;
 }
@@ -115,11 +201,11 @@
   float: left;
   width: 10px;
   height: 10px;
-  margin-top: 4px;
-  border: 2px solid #4b9fd5;
+  margin-top: 5px;
+  border: 2px solid var(--blue);
   border-radius: 10px;
   box-sizing: border-box;
-  content: "";
+  content: '';
 }
 
 .project-activity-events {
@@ -127,7 +213,7 @@
 }
 
 .project-activity-event {
-  line-height: 20px;
+  line-height: 18px;
   display: flex;
 }
 
@@ -139,6 +225,7 @@
   flex: 1;
   display: flex;
   flex-direction: row;
+  overflow: hidden;
 }
 
 .project-activity-event-inner-icon {
@@ -147,34 +234,33 @@
 
 .project-activity-event-inner-text {
   flex: 1;
+  display: inline-block;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .project-activity-event-actions {
   display: inline-block;
 }
 
-.project-activity-event-actions button {
-  height: 20px;
-}
-
-.project-activity-event-actions button + button {
-  margin-left: 4px;
+.project-activity-event-inner-icon .project-activity-event-icon {
+  margin-top: 3px;
 }
 
 .project-activity-event-icon.VERSION {
-  color: #4b9fd5;
+  color: var(--blue);
 }
 
 .project-activity-event-icon.QUALITY_GATE {
-  color: #00aa00;
+  color: var(--purple);
 }
 
 .project-activity-event-icon.QUALITY_PROFILE {
-  color: #ed7d20;
+  color: #cccccc;
 }
 
 .project-activity-event-icon.OTHER {
-  color: #9139d4;
+  color: #442d1b;
 }
 
 .project-activity-version-badge {
@@ -184,13 +270,14 @@
   background-color: white;
 }
 
-.project-activity-version-badge.sticky, .project-activity-version-badge.first {
+.project-activity-version-badge.sticky,
+.project-activity-version-badge.first {
   position: absolute;
   top: 0;
   left: 12px;
   right: 16px;
   padding-top: 24px;
-  z-index: 100;
+  z-index: var(--belowNormalZIndex);
 }
 
 .project-activity-version-badge.sticky + .project-activity-days-list {
@@ -198,10 +285,14 @@
 }
 
 .project-activity-version-badge .badge {
+  max-width: 385px;
   vertical-align: middle;
   padding: 4px 14px 4px 14px;
-  border-radius: 2px;
+  box-sizing: border-box;
+  border-radius: 0 2px 2px 0;
   font-weight: bold;
-  font-size: 12px;
+  font-size: var(--smallFontSize);
   letter-spacing: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

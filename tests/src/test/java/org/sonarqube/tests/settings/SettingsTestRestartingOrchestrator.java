@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -27,8 +27,8 @@ import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
-import org.sonarqube.pageobjects.EncryptionPage;
-import org.sonarqube.pageobjects.Navigation;
+import org.sonarqube.qa.util.pageobjects.EncryptionPage;
+import org.sonarqube.qa.util.pageobjects.Navigation;
 import util.user.UserRule;
 
 import static com.codeborne.selenide.Condition.visible;
@@ -58,7 +58,7 @@ public class SettingsTestRestartingOrchestrator {
   }
 
   @Test
-  public void test_settings() throws UnsupportedEncodingException {
+  public void test_settings() {
     URL secretKeyUrl = getClass().getResource("/settings/SettingsTest/sonar-secret.txt");
     orchestrator = Orchestrator.builderEnv()
       .addPlugin(pluginArtifact("settings-plugin"))
@@ -85,7 +85,7 @@ public class SettingsTestRestartingOrchestrator {
   }
 
   @Test
-  public void property_relocation() throws UnsupportedEncodingException {
+  public void property_relocation() {
     orchestrator = Orchestrator.builderEnv()
       .addPlugin(pluginArtifact("property-relocation-plugin"))
       .addPlugin(xooPlugin())

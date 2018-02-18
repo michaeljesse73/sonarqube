@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,7 +19,8 @@
  */
 package org.sonar.server.setting;
 
-import com.google.common.collect.ImmutableMap;
+import java.util.Collections;
+import java.util.Map;
 
 public class NopSettingLoader implements SettingLoader {
   @Override
@@ -28,8 +29,8 @@ public class NopSettingLoader implements SettingLoader {
   }
 
   @Override
-  public void loadAll(ImmutableMap.Builder<String, String> appendTo) {
-    // nothing to load
+  public Map<String, String> loadAll() {
+    return Collections.emptyMap();
   }
 
 }

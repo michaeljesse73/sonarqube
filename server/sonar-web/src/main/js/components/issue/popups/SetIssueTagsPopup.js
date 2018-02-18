@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,33 +19,32 @@
  */
 //@flow
 import React from 'react';
-import { debounce, without } from 'lodash';
+import { without } from 'lodash';
 import TagsSelector from '../../../components/tags/TagsSelector';
 import { searchIssueTags } from '../../../api/issues';
 
+/*::
 type Props = {
   popupPosition?: {},
   onFail: Error => void,
+  organization: string,
   selectedTags: Array<string>,
-  setTags: Array<string> => void
+  setTags: (Array<string>) => void
 };
+*/
 
+/*::
 type State = {
   searchResult: Array<string>
 };
+*/
 
 const LIST_SIZE = 10;
 
 export default class SetIssueTagsPopup extends React.PureComponent {
-  mounted: boolean;
-  props: Props;
-  state: State;
-
-  constructor(props: Props) {
-    super(props);
-    this.state = { searchResult: [] };
-    this.onSearch = debounce(this.onSearch, 250);
-  }
+  /*:: mounted: boolean; */
+  /*:: props: Props; */
+  state /*: State */ = { searchResult: [] };
 
   componentDidMount() {
     this.mounted = true;
@@ -56,22 +55,23 @@ export default class SetIssueTagsPopup extends React.PureComponent {
     this.mounted = false;
   }
 
-  onSearch = (query: string) => {
+  onSearch = (query /*: string */) => {
     searchIssueTags({
-      q: query || '',
-      ps: Math.min(this.props.selectedTags.length - 1 + LIST_SIZE, 100)
-    }).then((tags: Array<string>) => {
+      q: query,
+      ps: Math.min(this.props.selectedTags.length - 1 + LIST_SIZE, 100),
+      organization: this.props.organization
+    }).then((tags /*: Array<string> */) => {
       if (this.mounted) {
         this.setState({ searchResult: tags });
       }
     }, this.props.onFail);
   };
 
-  onSelect = (tag: string) => {
+  onSelect = (tag /*: string */) => {
     this.props.setTags([...this.props.selectedTags, tag]);
   };
 
-  onUnselect = (tag: string) => {
+  onUnselect = (tag /*: string */) => {
     this.props.setTags(without(this.props.selectedTags, tag));
   };
 

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -258,6 +258,7 @@ public class CreateActionTest {
   @Test
   public void fail_when_ill_formatted_key() throws Exception {
     expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("Malformed metric key '123:456'. Allowed characters are alphanumeric, '-', '_', with at least one non-digit.");
 
     newRequest()
       .setParam(PARAM_KEY, "123:456")

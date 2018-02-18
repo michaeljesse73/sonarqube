@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,8 +20,6 @@
 import { shallow } from 'enzyme';
 import React from 'react';
 import ChangelogPopup from '../ChangelogPopup';
-
-jest.mock('moment', () => () => ({ format: () => 'March 1, 2017 9:36 AM' }));
 
 it('should render the changelog popup correctly', () => {
   const element = shallow(

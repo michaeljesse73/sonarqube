@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -118,6 +118,40 @@ public class MetricRepositoryImplTest {
     underTest.start();
     assertThat(underTest.getById(1).getKey()).isEqualTo("ncloc");
     assertThat(underTest.getById(2).getKey()).isEqualTo("coverage");
+  }
+
+  @Test
+  public void getOptionalById_throws_ISE_if_start_has_not_been_called() {
+    expectedException.expect(IllegalStateException.class);
+    expectedException.expectMessage("Metric cache has not been initialized");
+
+    underTest.getOptionalById(SOME_ID);
+  }
+
+  @Test
+  public void getOptionalById_returns_empty_of_Metric_does_not_exist() {
+    underTest.start();
+
+    assertThat(underTest.getOptionalById(SOME_ID)).isEmpty();
+  }
+
+  @Test
+  public void getOptionalById_returns_empty_of_Metric_is_disabled() {
+    dbTester.prepareDbUnit(getClass(), "shared.xml");
+
+    underTest.start();
+
+    assertThat(underTest.getOptionalById(100)).isEmpty();
+  }
+
+  @Test
+  public void getOptionalById_find_enabled_Metrics() {
+    dbTester.prepareDbUnit(getClass(), "shared.xml");
+
+    underTest.start();
+
+    assertThat(underTest.getOptionalById(1).get().getKey()).isEqualTo("ncloc");
+    assertThat(underTest.getOptionalById(2).get().getKey()).isEqualTo("coverage");
   }
 
   @Test

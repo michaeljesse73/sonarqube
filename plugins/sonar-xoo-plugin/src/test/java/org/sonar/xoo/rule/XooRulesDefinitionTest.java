@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -42,7 +42,7 @@ public class XooRulesDefinitionTest {
     assertThat(repo).isNotNull();
     assertThat(repo.name()).isEqualTo("Xoo");
     assertThat(repo.language()).isEqualTo("xoo");
-    assertThat(repo.rules()).hasSize(18);
+    assertThat(repo.rules()).hasSize(19);
 
     RulesDefinition.Rule rule = repo.rule(OneIssuePerLineSensor.RULE_KEY);
     assertThat(rule.name()).isNotEmpty();

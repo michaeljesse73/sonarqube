@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,13 +19,14 @@
  */
 // @flow
 import React from 'react';
+import PropTypes from 'prop-types';
 import Helmet from 'react-helmet';
 import { debounce, uniq } from 'lodash';
 import { connect } from 'react-redux';
 import { DEFAULT_FILTERS, DEBOUNCE_DELAY, STATUSES, CURRENTS } from './../constants';
 import Header from './Header';
 import Footer from './Footer';
-import Stats from '../components/Stats';
+import StatsContainer from '../components/StatsContainer';
 import Search from '../components/Search';
 import Tasks from '../components/Tasks';
 import {
@@ -36,18 +37,20 @@ import {
   cancelTask as cancelTaskAPI
 } from '../../../api/ce';
 import { updateTask, mapFiltersToParameters } from '../utils';
-import { Task } from '../types';
-import { getComponent } from '../../../store/rootReducer';
+/*:: import type { Task } from '../types'; */
 import '../background-tasks.css';
 import { fetchOrganizations } from '../../../store/rootActions';
 import { translate } from '../../../helpers/l10n';
 
+/*::
 type Props = {
   component: Object,
   location: Object,
-  fetchOrganizations: Array<string> => string
+  fetchOrganizations: (Array<string>) => string
 };
+*/
 
+/*::
 type State = {
   loading: boolean,
   tasks: Array<*>,
@@ -56,17 +59,18 @@ type State = {
   pendingCount: number,
   failingCount: number
 };
+*/
 
 class BackgroundTasksApp extends React.PureComponent {
-  loadTasksDebounced: Function;
-  mounted: boolean;
-  props: Props;
+  /*:: loadTasksDebounced: Function; */
+  /*:: mounted: boolean; */
+  /*:: props: Props; */
 
   static contextTypes = {
-    router: React.PropTypes.object.isRequired
+    router: PropTypes.object.isRequired
   };
 
-  state: State = {
+  state /*: State */ = {
     loading: true,
     tasks: [],
 
@@ -91,7 +95,7 @@ class BackgroundTasksApp extends React.PureComponent {
     });
   }
 
-  componentDidUpdate(prevProps: Props) {
+  componentDidUpdate(prevProps /*: Props */) {
     if (
       prevProps.component !== this.props.component ||
       prevProps.location !== this.props.location
@@ -116,7 +120,7 @@ class BackgroundTasksApp extends React.PureComponent {
     const query = this.props.location.query.query || DEFAULT_FILTERS.query;
 
     const filters = { status, taskType, currents, minSubmittedAt, maxExecutedAt, query };
-    const parameters: Object = mapFiltersToParameters(filters);
+    const parameters /*: Object */ = mapFiltersToParameters(filters);
 
     if (this.props.component) {
       parameters.componentId = this.props.component.id;
@@ -143,7 +147,7 @@ class BackgroundTasksApp extends React.PureComponent {
     });
   }
 
-  handleFilterUpdate(nextState: Object) {
+  handleFilterUpdate(nextState /*: Object */) {
     const nextQuery = { ...this.props.location.query, ...nextState };
 
     // remove defaults
@@ -159,7 +163,7 @@ class BackgroundTasksApp extends React.PureComponent {
     });
   }
 
-  handleCancelTask(task: Task) {
+  handleCancelTask(task /*: Task */) {
     this.setState({ loading: true });
 
     cancelTaskAPI(task.id).then(nextTask => {
@@ -170,7 +174,7 @@ class BackgroundTasksApp extends React.PureComponent {
     });
   }
 
-  handleFilterTask(task: Task) {
+  handleFilterTask(task /*: Task */) {
     this.handleFilterUpdate({ query: task.componentKey });
   }
 
@@ -198,7 +202,7 @@ class BackgroundTasksApp extends React.PureComponent {
 
     if (!types) {
       return (
-        <div className="page">
+        <div className="page page-limited">
           <i className="spinner" />
         </div>
       );
@@ -214,9 +218,9 @@ class BackgroundTasksApp extends React.PureComponent {
     return (
       <div className="page page-limited">
         <Helmet title={translate('background_tasks.page')} />
-        <Header />
+        <Header component={component} />
 
-        <Stats
+        <StatsContainer
           component={component}
           pendingCount={pendingCount}
           failingCount={failingCount}
@@ -241,7 +245,6 @@ class BackgroundTasksApp extends React.PureComponent {
         <Tasks
           loading={loading}
           component={component}
-          types={types}
           tasks={tasks}
           onCancelTask={this.handleCancelTask.bind(this)}
           onFilterTask={this.handleFilterTask.bind(this)}
@@ -253,12 +256,6 @@ class BackgroundTasksApp extends React.PureComponent {
   }
 }
 
-const mapStateToProps = (state, ownProps) => ({
-  component: ownProps.location.query.id
-    ? getComponent(state, ownProps.location.query.id)
-    : undefined
-});
-
 const mapDispatchToProps = { fetchOrganizations };
 
-export default connect(mapStateToProps, mapDispatchToProps)(BackgroundTasksApp);
+export default connect(null, mapDispatchToProps)(BackgroundTasksApp);

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -23,21 +23,23 @@ import Helmet from 'react-helmet';
 import { connect } from 'react-redux';
 import { debounce } from 'lodash';
 import { translate } from '../../../helpers/l10n';
-import type { Organization } from '../../../store/organizations/duck';
+/*:: import type { Organization } from '../../../store/organizations/duck'; */
 import { getOrganizationByKey } from '../../../store/rootReducer';
 import { updateOrganization } from '../actions';
 
+/*::
 type Props = {
   organization: Organization,
   updateOrganization: (string, Object) => Promise<*>
 };
+*/
 
 class OrganizationEdit extends React.PureComponent {
-  mounted: boolean;
+  /*:: mounted: boolean; */
 
-  props: Props;
+  /*:: props: Props; */
 
-  state: {
+  /*:: state: {
     loading: boolean,
     avatar: string,
     avatarImage: string,
@@ -45,8 +47,9 @@ class OrganizationEdit extends React.PureComponent {
     name: string,
     url: string
   };
+*/
 
-  constructor(props: Props) {
+  constructor(props /*: Props */) {
     super(props);
     this.state = {
       loading: false,
@@ -68,17 +71,17 @@ class OrganizationEdit extends React.PureComponent {
     this.mounted = false;
   }
 
-  handleAvatarInputChange = (e: Object) => {
+  handleAvatarInputChange = (e /*: Object */) => {
     const { value } = e.target;
     this.setState({ avatar: value });
     this.changeAvatarImage(value);
   };
 
-  changeAvatarImage = (value: string) => {
+  changeAvatarImage = (value /*: string */) => {
     this.setState({ avatarImage: value });
   };
 
-  handleSubmit = (e: Object) => {
+  handleSubmit = (e /*: Object */) => {
     e.preventDefault();
     const changes = {
       avatar: this.state.avatar,
@@ -104,101 +107,96 @@ class OrganizationEdit extends React.PureComponent {
           <h1 className="page-title">{title}</h1>
         </header>
 
-        <form onSubmit={this.handleSubmit}>
-          <div className="modal-field">
-            <label htmlFor="organization-name">
-              {translate('organization.name')}
-              <em className="mandatory">*</em>
-            </label>
-            <input
-              id="organization-name"
-              name="name"
-              required={true}
-              type="text"
-              maxLength="64"
-              value={this.state.name}
-              disabled={this.state.loading}
-              onChange={e => this.setState({ name: e.target.value })}
-            />
-            <div className="modal-field-description">
-              {translate('organization.name.description')}
+        <div className="boxed-group boxed-group-inner">
+          <form onSubmit={this.handleSubmit}>
+            <div className="modal-field">
+              <label htmlFor="organization-name">
+                {translate('organization.name')}
+                <em className="mandatory">*</em>
+              </label>
+              <input
+                id="organization-name"
+                name="name"
+                required={true}
+                type="text"
+                maxLength="64"
+                value={this.state.name}
+                disabled={this.state.loading}
+                onChange={e => this.setState({ name: e.target.value })}
+              />
+              <div className="modal-field-description">
+                {translate('organization.name.description')}
+              </div>
             </div>
-          </div>
-          <div className="modal-field">
-            <label htmlFor="organization-avatar">
-              {translate('organization.avatar')}
-            </label>
-            <input
-              id="organization-avatar"
-              name="avatar"
-              type="text"
-              maxLength="256"
-              value={this.state.avatar}
-              disabled={this.state.loading}
-              onChange={this.handleAvatarInputChange}
-            />
-            <div className="modal-field-description">
-              {translate('organization.avatar.description')}
-            </div>
-            {!!this.state.avatarImage &&
-              <div className="spacer-top spacer-bottom">
-                <div className="little-spacer-bottom">
-                  {translate('organization.avatar.preview')}
-                  {':'}
+            <div className="modal-field">
+              <label htmlFor="organization-avatar">{translate('organization.avatar')}</label>
+              <input
+                id="organization-avatar"
+                name="avatar"
+                type="text"
+                maxLength="256"
+                value={this.state.avatar}
+                disabled={this.state.loading}
+                onChange={this.handleAvatarInputChange}
+              />
+              <div className="modal-field-description">
+                {translate('organization.avatar.description')}
+              </div>
+              {!!this.state.avatarImage && (
+                <div className="spacer-top spacer-bottom">
+                  <div className="little-spacer-bottom">
+                    {translate('organization.avatar.preview')}
+                    {':'}
+                  </div>
+                  <img src={this.state.avatarImage} alt="" height={30} />
                 </div>
-                <img src={this.state.avatarImage} alt="" height={30} />
-              </div>}
-          </div>
-          <div className="modal-field">
-            <label htmlFor="organization-description">
-              {translate('description')}
-            </label>
-            <textarea
-              id="organization-description"
-              name="description"
-              rows="3"
-              maxLength="256"
-              value={this.state.description}
-              disabled={this.state.loading}
-              onChange={e => this.setState({ description: e.target.value })}
-            />
-            <div className="modal-field-description">
-              {translate('organization.description.description')}
+              )}
             </div>
-          </div>
-          <div className="modal-field">
-            <label htmlFor="organization-url">
-              {translate('organization.url')}
-            </label>
-            <input
-              id="organization-url"
-              name="url"
-              type="text"
-              maxLength="256"
-              value={this.state.url}
-              disabled={this.state.loading}
-              onChange={e => this.setState({ url: e.target.value })}
-            />
-            <div className="modal-field-description">
-              {translate('organization.url.description')}
+            <div className="modal-field">
+              <label htmlFor="organization-description">{translate('description')}</label>
+              <textarea
+                id="organization-description"
+                name="description"
+                rows="3"
+                maxLength="256"
+                value={this.state.description}
+                disabled={this.state.loading}
+                onChange={e => this.setState({ description: e.target.value })}
+              />
+              <div className="modal-field-description">
+                {translate('organization.description.description')}
+              </div>
             </div>
-          </div>
-          <div className="modal-field">
-            <button type="submit" disabled={this.state.loading}>{translate('save')}</button>
-            {this.state.loading && <i className="spinner spacer-left" />}
-          </div>
-        </form>
+            <div className="modal-field">
+              <label htmlFor="organization-url">{translate('organization.url')}</label>
+              <input
+                id="organization-url"
+                name="url"
+                type="text"
+                maxLength="256"
+                value={this.state.url}
+                disabled={this.state.loading}
+                onChange={e => this.setState({ url: e.target.value })}
+              />
+              <div className="modal-field-description">
+                {translate('organization.url.description')}
+              </div>
+            </div>
+            <div className="modal-field">
+              <button type="submit" disabled={this.state.loading}>
+                {translate('save')}
+              </button>
+              {this.state.loading && <i className="spinner spacer-left" />}
+            </div>
+          </form>
+        </div>
       </div>
     );
   }
 }
 
-const mapStateToProps = (state, ownProps) => ({
-  organization: getOrganizationByKey(state, ownProps.params.organizationKey)
-});
-
 const mapDispatchToProps = { updateOrganization };
 
-export default connect(mapStateToProps, mapDispatchToProps)(OrganizationEdit);
+export default connect(null, mapDispatchToProps)(OrganizationEdit);
 
 export const UnconnectedOrganizationEdit = OrganizationEdit;

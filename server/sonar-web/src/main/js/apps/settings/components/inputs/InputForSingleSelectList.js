@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,13 +18,14 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import React from 'react';
-import Select from 'react-select';
+import PropTypes from 'prop-types';
+import Select from '../../../../components/controls/Select';
 import { defaultInputPropTypes } from '../../propTypes';
 
 export default class InputForSingleSelectList extends React.PureComponent {
   static propTypes = {
     ...defaultInputPropTypes,
-    options: React.PropTypes.arrayOf(React.PropTypes.string).isRequired
+    options: PropTypes.arrayOf(PropTypes.string).isRequired
   };
 
   handleInputChange(option) {
@@ -40,7 +41,7 @@ export default class InputForSingleSelectList extends React.PureComponent {
     return (
       <Select
         name={this.props.name}
-        className="input-large"
+        className="settings-large-input"
         options={options}
         clearable={false}
         value={this.props.value}

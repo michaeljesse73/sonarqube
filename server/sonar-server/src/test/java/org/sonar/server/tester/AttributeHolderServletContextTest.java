@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -217,7 +217,7 @@ public class AttributeHolderServletContextTest {
   public void addServlet_by_instance_is_not_supported() {
     servletContext.addServlet(SOME_STRING, new Servlet() {
       @Override
-      public void init(ServletConfig servletConfig) throws ServletException {
+      public void init(ServletConfig servletConfig) {
 
       }
 
@@ -227,7 +227,7 @@ public class AttributeHolderServletContextTest {
       }
 
       @Override
-      public void service(ServletRequest servletRequest, ServletResponse servletResponse) throws ServletException, IOException {
+      public void service(ServletRequest servletRequest, ServletResponse servletResponse) {
 
       }
 
@@ -274,12 +274,12 @@ public class AttributeHolderServletContextTest {
   public void addFilter_by_instance_is_not_supported() {
     servletContext.addFilter(SOME_STRING, new Filter() {
       @Override
-      public void init(FilterConfig filterConfig) throws ServletException {
+      public void init(FilterConfig filterConfig) {
 
       }
 
       @Override
-      public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain) throws IOException, ServletException {
+      public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain) {
 
       }
 

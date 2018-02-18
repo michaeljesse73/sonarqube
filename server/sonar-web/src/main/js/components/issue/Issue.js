@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,67 +20,62 @@
 // @flow
 import React from 'react';
 import key from 'keymaster';
+import PropTypes from 'prop-types';
 import IssueView from './IssueView';
 import { updateIssue } from './actions';
-import { setIssueAssignee } from '../../api/issues';
 import { onFail } from '../../store/rootActions';
-import type { Issue } from './types';
+import { setIssueAssignee } from '../../api/issues';
+/*:: import type { Issue as IssueType } from './types'; */
 
+/*::
 type Props = {|
+  branch?: string,
   checked?: boolean,
-  issue: Issue,
-  onChange: Issue => void,
+  displayLocationsCount?: boolean;
+  displayLocationsLink?: boolean;
+  issue: IssueType,
+  onChange: IssueType => void,
   onCheck?: string => void,
   onClick: string => void,
-  onFilter?: (property: string, issue: Issue) => void,
+  onFilter?: (property: string, issue: IssueType) => void,
+  onPopupToggle: (issue: string, popupName: string, open: ?boolean) => void,
+  openPopup: ?string,
   selected: boolean
 |};
+*/
 
-type State = {
-  currentPopup: string
-};
-
-export default class BaseIssue extends React.PureComponent {
-  mounted: boolean;
-  props: Props;
-  state: State;
+export default class Issue extends React.PureComponent {
+  /*:: props: Props; */
 
   static contextTypes = {
-    store: React.PropTypes.object
+    store: PropTypes.object
   };
 
   static defaultProps = {
+    displayLocationsCount: true,
+    displayLocationsLink: true,
     selected: false
   };
 
-  constructor(props: Props) {
-    super(props);
-    this.state = {
-      currentPopup: ''
-    };
-  }
-
   componentDidMount() {
-    this.mounted = true;
     if (this.props.selected) {
       this.bindShortcuts();
     }
   }
 
-  componentWillUpdate(nextProps: Props) {
+  componentWillUpdate(nextProps /*: Props */) {
     if (!nextProps.selected && this.props.selected) {
       this.unbindShortcuts();
     }
   }
 
-  componentDidUpdate(prevProps: Props) {
+  componentDidUpdate(prevProps /*: Props */) {
     if (!prevProps.selected && this.props.selected) {
       this.bindShortcuts();
     }
   }
 
   componentWillUnmount() {
-    this.mounted = false;
     if (this.props.selected) {
       this.unbindShortcuts();
     }
@@ -96,7 +91,9 @@ export default class BaseIssue extends React.PureComponent {
       return false;
     });
     key('m', 'issues', () => {
-      this.props.issue.actions.includes('assign_to_me') && this.handleAssignement('_me');
+      if (this.props.issue.actions.includes('assign')) {
+        this.handleAssignement('_me');
+      }
       return false;
     });
     key('i', 'issues', () => {
@@ -111,6 +108,13 @@ export default class BaseIssue extends React.PureComponent {
       this.togglePopup('edit-tags');
       return false;
     });
+    key('space', 'issues', () => {
+      if (this.props.onCheck) {
+        this.props.onCheck(this.props.issue.key);
+        return false;
+      }
+      return undefined;
+    });
   }
 
   unbindShortcuts() {
@@ -119,23 +123,15 @@ export default class BaseIssue extends React.PureComponent {
     key.unbind('m', 'issues');
     key.unbind('i', 'issues');
     key.unbind('c', 'issues');
+    key.unbind('space', 'issues');
     key.unbind('t', 'issues');
   }
 
-  togglePopup = (popupName: string, open?: boolean) => {
-    if (this.mounted) {
-      this.setState((prevState: State) => {
-        if (prevState.currentPopup !== popupName && open !== false) {
-          return { currentPopup: popupName };
-        } else if (prevState.currentPopup === popupName && open !== true) {
-          return { currentPopup: '' };
-        }
-        return prevState;
-      });
-    }
+  togglePopup = (popupName /*: string */, open /*: ?boolean */) => {
+    this.props.onPopupToggle(this.props.issue.key, popupName, open);
   };
 
-  handleAssignement = (login: string) => {
+  handleAssignement = (login /*: string */) => {
     const { issue } = this.props;
     if (issue.assignee !== login) {
       updateIssue(
@@ -147,24 +143,27 @@ export default class BaseIssue extends React.PureComponent {
     this.togglePopup('assign', false);
   };
 
-  handleFail = (error: Error) => {
+  handleFail = (error /*: Error */) => {
     onFail(this.context.store.dispatch)(error);
   };
 
   render() {
     return (
       <IssueView
-        issue={this.props.issue}
+        branch={this.props.branch}
         checked={this.props.checked}
+        currentPopup={this.props.openPopup}
+        displayLocationsCount={this.props.displayLocationsCount}
+        displayLocationsLink={this.props.displayLocationsLink}
+        issue={this.props.issue}
         onAssign={this.handleAssignement}
         onCheck={this.props.onCheck}
         onClick={this.props.onClick}
         onFail={this.handleFail}
         onFilter={this.props.onFilter}
         onChange={this.props.onChange}
-        togglePopup={this.togglePopup}
-        currentPopup={this.state.currentPopup}
         selected={this.props.selected}
+        togglePopup={this.togglePopup}
       />
     );
   }

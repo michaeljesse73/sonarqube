@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -34,10 +34,10 @@ import org.sonar.server.user.UserSession;
 import static java.lang.String.format;
 import static java.util.Optional.ofNullable;
 import static org.sonar.core.util.Uuids.UUID_EXAMPLE_01;
-import static org.sonar.db.permission.OrganizationPermission.ADMINISTER_QUALITY_PROFILES;
+import static org.sonar.server.qualityprofile.ws.CreateAction.NAME_MAXIMUM_LENGTH;
 import static org.sonar.server.ws.WsUtils.checkRequest;
+import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.PARAM_KEY;
 import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.PARAM_NAME;
-import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.PARAM_PROFILE;
 
 public class RenameAction implements QProfileWsAction {
 
@@ -56,28 +56,33 @@ public class RenameAction implements QProfileWsAction {
   @Override
   public void define(WebService.NewController controller) {
     NewAction setDefault = controller.createAction("rename")
-      .setSince("5.2")
-      .setDescription("Rename a quality profile.<br> " +
-        "Requires to be logged in and the 'Administer Quality Profiles' permission.")
       .setPost(true)
+      .setDescription("Rename a quality profile.<br> " +
+        "Requires one of the following permissions:" +
+        "<ul>" +
+        "  <li>'Administer Quality Profiles'</li>" +
+        "  <li>Edit right on the specified quality profile</li>" +
+        "</ul>")
+      .setSince("5.2")
       .setHandler(this);
 
-    setDefault.createParam(PARAM_NAME)
-      .setDescription("New quality profile name")
-      .setExampleValue("My Sonar way")
-      .setRequired(true);
-
-    setDefault.createParam(PARAM_PROFILE)
+    setDefault.createParam(PARAM_KEY)
+      .setRequired(true)
       .setDescription("Quality profile key")
-      .setDeprecatedKey("key", "6.5")
-      .setExampleValue(UUID_EXAMPLE_01)
-      .setRequired(true);
+      .setExampleValue(UUID_EXAMPLE_01);
+
+    setDefault.createParam(PARAM_NAME)
+      .setRequired(true)
+      .setMaximumLength(NAME_MAXIMUM_LENGTH)
+      .setDescription("New quality profile name")
+      .setExampleValue("My Sonar way");
+
   }
 
   @Override
   public void handle(Request request, Response response) throws Exception {
     String newName = request.mandatoryParam(PARAM_NAME);
-    String profileKey = request.mandatoryParam(PARAM_PROFILE);
+    String profileKey = request.mandatoryParam(PARAM_KEY);
     doHandle(newName, profileKey);
     response.noContent();
   }
@@ -89,17 +94,13 @@ public class RenameAction implements QProfileWsAction {
 
     try (DbSession dbSession = dbClient.openSession(false)) {
       QProfileDto qualityProfile = wsSupport.getProfile(dbSession, QProfileReference.fromKey(profileKey));
-
-      String organizationUuid = qualityProfile.getOrganizationUuid();
-      userSession.checkPermission(ADMINISTER_QUALITY_PROFILES, organizationUuid);
-      wsSupport.checkNotBuiltInt(qualityProfile);
+      OrganizationDto organization = wsSupport.getOrganization(dbSession, qualityProfile);
+      wsSupport.checkCanEdit(dbSession, organization, qualityProfile);
 
       if (newName.equals(qualityProfile.getName())) {
         return;
       }
 
-      OrganizationDto organization = dbClient.organizationDao().selectByUuid(dbSession, organizationUuid)
-        .orElseThrow(() -> new IllegalStateException("No organization found for uuid " + organizationUuid));
       String language = qualityProfile.getLanguage();
       ofNullable(dbClient.qualityProfileDao().selectByNameAndLanguage(dbSession, organization, newName, language))
         .ifPresent(found -> {

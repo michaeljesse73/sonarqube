@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,13 +19,25 @@
  */
 package org.sonar.server.es;
 
-import java.util.Collection;
+import java.util.List;
 
 public interface IndexingListener {
 
-  void onSuccess(Collection<String> docIds);
+  void onSuccess(List<DocId> docIds);
 
-  static IndexingListener noop() {
-    return docIds -> {};
-  }
+  void onFinish(IndexingResult result);
+
+  IndexingListener FAIL_ON_ERROR = new IndexingListener() {
+    @Override
+    public void onSuccess(List<DocId> docIds) {
+      // nothing to do
+    }
+
+    @Override
+    public void onFinish(IndexingResult result) {
+      if (result.getFailures() > 0) {
+        throw new IllegalStateException("Unrecoverable indexation failures");
+      }
+    }
+  };
 }

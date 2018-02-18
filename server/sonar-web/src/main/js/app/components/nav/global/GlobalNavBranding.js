@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,41 +18,40 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import React from 'react';
+import PropTypes from 'prop-types';
 import { Link } from 'react-router';
 import { connect } from 'react-redux';
-import { getSettingValue, getCurrentUser } from '../../../../store/rootReducer';
+import { getGlobalSettingValue } from '../../../../store/rootReducer';
 import { translate } from '../../../../helpers/l10n';
 
 class GlobalNavBranding extends React.PureComponent {
   static propTypes = {
-    customLogoUrl: React.PropTypes.string,
-    customLogoWidth: React.PropTypes.oneOfType([React.PropTypes.string, React.PropTypes.number])
+    customLogoUrl: PropTypes.string,
+    customLogoWidth: PropTypes.oneOfType([PropTypes.string, PropTypes.number])
   };
 
   renderLogo() {
-    const url = this.props.customLogoUrl || `${window.baseUrl}/images/logo.svg`;
-    const width = this.props.customLogoWidth || 100;
+    const url = this.props.customLogoUrl || `${window.baseUrl}/images/logo.svg?v=6.6`;
+    const width = this.props.customLogoUrl ? this.props.customLogoWidth || 100 : 83;
     const height = 30;
     const title = translate('layout.sonar.slogan');
     return <img src={url} width={width} height={height} alt={title} title={title} />;
   }
 
   render() {
-    const homeController = this.props.currentUser.isLoggedIn ? '/projects' : '/about';
-    const homeLinkClassName =
-      'navbar-brand' + (this.props.customLogoUrl ? ' navbar-brand-custom' : '');
     return (
-      <div className="navbar-header">
-        <Link to={homeController} className={homeLinkClassName}>{this.renderLogo()}</Link>
+      <div className="pull-left">
+        <Link to="/" className="navbar-brand">
+          {this.renderLogo()}
+        </Link>
       </div>
     );
   }
 }
 
 const mapStateToProps = state => ({
-  currentUser: getCurrentUser(state),
-  customLogoUrl: (getSettingValue(state, 'sonar.lf.logoUrl') || {}).value,
-  customLogoWidth: (getSettingValue(state, 'sonar.lf.logoWidthPx') || {}).value
+  customLogoUrl: (getGlobalSettingValue(state, 'sonar.lf.logoUrl') || {}).value,
+  customLogoWidth: (getGlobalSettingValue(state, 'sonar.lf.logoWidthPx') || {}).value
 });
 
 export default connect(mapStateToProps)(GlobalNavBranding);

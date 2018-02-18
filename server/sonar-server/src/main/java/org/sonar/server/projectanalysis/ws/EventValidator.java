@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,12 +24,11 @@ import com.google.common.collect.ImmutableSet;
 import java.util.Set;
 import java.util.function.Consumer;
 import org.sonar.db.event.EventDto;
-import org.sonarqube.ws.client.projectanalysis.EventCategory;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static org.sonarqube.ws.client.projectanalysis.EventCategory.OTHER;
-import static org.sonarqube.ws.client.projectanalysis.EventCategory.VERSION;
-import static org.sonarqube.ws.client.projectanalysis.EventCategory.fromLabel;
+import static org.sonar.server.projectanalysis.ws.EventCategory.OTHER;
+import static org.sonar.server.projectanalysis.ws.EventCategory.VERSION;
+import static org.sonar.server.projectanalysis.ws.EventCategory.fromLabel;
 
 class EventValidator {
   private static final Set<String> AUTHORIZED_CATEGORIES = ImmutableSet.of(VERSION.name(), OTHER.name());

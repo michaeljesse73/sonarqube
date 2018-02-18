@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -33,4 +33,5 @@ public interface DuplicationMapper {
 
   void batchInsert(DuplicationUnitDto unit);
 
+  List<DuplicationUnitDto> selectComponent(@Param("componentUuid") String componentUuid, @Param("analysisUuid") String analysisUuid);
 }

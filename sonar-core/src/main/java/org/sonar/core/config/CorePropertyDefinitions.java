@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,9 +19,7 @@
  */
 package org.sonar.core.config;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
 import org.sonar.api.CoreProperties;
 import org.sonar.api.PropertyType;
@@ -29,8 +27,8 @@ import org.sonar.api.config.EmailSettings;
 import org.sonar.api.config.PropertyDefinition;
 import org.sonar.api.resources.Qualifiers;
 
+import static java.util.Arrays.asList;
 import static org.sonar.api.PropertyType.BOOLEAN;
-import static org.sonar.api.database.DatabaseProperties.PROP_PASSWORD;
 
 public class CorePropertyDefinitions {
 
@@ -48,13 +46,14 @@ public class CorePropertyDefinitions {
   public static final String ORGANIZATIONS_CREATE_PERSONAL_ORG = "sonar.organizations.createPersonalOrg";
   public static final String ONBOARDING_TUTORIAL_SHOW_TO_NEW_USERS = "sonar.onboardingTutorial.showToNewUsers";
   public static final String DISABLE_NOTIFICATION_ON_BUILT_IN_QPROFILES = "sonar.builtInQualityProfiles.disableNotificationOnUpdate";
+  public static final String EDITIONS_CONFIG_URL = "sonar.editions.jsonUrl";
 
   private CorePropertyDefinitions() {
     // only static stuff
   }
 
   public static List<PropertyDefinition> all() {
-    List<PropertyDefinition> defs = Lists.newArrayList();
+    List<PropertyDefinition> defs = new ArrayList<>();
     defs.addAll(IssueExclusionProperties.all());
     defs.addAll(ExclusionProperties.all());
     defs.addAll(SecurityProperties.all());
@@ -62,12 +61,9 @@ public class CorePropertyDefinitions {
     defs.addAll(PurgeProperties.all());
     defs.addAll(EmailSettings.definitions());
     defs.addAll(WebhookProperties.all());
+    defs.addAll(ScannerProperties.all());
 
-    defs.addAll(ImmutableList.of(
-      PropertyDefinition.builder(PROP_PASSWORD)
-        .type(PropertyType.PASSWORD)
-        .hidden()
-        .build(),
+    defs.addAll(asList(
       PropertyDefinition.builder(CoreProperties.SERVER_BASE_URL)
         .name("Server base URL")
         .description("HTTP URL of this SonarQube server, such as <i>http://yourhost.yourdomain/sonar</i>. This value is used i.e. to create links in emails.")
@@ -101,24 +97,16 @@ public class CorePropertyDefinitions {
         .category(CoreProperties.CATEGORY_GENERAL)
         .hidden()
         .build(),
-      PropertyDefinition.builder(CoreProperties.ANALYSIS_MODE)
-        .name("Analysis mode")
-        .type(PropertyType.SINGLE_SELECT_LIST)
-        .options(Arrays.asList(CoreProperties.ANALYSIS_MODE_ANALYSIS, CoreProperties.ANALYSIS_MODE_PREVIEW, CoreProperties.ANALYSIS_MODE_INCREMENTAL))
-        .category(CoreProperties.CATEGORY_GENERAL)
-        .defaultValue(CoreProperties.ANALYSIS_MODE_ANALYSIS)
-        .hidden()
-        .build(),
       PropertyDefinition.builder(CoreProperties.PREVIEW_INCLUDE_PLUGINS)
         .name("Plugins accepted for Preview mode")
-        .description("List of plugin keys. Those plugins will be used during preview analyses.")
+        .description("DEPRECATED - List of plugin keys. Those plugins will be used during preview analyses.")
         .category(CoreProperties.CATEGORY_GENERAL)
         .multiValues(true)
         .defaultValue(CoreProperties.PREVIEW_INCLUDE_PLUGINS_DEFAULT_VALUE)
         .build(),
       PropertyDefinition.builder(CoreProperties.PREVIEW_EXCLUDE_PLUGINS)
         .name("Plugins excluded for Preview mode")
-        .description("List of plugin keys. Those plugins will not be used during preview analyses.")
+        .description("DEPRECATED - List of plugin keys. Those plugins will not be used during preview analyses.")
         .category(CoreProperties.CATEGORY_GENERAL)
         .multiValues(true)
         .defaultValue(CoreProperties.PREVIEW_EXCLUDE_PLUGINS_DEFAULT_VALUE)
@@ -126,13 +114,9 @@ public class CorePropertyDefinitions {
       PropertyDefinition.builder(ONBOARDING_TUTORIAL_SHOW_TO_NEW_USERS)
         .name("Show an onboarding tutorial to new users")
         .type(BOOLEAN)
-        .description("Show an onboarding tutorial to new users, that explains how to analyze a first project, after logging in for the fist time.")
+        .description("Show an onboarding tutorial to new users, that explains how to analyze a first project, after logging in for the first time.")
         .category(CoreProperties.CATEGORY_GENERAL)
         .defaultValue(String.valueOf(false))
-        .build(),
-      PropertyDefinition.builder(CoreProperties.CORE_AUTHENTICATOR_REALM)
-        .name("Security Realm")
-        .hidden()
         .build(),
       PropertyDefinition.builder("sonar.authenticator.downcase")
         .name("Downcase login")
@@ -141,29 +125,9 @@ public class CorePropertyDefinitions {
         .defaultValue(String.valueOf(false))
         .hidden()
         .build(),
-      PropertyDefinition.builder(CoreProperties.CORE_AUTHENTICATOR_IGNORE_STARTUP_FAILURE)
-        .name("Ignore failures during authenticator startup")
-        .type(BOOLEAN)
-        .defaultValue(String.valueOf(false))
-        .hidden()
-        .build(),
-      PropertyDefinition.builder(CoreProperties.SCM_DISABLED_KEY)
-        .name("Disable the SCM Sensor")
-        .description("Disable the retrieval of blame information from Source Control Manager")
-        .category(CoreProperties.CATEGORY_SCM)
-        .type(BOOLEAN)
-        .onQualifiers(Qualifiers.PROJECT)
-        .defaultValue(String.valueOf(false))
-        .build(),
-      PropertyDefinition.builder(CoreProperties.SCM_PROVIDER_KEY)
-        .name("Key of the SCM provider for this project")
-        .description("Force the provider to be used to get SCM information for this project. By default auto-detection is done. Example: svn, git.")
-        .category(CoreProperties.CATEGORY_SCM)
-        .onlyOnQualifiers(Qualifiers.PROJECT)
-        .build(),
       PropertyDefinition.builder(DISABLE_NOTIFICATION_ON_BUILT_IN_QPROFILES)
         .name("Avoid quality profiles notification")
-        .description("Avoid sending email notification on each update of built-in quality profiles to quality profile administrators")
+        .description("Avoid sending email notification on each update of built-in quality profiles to quality profile administrators.")
         .defaultValue(Boolean.toString(false))
         .category(CoreProperties.CATEGORY_GENERAL)
         .type(BOOLEAN)
@@ -180,7 +144,7 @@ public class CorePropertyDefinitions {
       PropertyDefinition.builder(WebConstants.SONAR_LF_LOGO_WIDTH_PX)
         .deprecatedKey("sonar.branding.image.width")
         .name("Width of image in pixels")
-        .description("Width in pixels, given that the height of the the image is constrained to 30px")
+        .description("Width in pixels, given that the height of the the image is constrained to 30px.")
         .category(CoreProperties.CATEGORY_GENERAL)
         .subCategory(CoreProperties.SUBCATEGORY_LOOKNFEEL)
         .build(),
@@ -231,17 +195,19 @@ public class CorePropertyDefinitions {
         .defaultValue(DEFAULT_LEAK_PERIOD)
         .category(CoreProperties.CATEGORY_GENERAL)
         .subCategory(CoreProperties.SUBCATEGORY_DIFFERENTIAL_VIEWS)
-        .onQualifiers(Qualifiers.PROJECT, Qualifiers.VIEW)
+        .onQualifiers(Qualifiers.PROJECT)
         .build(),
 
       // CPD
       PropertyDefinition.builder(CoreProperties.CPD_CROSS_PROJECT)
         .defaultValue(Boolean.toString(false))
         .name("Cross project duplication detection")
-        .description("By default, SonarQube detects duplications at project level. This means that a block "
+        .description("DEPRECATED - By default, SonarQube detects duplications at project level. This means that a block "
           + "duplicated on two different projects won't be reported. Setting this parameter to \"true\" "
           + "allows to detect duplicates across projects. Note that activating "
-          + "this property will slightly increase each SonarQube analysis time.")
+          + "this property will significantly increase each SonarQube analysis time, "
+          + "and therefore badly impact the performances of report processing as more and more projects "
+          + "are getting involved in this cross project duplication mechanism.")
         .onQualifiers(Qualifiers.PROJECT)
         .category(CoreProperties.CATEGORY_GENERAL)
         .subCategory(CoreProperties.SUBCATEGORY_DUPLICATIONS)
@@ -260,15 +226,24 @@ public class CorePropertyDefinitions {
 
       // ORGANIZATIONS
       PropertyDefinition.builder(ORGANIZATIONS_ANYONE_CAN_CREATE)
-        .name("Allow any authenticated user to create organizations")
+        .name("Allow any authenticated user to create organizations.")
         .defaultValue(Boolean.toString(false))
         .category(CATEGORY_ORGANIZATIONS)
         .type(BOOLEAN)
         .hidden()
         .build(),
       PropertyDefinition.builder(ORGANIZATIONS_CREATE_PERSONAL_ORG)
-        .name("Create an organization for each new user")
+        .name("Create an organization for each new user.")
         .defaultValue(Boolean.toString(false))
+        .category(CATEGORY_ORGANIZATIONS)
+        .type(BOOLEAN)
+        .hidden()
+        .build(),
+
+      // EDITIONS
+      PropertyDefinition.builder(EDITIONS_CONFIG_URL)
+        .name("Defines URL of JSON file with the definitions of SonarSource editions.")
+        .defaultValue("https://update.sonarsource.org/editions.json")
         .category(CATEGORY_ORGANIZATIONS)
         .type(BOOLEAN)
         .hidden()

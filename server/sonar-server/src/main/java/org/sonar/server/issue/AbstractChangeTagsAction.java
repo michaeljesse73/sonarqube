@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,8 +21,8 @@ package org.sonar.server.issue;
 
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
-import com.google.common.collect.Sets;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import org.sonar.api.issue.condition.IsUnResolved;
@@ -55,13 +55,18 @@ public abstract class AbstractChangeTagsAction extends Action {
   @Override
   public boolean execute(Map<String, Object> properties, Context context) {
     Collection<String> tags = getTagsToSet(context, parseTags(properties));
-    return issueUpdater.setTags((DefaultIssue) context.issue(), tags, context.issueChangeContext());
+    return issueUpdater.setTags(context.issue(), tags, context.issueChangeContext());
   }
 
   protected abstract Collection<String> getTagsToSet(Context context, Collection<String> tagsFromParams);
 
+  @Override
+  public boolean shouldRefreshMeasures() {
+    return false;
+  }
+
   private Set<String> parseTags(Map<String, Object> properties) {
-    Set<String> result = Sets.newHashSet();
+    Set<String> result = new HashSet<>();
     String tagsString = (String) properties.get(TAGS_PARAMETER);
     if (!Strings.isNullOrEmpty(tagsString)) {
       for (String tag : TAGS_SPLITTER.split(tagsString)) {

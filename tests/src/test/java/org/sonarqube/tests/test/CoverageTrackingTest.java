@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,7 +21,6 @@ package org.sonarqube.tests.test;
 
 import com.sonar.orchestrator.Orchestrator;
 import com.sonar.orchestrator.build.SonarScanner;
-import org.sonarqube.tests.Category2Suite;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.apache.commons.io.IOUtils;
@@ -29,23 +28,26 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.skyscreamer.jsonassert.JSONAssert;
-import org.sonarqube.tests.Tester;
+import org.sonarqube.qa.util.Tester;
+import org.sonarqube.ws.client.GetRequest;
+import org.sonarqube.ws.client.WsRequest;
 
 import static util.ItUtils.projectDir;
 
 public class CoverageTrackingTest {
 
   @ClassRule
-  public static Orchestrator orchestrator = Category2Suite.ORCHESTRATOR;
+  public static Orchestrator orchestrator = TestSuite.ORCHESTRATOR;
 
   @Rule
-  public Tester tester = new Tester(orchestrator).disableOrganizations();
+  public Tester tester = new Tester(orchestrator);
 
   @Test
   public void test_coverage_per_test() throws Exception {
     orchestrator.executeBuilds(SonarScanner.create(projectDir("testing/xoo-sample-with-coverage-per-test")));
 
-    String tests = orchestrator.getServer().adminWsClient().get("api/tests/list", "testFileKey", "sample-with-tests:src/test/xoo/sample/SampleTest.xoo");
+    WsRequest getRequest = new GetRequest("api/tests/list").setParam("testFileKey", "sample-with-tests:src/test/xoo/sample/SampleTest.xoo");
+    String tests = tester.wsClient().wsConnector().call(getRequest).content();
     JSONAssert.assertEquals(IOUtils.toString(this.getClass().getResourceAsStream("/test/CoverageTrackingTest/tests-expected.json"), "UTF-8"), tests, false);
 
     String covered_files = orchestrator.getServer().adminWsClient()

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,16 +20,16 @@
 package org.sonar.scanner.bootstrap;
 
 import java.io.File;
-import java.io.StringReader;
-import java.util.List;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
-import org.sonar.core.platform.RemotePlugin;
 import org.sonar.home.cache.FileCache;
 import org.sonar.scanner.WsTestUtil;
+import org.sonar.scanner.bootstrap.ScannerPluginInstaller.InstalledPlugin;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Matchers.any;
@@ -56,11 +56,12 @@ public class ScannerPluginInstallerTest {
 
   @Test
   public void listRemotePlugins() {
-    WsTestUtil.mockReader(wsClient, "/deploy/plugins/index.txt", new StringReader("checkstyle\nsqale"));
+    WsTestUtil.mockReader(wsClient, "/api/plugins/installed",
+      new InputStreamReader(this.getClass().getResourceAsStream("ScannerPluginInstallerTest/installed-plugins-ws.json"), StandardCharsets.UTF_8));
     ScannerPluginInstaller underTest = new ScannerPluginInstaller(wsClient, fileCache, pluginPredicate);
 
-    List<RemotePlugin> remotePlugins = underTest.listRemotePlugins();
-    assertThat(remotePlugins).extracting("key").containsOnly("checkstyle", "sqale");
+    InstalledPlugin[] remotePlugins = underTest.listInstalledPlugins();
+    assertThat(remotePlugins).extracting("key").containsOnly("scmgit", "java", "scmsvn");
   }
 
   @Test
@@ -70,7 +71,28 @@ public class ScannerPluginInstallerTest {
 
     ScannerPluginInstaller underTest = new ScannerPluginInstaller(wsClient, fileCache, pluginPredicate);
 
-    RemotePlugin remote = new RemotePlugin("checkstyle").setFile("checkstyle-plugin.jar", "fakemd5_1");
+    InstalledPlugin remote = new InstalledPlugin();
+    remote.key = "checkstyle";
+    remote.filename = "checkstyle-plugin.jar";
+    remote.hash = "fakemd5_1";
+    File file = underTest.download(remote);
+
+    assertThat(file).isEqualTo(pluginJar);
+  }
+
+  @Test
+  public void should_download_compressed_plugin() throws Exception {
+    File pluginJar = temp.newFile();
+    when(fileCache.getCompressed(eq("checkstyle-plugin.pack.gz"), eq("hash"), any(FileCache.Downloader.class))).thenReturn(pluginJar);
+
+    ScannerPluginInstaller underTest = new ScannerPluginInstaller(wsClient, fileCache, pluginPredicate);
+
+    InstalledPlugin remote = new InstalledPlugin();
+    remote.key = "checkstyle";
+    remote.filename = "checkstyle-plugin.jar";
+    remote.hash = "fakemd5_1";
+    remote.compressedFilename = "checkstyle-plugin.pack.gz";
+    remote.compressedHash = "hash";
     File file = underTest.download(remote);
 
     assertThat(file).isEqualTo(pluginJar);
@@ -78,7 +100,7 @@ public class ScannerPluginInstallerTest {
 
   @Test
   public void should_fail_to_get_plugin_index() {
-    WsTestUtil.mockException(wsClient, "/deploy/plugins/index.txt", new IllegalStateException());
+    WsTestUtil.mockException(wsClient, "/api/plugins/installed", new IllegalStateException());
     thrown.expect(IllegalStateException.class);
 
     new ScannerPluginInstaller(wsClient, fileCache, pluginPredicate).installRemotes();

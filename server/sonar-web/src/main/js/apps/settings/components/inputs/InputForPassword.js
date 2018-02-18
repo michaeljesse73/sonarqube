@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -59,7 +59,7 @@ export default class InputForPassword extends React.PureComponent {
           <input
             value={this.state.value}
             name={this.props.name}
-            className="js-password-input input-large text-top"
+            className="js-password-input settings-large-input text-top"
             type="password"
             autoFocus={true}
             autoComplete={false}

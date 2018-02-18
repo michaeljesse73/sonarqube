@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -40,14 +40,14 @@ import org.sonar.server.exceptions.NotFoundException;
 import org.sonar.server.tester.UserSessionRule;
 import org.sonar.server.ws.TestRequest;
 import org.sonar.server.ws.WsActionTester;
-import org.sonarqube.ws.WsCe;
+import org.sonarqube.ws.Ce;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonar.db.ce.CeQueueTesting.newCeQueueDto;
 import static org.sonar.db.component.ComponentTesting.newPrivateProjectDto;
 import static org.sonar.test.JsonAssert.assertJson;
-import static org.sonarqube.ws.client.ce.CeWsParameters.PARAM_COMPONENT_ID;
-import static org.sonarqube.ws.client.ce.CeWsParameters.PARAM_COMPONENT_KEY;
+import static org.sonar.server.ce.ws.CeWsParameters.DEPRECATED_PARAM_COMPONENT_KEY;
+import static org.sonar.server.ce.ws.CeWsParameters.PARAM_COMPONENT_ID;
 
 public class ActivityStatusActionTest {
 
@@ -66,6 +66,7 @@ public class ActivityStatusActionTest {
   public void json_example() {
     dbClient.ceQueueDao().insert(dbSession, newCeQueueDto("ce-queue-uuid-1").setStatus(CeQueueDto.Status.PENDING));
     dbClient.ceQueueDao().insert(dbSession, newCeQueueDto("ce-queue-uuid-2").setStatus(CeQueueDto.Status.PENDING));
+    dbClient.ceQueueDao().insert(dbSession, newCeQueueDto("ce-queue-uuid-3").setStatus(CeQueueDto.Status.IN_PROGRESS));
     for (int i = 0; i < 5; i++) {
       dbClient.ceActivityDao().insert(dbSession, new CeActivityDto(newCeQueueDto("ce-activity-uuid-" + i))
         .setStatus(CeActivityDto.Status.FAILED));
@@ -100,7 +101,7 @@ public class ActivityStatusActionTest {
     insertActivity(CeActivityDto.Status.FAILED, projectUuid);
     insertActivity(CeActivityDto.Status.FAILED, anotherProjectUuid);
 
-    WsCe.ActivityStatusWsResponse result = call(projectUuid);
+    Ce.ActivityStatusWsResponse result = call(projectUuid);
 
     assertThat(result.getPending()).isEqualTo(2);
     assertThat(result.getFailing()).isEqualTo(1);
@@ -108,7 +109,7 @@ public class ActivityStatusActionTest {
 
   @Test
   public void empty_status() {
-    WsCe.ActivityStatusWsResponse result = call();
+    Ce.ActivityStatusWsResponse result = call();
 
     assertThat(result.getPending()).isEqualTo(0);
     assertThat(result.getFailing()).isEqualTo(0);
@@ -120,7 +121,7 @@ public class ActivityStatusActionTest {
     db.components().insertComponent(project);
     expectedException.expect(IllegalArgumentException.class);
 
-    callByComponentUuidOrComponentKey(project.uuid(), project.key());
+    callByComponentUuidOrComponentKey(project.uuid(), project.getDbKey());
   }
 
   @Test
@@ -155,7 +156,7 @@ public class ActivityStatusActionTest {
     expectedException.expect(ForbiddenException.class);
     expectedException.expectMessage("Insufficient privileges");
 
-    callByComponentKey(project.key());
+    callByComponentKey(project.getDbKey());
   }
 
   private void insertInQueue(CeQueueDto.Status status, @Nullable String componentUuid) {
@@ -173,26 +174,26 @@ public class ActivityStatusActionTest {
     db.commit();
   }
 
-  private WsCe.ActivityStatusWsResponse call() {
+  private Ce.ActivityStatusWsResponse call() {
     return callByComponentUuidOrComponentKey(null, null);
   }
 
-  private WsCe.ActivityStatusWsResponse call(String componentUuid) {
+  private Ce.ActivityStatusWsResponse call(String componentUuid) {
     return callByComponentUuidOrComponentKey(componentUuid, null);
   }
 
-  private WsCe.ActivityStatusWsResponse callByComponentKey(String componentKey) {
+  private Ce.ActivityStatusWsResponse callByComponentKey(String componentKey) {
     return callByComponentUuidOrComponentKey(null, componentKey);
   }
 
-  private WsCe.ActivityStatusWsResponse callByComponentUuidOrComponentKey(@Nullable String componentUuid, @Nullable String componentKey) {
+  private Ce.ActivityStatusWsResponse callByComponentUuidOrComponentKey(@Nullable String componentUuid, @Nullable String componentKey) {
     TestRequest request = ws.newRequest();
     if (componentUuid != null) {
       request.setParam(PARAM_COMPONENT_ID, componentUuid);
     }
     if (componentKey != null) {
-      request.setParam(PARAM_COMPONENT_KEY, componentKey);
+      request.setParam(DEPRECATED_PARAM_COMPONENT_KEY, componentKey);
     }
-    return request.executeProtobuf(WsCe.ActivityStatusWsResponse.class);
+    return request.executeProtobuf(Ce.ActivityStatusWsResponse.class);
   }
 }

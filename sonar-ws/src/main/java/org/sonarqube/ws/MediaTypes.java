@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -38,11 +38,12 @@ public final class MediaTypes {
   public static final String JAVASCRIPT = "application/javascript";
   public static final String HTML = "text/html";
   public static final String DEFAULT = "application/octet-stream";
+  public static final String SVG = "image/svg+xml";
 
   private static final Map<String, String> MAP = new ImmutableMap.Builder<String, String>()
     .put("js", JAVASCRIPT)
     .put("json", JSON)
-    .put("zip", "application/zip")
+    .put("zip", ZIP)
     .put("tgz", "application/tgz")
     .put("ps", "application/postscript")
     .put("jnlp", "application/jnlp")
@@ -59,11 +60,11 @@ public final class MediaTypes {
     .put("jpeg", "image/jpeg")
     .put("tiff", "image/tiff")
     .put("png", "image/png")
-    .put("svg", "image/svg+xml")
+    .put("svg", SVG)
     .put("ico", "image/x-icon")
     .put("txt", TXT)
     .put("csv", "text/csv")
-    .put("properties", "text/plain")
+    .put("properties", TXT)
     .put("rtf", "text/rtf")
     .put("html", HTML)
     .put("css", "text/css")

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,20 +20,21 @@
 import React from 'react';
 import { connect } from 'react-redux';
 import NotificationsList from './NotificationsList';
+import { addNotification, removeNotification } from './actions';
 import { translate } from '../../../helpers/l10n';
 import {
   getGlobalNotifications,
   getNotificationChannels,
   getNotificationGlobalTypes
 } from '../../../store/rootReducer';
-import type {
+/*:: import type {
   Notification,
   NotificationsState,
   ChannelsState,
   TypesState
-} from '../../../store/notifications/duck';
-import { addNotification, removeNotification } from './actions';
+} from '../../../store/notifications/duck'; */
 
+/*::
 type Props = {
   notifications: NotificationsState,
   channels: ChannelsState,
@@ -41,35 +42,36 @@ type Props = {
   addNotification: (n: Notification) => void,
   removeNotification: (n: Notification) => void
 };
+*/
 
-function GlobalNotifications(props: Props) {
+function GlobalNotifications(props /*: Props */) {
   return (
-    <section>
-      <h2 className="spacer-bottom">
-        {translate('my_profile.overall_notifications.title')}
-      </h2>
+    <section className="boxed-group">
+      <h2>{translate('my_profile.overall_notifications.title')}</h2>
 
-      <table className="form">
-        <thead>
-          <tr>
-            <th />
-            {props.channels.map(channel => (
-              <th key={channel} className="text-center">
-                <h4>{translate('notification.channel', channel)}</h4>
-              </th>
-            ))}
-          </tr>
-        </thead>
+      <div className="boxed-group-inner">
+        <table className="form">
+          <thead>
+            <tr>
+              <th />
+              {props.channels.map(channel => (
+                <th key={channel} className="text-center">
+                  <h4>{translate('notification.channel', channel)}</h4>
+                </th>
+              ))}
+            </tr>
+          </thead>
 
-        <NotificationsList
-          notifications={props.notifications}
-          channels={props.channels}
-          types={props.types}
-          checkboxId={(d, c) => `global-notification-${d}-${c}`}
-          onAdd={props.addNotification}
-          onRemove={props.removeNotification}
-        />
-      </table>
+          <NotificationsList
+            notifications={props.notifications}
+            channels={props.channels}
+            types={props.types}
+            checkboxId={(d, c) => `global-notification-${d}-${c}`}
+            onAdd={props.addNotification}
+            onRemove={props.removeNotification}
+          />
+        </table>
+      </div>
     </section>
   );
 }

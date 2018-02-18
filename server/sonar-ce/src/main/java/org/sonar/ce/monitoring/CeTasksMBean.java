@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -47,6 +47,11 @@ public interface CeTasksMBean {
    * Time spent processing reports since startup, in milliseconds.
    */
   long getProcessingTime();
+
+  /**
+   * Configured maximum number of workers.
+   */
+  int getWorkerMaxCount();
 
   /**
    * Configured number of Workers.

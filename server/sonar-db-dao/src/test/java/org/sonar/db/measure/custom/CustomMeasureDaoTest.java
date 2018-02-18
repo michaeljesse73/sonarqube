@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -154,7 +154,7 @@ public class CustomMeasureDaoTest {
   }
 
   @Test
-  public void select_by_metric_key_and_text_value() throws Exception {
+  public void select_by_metric_key_and_text_value() {
     db.prepareDbUnit(getClass(), "select_by_metric_key_and_text_value.xml");
 
     List<CustomMeasureDto> result = underTest.selectByMetricKeyAndTextValue(session, "customKey", "value1");

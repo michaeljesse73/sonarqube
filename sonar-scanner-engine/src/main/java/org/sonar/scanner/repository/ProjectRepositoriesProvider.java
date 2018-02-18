@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,26 +24,28 @@ import org.sonar.api.batch.bootstrap.ProjectKey;
 import org.sonar.api.utils.log.Logger;
 import org.sonar.api.utils.log.Loggers;
 import org.sonar.api.utils.log.Profiler;
-import org.sonar.scanner.analysis.DefaultAnalysisMode;
+import org.sonar.scanner.bootstrap.GlobalAnalysisMode;
+import org.sonar.scanner.scan.branch.BranchConfiguration;
 
 public class ProjectRepositoriesProvider extends ProviderAdapter {
   private static final Logger LOG = Loggers.get(ProjectRepositoriesProvider.class);
   private static final String LOG_MSG = "Load project repositories";
   private ProjectRepositories project = null;
 
-  public ProjectRepositories provide(ProjectRepositoriesLoader loader, ProjectKey projectKey, DefaultAnalysisMode mode) {
+  public ProjectRepositories provide(ProjectRepositoriesLoader loader, ProjectKey projectKey, GlobalAnalysisMode mode, BranchConfiguration branchConfig) {
     if (project == null) {
+      boolean isIssuesMode = mode.isIssues();
       Profiler profiler = Profiler.create(LOG).startInfo(LOG_MSG);
-      project = loader.load(projectKey.get(), mode.isIssues());
-      checkProject(mode);
+      project = loader.load(projectKey.get(), isIssuesMode, branchConfig.branchBase());
+      checkProject(isIssuesMode);
       profiler.stopInfo();
     }
 
     return project;
   }
 
-  private void checkProject(DefaultAnalysisMode mode) {
-    if (mode.isIssues()) {
+  private void checkProject(boolean isIssueMode) {
+    if (isIssueMode) {
       if (!project.exists()) {
         LOG.warn("Project doesn't exist on the server. All issues will be marked as 'new'.");
       } else if (project.lastAnalysisDate() == null) {

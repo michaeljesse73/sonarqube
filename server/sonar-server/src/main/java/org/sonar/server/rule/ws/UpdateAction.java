@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,7 +20,6 @@
 package org.sonar.server.rule.ws;
 
 import com.google.common.base.Splitter;
-import com.google.common.collect.Sets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -48,11 +47,14 @@ import org.sonar.server.user.UserSession;
 import org.sonar.server.ws.WsUtils;
 import org.sonarqube.ws.Rules.UpdateResponse;
 
+import static com.google.common.collect.Sets.newHashSet;
 import static java.lang.String.format;
 import static java.util.Collections.singletonList;
 import static java.util.Optional.ofNullable;
 import static org.apache.commons.lang.StringUtils.defaultIfEmpty;
 import static org.sonar.db.permission.OrganizationPermission.ADMINISTER_QUALITY_PROFILES;
+import static org.sonar.server.rule.ws.CreateAction.KEY_MAXIMUM_LENGTH;
+import static org.sonar.server.rule.ws.CreateAction.NAME_MAXIMUM_LENGTH;
 import static org.sonar.server.ws.WsUtils.writeProtobuf;
 
 public class UpdateAction implements RulesWsAction {
@@ -100,6 +102,7 @@ public class UpdateAction implements RulesWsAction {
 
     action.createParam(PARAM_KEY)
       .setRequired(true)
+      .setMaximumLength(KEY_MAXIMUM_LENGTH)
       .setDescription("Key of the rule to update")
       .setExampleValue("javascript:NullCheck");
 
@@ -144,6 +147,7 @@ public class UpdateAction implements RulesWsAction {
 
     action
       .createParam(PARAM_NAME)
+      .setMaximumLength(NAME_MAXIMUM_LENGTH)
       .setDescription("Rule name (mandatory for custom rule)")
       .setExampleValue("My custom rule");
 
@@ -159,13 +163,13 @@ public class UpdateAction implements RulesWsAction {
 
     action
       .createParam(PARAM_STATUS)
-      .setDescription("Rule status (Only when updating a custom rule)")
-      .setPossibleValues(RuleStatus.values());
+      .setPossibleValues(RuleStatus.values())
+      .setDescription("Rule status (Only when updating a custom rule)");
 
     action.createParam(PARAM_ORGANIZATION)
-      .setDescription("Organization key")
       .setRequired(false)
       .setInternal(true)
+      .setDescription("Organization key")
       .setExampleValue("my-org")
       .setSince("6.4");
 
@@ -241,7 +245,7 @@ public class UpdateAction implements RulesWsAction {
       if (StringUtils.isBlank(value)) {
         update.setTags(null);
       } else {
-        update.setTags(Sets.newHashSet(Splitter.on(',').omitEmptyStrings().trimResults().split(value)));
+        update.setTags(newHashSet(Splitter.on(',').omitEmptyStrings().trimResults().split(value)));
       }
     }
     // else do not touch this field
@@ -285,7 +289,7 @@ public class UpdateAction implements RulesWsAction {
       .setTemplateRules(templateRules)
       .setRuleParameters(ruleParameters)
       .setTotal(1L);
-    responseBuilder.setRule(mapper.toWsRule(rule.getDefinition(), searchResult, Collections.<String>emptySet(), rule.getMetadata()));
+    responseBuilder.setRule(mapper.toWsRule(rule.getDefinition(), searchResult, Collections.emptySet(), rule.getMetadata()));
 
     return responseBuilder.build();
   }

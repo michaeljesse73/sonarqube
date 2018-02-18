@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -37,9 +37,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
+import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 import org.apache.commons.io.FileUtils;
-import org.sonar.api.CoreProperties;
+import org.junit.rules.ExternalResource;
 import org.sonar.api.Plugin;
 import org.sonar.api.batch.debt.internal.DefaultDebtModel;
 import org.sonar.api.measures.CoreMetrics;
@@ -50,9 +52,8 @@ import org.sonar.api.server.rule.RulesDefinition.Repository;
 import org.sonar.api.utils.DateUtils;
 import org.sonar.batch.bootstrapper.Batch;
 import org.sonar.batch.bootstrapper.EnvironmentInformation;
-import org.sonar.batch.bootstrapper.IssueListener;
 import org.sonar.batch.bootstrapper.LogOutput;
-import org.sonar.scanner.bootstrap.GlobalMode;
+import org.sonar.scanner.bootstrap.GlobalAnalysisMode;
 import org.sonar.scanner.issue.tracking.ServerLineHashesLoader;
 import org.sonar.scanner.protocol.input.ScannerInput.ServerIssue;
 import org.sonar.scanner.report.ReportPublisher;
@@ -67,233 +68,191 @@ import org.sonar.scanner.repository.settings.SettingsLoader;
 import org.sonar.scanner.rule.ActiveRulesLoader;
 import org.sonar.scanner.rule.LoadedActiveRule;
 import org.sonar.scanner.rule.RulesLoader;
-import org.sonarqube.ws.QualityProfiles.SearchWsResponse.QualityProfile;
+import org.sonar.scanner.scan.branch.BranchConfiguration;
+import org.sonar.scanner.scan.branch.BranchConfigurationLoader;
+import org.sonar.scanner.scan.branch.BranchType;
+import org.sonar.scanner.scan.branch.ProjectBranches;
+import org.sonarqube.ws.Qualityprofiles.SearchWsResponse.QualityProfile;
 import org.sonarqube.ws.Rules.ListResponse.Rule;
 
 /**
  * Main utility class for writing scanner medium tests.
  * 
  */
-public class ScannerMediumTester {
+public class ScannerMediumTester extends ExternalResource {
 
-  private Batch batch;
-  private static Path workingDir = null;
-  private static Path globalWorkingDir = null;
+  private static Path userHome = null;
+  private Map<String, String> globalProperties = new HashMap<>();
+  private final FakeMetricsRepositoryLoader globalRefProvider = new FakeMetricsRepositoryLoader();
+  private final FakeBranchConfigurationLoader branchConfigurationLoader = new FakeBranchConfigurationLoader();
+  private final FakeBranchConfiguration branchConfiguration = new FakeBranchConfiguration();
+  private final FakeProjectRepositoriesLoader projectRefProvider = new FakeProjectRepositoriesLoader();
+  private final FakePluginInstaller pluginInstaller = new FakePluginInstaller();
+  private final FakeServerIssuesLoader serverIssues = new FakeServerIssuesLoader();
+  private final FakeServerLineHashesLoader serverLineHashes = new FakeServerLineHashesLoader();
+  private final FakeRulesLoader rulesLoader = new FakeRulesLoader();
+  private final FakeQualityProfileLoader qualityProfiles = new FakeQualityProfileLoader();
+  private final FakeActiveRulesLoader activeRules = new FakeActiveRulesLoader();
+  private LogOutput logOutput = null;
 
   private static void createWorkingDirs() throws IOException {
     destroyWorkingDirs();
 
-    workingDir = java.nio.file.Files.createTempDirectory("mediumtest-working-dir");
-    globalWorkingDir = java.nio.file.Files.createTempDirectory("mediumtest-global-working-dir");
+    userHome = java.nio.file.Files.createTempDirectory("mediumtest-userHome");
   }
 
   private static void destroyWorkingDirs() throws IOException {
-    if (workingDir != null) {
-      FileUtils.deleteDirectory(workingDir.toFile());
-      workingDir = null;
+    if (userHome != null) {
+      FileUtils.deleteDirectory(userHome.toFile());
+      userHome = null;
     }
-
-    if (globalWorkingDir != null) {
-      FileUtils.deleteDirectory(globalWorkingDir.toFile());
-      globalWorkingDir = null;
-    }
-
   }
 
-  public static BatchMediumTesterBuilder builder() {
+  public ScannerMediumTester setLogOutput(LogOutput logOutput) {
+    this.logOutput = logOutput;
+    return this;
+  }
+
+  public ScannerMediumTester registerPlugin(String pluginKey, File location) {
+    return registerPlugin(pluginKey, location, 1L);
+  }
+
+  public ScannerMediumTester registerPlugin(String pluginKey, File location, long lastUpdatedAt) {
+    pluginInstaller.add(pluginKey, location, lastUpdatedAt);
+    return this;
+  }
+
+  public ScannerMediumTester registerPlugin(String pluginKey, Plugin instance) {
+    return registerPlugin(pluginKey, instance, 1L);
+  }
+
+  public ScannerMediumTester registerPlugin(String pluginKey, Plugin instance, long lastUpdatedAt) {
+    pluginInstaller.add(pluginKey, instance, lastUpdatedAt);
+    return this;
+  }
+
+  public ScannerMediumTester registerCoreMetrics() {
+    for (Metric<?> m : CoreMetrics.getMetrics()) {
+      registerMetric(m);
+    }
+    return this;
+  }
+
+  public ScannerMediumTester registerMetric(Metric<?> metric) {
+    globalRefProvider.add(metric);
+    return this;
+  }
+
+  public ScannerMediumTester addQProfile(String language, String name) {
+    qualityProfiles.add(language, name);
+    return this;
+  }
+
+  public ScannerMediumTester addRule(Rule rule) {
+    rulesLoader.addRule(rule);
+    return this;
+  }
+
+  public ScannerMediumTester addRule(String key, String repoKey, String internalKey, String name) {
+    Rule.Builder builder = Rule.newBuilder();
+    builder.setKey(key);
+    builder.setRepository(repoKey);
+    if (internalKey != null) {
+      builder.setInternalKey(internalKey);
+    }
+    builder.setName(name);
+
+    rulesLoader.addRule(builder.build());
+    return this;
+  }
+
+  public ScannerMediumTester addRules(RulesDefinition rulesDefinition) {
+    RulesDefinition.Context context = new RulesDefinition.Context();
+    rulesDefinition.define(context);
+    List<Repository> repositories = context.repositories();
+    for (Repository repo : repositories) {
+      for (RulesDefinition.Rule rule : repo.rules()) {
+        this.addRule(rule.key(), rule.repository().key(), rule.internalKey(), rule.name());
+      }
+    }
+    return this;
+  }
+
+  public ScannerMediumTester addDefaultQProfile(String language, String name) {
+    addQProfile(language, name);
+    return this;
+  }
+
+  public ScannerMediumTester setPreviousAnalysisDate(Date previousAnalysis) {
+    projectRefProvider.setLastAnalysisDate(previousAnalysis);
+    return this;
+  }
+
+  public ScannerMediumTester bootstrapProperties(Map<String, String> props) {
+    globalProperties.putAll(props);
+    return this;
+  }
+
+  public ScannerMediumTester activateRule(LoadedActiveRule activeRule) {
+    activeRules.addActiveRule(activeRule);
+    return this;
+  }
+
+  public ScannerMediumTester addActiveRule(String repositoryKey, String ruleKey, @Nullable String templateRuleKey, String name, @Nullable String severity,
+    @Nullable String internalKey, @Nullable String languag) {
+    LoadedActiveRule r = new LoadedActiveRule();
+
+    r.setInternalKey(internalKey);
+    r.setRuleKey(RuleKey.of(repositoryKey, ruleKey));
+    r.setName(name);
+    r.setTemplateRuleKey(templateRuleKey);
+    r.setLanguage(languag);
+    r.setSeverity(severity);
+
+    activeRules.addActiveRule(r);
+    return this;
+  }
+
+  public ScannerMediumTester addFileData(String moduleKey, String path, FileData fileData) {
+    projectRefProvider.addFileData(moduleKey, path, fileData);
+    return this;
+  }
+
+  public ScannerMediumTester setLastBuildDate(Date d) {
+    projectRefProvider.setLastAnalysisDate(d);
+    return this;
+  }
+
+  public ScannerMediumTester mockServerIssue(ServerIssue issue) {
+    serverIssues.getServerIssues().add(issue);
+    return this;
+  }
+
+  public ScannerMediumTester mockLineHashes(String fileKey, String[] lineHashes) {
+    serverLineHashes.byKey.put(fileKey, lineHashes);
+    return this;
+  }
+
+  @Override
+  protected void before() throws Throwable {
     try {
       createWorkingDirs();
     } catch (IOException e) {
-      e.printStackTrace();
+      throw new IllegalStateException(e);
     }
-
-    BatchMediumTesterBuilder builder = new BatchMediumTesterBuilder().registerCoreMetrics();
-    builder.bootstrapProperties.put(GlobalMode.MEDIUM_TEST_ENABLED, "true");
-    builder.bootstrapProperties.put(ReportPublisher.KEEP_REPORT_PROP_KEY, "true");
-    builder.bootstrapProperties.put(CoreProperties.WORKING_DIRECTORY, workingDir.toString());
-    builder.bootstrapProperties.put("sonar.userHome", globalWorkingDir.toString());
-    return builder;
+    registerCoreMetrics();
+    globalProperties.put(GlobalAnalysisMode.MEDIUM_TEST_ENABLED, "true");
+    globalProperties.put(ReportPublisher.KEEP_REPORT_PROP_KEY, "true");
+    globalProperties.put("sonar.userHome", userHome.toString());
   }
 
-  public static class BatchMediumTesterBuilder {
-    private final FakeMetricsRepositoryLoader globalRefProvider = new FakeMetricsRepositoryLoader();
-    private final FakeProjectRepositoriesLoader projectRefProvider = new FakeProjectRepositoriesLoader();
-    private final FakePluginInstaller pluginInstaller = new FakePluginInstaller();
-    private final FakeServerIssuesLoader serverIssues = new FakeServerIssuesLoader();
-    private final FakeServerLineHashesLoader serverLineHashes = new FakeServerLineHashesLoader();
-    private final Map<String, String> bootstrapProperties = new HashMap<>();
-    private final FakeRulesLoader rulesLoader = new FakeRulesLoader();
-    private final FakeQualityProfileLoader qualityProfiles = new FakeQualityProfileLoader();
-    private final FakeActiveRulesLoader activeRules = new FakeActiveRulesLoader();
-    private boolean associated = true;
-    private LogOutput logOutput = null;
-
-    public ScannerMediumTester build() {
-      return new ScannerMediumTester(this);
-    }
-
-    public BatchMediumTesterBuilder setAssociated(boolean associated) {
-      this.associated = associated;
-      return this;
-    }
-
-    public BatchMediumTesterBuilder setLogOutput(LogOutput logOutput) {
-      this.logOutput = logOutput;
-      return this;
-    }
-
-    public BatchMediumTesterBuilder registerPlugin(String pluginKey, File location) {
-      pluginInstaller.add(pluginKey, location);
-      return this;
-    }
-
-    public BatchMediumTesterBuilder registerPlugin(String pluginKey, Plugin instance) {
-      pluginInstaller.add(pluginKey, instance);
-      return this;
-    }
-
-    public BatchMediumTesterBuilder registerCoreMetrics() {
-      for (Metric<?> m : CoreMetrics.getMetrics()) {
-        registerMetric(m);
-      }
-      return this;
-    }
-
-    public BatchMediumTesterBuilder registerMetric(Metric<?> metric) {
-      globalRefProvider.add(metric);
-      return this;
-    }
-
-    public BatchMediumTesterBuilder addQProfile(String language, String name) {
-      qualityProfiles.add(language, name);
-      return this;
-    }
-
-    public BatchMediumTesterBuilder addRule(Rule rule) {
-      rulesLoader.addRule(rule);
-      return this;
-    }
-
-    public BatchMediumTesterBuilder addRule(String key, String repoKey, String internalKey, String name) {
-      Rule.Builder builder = Rule.newBuilder();
-      builder.setKey(key);
-      builder.setRepository(repoKey);
-      if (internalKey != null) {
-        builder.setInternalKey(internalKey);
-      }
-      builder.setName(name);
-
-      rulesLoader.addRule(builder.build());
-      return this;
-    }
-
-    public BatchMediumTesterBuilder addRules(RulesDefinition rulesDefinition) {
-      RulesDefinition.Context context = new RulesDefinition.Context();
-      rulesDefinition.define(context);
-      List<Repository> repositories = context.repositories();
-      for (Repository repo : repositories) {
-        for (RulesDefinition.Rule rule : repo.rules()) {
-          this.addRule(rule.key(), rule.repository().key(), rule.internalKey(), rule.name());
-        }
-      }
-      return this;
-    }
-
-    public BatchMediumTesterBuilder addDefaultQProfile(String language, String name) {
-      addQProfile(language, name);
-      return this;
-    }
-
-    public BatchMediumTesterBuilder setPreviousAnalysisDate(Date previousAnalysis) {
-      projectRefProvider.setLastAnalysisDate(previousAnalysis);
-      return this;
-    }
-
-    public BatchMediumTesterBuilder bootstrapProperties(Map<String, String> props) {
-      bootstrapProperties.putAll(props);
-      return this;
-    }
-
-    public BatchMediumTesterBuilder activateRule(LoadedActiveRule activeRule) {
-      activeRules.addActiveRule(activeRule);
-      return this;
-    }
-
-    public BatchMediumTesterBuilder addActiveRule(String repositoryKey, String ruleKey, @Nullable String templateRuleKey, String name, @Nullable String severity,
-      @Nullable String internalKey, @Nullable String languag) {
-      LoadedActiveRule r = new LoadedActiveRule();
-
-      r.setInternalKey(internalKey);
-      r.setRuleKey(RuleKey.of(repositoryKey, ruleKey));
-      r.setName(name);
-      r.setTemplateRuleKey(templateRuleKey);
-      r.setLanguage(languag);
-      r.setSeverity(severity);
-
-      activeRules.addActiveRule(r);
-      return this;
-    }
-
-    public BatchMediumTesterBuilder addFileData(String moduleKey, String path, FileData fileData) {
-      projectRefProvider.addFileData(moduleKey, path, fileData);
-      return this;
-    }
-
-    public BatchMediumTesterBuilder setLastBuildDate(Date d) {
-      projectRefProvider.setLastAnalysisDate(d);
-      return this;
-    }
-
-    public BatchMediumTesterBuilder mockServerIssue(ServerIssue issue) {
-      serverIssues.getServerIssues().add(issue);
-      return this;
-    }
-
-    public BatchMediumTesterBuilder mockLineHashes(String fileKey, String[] lineHashes) {
-      serverLineHashes.byKey.put(fileKey, lineHashes);
-      return this;
-    }
-
-  }
-
-  public void start() {
-    batch.start();
-  }
-
-  public void stop() {
-    batch.stop();
+  @Override
+  protected void after() {
     try {
       destroyWorkingDirs();
     } catch (IOException e) {
-      e.printStackTrace();
+      throw new IllegalStateException(e);
     }
-  }
-
-  public void syncProject(String projectKey) {
-    batch.syncProject(projectKey);
-  }
-
-  private ScannerMediumTester(BatchMediumTesterBuilder builder) {
-    Batch.Builder batchBuilder = Batch.builder()
-      .setEnableLoggingConfiguration(true)
-      .addComponents(
-        new EnvironmentInformation("mediumTest", "1.0"),
-        builder.pluginInstaller,
-        builder.globalRefProvider,
-        builder.qualityProfiles,
-        builder.rulesLoader,
-        builder.projectRefProvider,
-        builder.activeRules,
-        new DefaultDebtModel(),
-        new FakeSettingsLoader())
-      .setBootstrapProperties(builder.bootstrapProperties)
-      .setLogOutput(builder.logOutput);
-
-    if (builder.associated) {
-      batchBuilder.addComponents(
-        builder.serverIssues);
-    }
-    batch = batchBuilder.build();
   }
 
   public TaskBuilder newTask() {
@@ -318,21 +277,35 @@ public class ScannerMediumTester {
   public static class TaskBuilder {
     private final Map<String, String> taskProperties = new HashMap<>();
     private ScannerMediumTester tester;
-    private IssueListener issueListener = null;
 
     public TaskBuilder(ScannerMediumTester tester) {
       this.tester = tester;
     }
 
-    public TaskResult start() {
+    public TaskResult execute() {
       TaskResult result = new TaskResult();
       Map<String, String> props = new HashMap<>();
+      props.putAll(tester.globalProperties);
       props.putAll(taskProperties);
-      if (issueListener != null) {
-        tester.batch.executeTask(props, result, issueListener);
-      } else {
-        tester.batch.executeTask(props, result);
-      }
+
+      Batch.builder()
+        .setGlobalProperties(props)
+        .setEnableLoggingConfiguration(true)
+        .addComponents(new EnvironmentInformation("mediumTest", "1.0"),
+          tester.pluginInstaller,
+          tester.globalRefProvider,
+          tester.qualityProfiles,
+          tester.rulesLoader,
+          tester.branchConfigurationLoader,
+          tester.projectRefProvider,
+          tester.activeRules,
+          tester.serverIssues,
+          new DefaultDebtModel(),
+          new FakeSettingsLoader(),
+          result)
+        .setLogOutput(tester.logOutput)
+        .build().execute();
+
       return result;
     }
 
@@ -346,10 +319,6 @@ public class ScannerMediumTester {
       return this;
     }
 
-    public TaskBuilder setIssueListener(IssueListener issueListener) {
-      this.issueListener = issueListener;
-      return this;
-    }
   }
 
   private static class FakeRulesLoader implements RulesLoader {
@@ -405,7 +374,7 @@ public class ScannerMediumTester {
     private Date lastAnalysisDate;
 
     @Override
-    public ProjectRepositories load(String projectKey, boolean isIssuesMode) {
+    public ProjectRepositories load(String projectKey, boolean isIssuesMode, @Nullable String branchBase) {
       Table<String, String, String> settings = HashBasedTable.create();
       return new ProjectRepositories(settings, fileDataTable, lastAnalysisDate);
     }
@@ -420,6 +389,59 @@ public class ScannerMediumTester {
       return this;
     }
 
+  }
+
+  private static class FakeBranchConfiguration implements BranchConfiguration {
+
+    private BranchType branchType = BranchType.LONG;
+    private String branchName = null;
+    private String branchTarget = null;
+    private String branchBase = null;
+
+    @Override
+    public BranchType branchType() {
+      return branchType;
+    }
+
+    @CheckForNull
+    @Override
+    public String branchName() {
+      return branchName;
+    }
+
+    @CheckForNull
+    @Override
+    public String branchTarget() {
+      return branchTarget;
+    }
+
+    @CheckForNull
+    @Override
+    public String branchBase() {
+      return branchBase;
+    }
+  }
+
+  public ScannerMediumTester setBranchType(BranchType branchType) {
+    branchConfiguration.branchType = branchType;
+    return this;
+  }
+
+  public ScannerMediumTester setBranchName(String branchName) {
+    this.branchConfiguration.branchName = branchName;
+    return this;
+  }
+
+  public ScannerMediumTester setBranchTarget(String branchTarget) {
+    this.branchConfiguration.branchTarget = branchTarget;
+    return this;
+  }
+
+  private class FakeBranchConfigurationLoader implements BranchConfigurationLoader {
+    @Override
+    public BranchConfiguration load(Map<String, String> localSettings, Supplier<Map<String, String>> settingsSupplier, ProjectBranches branches) {
+      return branchConfiguration;
+    }
   }
 
   private static class FakeQualityProfileLoader implements QualityProfileLoader {
@@ -482,5 +504,4 @@ public class ScannerMediumTester {
       }
     }
   }
-
 }

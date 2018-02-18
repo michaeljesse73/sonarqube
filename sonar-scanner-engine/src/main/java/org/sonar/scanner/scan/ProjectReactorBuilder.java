@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -45,8 +45,9 @@ import org.sonar.api.utils.log.Loggers;
 import org.sonar.api.utils.log.Profiler;
 import org.sonar.scanner.analysis.AnalysisProperties;
 import org.sonar.scanner.bootstrap.DroppedPropertyChecker;
-import org.sonar.scanner.config.DefaultConfiguration;
 import org.sonar.scanner.util.ScannerUtils;
+
+import static org.sonar.core.config.MultivalueProperty.parseAsCsv;
 
 /**
  * Class that creates a project definition based on a set of properties.
@@ -408,7 +409,7 @@ public class ProjectReactorBuilder {
   static String[] getListFromProperty(Map<String, String> properties, String key) {
     String propValue = properties.get(key);
     if (propValue != null) {
-      return DefaultConfiguration.parseAsCsv(ProjectDefinition.SOURCES_PROPERTY, propValue);
+      return parseAsCsv(key, propValue);
     }
     return new String[0];
   }

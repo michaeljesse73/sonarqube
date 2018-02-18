@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,17 +19,21 @@
  */
 package org.sonar.server.ce.ws;
 
+import java.util.Collections;
 import javax.annotation.Nullable;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.sonar.api.utils.System2;
+import org.sonar.api.web.UserRole;
 import org.sonar.core.permission.GlobalPermissions;
 import org.sonar.core.util.CloseableIterator;
+import org.sonar.core.util.Uuids;
 import org.sonar.db.DbTester;
 import org.sonar.db.ce.CeActivityDto;
 import org.sonar.db.ce.CeQueueDto;
+import org.sonar.db.ce.CeTaskCharacteristicDto;
 import org.sonar.db.ce.CeTaskTypes;
 import org.sonar.db.component.ComponentDto;
 import org.sonar.db.organization.OrganizationDto;
@@ -37,10 +41,15 @@ import org.sonar.server.exceptions.ForbiddenException;
 import org.sonar.server.exceptions.NotFoundException;
 import org.sonar.server.tester.UserSessionRule;
 import org.sonar.server.ws.WsActionTester;
-import org.sonarqube.ws.WsCe;
+import org.sonarqube.ws.Ce;
+import org.sonarqube.ws.Common;
+import org.sonarqube.ws.Ce;
 
 import static java.util.Collections.singleton;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.sonar.db.ce.CeTaskCharacteristicDto.BRANCH_KEY;
+import static org.sonar.db.ce.CeTaskCharacteristicDto.BRANCH_TYPE_KEY;
+import static org.sonar.db.component.BranchType.LONG;
 import static org.sonar.db.permission.OrganizationPermission.SCAN;
 
 public class TaskActionTest {
@@ -54,22 +63,22 @@ public class TaskActionTest {
   public ExpectedException expectedException = ExpectedException.none();
 
   @Rule
-  public DbTester dbTester = DbTester.create(System2.INSTANCE);
+  public DbTester db = DbTester.create(System2.INSTANCE);
 
   private OrganizationDto organizationDto;
   private ComponentDto project;
-  private TaskFormatter formatter = new TaskFormatter(dbTester.getDbClient(), System2.INSTANCE);
-  private TaskAction underTest = new TaskAction(dbTester.getDbClient(), formatter, userSession);
+  private TaskFormatter formatter = new TaskFormatter(db.getDbClient(), System2.INSTANCE);
+  private TaskAction underTest = new TaskAction(db.getDbClient(), formatter, userSession);
   private WsActionTester ws = new WsActionTester(underTest);
 
   @Before
   public void setUp() {
-    organizationDto = dbTester.organizations().insert();
-    project = dbTester.components().insertPrivateProject(organizationDto);
+    organizationDto = db.organizations().insert();
+    project = db.components().insertPrivateProject(organizationDto);
   }
 
   @Test
-  public void task_is_in_queue() throws Exception {
+  public void task_is_in_queue() {
     logInAsRoot();
 
     CeQueueDto queueDto = new CeQueueDto();
@@ -80,40 +89,77 @@ public class TaskActionTest {
     queueDto.setSubmitterLogin("john");
     persist(queueDto);
 
-    WsCe.TaskResponse taskResponse = ws.newRequest()
+    Ce.TaskResponse taskResponse = ws.newRequest()
       .setParam("id", SOME_TASK_UUID)
-      .executeProtobuf(WsCe.TaskResponse.class);
+      .executeProtobuf(Ce.TaskResponse.class);
     assertThat(taskResponse.getTask().getOrganization()).isEqualTo(organizationDto.getKey());
     assertThat(taskResponse.getTask().getId()).isEqualTo(SOME_TASK_UUID);
-    assertThat(taskResponse.getTask().getStatus()).isEqualTo(WsCe.TaskStatus.PENDING);
+    assertThat(taskResponse.getTask().getStatus()).isEqualTo(Ce.TaskStatus.PENDING);
     assertThat(taskResponse.getTask().getSubmitterLogin()).isEqualTo("john");
     assertThat(taskResponse.getTask().getComponentId()).isEqualTo(project.uuid());
-    assertThat(taskResponse.getTask().getComponentKey()).isEqualTo(project.key());
+    assertThat(taskResponse.getTask().getComponentKey()).isEqualTo(project.getDbKey());
     assertThat(taskResponse.getTask().getComponentName()).isEqualTo(project.name());
     assertThat(taskResponse.getTask().hasExecutionTimeMs()).isFalse();
     assertThat(taskResponse.getTask().getLogs()).isFalse();
   }
 
   @Test
-  public void task_is_archived() throws Exception {
+  public void task_is_archived() {
     logInAsRoot();
 
     CeActivityDto activityDto = createActivityDto(SOME_TASK_UUID);
     persist(activityDto);
 
-    WsCe.TaskResponse taskResponse = ws.newRequest()
+    Ce.TaskResponse taskResponse = ws.newRequest()
       .setParam("id", SOME_TASK_UUID)
-      .executeProtobuf(WsCe.TaskResponse.class);
-    WsCe.Task task = taskResponse.getTask();
+      .executeProtobuf(Ce.TaskResponse.class);
+    Ce.Task task = taskResponse.getTask();
     assertThat(task.getOrganization()).isEqualTo(organizationDto.getKey());
     assertThat(task.getId()).isEqualTo(SOME_TASK_UUID);
-    assertThat(task.getStatus()).isEqualTo(WsCe.TaskStatus.FAILED);
+    assertThat(task.getStatus()).isEqualTo(Ce.TaskStatus.FAILED);
     assertThat(task.getComponentId()).isEqualTo(project.uuid());
-    assertThat(task.getComponentKey()).isEqualTo(project.key());
+    assertThat(task.getComponentKey()).isEqualTo(project.getDbKey());
     assertThat(task.getComponentName()).isEqualTo(project.name());
     assertThat(task.getAnalysisId()).isEqualTo(activityDto.getAnalysisUuid());
     assertThat(task.getExecutionTimeMs()).isEqualTo(500L);
     assertThat(task.getLogs()).isFalse();
+  }
+
+  @Test
+  public void long_living_branch_in_past_activity() {
+    logInAsRoot();
+    ComponentDto project = db.components().insertMainBranch();
+    userSession.addProjectPermission(UserRole.USER, project);
+    ComponentDto longLivingBranch = db.components().insertProjectBranch(project, b -> b.setBranchType(LONG));
+    db.components().insertSnapshot(longLivingBranch);
+    CeActivityDto activity = createAndPersistArchivedTask(project);
+    insertCharacteristic(activity, BRANCH_KEY, longLivingBranch.getBranch());
+    insertCharacteristic(activity, BRANCH_TYPE_KEY, LONG.name());
+
+    Ce.TaskResponse taskResponse = ws.newRequest()
+      .setParam("id", SOME_TASK_UUID)
+      .executeProtobuf(Ce.TaskResponse.class);
+
+    assertThat(taskResponse.getTask())
+      .extracting(Ce.Task::getId, Ce.Task::getBranch, Ce.Task::getBranchType, Ce.Task::getComponentKey)
+      .containsExactlyInAnyOrder(SOME_TASK_UUID, longLivingBranch.getBranch(), Common.BranchType.LONG, longLivingBranch.getKey());
+  }
+
+  @Test
+  public void long_living_branch_in_queue_analysis() {
+    logInAsRoot();
+    String branch = "my_branch";
+    CeQueueDto queueDto = createAndPersistQueueTask(null);
+    insertCharacteristic(queueDto, BRANCH_KEY, branch);
+    insertCharacteristic(queueDto, BRANCH_TYPE_KEY, LONG.name());
+
+    Ce.TaskResponse taskResponse = ws.newRequest()
+      .setParam("id", SOME_TASK_UUID)
+      .executeProtobuf(Ce.TaskResponse.class);
+
+    assertThat(taskResponse.getTask())
+      .extracting(Ce.Task::getId, Ce.Task::getBranch, Ce.Task::getBranchType, Ce.Task::hasComponentKey)
+      .containsExactlyInAnyOrder(SOME_TASK_UUID, branch, Common.BranchType.LONG, false);
   }
 
   @Test
@@ -125,11 +171,11 @@ public class TaskActionTest {
       .setErrorStacktrace("error stack");
     persist(activityDto);
 
-    WsCe.TaskResponse taskResponse = ws.newRequest()
+    Ce.TaskResponse taskResponse = ws.newRequest()
       .setParam("id", SOME_TASK_UUID)
       .setParam("additionalFields", "stacktrace")
-      .executeProtobuf(WsCe.TaskResponse.class);
-    WsCe.Task task = taskResponse.getTask();
+      .executeProtobuf(Ce.TaskResponse.class);
+    Ce.Task task = taskResponse.getTask();
     assertThat(task.getId()).isEqualTo(SOME_TASK_UUID);
     assertThat(task.getErrorMessage()).isEqualTo(activityDto.getErrorMessage());
     assertThat(task.hasErrorStacktrace()).isTrue();
@@ -145,10 +191,10 @@ public class TaskActionTest {
       .setErrorStacktrace("error stack");
     persist(activityDto);
 
-    WsCe.TaskResponse taskResponse = ws.newRequest()
+    Ce.TaskResponse taskResponse = ws.newRequest()
       .setParam("id", SOME_TASK_UUID)
-      .executeProtobuf(WsCe.TaskResponse.class);
-    WsCe.Task task = taskResponse.getTask();
+      .executeProtobuf(Ce.TaskResponse.class);
+    Ce.Task task = taskResponse.getTask();
     assertThat(task.getId()).isEqualTo(SOME_TASK_UUID);
     assertThat(task.getErrorMessage()).isEqualTo(activityDto.getErrorMessage());
     assertThat(task.hasErrorStacktrace()).isFalse();
@@ -162,11 +208,11 @@ public class TaskActionTest {
     persist(createActivityDto(SOME_TASK_UUID));
     persistScannerContext(SOME_TASK_UUID, scannerContext);
 
-    WsCe.TaskResponse taskResponse = ws.newRequest()
+    Ce.TaskResponse taskResponse = ws.newRequest()
       .setParam("id", SOME_TASK_UUID)
       .setParam("additionalFields", "scannerContext")
-      .executeProtobuf(WsCe.TaskResponse.class);
-    WsCe.Task task = taskResponse.getTask();
+      .executeProtobuf(Ce.TaskResponse.class);
+    Ce.Task task = taskResponse.getTask();
     assertThat(task.getId()).isEqualTo(SOME_TASK_UUID);
     assertThat(task.getScannerContext()).isEqualTo(scannerContext);
   }
@@ -179,11 +225,11 @@ public class TaskActionTest {
     persist(createActivityDto(SOME_TASK_UUID));
     persistScannerContext(SOME_TASK_UUID, scannerContext);
 
-    WsCe.TaskResponse taskResponse = ws.newRequest()
+    Ce.TaskResponse taskResponse = ws.newRequest()
       .setParam("id", SOME_TASK_UUID)
       .setParam("additionalFields", "stacktrace")
-      .executeProtobuf(WsCe.TaskResponse.class);
-    WsCe.Task task = taskResponse.getTask();
+      .executeProtobuf(Ce.TaskResponse.class);
+    Ce.Task task = taskResponse.getTask();
     assertThat(task.getId()).isEqualTo(SOME_TASK_UUID);
     assertThat(task.hasScannerContext()).isFalse();
   }
@@ -196,17 +242,17 @@ public class TaskActionTest {
       .setErrorMessage("error msg");
     persist(activityDto);
 
-    WsCe.TaskResponse taskResponse = ws.newRequest()
+    Ce.TaskResponse taskResponse = ws.newRequest()
       .setParam("id", SOME_TASK_UUID)
-      .executeProtobuf(WsCe.TaskResponse.class);
-    WsCe.Task task = taskResponse.getTask();
+      .executeProtobuf(Ce.TaskResponse.class);
+    Ce.Task task = taskResponse.getTask();
     assertThat(task.getId()).isEqualTo(SOME_TASK_UUID);
     assertThat(task.getErrorMessage()).isEqualTo(activityDto.getErrorMessage());
     assertThat(task.hasErrorStacktrace()).isFalse();
   }
 
   @Test
-  public void throw_NotFoundException_if_id_does_not_exist() throws Exception {
+  public void throw_NotFoundException_if_id_does_not_exist() {
     logInAsRoot();
 
     expectedException.expect(NotFoundException.class);
@@ -344,20 +390,39 @@ public class TaskActionTest {
     return dto;
   }
 
+  private CeTaskCharacteristicDto insertCharacteristic(CeQueueDto queueDto, String key, String value) {
+    return insertCharacteristic(queueDto.getUuid(), key, value);
+  }
+
+  private CeTaskCharacteristicDto insertCharacteristic(CeActivityDto activityDto, String key, String value) {
+    return insertCharacteristic(activityDto.getUuid(), key, value);
+  }
+
+  private CeTaskCharacteristicDto insertCharacteristic(String taskUuid, String key, String value) {
+    CeTaskCharacteristicDto dto = new CeTaskCharacteristicDto()
+      .setUuid(Uuids.createFast())
+      .setTaskUuid(taskUuid)
+      .setKey(key)
+      .setValue(value);
+    db.getDbClient().ceTaskCharacteristicsDao().insert(db.getSession(), Collections.singletonList(dto));
+    db.commit();
+    return dto;
+  }
+
   private void persist(CeQueueDto queueDto) {
-    dbTester.getDbClient().ceQueueDao().insert(dbTester.getSession(), queueDto);
-    dbTester.commit();
+    db.getDbClient().ceQueueDao().insert(db.getSession(), queueDto);
+    db.commit();
   }
 
   private CeActivityDto persist(CeActivityDto activityDto) {
-    dbTester.getDbClient().ceActivityDao().insert(dbTester.getSession(), activityDto);
-    dbTester.commit();
+    db.getDbClient().ceActivityDao().insert(db.getSession(), activityDto);
+    db.commit();
     return activityDto;
   }
 
   private void persistScannerContext(String taskUuid, String scannerContext) {
-    dbTester.getDbClient().ceScannerContextDao().insert(dbTester.getSession(), taskUuid, CloseableIterator.from(singleton(scannerContext).iterator()));
-    dbTester.commit();
+    db.getDbClient().ceScannerContextDao().insert(db.getSession(), taskUuid, CloseableIterator.from(singleton(scannerContext).iterator()));
+    db.commit();
   }
 
   private void logInAsSystemAdministrator() {
@@ -369,10 +434,10 @@ public class TaskActionTest {
   }
 
   private void call(String taskUuid) {
-    WsCe.TaskResponse taskResponse = ws.newRequest()
+    Ce.TaskResponse taskResponse = ws.newRequest()
       .setParam("id", taskUuid)
-      .executeProtobuf(WsCe.TaskResponse.class);
-    WsCe.Task task = taskResponse.getTask();
+      .executeProtobuf(Ce.TaskResponse.class);
+    Ce.Task task = taskResponse.getTask();
     assertThat(task.getId()).isEqualTo(taskUuid);
   }
 

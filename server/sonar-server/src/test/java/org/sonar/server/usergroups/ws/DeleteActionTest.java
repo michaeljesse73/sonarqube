@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -31,6 +31,7 @@ import org.sonar.db.component.ComponentTesting;
 import org.sonar.db.organization.OrganizationDto;
 import org.sonar.db.permission.template.PermissionTemplateDto;
 import org.sonar.db.permission.template.PermissionTemplateTesting;
+import org.sonar.db.qualityprofile.QProfileDto;
 import org.sonar.db.user.GroupDto;
 import org.sonar.db.user.UserDto;
 import org.sonar.server.exceptions.NotFoundException;
@@ -62,7 +63,7 @@ public class DeleteActionTest {
   private WsActionTester ws = new WsActionTester(new DeleteAction(db.getDbClient(), userSession, newGroupWsSupport()));
 
   @Test
-  public void response_has_no_content() throws Exception {
+  public void response_has_no_content() {
     addAdmin(db.getDefaultOrganization());
     insertDefaultGroupOnDefaultOrganization();
     GroupDto group = db.users().insertGroup();
@@ -76,7 +77,7 @@ public class DeleteActionTest {
   }
 
   @Test
-  public void delete_by_id() throws Exception {
+  public void delete_by_id() {
     addAdmin(db.getDefaultOrganization());
     insertDefaultGroupOnDefaultOrganization();
     GroupDto group = db.users().insertGroup();
@@ -90,7 +91,7 @@ public class DeleteActionTest {
   }
 
   @Test
-  public void delete_by_name_on_default_organization() throws Exception {
+  public void delete_by_name_on_default_organization() {
     addAdminToDefaultOrganization();
     insertDefaultGroupOnDefaultOrganization();
     GroupDto group = db.users().insertGroup();
@@ -104,7 +105,7 @@ public class DeleteActionTest {
   }
 
   @Test
-  public void delete_by_name_and_organization() throws Exception {
+  public void delete_by_name_and_organization() {
     OrganizationDto org = db.organizations().insert();
     db.users().insertDefaultGroup(org);
     addAdmin(org);
@@ -120,7 +121,7 @@ public class DeleteActionTest {
   }
 
   @Test
-  public void delete_by_name_fails_if_organization_is_not_correct() throws Exception {
+  public void delete_by_name_fails_if_organization_is_not_correct() {
     OrganizationDto org = db.organizations().insert();
     db.users().insertDefaultGroup(org);
     loginAsAdmin(org);
@@ -135,7 +136,7 @@ public class DeleteActionTest {
   }
 
   @Test
-  public void delete_members() throws Exception {
+  public void delete_members() {
     addAdminToDefaultOrganization();
     insertDefaultGroupOnDefaultOrganization();
     GroupDto group = db.users().insertGroup();
@@ -151,7 +152,7 @@ public class DeleteActionTest {
   }
 
   @Test
-  public void delete_permissions() throws Exception {
+  public void delete_permissions() {
     addAdminToDefaultOrganization();
     insertDefaultGroupOnDefaultOrganization();
     GroupDto group = db.users().insertGroup();
@@ -167,7 +168,7 @@ public class DeleteActionTest {
   }
 
   @Test
-  public void delete_group_from_permission_templates() throws Exception {
+  public void delete_group_from_permission_templates() {
     addAdminToDefaultOrganization();
     insertDefaultGroupOnDefaultOrganization();
     GroupDto group = db.users().insertGroup();
@@ -185,7 +186,23 @@ public class DeleteActionTest {
   }
 
   @Test
-  public void fail_if_id_does_not_exist() throws Exception {
+  public void delete_qprofile_permissions() {
+    addAdminToDefaultOrganization();
+    insertDefaultGroupOnDefaultOrganization();
+    GroupDto group = db.users().insertGroup();
+    QProfileDto profile = db.qualityProfiles().insert(db.getDefaultOrganization());
+    db.qualityProfiles().addGroupPermission(profile, group);
+    loginAsAdminOnDefaultOrganization();
+
+    newRequest()
+      .setParam("id", group.getId().toString())
+      .execute();
+
+    assertThat(db.countRowsOfTable("qprofile_edit_groups")).isZero();
+  }
+
+  @Test
+  public void fail_if_id_does_not_exist() {
     addAdminToDefaultOrganization();
     loginAsAdminOnDefaultOrganization();
     int groupId = 123;
@@ -199,7 +216,7 @@ public class DeleteActionTest {
   }
 
   @Test
-  public void fail_to_delete_default_group_of_default_organization() throws Exception {
+  public void fail_to_delete_default_group_of_default_organization() {
     loginAsAdminOnDefaultOrganization();
     GroupDto defaultGroup = db.users().insertDefaultGroup(db.getDefaultOrganization(), "default");
 
@@ -212,7 +229,7 @@ public class DeleteActionTest {
   }
 
   @Test
-  public void fail_to_delete_group_of_a_none_default_organization() throws Exception {
+  public void fail_to_delete_group_of_a_none_default_organization() {
     OrganizationDto org = db.organizations().insert();
     GroupDto defaultGroup = db.users().insertDefaultGroup(org, "default");
     addAdmin(org);
@@ -227,7 +244,7 @@ public class DeleteActionTest {
   }
 
   @Test
-  public void cannot_delete_last_system_admin_group() throws Exception {
+  public void cannot_delete_last_system_admin_group() {
     insertDefaultGroupOnDefaultOrganization();
     GroupDto group = db.users().insertGroup();
     db.users().insertPermissionOnGroup(group, SYSTEM_ADMIN);
@@ -275,7 +292,7 @@ public class DeleteActionTest {
     assertThat(db.users().selectGroupPermissions(adminGroup2, null)).hasSize(1);
   }
 
-  private void executeDeleteGroupRequest(GroupDto adminGroup1) throws Exception {
+  private void executeDeleteGroupRequest(GroupDto adminGroup1) {
     newRequest()
       .setParam(PARAM_GROUP_ID, adminGroup1.getId().toString())
       .execute();

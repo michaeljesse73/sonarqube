@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -23,7 +23,12 @@ import SetIssueTagsPopup from '../SetIssueTagsPopup';
 
 it('should render tags popup correctly', () => {
   const element = shallow(
-    <SetIssueTagsPopup onFail={jest.fn()} selectedTags="mytag" setTags={jest.fn()} />
+    <SetIssueTagsPopup
+      onFail={jest.fn()}
+      organization="foo"
+      selectedTags="mytag"
+      setTags={jest.fn()}
+    />
   );
   element.setState({ searchResult: ['mytag', 'test', 'second'] });
   expect(element).toMatchSnapshot();

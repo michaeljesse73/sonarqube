@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,36 +19,47 @@
  */
 import React from 'react';
 import Checkbox from '../../../components/controls/Checkbox';
-import { translate } from '../../../helpers/l10n';
-import {
+import { translate, hasMessage } from '../../../helpers/l10n';
+/*:: import type {
   Notification,
   NotificationsState,
   ChannelsState,
   TypesState
-} from '../../../store/notifications/duck';
+} from '../../../store/notifications/duck'; */
 
 export default class NotificationsList extends React.PureComponent {
-  props: {
+  /*:: props: {
     onAdd: (n: Notification) => void,
     onRemove: (n: Notification) => void,
     channels: ChannelsState,
     checkboxId: (string, string) => string,
+    project?: boolean,
     types: TypesState,
     notifications: NotificationsState
   };
+*/
 
-  isEnabled(type: string, channel: string): boolean {
+  isEnabled(type /*: string */, channel /*: string */) /*: boolean */ {
     return !!this.props.notifications.find(
       notification => notification.type === type && notification.channel === channel
     );
   }
 
-  handleCheck(type: string, channel: string, checked: boolean) {
+  handleCheck(type /*: string */, channel /*: string */, checked /*: boolean */) {
     if (checked) {
       this.props.onAdd({ type, channel });
     } else {
       this.props.onRemove({ type, channel });
     }
+  }
+
+  getDispatcherLabel(dispatcher /*: string */) {
+    const globalMessageKey = ['notification.dispatcher', dispatcher];
+    const projectMessageKey = [...globalMessageKey, 'project'];
+    const shouldUseProjectMessage = this.props.project && hasMessage(...projectMessageKey);
+    return shouldUseProjectMessage
+      ? translate(...projectMessageKey)
+      : translate(...globalMessageKey);
   }
 
   render() {
@@ -58,7 +69,7 @@ export default class NotificationsList extends React.PureComponent {
       <tbody>
         {types.map(type => (
           <tr key={type}>
-            <td>{translate('notification.dispatcher', type)}</td>
+            <td>{this.getDispatcherLabel(type)}</td>
             {channels.map(channel => (
               <td key={channel} className="text-center">
                 <Checkbox

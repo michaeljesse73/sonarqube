@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -145,6 +145,7 @@ public class DefaultRuleFinder implements RuleFinder {
       .setRepositoryKey(rule.getRepositoryKey())
       .setSeverity(severity != null ? RulePriority.valueOf(severity) : null)
       .setStatus(rule.getStatus().name())
+      .setSystemTags(rule.getSystemTags().toArray(new String[rule.getSystemTags().size()]))
       .setTags(rule.getTags().toArray(new String[rule.getTags().size()]))
       .setId(rule.getId());
     if (description != null && descriptionFormat != null) {

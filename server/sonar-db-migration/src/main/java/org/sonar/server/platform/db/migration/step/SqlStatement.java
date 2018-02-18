@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -26,6 +26,8 @@ import javax.annotation.Nullable;
 public interface SqlStatement<CHILD extends SqlStatement> extends AutoCloseable {
   CHILD setBoolean(int columnIndex, @Nullable Boolean value) throws SQLException;
 
+  CHILD setBytes(int columnIndex, @Nullable byte[] value) throws SQLException;
+
   CHILD setDate(int columnIndex, @Nullable Date value) throws SQLException;
 
   CHILD setDouble(int columnIndex, @Nullable Double value) throws SQLException;
@@ -35,8 +37,6 @@ public interface SqlStatement<CHILD extends SqlStatement> extends AutoCloseable 
   CHILD setLong(int columnIndex, @Nullable Long value) throws SQLException;
 
   CHILD setString(int columnIndex, @Nullable String value) throws SQLException;
-
-  CHILD setBytes(int columnIndex, @Nullable byte[] data) throws SQLException;
 
   @Override
   void close();

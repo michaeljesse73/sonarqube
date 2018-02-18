@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,7 +19,8 @@
  */
 package org.sonar.server.computation.task.projectanalysis.qualitygate;
 
-import com.google.common.base.Optional;
+import java.util.Optional;
+import org.sonar.server.qualitygate.EvaluatedQualityGate;
 
 public interface QualityGateHolder {
   /**
@@ -28,4 +29,11 @@ public interface QualityGateHolder {
    * @throws IllegalStateException if the holder has not been initialized (ie. we don't know yet what is the QualityGate)
    */
   Optional<QualityGate> getQualityGate();
+
+  /**
+   * Evaluation of quality gate, including status and condition details.
+   *
+   * @throws IllegalStateException if the holder has not been initialized (ie. gate has not been evaluated yet)
+   */
+  Optional<EvaluatedQualityGate> getEvaluation();
 }

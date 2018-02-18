@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,7 +22,7 @@ import org.sonar.api.server.ws.RequestHandler;
 import org.sonar.api.server.ws.Response;
 import org.sonar.api.server.ws.WebService;
 import org.sonarqube.ws.MediaTypes;
-import org.sonarqube.ws.WsCe;
+import org.sonarqube.ws.Ce;
 import org.sonarqube.ws.client.GetRequest;
 import org.sonarqube.ws.client.LocalWsClientFactory;
 import org.sonarqube.ws.client.WsClient;
@@ -47,17 +47,17 @@ public final class LocalCallWebService implements WebService {
 
   private class ProtobufHandler implements RequestHandler {
     @Override
-    public void handle(Request request, Response response) throws Exception {
+    public void handle(Request request, Response response) {
       WsClient client = wsClientFactory.newClient(request.localConnector());
 
-      WsCe.TaskTypesWsResponse ceTaskTypes = client.ce().taskTypes();
+      Ce.TaskTypesWsResponse ceTaskTypes = client.ce().taskTypes();
       response.stream().setStatus(ceTaskTypes.getTaskTypesCount() > 0 ? 200 : 500);
     }
   }
 
   private class JsonHandler implements RequestHandler {
     @Override
-    public void handle(Request request, Response response) throws Exception {
+    public void handle(Request request, Response response) {
       WsClient client = wsClientFactory.newClient(request.localConnector());
 
       WsResponse jsonResponse = client.wsConnector().call(new GetRequest("api/issues/search"));
@@ -70,7 +70,7 @@ public final class LocalCallWebService implements WebService {
 
   private class RequirePermissionHandler implements RequestHandler {
     @Override
-    public void handle(Request request, Response response) throws Exception {
+    public void handle(Request request, Response response) {
       WsClient client = wsClientFactory.newClient(request.localConnector());
 
       WsResponse jsonResponse = client.wsConnector().call(new GetRequest("api/system/info"));

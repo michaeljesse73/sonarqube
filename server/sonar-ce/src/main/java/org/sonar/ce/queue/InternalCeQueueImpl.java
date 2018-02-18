@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -26,13 +26,13 @@ import java.io.PrintWriter;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 import org.apache.log4j.Logger;
 import org.sonar.api.ce.ComputeEngineSide;
 import org.sonar.api.utils.System2;
 import org.sonar.api.utils.log.Loggers;
+import org.sonar.ce.container.ComputeEngineStatus;
 import org.sonar.ce.monitoring.CEQueueStatus;
 import org.sonar.core.util.UuidFactory;
 import org.sonar.db.DbClient;
@@ -40,38 +40,39 @@ import org.sonar.db.DbSession;
 import org.sonar.db.ce.CeActivityDto;
 import org.sonar.db.ce.CeQueueDao;
 import org.sonar.db.ce.CeQueueDto;
+import org.sonar.server.computation.task.projectanalysis.component.VisitException;
+import org.sonar.server.computation.task.step.TypedException;
 import org.sonar.server.organization.DefaultOrganizationProvider;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 @ComputeEngineSide
 public class InternalCeQueueImpl extends CeQueueImpl implements InternalCeQueue {
   private static final org.sonar.api.utils.log.Logger LOG = Loggers.get(InternalCeQueueImpl.class);
 
-  private static final int MAX_EXECUTION_COUNT = 2;
+  private static final int MAX_EXECUTION_COUNT = 1;
 
   private final System2 system2;
   private final DbClient dbClient;
   private final CEQueueStatus queueStatus;
-
-  // state
-  private AtomicBoolean peekPaused = new AtomicBoolean(false);
+  private final ComputeEngineStatus computeEngineStatus;
 
   public InternalCeQueueImpl(System2 system2, DbClient dbClient, UuidFactory uuidFactory, CEQueueStatus queueStatus,
-    DefaultOrganizationProvider defaultOrganizationProvider) {
+    DefaultOrganizationProvider defaultOrganizationProvider, ComputeEngineStatus computeEngineStatus) {
     super(dbClient, uuidFactory, defaultOrganizationProvider);
     this.system2 = system2;
     this.dbClient = dbClient;
     this.queueStatus = queueStatus;
+    this.computeEngineStatus = computeEngineStatus;
   }
 
   @Override
   public Optional<CeTask> peek(String workerUuid) {
     requireNonNull(workerUuid, "workerUuid can't be null");
 
-    if (peekPaused.get()) {
+    if (computeEngineStatus.getStatus() != ComputeEngineStatus.Status.STARTED) {
       return Optional.empty();
     }
     try (DbSession dbSession = dbClient.openSession(false)) {
@@ -99,14 +100,14 @@ public class InternalCeQueueImpl extends CeQueueImpl implements InternalCeQueue 
   public void remove(CeTask task, CeActivityDto.Status status, @Nullable CeTaskResult taskResult, @Nullable Throwable error) {
     checkArgument(error == null || status == CeActivityDto.Status.FAILED, "Error can be provided only when status is FAILED");
     try (DbSession dbSession = dbClient.openSession(false)) {
-      Optional<CeQueueDto> queueDto = dbClient.ceQueueDao().selectByUuid(dbSession, task.getUuid());
-      checkState(queueDto.isPresent(), "Task does not exist anymore: %s", task);
-      CeActivityDto activityDto = new CeActivityDto(queueDto.get());
+      CeQueueDto queueDto = dbClient.ceQueueDao().selectByUuid(dbSession, task.getUuid())
+      .orElseThrow(() -> new IllegalStateException("Task does not exist anymore: " + task));
+      CeActivityDto activityDto = new CeActivityDto(queueDto);
       activityDto.setStatus(status);
       updateQueueStatus(status, activityDto);
       updateTaskResult(activityDto, taskResult);
       updateError(activityDto, error);
-      remove(dbSession, queueDto.get(), activityDto);
+      remove(dbSession, queueDto, activityDto);
     }
   }
 
@@ -122,10 +123,17 @@ public class InternalCeQueueImpl extends CeQueueImpl implements InternalCeQueue 
       return;
     }
 
-    activityDto.setErrorMessage(error.getMessage());
+    if (error instanceof VisitException && error.getCause() != null) {
+      activityDto.setErrorMessage(format("%s (%s)", error.getCause().getMessage(), error.getMessage()));
+    } else {
+      activityDto.setErrorMessage(error.getMessage());
+    }
     String stacktrace = getStackTraceForPersistence(error);
     if (stacktrace != null) {
       activityDto.setErrorStacktrace(stacktrace);
+    }
+    if (error instanceof TypedException) {
+      activityDto.setErrorType(((TypedException) error).getType());
     }
   }
 
@@ -176,21 +184,6 @@ public class InternalCeQueueImpl extends CeQueueImpl implements InternalCeQueue 
       dbClient.ceQueueDao().resetTasksWithUnknownWorkerUUIDs(dbSession, knownWorkerUUIDs);
       dbSession.commit();
     }
-  }
-
-  @Override
-  public void pausePeek() {
-    this.peekPaused.set(true);
-  }
-
-  @Override
-  public void resumePeek() {
-    this.peekPaused.set(false);
-  }
-
-  @Override
-  public boolean isPeekPaused() {
-    return peekPaused.get();
   }
 
   /**

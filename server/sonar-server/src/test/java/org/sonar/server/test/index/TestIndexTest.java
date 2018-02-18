@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,6 +24,7 @@ import java.util.List;
 import org.junit.Rule;
 import org.junit.Test;
 import org.sonar.api.config.internal.MapSettings;
+import org.sonar.api.utils.System2;
 import org.sonar.server.es.EsTester;
 import org.sonar.server.es.SearchOptions;
 
@@ -36,10 +37,10 @@ public class TestIndexTest {
   @Rule
   public EsTester es = new EsTester(new TestIndexDefinition(new MapSettings().asConfig()));
 
-  TestIndex underTest = new TestIndex(es.client());
+  private TestIndex underTest = new TestIndex(es.client(), System2.INSTANCE);
 
   @Test
-  public void coveredFiles() throws Exception {
+  public void coveredFiles() {
     es.putDocuments(INDEX_TYPE_TEST,
       newTestDoc("1", "TESTFILE1", newCoveredFileDoc("3"), newCoveredFileDoc("4"), newCoveredFileDoc("5")),
       newTestDoc("2", "TESTFILE1", newCoveredFileDoc("5"), newCoveredFileDoc("6"), newCoveredFileDoc("7")));
@@ -52,7 +53,7 @@ public class TestIndexTest {
   }
 
   @Test
-  public void searchByTestFileUuid() throws Exception {
+  public void searchByTestFileUuid() {
     es.putDocuments(INDEX_TYPE_TEST,
       newTestDoc("1", "TESTFILE1", newCoveredFileDoc("3"), newCoveredFileDoc("4"), newCoveredFileDoc("5")),
       newTestDoc("2", "TESTFILE1", newCoveredFileDoc("5"), newCoveredFileDoc("6"), newCoveredFileDoc("7")),
@@ -65,7 +66,7 @@ public class TestIndexTest {
   }
 
   @Test
-  public void searchBySourceFileUuidAndLineNumber() throws Exception {
+  public void searchBySourceFileUuidAndLineNumber() {
     es.putDocuments(INDEX_TYPE_TEST,
       newTestDoc("1", "TESTFILE1", newCoveredFileDoc("10"), newCoveredFileDoc("11"), newCoveredFileDoc("12")),
       newTestDoc("2", "TESTFILE1", newCoveredFileDoc("3"), newCoveredFileDoc("4"), newCoveredFileDoc("5")),
@@ -78,7 +79,7 @@ public class TestIndexTest {
   }
 
   @Test
-  public void searchByTestUuid() throws Exception {
+  public void searchByTestUuid() {
     es.putDocuments(INDEX_TYPE_TEST,
       newTestDoc("1", "TESTFILE1", newCoveredFileDoc("3"), newCoveredFileDoc("4"), newCoveredFileDoc("5")),
       newTestDoc("2", "TESTFILE1", newCoveredFileDoc("5"), newCoveredFileDoc("6"), newCoveredFileDoc("7")));
@@ -96,7 +97,7 @@ public class TestIndexTest {
   }
 
   @Test
-  public void getNullableByTestUuid() throws Exception {
+  public void getNullableByTestUuid() {
     es.putDocuments(INDEX_TYPE_TEST,
       newTestDoc("1", "TESTFILE1", newCoveredFileDoc("3"), newCoveredFileDoc("4"), newCoveredFileDoc("5")),
       newTestDoc("2", "TESTFILE1", newCoveredFileDoc("5"), newCoveredFileDoc("6"), newCoveredFileDoc("7")));
@@ -123,7 +124,7 @@ public class TestIndexTest {
   }
 
   @Test
-  public void searchByTestUuid_with_SearchOptions() throws Exception {
+  public void searchByTestUuid_with_SearchOptions() {
     es.putDocuments(INDEX_TYPE_TEST,
       newTestDoc("1", "TESTFILE1", newCoveredFileDoc("3"), newCoveredFileDoc("4"), newCoveredFileDoc("5")),
       newTestDoc("2", "TESTFILE1", newCoveredFileDoc("5"), newCoveredFileDoc("6"), newCoveredFileDoc("7")));

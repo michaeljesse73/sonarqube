@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -32,8 +32,8 @@ import org.sonar.api.measures.CoreMetrics;
 import org.sonar.scanner.scan.measure.MeasureCache;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.nullValue;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -95,13 +95,13 @@ public class DefaultFileLinesContextTest {
 
   @Test
   public void validateLineGreaterThanZero() {
-    thrown.expectMessage("Line number should be positive for file [moduleKey=foo, relative=src/foo.php, basedir=foo].");
+    thrown.expectMessage("Line number should be positive for file src/foo.php.");
     fileLineMeasures.setIntValue(HITS_METRIC_KEY, 0, 2);
   }
 
   @Test
   public void validateLineLowerThanLineCount() {
-    thrown.expectMessage("Line 4 is out of range for file [moduleKey=foo, relative=src/foo.php, basedir=foo]. File has 3 lines");
+    thrown.expectMessage("Line 4 is out of range for file src/foo.php. File has 3 lines");
     fileLineMeasures.setIntValue(HITS_METRIC_KEY, 4, 2);
   }
 

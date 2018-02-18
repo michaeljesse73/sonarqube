@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -29,7 +29,8 @@ it('should render correctly with children', () => {
   expect(
     shallow(
       <SelectListItem active="myitem" item="seconditem">
-        <i className="custom-icon" /><p>seconditem</p>
+        <i className="custom-icon" />
+        <p>seconditem</p>
       </SelectListItem>
     )
   ).toMatchSnapshot();

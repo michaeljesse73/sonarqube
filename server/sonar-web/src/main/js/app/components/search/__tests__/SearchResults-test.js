@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -65,6 +65,6 @@ it('renders "Show More" link', () => {
   ).toMatchSnapshot();
 });
 
-function component(key: string, qualifier: string = 'TRK') {
+function component(key /*: string */, qualifier /*: string */ = 'TRK') {
   return { key, name: key, qualifier };
 }

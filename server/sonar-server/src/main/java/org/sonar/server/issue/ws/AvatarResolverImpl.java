@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -17,12 +17,12 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-
 package org.sonar.server.issue.ws;
 
 import com.google.common.hash.Hashing;
 import org.sonar.db.user.UserDto;
 
+import static com.google.common.base.Strings.emptyToNull;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Locale.ENGLISH;
 import static java.util.Objects.requireNonNull;
@@ -32,7 +32,7 @@ public class AvatarResolverImpl implements AvatarResolver {
   @Override
   public String create(UserDto user) {
     UserDto userDto = requireNonNull(user, "User cannot be null");
-    return hash(requireNonNull(userDto.getEmail(), "Email cannot be null"));
+    return hash(requireNonNull(emptyToNull(userDto.getEmail()), "Email cannot be null"));
   }
 
   private static String hash(String text) {

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -32,7 +32,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.sonar.api.config.internal.MapSettings;
 import org.sonar.api.utils.log.LoggerLevel;
-import org.sonar.process.DefaultProcessCommands;
+import org.sonar.process.sharedmemoryfile.DefaultProcessCommands;
 import org.sonar.process.ProcessEntryPoint;
 import org.sonar.process.ProcessId;
 import org.sonar.process.systeminfo.protobuf.ProtobufSystemInfo;
@@ -57,18 +57,18 @@ public class CeHttpClientTest {
     ipcSharedDir = temp.newFolder();
     MapSettings settings = new MapSettings();
     settings.setProperty(ProcessEntryPoint.PROPERTY_SHARED_PATH, ipcSharedDir.getAbsolutePath());
-    underTest = new CeHttpClient(settings.asConfig());
+    underTest = new CeHttpClientImpl(settings.asConfig());
   }
 
   @Test
-  public void retrieveSystemInfo_returns_absent_if_process_is_down() throws Exception {
+  public void retrieveSystemInfo_returns_absent_if_process_is_down() {
     Optional<ProtobufSystemInfo.SystemInfo> info = underTest.retrieveSystemInfo();
 
     assertThat(info.isPresent()).isFalse();
   }
 
   @Test
-  public void retrieveSystemInfo_get_information_if_process_is_up() throws Exception {
+  public void retrieveSystemInfo_get_information_if_process_is_up() {
     Buffer response = new Buffer();
     response.read(ProtobufSystemInfo.Section.newBuilder().build().toByteArray());
     server.enqueue(new MockResponse().setBody(response));
@@ -81,7 +81,7 @@ public class CeHttpClientTest {
   }
 
   @Test
-  public void retrieveSystemInfo_throws_ISE_if_http_error() throws Exception {
+  public void retrieveSystemInfo_throws_ISE_if_http_error() {
     server.enqueue(new MockResponse().setResponseCode(500));
 
     // initialize registration of process
@@ -131,6 +131,31 @@ public class CeHttpClientTest {
   @Test
   public void changelogLevel_does_not_fail_if_process_is_down() {
     underTest.changeLogLevel(LoggerLevel.INFO);
+  }
+
+  @Test
+  public void refreshCeWorkerCount_throws_ISE_if_http_error() {
+    String message = "blah";
+    server.enqueue(new MockResponse().setResponseCode(500).setBody(message));
+    // initialize registration of process
+    setUpWithHttpUrl(ProcessId.COMPUTE_ENGINE);
+
+    expectedException.expect(IllegalStateException.class);
+    expectedException.expectMessage("Failed to call HTTP server of process " + ProcessId.COMPUTE_ENGINE);
+    expectedException.expectCause(hasType(IOException.class)
+        .andMessage(format("Failed to trigger refresh of CE Worker count. Code was '500' and response was 'blah' for url " +
+            "'http://%s:%s/refreshWorkerCount'", server.getHostName(), server.getPort())));
+
+    underTest.refreshCeWorkerCount();
+  }
+
+  @Test
+  public void refreshCeWorkerCount_does_not_fail_when_http_code_is_200() {
+    server.enqueue(new MockResponse().setResponseCode(200));
+
+    setUpWithHttpUrl(ProcessId.COMPUTE_ENGINE);
+
+    underTest.refreshCeWorkerCount();
   }
 
   private void setUpWithHttpUrl(ProcessId processId) {

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,18 +19,15 @@
  */
 package org.sonarqube.tests.plugins;
 
-import com.google.common.collect.Sets;
 import com.sonar.orchestrator.Orchestrator;
 import com.sonar.orchestrator.OrchestratorBuilder;
 import com.sonar.orchestrator.build.BuildResult;
 import com.sonar.orchestrator.build.SonarScanner;
-import com.sonar.orchestrator.locator.URLLocation;
+import com.sonar.orchestrator.locator.MavenLocation;
 import java.io.File;
 import java.net.MalformedURLException;
-import java.net.URL;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Set;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -62,10 +59,6 @@ import static org.assertj.core.api.Assertions.fail;
  */
 public class PluginsTest {
 
-  private static final Set<String> LICENSED_PLUGINS = Sets.newHashSet(
-    "abap", "cobol", "cpp", "objc", "pli", "plsql", "rpg",
-    "swift", "vb", "vbnet");
-
   private static final List<Check> CHECKS = Arrays.asList(
     new AbapCheck(),
     new CCheck(), new CppCheck(),
@@ -89,9 +82,11 @@ public class PluginsTest {
   private static Orchestrator ORCHESTRATOR;
 
   @BeforeClass
-  public static void startServer() throws MalformedURLException {
+  public static void startServer() {
     OrchestratorBuilder builder = Orchestrator.builderEnv()
       .setZipFile(byWildcardMavenFilename(new File("../sonar-application/target"), "sonar*.zip").getFile());
+
+    builder.addPlugin(MavenLocation.of("com.sonarsource.license", "sonar-dev-license-plugin", "3.2.0.1163"));
 
     // FIXME JSON plugin is temporarily disabled as for the moment the github repo doesn't exist anymore installPlugin(builder, "JSON");;
     installPlugin(builder, "Sonargraph");
@@ -131,10 +126,8 @@ public class PluginsTest {
     installPlugin(builder, "lua");
     installPlugin(builder, "php");
     installPlugin(builder, "pitest");
-    // SONAR-7618 SonarPLI release 1.5.0.702 not compatible with CE not loading @ServerSide. To be reset to LATEST_RELEASE as soon as SonarPLI 1.5.1 is released.
-    installPlugin(builder, new URL("https://sonarsource.bintray.com/CommercialDistribution/sonar-pli-plugin/sonar-pli-plugin-1.5.1.872.jar"));
-    // SONAR-7618 SonarPLSQL 2.9.0.901 not compatible with CE not loading @ServerSide. To be reset to LATEST_RELEASE as soon as SonarPLSQL 2.9.1 is released.
-    installPlugin(builder, new URL("https://sonarsource.bintray.com/CommercialDistribution/sonar-plsql-plugin/sonar-plsql-plugin-2.9.1.1051.jar"));
+    installPlugin(builder, "pli");
+    installPlugin(builder, "plsql");
     installPlugin(builder, "pmd");
     // FIXME puppet plugin is temporarily disabled because it is not compatible with SQ 6.4 until usage of Colorizer API is removed
     installPlugin(builder, "python");
@@ -152,8 +145,7 @@ public class PluginsTest {
     installPlugin(builder, "sonargraphintegration");
     installPlugin(builder, "status");
     installPlugin(builder, "swift");
-    // SONAR-7618 Visual Basic 2.2 not compatible with CE not loading @ServerSide
-    // installPlugin(builder, "vb");
+    // SONAR-7618 Visual Basic 2.2 not compatible with CE not loading @ServerSide installPlugin(builder, "vb");
     installPlugin(builder, "vbnet");
     installPlugin(builder, "web");
     installPlugin(builder, "xanitizer");
@@ -199,15 +191,11 @@ public class PluginsTest {
   }
 
   private static void activateLicenses(OrchestratorBuilder builder) {
-    LICENSED_PLUGINS.forEach(builder::activateLicense);
+    builder.activateLicense();
   }
 
   private static void installPlugin(OrchestratorBuilder builder, String pluginKey) {
     builder.setOrchestratorProperty(pluginKey + "Version", "LATEST_RELEASE");
     builder.addPlugin(pluginKey);
-  }
-
-  private static void installPlugin(OrchestratorBuilder builder, URL url) {
-    builder.addPlugin(URLLocation.create(url));
   }
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,27 +19,30 @@
  */
 package org.sonar.server.qualitygate.ws;
 
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.sonar.api.utils.System2;
-import org.sonar.api.web.UserRole;
 import org.sonar.db.DbClient;
-import org.sonar.db.DbSession;
 import org.sonar.db.DbTester;
 import org.sonar.db.component.ComponentDto;
+import org.sonar.db.organization.OrganizationDto;
+import org.sonar.db.qualitygate.QGateWithOrgDto;
 import org.sonar.db.qualitygate.QualityGateDto;
-import org.sonar.server.component.ComponentFinder;
 import org.sonar.server.component.TestComponentFinder;
 import org.sonar.server.exceptions.ForbiddenException;
 import org.sonar.server.exceptions.NotFoundException;
+import org.sonar.server.organization.TestDefaultOrganizationProvider;
+import org.sonar.server.qualitygate.QualityGateFinder;
 import org.sonar.server.tester.UserSessionRule;
 import org.sonar.server.ws.WsActionTester;
 
+import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.sonar.api.web.UserRole.ADMIN;
+import static org.sonar.api.web.UserRole.ISSUE_ADMIN;
 import static org.sonar.db.permission.OrganizationPermission.ADMINISTER_QUALITY_GATES;
-import static org.sonar.server.qualitygate.QualityGates.SONAR_QUALITYGATE_PROPERTY;
+import static org.sonar.server.qualitygate.QualityGateFinder.SONAR_QUALITYGATE_PROPERTY;
 
 public class SelectActionTest {
 
@@ -51,156 +54,250 @@ public class SelectActionTest {
   public DbTester db = DbTester.create(System2.INSTANCE);
 
   private DbClient dbClient = db.getDbClient();
-  private DbSession dbSession = db.getSession();
-  private WsActionTester ws;
-  private ComponentDto project;
-  private QualityGateDto gate;
-  private SelectAction underTest;
+  private SelectAction underTest = new SelectAction(dbClient, TestComponentFinder.from(db),
+    new QualityGatesWsSupport(db.getDbClient(), userSession, TestDefaultOrganizationProvider.from(db)),
+    new QualityGateFinder(db.getDbClient()));
+  private WsActionTester ws = new WsActionTester(underTest);
 
-  @Before
-  public void setUp() {
-    ComponentFinder componentFinder = TestComponentFinder.from(db);
-    underTest = new SelectAction(dbClient, userSession, componentFinder);
-    ws = new WsActionTester(underTest);
-    project = db.components().insertPrivateProject();
-    gate = insertQualityGate();
+  @Test
+  public void select_by_id() {
+    OrganizationDto organization = db.organizations().insert();
+    userSession.addPermission(ADMINISTER_QUALITY_GATES, organization);
+    QGateWithOrgDto qualityGate = db.qualityGates().insertQualityGate(organization);
+    ComponentDto project = db.components().insertPrivateProject(organization);
+
+    ws.newRequest()
+      .setParam("gateId", qualityGate.getId().toString())
+      .setParam("projectId", project.getId().toString())
+      .setParam("organization", organization.getKey())
+      .execute();
+
+    assertSelected(qualityGate, project);
   }
 
   @Test
-  public void select_by_id() throws Exception {
-    logInAsRoot();
-    String gateId = String.valueOf(gate.getId());
+  public void select_by_uuid() {
+    OrganizationDto organization = db.organizations().insert();
+    userSession.addPermission(ADMINISTER_QUALITY_GATES, organization);
+    QGateWithOrgDto qualityGate = db.qualityGates().insertQualityGate(organization);
+    ComponentDto project = db.components().insertPrivateProject(organization);
 
-    callById(gateId, project.getId());
+    ws.newRequest()
+      .setParam("gateId", qualityGate.getId().toString())
+      .setParam("projectId", project.uuid())
+      .setParam("organization", organization.getKey())
+      .execute();
 
-    assertSelected(gateId, project.getId());
+    assertSelected(qualityGate, project);
   }
 
   @Test
-  public void select_by_uuid() throws Exception {
-    logInAsRoot();
-    String gateId = String.valueOf(gate.getId());
+  public void select_by_key() {
+    OrganizationDto organization = db.organizations().insert();
+    userSession.addPermission(ADMINISTER_QUALITY_GATES, organization);
+    QGateWithOrgDto qualityGate = db.qualityGates().insertQualityGate(organization);
+    ComponentDto project = db.components().insertPrivateProject(organization);
 
-    callByUuid(gateId, project.uuid());
+    ws.newRequest()
+      .setParam("gateId", qualityGate.getId().toString())
+      .setParam("projectKey", project.getKey())
+      .setParam("organization", organization.getKey())
+      .execute();
 
-    assertSelected(gateId, project.getId());
+    assertSelected(qualityGate, project);
   }
 
   @Test
-  public void select_by_key() throws Exception {
-    logInAsRoot();
-    String gateId = String.valueOf(gate.getId());
+  public void project_admin() {
+    OrganizationDto organization = db.organizations().insert();
+    QGateWithOrgDto qualityGate = db.qualityGates().insertQualityGate(organization);
+    ComponentDto project = db.components().insertPrivateProject(organization);
+    userSession.logIn().addProjectPermission(ADMIN, project);
 
-    callByKey(gateId, project.getKey());
+    ws.newRequest()
+      .setParam("gateId", qualityGate.getId().toString())
+      .setParam("projectKey", project.getKey())
+      .setParam("organization", organization.getKey())
+      .execute();
 
-    assertSelected(gateId, project.getId());
+    assertSelected(qualityGate, project);
   }
 
   @Test
-  public void project_admin() throws Exception {
-    userSession.logIn().addProjectPermission(UserRole.ADMIN, project);
-    String gateId = String.valueOf(gate.getId());
+  public void gate_administrator_can_associate_a_gate_to_a_project() {
+    OrganizationDto organization = db.organizations().insert();
+    userSession.addPermission(ADMINISTER_QUALITY_GATES, organization);
+    QGateWithOrgDto qualityGate = db.qualityGates().insertQualityGate(organization);
+    ComponentDto project = db.components().insertPrivateProject(organization);
 
-    callByKey(gateId, project.getKey());
+    ws.newRequest()
+      .setParam("gateId", qualityGate.getId().toString())
+      .setParam("projectKey", project.getKey())
+      .setParam("organization", organization.getKey())
+      .execute();
 
-    assertSelected(gateId, project.getId());
+    assertSelected(qualityGate, project);
   }
 
   @Test
-  public void gate_administrator_can_associate_a_gate_to_a_project() throws Exception {
-    userSession.logIn().addPermission(ADMINISTER_QUALITY_GATES, project.getOrganizationUuid());
-    String gateId = String.valueOf(gate.getId());
+  public void default_organization_is_used_when_no_organization_parameter() {
+    OrganizationDto organization = db.getDefaultOrganization();
+    userSession.addPermission(ADMINISTER_QUALITY_GATES, organization);
+    QGateWithOrgDto qualityGate = db.qualityGates().insertQualityGate(organization);
+    ComponentDto project = db.components().insertPrivateProject(organization);
 
-    callByKey(gateId, project.getKey());
+    ws.newRequest()
+      .setParam("gateId", qualityGate.getId().toString())
+      .setParam("projectKey", project.getKey())
+      .execute();
 
-    assertSelected(gateId, project.getId());
+    assertSelected(qualityGate, project);
   }
 
   @Test
-  public void fail_when_no_quality_gate() throws Exception {
+  public void fail_when_project_belongs_to_another_organization() {
+    OrganizationDto organization = db.organizations().insert();
+    userSession.addPermission(ADMINISTER_QUALITY_GATES, organization);
+    OrganizationDto anotherOrganization = db.organizations().insert();
+    ComponentDto project = db.components().insertPrivateProject(anotherOrganization);
+    QGateWithOrgDto qualityGate = db.qualityGates().insertQualityGate(organization);
+
     expectedException.expect(NotFoundException.class);
-    callByKey("1", project.getKey());
+    expectedException.expectMessage(format("Project '%s' doesn't exist in organization '%s'", project.getKey(), organization.getKey()));
+
+    ws.newRequest()
+      .setParam("gateId", qualityGate.getId().toString())
+      .setParam("projectKey", project.getKey())
+      .setParam("organization", organization.getKey())
+      .execute();
   }
 
   @Test
-  public void fail_when_no_project_id() throws Exception {
-    String gateId = String.valueOf(gate.getId());
+  public void fail_when_no_quality_gate() {
+    OrganizationDto organization = db.organizations().insert();
+    userSession.addPermission(ADMINISTER_QUALITY_GATES, organization);
+    ComponentDto project = db.components().insertPrivateProject(organization);
 
     expectedException.expect(NotFoundException.class);
-    callById(gateId, 1L);
+
+    ws.newRequest()
+      .setParam("gateId", String.valueOf("1"))
+      .setParam("projectKey", project.getKey())
+      .setParam("organization", organization.getKey())
+      .execute();
   }
 
   @Test
-  public void fail_when_no_project_key() throws Exception {
-    String gateId = String.valueOf(gate.getId());
+  public void fail_when_no_project_id() {
+    OrganizationDto organization = db.organizations().insert();
+    userSession.addPermission(ADMINISTER_QUALITY_GATES, organization);
+    QGateWithOrgDto qualityGate = db.qualityGates().insertQualityGate(organization);
 
     expectedException.expect(NotFoundException.class);
-    callByKey(gateId, "unknown");
+    ws.newRequest()
+      .setParam("gateId", qualityGate.getId().toString())
+      .setParam("projectId", String.valueOf((Long) 1L))
+      .setParam("organization", organization.getKey())
+      .execute();
   }
 
   @Test
-  public void fail_when_anonymous() throws Exception {
-    String gateId = String.valueOf(gate.getId());
+  public void fail_when_no_project_key() {
+    OrganizationDto organization = db.organizations().insert();
+    userSession.addPermission(ADMINISTER_QUALITY_GATES, organization);
+    QGateWithOrgDto qualityGate = db.qualityGates().insertQualityGate(organization);
 
+    expectedException.expect(NotFoundException.class);
+    ws.newRequest()
+      .setParam("gateId", qualityGate.getId().toString())
+      .setParam("projectKey", "unknown")
+      .setParam("organization", organization.getKey())
+      .execute();
+  }
+
+  @Test
+  public void fail_when_anonymous() {
+    OrganizationDto organization = db.organizations().insert();
+    QGateWithOrgDto qualityGate = db.qualityGates().insertQualityGate(organization);
+    ComponentDto project = db.components().insertPrivateProject(organization);
     userSession.anonymous();
 
     expectedException.expect(ForbiddenException.class);
-    callByKey(gateId, project.getKey());
+    ws.newRequest()
+      .setParam("gateId", qualityGate.getId().toString())
+      .setParam("projectKey", project.getKey())
+      .setParam("organization", organization.getKey())
+      .execute();
   }
 
   @Test
-  public void fail_when_not_project_admin() throws Exception {
-    String gateId = String.valueOf(gate.getId());
-
-    userSession.logIn().addProjectPermission(UserRole.ISSUE_ADMIN, project);
+  public void fail_when_not_project_admin() {
+    OrganizationDto organization = db.organizations().insert();
+    QGateWithOrgDto qualityGate = db.qualityGates().insertQualityGate(organization);
+    ComponentDto project = db.components().insertPrivateProject(organization);
+    userSession.logIn().addProjectPermission(ISSUE_ADMIN, project);
 
     expectedException.expect(ForbiddenException.class);
-    callByKey(gateId, project.getKey());
+    ws.newRequest()
+      .setParam("gateId", qualityGate.getId().toString())
+      .setParam("projectKey", project.getDbKey())
+      .setParam("organization", organization.getKey())
+      .execute();
   }
 
   @Test
-  public void fail_when_not_quality_gates_admin() throws Exception {
-    String gateId = String.valueOf(gate.getId());
-
+  public void fail_when_not_quality_gates_admin() {
+    OrganizationDto organization = db.organizations().insert();
+    QGateWithOrgDto qualityGate = db.qualityGates().insertQualityGate(organization);
+    ComponentDto project = db.components().insertPrivateProject(organization);
     userSession.logIn();
 
     expectedException.expect(ForbiddenException.class);
-    callByKey(gateId, project.getKey());
-  }
-
-  private QualityGateDto insertQualityGate() {
-    QualityGateDto gate = new QualityGateDto().setName("Custom");
-    dbClient.qualityGateDao().insert(dbSession, gate);
-    dbSession.commit();
-    return gate;
-  }
-
-  private void callByKey(String gateId, String projectKey) {
     ws.newRequest()
-      .setParam("gateId", String.valueOf(gateId))
-      .setParam("projectKey", projectKey)
+      .setParam("gateId", qualityGate.getId().toString())
+      .setParam("projectKey", project.getDbKey())
+      .setParam("organization", organization.getKey())
       .execute();
   }
 
-  private void callById(String gateId, Long projectId) {
+  @Test
+  public void fail_when_using_branch_db_key() throws Exception {
+    OrganizationDto organization = db.organizations().insert();
+    QGateWithOrgDto qualityGate = db.qualityGates().insertQualityGate(organization);
+    ComponentDto project = db.components().insertMainBranch(organization);
+    userSession.logIn().addProjectPermission(ADMIN, project);
+    ComponentDto branch = db.components().insertProjectBranch(project);
+
+    expectedException.expect(NotFoundException.class);
+    expectedException.expectMessage(format("Component key '%s' not found", branch.getDbKey()));
+
     ws.newRequest()
-      .setParam("gateId", String.valueOf(gateId))
-      .setParam("projectId", String.valueOf(projectId))
+      .setParam("gateId", qualityGate.getId().toString())
+      .setParam("projectKey", branch.getDbKey())
+      .setParam("organization", organization.getKey())
       .execute();
   }
 
-  private void callByUuid(String gateId, String projectUuid) {
+  @Test
+  public void fail_when_using_branch_id() {
+    OrganizationDto organization = db.organizations().insert();
+    QGateWithOrgDto qualityGate = db.qualityGates().insertQualityGate(organization);
+    ComponentDto project = db.components().insertMainBranch(organization);
+    userSession.logIn().addProjectPermission(ADMIN, project);
+    ComponentDto branch = db.components().insertProjectBranch(project);
+
+    expectedException.expect(NotFoundException.class);
+    expectedException.expectMessage(format("Component id '%s' not found", branch.uuid()));
+
     ws.newRequest()
-      .setParam("gateId", String.valueOf(gateId))
-      .setParam("projectId", projectUuid)
+      .setParam("gateId", qualityGate.getId().toString())
+      .setParam("projectId", branch.uuid())
+      .setParam("organization", organization.getKey())
       .execute();
   }
 
-  private void assertSelected(String gateId, Long projectId) {
-    assertThat(dbClient.propertiesDao().selectProjectProperty(projectId, SONAR_QUALITYGATE_PROPERTY).getValue()).isEqualTo(gateId);
+  private void assertSelected(QualityGateDto qualityGate, ComponentDto project) {
+    assertThat(dbClient.propertiesDao().selectProjectProperty(project.getId(), SONAR_QUALITYGATE_PROPERTY).getValue()).isEqualTo(qualityGate.getId().toString());
   }
 
-  private void logInAsRoot() {
-    userSession.logIn().setRoot();
-  }
 }

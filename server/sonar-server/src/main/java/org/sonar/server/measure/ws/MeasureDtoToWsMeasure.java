@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,10 +20,11 @@
 package org.sonar.server.measure.ws;
 
 import javax.annotation.Nullable;
+import org.sonar.db.measure.LiveMeasureDto;
 import org.sonar.db.measure.MeasureDto;
 import org.sonar.db.metric.MetricDto;
-import org.sonarqube.ws.WsMeasures;
-import org.sonarqube.ws.WsMeasures.Measure;
+import org.sonarqube.ws.Measures;
+import org.sonarqube.ws.Measures.Measure;
 
 import static org.sonar.server.measure.ws.MeasureValueFormatter.formatMeasureValue;
 import static org.sonar.server.measure.ws.MeasureValueFormatter.formatNumericalValue;
@@ -40,6 +41,12 @@ class MeasureDtoToWsMeasure {
     updateMeasureBuilder(measureBuilder, metricDto, value == null ? Double.NaN : value, measureDto.getData(), variation == null ? Double.NaN : variation);
   }
 
+  static void updateMeasureBuilder(Measure.Builder measureBuilder, MetricDto metricDto, LiveMeasureDto measureDto) {
+    Double value = measureDto.getValue();
+    Double variation = measureDto.getVariation();
+    updateMeasureBuilder(measureBuilder, metricDto, value == null ? Double.NaN : value, measureDto.getDataAsString(), variation == null ? Double.NaN : variation);
+  }
+
   static void updateMeasureBuilder(Measure.Builder measureBuilder, MetricDto metric, double doubleValue, @Nullable String stringValue, double variation) {
     measureBuilder.setMetric(metric.getKey());
     // a measure value can be null, new_violations metric for example
@@ -47,7 +54,7 @@ class MeasureDtoToWsMeasure {
       measureBuilder.setValue(formatMeasureValue(doubleValue, stringValue, metric));
     }
 
-    WsMeasures.PeriodValue.Builder periodBuilder = WsMeasures.PeriodValue.newBuilder();
+    Measures.PeriodValue.Builder periodBuilder = Measures.PeriodValue.newBuilder();
     if (Double.isNaN(variation)) {
       return;
     }

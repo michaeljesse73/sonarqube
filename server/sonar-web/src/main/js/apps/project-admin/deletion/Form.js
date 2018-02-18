@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,17 +18,18 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import React from 'react';
-import Modal from 'react-modal';
-import { deleteProject } from '../../../api/components';
+import PropTypes from 'prop-types';
+import { deleteProject, deletePortfolio } from '../../../api/components';
+import Modal from '../../../components/controls/Modal';
 import { translate, translateWithParameters } from '../../../helpers/l10n';
 
 export default class Form extends React.PureComponent {
   static propTypes = {
-    component: React.PropTypes.object.isRequired
+    component: PropTypes.object.isRequired
   };
 
   static contextTypes = {
-    router: React.PropTypes.object
+    router: PropTypes.object
   };
 
   state = { loading: false, modalOpen: false };
@@ -57,12 +58,14 @@ export default class Form extends React.PureComponent {
   handleSubmit = event => {
     event.preventDefault();
     this.setState({ loading: true });
-    deleteProject(this.props.component.key)
-      .then(() => this.context.router.replace('/'))
+    const { component } = this.props;
+    const deleteMethod = component.qualifier === 'TRK' ? deleteProject : deletePortfolio;
+    deleteMethod(component.key)
+      .then(() => this.context.router.replace(component.qualifier === 'TRK' ? '/' : '/portfolios'))
       .catch(this.stopLoading);
   };
 
-  handleCloseClick = (event: Event) => {
+  handleCloseClick = (event /*: Event */) => {
     event.preventDefault();
     this.closeModal();
   };
@@ -76,16 +79,11 @@ export default class Form extends React.PureComponent {
           {translate('delete')}
         </button>
 
-        {this.state.modalOpen &&
-          <Modal
-            isOpen={true}
-            contentLabel="project deletion"
-            className="modal"
-            overlayClassName="modal-overlay"
-            onRequestClose={this.closeModal}>
+        {this.state.modalOpen && (
+          <Modal contentLabel="project deletion" onRequestClose={this.closeModal}>
             <form onSubmit={this.handleSubmit}>
               <div className="modal-head">
-                <h2>{translate('qualifiers.delete.TRK')}</h2>
+                <h2>{translate('qualifier.delete.TRK')}</h2>
               </div>
               <div className="modal-body">
                 <div className="js-modal-messages" />
@@ -107,7 +105,8 @@ export default class Form extends React.PureComponent {
                 </a>
               </div>
             </form>
-          </Modal>}
+          </Modal>
+        )}
       </div>
     );
   }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -17,7 +17,6 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-
 package org.sonar.server.projecttag.ws;
 
 import javax.annotation.Nullable;
@@ -31,24 +30,23 @@ import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
 import org.sonar.db.DbTester;
 import org.sonar.db.component.ComponentDto;
+import org.sonar.db.organization.OrganizationDto;
 import org.sonar.server.component.TestComponentFinder;
-import org.sonar.server.es.ProjectIndexer;
+import org.sonar.server.es.TestProjectIndexers;
 import org.sonar.server.exceptions.BadRequestException;
 import org.sonar.server.exceptions.ForbiddenException;
+import org.sonar.server.exceptions.NotFoundException;
 import org.sonar.server.tester.UserSessionRule;
 import org.sonar.server.ws.TestRequest;
 import org.sonar.server.ws.TestResponse;
 import org.sonar.server.ws.WsActionTester;
 
+import static java.lang.String.format;
 import static java.net.HttpURLConnection.HTTP_NO_CONTENT;
-import static java.util.Collections.singletonList;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 import static org.sonar.core.util.Protobuf.setNullable;
 import static org.sonar.db.component.ComponentTesting.newFileDto;
 import static org.sonar.db.component.ComponentTesting.newModuleDto;
-import static org.sonar.server.es.ProjectIndexer.Cause.PROJECT_TAGS_UPDATE;
 
 public class SetActionTest {
   @Rule
@@ -62,9 +60,9 @@ public class SetActionTest {
   private DbSession dbSession = db.getSession();
   private ComponentDto project;
 
-  private ProjectIndexer indexer = mock(ProjectIndexer.class);
+  private TestProjectIndexers projectIndexers = new TestProjectIndexers();
 
-  private WsActionTester ws = new WsActionTester(new SetAction(dbClient, TestComponentFinder.from(db), userSession, singletonList(indexer)));
+  private WsActionTester ws = new WsActionTester(new SetAction(dbClient, TestComponentFinder.from(db), userSession, projectIndexers));
 
   @Before
   public void setUp() {
@@ -73,10 +71,11 @@ public class SetActionTest {
 
   @Test
   public void set_tags_exclude_empty_and_blank_values() {
-    TestResponse response = call(project.key(), "finance , offshore, platform,   ,");
+    TestResponse response = call(project.getDbKey(), "finance , offshore, platform,   ,");
 
-    assertTags(project.key(), "finance", "offshore", "platform");
-    verify(indexer).indexProject(project.uuid(), PROJECT_TAGS_UPDATE);
+    assertTags(project.getDbKey(), "finance", "offshore", "platform");
+    // FIXME verify(indexer).indexProject(project.uuid(), PROJECT_TAGS_UPDATE);
+
     assertThat(response.getStatus()).isEqualTo(HTTP_NO_CONTENT);
   }
 
@@ -84,34 +83,34 @@ public class SetActionTest {
   public void reset_tags() {
     project = db.components().insertPrivateProject(p -> p.setTagsString("platform,scanner"));
 
-    call(project.key(), "");
+    call(project.getDbKey(), "");
 
-    assertNoTags(project.key());
+    assertNoTags(project.getDbKey());
   }
 
   @Test
   public void override_existing_tags() {
     project = db.components().insertPrivateProject(p -> p.setTagsString("marketing,languages"));
 
-    call(project.key(), "finance,offshore,platform");
+    call(project.getDbKey(), "finance,offshore,platform");
 
-    assertTags(project.key(), "finance", "offshore", "platform");
+    assertTags(project.getDbKey(), "finance", "offshore", "platform");
   }
 
   @Test
   public void set_tags_as_project_admin() {
     userSession.logIn().addProjectPermission(UserRole.ADMIN, project);
 
-    call(project.key(), "platform, lambda");
+    call(project.getDbKey(), "platform, lambda");
 
-    assertTags(project.key(), "platform", "lambda");
+    assertTags(project.getDbKey(), "platform", "lambda");
   }
 
   @Test
   public void do_not_duplicate_tags() {
-    call(project.key(), "atlas, atlas, atlas");
+    call(project.getDbKey(), "atlas, atlas, atlas");
 
-    assertTags(project.key(), "atlas");
+    assertTags(project.getDbKey(), "atlas");
   }
 
   @Test
@@ -119,7 +118,7 @@ public class SetActionTest {
     expectedException.expect(BadRequestException.class);
     expectedException.expectMessage("_finance_' is invalid. Project tags accept only the characters: a-z, 0-9, '+', '-', '#', '.'");
 
-    call(project.key(), "_finance_");
+    call(project.getDbKey(), "_finance_");
   }
 
   @Test
@@ -128,7 +127,7 @@ public class SetActionTest {
 
     expectedException.expect(ForbiddenException.class);
 
-    call(project.key(), "platform");
+    call(project.getDbKey(), "platform");
   }
 
   @Test
@@ -142,37 +141,50 @@ public class SetActionTest {
   public void fail_if_no_tags() {
     expectedException.expect(IllegalArgumentException.class);
 
-    call(project.key(), null);
+    call(project.getDbKey(), null);
   }
 
   @Test
   public void fail_if_component_is_a_view() {
-    ComponentDto view = db.components().insertView(v -> v.setKey("VIEW_KEY"));
+    ComponentDto view = db.components().insertView(v -> v.setDbKey("VIEW_KEY"));
 
     expectedException.expect(BadRequestException.class);
     expectedException.expectMessage("Component 'VIEW_KEY' is not a project");
 
-    call(view.key(), "point-of-view");
+    call(view.getDbKey(), "point-of-view");
   }
 
   @Test
   public void fail_if_component_is_a_module() {
-    ComponentDto module = db.components().insertComponent(newModuleDto(project).setKey("MODULE_KEY"));
+    ComponentDto module = db.components().insertComponent(newModuleDto(project).setDbKey("MODULE_KEY"));
 
     expectedException.expect(BadRequestException.class);
     expectedException.expectMessage("Component 'MODULE_KEY' is not a project");
 
-    call(module.key(), "modz");
+    call(module.getDbKey(), "modz");
   }
 
   @Test
   public void fail_if_component_is_a_file() {
-    ComponentDto file = db.components().insertComponent(newFileDto(project).setKey("FILE_KEY"));
+    ComponentDto file = db.components().insertComponent(newFileDto(project).setDbKey("FILE_KEY"));
 
     expectedException.expect(BadRequestException.class);
     expectedException.expectMessage("Component 'FILE_KEY' is not a project");
 
-    call(file.getKey(), "secret");
+    call(file.getDbKey(), "secret");
+  }
+
+  @Test
+  public void fail_when_using_branch_db_key() throws Exception {
+    OrganizationDto organization = db.organizations().insert();
+    ComponentDto project = db.components().insertMainBranch(organization);
+    userSession.logIn().addProjectPermission(UserRole.USER, project);
+    ComponentDto branch = db.components().insertProjectBranch(project);
+
+    expectedException.expect(NotFoundException.class);
+    expectedException.expectMessage(format("Component key '%s' not found", branch.getDbKey()));
+
+    call(branch.getDbKey(), "secret");
   }
 
   @Test

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,21 +19,25 @@
  */
 // @flow
 import React from 'react';
+import PropTypes from 'prop-types';
 import getStore from '../../app/utils/getStore';
 
+/*::
 type Props = {
   children: React.Element<*>
 };
+*/
 
 export default class WithStore extends React.PureComponent {
-  props: Props;
-  store: {};
+  /*:: props: Props; */
+  /*:: store: {};
+*/
 
   static childContextTypes = {
-    store: React.PropTypes.object
+    store: PropTypes.object
   };
 
-  constructor(props: Props) {
+  constructor(props /*: Props */) {
     super(props);
     this.store = getStore();
   }

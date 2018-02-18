@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -66,7 +66,7 @@ public class SearchActionTest {
 
   private DbClient dbClient = db.getDbClient();
   private DbSession dbSession = db.getSession();
-  private UserIndex index = new UserIndex(esTester.client());
+  private UserIndex index = new UserIndex(esTester.client(), system2);
   private UserIndexer userIndexer = new UserIndexer(dbClient, esTester.client());
   private WsTester ws = new WsTester(new UsersWs(new SearchAction(userSession, index, dbClient, new AvatarResolverImpl())));
 
@@ -280,7 +280,7 @@ public class SearchActionTest {
         "}");
   }
 
-  private List<UserDto> injectUsers(int numberOfUsers) throws Exception {
+  private List<UserDto> injectUsers(int numberOfUsers) {
     List<UserDto> userDtos = new ArrayList<>();
     GroupDto group1 = db.users().insertGroup(newGroupDto().setName("sonar-users"));
     GroupDto group2 = db.users().insertGroup(newGroupDto().setName("sonar-admins"));

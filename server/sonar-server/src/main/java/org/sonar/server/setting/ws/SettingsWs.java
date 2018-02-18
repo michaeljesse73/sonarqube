@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,11 +19,15 @@
  */
 package org.sonar.server.setting.ws;
 
+import com.google.common.collect.ImmutableSet;
+import java.util.Set;
 import org.sonar.api.server.ws.WebService;
 
-import static org.sonarqube.ws.client.setting.SettingsWsParameters.CONTROLLER_SETTINGS;
+import static org.sonar.core.config.CorePropertyDefinitions.LEAK_PERIOD;
 
 public class SettingsWs implements WebService {
+
+  public static final Set<String> SETTING_ON_BRANCHES = ImmutableSet.of(LEAK_PERIOD);
 
   private final SettingsWsAction[] actions;
 
@@ -33,7 +37,7 @@ public class SettingsWs implements WebService {
 
   @Override
   public void define(Context context) {
-    NewController controller = context.createController(CONTROLLER_SETTINGS)
+    NewController controller = context.createController("api/settings")
       .setDescription("Manage settings.")
       .setSince("6.1");
     for (SettingsWsAction action : actions) {

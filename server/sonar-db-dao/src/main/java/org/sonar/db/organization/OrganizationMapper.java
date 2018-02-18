@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -64,6 +64,9 @@ public interface OrganizationMapper {
 
   void updateDefaultGroupId(@Param("organizationUuid") String organizationUuid,
     @Param("defaultGroupId") int defaultGroupId, @Param("now") long now);
+
+  void updateDefaultQualityGate(@Param("organizationUuid") String organizationUuid,
+    @Param("defaultQualityGateUuid") String defaultQualityGateUuid, @Param("now") long now);
 
   void updateNewProjectPrivate(@Param("organizationUuid") String organizationUuid, @Param("newProjectPrivate") boolean newProjectPrivate, @Param("now") long now);
 

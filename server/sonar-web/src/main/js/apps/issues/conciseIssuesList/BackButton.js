@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -23,10 +23,12 @@ import classNames from 'classnames';
 import Tooltip from '../../../components/controls/Tooltip';
 import { translate } from '../../../helpers/l10n';
 
+/*::
 type Props = {|
   className?: string,
   onClick: () => void
 |};
+*/
 
 /* eslint-disable max-len */
 const icon = (
@@ -36,8 +38,8 @@ const icon = (
 );
 /* eslint-enable max-len */
 
-export default function BackButton(props: Props) {
-  const handleClick = (event: Event) => {
+export default function BackButton(props /*: Props */) {
+  const handleClick = (event /*: Event */) => {
     event.preventDefault();
     props.onClick();
   };

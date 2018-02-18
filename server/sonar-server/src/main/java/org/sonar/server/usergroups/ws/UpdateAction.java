@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -32,7 +32,7 @@ import org.sonar.db.organization.OrganizationDto;
 import org.sonar.db.user.GroupDto;
 import org.sonar.db.user.UserMembershipQuery;
 import org.sonar.server.user.UserSession;
-import org.sonarqube.ws.WsUserGroups;
+import org.sonarqube.ws.UserGroups;
 
 import static java.lang.String.format;
 import static org.sonar.api.user.UserGroupValidation.GROUP_NAME_MAX_LENGTH;
@@ -75,11 +75,13 @@ public class UpdateAction implements UserGroupsWsAction {
       .setRequired(true);
 
     action.createParam(PARAM_GROUP_NAME)
+      .setMaximumLength(GROUP_NAME_MAX_LENGTH)
       .setDescription(format("New optional name for the group. A group name cannot be larger than %d characters and must be unique. " +
         "Value 'anyone' (whatever the case) is reserved and cannot be used. If value is empty or not defined, then name is not changed.", GROUP_NAME_MAX_LENGTH))
       .setExampleValue("my-group");
 
     action.createParam(PARAM_GROUP_DESCRIPTION)
+      .setMaximumLength(DESCRIPTION_MAX_LENGTH)
       .setDescription(format("New optional description for the group. A group description cannot be larger than %d characters. " +
         "If value is not defined, then description is not changed.", DESCRIPTION_MAX_LENGTH))
       .setExampleValue("Default group for new users");
@@ -108,7 +110,7 @@ public class UpdateAction implements UserGroupsWsAction {
       String description = request.param(PARAM_GROUP_DESCRIPTION);
       if (description != null) {
         changed = true;
-        group.setDescription(support.validateDescription(description));
+        group.setDescription(description);
       }
 
       if (changed) {
@@ -128,7 +130,7 @@ public class UpdateAction implements UserGroupsWsAction {
       .build();
     int membersCount = dbClient.groupMembershipDao().countMembers(dbSession, query);
 
-    WsUserGroups.UpdateWsResponse.Builder respBuilder = WsUserGroups.UpdateWsResponse.newBuilder();
+    UserGroups.UpdateWsResponse.Builder respBuilder = UserGroups.UpdateWsResponse.newBuilder();
     // 'default' is always false as it's not possible to update a default group
     respBuilder.setGroup(toProtobuf(organization, group, membersCount, false));
     writeProtobuf(respBuilder.build(), request, response);

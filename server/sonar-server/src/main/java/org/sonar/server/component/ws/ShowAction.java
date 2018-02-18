@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -23,7 +23,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.IntStream;
 import org.sonar.api.server.ws.Change;
-import org.sonar.api.server.ws.Request;
 import org.sonar.api.server.ws.Response;
 import org.sonar.api.server.ws.WebService;
 import org.sonar.api.web.UserRole;
@@ -33,19 +32,24 @@ import org.sonar.db.component.ComponentDto;
 import org.sonar.db.component.SnapshotDto;
 import org.sonar.db.organization.OrganizationDto;
 import org.sonar.server.component.ComponentFinder;
-import org.sonar.server.component.ComponentFinder.ParamNames;
 import org.sonar.server.user.UserSession;
-import org.sonarqube.ws.WsComponents.ShowWsResponse;
-import org.sonarqube.ws.client.component.ShowWsRequest;
+import org.sonarqube.ws.Components.ShowWsResponse;
 
+import javax.annotation.CheckForNull;
+import javax.annotation.Nullable;
+
+import static com.google.common.base.Preconditions.checkArgument;
 import static java.lang.String.format;
 import static org.sonar.core.util.Uuids.UUID_EXAMPLE_01;
+import static org.sonar.server.component.ComponentFinder.ParamNames.COMPONENT_ID_AND_COMPONENT;
 import static org.sonar.server.component.ws.ComponentDtoToWsComponent.componentDtoToWsComponent;
+import static org.sonar.server.ws.KeyExamples.KEY_BRANCH_EXAMPLE_001;
 import static org.sonar.server.ws.KeyExamples.KEY_PROJECT_EXAMPLE_001;
 import static org.sonar.server.ws.WsUtils.writeProtobuf;
 import static org.sonarqube.ws.client.component.ComponentsWsParameters.ACTION_SHOW;
 import static org.sonarqube.ws.client.component.ComponentsWsParameters.PARAM_COMPONENT;
 import static org.sonarqube.ws.client.component.ComponentsWsParameters.PARAM_COMPONENT_ID;
+import static org.sonar.server.component.ws.MeasuresWsParameters.PARAM_BRANCH;
 
 public class ShowAction implements ComponentsWsAction {
   private final UserSession userSession;
@@ -72,7 +76,9 @@ public class ShowAction implements ComponentsWsAction {
         new Change("6.4", "Analysis date has been added to the response"),
         new Change("6.4", "The field 'id' is deprecated in the response"),
         new Change("6.4", "The 'visibility' field is added to the response"),
-        new Change("6.5", "Leak period date is added to the response"))
+        new Change("6.5", "Leak period date is added to the response"),
+        new Change("6.6", "'branch' is added to the response"),
+        new Change("6.6", "'version' is added to the response"))
       .setHandler(this);
 
     action.createParam(PARAM_COMPONENT_ID)
@@ -85,19 +91,25 @@ public class ShowAction implements ComponentsWsAction {
       .setDescription("Component key")
       .setDeprecatedKey("key", "6.4")
       .setExampleValue(KEY_PROJECT_EXAMPLE_001);
+
+    action.createParam(PARAM_BRANCH)
+      .setDescription("Branch key")
+      .setExampleValue(KEY_BRANCH_EXAMPLE_001)
+      .setInternal(true)
+      .setSince("6.6");
   }
 
   @Override
-  public void handle(Request request, Response response) throws Exception {
-    ShowWsRequest showWsRequest = toShowWsRequest(request);
-    ShowWsResponse showWsResponse = doHandle(showWsRequest);
+  public void handle(org.sonar.api.server.ws.Request request, Response response) throws Exception {
+    Request showRequest = toShowWsRequest(request);
+    ShowWsResponse showWsResponse = doHandle(showRequest);
 
     writeProtobuf(showWsResponse, request, response);
   }
 
-  private ShowWsResponse doHandle(ShowWsRequest request) {
+  private ShowWsResponse doHandle(Request request) {
     try (DbSession dbSession = dbClient.openSession(false)) {
-      ComponentDto component = getComponentByUuidOrKey(dbSession, request);
+      ComponentDto component = loadComponent(dbSession, request);
       Optional<SnapshotDto> lastAnalysis = dbClient.snapshotDao().selectLastAnalysisByComponentUuid(dbSession, component.projectUuid());
       List<ComponentDto> ancestors = dbClient.componentDao().selectAncestors(dbSession, component);
       OrganizationDto organizationDto = componentFinder.getOrganization(dbSession, component);
@@ -105,8 +117,14 @@ public class ShowAction implements ComponentsWsAction {
     }
   }
 
-  private ComponentDto getComponentByUuidOrKey(DbSession dbSession, ShowWsRequest request) {
-    ComponentDto component = componentFinder.getByUuidOrKey(dbSession, request.getId(), request.getKey(), ParamNames.COMPONENT_ID_AND_COMPONENT);
+  private ComponentDto loadComponent(DbSession dbSession, Request request) {
+    String componentId = request.getId();
+    String componentKey = request.getKey();
+    String branch = request.getBranch();
+    checkArgument(componentId == null || branch == null, "'%s' and '%s' parameters cannot be used at the same time", PARAM_COMPONENT_ID, PARAM_BRANCH);
+    ComponentDto component = branch == null
+      ? componentFinder.getByUuidOrKey(dbSession, componentId, componentKey, COMPONENT_ID_AND_COMPONENT)
+      : componentFinder.getByKeyAndBranch(dbSession, componentKey, branch);
     userSession.checkComponentPermission(UserRole.USER, component);
     return component;
   }
@@ -122,9 +140,46 @@ public class ShowAction implements ComponentsWsAction {
     return response.build();
   }
 
-  private static ShowWsRequest toShowWsRequest(Request request) {
-    return new ShowWsRequest()
+  private static Request toShowWsRequest(org.sonar.api.server.ws.Request request) {
+    return new Request()
       .setId(request.param(PARAM_COMPONENT_ID))
-      .setKey(request.param(PARAM_COMPONENT));
+      .setKey(request.param(PARAM_COMPONENT))
+      .setBranch(request.param(PARAM_BRANCH));
+  }
+
+  private static class Request {
+    private String id;
+    private String key;
+    private String branch;
+
+    @CheckForNull
+    public String getId() {
+      return id;
+    }
+
+    public Request setId(@Nullable String id) {
+      this.id = id;
+      return this;
+    }
+
+    @CheckForNull
+    public String getKey() {
+      return key;
+    }
+
+    public Request setKey(@Nullable String key) {
+      this.key = key;
+      return this;
+    }
+
+    @CheckForNull
+    public String getBranch() {
+      return branch;
+    }
+
+    public Request setBranch(@Nullable String branch) {
+      this.branch = branch;
+      return this;
+    }
   }
 }

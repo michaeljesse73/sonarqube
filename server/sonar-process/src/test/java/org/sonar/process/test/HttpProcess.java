@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,7 +25,7 @@ import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.AbstractHandler;
 import org.eclipse.jetty.server.handler.ContextHandler;
 import org.sonar.process.Monitored;
-import org.sonar.process.ProcessCommands;
+import org.sonar.process.sharedmemoryfile.ProcessCommands;
 import org.sonar.process.ProcessEntryPoint;
 
 import javax.servlet.ServletException;
@@ -65,7 +65,7 @@ public class HttpProcess implements Monitored {
     server.setHandler(context);
     context.setHandler(new AbstractHandler() {
       @Override
-      public void handle(String target, Request request, HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse) throws IOException, ServletException {
+      public void handle(String target, Request request, HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse) throws IOException {
         if ("/ping".equals(target)) {
           request.setHandled(true);
           httpServletResponse.getWriter().print("ping");

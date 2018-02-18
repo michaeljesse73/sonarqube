@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -56,25 +56,85 @@ public class ComponentKeyUpdaterDaoTest {
     db.prepareDbUnit(getClass(), "shared.xml");
 
     underTest.updateKey(dbSession, "B", "struts:core");
+    dbSession.commit();
 
     db.assertDbUnit(getClass(), "shouldUpdateKey-result.xml", "projects");
   }
 
   @Test
-  public void updateKey_does_not_updated_inactive_components() {
+  public void updateKey_does_not_update_inactive_components() {
     OrganizationDto organizationDto = db.organizations().insert();
-    ComponentDto project = db.components().insertComponent(newPrivateProjectDto(organizationDto, "A").setKey("my_project"));
-    ComponentDto directory = db.components().insertComponent(newDirectory(project, "/directory").setKey("my_project:directory"));
-    db.components().insertComponent(newFileDto(project, directory).setKey("my_project:directory/file"));
-    ComponentDto inactiveDirectory = db.components().insertComponent(newDirectory(project, "/inactive_directory").setKey("my_project:inactive_directory").setEnabled(false));
-    db.components().insertComponent(newFileDto(project, inactiveDirectory).setKey("my_project:inactive_directory/file").setEnabled(false));
+    ComponentDto project = db.components().insertComponent(newPrivateProjectDto(organizationDto, "A").setDbKey("my_project"));
+    ComponentDto directory = db.components().insertComponent(newDirectory(project, "/directory").setDbKey("my_project:directory"));
+    db.components().insertComponent(newFileDto(project, directory).setDbKey("my_project:directory/file"));
+    ComponentDto inactiveDirectory = db.components().insertComponent(newDirectory(project, "/inactive_directory").setDbKey("my_project:inactive_directory").setEnabled(false));
+    db.components().insertComponent(newFileDto(project, inactiveDirectory).setDbKey("my_project:inactive_directory/file").setEnabled(false));
 
     underTest.updateKey(dbSession, "A", "your_project");
-    db.commit();
+    dbSession.commit();
 
     List<ComponentDto> result = dbClient.componentDao().selectAllComponentsFromProjectKey(dbSession, "your_project");
-    assertThat(result).hasSize(5).extracting(ComponentDto::getKey)
+    assertThat(result).hasSize(5).extracting(ComponentDto::getDbKey)
       .containsOnlyOnce("your_project", "your_project:directory", "your_project:directory/file", "my_project:inactive_directory", "my_project:inactive_directory/file");
+  }
+
+  @Test
+  public void updateKey_updates_branches_too() {
+    ComponentDto project = db.components().insertMainBranch();
+    ComponentDto branch = db.components().insertProjectBranch(project);
+    db.components().insertComponent(newFileDto(branch));
+    db.components().insertComponent(newFileDto(branch));
+    int branchComponentCount = 3;
+
+    String oldProjectKey = project.getKey();
+    assertThat(dbClient.componentDao().selectAllComponentsFromProjectKey(dbSession, oldProjectKey)).hasSize(1);
+
+    String oldBranchKey = branch.getDbKey();
+    assertThat(dbClient.componentDao().selectAllComponentsFromProjectKey(dbSession, oldBranchKey)).hasSize(branchComponentCount);
+
+    String newProjectKey = "newKey";
+    String newBranchKey = ComponentDto.generateBranchKey(newProjectKey, branch.getBranch());
+    underTest.updateKey(dbSession, project.uuid(), newProjectKey);
+
+    assertThat(dbClient.componentDao().selectAllComponentsFromProjectKey(dbSession, oldProjectKey)).isEmpty();
+    assertThat(dbClient.componentDao().selectAllComponentsFromProjectKey(dbSession, oldBranchKey)).isEmpty();
+
+    assertThat(dbClient.componentDao().selectAllComponentsFromProjectKey(dbSession, newProjectKey)).hasSize(1);
+    assertThat(dbClient.componentDao().selectAllComponentsFromProjectKey(dbSession, newBranchKey)).hasSize(branchComponentCount);
+    db.select(dbSession, "select kee from projects")
+      .forEach(map -> map.values().forEach(k -> assertThat(k.toString()).startsWith(newProjectKey)));
+  }
+
+  @Test
+  public void bulk_updateKey_updates_branches_too() {
+    ComponentDto project = db.components().insertMainBranch();
+    ComponentDto branch = db.components().insertProjectBranch(project);
+    ComponentDto module = db.components().insertComponent(prefixDbKeyWithKey(newModuleDto(branch), project.getKey()));
+    db.components().insertComponent(prefixDbKeyWithKey(newFileDto(module), module.getKey()));
+    db.components().insertComponent(prefixDbKeyWithKey(newFileDto(module), module.getKey()));
+    int branchComponentCount = 4;
+
+    String oldProjectKey = project.getKey();
+    assertThat(dbClient.componentDao().selectAllComponentsFromProjectKey(dbSession, oldProjectKey)).hasSize(1);
+
+    String oldBranchKey = branch.getDbKey();
+    assertThat(dbClient.componentDao().selectAllComponentsFromProjectKey(dbSession, oldBranchKey)).hasSize(branchComponentCount);
+
+    String newProjectKey = "newKey";
+    String newBranchKey = ComponentDto.generateBranchKey(newProjectKey, branch.getBranch());
+    underTest.bulkUpdateKey(dbSession, project.uuid(), oldProjectKey, newProjectKey);
+
+    assertThat(dbClient.componentDao().selectAllComponentsFromProjectKey(dbSession, oldProjectKey)).isEmpty();
+    assertThat(dbClient.componentDao().selectAllComponentsFromProjectKey(dbSession, oldBranchKey)).isEmpty();
+
+    assertThat(dbClient.componentDao().selectAllComponentsFromProjectKey(dbSession, newProjectKey)).hasSize(1);
+    assertThat(dbClient.componentDao().selectAllComponentsFromProjectKey(dbSession, newBranchKey)).hasSize(branchComponentCount);
+    db.select(dbSession, "select kee from projects")
+      .forEach(map -> map.values().forEach(k -> assertThat(k.toString()).startsWith(newProjectKey)));
+  }
+
+  private ComponentDto prefixDbKeyWithKey(ComponentDto componentDto, String key) {
+    return componentDto.setDbKey(key + ":" + componentDto.getDbKey());
   }
 
   @Test
@@ -89,14 +149,14 @@ public class ComponentKeyUpdaterDaoTest {
 
   @Test
   public void bulk_update_key_does_not_update_inactive_components() {
-    ComponentDto project = db.components().insertComponent(newPrivateProjectDto(db.getDefaultOrganization(), "A").setKey("my_project"));
-    db.components().insertComponent(newModuleDto(project).setKey("my_project:module"));
-    db.components().insertComponent(newModuleDto(project).setKey("my_project:inactive_module").setEnabled(false));
+    ComponentDto project = db.components().insertComponent(newPrivateProjectDto(db.getDefaultOrganization(), "A").setDbKey("my_project"));
+    db.components().insertComponent(newModuleDto(project).setDbKey("my_project:module"));
+    db.components().insertComponent(newModuleDto(project).setDbKey("my_project:inactive_module").setEnabled(false));
 
     underTest.bulkUpdateKey(dbSession, "A", "my_", "your_");
 
     List<ComponentDto> result = dbClient.componentDao().selectAllComponentsFromProjectKey(dbSession, "your_project");
-    assertThat(result).hasSize(3).extracting(ComponentDto::getKey)
+    assertThat(result).hasSize(3).extracting(ComponentDto::getDbKey)
       .containsOnlyOnce("your_project", "your_project:module", "my_project:inactive_module");
   }
 
@@ -144,9 +204,9 @@ public class ComponentKeyUpdaterDaoTest {
   @Test
   public void updateKey_throws_IAE_when_sub_component_key_is_too_long() {
     OrganizationDto organizationDto = db.organizations().insert();
-    ComponentDto project = newPrivateProjectDto(organizationDto, "project-uuid").setKey("old-project-key");
+    ComponentDto project = newPrivateProjectDto(organizationDto, "project-uuid").setDbKey("old-project-key");
     db.components().insertComponent(project);
-    db.components().insertComponent(newFileDto(project, null).setKey("old-project-key:file"));
+    db.components().insertComponent(newFileDto(project, null).setDbKey("old-project-key:file"));
     String newLongProjectKey = Strings.repeat("a", 400);
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Component key length (405) is longer than the maximum authorized (400). '" + newLongProjectKey + ":file' was provided.");
@@ -161,7 +221,7 @@ public class ComponentKeyUpdaterDaoTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Malformed key for 'my?project?key'. Allowed characters are alphanumeric, '-', '_', '.' and ':', with at least one non-digit.");
 
-    underTest.bulkUpdateKey(dbSession, project.uuid(), project.key(), "my?project?key");
+    underTest.bulkUpdateKey(dbSession, project.uuid(), project.getDbKey(), "my?project?key");
   }
 
   @Test
@@ -178,8 +238,8 @@ public class ComponentKeyUpdaterDaoTest {
   @Test
   public void check_component_keys_checks_inactive_components() {
     OrganizationDto organizationDto = db.organizations().insert();
-    db.components().insertComponent(ComponentTesting.newPrivateProjectDto(organizationDto).setKey("my-project"));
-    db.components().insertComponent(ComponentTesting.newPrivateProjectDto(organizationDto).setKey("your-project").setEnabled(false));
+    db.components().insertComponent(ComponentTesting.newPrivateProjectDto(organizationDto).setDbKey("my-project"));
+    db.components().insertComponent(ComponentTesting.newPrivateProjectDto(organizationDto).setDbKey("your-project").setEnabled(false));
 
     Map<String, Boolean> result = underTest.checkComponentKeys(dbSession, newArrayList("my-project", "your-project", "new-project"));
 
@@ -201,9 +261,9 @@ public class ComponentKeyUpdaterDaoTest {
 
   @Test
   public void simulate_bulk_update_key_do_not_return_disable_components() {
-    ComponentDto project = db.components().insertComponent(newPrivateProjectDto(db.getDefaultOrganization(), "A").setKey("project"));
-    db.components().insertComponent(newModuleDto(project).setKey("project:enabled-module"));
-    db.components().insertComponent(newModuleDto(project).setKey("project:disabled-module").setEnabled(false));
+    ComponentDto project = db.components().insertComponent(newPrivateProjectDto(db.getDefaultOrganization(), "A").setDbKey("project"));
+    db.components().insertComponent(newModuleDto(project).setDbKey("project:enabled-module"));
+    db.components().insertComponent(newModuleDto(project).setDbKey("project:disabled-module").setEnabled(false));
 
     Map<String, String> result = underTest.simulateBulkUpdateKey(dbSession, "A", "project", "new-project");
 
@@ -215,9 +275,9 @@ public class ComponentKeyUpdaterDaoTest {
   @Test
   public void simulate_bulk_update_key_fails_if_invalid_componentKey() {
     OrganizationDto organizationDto = db.organizations().insert();
-    ComponentDto project = db.components().insertComponent(newPrivateProjectDto(organizationDto, "A").setKey("project"));
-    db.components().insertComponent(newModuleDto(project).setKey("project:enabled-module"));
-    db.components().insertComponent(newModuleDto(project).setKey("project:disabled-module").setEnabled(false));
+    ComponentDto project = db.components().insertComponent(newPrivateProjectDto(organizationDto, "A").setDbKey("project"));
+    db.components().insertComponent(newModuleDto(project).setDbKey("project:enabled-module"));
+    db.components().insertComponent(newModuleDto(project).setDbKey("project:disabled-module").setEnabled(false));
 
     thrown.expect(IllegalArgumentException.class);
 

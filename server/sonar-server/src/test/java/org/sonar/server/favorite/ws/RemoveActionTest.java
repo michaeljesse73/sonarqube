@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,9 +24,11 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.sonar.api.server.ws.WebService;
+import org.sonar.api.web.UserRole;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbTester;
 import org.sonar.db.component.ComponentDto;
+import org.sonar.db.organization.OrganizationDto;
 import org.sonar.server.component.TestComponentFinder;
 import org.sonar.server.exceptions.BadRequestException;
 import org.sonar.server.exceptions.NotFoundException;
@@ -37,12 +39,13 @@ import org.sonar.server.ws.TestRequest;
 import org.sonar.server.ws.TestResponse;
 import org.sonar.server.ws.WsActionTester;
 
+import static java.lang.String.format;
 import static java.net.HttpURLConnection.HTTP_NO_CONTENT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonar.core.util.Protobuf.setNullable;
 import static org.sonar.db.component.ComponentTesting.newFileDto;
 import static org.sonar.db.component.ComponentTesting.newPrivateProjectDto;
-import static org.sonarqube.ws.client.favorite.FavoritesWsParameters.PARAM_COMPONENT;
+import static org.sonar.server.favorite.ws.FavoritesWsParameters.PARAM_COMPONENT;
 
 public class RemoveActionTest {
   private static final String PROJECT_KEY = "project-key";
@@ -104,6 +107,19 @@ public class RemoveActionTest {
   }
 
   @Test
+  public void fail_when_using_branch_db_key() throws Exception {
+    OrganizationDto organization = db.organizations().insert();
+    ComponentDto project = db.components().insertMainBranch(organization);
+    userSession.logIn().addProjectPermission(UserRole.USER, project);
+    ComponentDto branch = db.components().insertProjectBranch(project);
+
+    expectedException.expect(NotFoundException.class);
+    expectedException.expectMessage(format("Component key '%s' not found", branch.getDbKey()));
+
+    call(branch.getDbKey());
+  }
+
+  @Test
   public void definition() {
     WebService.Action definition = ws.getDef();
 
@@ -113,7 +129,7 @@ public class RemoveActionTest {
   }
 
   private ComponentDto insertProject() {
-    return db.components().insertComponent(newPrivateProjectDto(db.organizations().insert(), PROJECT_UUID).setKey(PROJECT_KEY));
+    return db.components().insertComponent(newPrivateProjectDto(db.organizations().insert(), PROJECT_UUID).setDbKey(PROJECT_KEY));
   }
 
   private ComponentDto insertProjectAndPermissions() {

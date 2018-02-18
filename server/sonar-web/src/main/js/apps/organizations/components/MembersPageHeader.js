@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,14 +20,16 @@
 //@flow
 import React from 'react';
 
+/*::
 type Props = {
   loading: boolean,
   total?: number,
   children?: React.Element<*>
 };
+*/
 
 export default class MembersPageHeader extends React.PureComponent {
-  props: Props;
+  /*:: props: Props; */
 
   render() {
     return (

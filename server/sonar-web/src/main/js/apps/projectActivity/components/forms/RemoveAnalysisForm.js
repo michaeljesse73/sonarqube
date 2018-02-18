@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,24 +19,29 @@
  */
 // @flow
 import React from 'react';
-import Modal from 'react-modal';
+import Modal from '../../../../components/controls/Modal';
+import { ActionsDropdownItem } from '../../../../components/controls/ActionsDropdown';
 import { translate } from '../../../../helpers/l10n';
-import type { Analysis } from '../../types';
+/*:: import type { Analysis } from '../../types'; */
 
+/*::
 type Props = {
   analysis: Analysis,
   deleteAnalysis: (analysis: string) => Promise<*>
 };
+*/
 
+/*::
 type State = {
   open: boolean,
   processing: boolean
 };
+*/
 
 export default class RemoveAnalysisForm extends React.PureComponent {
-  mounted: boolean;
-  props: Props;
-  state: State = {
+  /*:: mounted: boolean; */
+  /*:: props: Props; */
+  state /*: State */ = {
     open: false,
     processing: false
   };
@@ -49,11 +54,8 @@ export default class RemoveAnalysisForm extends React.PureComponent {
     this.mounted = false;
   }
 
-  openForm = (evt: Event) => {
-    evt.preventDefault();
-    if (this.mounted) {
-      this.setState({ open: true });
-    }
+  openForm = () => {
+    this.setState({ open: true });
   };
 
   closeForm = () => {
@@ -74,7 +76,7 @@ export default class RemoveAnalysisForm extends React.PureComponent {
     }
   };
 
-  handleSubmit = (e: Object) => {
+  handleSubmit = (e /*: Event */) => {
     e.preventDefault();
     this.setState({ processing: true });
     this.props
@@ -83,32 +85,29 @@ export default class RemoveAnalysisForm extends React.PureComponent {
   };
 
   renderModal() {
+    const header = translate('project_activity.delete_analysis');
     return (
-      <Modal
-        isOpen={true}
-        contentLabel="modal form"
-        className="modal"
-        overlayClassName="modal-overlay"
-        onRequestClose={this.closeForm}>
-
+      <Modal key="delete-analysis-modal" contentLabel={header} onRequestClose={this.closeForm}>
         <header className="modal-head">
-          <h2>{translate('project_activity.delete_analysis')}</h2>
+          <h2>{header}</h2>
         </header>
 
         <form onSubmit={this.handleSubmit}>
-          <div className="modal-body">
-            {translate('project_activity.delete_analysis.question')}
-          </div>
+          <div className="modal-body">{translate('project_activity.delete_analysis.question')}</div>
 
           <footer className="modal-foot">
-            {this.state.processing
-              ? <i className="spinner" />
-              : <div>
-                  <button type="submit" className="button-red">{translate('delete')}</button>
-                  <button type="reset" className="button-link" onClick={this.closeForm}>
-                    {translate('cancel')}
-                  </button>
-                </div>}
+            {this.state.processing ? (
+              <i className="spinner" />
+            ) : (
+              <div>
+                <button type="submit" className="button-red" autoFocus={true}>
+                  {translate('delete')}
+                </button>
+                <button type="reset" className="button-link" onClick={this.closeForm}>
+                  {translate('cancel')}
+                </button>
+              </div>
+            )}
           </footer>
         </form>
       </Modal>
@@ -116,11 +115,17 @@ export default class RemoveAnalysisForm extends React.PureComponent {
   }
 
   render() {
-    return (
-      <a className="js-delete-analysis" href="#" onClick={this.openForm}>
+    const linkComponent = (
+      <ActionsDropdownItem
+        className="js-delete-analysis"
+        destructive={true}
+        onClick={this.openForm}>
         {translate('project_activity.delete_analysis')}
-        {this.state.open && this.renderModal()}
-      </a>
+      </ActionsDropdownItem>
     );
+    if (this.state.open) {
+      return [linkComponent, this.renderModal()];
+    }
+    return linkComponent;
   }
 }

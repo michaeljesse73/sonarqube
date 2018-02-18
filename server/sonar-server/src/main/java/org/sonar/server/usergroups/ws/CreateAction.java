@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -29,8 +29,9 @@ import org.sonar.db.DbSession;
 import org.sonar.db.organization.OrganizationDto;
 import org.sonar.db.user.GroupDto;
 import org.sonar.server.user.UserSession;
-import org.sonarqube.ws.WsUserGroups;
+import org.sonarqube.ws.UserGroups;
 
+import static java.lang.String.format;
 import static org.sonar.api.user.UserGroupValidation.GROUP_NAME_MAX_LENGTH;
 import static org.sonar.db.permission.OrganizationPermission.ADMINISTER;
 import static org.sonar.server.usergroups.ws.GroupWsSupport.DESCRIPTION_MAX_LENGTH;
@@ -69,13 +70,15 @@ public class CreateAction implements UserGroupsWsAction {
       .setInternal(true);
 
     action.createParam(PARAM_GROUP_NAME)
-      .setDescription(String.format("Name for the new group. A group name cannot be larger than %d characters and must be unique. " +
+      .setRequired(true)
+      .setMaximumLength(GROUP_NAME_MAX_LENGTH)
+      .setDescription(format("Name for the new group. A group name cannot be larger than %d characters and must be unique. " +
         "The value 'anyone' (whatever the case) is reserved and cannot be used.", GROUP_NAME_MAX_LENGTH))
-      .setExampleValue("sonar-users")
-      .setRequired(true);
+      .setExampleValue("sonar-users");
 
     action.createParam(PARAM_GROUP_DESCRIPTION)
-      .setDescription(String.format("Description for the new group. A group description cannot be larger than %d characters.", DESCRIPTION_MAX_LENGTH))
+      .setMaximumLength(DESCRIPTION_MAX_LENGTH)
+      .setDescription(format("Description for the new group. A group description cannot be larger than %d characters.", DESCRIPTION_MAX_LENGTH))
       .setExampleValue("Default group for new users");
   }
 
@@ -92,7 +95,6 @@ public class CreateAction implements UserGroupsWsAction {
 
       // validations
       UserGroupValidation.validateGroupName(group.getName());
-      support.validateDescription(group.getDescription());
       support.checkNameDoesNotExist(dbSession, group.getOrganizationUuid(), group.getName());
 
       dbClient.groupDao().insert(dbSession, group);
@@ -103,7 +105,7 @@ public class CreateAction implements UserGroupsWsAction {
   }
 
   private void writeResponse(Request request, Response response, OrganizationDto organization, GroupDto group) {
-    WsUserGroups.CreateWsResponse.Builder respBuilder = WsUserGroups.CreateWsResponse.newBuilder();
+    UserGroups.CreateWsResponse.Builder respBuilder = UserGroups.CreateWsResponse.newBuilder();
     // 'default' is always false as it's not possible to create a default group
     respBuilder.setGroup(toProtobuf(organization, group, 0, false));
     writeProtobuf(respBuilder.build(), request, response);

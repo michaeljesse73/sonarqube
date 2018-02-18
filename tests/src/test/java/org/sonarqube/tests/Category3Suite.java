@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,6 +20,9 @@
 package org.sonarqube.tests;
 
 import com.sonar.orchestrator.Orchestrator;
+import org.junit.ClassRule;
+import org.junit.runner.RunWith;
+import org.junit.runners.Suite;
 import org.sonarqube.tests.analysis.ExtensionLifecycleTest;
 import org.sonarqube.tests.analysis.FavoriteTest;
 import org.sonarqube.tests.analysis.IssueJsonReportTest;
@@ -28,21 +31,23 @@ import org.sonarqube.tests.analysis.LinksTest;
 import org.sonarqube.tests.analysis.MultiLanguageTest;
 import org.sonarqube.tests.analysis.PermissionTest;
 import org.sonarqube.tests.analysis.ProjectBuilderTest;
+import org.sonarqube.tests.analysis.RedirectTest;
 import org.sonarqube.tests.analysis.ReportDumpTest;
 import org.sonarqube.tests.analysis.SSLTest;
 import org.sonarqube.tests.analysis.ScannerTest;
 import org.sonarqube.tests.analysis.SettingsEncryptionTest;
 import org.sonarqube.tests.analysis.TempFolderTest;
-import org.sonarqube.tests.measure.DecimalScaleMetricTest;
 import org.sonarqube.tests.plugins.VersionPluginTest;
 import org.sonarqube.tests.webhook.WebhooksTest;
-import org.junit.ClassRule;
-import org.junit.runner.RunWith;
-import org.junit.runners.Suite;
 
 import static util.ItUtils.pluginArtifact;
 import static util.ItUtils.xooPlugin;
 
+/**
+ * @deprecated use dedicated suites in each package (see {@link org.sonarqube.tests.measure.MeasureSuite}
+ * for instance)
+ */
+@Deprecated
 @RunWith(Suite.class)
 @Suite.SuiteClasses({
   // analysis
@@ -60,8 +65,7 @@ import static util.ItUtils.xooPlugin;
   ReportDumpTest.class,
   SSLTest.class,
   FavoriteTest.class,
-  // measures
-  DecimalScaleMetricTest.class,
+  RedirectTest.class,
   WebhooksTest.class
 })
 public class Category3Suite {
@@ -85,6 +89,10 @@ public class Category3Suite {
 
     // used by ProjectBuilderTest
     .addPlugin(pluginArtifact("project-builder-plugin"))
+
+    // reduce memory for Elasticsearch to 128M
+    .setServerProperty("sonar.search.javaOpts", "-Xms128m -Xmx128m")
+//    .setServerProperty("sonar.web.javaAdditionalOpts", "-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005")
 
     .build();
 }

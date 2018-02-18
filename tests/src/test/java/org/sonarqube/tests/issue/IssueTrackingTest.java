@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -27,7 +27,7 @@ import org.junit.Test;
 import org.sonarqube.ws.Issues.Issue;
 import org.sonarqube.ws.Issues.SearchWsResponse;
 import org.sonarqube.ws.client.WsClient;
-import org.sonarqube.ws.client.issue.SearchWsRequest;
+import org.sonarqube.ws.client.issues.SearchRequest;
 import util.ItUtils;
 
 import static java.util.Collections.singletonList;
@@ -56,7 +56,7 @@ public class IssueTrackingTest extends AbstractIssueTest {
   }
 
   @Test
-  public void close_issues_on_removed_components() throws Exception {
+  public void close_issues_on_removed_components() {
     ORCHESTRATOR.getServer().associateProjectToQualityProfile(SAMPLE_PROJECT_KEY, "xoo", "issue-on-tag-foobar");
 
     // version 1
@@ -71,7 +71,7 @@ public class IssueTrackingTest extends AbstractIssueTest {
       "sonar.projectDate", NEW_DATE_STR,
       "sonar.exclusions", "**/*.xoo");
 
-    issues = searchIssues(new SearchWsRequest().setProjectKeys(singletonList("sample"))).getIssuesList();
+    issues = searchIssues(new SearchRequest().setProjects(singletonList("sample"))).getIssuesList();
     assertThat(issues).hasSize(1);
     assertThat(issues.get(0).getStatus()).isEqualTo("CLOSED");
     assertThat(issues.get(0).getResolution()).isEqualTo("FIXED");
@@ -81,7 +81,7 @@ public class IssueTrackingTest extends AbstractIssueTest {
    * SONAR-3072
    */
   @Test
-  public void track_issues_based_on_blocks_recognition() throws Exception {
+  public void track_issues_based_on_blocks_recognition() {
     ORCHESTRATOR.getServer().associateProjectToQualityProfile(SAMPLE_PROJECT_KEY, "xoo", "issue-on-tag-foobar");
 
     // version 1
@@ -112,21 +112,21 @@ public class IssueTrackingTest extends AbstractIssueTest {
    * SONAR-4310
    */
   @Test
-  public void track_existing_unchanged_issues_on_module() throws Exception {
+  public void track_existing_unchanged_issues_on_module() {
     // The custom rule on module is enabled
 
     ORCHESTRATOR.getServer().associateProjectToQualityProfile(SAMPLE_PROJECT_KEY, "xoo", "one-issue-per-module");
     runProjectAnalysis(ORCHESTRATOR, "shared/xoo-sample");
 
     // Only one issue is created
-    assertThat(searchIssues(new SearchWsRequest()).getIssuesList()).hasSize(1);
+    assertThat(searchIssues(new SearchRequest()).getIssuesList()).hasSize(1);
     Issue issue = getRandomIssue();
 
     // Re analysis of the same project
     runProjectAnalysis(ORCHESTRATOR, "shared/xoo-sample");
 
     // No new issue should be created
-    assertThat(searchIssues(new SearchWsRequest()).getIssuesList()).hasSize(1);
+    assertThat(searchIssues(new SearchRequest()).getIssuesList()).hasSize(1);
 
     // The issue on module should stay open and be the same from the first analysis
     Issue reloadIssue = getIssueByKey(issue.getKey());
@@ -139,21 +139,21 @@ public class IssueTrackingTest extends AbstractIssueTest {
    * SONAR-4310
    */
   @Test
-  public void track_existing_unchanged_issues_on_multi_modules() throws Exception {
+  public void track_existing_unchanged_issues_on_multi_modules() {
     // The custom rule on module is enabled
     ORCHESTRATOR.getServer().provisionProject("com.sonarsource.it.samples:multi-modules-sample", "com.sonarsource.it.samples:multi-modules-sample");
     ORCHESTRATOR.getServer().associateProjectToQualityProfile("com.sonarsource.it.samples:multi-modules-sample", "xoo", "one-issue-per-module");
     runProjectAnalysis(ORCHESTRATOR, "shared/xoo-multi-modules-sample");
 
     // One issue by module are created
-    List<Issue> issues = searchIssues(new SearchWsRequest()).getIssuesList();
+    List<Issue> issues = searchIssues(new SearchRequest()).getIssuesList();
     assertThat(issues).hasSize(4);
 
     // Re analysis of the same project
     runProjectAnalysis(ORCHESTRATOR, "shared/xoo-multi-modules-sample");
 
     // No new issue should be created
-    assertThat(searchIssues(new SearchWsRequest()).getIssuesList()).hasSize(issues.size());
+    assertThat(searchIssues(new SearchRequest()).getIssuesList()).hasSize(issues.size());
 
     // Issues on modules should stay open and be the same from the first analysis
     for (Issue issue : issues) {
@@ -200,20 +200,20 @@ public class IssueTrackingTest extends AbstractIssueTest {
   }
 
   private List<Issue> searchUnresolvedIssuesByComponent(String componentKey) {
-    return searchIssues(new SearchWsRequest().setComponentKeys(singletonList(componentKey)).setResolved(false)).getIssuesList();
+    return searchIssues(new SearchRequest().setComponentKeys(singletonList(componentKey)).setResolved("false")).getIssuesList();
   }
 
   private static Issue getRandomIssue() {
-    return searchIssues(new SearchWsRequest()).getIssues(0);
+    return searchIssues(new SearchRequest()).getIssues(0);
   }
 
   private static Issue getIssueByKey(String issueKey) {
-    SearchWsResponse search = searchIssues(new SearchWsRequest().setIssues(singletonList(issueKey)));
+    SearchWsResponse search = searchIssues(new SearchRequest().setIssues(singletonList(issueKey)));
     assertThat(search.getTotal()).isEqualTo(1);
     return search.getIssues(0);
   }
 
-  private static SearchWsResponse searchIssues(SearchWsRequest request) {
+  private static SearchWsResponse searchIssues(SearchRequest request) {
     return adminClient.issues().search(request);
   }
 

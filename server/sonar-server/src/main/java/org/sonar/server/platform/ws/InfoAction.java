@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,96 +19,48 @@
  */
 package org.sonar.server.platform.ws;
 
-import java.util.Map;
-import java.util.Optional;
+import org.sonar.api.server.ws.Change;
 import org.sonar.api.server.ws.Request;
 import org.sonar.api.server.ws.Response;
 import org.sonar.api.server.ws.WebService;
 import org.sonar.api.utils.text.JsonWriter;
-import org.sonar.ce.http.CeHttpClient;
-import org.sonar.process.systeminfo.protobuf.ProtobufSystemInfo;
-import org.sonar.server.platform.monitoring.Monitor;
 import org.sonar.server.user.UserSession;
 
 /**
  * Implementation of the {@code info} action for the System WebService.
  */
 public class InfoAction implements SystemWsAction {
-
+  private final SystemInfoWriter systemInfoWriter;
   private final UserSession userSession;
-  private final CeHttpClient ceHttpClient;
-  private final Monitor[] monitors;
 
-  public InfoAction(UserSession userSession, CeHttpClient ceHttpClient, Monitor... monitors) {
+  public InfoAction(UserSession userSession, SystemInfoWriter systemInfoWriter) {
     this.userSession = userSession;
-    this.ceHttpClient = ceHttpClient;
-    this.monitors = monitors;
+    this.systemInfoWriter = systemInfoWriter;
   }
 
   @Override
   public void define(WebService.NewController controller) {
-    controller.createAction("info")
+    WebService.NewAction action = controller.createAction("info")
       .setDescription("Get detailed information about system configuration.<br/>" +
-        "Requires 'Administer' permissions.<br/>" +
-        "Since 5.5, this web service becomes internal in order to more easily update result.")
+        "Requires 'Administer' permissions.")
       .setSince("5.1")
       .setInternal(true)
-      .setResponseExample(getClass().getResource("/org/sonar/server/platform/ws/example-system-info.json"))
+      .setResponseExample(getClass().getResource("info-example.json"))
       .setHandler(this);
+
+    action.setChangelog(
+      new Change("5.5", "Becomes internal to easily update result")
+    );
   }
 
   @Override
-  public void handle(Request request, Response response) {
+  public void handle(Request request, Response response) throws Exception {
     userSession.checkIsSystemAdministrator();
-
     JsonWriter json = response.newJsonWriter();
-    writeJson(json);
+    json.beginObject();
+    systemInfoWriter.write(json);
+    json.endObject();
     json.close();
   }
 
-  private void writeJson(JsonWriter json) {
-    json.beginObject();
-    for (Monitor monitor : monitors) {
-      Map<String, Object> attributes = monitor.attributes();
-      json.name(monitor.name());
-      json.beginObject();
-      for (Map.Entry<String, Object> attribute : attributes.entrySet()) {
-        json.name(attribute.getKey()).valueObject(attribute.getValue());
-      }
-      json.endObject();
-    }
-    Optional<ProtobufSystemInfo.SystemInfo> ceSysInfo = ceHttpClient.retrieveSystemInfo();
-    if (ceSysInfo.isPresent()) {
-      for (ProtobufSystemInfo.Section section : ceSysInfo.get().getSectionsList()) {
-        json.name(section.getName());
-        json.beginObject();
-        for (ProtobufSystemInfo.Attribute attribute : section.getAttributesList()) {
-          writeAttribute(json, attribute);
-        }
-        json.endObject();
-      }
-    }
-    json.endObject();
-  }
-
-  private static void writeAttribute(JsonWriter json, ProtobufSystemInfo.Attribute attribute) {
-    switch (attribute.getValueCase()) {
-      case BOOLEAN_VALUE:
-        json.name(attribute.getKey()).valueObject(attribute.getBooleanValue());
-        break;
-      case LONG_VALUE:
-        json.name(attribute.getKey()).valueObject(attribute.getLongValue());
-        break;
-      case DOUBLE_VALUE:
-        json.name(attribute.getKey()).valueObject(attribute.getDoubleValue());
-        break;
-      case STRING_VALUE:
-        json.name(attribute.getKey()).valueObject(attribute.getStringValue());
-        break;
-      case VALUE_NOT_SET:
-        break;
-      default:
-        throw new IllegalArgumentException("Unsupported type: " + attribute.getValueCase());
-    }
-  }
 }

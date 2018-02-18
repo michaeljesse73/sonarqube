@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -30,12 +30,12 @@ public class AnalysisImplTest {
   @Rule
   public ExpectedException thrown = ExpectedException.none();
 
-  static final long ID = 10;
-  static final String UUID = "uuid ";
-  static final long CREATED_AT = 123456789L;
+  private static final long ID = 10;
+  private static final String UUID = "uuid ";
+  private static final long CREATED_AT = 123456789L;
 
   @Test
-  public void build_snapshot() throws Exception {
+  public void build_snapshot() {
     Analysis analysis = new Analysis.Builder()
       .setId(ID)
       .setUuid(UUID)
@@ -48,7 +48,7 @@ public class AnalysisImplTest {
   }
 
   @Test
-  public void fail_with_NPE_when_building_snapshot_without_id() throws Exception {
+  public void fail_with_NPE_when_building_snapshot_without_id() {
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("id cannot be null");
 
@@ -59,7 +59,7 @@ public class AnalysisImplTest {
   }
 
   @Test
-  public void fail_with_NPE_when_building_snapshot_without_uuid() throws Exception {
+  public void fail_with_NPE_when_building_snapshot_without_uuid() {
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("uuid cannot be null");
 
@@ -70,7 +70,7 @@ public class AnalysisImplTest {
   }
 
   @Test
-  public void fail_with_NPE_when_building_snapshot_without_created_at() throws Exception {
+  public void fail_with_NPE_when_building_snapshot_without_created_at() {
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("createdAt cannot be null");
 
@@ -81,7 +81,7 @@ public class AnalysisImplTest {
   }
 
   @Test
-  public void test_toString() throws Exception {
+  public void test_toString() {
     assertThat(new Analysis.Builder()
       .setId(ID)
       .setUuid(UUID)
@@ -91,7 +91,7 @@ public class AnalysisImplTest {
   }
 
   @Test
-  public void test_equals_and_hascode() throws Exception {
+  public void test_equals_and_hascode() {
     Analysis analysis = new Analysis.Builder()
       .setId(ID)
       .setUuid(UUID)

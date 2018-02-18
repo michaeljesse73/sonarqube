@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -26,7 +26,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class EventDtoTest {
 
   @Test
-  public void test_getters_and_setters() throws Exception {
+  public void test_getters_and_setters() {
     EventDto dto = new EventDto()
       .setId(1L)
       .setAnalysisUuid("uuid_1")

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -35,6 +35,8 @@ import org.sonar.api.utils.System2;
 import org.sonar.db.Dao;
 import org.sonar.db.DbSession;
 import org.sonar.db.RowNotFoundException;
+import org.sonar.db.component.ComponentDto;
+import org.sonar.db.organization.OrganizationDto;
 
 import static org.sonar.db.DatabaseUtils.executeLargeInputs;
 import static org.sonar.db.DatabaseUtils.executeLargeInputsWithoutOutput;
@@ -121,6 +123,14 @@ public class UserDao implements Dao {
     mapper(dbSession).deactivateUser(user.getLogin(), system2.now());
   }
 
+  public void cleanHomepage(DbSession dbSession, OrganizationDto organization) {
+    mapper(dbSession).clearHomepage("ORGANIZATION", organization.getUuid(), system2.now());
+  }
+
+  public void cleanHomepage(DbSession dbSession, ComponentDto project) {
+    mapper(dbSession).clearHomepage("PROJECT", project.uuid(), system2.now());
+  }
+
   @CheckForNull
   public UserDto selectByLogin(DbSession session, String login) {
     return mapper(session).selectByLogin(login);
@@ -142,12 +152,13 @@ public class UserDao implements Dao {
   }
 
   /**
-   * Check if an active user with the given email exits in database
+   * Search for an active user with the given email exits in database
    *
    * Please note that email is case insensitive, result for searching 'mail@email.com' or 'Mail@Email.com' will be the same
    */
-  public boolean doesEmailExist(DbSession dbSession, String email) {
-    return mapper(dbSession).countByEmail(email.toLowerCase(Locale.ENGLISH)) > 0;
+  @CheckForNull
+  public UserDto selectByEmail(DbSession dbSession, String email) {
+    return mapper(dbSession).selectByEmail(email.toLowerCase(Locale.ENGLISH));
   }
 
   public void scrollByLogins(DbSession dbSession, Collection<String> logins, Consumer<UserDto> consumer) {

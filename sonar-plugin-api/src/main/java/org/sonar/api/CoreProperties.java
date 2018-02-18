@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -48,6 +48,11 @@ public interface CoreProperties {
    * @since 4.0
    */
   String SUBCATEGORY_DUPLICATIONS = "duplications";
+
+  /**
+   * @since 6.6
+   */
+  String SUBCATEGORY_BRANCHES = "Branches";
 
   /**
    * @since 4.0
@@ -123,13 +128,14 @@ public interface CoreProperties {
 
   /* Global settings */
   String SONAR_HOME = "SONAR_HOME";
-  String PROJECT_BRANCH_PROPERTY = "sonar.branch";
-  String PROJECT_VERSION_PROPERTY = "sonar.projectVersion";
 
   /**
-   * @since 6.3
+   * @deprecated since 6.7. This feature is deprecated in favor of the new branch feature.
+   * @see <a href="https://redirect.sonarsource.com/doc/branches.html">https://redirect.sonarsource.com/doc/branches.html/a>
    */
-  String PROJECT_ORGANIZATION_PROPERTY = "sonar.organization";
+  @Deprecated
+  String PROJECT_BRANCH_PROPERTY = "sonar.branch";
+  String PROJECT_VERSION_PROPERTY = "sonar.projectVersion";
 
   /**
    * @since 2.6
@@ -157,6 +163,11 @@ public interface CoreProperties {
    * Value format is yyyy-MM-dd
    */
   String PROJECT_DATE_PROPERTY = "sonar.projectDate";
+
+  /**
+   * @since 6.6
+   */
+  String LONG_LIVED_BRANCHES_REGEX = "sonar.branch.longLivedBranches.regex";
 
   /**
    * @deprecated since 4.2 projects are now multi-language
@@ -215,9 +226,15 @@ public interface CoreProperties {
 
   /**
    * @since 2.14
+   * @deprecated since 7.1, this setting should not be used by plugin
    */
+  @Deprecated
   String CORE_AUTHENTICATOR_REALM = "sonar.security.realm";
 
+  /**
+   * @deprecated since 7.1, this setting should not be used by plugin
+   */
+  @Deprecated
   String CORE_AUTHENTICATOR_IGNORE_STARTUP_FAILURE = "sonar.authenticator.ignoreStartupFailure";
 
   /**
@@ -258,7 +275,9 @@ public interface CoreProperties {
 
   /**
    * @since 2.11
+   * @deprecated since 6.7
    */
+  @Deprecated
   String CPD_CROSS_PROJECT = "sonar.cpd.cross_project";
 
   /**
@@ -268,17 +287,23 @@ public interface CoreProperties {
 
   /**
    * @since 2.11
+   * @deprecated in 6.7. See {@link Server#getPermanentServerId()}
    */
+  @Deprecated
   String ORGANISATION = "sonar.organisation";
 
   /**
    * @since 2.11
+   * @deprecated in 6.7. See {@link Server#getPermanentServerId()}
    */
+  @Deprecated
   String PERMANENT_SERVER_ID = "sonar.server_id";
 
   /**
    * @since 2.11
+   * @deprecated in 6.7. See {@link Server#getPermanentServerId()}
    */
+  @Deprecated
   String SERVER_ID_IP_ADDRESS = "sonar.server_id.ip_address";
 
   /**

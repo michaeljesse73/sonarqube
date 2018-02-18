@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -23,23 +23,27 @@ import { sortBy } from 'lodash';
 import { IndexLink } from 'react-router';
 import { getCategoryName } from '../utils';
 
+/*::
 type Category = {
   key: string,
   name: string
 };
+*/
 
+/*::
 type Props = {
   categories: Category[],
   component?: { key: string },
   defaultCategory: string,
   selectedCategory: string
 };
+*/
 
 export default class CategoriesList extends React.PureComponent {
-  rops: Props;
+  /*:: rops: Props; */
 
-  renderLink(category: Category) {
-    const query = {};
+  renderLink(category /*: Category */) {
+    const query /*: Object */ = {};
 
     if (category.key !== this.props.defaultCategory) {
       query.category = category.key.toLowerCase();
@@ -49,9 +53,8 @@ export default class CategoriesList extends React.PureComponent {
       query.id = this.props.component.key;
     }
 
-    const className = category.key.toLowerCase() === this.props.selectedCategory.toLowerCase()
-      ? 'active'
-      : '';
+    const className =
+      category.key.toLowerCase() === this.props.selectedCategory.toLowerCase() ? 'active' : '';
 
     const pathname = this.props.component ? '/project/settings' : '/settings';
 
@@ -71,11 +74,7 @@ export default class CategoriesList extends React.PureComponent {
 
     return (
       <ul className="side-tabs-menu">
-        {sortedCategories.map(category => (
-          <li key={category.key}>
-            {this.renderLink(category)}
-          </li>
-        ))}
+        {sortedCategories.map(category => <li key={category.key}>{this.renderLink(category)}</li>)}
       </ul>
     );
   }

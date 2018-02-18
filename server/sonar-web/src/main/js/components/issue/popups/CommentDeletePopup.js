@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,17 +22,21 @@ import React from 'react';
 import { translate } from '../../../helpers/l10n';
 import BubblePopup from '../../../components/common/BubblePopup';
 
+/*::
 type Props = {
   onDelete: () => void,
   popupPosition?: {}
 };
+*/
 
-export default function CommentDeletePopup(props: Props) {
+export default function CommentDeletePopup(props /*: Props */) {
   return (
     <BubblePopup position={props.popupPosition} customClass="bubble-popup-bottom-right">
       <div className="text-right">
         <div className="spacer-bottom">{translate('issue.comment.delete_confirm_message')}</div>
-        <button className="button-red" onClick={props.onDelete}>{translate('delete')}</button>
+        <button className="button-red" onClick={props.onDelete}>
+          {translate('delete')}
+        </button>
       </div>
     </BubblePopup>
   );

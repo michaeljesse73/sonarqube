@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,7 +21,6 @@ package org.sonar.server.platform;
 
 import java.io.File;
 import java.util.Date;
-import javax.annotation.CheckForNull;
 import org.junit.Before;
 import org.junit.Test;
 import org.sonar.api.platform.Server;
@@ -104,12 +103,6 @@ class FakeServer extends Server {
 
   @Override
   public File getRootDir() {
-    return null;
-  }
-
-  @Override
-  @CheckForNull
-  public File getDeployDir() {
     return null;
   }
 

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -41,6 +41,7 @@ import org.sonar.db.DbSession;
 import org.sonar.db.DbTester;
 import org.sonar.db.dialect.Dialect;
 import org.sonar.db.dialect.Oracle;
+import org.sonar.db.qualitygate.QGateWithOrgDto;
 import org.sonar.db.user.GroupDto;
 import org.sonar.db.user.GroupTesting;
 import org.sonar.db.user.UserDto;
@@ -54,6 +55,7 @@ import static org.mockito.Mockito.when;
 import static org.sonar.db.Pagination.forPage;
 import static org.sonar.db.organization.OrganizationQuery.newOrganizationQueryBuilder;
 import static org.sonar.db.organization.OrganizationQuery.returnAll;
+import static org.sonar.db.organization.OrganizationTesting.newOrganizationDto;
 
 public class OrganizationDaoTest {
   private static final long SOME_DATE = 1_200_999L;
@@ -68,6 +70,7 @@ public class OrganizationDaoTest {
     .setUrl("the url 1")
     .setAvatarUrl("the avatar url 1")
     .setGuarded(false)
+    .setDefaultQualityGateUuid("1")
     .setUserId(1_000);
   private static final OrganizationDto ORGANIZATION_DTO_2 = new OrganizationDto()
     .setUuid("uuid 2")
@@ -77,6 +80,7 @@ public class OrganizationDaoTest {
     .setUrl("the url 2")
     .setAvatarUrl("the avatar url 2")
     .setGuarded(true)
+    .setDefaultQualityGateUuid("1")
     .setUserId(2_000);
   private static final String PERMISSION_1 = "foo";
   private static final String PERMISSION_2 = "bar";
@@ -499,6 +503,42 @@ public class OrganizationDaoTest {
   }
 
   @Test
+  public void selectByQuery_filter_on_a_member() {
+    OrganizationDto organization = dbTester.organizations().insert();
+    OrganizationDto anotherOrganization = dbTester.organizations().insert();
+    OrganizationDto organizationWithoutMember = dbTester.organizations().insert();
+    UserDto user = dbTester.users().insertUser();
+    dbTester.organizations().addMember(organization, user);
+    dbTester.organizations().addMember(anotherOrganization, user);
+
+    List<OrganizationDto> result = underTest.selectByQuery(dbSession, OrganizationQuery.newOrganizationQueryBuilder().setMember(user.getId()).build(), forPage(1).andSize(100));
+
+    assertThat(result).extracting(OrganizationDto::getUuid)
+      .containsExactlyInAnyOrder(organization.getUuid(), anotherOrganization.getUuid())
+      .doesNotContain(organizationWithoutMember.getUuid());
+  }
+
+  @Test
+  public void selectByQuery_filter_on_a_member_and_keys() {
+    OrganizationDto organization = dbTester.organizations().insert();
+    OrganizationDto anotherOrganization = dbTester.organizations().insert();
+    OrganizationDto organizationWithoutKeyProvided = dbTester.organizations().insert();
+    OrganizationDto organizationWithoutMember = dbTester.organizations().insert();
+    UserDto user = dbTester.users().insertUser();
+    dbTester.organizations().addMember(organization, user);
+    dbTester.organizations().addMember(anotherOrganization, user);
+    dbTester.organizations().addMember(organizationWithoutKeyProvided, user);
+
+    List<OrganizationDto> result = underTest.selectByQuery(dbSession, OrganizationQuery.newOrganizationQueryBuilder()
+      .setKeys(Arrays.asList(organization.getKey(), anotherOrganization.getKey(), organizationWithoutMember.getKey()))
+      .setMember(user.getId()).build(), forPage(1).andSize(100));
+
+    assertThat(result).extracting(OrganizationDto::getUuid)
+      .containsExactlyInAnyOrder(organization.getUuid(), anotherOrganization.getUuid())
+      .doesNotContain(organizationWithoutKeyProvided.getUuid(), organizationWithoutMember.getUuid());
+  }
+
+  @Test
   public void getDefaultTemplates_returns_empty_when_table_is_empty() {
     assertThat(underTest.getDefaultTemplates(dbSession, ORGANIZATION_DTO_1.getUuid())).isEmpty();
   }
@@ -627,6 +667,19 @@ public class OrganizationDaoTest {
   }
 
   @Test
+  public void setDefaultQualityGate() {
+    when(system2.now()).thenReturn(DATE_3);
+    OrganizationDto organization = dbTester.organizations().insert();
+    QGateWithOrgDto qualityGate = dbTester.qualityGates().insertQualityGate(organization);
+
+    underTest.setDefaultQualityGate(dbSession, organization, qualityGate);
+    dbTester.commit();
+
+    assertThat(dbClient.qualityGateDao().selectDefault(dbSession, organization).getUuid()).isEqualTo(qualityGate.getUuid());
+    verifyOrganizationUpdatedAt(organization.getUuid(), DATE_3);
+  }
+
+  @Test
   public void update_fails_with_NPE_if_OrganizationDto_is_null() {
     expectDtoCanNotBeNull();
 
@@ -677,7 +730,7 @@ public class OrganizationDaoTest {
     insertOrganization(ORGANIZATION_DTO_1);
 
     when(system2.now()).thenReturn(DATE_3);
-    underTest.update(dbSession, new OrganizationDto()
+    underTest.update(dbSession, newOrganizationDto()
       .setUuid(ORGANIZATION_DTO_1.getUuid())
       .setKey("new key")
       .setName("new name")
@@ -894,11 +947,13 @@ public class OrganizationDaoTest {
           "      default_perm_template_view," +
           "      new_project_private," +
           "      guarded," +
+          "      default_quality_gate_uuid," +
           "      created_at," +
           "      updated_at" +
           "    )" +
           "    values" +
           "    (" +
+          "      ?," +
           "      ?," +
           "      ?," +
           "      ?," +
@@ -916,8 +971,9 @@ public class OrganizationDaoTest {
       preparedStatement.setString(5, view);
       preparedStatement.setBoolean(6, false);
       preparedStatement.setBoolean(7, false);
-      preparedStatement.setLong(8, 1000L);
-      preparedStatement.setLong(9, 2000L);
+      preparedStatement.setString(8, "1"); // TODO check ok ?
+      preparedStatement.setLong(9, 1000L);
+      preparedStatement.setLong(10, 2000L);
       preparedStatement.execute();
     } catch (SQLException e) {
       throw new RuntimeException("dirty insert failed", e);
@@ -966,19 +1022,21 @@ public class OrganizationDaoTest {
       " guarded as \"guarded\", user_id as \"userId\"," +
       " created_at as \"createdAt\", updated_at as \"updatedAt\"," +
       " default_perm_template_project as \"projectDefaultPermTemplate\"," +
-      " default_perm_template_view as \"viewDefaultPermTemplate\"" +
+      " default_perm_template_view as \"viewDefaultPermTemplate\"," +
+      " default_quality_gate_uuid as \"defaultQualityGateUuid\" " +
       " from organizations");
     assertThat(rows).hasSize(1);
     return rows.get(0);
   }
 
-  private static OrganizationDto copyOf(OrganizationDto organizationDto) {
+  private OrganizationDto copyOf(OrganizationDto organizationDto) {
     return new OrganizationDto()
       .setUuid(organizationDto.getUuid())
       .setKey(organizationDto.getKey())
       .setName(organizationDto.getName())
       .setDescription(organizationDto.getDescription())
       .setUrl(organizationDto.getUrl())
+      .setDefaultQualityGateUuid(organizationDto.getDefaultQualityGateUuid())
       .setAvatarUrl(organizationDto.getAvatarUrl());
   }
 

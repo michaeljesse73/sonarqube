@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -90,7 +90,7 @@ public class DistributionFormulaTest {
   @Test
   public void create_no_measure_when_no_value() {
     DistributionFormula.DistributionCounter counter = BASIC_DISTRIBUTION_FORMULA.createNewCounter();
-    when(counterInitializationContext.getMeasure(FUNCTION_COMPLEXITY_DISTRIBUTION_KEY)).thenReturn(Optional.<Measure>absent());
+    when(counterInitializationContext.getMeasure(FUNCTION_COMPLEXITY_DISTRIBUTION_KEY)).thenReturn(Optional.absent());
     counter.initialize(counterInitializationContext);
 
     Assertions.assertThat(BASIC_DISTRIBUTION_FORMULA.createMeasure(counter, projectCreateMeasureContext)).isAbsent();

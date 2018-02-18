@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -36,21 +36,24 @@ import org.sonar.server.qualityprofile.QProfileName;
 import org.sonar.server.qualityprofile.QProfileResult;
 import org.sonar.server.qualityprofile.index.ActiveRuleIndexer;
 import org.sonar.server.user.UserSession;
-import org.sonar.server.util.LanguageParamUtils;
-import org.sonarqube.ws.QualityProfiles.CreateWsResponse;
-import org.sonarqube.ws.client.qualityprofile.CreateRequest;
+import org.sonarqube.ws.Qualityprofiles.CreateWsResponse;
 
+import javax.annotation.Nullable;
+
+import static com.google.common.base.Preconditions.checkArgument;
 import static org.sonar.db.permission.OrganizationPermission.ADMINISTER_QUALITY_PROFILES;
 import static org.sonar.server.qualityprofile.ws.QProfileWsSupport.createOrganizationParam;
+import static org.sonar.server.util.LanguageParamUtils.getLanguageKeys;
 import static org.sonar.server.ws.WsUtils.writeProtobuf;
 import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.ACTION_CREATE;
 import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.PARAM_LANGUAGE;
+import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.PARAM_NAME;
 import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.PARAM_ORGANIZATION;
-import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.PARAM_PROFILE_NAME;
 
 public class CreateAction implements QProfileWsAction {
 
   private static final String PARAM_BACKUP_FORMAT = "backup_%s";
+  static final int NAME_MAXIMUM_LENGTH = 100;
 
   private final DbClient dbClient;
   private final QProfileFactory profileFactory;
@@ -81,27 +84,28 @@ public class CreateAction implements QProfileWsAction {
   @Override
   public void define(WebService.NewController controller) {
     NewAction create = controller.createAction(ACTION_CREATE)
-      .setSince("5.2")
-      .setDescription("Create a quality profile.<br>" +
-        "Requires to be logged in and the 'Administer Quality Profiles' permission.")
       .setPost(true)
+      .setDescription("Create a quality profile.<br>" +
+    "Requires to be logged in and the 'Administer Quality Profiles' permission.")
       .setResponseExample(getClass().getResource("create-example.json"))
+      .setSince("5.2")
       .setHandler(this);
 
     createOrganizationParam(create)
       .setSince("6.4");
 
-    create.createParam(PARAM_PROFILE_NAME)
-      .setDescription("Name for the new quality profile")
+    create.createParam(PARAM_NAME)
+      .setRequired(true)
+      .setMaximumLength(NAME_MAXIMUM_LENGTH)
+      .setDescription("Quality profile name")
       .setExampleValue("My Sonar way")
-      .setDeprecatedKey("name", "6.1")
-      .setRequired(true);
+      .setDeprecatedKey("profileName", "6.6");
 
     create.createParam(PARAM_LANGUAGE)
-      .setDescription("The language for the quality profile.")
+      .setRequired(true)
+      .setDescription("Quality profile language")
       .setExampleValue("js")
-      .setPossibleValues(LanguageParamUtils.getLanguageKeys(languages))
-      .setRequired(true);
+      .setPossibleValues(getLanguageKeys(languages));
 
     for (ProfileImporter importer : importers) {
       create.createParam(getBackupParamName(importer.getKey()))
@@ -123,7 +127,7 @@ public class CreateAction implements QProfileWsAction {
   private CreateWsResponse doHandle(DbSession dbSession, CreateRequest createRequest, Request request, OrganizationDto organization) {
     QProfileResult result = new QProfileResult();
     QProfileDto profile = profileFactory.checkAndCreateCustom(dbSession, organization,
-      QProfileName.createFor(createRequest.getLanguage(), createRequest.getProfileName()));
+      QProfileName.createFor(createRequest.getLanguage(), createRequest.getName()));
     result.setProfile(profile);
     for (ProfileImporter importer : importers) {
       String importerKey = importer.getKey();
@@ -137,10 +141,10 @@ public class CreateAction implements QProfileWsAction {
   }
 
   private static CreateRequest toRequest(Request request, OrganizationDto organization) {
-    CreateRequest.Builder builder = CreateRequest.builder()
+    Builder builder = CreateRequest.builder()
       .setOrganizationKey(organization.getKey())
       .setLanguage(request.mandatoryParam(PARAM_LANGUAGE))
-      .setProfileName(request.mandatoryParam(PARAM_PROFILE_NAME));
+      .setName(request.mandatoryParam(PARAM_NAME));
     return builder.build();
   }
 
@@ -165,5 +169,66 @@ public class CreateAction implements QProfileWsAction {
 
   private static String getBackupParamName(String importerKey) {
     return String.format(PARAM_BACKUP_FORMAT, importerKey);
+  }
+
+  private static class CreateRequest {
+
+    private final String name;
+    private final String language;
+    private final String organizationKey;
+
+    private CreateRequest(Builder builder) {
+      this.name = builder.name;
+      this.language = builder.language;
+      this.organizationKey = builder.organizationKey;
+    }
+
+    public String getLanguage() {
+      return language;
+    }
+
+    public String getName() {
+      return name;
+    }
+
+    public String getOrganizationKey() {
+      return organizationKey;
+    }
+
+    public static Builder builder() {
+      return new Builder();
+    }
+  }
+
+  private static class Builder {
+    private String language;
+    private String name;
+    private String organizationKey;
+
+    private Builder() {
+      // enforce factory method use
+    }
+
+    public Builder setLanguage(@Nullable String language) {
+      this.language = language;
+      return this;
+    }
+
+    public Builder setName(@Nullable String profileName) {
+      this.name = profileName;
+      return this;
+    }
+
+    public Builder setOrganizationKey(@Nullable String organizationKey) {
+      this.organizationKey = organizationKey;
+      return this;
+    }
+
+    public CreateRequest build() {
+      checkArgument(language != null && !language.isEmpty(), "Language is mandatory and must not be empty.");
+      checkArgument(name != null && !name.isEmpty(), "Profile name is mandatory and must not be empty.");
+      checkArgument(organizationKey == null || !organizationKey.isEmpty(), "Organization key may be either null or not empty. Empty organization key is invalid.");
+      return new CreateRequest(this);
+    }
   }
 }

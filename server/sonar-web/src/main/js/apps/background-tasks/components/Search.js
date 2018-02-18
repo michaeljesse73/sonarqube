@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,50 +19,52 @@
  */
 /* @flow */
 import React from 'react';
+import PropTypes from 'prop-types';
 import StatusFilter from './StatusFilter';
 import TypesFilter from './TypesFilter';
 import CurrentsFilter from './CurrentsFilter';
 import DateFilter from './DateFilter';
 import { DEFAULT_FILTERS } from './../constants';
+import SearchBox from '../../../components/controls/SearchBox';
 import { translate } from '../../../helpers/l10n';
 
 export default class Search extends React.PureComponent {
   static propTypes = {
-    loading: React.PropTypes.bool.isRequired,
-    status: React.PropTypes.any.isRequired,
-    taskType: React.PropTypes.any.isRequired,
-    currents: React.PropTypes.any.isRequired,
-    query: React.PropTypes.string.isRequired,
-    onFilterUpdate: React.PropTypes.func.isRequired,
-    onReload: React.PropTypes.func.isRequired
+    loading: PropTypes.bool.isRequired,
+    status: PropTypes.any.isRequired,
+    taskType: PropTypes.any.isRequired,
+    currents: PropTypes.any.isRequired,
+    query: PropTypes.string.isRequired,
+    onFilterUpdate: PropTypes.func.isRequired,
+    onReload: PropTypes.func.isRequired
   };
 
-  handleStatusChange(status: string) {
+  handleStatusChange(status /*: string */) {
     this.props.onFilterUpdate({ status });
   }
 
-  handleTypeChange(taskType: string) {
+  handleTypeChange(taskType /*: string */) {
     this.props.onFilterUpdate({ taskType });
   }
 
-  handleCurrentsChange(currents: string) {
+  handleCurrentsChange(currents /*: string */) {
     this.props.onFilterUpdate({ currents });
   }
 
-  handleDateChange(date: string) {
+  handleDateChange(date /*: string */) {
     this.props.onFilterUpdate(date);
   }
 
-  handleQueryChange(query: string) {
+  handleQueryChange = (query /*: string */) => {
     this.props.onFilterUpdate({ query });
-  }
+  };
 
-  handleReload(e: Object) {
+  handleReload(e /*: Object */) {
     e.target.blur();
     this.props.onReload();
   }
 
-  handleReset(e: Object) {
+  handleReset(e /*: Object */) {
     e.preventDefault();
     e.target.blur();
     this.props.onFilterUpdate(DEFAULT_FILTERS);
@@ -77,18 +79,11 @@ export default class Search extends React.PureComponent {
     }
 
     return (
-      <li>
-        <h6 className="bt-search-form-label">
-          Search by Task or Component
-        </h6>
-
-        <input
-          onChange={e => this.handleQueryChange(e.target.value)}
+      <li className="bt-search-form-large">
+        <SearchBox
+          onChange={this.handleQueryChange}
+          placeholder={translate('background_tasks.search_by_task_or_component')}
           value={query}
-          ref="searchInput"
-          className="js-search input-large"
-          type="search"
-          placeholder="Search"
         />
       </li>
     );
@@ -110,33 +105,29 @@ export default class Search extends React.PureComponent {
       <section className="big-spacer-top big-spacer-bottom">
         <ul className="bt-search-form">
           <li>
-            <h6 className="bt-search-form-label">
-              Status
-            </h6>
+            <h6 className="bt-search-form-label">{translate('status')}</h6>
             <StatusFilter value={status} onChange={this.handleStatusChange.bind(this)} />
           </li>
-          {types.length > 1 &&
+          {types.length > 1 && (
             <li>
-              <h6 className="bt-search-form-label">
-                Type
-              </h6>
+              <h6 className="bt-search-form-label">{translate('type')}</h6>
               <TypesFilter
                 value={taskType}
                 types={types}
                 onChange={this.handleTypeChange.bind(this)}
               />
-            </li>}
-          {!component &&
+            </li>
+          )}
+          {!component && (
             <li>
               <h6 className="bt-search-form-label">
-                Only Latest Analysis
+                {translate('background_tasks.currents_filter.ONLY_CURRENTS')}
               </h6>
               <CurrentsFilter value={currents} onChange={this.handleCurrentsChange.bind(this)} />
-            </li>}
+            </li>
+          )}
           <li>
-            <h6 className="bt-search-form-label">
-              Date
-            </h6>
+            <h6 className="bt-search-form-label">{translate('date')}</h6>
             <DateFilter
               minSubmittedAt={minSubmittedAt}
               maxExecutedAt={maxExecutedAt}
@@ -146,11 +137,10 @@ export default class Search extends React.PureComponent {
 
           {this.renderSearchBox()}
 
-          <li className="bt-search-form-right">
+          <li className="nowrap">
             <button className="js-reload" onClick={this.handleReload.bind(this)} disabled={loading}>
               {translate('reload')}
-            </button>
-            {' '}
+            </button>{' '}
             <button ref="resetButton" onClick={this.handleReset.bind(this)} disabled={loading}>
               {translate('reset_verb')}
             </button>

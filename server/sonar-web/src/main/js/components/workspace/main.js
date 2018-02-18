@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,6 +24,9 @@ import Items from './models/items';
 import ItemsView from './views/items-view';
 import ViewerView from './views/viewer-view';
 import RuleView from './views/rule-view';
+import { getRuleDetails } from '../../api/rules';
+import './styles.css';
+import '../../apps/coding-rules/styles.css';
 
 let instance = null;
 const Workspace = function() {
@@ -78,7 +81,7 @@ Workspace.prototype = {
     return this.open({ ...options, __type__: 'component' });
   },
 
-  openRule(options: { key: string, organization: string }) {
+  openRule(options /*: { key: string, organization: string } */) {
     return this.open({ ...options, __type__: 'rule' });
   },
 
@@ -117,23 +120,16 @@ Workspace.prototype = {
 
   showRule(model) {
     const that = this;
-    this.fetchRule(model)
-      .done(() => {
-        model.set({ exist: true });
+    getRuleDetails({ key: model.get('key') }).then(
+      r => {
+        model.set({ ...r.rule, exist: true });
         that.showViewer(RuleView, model);
-      })
-      .fail(() => {
+      },
+      () => {
         model.set({ exist: false });
         that.showViewer(RuleView, model);
-      });
-  },
-
-  fetchRule(model) {
-    const url = window.baseUrl + '/api/rules/show';
-    const options = { key: model.get('key') };
-    return $.get(url, options).done(r => {
-      model.set(r.rule);
-    });
+      }
+    );
   }
 };
 

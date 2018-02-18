@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -100,10 +100,10 @@ public class WebServicesWsTest {
 
       // action with a lot of overridden values
       NewAction create = newController.createAction("create")
+        .setPost(true)
         .setDescription("Create metric")
         .setSince("4.1")
         .setDeprecatedSince("5.3")
-        .setPost(true)
         .setResponseExample(Resources.getResource(getClass(), "WebServicesWsTest/metrics_example.json"))
         .setChangelog(
           new Change("4.5", "Deprecate database ID in response"),
@@ -124,6 +124,15 @@ public class WebServicesWsTest {
         .setDefaultValue("BLOCKER");
       create.createParam("name");
       create.createParam("internal").setInternal(true);
+
+      create
+        .createParam("constrained_string_param")
+        .setMaximumLength(64)
+        .setMinimumLength(3);
+
+      create
+        .createParam("constrained_numeric_param")
+        .setMaximumValue(12);
 
       newController.createAction("internal_action")
         .setDescription("Internal Action Description")

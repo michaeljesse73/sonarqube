@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,55 +21,40 @@ package org.sonarqube.tests.component;
 
 import com.sonar.orchestrator.Orchestrator;
 import com.sonar.orchestrator.build.SonarScanner;
-import org.sonarqube.tests.Category4Suite;
-import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.ClassRule;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
-import org.sonarqube.ws.WsComponents;
-import org.sonarqube.ws.client.WsClient;
-import org.sonarqube.ws.client.component.SearchWsRequest;
-import org.sonarqube.ws.client.component.ShowWsRequest;
-import util.ItUtils;
+import org.junit.rules.RuleChain;
+import org.sonarqube.qa.util.Tester;
+import org.sonarqube.ws.Components;
+import org.sonarqube.ws.client.components.ShowRequest;
 
-import static java.util.Collections.singletonList;
 import static org.assertj.core.api.Assertions.assertThat;
 import static util.ItUtils.projectDir;
 
 public class ComponentsWsTest {
-  @ClassRule
-  public static final Orchestrator orchestrator = Category4Suite.ORCHESTRATOR;
+
   private static final String FILE_KEY = "sample:src/main/xoo/sample/Sample.xoo";
 
-  @Rule
-  public ExpectedException expectedException = ExpectedException.none();
+  @ClassRule
+  public static final Orchestrator orchestrator = ComponentSuite.ORCHESTRATOR;
 
-  WsClient wsClient;
+  private static Tester tester = new Tester(orchestrator);
 
-  @Before
-  public void inspectProject() {
-    orchestrator.resetData();
+  @ClassRule
+  public static RuleChain ruleChain = RuleChain.outerRule(orchestrator).around(tester);
+
+  @BeforeClass
+  public static void setUp() {
     orchestrator.executeBuild(SonarScanner.create(projectDir("shared/xoo-sample")));
-
-    wsClient = ItUtils.newAdminWsClient(orchestrator);
   }
 
   @Test
   public void show() {
-    WsComponents.ShowWsResponse response = wsClient.components().show(new ShowWsRequest().setKey(FILE_KEY));
+    Components.ShowWsResponse response = tester.wsClient().components().show(new ShowRequest().setComponent(FILE_KEY));
 
     assertThat(response).isNotNull();
     assertThat(response.getComponent().getKey()).isEqualTo(FILE_KEY);
     assertThat(response.getAncestorsList()).isNotEmpty();
-  }
-
-  @Test
-  public void search() {
-    WsComponents.SearchWsResponse response = wsClient.components().search(new SearchWsRequest()
-      .setQualifiers(singletonList("FIL")));
-
-    assertThat(response).isNotNull();
-    assertThat(response.getComponents(0).getKey()).isEqualTo(FILE_KEY);
   }
 }

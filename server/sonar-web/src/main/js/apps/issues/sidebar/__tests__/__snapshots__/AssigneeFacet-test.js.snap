@@ -9,24 +9,23 @@ exports[`should render 1`] = `
     onClear={[Function]}
     onClick={[Function]}
     open={true}
-    values={0}
+    values={Array []}
   />
   <FacetItemsList>
     <FacetItem
       active={false}
       disabled={false}
-      facetMode="count"
       halfWidth={false}
       name="unassigned"
       onClick={[Function]}
-      stat={5}
+      stat="5"
       value=""
     />
     <FacetItem
       active={false}
       disabled={false}
-      facetMode="count"
       halfWidth={false}
+      key="foo"
       name={
         <span>
           <Connect(Avatar)
@@ -39,17 +38,17 @@ exports[`should render 1`] = `
         </span>
       }
       onClick={[Function]}
-      stat={13}
+      stat="13"
       value="foo"
     />
     <FacetItem
       active={false}
       disabled={false}
-      facetMode="count"
       halfWidth={false}
+      key="bar"
       name="bar"
       onClick={[Function]}
-      stat={7}
+      stat="7"
       value="bar"
     />
   </FacetItemsList>
@@ -82,7 +81,7 @@ exports[`should render without stats 1`] = `
     onClear={[Function]}
     onClick={[Function]}
     open={true}
-    values={0}
+    values={Array []}
   />
 </FacetBox>
 `;
@@ -96,24 +95,27 @@ exports[`should select unassigned 1`] = `
     onClear={[Function]}
     onClick={[Function]}
     open={true}
-    values={1}
+    values={
+      Array [
+        "unassigned",
+      ]
+    }
   />
   <FacetItemsList>
     <FacetItem
       active={true}
       disabled={false}
-      facetMode="count"
       halfWidth={false}
       name="unassigned"
       onClick={[Function]}
-      stat={5}
+      stat="5"
       value=""
     />
     <FacetItem
       active={false}
       disabled={false}
-      facetMode="count"
       halfWidth={false}
+      key="foo"
       name={
         <span>
           <Connect(Avatar)
@@ -126,17 +128,17 @@ exports[`should select unassigned 1`] = `
         </span>
       }
       onClick={[Function]}
-      stat={13}
+      stat="13"
       value="foo"
     />
     <FacetItem
       active={false}
       disabled={false}
-      facetMode="count"
       halfWidth={false}
+      key="bar"
       name="bar"
       onClick={[Function]}
-      stat={7}
+      stat="7"
       value="bar"
     />
   </FacetItemsList>
@@ -157,24 +159,27 @@ exports[`should select user 1`] = `
     onClear={[Function]}
     onClick={[Function]}
     open={true}
-    values={1}
+    values={
+      Array [
+        "name-foo",
+      ]
+    }
   />
   <FacetItemsList>
     <FacetItem
       active={false}
       disabled={false}
-      facetMode="count"
       halfWidth={false}
       name="unassigned"
       onClick={[Function]}
-      stat={5}
+      stat="5"
       value=""
     />
     <FacetItem
       active={true}
       disabled={false}
-      facetMode="count"
       halfWidth={false}
+      key="foo"
       name={
         <span>
           <Connect(Avatar)
@@ -187,17 +192,17 @@ exports[`should select user 1`] = `
         </span>
       }
       onClick={[Function]}
-      stat={13}
+      stat="13"
       value="foo"
     />
     <FacetItem
       active={false}
       disabled={false}
-      facetMode="count"
       halfWidth={false}
+      key="bar"
       name="bar"
       onClick={[Function]}
-      stat={7}
+      stat="7"
       value="bar"
     />
   </FacetItemsList>

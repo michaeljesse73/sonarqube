@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,10 +20,10 @@
 package org.sonar.server.issue;
 
 import com.google.common.base.Joiner;
-import com.google.common.collect.Sets;
 import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
@@ -58,6 +58,8 @@ public class IssueFieldsSetter {
   public static final String STATUS = "status";
   public static final String AUTHOR = "author";
   public static final String FILE = "file";
+  public static final String FROM_LONG_BRANCH = "from_long_branch";
+  public static final String FROM_SHORT_BRANCH = "from_short_branch";
 
   /**
    * It should be renamed to 'effort', but it hasn't been done to prevent a massive update in database
@@ -284,7 +286,7 @@ public class IssueFieldsSetter {
   public boolean setEffort(DefaultIssue issue, @Nullable Duration value, IssueChangeContext context) {
     Duration oldValue = issue.effort();
     if (!Objects.equals(value, oldValue)) {
-      issue.setEffort(value != null ? value : null);
+      issue.setEffort(value);
       issue.setFieldChange(context, TECHNICAL_DEBT, oldValue != null ? oldValue.toMinutes() : null, value != null ? value.toMinutes() : null);
       issue.setUpdateDate(context.date());
       issue.setChanged(true);
@@ -318,7 +320,7 @@ public class IssueFieldsSetter {
       .map(tag -> RuleTagFormat.validate(tag.toLowerCase(Locale.ENGLISH)))
       .collect(MoreCollectors.toSet());
 
-    Set<String> oldTags = Sets.newHashSet(issue.tags());
+    Set<String> oldTags = new HashSet<>(issue.tags());
     if (!oldTags.equals(newTags)) {
       issue.setFieldChange(context, TAGS,
         oldTags.isEmpty() ? null : CHANGELOG_TAG_JOINER.join(oldTags),

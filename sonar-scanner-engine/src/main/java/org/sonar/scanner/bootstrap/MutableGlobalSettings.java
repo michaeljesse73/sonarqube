@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,9 +22,10 @@ package org.sonar.scanner.bootstrap;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import org.sonar.api.batch.AnalysisMode;
 import org.sonar.api.config.Settings;
 import org.sonar.api.utils.MessageException;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * @deprecated since 6.5 {@link GlobalConfiguration} used to be mutable, so keep a mutable copy for backward compatibility.
@@ -32,7 +33,7 @@ import org.sonar.api.utils.MessageException;
 @Deprecated
 public class MutableGlobalSettings extends Settings {
 
-  private final AnalysisMode mode;
+  private final GlobalAnalysisMode mode;
   private final Map<String, String> mutableProperties = new HashMap<>();
 
   public MutableGlobalSettings(GlobalConfiguration globalSettings) {
@@ -57,7 +58,9 @@ public class MutableGlobalSettings extends Settings {
 
   @Override
   protected void set(String key, String value) {
-    mutableProperties.put(key, value);
+    mutableProperties.put(
+      requireNonNull(key, "key can't be null"),
+      requireNonNull(value, "value can't be null").trim());
   }
 
   @Override

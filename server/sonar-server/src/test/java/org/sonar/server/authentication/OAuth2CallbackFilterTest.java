@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -33,6 +33,7 @@ import org.sonar.api.server.authentication.UnauthorizedException;
 import org.sonar.api.server.authentication.UserIdentity;
 import org.sonar.api.utils.log.LogTester;
 import org.sonar.api.utils.log.LoggerLevel;
+import org.sonar.db.user.UserDto;
 import org.sonar.server.authentication.event.AuthenticationEvent;
 import org.sonar.server.authentication.event.AuthenticationException;
 
@@ -42,6 +43,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
+import static org.sonar.db.user.UserTesting.newUserDto;
 import static org.sonar.server.authentication.event.AuthenticationEvent.Source;
 
 public class OAuth2CallbackFilterTest {
@@ -65,10 +67,11 @@ public class OAuth2CallbackFilterTest {
 
   private FakeOAuth2IdentityProvider oAuth2IdentityProvider = new WellbehaveFakeOAuth2IdentityProvider(OAUTH2_PROVIDER_KEY, true, LOGIN);
   private AuthenticationEvent authenticationEvent = mock(AuthenticationEvent.class);
+  private OAuth2AuthenticationParameters oAuthRedirection = mock(OAuth2AuthenticationParameters.class);
 
   private ArgumentCaptor<AuthenticationException> authenticationExceptionCaptor = ArgumentCaptor.forClass(AuthenticationException.class);
 
-  private OAuth2CallbackFilter underTest = new OAuth2CallbackFilter(identityProviderRepository, oAuth2ContextFactory, server, authenticationEvent);
+  private OAuth2CallbackFilter underTest = new OAuth2CallbackFilter(identityProviderRepository, oAuth2ContextFactory, server, authenticationEvent, oAuthRedirection);
 
   @Before
   public void setUp() throws Exception {
@@ -77,12 +80,12 @@ public class OAuth2CallbackFilterTest {
   }
 
   @Test
-  public void do_get_pattern() throws Exception {
+  public void do_get_pattern() {
     assertThat(underTest.doGetPattern()).isNotNull();
   }
 
   @Test
-  public void do_filter_with_context() throws Exception {
+  public void do_filter_with_context() {
     when(server.getContextPath()).thenReturn("/sonarqube");
     when(request.getRequestURI()).thenReturn("/sonarqube/oauth2/callback/" + OAUTH2_PROVIDER_KEY);
     identityProviderRepository.addIdentityProvider(oAuth2IdentityProvider);
@@ -94,7 +97,7 @@ public class OAuth2CallbackFilterTest {
   }
 
   @Test
-  public void do_filter_with_context_no_log_if_provider_did_not_call_authenticate_on_context() throws Exception {
+  public void do_filter_with_context_no_log_if_provider_did_not_call_authenticate_on_context() {
     when(server.getContextPath()).thenReturn("/sonarqube");
     when(request.getRequestURI()).thenReturn("/sonarqube/oauth2/callback/" + OAUTH2_PROVIDER_KEY);
     FakeOAuth2IdentityProvider identityProvider = new FakeOAuth2IdentityProvider(OAUTH2_PROVIDER_KEY, true);
@@ -112,7 +115,7 @@ public class OAuth2CallbackFilterTest {
   }
 
   @Test
-  public void do_filter_on_auth2_identity_provider() throws Exception {
+  public void do_filter_on_auth2_identity_provider() {
     when(request.getRequestURI()).thenReturn("/oauth2/callback/" + OAUTH2_PROVIDER_KEY);
     identityProviderRepository.addIdentityProvider(oAuth2IdentityProvider);
 
@@ -148,10 +151,6 @@ public class OAuth2CallbackFilterTest {
   @Test
   public void redirect_when_failing_because_of_UnauthorizedExceptionException() throws Exception {
     FailWithUnauthorizedExceptionIdProvider identityProvider = new FailWithUnauthorizedExceptionIdProvider();
-    identityProvider
-      .setKey("failing")
-      .setName("name of failing")
-      .setEnabled(true);
     when(request.getRequestURI()).thenReturn("/oauth2/callback/" + identityProvider.getKey());
     identityProviderRepository.addIdentityProvider(identityProvider);
 
@@ -164,22 +163,46 @@ public class OAuth2CallbackFilterTest {
     assertThat(authenticationException.getSource()).isEqualTo(Source.oauth2(identityProvider));
     assertThat(authenticationException.getLogin()).isNull();
     assertThat(authenticationException.getPublicMessage()).isEqualTo("Email john@email.com is already used");
+    verify(oAuthRedirection).delete(eq(request), eq(response));
   }
 
   @Test
   public void redirect_with_context_path_when_failing_because_of_UnauthorizedExceptionException() throws Exception {
     when(server.getContextPath()).thenReturn("/sonarqube");
     FailWithUnauthorizedExceptionIdProvider identityProvider = new FailWithUnauthorizedExceptionIdProvider();
-    identityProvider
-      .setKey("failing")
-      .setName("name of failing")
-      .setEnabled(true);
     when(request.getRequestURI()).thenReturn("/sonarqube/oauth2/callback/" + identityProvider.getKey());
     identityProviderRepository.addIdentityProvider(identityProvider);
 
     underTest.doFilter(request, response, chain);
 
     verify(response).sendRedirect("/sonarqube/sessions/unauthorized?message=Email+john%40email.com+is+already+used");
+    verify(oAuthRedirection).delete(eq(request), eq(response));
+  }
+
+  @Test
+  public void redirect_when_failing_because_of_Exception() throws Exception {
+    FailWithIllegalStateException identityProvider = new FailWithIllegalStateException();
+    when(request.getRequestURI()).thenReturn("/oauth2/callback/" + identityProvider.getKey());
+    identityProviderRepository.addIdentityProvider(identityProvider);
+
+    underTest.doFilter(request, response, chain);
+
+    verify(response).sendRedirect("/sessions/unauthorized");
+    assertThat(logTester.logs(LoggerLevel.ERROR)).containsExactlyInAnyOrder("Fail to callback authentication with 'failing'");
+    verify(oAuthRedirection).delete(eq(request), eq(response));
+  }
+
+  @Test
+  public void redirect_when_failing_because_of_EmailAlreadyExistException() throws Exception {
+    UserDto existingUser = newUserDto().setEmail("john@email.com").setExternalIdentity("john.bitbucket").setExternalIdentityProvider("bitbucket");
+    FailWithEmailAlreadyExistException identityProvider = new FailWithEmailAlreadyExistException(existingUser);
+    when(request.getRequestURI()).thenReturn("/oauth2/callback/" + identityProvider.getKey());
+    identityProviderRepository.addIdentityProvider(identityProvider);
+
+    underTest.doFilter(request, response, chain);
+
+    verify(response).sendRedirect("/sessions/email_already_exists?email=john%40email.com&login=john.github&provider=failing&existingLogin=john.bitbucket&existingProvider=bitbucket");
+    verify(oAuthRedirection).delete(eq(request), eq(response));
   }
 
   @Test
@@ -203,16 +226,49 @@ public class OAuth2CallbackFilterTest {
     assertThat(oAuth2IdentityProvider.isInitCalled()).isFalse();
   }
 
-  private static class FailWithUnauthorizedExceptionIdProvider extends TestIdentityProvider implements OAuth2IdentityProvider {
-
+  private static class FailWithUnauthorizedExceptionIdProvider extends FailingIdentityProvider  {
     @Override
-    public void init(InitContext context) {
+    public void callback(CallbackContext context) {
+      throw new UnauthorizedException("Email john@email.com is already used");
+    }
+  }
 
+  private static class FailWithIllegalStateException extends FailingIdentityProvider  {
+    @Override
+    public void callback(CallbackContext context) {
+      throw new IllegalStateException("Failure !");
+    }
+  }
+
+  private static class FailWithEmailAlreadyExistException extends FailingIdentityProvider {
+
+    private final UserDto existingUser;
+
+    public FailWithEmailAlreadyExistException(UserDto existingUser) {
+      this.existingUser = existingUser;
     }
 
     @Override
     public void callback(CallbackContext context) {
-      throw new UnauthorizedException("Email john@email.com is already used");
+      throw new EmailAlreadyExistsException(existingUser.getEmail(), existingUser, UserIdentity.builder()
+        .setProviderLogin("john.github")
+        .setLogin("john.github")
+        .setName(existingUser.getName())
+        .setEmail(existingUser.getEmail())
+        .build(), this);
+    }
+  }
+
+  private static abstract class FailingIdentityProvider extends TestIdentityProvider implements OAuth2IdentityProvider {
+    FailingIdentityProvider() {
+      this.setKey("failing");
+      this.setName("Failing");
+      this.setEnabled(true);
+    }
+
+    @Override
+    public void init(InitContext context) {
+      // Nothing to do
     }
   }
 

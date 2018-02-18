@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -32,7 +32,6 @@ import org.mockito.ArgumentMatcher;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.sonar.api.utils.HttpDownloader;
-import org.sonar.api.utils.SonarException;
 import org.sonar.core.platform.PluginInfo;
 import org.sonar.server.exceptions.BadRequestException;
 import org.sonar.server.platform.ServerFileSystem;
@@ -64,11 +63,11 @@ public class PluginDownloaderTest {
   public TemporaryFolder testFolder = new TemporaryFolder();
   @Rule
   public ExpectedException expectedException = ExpectedException.none();
-  File downloadDir;
-  UpdateCenterMatrixFactory updateCenterMatrixFactory;
-  UpdateCenter updateCenter;
-  HttpDownloader httpDownloader;
-  PluginDownloader pluginDownloader;
+  private File downloadDir;
+  private UpdateCenterMatrixFactory updateCenterMatrixFactory;
+  private UpdateCenter updateCenter;
+  private HttpDownloader httpDownloader;
+  private PluginDownloader pluginDownloader;
 
   @Before
   public void before() throws Exception {
@@ -77,9 +76,9 @@ public class PluginDownloaderTest {
     when(updateCenterMatrixFactory.getUpdateCenter(anyBoolean())).thenReturn(Optional.of(updateCenter));
 
     httpDownloader = mock(HttpDownloader.class);
-    doAnswer(new Answer() {
+    doAnswer(new Answer<Void>() {
       @Override
-      public Object answer(InvocationOnMock inv) throws Throwable {
+      public Void answer(InvocationOnMock inv) throws Throwable {
         File toFile = (File) inv.getArguments()[1];
         touch(toFile);
         return null;
@@ -130,7 +129,7 @@ public class PluginDownloaderTest {
 
   @Test
   public void download_when_update_center_is_unavailable_with_no_exception_thrown() {
-    when(updateCenterMatrixFactory.getUpdateCenter(anyBoolean())).thenReturn(Optional.<UpdateCenter>absent());
+    when(updateCenterMatrixFactory.getUpdateCenter(anyBoolean())).thenReturn(Optional.absent());
 
     Plugin test = Plugin.factory("test");
     Release test10 = new Release(test, "1.0").setDownloadUrl("http://server/test-1.0.jar");
@@ -197,7 +196,7 @@ public class PluginDownloaderTest {
     pluginDownloader.start();
     pluginDownloader.download("foo", create("1.0"));
     verify(httpDownloader, never()).download(any(URI.class), any(File.class));
-    assertThat(pluginDownloader.hasDownloads()).isTrue();
+    assertThat(noDownloadedFiles()).isGreaterThan(0);
   }
 
   @Test
@@ -212,7 +211,7 @@ public class PluginDownloaderTest {
     try {
       pluginDownloader.download("foo", create("1.0"));
       fail();
-    } catch (SonarException e) {
+    } catch (IllegalStateException e) {
       // ok
     }
   }
@@ -230,7 +229,7 @@ public class PluginDownloaderTest {
     try {
       pluginDownloader.download("foo", create("1.0"));
       fail();
-    } catch (SonarException e) {
+    } catch (IllegalStateException e) {
       // ok
     }
   }
@@ -238,7 +237,7 @@ public class PluginDownloaderTest {
   @Test
   public void read_download_folder() throws Exception {
     pluginDownloader.start();
-    assertThat(pluginDownloader.getDownloadedPluginFilenames()).hasSize(0);
+    assertThat(noDownloadedFiles()).isZero();
 
     copyFileToDirectory(TestProjectUtils.jarOf("test-base-plugin"), downloadDir);
 
@@ -260,7 +259,7 @@ public class PluginDownloaderTest {
     File file2 = new File(downloadDir, "file2.jar");
     file2.createNewFile();
 
-    assertThat(pluginDownloader.getDownloadedPluginFilenames()).hasSize(2);
+    assertThat(noDownloadedFiles()).isEqualTo(2);
   }
 
   @Test
@@ -271,9 +270,13 @@ public class PluginDownloaderTest {
     file2.createNewFile();
 
     pluginDownloader.start();
-    assertThat(pluginDownloader.hasDownloads()).isTrue();
+    assertThat(noDownloadedFiles()).isGreaterThan(0);
     pluginDownloader.cancelDownloads();
-    assertThat(pluginDownloader.hasDownloads()).isFalse();
+    assertThat(noDownloadedFiles()).isZero();
+  }
+
+  private int noDownloadedFiles() {
+    return downloadDir.listFiles((file, name) -> name.endsWith(".jar")).length;
   }
 
   // SONAR-5011
@@ -303,15 +306,15 @@ public class PluginDownloaderTest {
     assertThat(new File(downloadDir, "testdep-1.0.jar")).exists();
   }
 
-  class HasFileName extends ArgumentMatcher<File> {
+  class HasFileName implements ArgumentMatcher<File> {
     private final String name;
 
     HasFileName(String name) {
       this.name = name;
     }
 
-    public boolean matches(Object obj) {
-      File file = (File) obj;
+    @Override
+    public boolean matches(File file) {
       return file.getName().equals(name);
     }
   }

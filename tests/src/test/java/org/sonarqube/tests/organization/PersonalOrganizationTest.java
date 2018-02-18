@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -17,52 +17,43 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-
 package org.sonarqube.tests.organization;
 
 import com.sonar.orchestrator.Orchestrator;
-import org.sonarqube.tests.Category6Suite;
 import java.util.List;
-import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
-import org.sonarqube.tests.Tester;
+import org.sonarqube.qa.util.Tester;
 import org.sonarqube.ws.Organizations;
-import org.sonarqube.ws.WsUsers;
-import org.sonarqube.ws.client.organization.SearchWsRequest;
+import org.sonarqube.ws.Users;
+import org.sonarqube.ws.client.organizations.SearchRequest;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static util.ItUtils.setServerProperty;
 
 public class PersonalOrganizationTest {
 
   private static final String SETTING_CREATE_PERSONAL_ORG = "sonar.organizations.createPersonalOrg";
 
   @ClassRule
-  public static Orchestrator orchestrator = Category6Suite.ORCHESTRATOR;
+  public static Orchestrator orchestrator = OrganizationSuite.ORCHESTRATOR;
 
   @Rule
   public Tester tester = new Tester(orchestrator);
 
   @Before
   public void setUp() {
-    setServerProperty(orchestrator, SETTING_CREATE_PERSONAL_ORG, "true");
-  }
-
-  @After
-  public void tearDown() {
-    setServerProperty(orchestrator, SETTING_CREATE_PERSONAL_ORG, null);
+    tester.settings().setGlobalSettings(SETTING_CREATE_PERSONAL_ORG, "true");
   }
 
   @Test
   public void personal_organizations_are_created_for_new_users() {
-    WsUsers.CreateWsResponse.User user = tester.users().generate();
+    Users.CreateWsResponse.User user = tester.users().generate();
 
-    List<Organizations.Organization> existing = tester.wsClient().organizations().search(SearchWsRequest.builder().build()).getOrganizationsList();
+    List<Organizations.Organization> existing = tester.wsClient().organizations().search(new SearchRequest()).getOrganizationsList();
     assertThat(existing)
-      .filteredOn(o -> o.getGuarded())
+      .filteredOn(Organizations.Organization::getGuarded)
       .filteredOn(o -> o.getKey().equals(user.getLogin()))
       .hasSize(1)
       .matches(l -> l.get(0).getName().equals(user.getName()));

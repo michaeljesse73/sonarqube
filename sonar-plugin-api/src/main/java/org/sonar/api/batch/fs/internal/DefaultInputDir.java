@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,6 +20,7 @@
 package org.sonar.api.batch.fs.internal;
 
 import java.io.File;
+import java.net.URI;
 import java.nio.file.Path;
 import org.apache.commons.lang.StringUtils;
 import org.sonar.api.batch.fs.InputDir;
@@ -83,7 +84,7 @@ public class DefaultInputDir extends DefaultInputComponent implements InputDir {
   }
 
   /**
-   * For testing purpose. Will be automaticall set when dir is added to {@link DefaultFileSystem}
+   * For testing purpose. Will be automatically set when dir is added to {@link DefaultFileSystem}
    */
   public DefaultInputDir setModuleBaseDir(Path moduleBaseDir) {
     this.moduleBaseDir = moduleBaseDir.normalize();
@@ -116,5 +117,10 @@ public class DefaultInputDir extends DefaultInputComponent implements InputDir {
   @Override
   public String toString() {
     return "[moduleKey=" + moduleKey + ", relative=" + relativePath + ", basedir=" + moduleBaseDir + "]";
+  }
+
+  @Override
+  public URI uri() {
+    return path().toUri();
   }
 }

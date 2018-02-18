@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,15 +20,14 @@
 package org.sonar.api.batch.fs.internal;
 
 import java.io.File;
-import java.util.ArrayList;
+import java.io.IOException;
+import java.nio.file.LinkOption;
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-
 import javax.annotation.CheckForNull;
 import javax.annotation.concurrent.Immutable;
-
 import org.sonar.api.batch.bootstrap.ProjectDefinition;
 import org.sonar.api.batch.fs.InputModule;
 
@@ -37,8 +36,8 @@ import org.sonar.api.batch.fs.InputModule;
  */
 @Immutable
 public class DefaultInputModule extends DefaultInputComponent implements InputModule {
-  private final File baseDir;
-  private final File workDir;
+  private final Path baseDir;
+  private final Path workDir;
   private final String name;
   private final String version;
   private final String originalName;
@@ -46,20 +45,11 @@ public class DefaultInputModule extends DefaultInputComponent implements InputMo
   private final String description;
   private final String keyWithBranch;
   private final String branch;
-  private final List<String> sources;
-  private final List<String> tests;
   private final Map<String, String> properties;
 
   private final String moduleKey;
   private final ProjectDefinition definition;
 
-  /**
-   * For testing only!
-   */
-  public DefaultInputModule(String moduleKey) {
-    this(ProjectDefinition.create().setKey(moduleKey), TestInputFileBuilder.nextBatchId());
-  }
-  
   /**
    * For testing only!
    */
@@ -69,8 +59,8 @@ public class DefaultInputModule extends DefaultInputComponent implements InputMo
 
   public DefaultInputModule(ProjectDefinition definition, int batchId) {
     super(batchId);
-    this.baseDir = definition.getBaseDir();
-    this.workDir = definition.getWorkDir();
+    this.baseDir = initBaseDir(definition);
+    this.workDir = initWorkingDir(definition);
     this.name = definition.getName();
     this.originalName = definition.getOriginalName();
     this.version = definition.getVersion();
@@ -78,12 +68,25 @@ public class DefaultInputModule extends DefaultInputComponent implements InputMo
     this.description = definition.getDescription();
     this.keyWithBranch = definition.getKeyWithBranch();
     this.branch = definition.getBranch();
-    this.sources = Collections.unmodifiableList(new ArrayList<>(definition.sources()));
-    this.tests = Collections.unmodifiableList(new ArrayList<>(definition.tests()));
     this.properties = Collections.unmodifiableMap(new HashMap<>(definition.properties()));
 
     this.definition = definition;
     this.moduleKey = definition.getKey();
+  }
+
+  private static Path initBaseDir(ProjectDefinition module) {
+    Path result;
+    try {
+      result = module.getBaseDir().toPath().toRealPath(LinkOption.NOFOLLOW_LINKS);
+    } catch (IOException e) {
+      throw new IllegalStateException("Unable to resolve module baseDir", e);
+    }
+    return result;
+  }
+
+  private static Path initWorkingDir(ProjectDefinition module) {
+    File workingDirAsFile = module.getWorkDir();
+    return workingDirAsFile.getAbsoluteFile().toPath().normalize();
   }
 
   /**
@@ -102,12 +105,12 @@ public class DefaultInputModule extends DefaultInputComponent implements InputMo
   public ProjectDefinition definition() {
     return definition;
   }
-  
-  public File getBaseDir() {
+
+  public Path getBaseDir() {
     return baseDir;
   }
 
-  public File getWorkDir() {
+  public Path getWorkDir() {
     return workDir;
   }
 
@@ -144,17 +147,6 @@ public class DefaultInputModule extends DefaultInputComponent implements InputMo
 
   public String getDescription() {
     return description;
-  }
-
-  /**
-   * @return Source files and folders.
-   */
-  public List<String> sources() {
-    return sources;
-  }
-
-  public List<String> tests() {
-    return tests;
   }
 
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,7 +21,7 @@ import React from 'react';
 import { connect } from 'react-redux';
 import { translate, translateWithParameters } from '../../../helpers/l10n';
 import { sendTestEmail } from '../../../api/settings';
-import { parseError } from '../../code/utils';
+import { parseError } from '../../../helpers/request';
 import { getCurrentUser } from '../../../store/rootReducer';
 
 class EmailForm extends React.PureComponent {
@@ -53,7 +53,7 @@ class EmailForm extends React.PureComponent {
         <h3 className="spacer-bottom">{translate('email_configuration.test.title')}</h3>
 
         <form style={{ marginLeft: 201 }} onSubmit={e => this.handleFormSubmit(e)}>
-          {this.state.success &&
+          {this.state.success && (
             <div className="modal-field">
               <div className="alert alert-success">
                 {translateWithParameters(
@@ -61,14 +61,14 @@ class EmailForm extends React.PureComponent {
                   this.state.recipient
                 )}
               </div>
-            </div>}
+            </div>
+          )}
 
-          {this.state.error != null &&
+          {this.state.error != null && (
             <div className="modal-field">
-              <div className="alert alert-danger">
-                {this.state.error}
-              </div>
-            </div>}
+              <div className="alert alert-danger">{this.state.error}</div>
+            </div>
+          )}
 
           <div className="modal-field">
             <label htmlFor="test-email-to">
@@ -76,6 +76,7 @@ class EmailForm extends React.PureComponent {
               <em className="mandatory">*</em>
             </label>
             <input
+              className="settings-large-input"
               id="test-email-to"
               type="email"
               required={true}
@@ -89,6 +90,7 @@ class EmailForm extends React.PureComponent {
               {translate('email_configuration.test.subject')}
             </label>
             <input
+              className="settings-large-input"
               id="test-email-subject"
               type="text"
               value={this.state.subject}
@@ -102,6 +104,7 @@ class EmailForm extends React.PureComponent {
               <em className="mandatory">*</em>
             </label>
             <textarea
+              className="settings-large-input"
               id="test-email-title"
               required={true}
               rows="5"

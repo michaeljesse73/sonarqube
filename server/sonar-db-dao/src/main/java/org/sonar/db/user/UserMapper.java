@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -52,9 +52,10 @@ public interface UserMapper {
 
   List<UserDto> selectByIds(@Param("ids") List<Integer> ids);
 
-  void scrollAll(ResultHandler<UserDto> handler);
+  @CheckForNull
+  UserDto selectByEmail(String email);
 
-  long countByEmail(String email);
+  void scrollAll(ResultHandler<UserDto> handler);
 
   /**
    * Count actives users which are root and which login is not the specified one.
@@ -69,4 +70,5 @@ public interface UserMapper {
 
   void deactivateUser(@Param("login") String login, @Param("now") long now);
 
+  void clearHomepage(@Param("homepageType") String type, @Param("homepageParameter") String value, @Param("now") long now);
 }

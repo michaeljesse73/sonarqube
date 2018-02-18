@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,7 +20,6 @@
 package org.sonar.server.computation.task.projectanalysis.step;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -68,13 +67,12 @@ public class LoadCrossProjectDuplicationsRepositoryStepTest {
   @Rule
   public ExpectedException thrown = ExpectedException.none();
 
-  static final String XOO_LANGUAGE = "xoo";
+  private static final String XOO_LANGUAGE = "xoo";
+  private static final int PROJECT_REF = 1;
+  private static final int FILE_REF = 2;
+  private static final String CURRENT_FILE_KEY = "FILE_KEY";
 
-  static final int PROJECT_REF = 1;
-  static final int FILE_REF = 2;
-  static final String CURRENT_FILE_KEY = "FILE_KEY";
-
-  static final Component CURRENT_FILE = ReportComponent.builder(FILE, FILE_REF)
+  private static final Component CURRENT_FILE = ReportComponent.builder(FILE, FILE_REF)
     .setKey(CURRENT_FILE_KEY)
     .setFileAttributes(new FileAttributes(false, XOO_LANGUAGE, 1))
     .build();
@@ -90,20 +88,17 @@ public class LoadCrossProjectDuplicationsRepositoryStepTest {
   @Rule
   public AnalysisMetadataHolderRule analysisMetadataHolder = new AnalysisMetadataHolderRule();
 
-  CrossProjectDuplicationStatusHolder crossProjectDuplicationStatusHolder = mock(CrossProjectDuplicationStatusHolder.class);
+  private CrossProjectDuplicationStatusHolder crossProjectDuplicationStatusHolder = mock(CrossProjectDuplicationStatusHolder.class);
 
   @Rule
   public DbTester dbTester = DbTester.create(System2.INSTANCE);
 
-  DbClient dbClient = dbTester.getDbClient();
+  private DbClient dbClient = dbTester.getDbClient();
+  private DbSession dbSession = dbTester.getSession();
+  private IntegrateCrossProjectDuplications integrateCrossProjectDuplications = mock(IntegrateCrossProjectDuplications.class);
+  private Analysis baseProjectAnalysis;
 
-  DbSession dbSession = dbTester.getSession();
-
-  IntegrateCrossProjectDuplications integrateCrossProjectDuplications = mock(IntegrateCrossProjectDuplications.class);
-
-  Analysis baseProjectAnalysis;
-
-  ComputationStep underTest = new LoadCrossProjectDuplicationsRepositoryStep(treeRootHolder, batchReportReader, analysisMetadataHolder, crossProjectDuplicationStatusHolder,
+  private ComputationStep underTest = new LoadCrossProjectDuplicationsRepositoryStep(treeRootHolder, batchReportReader, analysisMetadataHolder, crossProjectDuplicationStatusHolder,
     integrateCrossProjectDuplications, dbClient);
 
   @Before
@@ -122,7 +117,7 @@ public class LoadCrossProjectDuplicationsRepositoryStepTest {
   }
 
   @Test
-  public void call_compute_cpd_on_one_duplication() throws Exception {
+  public void call_compute_cpd_on_one_duplication() {
     when(crossProjectDuplicationStatusHolder.isEnabled()).thenReturn(true);
     analysisMetadataHolder.setBaseAnalysis(baseProjectAnalysis);
 
@@ -154,7 +149,7 @@ public class LoadCrossProjectDuplicationsRepositoryStepTest {
     underTest.execute();
 
     verify(integrateCrossProjectDuplications).computeCpd(CURRENT_FILE,
-      Arrays.asList(
+      asList(
         new Block.Builder()
           .setResourceId(CURRENT_FILE_KEY)
           .setBlockHash(new ByteArray(hash))
@@ -162,9 +157,9 @@ public class LoadCrossProjectDuplicationsRepositoryStepTest {
           .setLines(originBlock.getStartLine(), originBlock.getEndLine())
           .setUnit(originBlock.getStartTokenIndex(), originBlock.getEndTokenIndex())
           .build()),
-      Arrays.asList(
+      asList(
         new Block.Builder()
-          .setResourceId(otherFile.getKey())
+          .setResourceId(otherFile.getDbKey())
           .setBlockHash(new ByteArray(hash))
           .setIndexInFile(duplicate.getIndexInFile())
           .setLines(duplicate.getStartLine(), duplicate.getEndLine())
@@ -172,7 +167,7 @@ public class LoadCrossProjectDuplicationsRepositoryStepTest {
   }
 
   @Test
-  public void call_compute_cpd_on_many_duplication() throws Exception {
+  public void call_compute_cpd_on_many_duplication() {
     when(crossProjectDuplicationStatusHolder.isEnabled()).thenReturn(true);
     analysisMetadataHolder.setBaseAnalysis(baseProjectAnalysis);
 
@@ -245,14 +240,14 @@ public class LoadCrossProjectDuplicationsRepositoryStepTest {
     Map<Integer, Block> duplicationBlocksByIndex = blocksByIndexInFile(duplicationBlocks.getValue());
     assertThat(duplicationBlocksByIndex.get(0)).isEqualTo(
       new Block.Builder()
-        .setResourceId(otherFile.getKey())
+        .setResourceId(otherFile.getDbKey())
         .setBlockHash(new ByteArray(originBlock1.getHash()))
         .setIndexInFile(duplicate1.getIndexInFile())
         .setLines(duplicate1.getStartLine(), duplicate1.getEndLine())
         .build());
     assertThat(duplicationBlocksByIndex.get(1)).isEqualTo(
       new Block.Builder()
-        .setResourceId(otherFile.getKey())
+        .setResourceId(otherFile.getDbKey())
         .setBlockHash(new ByteArray(originBlock2.getHash()))
         .setIndexInFile(duplicate2.getIndexInFile())
         .setLines(duplicate2.getStartLine(), duplicate2.getEndLine())
@@ -260,7 +255,7 @@ public class LoadCrossProjectDuplicationsRepositoryStepTest {
   }
 
   @Test
-  public void nothing_to_do_when_cross_project_duplication_is_disabled() throws Exception {
+  public void nothing_to_do_when_cross_project_duplication_is_disabled() {
     when(crossProjectDuplicationStatusHolder.isEnabled()).thenReturn(false);
     analysisMetadataHolder.setBaseAnalysis(baseProjectAnalysis);
 
@@ -295,11 +290,11 @@ public class LoadCrossProjectDuplicationsRepositoryStepTest {
   }
 
   @Test
-  public void nothing_to_do_when_no_cpd_text_blocks_found() throws Exception {
+  public void nothing_to_do_when_no_cpd_text_blocks_found() {
     when(crossProjectDuplicationStatusHolder.isEnabled()).thenReturn(true);
     analysisMetadataHolder.setBaseAnalysis(baseProjectAnalysis);
 
-    batchReportReader.putDuplicationBlocks(FILE_REF, Collections.<ScannerReport.CpdTextBlock>emptyList());
+    batchReportReader.putDuplicationBlocks(FILE_REF, Collections.emptyList());
 
     underTest.execute();
 
@@ -307,7 +302,7 @@ public class LoadCrossProjectDuplicationsRepositoryStepTest {
   }
 
   @Test
-  public void nothing_to_do_when_cpd_text_blocks_exists_but_no_duplicated_found() throws Exception {
+  public void nothing_to_do_when_cpd_text_blocks_exists_but_no_duplicated_found() {
     when(crossProjectDuplicationStatusHolder.isEnabled()).thenReturn(true);
     analysisMetadataHolder.setBaseAnalysis(baseProjectAnalysis);
 
@@ -326,7 +321,7 @@ public class LoadCrossProjectDuplicationsRepositoryStepTest {
   }
 
   private ComponentDto createProject(String projectKey) {
-    ComponentDto project = ComponentTesting.newPrivateProjectDto(dbTester.organizations().insert()).setKey(projectKey);
+    ComponentDto project = ComponentTesting.newPrivateProjectDto(dbTester.organizations().insert()).setDbKey(projectKey);
     dbClient.componentDao().insert(dbSession, project);
     dbSession.commit();
     return project;
@@ -341,7 +336,7 @@ public class LoadCrossProjectDuplicationsRepositoryStepTest {
 
   private ComponentDto createFile(String fileKey, ComponentDto project) {
     ComponentDto file = ComponentTesting.newFileDto(project, null)
-      .setKey(fileKey)
+      .setDbKey(fileKey)
       .setLanguage(XOO_LANGUAGE);
     dbClient.componentDao().insert(dbSession, file);
     dbSession.commit();

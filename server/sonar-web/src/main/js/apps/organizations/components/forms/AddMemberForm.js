@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,28 +19,32 @@
  */
 // @flow
 import React from 'react';
-import Modal from 'react-modal';
 import UsersSelectSearch from '../../../users/components/UsersSelectSearch';
 import { searchMembers } from '../../../../api/organizations';
+import Modal from '../../../../components/controls/Modal';
 import { translate } from '../../../../helpers/l10n';
-import type { Organization } from '../../../../store/organizations/duck';
-import type { Member } from '../../../../store/organizationsMembers/actions';
+/*:: import type { Organization } from '../../../../store/organizations/duck'; */
+/*:: import type { Member } from '../../../../store/organizationsMembers/actions'; */
 
+/*::
 type Props = {
   addMember: (member: Member) => void,
   organization: Organization,
   memberLogins: Array<string>
 };
+*/
 
+/*::
 type State = {
   open: boolean,
   selectedMember?: Member
 };
+*/
 
 export default class AddMemberForm extends React.PureComponent {
-  props: Props;
+  /*:: props: Props; */
 
-  state: State = {
+  state /*: State */ = {
     open: false
   };
 
@@ -52,7 +56,7 @@ export default class AddMemberForm extends React.PureComponent {
     this.setState({ open: false, selectedMember: undefined });
   };
 
-  handleSearch = (query?: string, ps: number): Promise<*> => {
+  handleSearch = (query /*: ?string */, ps /*: number */) => {
     const data = { organization: this.props.organization.key, ps, selected: 'deselected' };
     if (!query) {
       return searchMembers(data);
@@ -60,7 +64,7 @@ export default class AddMemberForm extends React.PureComponent {
     return searchMembers({ ...data, q: query });
   };
 
-  handleSubmit = (e: Object) => {
+  handleSubmit = (e /*: Object */) => {
     e.preventDefault();
     if (this.state.selectedMember) {
       this.props.addMember(this.state.selectedMember);
@@ -68,20 +72,16 @@ export default class AddMemberForm extends React.PureComponent {
     }
   };
 
-  selectedMemberChange = (member: Member) => {
+  selectedMemberChange = (member /*: Member */) => {
     this.setState({ selectedMember: member });
   };
 
   renderModal() {
+    const header = translate('users.add');
     return (
-      <Modal
-        isOpen={true}
-        contentLabel="modal form"
-        className="modal"
-        overlayClassName="modal-overlay"
-        onRequestClose={this.closeForm}>
+      <Modal key="add-member-modal" contentLabel={header} onRequestClose={this.closeForm}>
         <header className="modal-head">
-          <h2>{translate('users.add')}</h2>
+          <h2>{header}</h2>
         </header>
         <form onSubmit={this.handleSubmit}>
           <div className="modal-body">
@@ -98,7 +98,9 @@ export default class AddMemberForm extends React.PureComponent {
           </div>
           <footer className="modal-foot">
             <div>
-              <button type="submit">{translate('organization.members.add_to_members')}</button>
+              <button type="submit" disabled={!this.state.selectedMember}>
+                {translate('organization.members.add_to_members')}
+              </button>
               <button type="reset" className="button-link" onClick={this.closeForm}>
                 {translate('cancel')}
               </button>
@@ -110,11 +112,14 @@ export default class AddMemberForm extends React.PureComponent {
   }
 
   render() {
-    return (
-      <button onClick={this.openForm}>
+    const buttonComponent = (
+      <button key="add-member-button" onClick={this.openForm}>
         {translate('organization.members.add')}
-        {this.state.open && this.renderModal()}
       </button>
     );
+    if (this.state.open) {
+      return [buttonComponent, this.renderModal()];
+    }
+    return buttonComponent;
   }
 }

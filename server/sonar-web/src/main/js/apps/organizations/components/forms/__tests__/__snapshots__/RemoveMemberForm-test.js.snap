@@ -14,31 +14,25 @@ Array [
 `;
 
 exports[`should render and open the modal 1`] = `
-<a
-  href="#"
+<ActionsDropdownItem
+  destructive={true}
   onClick={[Function]}
 >
   organization.members.remove
-</a>
+</ActionsDropdownItem>
 `;
 
 exports[`should render and open the modal 2`] = `
-<a
-  href="#"
-  onClick={[Function]}
->
-  organization.members.remove
+Array [
+  <ActionsDropdownItem
+    destructive={true}
+    onClick={[Function]}
+  >
+    organization.members.remove
+  </ActionsDropdownItem>,
   <Modal
-    ariaHideApp={true}
-    className="modal"
-    closeTimeoutMS={0}
-    contentLabel="modal form"
-    isOpen={true}
+    contentLabel="users.remove"
     onRequestClose={[Function]}
-    overlayClassName="modal-overlay"
-    parentSelector={[Function]}
-    portalClassName="ReactModalPortal"
-    shouldCloseOnOverlayClick={true}
   >
     <header
       className="modal-head"
@@ -78,6 +72,6 @@ exports[`should render and open the modal 2`] = `
         </div>
       </footer>
     </form>
-  </Modal>
-</a>
+  </Modal>,
+]
 `;

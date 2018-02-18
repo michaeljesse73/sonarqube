@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,18 +21,20 @@
 import React from 'react';
 import { translate } from '../../../../helpers/l10n';
 
+/*::
 type Props = {
   className?: string,
   os: string
 };
+*/
 
 const filenames = {
-  linux: 'build-wrapper-win-x86.zip',
-  win: 'build-wrapper-linux-x86.zip',
+  win: 'build-wrapper-win-x86.zip',
+  linux: 'build-wrapper-linux-x86.zip',
   mac: 'build-wrapper-macosx-x86.zip'
 };
 
-export default function BuildWrapper(props: Props) {
+export default function BuildWrapper(props /*: Props */) {
   return (
     <div className={props.className}>
       <h4 className="spacer-bottom">

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,25 +19,27 @@
  */
 package org.sonar.server.component;
 
-import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import javax.annotation.Nullable;
 import org.sonar.api.i18n.I18n;
+import org.sonar.api.resources.Qualifiers;
 import org.sonar.api.resources.Scopes;
 import org.sonar.api.utils.System2;
 import org.sonar.core.component.ComponentKeys;
 import org.sonar.core.util.Uuids;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
+import org.sonar.db.component.BranchDto;
+import org.sonar.db.component.BranchType;
 import org.sonar.db.component.ComponentDto;
-import org.sonar.server.es.ProjectIndexer;
 import org.sonar.server.es.ProjectIndexer.Cause;
+import org.sonar.server.es.ProjectIndexers;
 import org.sonar.server.favorite.FavoriteUpdater;
 import org.sonar.server.permission.PermissionTemplateService;
 
-import static java.util.Arrays.asList;
+import static java.util.Collections.singletonList;
 import static org.sonar.api.resources.Qualifiers.PROJECT;
 import static org.sonar.core.component.ComponentKeys.isValidModuleKey;
 import static org.sonar.server.ws.WsUtils.checkRequest;
@@ -49,17 +51,17 @@ public class ComponentUpdater {
   private final System2 system2;
   private final PermissionTemplateService permissionTemplateService;
   private final FavoriteUpdater favoriteUpdater;
-  private final Collection<ProjectIndexer> projectIndexers;
+  private final ProjectIndexers projectIndexers;
 
   public ComponentUpdater(DbClient dbClient, I18n i18n, System2 system2,
     PermissionTemplateService permissionTemplateService, FavoriteUpdater favoriteUpdater,
-    ProjectIndexer... projectIndexers) {
+    ProjectIndexers projectIndexers) {
     this.dbClient = dbClient;
     this.i18n = i18n;
     this.system2 = system2;
     this.permissionTemplateService = permissionTemplateService;
     this.favoriteUpdater = favoriteUpdater;
-    this.projectIndexers = asList(projectIndexers);
+    this.projectIndexers = projectIndexers;
   }
 
   /**
@@ -71,10 +73,12 @@ public class ComponentUpdater {
   public ComponentDto create(DbSession dbSession, NewComponent newComponent, @Nullable Integer userId) {
     checkKeyFormat(newComponent.qualifier(), newComponent.key());
     ComponentDto componentDto = createRootComponent(dbSession, newComponent);
-    removeDuplicatedProjects(dbSession, componentDto.getKey());
+    if (isRootProject(componentDto)) {
+      createBranch(dbSession, componentDto.uuid());
+    }
+    removeDuplicatedProjects(dbSession, componentDto.getDbKey());
     handlePermissionTemplate(dbSession, componentDto, newComponent.getOrganizationUuid(), userId);
-    dbSession.commit();
-    index(componentDto);
+    projectIndexers.commitAndIndex(dbSession, singletonList(componentDto), Cause.PROJECT_CREATION);
     return componentDto;
   }
 
@@ -93,7 +97,7 @@ public class ComponentUpdater {
       .setModuleUuid(null)
       .setModuleUuidPath(ComponentDto.UUID_PATH_SEPARATOR + uuid + ComponentDto.UUID_PATH_SEPARATOR)
       .setProjectUuid(uuid)
-      .setKey(keyWithBranch)
+      .setDbKey(keyWithBranch)
       .setDeprecatedKey(keyWithBranch)
       .setName(newComponent.name())
       .setLongName(newComponent.name())
@@ -102,7 +106,24 @@ public class ComponentUpdater {
       .setPrivate(newComponent.isPrivate())
       .setCreatedAt(new Date(system2.now()));
     dbClient.componentDao().insert(session, component);
+
     return component;
+  }
+
+  private static boolean isRootProject(ComponentDto componentDto) {
+    return Scopes.PROJECT.equals(componentDto.scope()) && Qualifiers.PROJECT.equals(componentDto.qualifier());
+  }
+
+  private BranchDto createBranch(DbSession session, String componentUuid) {
+    BranchDto branch = new BranchDto()
+      .setBranchType(BranchType.LONG)
+      .setUuid(componentUuid)
+      .setKey(BranchDto.DEFAULT_MAIN_BRANCH_NAME)
+      .setMergeBranchUuid(null)
+      .setProjectUuid(componentUuid);
+
+    dbClient.branchDao().upsert(session, branch);
+    return branch;
   }
 
   /**
@@ -140,7 +161,4 @@ public class ComponentUpdater {
     return i18n.message(Locale.getDefault(), "qualifier." + qualifier, "Project");
   }
 
-  private void index(ComponentDto project) {
-    projectIndexers.forEach(i -> i.indexProject(project.uuid(), Cause.PROJECT_CREATION));
-  }
 }

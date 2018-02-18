@@ -69,31 +69,23 @@ Object {
 `;
 
 exports[`should render and open the modal 1`] = `
-<a
-  href="#"
+<ActionsDropdownItem
   onClick={[Function]}
 >
   organization.members.manage_groups
-</a>
+</ActionsDropdownItem>
 `;
 
 exports[`should render and open the modal 2`] = `
-<a
-  href="#"
-  onClick={[Function]}
->
-  organization.members.manage_groups
+Array [
+  <ActionsDropdownItem
+    onClick={[Function]}
+  >
+    organization.members.manage_groups
+  </ActionsDropdownItem>,
   <Modal
-    ariaHideApp={true}
-    className="modal"
-    closeTimeoutMS={0}
-    contentLabel="modal form"
-    isOpen={true}
+    contentLabel="organization.members.manage_groups"
     onRequestClose={[Function]}
-    overlayClassName="modal-overlay"
-    parentSelector={[Function]}
-    portalClassName="ReactModalPortal"
-    shouldCloseOnOverlayClick={true}
   >
     <header
       className="modal-head"
@@ -172,8 +164,8 @@ exports[`should render and open the modal 2`] = `
         </div>
       </footer>
     </form>
-  </Modal>
-</a>
+  </Modal>,
+]
 `;
 
 exports[`should reset the selected groups when the modal is opened 1`] = `

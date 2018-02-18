@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -47,7 +47,8 @@ public abstract class ServerProcessLogging {
     "sun.rmi.transport.misc",
     "sun.rmi.server.call",
     "sun.rmi.dgc");
-  protected static final Set<String> MSQDRIVER_LOGGER_NAMES_TO_TURN_OFF = ImmutableSet.of(
+  protected static final Set<String> LOGGER_NAMES_TO_TURN_OFF = ImmutableSet.of(
+    // mssql driver
     "com.microsoft.sqlserver.jdbc.internals",
     "com.microsoft.sqlserver.jdbc.ResultSet",
     "com.microsoft.sqlserver.jdbc.Statement",
@@ -64,7 +65,7 @@ public abstract class ServerProcessLogging {
   }
 
   private LogLevelConfig createLogLevelConfiguration(ProcessId processId) {
-    LogLevelConfig.Builder builder = LogLevelConfig.newBuilder();
+    LogLevelConfig.Builder builder = LogLevelConfig.newBuilder(helper.getRootLoggerName());
     builder.rootLevelFor(processId);
     builder.immutableLevel("org.apache.ibatis", Level.WARN);
     builder.immutableLevel("java.sql", Level.WARN);
@@ -78,6 +79,8 @@ public abstract class ServerProcessLogging {
     builder.immutableLevel("org.apache.coyote", Level.INFO);
     builder.immutableLevel("org.apache.jasper", Level.INFO);
     builder.immutableLevel("org.apache.tomcat", Level.INFO);
+    builder.immutableLevel("org.postgresql.core.v3.QueryExecutorImpl", Level.INFO);
+    builder.immutableLevel("org.postgresql.jdbc.PgConnection", Level.INFO);
 
     extendLogLevelConfiguration(builder);
 
@@ -88,13 +91,12 @@ public abstract class ServerProcessLogging {
     LoggerContext ctx = helper.getRootContext();
     ctx.reset();
 
-    helper.enableJulChangePropagation(ctx);
-
     configureRootLogger(props);
     helper.apply(logLevelConfig, props);
     configureDirectToConsoleLoggers(ctx, STARTUP_LOGGER_NAME);
-
     extendConfigure();
+
+    helper.enableJulChangePropagation(ctx);
 
     return ctx;
   }

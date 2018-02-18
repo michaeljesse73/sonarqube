@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,7 +20,6 @@
 package org.sonarqube.tests.issue;
 
 import com.sonar.orchestrator.Orchestrator;
-import org.sonarqube.tests.Category2Suite;
 import java.util.List;
 import org.junit.ClassRule;
 import org.sonar.wsclient.issue.Issue;
@@ -33,7 +32,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 public abstract class AbstractIssueTest {
 
   @ClassRule
-  public static final Orchestrator ORCHESTRATOR = Category2Suite.ORCHESTRATOR;
+  public static final Orchestrator ORCHESTRATOR = IssueSuite.ORCHESTRATOR;
 
   static IssueClient adminIssueClient() {
     return ORCHESTRATOR.getServer().adminWsClient().issueClient();

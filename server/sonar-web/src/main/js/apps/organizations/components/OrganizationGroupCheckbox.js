@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,18 +20,20 @@
 //@flow
 import React from 'react';
 import Checkbox from '../../../components/controls/Checkbox';
-import type { OrgGroup } from '../../../store/organizations/duck';
+/*:: import type { OrgGroup } from '../../../store/organizations/duck'; */
 
+/*::
 type Props = {
   group: OrgGroup,
   checked: boolean,
   onCheck: (string, boolean) => void
 };
+*/
 
 export default class OrganizationGroupCheckbox extends React.PureComponent {
-  props: Props;
+  /*:: props: Props; */
 
-  onCheck = (checked: boolean) => {
+  onCheck = (checked /*: boolean */) => {
     const { group } = this.props;
     if (!group.default) {
       this.props.onCheck(group.name, checked);
@@ -51,8 +53,7 @@ export default class OrganizationGroupCheckbox extends React.PureComponent {
         tabIndex={0}
         role="listitem"
         disabled={group.default}>
-        <Checkbox checked={this.props.checked} onCheck={this.onCheck} />
-        {' '}{group.name}
+        <Checkbox checked={this.props.checked} onCheck={this.onCheck} /> {group.name}
       </li>
     );
   }

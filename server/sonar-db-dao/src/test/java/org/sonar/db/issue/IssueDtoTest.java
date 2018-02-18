@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -136,7 +136,7 @@ public class IssueDtoTest {
     assertThat(dto.getTags()).containsOnly("tag1", "tag2", "tag3");
     assertThat(dto.getTagsString()).isEqualTo("tag1,tag2,tag3");
 
-    dto.setTags(Arrays.<String>asList());
+    dto.setTags(Arrays.asList());
     assertThat(dto.getTags()).isEmpty();
 
     dto.setTagsString("tag1, tag2 ,,tag3");

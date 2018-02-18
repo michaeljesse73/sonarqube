@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,29 +19,40 @@
  */
 package org.sonar.api.batch.fs.internal;
 
+import java.nio.file.Path;
 import javax.annotation.concurrent.ThreadSafe;
-
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang.StringUtils;
+import org.sonar.api.utils.PathUtils;
 import org.sonar.api.utils.WildcardPattern;
+import org.sonar.api.utils.log.Logger;
+import org.sonar.api.utils.log.Loggers;
 
 @ThreadSafe
 public abstract class PathPattern {
 
+  private static final Logger LOG = Loggers.get(PathPattern.class);
+
+  /**
+   * @deprecated since 6.6
+   */
+  @Deprecated
+  private static final String ABSOLUTE_PATH_PATTERN_PREFIX = "file:";
   final WildcardPattern pattern;
 
   PathPattern(String pattern) {
     this.pattern = WildcardPattern.create(pattern);
   }
 
-  public abstract boolean match(String absolutePath, String relativePath);
+  public abstract boolean match(Path absolutePath, Path relativePath);
 
-  public abstract boolean match(String absolutePath, String relativePath, boolean caseSensitiveFileExtension);
+  public abstract boolean match(Path absolutePath, Path relativePath, boolean caseSensitiveFileExtension);
 
   public static PathPattern create(String s) {
     String trimmed = StringUtils.trim(s);
-    if (StringUtils.startsWithIgnoreCase(trimmed, "file:")) {
-      return new AbsolutePathPattern(StringUtils.substring(trimmed, "file:".length()));
+    if (StringUtils.startsWithIgnoreCase(trimmed, ABSOLUTE_PATH_PATTERN_PREFIX)) {
+      LOG.warn("Using absolute path pattern is deprecated. Please use relative path instead of '" + trimmed + "'");
+      return new AbsolutePathPattern(StringUtils.substring(trimmed, ABSOLUTE_PATH_PATTERN_PREFIX.length()));
     }
     return new RelativePathPattern(trimmed);
   }
@@ -54,21 +65,25 @@ public abstract class PathPattern {
     return result;
   }
 
+  /**
+   * @deprecated since 6.6
+   */
+  @Deprecated
   private static class AbsolutePathPattern extends PathPattern {
     private AbsolutePathPattern(String pattern) {
       super(pattern);
     }
 
     @Override
-    public boolean match(String absolutePath, String relativePath) {
+    public boolean match(Path absolutePath, Path relativePath) {
       return match(absolutePath, relativePath, true);
     }
 
     @Override
-    public boolean match(String absolutePath, String relativePath, boolean caseSensitiveFileExtension) {
-      String path = absolutePath;
+    public boolean match(Path absolutePath, Path relativePath, boolean caseSensitiveFileExtension) {
+      String path = PathUtils.sanitize(absolutePath.toString());
       if (!caseSensitiveFileExtension) {
-        String extension = sanitizeExtension(FilenameUtils.getExtension(relativePath));
+        String extension = sanitizeExtension(FilenameUtils.getExtension(path));
         if (StringUtils.isNotBlank(extension)) {
           path = StringUtils.removeEndIgnoreCase(path, extension);
           path = path + extension;
@@ -79,7 +94,7 @@ public abstract class PathPattern {
 
     @Override
     public String toString() {
-      return "file:" + pattern.toString();
+      return ABSOLUTE_PATH_PATTERN_PREFIX + pattern.toString();
     }
   }
 
@@ -92,15 +107,15 @@ public abstract class PathPattern {
     }
 
     @Override
-    public boolean match(String absolutePath, String relativePath) {
+    public boolean match(Path absolutePath, Path relativePath) {
       return match(absolutePath, relativePath, true);
     }
 
     @Override
-    public boolean match(String absolutePath, String relativePath, boolean caseSensitiveFileExtension) {
-      String path = relativePath;
+    public boolean match(Path absolutePath, Path relativePath, boolean caseSensitiveFileExtension) {
+      String path = PathUtils.sanitize(relativePath.toString());
       if (!caseSensitiveFileExtension) {
-        String extension = sanitizeExtension(FilenameUtils.getExtension(relativePath));
+        String extension = sanitizeExtension(FilenameUtils.getExtension(path));
         if (StringUtils.isNotBlank(extension)) {
           path = StringUtils.removeEndIgnoreCase(path, extension);
           path = path + extension;

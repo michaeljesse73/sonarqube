@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -44,7 +44,7 @@ import org.sonar.server.ws.WsActionTester;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonar.db.permission.OrganizationPermission.ADMINISTER_QUALITY_PROFILES;
-import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.PARAM_PROFILE;
+import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.PARAM_KEY;
 
 public class SetDefaultActionTest {
 
@@ -106,16 +106,16 @@ public class SetDefaultActionTest {
 
     assertThat(definition).isNotNull();
     assertThat(definition.isPost()).isTrue();
-    assertThat(definition.params()).extracting(Param::key).containsExactlyInAnyOrder("profile", "profileName", "language", "organization");
+    assertThat(definition.params()).extracting(Param::key).containsExactlyInAnyOrder("key", "qualityProfile", "language", "organization");
     assertThat(definition.param("organization").since()).isEqualTo("6.4");
-    Param profile = definition.param("profile");
+    Param profile = definition.param("key");
     assertThat(profile.deprecatedKey()).isEqualTo("profileKey");
-    assertThat(definition.param("profileName").deprecatedSince()).isEqualTo("6.5");
-    assertThat(definition.param("language").deprecatedSince()).isEqualTo("6.5");
+    assertThat(definition.param("qualityProfile").deprecatedSince()).isNullOrEmpty();
+    assertThat(definition.param("language").deprecatedSince()).isNullOrEmpty();
   }
 
   @Test
-  public void set_default_profile_using_key() throws Exception {
+  public void set_default_profile_using_key() {
     logInAsQProfileAdministrator();
 
     checkDefaultProfile(organization, XOO_1_KEY, xoo1Profile.getKee());
@@ -123,7 +123,7 @@ public class SetDefaultActionTest {
 
     TestResponse response = ws.newRequest()
       .setMethod("POST")
-      .setParam(PARAM_PROFILE, xoo2Profile.getKee()).execute();
+      .setParam(PARAM_KEY, xoo2Profile.getKee()).execute();
 
     assertThat(response.getInput()).isEmpty();
 
@@ -133,7 +133,7 @@ public class SetDefaultActionTest {
     // One more time!
     TestResponse response2 = ws.newRequest()
       .setMethod("POST")
-      .setParam(PARAM_PROFILE, xoo2Profile.getKee()).execute();
+      .setParam(PARAM_KEY, xoo2Profile.getKee()).execute();
 
     assertThat(response2.getInput()).isEmpty();
     checkDefaultProfile(organization, XOO_1_KEY, xoo1Profile.getKee());
@@ -141,7 +141,7 @@ public class SetDefaultActionTest {
   }
 
   @Test
-  public void set_default_profile_using_language_and_name() throws Exception {
+  public void set_default_profile_using_language_and_name() {
     logInAsQProfileAdministrator();
 
     checkDefaultProfile(organization, XOO_1_KEY, xoo1Profile.getKee());
@@ -149,7 +149,7 @@ public class SetDefaultActionTest {
 
     TestResponse response = ws.newRequest().setMethod("POST")
       .setParam("language", xoo2Profile.getLanguage())
-      .setParam("profileName", xoo2Profile.getName())
+      .setParam("qualityProfile", xoo2Profile.getName())
       .setParam("organization", organization.getKey())
       .execute();
 
@@ -160,7 +160,7 @@ public class SetDefaultActionTest {
   }
 
   @Test
-  public void should_not_change_other_organizations() throws Exception {
+  public void should_not_change_other_organizations() {
     OrganizationDto organization1 = db.organizations().insert();
     OrganizationDto organization2 = db.organizations().insert();
 
@@ -185,7 +185,7 @@ public class SetDefaultActionTest {
 
     TestResponse response = ws.newRequest().setMethod("POST")
       .setParam("language", profileOrg1New.getLanguage())
-      .setParam("profileName", profileOrg1New.getName())
+      .setParam("qualityProfile", profileOrg1New.getName())
       .setParam("organization", organization1.getKey())
       .execute();
 
@@ -197,14 +197,14 @@ public class SetDefaultActionTest {
   }
 
   @Test
-  public void fail_to_set_default_profile_using_invalid_key() throws Exception {
+  public void fail_to_set_default_profile_using_invalid_key() {
     logInAsQProfileAdministrator();
 
     expectedException.expect(NotFoundException.class);
     expectedException.expectMessage("Quality Profile with key 'unknown-profile-666' does not exist");
 
     ws.newRequest().setMethod("POST")
-      .setParam(PARAM_PROFILE, "unknown-profile-666")
+      .setParam(PARAM_KEY, "unknown-profile-666")
       .execute();
 
     checkDefaultProfile(organization, XOO_1_KEY, xoo1Profile.getKee());
@@ -212,13 +212,13 @@ public class SetDefaultActionTest {
   }
 
   @Test
-  public void fail_to_set_default_profile_using_language_and_invalid_name() throws Exception {
+  public void fail_to_set_default_profile_using_language_and_invalid_name() {
     logInAsQProfileAdministrator();
 
     try {
       TestResponse response = ws.newRequest().setMethod("POST")
         .setParam("language", XOO_2_KEY)
-        .setParam("profileName", "Unknown")
+        .setParam("qualityProfile", "Unknown")
         .execute();
       Fail.failBecauseExceptionWasNotThrown(NotFoundException.class);
     } catch (NotFoundException nfe) {
@@ -229,37 +229,37 @@ public class SetDefaultActionTest {
   }
 
   @Test
-  public void fail_if_parameter_profile_key_is_combined_with_parameter_organization() throws Exception {
+  public void fail_if_parameter_profile_key_is_combined_with_parameter_organization() {
     userSessionRule.logIn();
 
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("When providing a quality profile key, neither of organization/language/name must be set");
 
     ws.newRequest().setMethod("POST")
-      .setParam(PARAM_PROFILE, xoo2Profile.getKee())
+      .setParam(PARAM_KEY, xoo2Profile.getKee())
       .setParam("organization", organization.getKey())
       .execute();
   }
 
   @Test
-  public void throw_ForbiddenException_if_not_profile_administrator() throws Exception {
+  public void throw_ForbiddenException_if_not_profile_administrator() {
     userSessionRule.logIn();
 
     expectedException.expect(ForbiddenException.class);
     expectedException.expectMessage("Insufficient privileges");
 
     ws.newRequest().setMethod("POST")
-      .setParam(PARAM_PROFILE, xoo2Profile.getKee())
+      .setParam(PARAM_KEY, xoo2Profile.getKee())
       .execute();
   }
 
   @Test
-  public void throw_UnauthorizedException_if_not_logged_in() throws Exception {
+  public void throw_UnauthorizedException_if_not_logged_in() {
     expectedException.expect(UnauthorizedException.class);
     expectedException.expectMessage("Authentication is required");
 
     ws.newRequest().setMethod("POST")
-      .setParam(PARAM_PROFILE, xoo2Profile.getKee())
+      .setParam(PARAM_KEY, xoo2Profile.getKee())
       .execute();
   }
 

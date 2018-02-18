@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -33,7 +33,26 @@ import java.net.URI;
 @ScannerSide
 @ServerSide
 public abstract class HttpDownloader extends UriReader.SchemeProcessor {
+
+  /**
+   * Catch-all default timeout, replaced by
+   *   {@link #DEFAULT_READ_TIMEOUT_IN_MILLISECONDS}
+   *   {@link #DEFAULT_CONNECT_TIMEOUT_IN_MILLISECONDS}
+   *
+   * @deprecated since 7.0
+   */
+  @Deprecated
   public static final int TIMEOUT_MILLISECONDS = 20 * 1000;
+
+  /**
+   * @since 7.0
+   */
+  public static final int DEFAULT_READ_TIMEOUT_IN_MILLISECONDS = 60 * 1000;
+
+  /**
+   * @since 7.0
+   */
+  public static final int DEFAULT_CONNECT_TIMEOUT_IN_MILLISECONDS = 20 * 1000;
 
   public abstract String downloadPlainText(URI uri, String encoding);
 

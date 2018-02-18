@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -26,6 +26,7 @@ import org.sonar.api.server.ws.Change;
 import org.sonar.api.server.ws.Request;
 import org.sonar.api.server.ws.Response;
 import org.sonar.api.server.ws.WebService;
+import org.sonar.api.utils.System2;
 import org.sonar.core.issue.DefaultIssue;
 import org.sonar.core.issue.IssueChangeContext;
 import org.sonar.core.util.Uuids;
@@ -49,15 +50,17 @@ public class DoTransitionAction implements IssuesWsAction {
   private final IssueUpdater issueUpdater;
   private final TransitionService transitionService;
   private final OperationResponseWriter responseWriter;
+  private final System2 system2;
 
   public DoTransitionAction(DbClient dbClient, UserSession userSession, IssueFinder issueFinder, IssueUpdater issueUpdater, TransitionService transitionService,
-    OperationResponseWriter responseWriter) {
+    OperationResponseWriter responseWriter, System2 system2) {
     this.dbClient = dbClient;
     this.userSession = userSession;
     this.issueFinder = issueFinder;
     this.issueUpdater = issueUpdater;
     this.transitionService = transitionService;
     this.responseWriter = responseWriter;
+    this.system2 = system2;
   }
 
   @Override
@@ -96,10 +99,10 @@ public class DoTransitionAction implements IssuesWsAction {
 
   private SearchResponseData doTransition(DbSession session, IssueDto issueDto, String transitionKey) {
     DefaultIssue defaultIssue = issueDto.toDefaultIssue();
-    IssueChangeContext context = IssueChangeContext.createUser(new Date(), userSession.getLogin());
+    IssueChangeContext context = IssueChangeContext.createUser(new Date(system2.now()), userSession.getLogin());
     transitionService.checkTransitionPermission(transitionKey, defaultIssue);
     if (transitionService.doTransition(defaultIssue, context, transitionKey)) {
-      return issueUpdater.saveIssueAndPreloadSearchResponseData(session, defaultIssue, context, null);
+      return issueUpdater.saveIssueAndPreloadSearchResponseData(session, defaultIssue, context, null, true);
     }
     return new SearchResponseData(issueDto);
   }

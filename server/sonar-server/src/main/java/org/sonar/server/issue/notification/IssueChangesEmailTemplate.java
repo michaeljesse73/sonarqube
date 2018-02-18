@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -99,18 +99,26 @@ public class IssueChangesEmailTemplate extends EmailTemplate {
 
   private static void appendHeader(Notification notif, StringBuilder sb) {
     appendLine(sb, StringUtils.defaultString(notif.getFieldValue("componentName"), notif.getFieldValue("componentKey")));
+    String branchName = notif.getFieldValue("branch");
+    if (branchName != null) {
+      appendField(sb, "Branch", null, branchName);
+    }
     appendField(sb, "Rule", null, notif.getFieldValue("ruleName"));
     appendField(sb, "Message", null, notif.getFieldValue("message"));
   }
 
-  private void appendFooter(StringBuilder sb, Notification notification){
+  private void appendFooter(StringBuilder sb, Notification notification) {
     String issueKey = notification.getFieldValue("key");
     try {
-      sb.append("See it in SonarQube: ").append(settings.getServerBaseURL())
+      sb.append("More details at: ").append(settings.getServerBaseURL())
         .append("/project/issues?id=").append(encode(notification.getFieldValue("projectKey"), "UTF-8"))
         .append("&issues=").append(issueKey)
-        .append("&open=").append(issueKey)
-        .append(NEW_LINE);
+        .append("&open=").append(issueKey);
+      String branchName = notification.getFieldValue("branch");
+      if (branchName != null) {
+        sb.append("&branch=").append(branchName);
+      }
+      sb.append(NEW_LINE);
     } catch (UnsupportedEncodingException e) {
       throw new IllegalStateException("Encoding not supported", e);
     }

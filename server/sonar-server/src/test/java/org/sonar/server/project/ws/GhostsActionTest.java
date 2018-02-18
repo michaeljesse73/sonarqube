@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,7 +19,6 @@
  */
 package org.sonar.server.project.ws;
 
-import com.google.common.io.Resources;
 import java.util.function.Consumer;
 import org.apache.commons.lang.StringUtils;
 import org.junit.Rule;
@@ -60,14 +59,19 @@ public class GhostsActionTest {
 
   private DefaultOrganizationProvider defaultOrganizationProvider = TestDefaultOrganizationProvider.from(db);
   private DbClient dbClient = db.getDbClient();
-  private WsActionTester underTest = new WsActionTester(new GhostsAction(dbClient, userSessionRule, defaultOrganizationProvider));
+
+  private WsActionTester ws = new WsActionTester(new GhostsAction(dbClient, userSessionRule, defaultOrganizationProvider));
 
   @Test
-  public void verify_definition() {
-    WebService.Action action = underTest.getDef();
-    assertThat(action.description()).isEqualTo("List ghost projects.<br /> Requires 'Administer System' permission.");
+  public void definition() {
+    WebService.Action action = ws.getDef();
+    assertThat(action.key()).isEqualTo("ghosts");
+    assertThat(action.description()).isEqualTo("List ghost projects.<br> " +
+      "With the current architecture, it's no more possible to have invisible ghost projects. Therefore, the web service is deprecated.<br> " +
+      "Requires 'Administer System' permission.");
     assertThat(action.since()).isEqualTo("5.2");
     assertThat(action.isInternal()).isFalse();
+    assertThat(action.deprecatedSince()).isEqualTo("6.6");
 
     assertThat(action.params()).hasSize(5);
 
@@ -79,14 +83,14 @@ public class GhostsActionTest {
   }
 
   @Test
-  public void ghost_projects_without_analyzed_projects() throws Exception {
+  public void ghost_projects_without_analyzed_projects() {
     OrganizationDto organization = db.organizations().insert();
     ComponentDto ghost1 = insertGhostProject(organization);
     ComponentDto ghost2 = insertGhostProject(organization);
     ComponentDto activeProject = insertActiveProject(organization);
     userSessionRule.logIn().addPermission(ADMINISTER, organization);
 
-    TestResponse result = underTest.newRequest()
+    TestResponse result = ws.newRequest()
       .setParam("organization", organization.getKey())
       .execute();
 
@@ -95,13 +99,13 @@ public class GhostsActionTest {
       "  \"projects\": [" +
       "    {" +
       "      \"uuid\": \"" + ghost1.uuid() + "\"," +
-      "      \"key\": \"" + ghost1.key() + "\"," +
+      "      \"key\": \"" + ghost1.getDbKey() + "\"," +
       "      \"name\": \"" + ghost1.name() + "\"," +
       "      \"visibility\": \"private\"" +
       "    }," +
       "    {" +
       "      \"uuid\": \"" + ghost2.uuid() + "\"," +
-      "      \"key\": \"" + ghost2.key() + "\"," +
+      "      \"key\": \"" + ghost2.getDbKey() + "\"," +
       "      \"name\": \"" + ghost2.name() + "\"," +
       "      \"visibility\": \"private\"" +
       "    }" +
@@ -111,15 +115,15 @@ public class GhostsActionTest {
   }
 
   @Test
-  public void ghost_projects_with_correct_pagination() throws Exception {
+  public void ghost_projects_with_correct_pagination() {
     OrganizationDto organization = db.organizations().insert();
     for (int i = 1; i <= 10; i++) {
       int count = i;
-      insertGhostProject(organization, dto -> dto.setKey("ghost-key-" + count));
+      insertGhostProject(organization, dto -> dto.setDbKey("ghost-key-" + count));
     }
     userSessionRule.logIn().addPermission(ADMINISTER, organization);
 
-    TestResponse result = underTest.newRequest()
+    TestResponse result = ws.newRequest()
       .setParam("organization", organization.getKey())
       .setParam(Param.PAGE, "3")
       .setParam(Param.PAGE_SIZE, "4")
@@ -135,12 +139,12 @@ public class GhostsActionTest {
   }
 
   @Test
-  public void ghost_projects_with_chosen_fields() throws Exception {
+  public void ghost_projects_with_chosen_fields() {
     OrganizationDto organization = db.organizations().insert();
     insertGhostProject(organization);
     userSessionRule.logIn().addPermission(ADMINISTER, organization);
 
-    TestResponse result = underTest.newRequest()
+    TestResponse result = ws.newRequest()
       .setParam("organization", organization.getKey())
       .setParam(Param.FIELDS, "name")
       .execute();
@@ -152,7 +156,7 @@ public class GhostsActionTest {
   }
 
   @Test
-  public void ghost_projects_with_partial_query_on_name() throws Exception {
+  public void ghost_projects_with_partial_query_on_name() {
     OrganizationDto organization = db.organizations().insert();
     insertGhostProject(organization, dto -> dto.setName("ghost-name-10"));
     insertGhostProject(organization, dto -> dto.setName("ghost-name-11"));
@@ -160,7 +164,7 @@ public class GhostsActionTest {
 
     userSessionRule.logIn().addPermission(ADMINISTER, organization);
 
-    TestResponse result = underTest.newRequest()
+    TestResponse result = ws.newRequest()
       .setParam("organization", organization.getKey())
       .setParam(Param.TEXT_QUERY, "name-1")
       .execute();
@@ -171,13 +175,13 @@ public class GhostsActionTest {
   }
 
   @Test
-  public void ghost_projects_with_partial_query_on_key() throws Exception {
+  public void ghost_projects_with_partial_query_on_key() {
     OrganizationDto organization = db.organizations().insert();
-    insertGhostProject(organization, dto -> dto.setKey("ghost-key-1"));
+    insertGhostProject(organization, dto -> dto.setDbKey("ghost-key-1"));
 
     userSessionRule.logIn().addPermission(ADMINISTER, organization);
 
-    TestResponse result = underTest.newRequest()
+    TestResponse result = ws.newRequest()
       .setParam("organization", organization.getKey())
       .setParam(Param.TEXT_QUERY, "GHOST-key")
       .execute();
@@ -187,10 +191,34 @@ public class GhostsActionTest {
   }
 
   @Test
-  public void ghost_projects_base_on_json_example() throws Exception {
+  public void does_not_return_branches() {
+    OrganizationDto organization = db.organizations().insert();
+    ComponentDto ghostProject = db.components().insertMainBranch(organization);
+    db.components().insertSnapshot(ghostProject, dto -> dto.setStatus("U"));
+    ComponentDto ghostBranchProject = db.components().insertProjectBranch(ghostProject);
+    userSessionRule.logIn().addPermission(ADMINISTER, organization);
+
+    TestResponse result = ws.newRequest()
+      .setParam("organization", organization.getKey())
+      .execute();
+
+    assertJson(result.getInput()).isSimilarTo("{" +
+      "  \"projects\": [" +
+      "    {" +
+      "      \"uuid\": \"" + ghostProject.uuid() + "\"," +
+      "      \"key\": \"" + ghostProject.getDbKey() + "\"," +
+      "      \"name\": \"" + ghostProject.name() + "\"," +
+      "      \"visibility\": \"private\"" +
+      "    }" +
+      "  ]" +
+      "}");
+  }
+
+  @Test
+  public void ghost_projects_base_on_json_example() {
     OrganizationDto organization = db.organizations().insert();
     ComponentDto hBaseProject = ComponentTesting.newPrivateProjectDto(organization, "ce4c03d6-430f-40a9-b777-ad877c00aa4d")
-      .setKey("org.apache.hbas:hbase")
+      .setDbKey("org.apache.hbas:hbase")
       .setName("HBase")
       .setCreatedAt(DateUtils.parseDateTime("2015-03-04T23:03:44+0100"))
       .setPrivate(false);
@@ -198,7 +226,7 @@ public class GhostsActionTest {
     dbClient.snapshotDao().insert(db.getSession(), SnapshotTesting.newAnalysis(hBaseProject)
       .setStatus(STATUS_UNPROCESSED));
     ComponentDto roslynProject = ComponentTesting.newPrivateProjectDto(organization, "c526ef20-131b-4486-9357-063fa64b5079")
-      .setKey("com.microsoft.roslyn:roslyn")
+      .setDbKey("com.microsoft.roslyn:roslyn")
       .setName("Roslyn")
       .setCreatedAt(DateUtils.parseDateTime("2013-03-04T23:03:44+0100"));
     dbClient.componentDao().insert(db.getSession(), roslynProject);
@@ -207,22 +235,21 @@ public class GhostsActionTest {
     db.getSession().commit();
     userSessionRule.logIn().addPermission(ADMINISTER, organization);
 
-    TestResponse result = underTest.newRequest()
+    TestResponse result = ws.newRequest()
       .setParam("organization", organization.getKey())
       .execute();
 
-    assertJson(result.getInput())
-      .isSimilarTo(Resources.getResource(getClass(), "projects-example-ghosts.json"));
+    assertJson(result.getInput()).isSimilarTo(ws.getDef().responseExampleAsString());
   }
 
   @Test
-  public void throws_ForbiddenException_if_not_administrator_of_organization() throws Exception {
+  public void throws_ForbiddenException_if_not_administrator_of_organization() {
     userSessionRule.logIn();
 
     expectedException.expect(ForbiddenException.class);
     expectedException.expectMessage("Insufficient privileges");
 
-    underTest.newRequest().execute();
+    ws.newRequest().execute();
   }
 
   @Test
@@ -232,7 +259,7 @@ public class GhostsActionTest {
     expectedException.expect(NotFoundException.class);
     expectedException.expectMessage("No organization for key 'foo'");
 
-    underTest.newRequest().setParam("organization", "foo").execute();
+    ws.newRequest().setParam("organization", "foo").execute();
   }
 
   private ComponentDto insertGhostProject(OrganizationDto organization) {

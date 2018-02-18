@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,6 +19,7 @@
  */
 package org.sonar.api.batch.fs.internal;
 
+import java.nio.file.Paths;
 import org.sonar.api.batch.fs.InputFile;
 
 /**
@@ -34,7 +35,7 @@ class PathPatternPredicate extends AbstractFilePredicate {
 
   @Override
   public boolean apply(InputFile f) {
-    return pattern.match(f.absolutePath(), f.relativePath());
+    return pattern.match(f.path(), Paths.get(f.relativePath()));
   }
 
 }

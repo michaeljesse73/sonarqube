@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,7 +25,6 @@ public class MeasuresWsModule extends Module {
   @Override
   protected void configureModule() {
     add(
-      ComponentTreeDataLoader.class,
       MeasuresWs.class,
       ComponentTreeAction.class,
       ComponentAction.class,

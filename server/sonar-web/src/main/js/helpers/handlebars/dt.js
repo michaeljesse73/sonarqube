@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -17,8 +17,18 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-const moment = require('moment');
+const { parseDate } = require('../../helpers/dates');
+const { getCurrentLocale } = require('../../helpers/l10n');
 
 module.exports = function(date) {
-  return moment(date).format('LLL');
+  if (!date) {
+    return '';
+  }
+  return new Intl.DateTimeFormat(getCurrentLocale(), {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: 'numeric'
+  }).format(parseDate(date));
 };

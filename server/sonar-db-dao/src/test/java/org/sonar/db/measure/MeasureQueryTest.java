@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -79,13 +79,6 @@ public class MeasureQueryTest {
 
     assertThat(query.getMetricKeys()).containsOnly("M1", "M2");
     assertThat(query.getMetricIds()).isNull();
-  }
-
-  @Test
-  public void create_query_from_person_id() {
-    MeasureQuery query = MeasureQuery.builder().setProjectUuids(asList("PROJECT_1", "PROJECT_2")).setPersonId(100L).build();
-
-    assertThat(query.getPersonId()).isEqualTo(100L);
   }
 
   @Test

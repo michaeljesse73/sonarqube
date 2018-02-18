@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,13 +18,14 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import React from 'react';
+import PropTypes from 'prop-types';
 import { Link } from 'react-router';
 import Defaults from './Defaults';
 import { PermissionTemplateType } from '../propTypes';
 
 export default class NameCell extends React.PureComponent {
   static propTypes = {
-    organization: React.PropTypes.object,
+    organization: PropTypes.object,
     permissionTemplate: PermissionTemplateType.isRequired
   };
 
@@ -41,23 +42,22 @@ export default class NameCell extends React.PureComponent {
           <strong className="js-name">{t.name}</strong>
         </Link>
 
-        {t.defaultFor.length > 0 &&
+        {t.defaultFor.length > 0 && (
           <div className="spacer-top js-defaults">
             <Defaults
               permissionTemplate={this.props.permissionTemplate}
               organization={organization}
             />
-          </div>}
+          </div>
+        )}
 
-        {!!t.description &&
-          <div className="spacer-top js-description">
-            {t.description}
-          </div>}
+        {!!t.description && <div className="spacer-top js-description">{t.description}</div>}
 
-        {!!t.projectKeyPattern &&
+        {!!t.projectKeyPattern && (
           <div className="spacer-top js-project-key-pattern">
             Project Key Pattern: <code>{t.projectKeyPattern}</code>
-          </div>}
+          </div>
+        )}
       </td>
     );
   }

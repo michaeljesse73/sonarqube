@@ -21,7 +21,7 @@ syntax = "proto2";
 package sonarqube.ws.usertoken;
 
 option java_package = "org.sonarqube.ws";
-option java_outer_classname = "WsUserTokens";
+option java_outer_classname = "UserTokens";
 option optimize_for = SPEED;
 
 // WS api/user_tokens/generate
@@ -29,6 +29,7 @@ message GenerateWsResponse {
   optional string login = 1;
   optional string name = 2;
   optional string token = 3;
+  optional string createdAt = 4;
 }
 
 // WS api/user_tokens/search

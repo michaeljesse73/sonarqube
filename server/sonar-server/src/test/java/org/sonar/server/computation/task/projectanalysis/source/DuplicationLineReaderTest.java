@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -45,7 +45,7 @@ public class DuplicationLineReaderTest {
 
   @Test
   public void read_nothing() {
-    DuplicationLineReader reader = new DuplicationLineReader(Collections.<Duplication>emptySet());
+    DuplicationLineReader reader = new DuplicationLineReader(Collections.emptySet());
 
     reader.read(line1);
 

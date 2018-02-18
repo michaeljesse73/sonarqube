@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -45,9 +45,7 @@ public class ResourceDto {
   private String description;
   private String language;
   private String copyComponentUuid;
-  private String developerUuid;
   private Date createdAt;
-  private Long authorizationUpdatedAt;
 
   public Long getId() {
     return id;
@@ -203,31 +201,12 @@ public class ResourceDto {
     return this;
   }
 
-  @CheckForNull
-  public String getDeveloperUuid() {
-    return developerUuid;
-  }
-
-  public ResourceDto setDeveloperUuid(@Nullable String developerUuid) {
-    this.developerUuid = developerUuid;
-    return this;
-  }
-
   public Date getCreatedAt() {
     return createdAt;
   }
 
   public ResourceDto setCreatedAt(Date date) {
     this.createdAt = date;
-    return this;
-  }
-
-  public Long getAuthorizationUpdatedAt() {
-    return authorizationUpdatedAt;
-  }
-
-  public ResourceDto setAuthorizationUpdatedAt(Long authorizationUpdatedAt) {
-    this.authorizationUpdatedAt = authorizationUpdatedAt;
     return this;
   }
 }

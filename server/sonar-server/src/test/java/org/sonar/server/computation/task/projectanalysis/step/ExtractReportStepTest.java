@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -62,7 +62,7 @@ public class ExtractReportStepTest {
   private ExtractReportStep underTest = new ExtractReportStep(dbTester.getDbClient(), ceTask, tempFolder, reportDirectoryHolder);
 
   @Test
-  public void fail_if_report_zip_does_not_exist() throws Exception {
+  public void fail_if_report_zip_does_not_exist() {
     expectedException.expect(MessageException.class);
     expectedException.expectMessage("Analysis report 1 is missing in database");
 

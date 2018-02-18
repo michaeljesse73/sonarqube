@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,6 +21,7 @@ package org.sonar.server.rule;
 
 import org.junit.Test;
 import org.sonar.api.server.rule.RulesDefinition;
+import org.sonar.server.plugins.ServerPluginRepository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -30,7 +31,7 @@ public class RuleDefinitionsLoaderTest {
   @Test
   public void no_definitions() {
     CommonRuleDefinitions commonRulesDefinitions = mock(CommonRuleDefinitions.class);
-    RulesDefinition.Context context = new RuleDefinitionsLoader(mock(DeprecatedRulesDefinitionLoader.class), commonRulesDefinitions).load();
+    RulesDefinition.Context context = new RuleDefinitionsLoader(mock(DeprecatedRulesDefinitionLoader.class), commonRulesDefinitions, mock(ServerPluginRepository.class)).load();
 
     assertThat(context.repositories()).isEmpty();
   }
@@ -38,9 +39,10 @@ public class RuleDefinitionsLoaderTest {
   @Test
   public void load_definitions() {
     CommonRuleDefinitions commonRulesDefinitions = mock(CommonRuleDefinitions.class);
-    RulesDefinition.Context context = new RuleDefinitionsLoader(mock(DeprecatedRulesDefinitionLoader.class), commonRulesDefinitions, new RulesDefinition[] {
-      new FindbugsDefinitions(), new SquidDefinitions()
-    }).load();
+    RulesDefinition.Context context = new RuleDefinitionsLoader(mock(DeprecatedRulesDefinitionLoader.class), commonRulesDefinitions, mock(ServerPluginRepository.class),
+      new RulesDefinition[] {
+        new FindbugsDefinitions(), new SquidDefinitions()
+      }).load();
 
     assertThat(context.repositories()).hasSize(2);
     assertThat(context.repository("findbugs")).isNotNull();
@@ -48,11 +50,12 @@ public class RuleDefinitionsLoaderTest {
   }
 
   @Test
-  public void define_common_rules() throws Exception {
+  public void define_common_rules() {
     CommonRuleDefinitions commonRulesDefinitions = new FakeCommonRuleDefinitions();
-    RulesDefinition.Context context = new RuleDefinitionsLoader(mock(DeprecatedRulesDefinitionLoader.class), commonRulesDefinitions, new RulesDefinition[] {
-      new SquidDefinitions()
-    }).load();
+    RulesDefinition.Context context = new RuleDefinitionsLoader(mock(DeprecatedRulesDefinitionLoader.class), commonRulesDefinitions, mock(ServerPluginRepository.class),
+      new RulesDefinition[] {
+        new SquidDefinitions()
+      }).load();
 
     assertThat(context.repositories()).extracting("key").containsOnly("squid", "common-java");
     assertThat(context.repository("common-java").rules()).extracting("key").containsOnly("InsufficientBranchCoverage");
@@ -63,11 +66,12 @@ public class RuleDefinitionsLoaderTest {
    * is taken into account. Others are ignored.
    */
   @Test
-  public void plugin_common_rules_are_overridden() throws Exception {
+  public void plugin_common_rules_are_overridden() {
     CommonRuleDefinitions commonRulesDefinitions = new FakeCommonRuleDefinitions();
-    RulesDefinition.Context context = new RuleDefinitionsLoader(mock(DeprecatedRulesDefinitionLoader.class), commonRulesDefinitions, new RulesDefinition[] {
-      new PluginCommonRuleDefinitions()
-    }).load();
+    RulesDefinition.Context context = new RuleDefinitionsLoader(mock(DeprecatedRulesDefinitionLoader.class), commonRulesDefinitions, mock(ServerPluginRepository.class),
+      new RulesDefinition[] {
+        new PluginCommonRuleDefinitions()
+      }).load();
 
     assertThat(context.repositories()).extracting("key").containsOnly("common-java");
     assertThat(context.repository("common-java").rules()).extracting("key").containsOnly("InsufficientBranchCoverage");

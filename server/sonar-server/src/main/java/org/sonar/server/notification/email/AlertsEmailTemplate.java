@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,6 +19,7 @@
  */
 package org.sonar.server.notification.email;
 
+import javax.annotation.Nullable;
 import org.apache.commons.lang.StringUtils;
 import org.sonar.api.config.EmailSettings;
 import org.sonar.api.measures.Metric;
@@ -49,14 +50,17 @@ public class AlertsEmailTemplate extends EmailTemplate {
     String projectId = notification.getFieldValue("projectId");
     String projectKey = notification.getFieldValue("projectKey");
     String projectName = notification.getFieldValue("projectName");
+    String projectVersion = notification.getFieldValue("projectVersion");
+    String branchName = notification.getFieldValue("branch");
     String alertName = notification.getFieldValue("alertName");
     String alertText = notification.getFieldValue("alertText");
     String alertLevel = notification.getFieldValue("alertLevel");
     boolean isNewAlert = Boolean.parseBoolean(notification.getFieldValue("isNewAlert"));
+    String fullProjectName = computeFullProjectName(projectName, branchName);
 
     // Generate text
-    String subject = generateSubject(projectName, alertLevel, isNewAlert);
-    String messageBody = generateMessageBody(projectName, projectKey, alertName, alertText, isNewAlert);
+    String subject = generateSubject(fullProjectName, alertLevel, isNewAlert);
+    String messageBody = generateMessageBody(projectName, projectKey, projectVersion, branchName, alertName, alertText, isNewAlert);
 
     // And finally return the email that will be sent
     return new EmailMessage()
@@ -65,21 +69,36 @@ public class AlertsEmailTemplate extends EmailTemplate {
       .setMessage(messageBody);
   }
 
-  private static String generateSubject(String projectName, String alertLevel, boolean isNewAlert) {
+  private static String computeFullProjectName(String projectName, @Nullable String branchName) {
+    if (branchName == null || branchName.isEmpty()) {
+      return projectName;
+    }
+    return String.format("%s (%s)", projectName, branchName);
+  }
+
+  private static String generateSubject(String fullProjectName, String alertLevel, boolean isNewAlert) {
     StringBuilder subjectBuilder = new StringBuilder();
     if (Metric.Level.OK.toString().equals(alertLevel)) {
-      subjectBuilder.append("\"").append(projectName).append("\" is back to green");
+      subjectBuilder.append("\"").append(fullProjectName).append("\" is back to green");
     } else if (isNewAlert) {
-      subjectBuilder.append("New quality gate threshold reached on \"").append(projectName).append("\"");
+      subjectBuilder.append("New quality gate threshold reached on \"").append(fullProjectName).append("\"");
     } else {
-      subjectBuilder.append("Quality gate status changed on \"").append(projectName).append("\"");
+      subjectBuilder.append("Quality gate status changed on \"").append(fullProjectName).append("\"");
     }
     return subjectBuilder.toString();
   }
 
-  private String generateMessageBody(String projectName, String projectKey, String alertName, String alertText, boolean isNewAlert) {
+  private String generateMessageBody(String projectName, String projectKey,
+    @Nullable String projectVersion, @Nullable String branchName,
+    String alertName, String alertText, boolean isNewAlert) {
     StringBuilder messageBody = new StringBuilder();
     messageBody.append("Project: ").append(projectName).append("\n");
+    if (branchName != null) {
+      messageBody.append("Branch: ").append(branchName).append("\n");
+    }
+    if (projectVersion != null) {
+      messageBody.append("Version: ").append(projectVersion).append("\n");
+    }
     messageBody.append("Quality gate status: ").append(alertName).append("\n\n");
 
     String[] alerts = StringUtils.split(alertText, ",");
@@ -99,7 +118,10 @@ public class AlertsEmailTemplate extends EmailTemplate {
       }
     }
 
-    messageBody.append("\n").append("See it in SonarQube: ").append(configuration.getServerBaseURL()).append("/dashboard?id=").append(projectKey);
+    messageBody.append("\n").append("More details at: ").append(configuration.getServerBaseURL()).append("/dashboard?id=").append(projectKey);
+    if (branchName != null) {
+      messageBody.append("&branch=").append(branchName);
+    }
 
     return messageBody.toString();
   }

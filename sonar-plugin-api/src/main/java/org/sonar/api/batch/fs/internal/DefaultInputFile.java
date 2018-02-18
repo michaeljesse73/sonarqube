@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,6 +25,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -53,7 +54,8 @@ public class DefaultInputFile extends DefaultInputComponent implements InputFile
   private Status status;
   private Charset charset;
   private Metadata metadata;
-  private boolean publish;
+  private boolean published;
+  private boolean excludedForCoverage;
 
   public DefaultInputFile(DefaultIndexedFile indexedFile, Consumer<DefaultInputFile> metadataGenerator) {
     this(indexedFile, metadataGenerator, null);
@@ -65,7 +67,8 @@ public class DefaultInputFile extends DefaultInputComponent implements InputFile
     this.indexedFile = indexedFile;
     this.metadataGenerator = metadataGenerator;
     this.metadata = null;
-    this.publish = false;
+    this.published = false;
+    this.excludedForCoverage = false;
     this.contents = contents;
   }
 
@@ -77,8 +80,9 @@ public class DefaultInputFile extends DefaultInputComponent implements InputFile
 
   @Override
   public InputStream inputStream() throws IOException {
-    return contents != null ? new ByteArrayInputStream(contents.getBytes(charset())) : new BOMInputStream(Files.newInputStream(path()),
-      ByteOrderMark.UTF_8, ByteOrderMark.UTF_16LE, ByteOrderMark.UTF_16BE, ByteOrderMark.UTF_32LE, ByteOrderMark.UTF_32BE);
+    return contents != null ? new ByteArrayInputStream(contents.getBytes(charset()))
+      : new BOMInputStream(Files.newInputStream(path()),
+        ByteOrderMark.UTF_8, ByteOrderMark.UTF_16LE, ByteOrderMark.UTF_16BE, ByteOrderMark.UTF_32LE, ByteOrderMark.UTF_32BE);
   }
 
   @Override
@@ -98,24 +102,39 @@ public class DefaultInputFile extends DefaultInputComponent implements InputFile
     }
   }
 
-  /**
-   * @since 6.3
-   */
-  public DefaultInputFile setPublish(boolean publish) {
-    this.publish = publish;
+  public DefaultInputFile setPublished(boolean published) {
+    this.published = published;
     return this;
   }
 
-  /**
-   * @since 6.3
-   */
-  public boolean publish() {
-    return publish;
+  public boolean isPublished() {
+    return published;
   }
 
+  public DefaultInputFile setExcludedForCoverage(boolean excludedForCoverage) {
+    this.excludedForCoverage = excludedForCoverage;
+    return this;
+  }
+
+  public boolean isExcludedForCoverage() {
+    return excludedForCoverage;
+  }
+
+  /**
+   * @deprecated since 6.6
+   */
+  @Deprecated
   @Override
   public String relativePath() {
     return indexedFile.relativePath();
+  }
+
+  public String getModuleRelativePath() {
+    return indexedFile.getModuleRelativePath();
+  }
+
+  public String getProjectRelativePath() {
+    return indexedFile.getProjectRelativePath();
   }
 
   @Override
@@ -318,23 +337,32 @@ public class DefaultInputFile extends DefaultInputComponent implements InputFile
   }
 
   @Override
-  public boolean equals(Object o) {
-    if (this == o) {
-      return true;
-    }
-
-    // Use instanceof to support DeprecatedDefaultInputFile
-    if (!(o instanceof DefaultInputFile)) {
+  public boolean equals(Object obj) {
+    if (obj == null) {
       return false;
     }
 
-    DefaultInputFile that = (DefaultInputFile) o;
-    return this.moduleKey().equals(that.moduleKey()) && this.relativePath().equals(that.relativePath());
+    if (this.getClass() != obj.getClass()) {
+      return false;
+    }
+
+    DefaultInputFile that = (DefaultInputFile) obj;
+    return this.getProjectRelativePath().equals(that.getProjectRelativePath());
   }
 
   @Override
   public boolean isFile() {
     return true;
+  }
+
+  @Override
+  public String filename() {
+    return indexedFile.filename();
+  }
+
+  @Override
+  public URI uri() {
+    return indexedFile.uri();
   }
 
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -162,7 +162,7 @@ public class CachingRuleFinder implements RuleFinder {
     String description = ruleDefinition.getDescription();
     RuleDto.Format descriptionFormat = ruleDefinition.getDescriptionFormat();
 
-    org.sonar.api.rules.Rule apiRule = new org.sonar.api.rules.Rule();
+    Rule apiRule = new Rule();
     apiRule
       .setName(ruleDefinition.getName())
       .setLanguage(ruleDefinition.getLanguage())
@@ -174,7 +174,8 @@ public class CachingRuleFinder implements RuleFinder {
       .setRepositoryKey(ruleDefinition.getRepositoryKey())
       .setSeverity(severity != null ? RulePriority.valueOf(severity) : null)
       .setStatus(ruleDefinition.getStatus().name())
-      .setTags(ruleDefinition.getSystemTags().toArray(new String[ruleDefinition.getSystemTags().size()]))
+      .setSystemTags(ruleDefinition.getSystemTags().toArray(new String[ruleDefinition.getSystemTags().size()]))
+      .setTags(new String[0])
       .setId(ruleDefinition.getId());
     if (description != null && descriptionFormat != null) {
       if (RuleDto.Format.HTML.equals(descriptionFormat)) {

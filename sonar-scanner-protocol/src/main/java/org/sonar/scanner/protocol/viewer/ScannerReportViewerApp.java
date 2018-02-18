@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -32,8 +32,8 @@ import java.nio.charset.StandardCharsets;
 import java.sql.Date;
 import java.text.SimpleDateFormat;
 import java.util.List;
+import java.util.Map;
 import java.util.Scanner;
-
 import javax.annotation.CheckForNull;
 import javax.swing.JEditorPane;
 import javax.swing.JFileChooser;
@@ -51,7 +51,6 @@ import javax.swing.event.TreeSelectionListener;
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.TreeSelectionModel;
-
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
 import org.sonar.core.util.CloseableIterator;
@@ -62,6 +61,8 @@ import org.sonar.scanner.protocol.output.ScannerReport.Changesets.Changeset;
 import org.sonar.scanner.protocol.output.ScannerReport.Component;
 import org.sonar.scanner.protocol.output.ScannerReport.Issue;
 import org.sonar.scanner.protocol.output.ScannerReport.Metadata;
+import org.sonar.scanner.protocol.output.ScannerReport.Metadata.Plugin;
+import org.sonar.scanner.protocol.output.ScannerReport.Metadata.QProfile;
 import org.sonar.scanner.protocol.output.ScannerReportReader;
 
 public class ScannerReportViewerApp {
@@ -97,6 +98,12 @@ public class ScannerReportViewerApp {
   private JEditorPane scmEditor;
   private JScrollPane activeRuleTab;
   private JEditorPane activeRuleEditor;
+  private JScrollPane qualityProfileTab;
+  private JEditorPane qualityProfileEditor;
+  private JScrollPane pluginTab;
+  private JEditorPane pluginEditor;
+  private JScrollPane cpdTextBlocksTab;
+  private JEditorPane cpdTextBlocksEditor;
 
   /**
    * Create the application.
@@ -187,6 +194,8 @@ public class ScannerReportViewerApp {
     updateTitle();
     loadComponents();
     updateActiveRules();
+    updateQualityProfiles();
+    updatePlugins();
   }
 
   private void loadComponents() {
@@ -230,7 +239,7 @@ public class ScannerReportViewerApp {
   }
 
   private void updateTitle() {
-    frame.setTitle(metadata.getProjectKey() + (StringUtils.isNotEmpty(metadata.getBranch()) ? (" (" + metadata.getBranch() + ")") : "") + " "
+    frame.setTitle(metadata.getProjectKey() + (StringUtils.isNotEmpty(metadata.getBranchName()) ? (" (" + metadata.getBranchName() + ")") : "") + " "
       + sdf.format(new Date(metadata.getAnalysisDate())));
   }
 
@@ -245,6 +254,21 @@ public class ScannerReportViewerApp {
     updateIssues(component);
     updateMeasures(component);
     updateScm(component);
+    updateCpdTextBlocks(component);
+  }
+
+  private void updateCpdTextBlocks(Component component) {
+    cpdTextBlocksEditor.setText("");
+    if (reader.hasCoverage(component.getRef())) {
+      try (CloseableIterator<ScannerReport.CpdTextBlock> it = reader.readCpdTextBlocks(component.getRef())) {
+        while (it.hasNext()) {
+          ScannerReport.CpdTextBlock textBlock = it.next();
+          cpdTextBlocksEditor.getDocument().insertString(cpdTextBlocksEditor.getDocument().getEndPosition().getOffset(), textBlock + "\n", null);
+        }
+      } catch (Exception e) {
+        throw new IllegalStateException("Can't read CPD text blocks for " + getNodeName(component), e);
+      }
+    }
   }
 
   private void updateDuplications(Component component) {
@@ -332,6 +356,28 @@ public class ScannerReportViewerApp {
     }
   }
 
+  private void updateQualityProfiles() {
+    qualityProfileEditor.setText("");
+
+    StringBuilder builder = new StringBuilder();
+    for (Map.Entry<String, QProfile> qp : metadata.getQprofilesPerLanguage().entrySet()) {
+      builder.append(qp.getKey()).append(":\n").append(qp.getValue()).append("\n\n");
+
+    }
+    qualityProfileEditor.setText(builder.toString());
+  }
+
+  private void updatePlugins() {
+    pluginEditor.setText("");
+
+    StringBuilder builder = new StringBuilder();
+    for (Map.Entry<String, Plugin> p : metadata.getPluginsByKey().entrySet()) {
+      builder.append(p.getKey()).append(":\n").append(p.getValue()).append("\n\n");
+
+    }
+    pluginEditor.setText(builder.toString());
+  }
+
   private void updateHighlighting(Component component) {
     highlightingEditor.setText("");
     try (CloseableIterator<ScannerReport.SyntaxHighlightingRule> it = reader.readComponentSyntaxHighlighting(component.getRef())) {
@@ -370,7 +416,7 @@ public class ScannerReportViewerApp {
         scmEditor.getDocument().insertString(scmEditor.getDocument().getEndPosition().getOffset(), changeset + "\n", null);
         index++;
       }
-      
+
       scmEditor.getDocument().insertString(scmEditor.getDocument().getEndPosition().getOffset(), "\n", null);
       int line = 1;
       for (Integer idx : changesetIndexByLine) {
@@ -484,10 +530,28 @@ public class ScannerReportViewerApp {
     scmTab.setViewportView(scmEditor);
 
     activeRuleTab = new JScrollPane();
-    tabbedPane.addTab("ActiveRules", null, activeRuleTab, null);
+    tabbedPane.addTab("Active Rules", null, activeRuleTab, null);
 
     activeRuleEditor = new JEditorPane();
     activeRuleTab.setViewportView(activeRuleEditor);
+
+    qualityProfileTab = new JScrollPane();
+    tabbedPane.addTab("Quality Profiles", null, qualityProfileTab, null);
+
+    qualityProfileEditor = new JEditorPane();
+    qualityProfileTab.setViewportView(qualityProfileEditor);
+
+    pluginTab = new JScrollPane();
+    tabbedPane.addTab("Plugins", null, pluginTab, null);
+
+    pluginEditor = new JEditorPane();
+    pluginTab.setViewportView(pluginEditor);
+
+    cpdTextBlocksTab = new JScrollPane();
+    tabbedPane.addTab("CPD Text Blocks", null, cpdTextBlocksTab, null);
+
+    cpdTextBlocksEditor = new JEditorPane();
+    cpdTextBlocksTab.setViewportView(cpdTextBlocksEditor);
 
     treeScrollPane = new JScrollPane();
     treeScrollPane.setPreferredSize(new Dimension(200, 400));

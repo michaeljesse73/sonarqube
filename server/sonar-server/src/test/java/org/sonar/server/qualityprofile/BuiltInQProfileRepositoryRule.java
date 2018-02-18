@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,13 +19,18 @@
  */
 package org.sonar.server.qualityprofile;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import org.junit.rules.ExternalResource;
-import org.sonar.api.profiles.RulesProfile;
 import org.sonar.api.resources.Language;
+import org.sonar.api.rule.RuleKey;
+import org.sonar.api.server.profile.BuiltInQualityProfilesDefinition;
+import org.sonar.core.util.stream.MoreCollectors;
+import org.sonar.db.rule.RuleDefinitionDto;
 
 import static com.google.common.base.Preconditions.checkState;
 
@@ -34,7 +39,7 @@ public class BuiltInQProfileRepositoryRule extends ExternalResource implements B
   private List<BuiltInQProfile> profiles = new ArrayList<>();
 
   @Override
-  protected void before() throws Throwable {
+  protected void before() {
     this.initializeCalled = false;
     this.profiles.clear();
   }
@@ -60,27 +65,39 @@ public class BuiltInQProfileRepositoryRule extends ExternalResource implements B
     return add(language, profileName, false);
   }
 
-  public BuiltInQProfile add(Language language, String profileName, boolean isDefault, org.sonar.api.rules.ActiveRule... rules) {
+  public BuiltInQProfile add(Language language, String profileName, boolean isDefault) {
+    return add(language, profileName, isDefault, new BuiltInQProfile.ActiveRule[0]);
+  }
+
+  public BuiltInQProfile add(Language language, String profileName, boolean isDefault, BuiltInQProfile.ActiveRule... rules) {
     BuiltInQProfile builtIn = create(language, profileName, isDefault, rules);
     profiles.add(builtIn);
     return builtIn;
   }
 
-  public BuiltInQProfile create(Language language, String profileName, boolean isDefault, org.sonar.api.rules.ActiveRule... rules) {
-    return new BuiltInQProfile.Builder()
+  public BuiltInQProfile create(Language language, String profileName, boolean isDefault, BuiltInQProfile.ActiveRule... rules) {
+    BuiltInQProfile.Builder builder = new BuiltInQProfile.Builder()
       .setLanguage(language.getKey())
       .setName(profileName)
-      .setDeclaredDefault(isDefault)
-      .addRules(Arrays.asList(rules))
-      .build();
+      .setDeclaredDefault(isDefault);
+    Arrays.stream(rules).forEach(builder::addRule);
+    return builder.build();
   }
 
-  public BuiltInQProfile create(RulesProfile api) {
-    return new BuiltInQProfile.Builder()
-      .setLanguage(api.getLanguage())
-      .setName(api.getName())
-      .setDeclaredDefault(api.getDefaultProfile())
-      .addRules(new ArrayList<>(api.getActiveRules()))
+  public BuiltInQProfile create(BuiltInQualityProfilesDefinition.BuiltInQualityProfile api, RuleDefinitionDto... rules) {
+    BuiltInQProfile.Builder builder = new BuiltInQProfile.Builder()
+      .setLanguage(api.language())
+      .setName(api.name())
+      .setDeclaredDefault(api.isDefault());
+    Map<RuleKey, RuleDefinitionDto> rulesByRuleKey = Arrays.stream(rules)
+      .collect(MoreCollectors.uniqueIndex(RuleDefinitionDto::getKey));
+    api.rules().forEach(rule -> {
+      RuleKey ruleKey = RuleKey.of(rule.repoKey(), rule.ruleKey());
+      RuleDefinitionDto ruleDefinition = rulesByRuleKey.get(ruleKey);
+      Preconditions.checkState(ruleDefinition != null, "Rule '%s' not found", ruleKey);
+      builder.addRule(rule, ruleDefinition.getId());
+    });
+    return builder
       .build();
   }
 }

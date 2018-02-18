@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,10 +20,13 @@
 package org.sonar.scanner.bootstrap;
 
 import com.google.common.collect.Lists;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.sonar.api.BatchExtension;
 import org.sonar.api.batch.BuildBreaker;
 import org.sonar.api.batch.CheckProject;
@@ -34,8 +37,10 @@ import org.sonar.api.batch.Phase;
 import org.sonar.api.batch.PostJob;
 import org.sonar.api.batch.Sensor;
 import org.sonar.api.batch.SensorContext;
+import org.sonar.api.batch.bootstrap.ProjectDefinition;
 import org.sonar.api.batch.fs.internal.DefaultInputModule;
 import org.sonar.api.batch.postjob.PostJobContext;
+import org.sonar.api.batch.postjob.PostJobDescriptor;
 import org.sonar.api.batch.sensor.SensorDescriptor;
 import org.sonar.api.resources.Project;
 import org.sonar.core.platform.ComponentContainer;
@@ -48,6 +53,9 @@ import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 
 public class ScannerExtensionDictionnaryTest {
+
+  @Rule
+  public TemporaryFolder temp = new TemporaryFolder();
 
   private ScannerExtensionDictionnary newSelector(Object... extensions) {
     ComponentContainer iocContainer = new ComponentContainer();
@@ -232,12 +240,13 @@ public class ScannerExtensionDictionnaryTest {
   }
 
   @Test
-  public void checkProject() {
+  public void checkProject() throws IOException {
     BatchExtension ok = new CheckProjectOK();
     BatchExtension ko = new CheckProjectKO();
 
     ScannerExtensionDictionnary selector = newSelector(ok, ko);
-    List<BatchExtension> extensions = Lists.newArrayList(selector.select(BatchExtension.class, new DefaultInputModule("foo"), true, null));
+    List<BatchExtension> extensions = Lists.newArrayList(selector.select(BatchExtension.class,
+      new DefaultInputModule(ProjectDefinition.create().setKey("foo").setBaseDir(temp.newFolder()).setWorkDir(temp.newFolder())), true, null));
 
     assertThat(extensions).hasSize(1);
     assertThat(extensions.get(0)).isInstanceOf(CheckProjectOK.class);
@@ -277,30 +286,42 @@ public class ScannerExtensionDictionnaryTest {
   }
 
   @Test
-  public void dependsUponPhase() {
-    BatchExtension pre = new PreSensor();
-    BatchExtension analyze = new GeneratesSomething("something");
-    BatchExtension post = new PostSensor();
+  public void dependsUponPhaseForNewSensors() {
+    PreSensor pre = new PreSensor();
+    NormalSensor normal = new NormalSensor();
+    PostSensor post = new PostSensor();
 
-    ScannerExtensionDictionnary selector = newSelector(analyze, post, pre);
-    List extensions = Lists.newArrayList(selector.select(BatchExtension.class, null, true, null));
+    ScannerExtensionDictionnary selector = newSelector(normal, post, pre);
+    List<org.sonar.api.batch.sensor.Sensor> extensions = Lists.newArrayList(selector.select(org.sonar.api.batch.sensor.Sensor.class, null, true, null));
+    assertThat(extensions).containsExactly(pre, normal, post);
 
-    assertThat(extensions).hasSize(3);
-    assertThat(extensions.get(0)).isEqualTo(pre);
-    assertThat(extensions.get(1)).isEqualTo(analyze);
-    assertThat(extensions.get(2)).isEqualTo(post);
+    List<Sensor> oldExtensions = Lists.newArrayList(selector.select(Sensor.class, null, true, null));
+    assertThat(oldExtensions).extracting("wrappedSensor").containsExactly(pre, normal, post);
+  }
+
+  @Test
+  public void dependsUponPhaseForNewPostJob() {
+    PrePostJob pre = new PrePostJob();
+    NormalPostJob normal = new NormalPostJob();
+
+    ScannerExtensionDictionnary selector = newSelector(normal, pre);
+    List<org.sonar.api.batch.postjob.PostJob> extensions = Lists.newArrayList(selector.select(org.sonar.api.batch.postjob.PostJob.class, null, true, null));
+    assertThat(extensions).containsExactly(pre, normal);
+
+    List<PostJob> oldExtensions = Lists.newArrayList(selector.select(PostJob.class, null, true, null));
+    assertThat(oldExtensions).extracting("wrappedPostJob").containsExactly(pre, normal);
   }
 
   @Test
   public void dependsUponInheritedPhase() {
-    BatchExtension pre = new PreSensorSubclass();
-    BatchExtension analyze = new GeneratesSomething("something");
-    BatchExtension post = new PostSensorSubclass();
+    PreSensorSubclass pre = new PreSensorSubclass();
+    NormalSensor normal = new NormalSensor();
+    PostSensorSubclass post = new PostSensorSubclass();
 
-    ScannerExtensionDictionnary selector = newSelector(analyze, post, pre);
-    List extensions = Lists.newArrayList(selector.select(BatchExtension.class, null, true, null));
+    ScannerExtensionDictionnary selector = newSelector(normal, post, pre);
+    List extensions = Lists.newArrayList(selector.select(org.sonar.api.batch.sensor.Sensor.class, null, true, null));
 
-    assertThat(extensions).containsExactly(pre, analyze, post);
+    assertThat(extensions).containsExactly(pre, normal, post);
   }
 
   @Test
@@ -420,8 +441,28 @@ public class ScannerExtensionDictionnaryTest {
     }
   }
 
+  class NormalSensor implements org.sonar.api.batch.sensor.Sensor {
+
+    @Override
+    public void describe(SensorDescriptor descriptor) {
+    }
+
+    @Override
+    public void execute(org.sonar.api.batch.sensor.SensorContext context) {
+    }
+
+  }
+
   @Phase(name = Phase.Name.PRE)
-  class PreSensor implements BatchExtension {
+  class PreSensor implements org.sonar.api.batch.sensor.Sensor {
+
+    @Override
+    public void describe(SensorDescriptor descriptor) {
+    }
+
+    @Override
+    public void execute(org.sonar.api.batch.sensor.SensorContext context) {
+    }
 
   }
 
@@ -430,7 +471,15 @@ public class ScannerExtensionDictionnaryTest {
   }
 
   @Phase(name = Phase.Name.POST)
-  class PostSensor implements BatchExtension {
+  class PostSensor implements org.sonar.api.batch.sensor.Sensor {
+
+    @Override
+    public void describe(SensorDescriptor descriptor) {
+    }
+
+    @Override
+    public void execute(org.sonar.api.batch.sensor.SensorContext context) {
+    }
 
   }
 
@@ -454,4 +503,30 @@ public class ScannerExtensionDictionnaryTest {
     public void executeOn(Project project, SensorContext context) {
     }
   }
+
+  class NormalPostJob implements org.sonar.api.batch.postjob.PostJob {
+
+    @Override
+    public void describe(PostJobDescriptor descriptor) {
+    }
+
+    @Override
+    public void execute(PostJobContext context) {
+    }
+
+  }
+
+  @Phase(name = Phase.Name.PRE)
+  class PrePostJob implements org.sonar.api.batch.postjob.PostJob {
+
+    @Override
+    public void describe(PostJobDescriptor descriptor) {
+    }
+
+    @Override
+    public void execute(PostJobContext context) {
+    }
+
+  }
+
 }

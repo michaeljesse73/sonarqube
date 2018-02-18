@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,35 +19,36 @@
  */
 // @flow
 import React from 'react';
-import Modal from 'react-modal';
+import Modal from '../../../components/controls/Modal';
 import { translate } from '../../../helpers/l10n';
 
+/*::
 type Props = {|
   onFinish: () => void
 |};
+*/
 
+/*::
 type State = {
   OnboardingContainer?: Object
 };
+*/
 
 export default class OnboardingModal extends React.PureComponent {
-  mounted: boolean;
-  props: Props;
-  state: State = {};
+  /*:: mounted: boolean; */
+  /*:: props: Props; */
+  state /*: State */ = {};
 
   componentDidMount() {
     this.mounted = true;
-    // $FlowFixMe
-    require.ensure([], require => {
-      this.receiveComponent(require('./OnboardingContainer').default);
-    });
+    import('./OnboardingContainer').then(i => this.receiveComponent(i.default));
   }
 
   componentWillUnmount() {
     this.mounted = false;
   }
 
-  receiveComponent = (OnboardingContainer: Object) => {
+  receiveComponent = (OnboardingContainer /*: Object */) => {
     if (this.mounted) {
       this.setState({ OnboardingContainer });
     }
@@ -57,11 +58,7 @@ export default class OnboardingModal extends React.PureComponent {
     const { OnboardingContainer } = this.state;
 
     return (
-      <Modal
-        isOpen={true}
-        contentLabel={translate('tutorials.onboarding')}
-        className="modal modal-large"
-        overlayClassName="modal-overlay">
+      <Modal contentLabel={translate('tutorials.onboarding')} large={true}>
         {OnboardingContainer != null && <OnboardingContainer onFinish={this.props.onFinish} />}
       </Modal>
     );

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,14 +20,17 @@
 // @flow
 import React from 'react';
 import { sortBy, without } from 'lodash';
-import FacetBox from './components/FacetBox';
-import FacetHeader from './components/FacetHeader';
-import FacetItem from './components/FacetItem';
-import FacetItemsList from './components/FacetItemsList';
-import type { ReferencedComponent } from '../utils';
+import FacetBox from '../../../components/facet/FacetBox';
+import FacetHeader from '../../../components/facet/FacetHeader';
+import FacetItem from '../../../components/facet/FacetItem';
+import FacetItemsList from '../../../components/facet/FacetItemsList';
 import QualifierIcon from '../../../components/shared/QualifierIcon';
 import { translate } from '../../../helpers/l10n';
+import { collapsePath } from '../../../helpers/path';
+import { formatFacetStat } from '../utils';
+/*:: import type { ReferencedComponent } from '../utils'; */
 
+/*::
 type Props = {|
   facetMode: string,
   onChange: (changes: { [string]: Array<string> }) => void,
@@ -37,17 +40,18 @@ type Props = {|
   referencedComponents: { [string]: ReferencedComponent },
   directories: Array<string>
 |};
+*/
 
 export default class DirectoryFacet extends React.PureComponent {
-  props: Props;
+  /*:: props: Props; */
+
+  property = 'directories';
 
   static defaultProps = {
     open: true
   };
 
-  property = 'directories';
-
-  handleItemClick = (itemValue: string) => {
+  handleItemClick = (itemValue /*: string */) => {
     const { directories } = this.props;
     const newValue = sortBy(
       directories.includes(itemValue)
@@ -65,23 +69,16 @@ export default class DirectoryFacet extends React.PureComponent {
     this.props.onChange({ [this.property]: [] });
   };
 
-  getStat(directory: string): ?number {
+  getStat(directory /*: string */) /*: ?number */ {
     const { stats } = this.props;
     return stats ? stats[directory] : null;
   }
 
-  renderName(directory: string): React.Element<*> | string {
-    // `referencedComponents` are indexed by uuid
-    // so we have to browse them all to find a matching one
-    const { referencedComponents } = this.props;
-    const uuid = Object.keys(referencedComponents).find(
-      uuid => referencedComponents[uuid].key === directory
-    );
-    const name = uuid ? referencedComponents[uuid].name : directory;
+  renderName(directory /*: string */) /*: React.Element<*> | string */ {
     return (
       <span>
         <QualifierIcon className="little-spacer-right" qualifier="DIR" />
-        {name}
+        {directory}
       </span>
     );
   }
@@ -100,11 +97,10 @@ export default class DirectoryFacet extends React.PureComponent {
         {directories.map(directory => (
           <FacetItem
             active={this.props.directories.includes(directory)}
-            facetMode={this.props.facetMode}
             key={directory}
             name={this.renderName(directory)}
             onClick={this.handleItemClick}
-            stat={this.getStat(directory)}
+            stat={formatFacetStat(this.getStat(directory), this.props.facetMode)}
             value={directory}
           />
         ))}
@@ -113,6 +109,7 @@ export default class DirectoryFacet extends React.PureComponent {
   }
 
   render() {
+    const values = this.props.directories.map(dir => collapsePath(dir));
     return (
       <FacetBox property={this.property}>
         <FacetHeader
@@ -120,7 +117,7 @@ export default class DirectoryFacet extends React.PureComponent {
           onClear={this.handleClear}
           onClick={this.handleHeaderClick}
           open={this.props.open}
-          values={this.props.directories.length}
+          values={values}
         />
 
         {this.props.open && this.renderList()}

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -166,7 +166,7 @@ public class IntSumFormulaTest {
 
   private static CounterInitializationContext createNoMeasureInInitContext() {
     CounterInitializationContext initContext = mock(CounterInitializationContext.class);
-    when(initContext.getMeasure(LINES_KEY)).thenReturn(Optional.<Measure>absent());
+    when(initContext.getMeasure(LINES_KEY)).thenReturn(Optional.absent());
     return initContext;
   }
 

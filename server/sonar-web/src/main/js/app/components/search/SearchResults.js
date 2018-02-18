@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,9 +21,10 @@
 import React from 'react';
 import SearchShowMore from './SearchShowMore';
 import { sortQualifiers } from './utils';
-import type { Component, More, Results } from './utils';
+/*:: import type { Component, More, Results } from './utils'; */
 import { translate } from '../../../helpers/l10n';
 
+/*::
 type Props = {|
   allowMore: boolean,
   loadingMore: ?string,
@@ -35,9 +36,10 @@ type Props = {|
   results: Results,
   selected: ?string
 |};
+*/
 
 export default class SearchResults extends React.PureComponent {
-  props: Props;
+  /*:: props: Props; */
 
   render() {
     const qualifiers = Object.keys(this.props.results);
@@ -76,8 +78,10 @@ export default class SearchResults extends React.PureComponent {
       }
     });
 
-    return renderedComponents.length > 0
-      ? <ul className="menu">{renderedComponents}</ul>
-      : this.props.renderNoResults();
+    return renderedComponents.length > 0 ? (
+      <ul className="menu">{renderedComponents}</ul>
+    ) : (
+      this.props.renderNoResults()
+    );
   }
 }

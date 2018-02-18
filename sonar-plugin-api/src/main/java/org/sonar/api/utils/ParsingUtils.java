@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -53,7 +53,7 @@ public final class ParsingUtils {
    * @throws ParseException if number cannot be parsed
    */
   public static double parseNumber(String number) throws ParseException {
-    return parseNumber(number, Locale.getDefault());
+    return parseNumber(number, Locale.ENGLISH);
   }
 
   /**

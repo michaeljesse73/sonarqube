@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -34,15 +34,16 @@ import SeverityFacet from './SeverityFacet';
 import StatusFacet from './StatusFacet';
 import TagFacet from './TagFacet';
 import TypeFacet from './TypeFacet';
-import type {
+/*:: import type {
   Query,
   Facet,
   ReferencedComponent,
   ReferencedUser,
   ReferencedLanguage,
   Component
-} from '../utils';
+} from '../utils'; */
 
+/*::
 type Props = {|
   component?: Component,
   facets: { [string]: Facet },
@@ -50,20 +51,22 @@ type Props = {|
   onFacetToggle: (property: string) => void,
   onFilterChange: (changes: { [string]: Array<string> }) => void,
   openFacets: { [string]: boolean },
+  organization?: { key: string },
   query: Query,
   referencedComponents: { [string]: ReferencedComponent },
   referencedLanguages: { [string]: ReferencedLanguage },
   referencedRules: { [string]: { name: string } },
   referencedUsers: { [string]: ReferencedUser }
 |};
+*/
 
 export default class Sidebar extends React.PureComponent {
-  props: Props;
+  /*:: props: Props; */
 
   render() {
     const { component, facets, openFacets, query } = this.props;
 
-    const displayProjectsFacet: boolean =
+    const displayProjectsFacet /*: boolean */ =
       component == null || !['TRK', 'BRC', 'DIR', 'DEV_PRJ'].includes(component.qualifier);
     const displayModulesFacet = component != null && component.qualifier !== 'DIR';
     const displayDirectoriesFacet = component != null && component.qualifier !== 'DIR';
@@ -81,6 +84,14 @@ export default class Sidebar extends React.PureComponent {
           stats={facets.types}
           types={query.types}
         />
+        <SeverityFacet
+          facetMode={query.facetMode}
+          onChange={this.props.onFilterChange}
+          onToggle={this.props.onFacetToggle}
+          open={!!openFacets.severities}
+          severities={query.severities}
+          stats={facets.severities}
+        />
         <ResolutionFacet
           facetMode={query.facetMode}
           onChange={this.props.onFilterChange}
@@ -89,14 +100,6 @@ export default class Sidebar extends React.PureComponent {
           resolved={query.resolved}
           resolutions={query.resolutions}
           stats={facets.resolutions}
-        />
-        <SeverityFacet
-          facetMode={query.facetMode}
-          onChange={this.props.onFilterChange}
-          onToggle={this.props.onFacetToggle}
-          open={!!openFacets.severities}
-          severities={query.severities}
-          stats={facets.severities}
         />
         <StatusFacet
           facetMode={query.facetMode}
@@ -124,31 +127,36 @@ export default class Sidebar extends React.PureComponent {
           languages={query.languages}
           onChange={this.props.onFilterChange}
           onToggle={this.props.onFacetToggle}
+          organization={this.props.organization && this.props.organization.key}
           open={!!openFacets.rules}
           stats={facets.rules}
           referencedRules={this.props.referencedRules}
           rules={query.rules}
         />
         <TagFacet
+          component={component}
           facetMode={query.facetMode}
           onChange={this.props.onFilterChange}
           onToggle={this.props.onFacetToggle}
           open={!!openFacets.tags}
+          organization={this.props.organization}
           stats={facets.tags}
           tags={query.tags}
         />
-        {displayProjectsFacet &&
+        {displayProjectsFacet && (
           <ProjectFacet
             component={component}
             facetMode={query.facetMode}
             onChange={this.props.onFilterChange}
             onToggle={this.props.onFacetToggle}
             open={!!openFacets.projects}
+            organization={this.props.organization}
             projects={query.projects}
             referencedComponents={this.props.referencedComponents}
             stats={facets.projects}
-          />}
-        {displayModulesFacet &&
+          />
+        )}
+        {displayModulesFacet && (
           <ModuleFacet
             facetMode={query.facetMode}
             onChange={this.props.onFilterChange}
@@ -157,8 +165,9 @@ export default class Sidebar extends React.PureComponent {
             modules={query.modules}
             referencedComponents={this.props.referencedComponents}
             stats={facets.modules}
-          />}
-        {displayDirectoriesFacet &&
+          />
+        )}
+        {displayDirectoriesFacet && (
           <DirectoryFacet
             facetMode={query.facetMode}
             onChange={this.props.onFilterChange}
@@ -167,8 +176,9 @@ export default class Sidebar extends React.PureComponent {
             directories={query.directories}
             referencedComponents={this.props.referencedComponents}
             stats={facets.directories}
-          />}
-        {displayFilesFacet &&
+          />
+        )}
+        {displayFilesFacet && (
           <FileFacet
             facetMode={query.facetMode}
             onChange={this.props.onFilterChange}
@@ -177,20 +187,23 @@ export default class Sidebar extends React.PureComponent {
             files={query.files}
             referencedComponents={this.props.referencedComponents}
             stats={facets.files}
-          />}
-        {!this.props.myIssues &&
+          />
+        )}
+        {!this.props.myIssues && (
           <AssigneeFacet
             component={component}
             facetMode={query.facetMode}
             onChange={this.props.onFilterChange}
             onToggle={this.props.onFacetToggle}
             open={!!openFacets.assignees}
+            organization={this.props.organization}
             assigned={query.assigned}
             assignees={query.assignees}
             referencedUsers={this.props.referencedUsers}
             stats={facets.assignees}
-          />}
-        {displayAuthorFacet &&
+          />
+        )}
+        {displayAuthorFacet && (
           <AuthorFacet
             facetMode={query.facetMode}
             onChange={this.props.onFilterChange}
@@ -198,7 +211,8 @@ export default class Sidebar extends React.PureComponent {
             open={!!openFacets.authors}
             authors={query.authors}
             stats={facets.authors}
-          />}
+          />
+        )}
         <LanguageFacet
           facetMode={query.facetMode}
           onChange={this.props.onFilterChange}

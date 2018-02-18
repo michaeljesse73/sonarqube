@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -23,7 +23,7 @@ import com.google.common.base.Function;
 import javax.annotation.Nonnull;
 import org.sonar.api.utils.DateUtils;
 import org.sonar.db.permission.template.PermissionTemplateDto;
-import org.sonarqube.ws.WsPermissions.PermissionTemplate;
+import org.sonarqube.ws.Permissions.PermissionTemplate;
 
 import static org.sonar.core.util.Protobuf.setNullable;
 

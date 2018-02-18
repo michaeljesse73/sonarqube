@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,6 +18,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import React from 'react';
+import PropTypes from 'prop-types';
 import Helmet from 'react-helmet';
 import GenerateSecretKeyForm from './GenerateSecretKeyForm';
 import EncryptionForm from './EncryptionForm';
@@ -25,15 +26,15 @@ import { translate } from '../../../helpers/l10n';
 
 export default class EncryptionApp extends React.PureComponent {
   static propTypes = {
-    loading: React.PropTypes.bool.isRequired,
-    secretKeyAvailable: React.PropTypes.bool,
-    secretKey: React.PropTypes.string,
-    encryptedValue: React.PropTypes.string,
+    loading: PropTypes.bool.isRequired,
+    secretKeyAvailable: PropTypes.bool,
+    secretKey: PropTypes.string,
+    encryptedValue: PropTypes.string,
 
-    checkSecretKey: React.PropTypes.func.isRequired,
-    generateSecretKey: React.PropTypes.func.isRequired,
-    encryptValue: React.PropTypes.func.isRequired,
-    startGeneration: React.PropTypes.func.isRequired
+    checkSecretKey: PropTypes.func.isRequired,
+    generateSecretKey: PropTypes.func.isRequired,
+    encryptValue: PropTypes.func.isRequired,
+    startGeneration: PropTypes.func.isRequired
   };
 
   componentDidMount() {
@@ -50,18 +51,20 @@ export default class EncryptionApp extends React.PureComponent {
         </header>
 
         {!this.props.loading &&
-          !this.props.secretKeyAvailable &&
-          <GenerateSecretKeyForm
-            secretKey={this.props.secretKey}
-            generateSecretKey={this.props.generateSecretKey}
-          />}
+          !this.props.secretKeyAvailable && (
+            <GenerateSecretKeyForm
+              secretKey={this.props.secretKey}
+              generateSecretKey={this.props.generateSecretKey}
+            />
+          )}
 
-        {this.props.secretKeyAvailable &&
+        {this.props.secretKeyAvailable && (
           <EncryptionForm
             encryptedValue={this.props.encryptedValue}
             encryptValue={this.props.encryptValue}
             generateSecretKey={this.props.startGeneration}
-          />}
+          />
+        )}
       </div>
     );
   }

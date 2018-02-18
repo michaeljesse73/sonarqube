@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,6 +20,7 @@
 package org.sonar.api.batch.fs;
 
 import java.io.File;
+import java.net.URI;
 import java.util.Collection;
 
 /**
@@ -39,11 +40,11 @@ public interface FilePredicates {
   FilePredicate none();
 
   /**
-   * Predicate that gets a file by its absolute path. The parameter
+   * Predicate that find file by its absolute path. The parameter
    * accepts forward/back slashes as separator and non-normalized values
    * (<code>/path/to/../foo.txt</code> is same as <code>/path/foo.txt</code>).
    * <p>
-   * Warning - not efficient because absolute path is not indexed yet.
+   * Warning - may not be supported in SonarLint
    */
   FilePredicate hasAbsolutePath(String s);
 
@@ -52,6 +53,8 @@ public interface FilePredicates {
    * accepts forward/back slashes as separator and non-normalized values
    * (<code>foo/../bar.txt</code> is same as <code>bar.txt</code>). It must
    * not be <code>null</code>.
+   * <p>
+   * Warning - may not be supported in SonarLint
    */
   FilePredicate hasRelativePath(String s);
 
@@ -78,11 +81,17 @@ public interface FilePredicates {
   FilePredicate hasExtension(String s);
 
   /**
-   * Predicate that gets the files which relative or absolute path matches a wildcard pattern.
-   * <br>
-   * If the parameter starts with <code>file:</code>, then absolute path is used, else relative path. Pattern
-   * is case-sensitive, except for file extension.
-   * <br>
+   * Predicate that gets a file by its {@link InputFile#uri()}.
+   * 
+   * @since 6.6
+   */
+  FilePredicate hasURI(URI uri);
+
+  /**
+   * Predicate that gets the files which "path" matches a wildcard pattern.
+   * <p>
+   * The path is the path part of the {@link InputFile#uri()}. Pattern is case-sensitive, except for file extension.
+   * <p>
    * Supported wildcards are <code>&#42;</code> and <code>&#42;&#42;</code>, but not <code>?</code>.
    * <br>
    * Examples:
@@ -91,7 +100,6 @@ public interface FilePredicates {
    *   <li><code>&#42;&#42;/&#42;Foo&#42;.java</code> matches src/Foo.java, src/BarFoo.java, src/FooBar.java
    *   and src/BarFooBaz.java</li>
    *   <li><code>&#42;&#42;/&#42;FOO.JAVA</code> matches FOO.java and FOO.JAVA but not Foo.java</li>
-   *   <li><code>file:&#42;&#42;/src/&#42;Foo.java</code> matches /path/to/src/Foo.java on unix and c:\path\to\Foo.java on MSWindows</li>
    * </ul>
    */
   FilePredicate matchesPathPattern(String inclusionPattern);
@@ -119,9 +127,14 @@ public interface FilePredicates {
   /**
    * if the parameter represents an absolute path for the running environment, then
    * returns {@link #hasAbsolutePath(String)}, else {@link #hasRelativePath(String)}
+   * <p>
+   * Warning - may not be supported in SonarLint
    */
   FilePredicate hasPath(String s);
 
+  /**
+   * Warning - may not be supported in SonarLint
+   */
   FilePredicate is(File ioFile);
 
   FilePredicate hasLanguage(String language);
@@ -145,5 +158,17 @@ public interface FilePredicates {
   FilePredicate and(FilePredicate... and);
 
   FilePredicate and(FilePredicate first, FilePredicate second);
+
+  /**
+   * Look for InputFile having a specific {@link InputFile#status()}
+   * @since 6.6
+   */
+  FilePredicate hasStatus(InputFile.Status status);
+
+  /**
+   * Explicitely look for InputFile having any {@link InputFile#status()}
+   * @since 6.6
+   */
+  FilePredicate hasAnyStatus();
 
 }

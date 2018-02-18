@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,7 +21,7 @@
 import React from 'react';
 import GlobalPageExtension from './GlobalPageExtension';
 
-export default function PortfoliosPage(props: Object) {
+export default function PortfoliosPage(props /*: Object */) {
   return (
     <div>
       <GlobalPageExtension

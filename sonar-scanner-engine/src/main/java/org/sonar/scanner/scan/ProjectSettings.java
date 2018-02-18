@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,14 +20,14 @@
 package org.sonar.scanner.scan;
 
 import java.util.Map;
-import org.sonar.api.batch.AnalysisMode;
 import org.sonar.api.config.Encryption;
 import org.sonar.api.config.PropertyDefinitions;
+import org.sonar.scanner.bootstrap.GlobalAnalysisMode;
 import org.sonar.scanner.config.DefaultConfiguration;
 
 public class ProjectSettings extends DefaultConfiguration {
 
-  public ProjectSettings(PropertyDefinitions propertyDefinitions, Encryption encryption, AnalysisMode mode, Map<String, String> props) {
+  public ProjectSettings(PropertyDefinitions propertyDefinitions, Encryption encryption, GlobalAnalysisMode mode, Map<String, String> props) {
     super(propertyDefinitions, encryption, mode, props);
   }
 

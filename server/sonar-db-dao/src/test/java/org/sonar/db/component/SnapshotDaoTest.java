@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,6 +19,7 @@
  */
 package org.sonar.db.component;
 
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
@@ -30,11 +31,19 @@ import org.sonar.api.utils.System2;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
 import org.sonar.db.DbTester;
+import org.sonar.db.ce.CeActivityDto;
+import org.sonar.db.ce.CeQueueDto;
+import org.sonar.db.ce.CeTaskTypes;
 import org.sonar.db.organization.OrganizationTesting;
 
 import static com.google.common.collect.Lists.newArrayList;
 import static java.util.Collections.emptyList;
+import static java.util.Collections.singletonList;
+import static org.apache.commons.lang.RandomStringUtils.randomAlphanumeric;
+import static org.apache.commons.lang.math.RandomUtils.nextLong;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.sonar.db.ce.CeActivityDto.Status.CANCELED;
+import static org.sonar.db.ce.CeActivityDto.Status.SUCCESS;
 import static org.sonar.db.component.ComponentTesting.newPrivateProjectDto;
 import static org.sonar.db.component.SnapshotDto.STATUS_PROCESSED;
 import static org.sonar.db.component.SnapshotDto.STATUS_UNPROCESSED;
@@ -127,7 +136,7 @@ public class SnapshotDaoTest {
     SnapshotDto lastSnapshotOfFirstProject = dbClient.snapshotDao().insert(dbSession, newAnalysis(firstProject).setLast(true));
     ComponentDto secondProject = db.components().insertComponent(newPrivateProjectDto(db.getDefaultOrganization(), "PROJECT_UUID_2"));
     SnapshotDto lastSnapshotOfSecondProject = dbClient.snapshotDao().insert(dbSession, newAnalysis(secondProject).setLast(true));
-    db.components().insertProjectAndSnapshot(ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization()));
+    db.components().insertProjectAndSnapshot(newPrivateProjectDto(db.getDefaultOrganization()));
 
     List<SnapshotDto> result = underTest.selectLastAnalysesByRootComponentUuids(dbSession, newArrayList(firstProject.uuid(), secondProject.uuid()));
 
@@ -181,8 +190,8 @@ public class SnapshotDaoTest {
   }
 
   @Test
-  public void select_first_snapshots() throws Exception {
-    ComponentDto project = ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization());
+  public void select_first_snapshots() {
+    ComponentDto project = newPrivateProjectDto(db.getDefaultOrganization());
     db.getDbClient().componentDao().insert(dbSession, project);
 
     db.getDbClient().snapshotDao().insert(dbSession,
@@ -196,6 +205,89 @@ public class SnapshotDaoTest {
     assertThat(dto.getCreatedAt()).isEqualTo(1L);
 
     assertThat(underTest.selectOldestSnapshot(dbSession, "blabla")).isNull();
+  }
+
+  @Test
+  public void selectFinishedByComponentUuidsAndFromDates() {
+    long from = 1_500_000_000_000L;
+    long otherFrom = 1_200_000_000_000L;
+    ComponentDto firstProject = db.components().insertMainBranch();
+    ComponentDto secondProject = db.components().insertMainBranch();
+    ComponentDto thirdProject = db.components().insertMainBranch();
+    SnapshotDto finishedAnalysis = db.components().insertSnapshot(firstProject, s -> s.setStatus(STATUS_PROCESSED).setCreatedAt(from));
+    insertActivity(firstProject.uuid(), finishedAnalysis, SUCCESS);
+    SnapshotDto otherFinishedAnalysis = db.components().insertSnapshot(firstProject, s -> s.setStatus(STATUS_PROCESSED).setCreatedAt(from + 1_000_000L));
+    insertActivity(firstProject.uuid(), otherFinishedAnalysis, SUCCESS);
+    SnapshotDto oldAnalysis = db.components().insertSnapshot(firstProject, s -> s.setStatus(STATUS_PROCESSED).setCreatedAt(from - 1L));
+    insertActivity(firstProject.uuid(), oldAnalysis, SUCCESS);
+    SnapshotDto analysisOnSecondProject = db.components().insertSnapshot(secondProject, s -> s.setStatus(STATUS_PROCESSED).setCreatedAt(otherFrom));
+    insertActivity(secondProject.uuid(), analysisOnSecondProject, SUCCESS);
+    SnapshotDto oldAnalysisOnThirdProject = db.components().insertSnapshot(thirdProject, s -> s.setStatus(STATUS_PROCESSED).setCreatedAt(otherFrom - 1L));
+    insertActivity(thirdProject.uuid(), oldAnalysisOnThirdProject, SUCCESS);
+
+    List<SnapshotDto> result = underTest.selectFinishedByComponentUuidsAndFromDates(dbSession,
+      Arrays.asList(firstProject.uuid(), secondProject.uuid(), thirdProject.uuid()),
+      Arrays.asList(from, otherFrom, otherFrom));
+
+    assertThat(result).extracting(SnapshotDto::getUuid)
+      .containsExactlyInAnyOrder(finishedAnalysis.getUuid(), otherFinishedAnalysis.getUuid(), analysisOnSecondProject.getUuid());
+  }
+
+  @Test
+  public void selectFinishedByComponentUuidsAndFromDates_ignores_unsuccessful_analysis() {
+    long from = 1_500_000_000_000L;
+    ComponentDto project = db.components().insertMainBranch();
+    SnapshotDto unprocessedAnalysis = db.components().insertSnapshot(project, s -> s.setStatus(STATUS_UNPROCESSED).setCreatedAt(from + 1_000_000L));
+    insertActivity(project.uuid(), unprocessedAnalysis, CANCELED);
+    SnapshotDto finishedAnalysis = db.components().insertSnapshot(project, s -> s.setStatus(STATUS_PROCESSED).setCreatedAt(from));
+    insertActivity(project.uuid(), finishedAnalysis, SUCCESS);
+    SnapshotDto canceledAnalysis = db.components().insertSnapshot(project, s -> s.setStatus(STATUS_PROCESSED).setCreatedAt(from));
+    insertActivity(project.uuid(), canceledAnalysis, CANCELED);
+
+    List<SnapshotDto> result = underTest.selectFinishedByComponentUuidsAndFromDates(dbSession, singletonList(project.uuid()), singletonList(from));
+
+    assertThat(result).extracting(SnapshotDto::getUuid)
+      .containsExactlyInAnyOrder(finishedAnalysis.getUuid());
+  }
+
+  @Test
+  public void selectFinishedByComponentUuidsAndFromDates_return_branches_analysis() {
+    long from = 1_500_000_000_000L;
+    ComponentDto project = db.components().insertMainBranch();
+    ComponentDto firstBranch = db.components().insertProjectBranch(project);
+    ComponentDto secondBranch = db.components().insertProjectBranch(project);
+    SnapshotDto finishedAnalysis = db.components().insertSnapshot(firstBranch, s -> s.setStatus(STATUS_PROCESSED).setCreatedAt(from));
+    insertActivity(project.uuid(), finishedAnalysis, SUCCESS);
+    SnapshotDto otherFinishedAnalysis = db.components().insertSnapshot(firstBranch, s -> s.setStatus(STATUS_PROCESSED).setCreatedAt(from + 1_000_000L));
+    insertActivity(project.uuid(), otherFinishedAnalysis, SUCCESS);
+    SnapshotDto oldAnalysis = db.components().insertSnapshot(firstBranch, s -> s.setStatus(STATUS_PROCESSED).setCreatedAt(from - 1L));
+    insertActivity(project.uuid(), oldAnalysis, SUCCESS);
+    SnapshotDto analysisOnSecondBranch = db.components().insertSnapshot(secondBranch, s -> s.setStatus(STATUS_PROCESSED).setCreatedAt(from));
+    insertActivity(project.uuid(), analysisOnSecondBranch, SUCCESS);
+
+    List<SnapshotDto> result = underTest.selectFinishedByComponentUuidsAndFromDates(dbSession, singletonList(project.uuid()), singletonList(from));
+
+    assertThat(result).extracting(SnapshotDto::getUuid)
+      .containsExactlyInAnyOrder(finishedAnalysis.getUuid(), otherFinishedAnalysis.getUuid(), analysisOnSecondBranch.getUuid());
+  }
+
+  @Test
+  public void selectSnapshotBefore() {
+    ComponentDto project = db.components().insertPrivateProject();
+    SnapshotDto analysis1 = newAnalysis(project).setCreatedAt(50L).setPeriodDate(20L);
+    SnapshotDto analysis2 = newAnalysis(project).setCreatedAt(20L).setPeriodDate(10L);
+    SnapshotDto analysis3 = newAnalysis(project).setCreatedAt(10L).setPeriodDate(null);
+    db.components().insertSnapshots(analysis1, analysis2, analysis3);
+
+    assertThat(underTest.selectSnapshotBefore(project.uuid(), 50L, dbSession))
+      .extracting(ViewsSnapshotDto::getUuid, ViewsSnapshotDto::getCreatedAt, ViewsSnapshotDto::getLeakDate)
+      .containsExactlyInAnyOrder(analysis2.getUuid(), analysis2.getCreatedAt(), analysis2.getPeriodDate());
+
+    assertThat(underTest.selectSnapshotBefore(project.uuid(), 20L, dbSession))
+      .extracting(ViewsSnapshotDto::getUuid, ViewsSnapshotDto::getLeakDate)
+      .containsExactlyInAnyOrder(analysis3.getUuid(), null);
+
+    assertThat(underTest.selectSnapshotBefore(project.uuid(), 5L, dbSession)).isNull();
   }
 
   @Test
@@ -225,6 +317,7 @@ public class SnapshotDaoTest {
     assertThat(dto.getBuildDate()).isEqualTo(1500000000006L);
     assertThat(dto.getCreatedAt()).isEqualTo(1403042400000L);
     assertThat(dto.getVersion()).isEqualTo("2.1-SNAPSHOT");
+
   }
 
   @Test
@@ -307,7 +400,7 @@ public class SnapshotDaoTest {
   }
 
   private SnapshotDto insertAnalysis(String projectUuid, String uuid, String status, boolean isLastFlag) {
-    SnapshotDto snapshot = newAnalysis(ComponentTesting.newPrivateProjectDto(OrganizationTesting.newOrganizationDto(), projectUuid))
+    SnapshotDto snapshot = newAnalysis(newPrivateProjectDto(OrganizationTesting.newOrganizationDto(), projectUuid))
       .setLast(isLastFlag)
       .setStatus(status)
       .setUuid(uuid);
@@ -333,5 +426,21 @@ public class SnapshotDaoTest {
       .setPeriodParam("30")
       .setPeriodDate(1_500_000_000_001L)
       .setBuildDate(1_500_000_000_006L);
+  }
+
+  private CeActivityDto insertActivity(String projectUuid, SnapshotDto analysis, CeActivityDto.Status status) {
+    CeQueueDto queueDto = new CeQueueDto();
+    queueDto.setTaskType(CeTaskTypes.REPORT);
+    queueDto.setComponentUuid(projectUuid);
+    queueDto.setUuid(randomAlphanumeric(40));
+    queueDto.setCreatedAt(nextLong());
+    CeActivityDto activityDto = new CeActivityDto(queueDto);
+    activityDto.setStatus(status);
+    activityDto.setExecutionTimeMs(nextLong());
+    activityDto.setExecutedAt(nextLong());
+    activityDto.setAnalysisUuid(analysis.getUuid());
+    db.getDbClient().ceActivityDao().insert(db.getSession(), activityDto);
+    db.commit();
+    return activityDto;
   }
 }

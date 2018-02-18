@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -39,7 +39,7 @@ public class FavoriteUpdaterTest {
   private static final String COMPONENT_KEY = "K1";
   private static final ComponentDto COMPONENT = ComponentTesting.newPrivateProjectDto(OrganizationTesting.newOrganizationDto())
     .setId(COMPONENT_ID)
-    .setKey(COMPONENT_KEY);
+    .setDbKey(COMPONENT_KEY);
   private static final int USER_ID = 42;
 
   @Rule
@@ -81,14 +81,14 @@ public class FavoriteUpdaterTest {
 
   private void assertFavorite() {
     assertThat(dbClient.propertiesDao().selectByQuery(PropertyQuery.builder()
-      .setUserId((int) USER_ID)
+      .setUserId(USER_ID)
       .setComponentId(COMPONENT_ID)
       .build(), dbSession)).hasSize(1);
   }
 
   private void assertNoFavorite() {
     assertThat(dbClient.propertiesDao().selectByQuery(PropertyQuery.builder()
-      .setUserId((int) USER_ID)
+      .setUserId(USER_ID)
       .setComponentId(COMPONENT_ID)
       .build(), dbSession)).isEmpty();
   }

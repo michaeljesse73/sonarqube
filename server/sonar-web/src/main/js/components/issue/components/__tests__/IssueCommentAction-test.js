@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -26,7 +26,7 @@ it('should render correctly', () => {
   const element = shallow(
     <IssueCommentAction
       issueKey="issue-key"
-      currentPopup=""
+      currentPopup={null}
       onFail={jest.fn()}
       onIssueChange={jest.fn()}
       toggleComment={jest.fn()}
@@ -40,7 +40,7 @@ it('should open the popup when the button is clicked', () => {
   const element = shallow(
     <IssueCommentAction
       issueKey="issue-key"
-      currentPopup=""
+      currentPopup={null}
       onFail={jest.fn()}
       onIssueChange={jest.fn()}
       toggleComment={toggle}

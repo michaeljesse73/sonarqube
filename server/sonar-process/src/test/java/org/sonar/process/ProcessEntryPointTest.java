@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -28,6 +28,7 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestRule;
 import org.junit.rules.Timeout;
 import org.sonar.process.Lifecycle.State;
+import org.sonar.process.sharedmemoryfile.ProcessCommands;
 import org.sonar.process.test.StandardProcess;
 
 import java.io.File;
@@ -39,7 +40,7 @@ import static org.mockito.Mockito.mock;
 import static org.sonar.process.ProcessEntryPoint.PROPERTY_PROCESS_INDEX;
 import static org.sonar.process.ProcessEntryPoint.PROPERTY_PROCESS_KEY;
 import static org.sonar.process.ProcessEntryPoint.PROPERTY_SHARED_PATH;
-import static org.sonar.process.ProcessEntryPoint.PROPERTY_TERMINATION_TIMEOUT;
+import static org.sonar.process.ProcessEntryPoint.PROPERTY_TERMINATION_TIMEOUT_MS;
 
 public class ProcessEntryPointTest {
 
@@ -158,7 +159,7 @@ public class ProcessEntryPointTest {
     props.set(PROPERTY_SHARED_PATH, temp.newFolder().getAbsolutePath());
     props.set(PROPERTY_PROCESS_INDEX, "1");
     props.set(PROPERTY_PROCESS_KEY, "test");
-    props.set(PROPERTY_TERMINATION_TIMEOUT, "30000");
+    props.set(PROPERTY_TERMINATION_TIMEOUT_MS, "30000");
     return props;
   }
 

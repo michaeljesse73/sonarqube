@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -36,13 +36,14 @@ import org.sonar.api.batch.ScannerSide;
 import org.sonar.api.batch.fs.InputComponent;
 import org.sonar.api.batch.fs.InputDir;
 import org.sonar.api.batch.fs.InputFile;
+import org.sonar.api.batch.fs.InputFile.Status;
 import org.sonar.api.batch.fs.InputModule;
 import org.sonar.api.batch.fs.internal.DefaultInputDir;
 import org.sonar.api.batch.fs.internal.DefaultInputFile;
 import org.sonar.api.batch.fs.internal.DefaultInputModule;
 import org.sonar.api.batch.fs.internal.FileExtensionPredicate;
-import org.sonar.api.batch.fs.internal.FilenamePredicate;
 import org.sonar.api.scan.filesystem.PathResolver;
+import org.sonar.scanner.scan.branch.BranchConfiguration;
 
 /**
  * Store of all files and dirs. This cache is shared amongst all project modules. Inclusion and
@@ -51,7 +52,6 @@ import org.sonar.api.scan.filesystem.PathResolver;
 @ScannerSide
 public class InputComponentStore {
 
-  private final PathResolver pathResolver;
   private final SortedSet<String> globalLanguagesCache = new TreeSet<>();
   private final Map<String, SortedSet<String>> languagesCache = new HashMap<>();
   private final Map<String, InputFile> globalInputFileCache = new HashMap<>();
@@ -64,10 +64,11 @@ public class InputComponentStore {
   private final SetMultimap<String, InputFile> filesByNameCache = LinkedHashMultimap.create();
   private final SetMultimap<String, InputFile> filesByExtensionCache = LinkedHashMultimap.create();
   private final InputModule root;
+  private final BranchConfiguration branchConfiguration;
 
-  public InputComponentStore(PathResolver pathResolver, DefaultInputModule root) {
-    this.pathResolver = pathResolver;
+  public InputComponentStore(DefaultInputModule root, BranchConfiguration branchConfiguration) {
     this.root = root;
+    this.branchConfiguration = branchConfiguration;
     this.put(root);
   }
 
@@ -78,7 +79,8 @@ public class InputComponentStore {
   public Iterable<DefaultInputFile> allFilesToPublish() {
     return inputFileCache.values().stream()
       .map(f -> (DefaultInputFile) f)
-      .filter(DefaultInputFile::publish)::iterator;
+      .filter(DefaultInputFile::isPublished)
+      .filter(f -> (!branchConfiguration.isShortLivingBranch()) || f.status() != Status.SAME)::iterator;
   }
 
   public Iterable<InputFile> allFiles() {
@@ -113,7 +115,7 @@ public class InputComponentStore {
 
   public InputComponentStore remove(InputFile inputFile) {
     DefaultInputFile file = (DefaultInputFile) inputFile;
-    inputFileCache.remove(file.moduleKey(), inputFile.relativePath());
+    inputFileCache.remove(file.moduleKey(), file.getModuleRelativePath());
     return this;
   }
 
@@ -126,10 +128,10 @@ public class InputComponentStore {
   public InputComponentStore put(InputFile inputFile) {
     DefaultInputFile file = (DefaultInputFile) inputFile;
     addToLanguageCache(file);
-    inputFileCache.put(file.moduleKey(), inputFile.relativePath(), inputFile);
-    globalInputFileCache.put(getProjectRelativePath(file), inputFile);
+    inputFileCache.put(file.moduleKey(), file.getModuleRelativePath(), inputFile);
+    globalInputFileCache.put(file.getProjectRelativePath(), inputFile);
     inputComponents.put(inputFile.key(), inputFile);
-    filesByNameCache.put(FilenamePredicate.getFilename(inputFile), inputFile);
+    filesByNameCache.put(inputFile.filename(), inputFile);
     filesByExtensionCache.put(FileExtensionPredicate.getExtension(inputFile), inputFile);
     return this;
   }
@@ -145,21 +147,18 @@ public class InputComponentStore {
   public InputComponentStore put(InputDir inputDir) {
     DefaultInputDir dir = (DefaultInputDir) inputDir;
     inputDirCache.put(dir.moduleKey(), inputDir.relativePath(), inputDir);
+    // FIXME an InputDir can be already indexed by another module
     globalInputDirCache.put(getProjectRelativePath(dir), inputDir);
     inputComponents.put(inputDir.key(), inputDir);
     return this;
   }
 
-  private String getProjectRelativePath(DefaultInputFile file) {
-    return pathResolver.relativePath(getProjectBaseDir(), file.path());
-  }
-
   private String getProjectRelativePath(DefaultInputDir dir) {
-    return pathResolver.relativePath(getProjectBaseDir(), dir.path());
+    return PathResolver.relativize(getProjectBaseDir(), dir.path()).orElseThrow(() -> new IllegalStateException("Dir " + dir.path() + " should be relative to project baseDir"));
   }
 
   private Path getProjectBaseDir() {
-    return ((DefaultInputModule) root).getBaseDir().toPath();
+    return ((DefaultInputModule) root).getBaseDir();
   }
 
   @CheckForNull

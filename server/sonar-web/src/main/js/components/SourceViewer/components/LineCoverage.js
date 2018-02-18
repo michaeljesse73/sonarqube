@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,17 +21,19 @@
 import React from 'react';
 import Tooltip from '../../controls/Tooltip';
 import { translate } from '../../../helpers/l10n';
-import type { SourceLine } from '../types';
+/*:: import type { SourceLine } from '../types'; */
 
+/*::
 type Props = {
   line: SourceLine,
   onClick: (SourceLine, HTMLElement) => void
 };
+*/
 
 export default class LineCoverage extends React.PureComponent {
-  props: Props;
+  /*:: props: Props; */
 
-  handleClick = (e: SyntheticInputEvent) => {
+  handleClick = (e /*: SyntheticInputEvent */) => {
     e.preventDefault();
     this.props.onClick(this.props.line, e.target);
   };
@@ -41,23 +43,25 @@ export default class LineCoverage extends React.PureComponent {
     const className =
       'source-meta source-line-coverage' +
       (line.coverageStatus != null ? ` source-line-${line.coverageStatus}` : '');
+    const hasPopup =
+      line.coverageStatus === 'covered' || line.coverageStatus === 'partially-covered';
     const cell = (
       <td
         className={className}
         data-line-number={line.line}
-        role={line.coverageStatus != null ? 'button' : undefined}
-        tabIndex={line.coverageStatus != null ? 0 : undefined}
-        onClick={line.coverageStatus != null ? this.handleClick : undefined}>
+        role={hasPopup ? 'button' : undefined}
+        tabIndex={hasPopup ? 0 : undefined}
+        onClick={hasPopup ? this.handleClick : undefined}>
         <div className="source-line-bar" />
       </td>
     );
 
-    return line.coverageStatus != null
-      ? <Tooltip
-          overlay={translate('source_viewer.tooltip', line.coverageStatus)}
-          placement="right">
-          {cell}
-        </Tooltip>
-      : cell;
+    return line.coverageStatus != null ? (
+      <Tooltip overlay={translate('source_viewer.tooltip', line.coverageStatus)} placement="right">
+        {cell}
+      </Tooltip>
+    ) : (
+      cell
+    );
   }
 }

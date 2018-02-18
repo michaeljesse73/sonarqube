@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -27,9 +27,9 @@ import org.sonar.api.server.ws.WebService;
 import org.sonar.server.user.UserSession;
 import org.sonarqube.ws.Settings.EncryptWsResponse;
 
+import static org.sonar.server.setting.ws.SettingsWsParameters.PARAM_VALUE;
 import static org.sonar.server.ws.WsUtils.checkRequest;
 import static org.sonar.server.ws.WsUtils.writeProtobuf;
-import static org.sonarqube.ws.client.setting.SettingsWsParameters.PARAM_VALUE;
 
 public class EncryptAction implements SettingsWsAction {
   private final UserSession userSession;

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -99,9 +99,7 @@ export default function WildcardsHelp() {
             </td>
           </tr>
           <tr>
-            <td>
-              **/foo?.js
-            </td>
+            <td>**/foo?.js</td>
             <td>
               <ul>
                 <li>src/foo1.js</li>

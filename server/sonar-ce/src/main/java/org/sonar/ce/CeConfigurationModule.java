@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,9 +21,11 @@ package org.sonar.ce;
 
 import org.sonar.ce.configuration.CeConfigurationImpl;
 import org.sonar.ce.log.CeLogging;
-import org.sonar.core.platform.Module;
-import org.sonar.process.systeminfo.ProcessStateSystemInfo;
 import org.sonar.ce.monitoring.CeDatabaseMBeanImpl;
+import org.sonar.core.platform.Module;
+import org.sonar.process.systeminfo.JvmPropertiesSection;
+import org.sonar.process.systeminfo.JvmStateSection;
+import org.sonar.server.platform.monitoring.cluster.LoggingSection;
 
 public class CeConfigurationModule extends Module {
   @Override
@@ -32,6 +34,8 @@ public class CeConfigurationModule extends Module {
       CeConfigurationImpl.class,
       CeLogging.class,
       CeDatabaseMBeanImpl.class,
-      new ProcessStateSystemInfo("Compute Engine State"));
+      new JvmStateSection("Compute Engine JVM State"),
+      new JvmPropertiesSection("Compute Engine JVM Properties"),
+      LoggingSection.class);
   }
 }

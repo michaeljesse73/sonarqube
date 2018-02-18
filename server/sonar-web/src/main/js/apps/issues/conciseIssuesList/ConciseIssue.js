@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,8 +21,9 @@
 import React from 'react';
 import ConciseIssueBox from './ConciseIssueBox';
 import ConciseIssueComponent from './ConciseIssueComponent';
-import type { Issue } from '../../../components/issue/types';
+/*:: import type { Issue } from '../../../components/issue/types'; */
 
+/*::
 type Props = {|
   issue: Issue,
   onFlowSelect: number => void,
@@ -34,9 +35,10 @@ type Props = {|
   selectedFlowIndex: ?number,
   selectedLocationIndex: ?number
 |};
+*/
 
 export default class ConciseIssue extends React.PureComponent {
-  props: Props;
+  /*:: props: Props; */
 
   render() {
     const { issue, previousIssue, selected } = this.props;

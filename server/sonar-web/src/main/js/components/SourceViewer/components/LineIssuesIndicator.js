@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,19 +22,21 @@ import React from 'react';
 import classNames from 'classnames';
 import SeverityIcon from '../../shared/SeverityIcon';
 import { sortBySeverity } from '../../../helpers/issues';
-import type { SourceLine } from '../types';
-import type { Issue } from '../../issue/types';
+/*:: import type { SourceLine } from '../types'; */
+/*:: import type { Issue } from '../../issue/types'; */
 
+/*::
 type Props = {
   issues: Array<Issue>,
   line: SourceLine,
   onClick: () => void
 };
+*/
 
 export default class LineIssuesIndicator extends React.PureComponent {
-  props: Props;
+  /*:: props: Props; */
 
-  handleClick = (e: SyntheticInputEvent) => {
+  handleClick = (e /*: SyntheticInputEvent */) => {
     e.preventDefault();
     this.props.onClick();
   };

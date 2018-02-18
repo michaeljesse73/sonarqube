@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,12 +18,13 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import React from 'react';
+import PropTypes from 'prop-types';
 import CreationModal from './views/CreationModal';
 import { translate } from '../../../helpers/l10n';
 
 export default class Header extends React.PureComponent {
   static propTypes = {
-    onCreate: React.PropTypes.func.isRequired
+    onCreate: PropTypes.func.isRequired
   };
 
   handleCreateClick(e) {
@@ -37,17 +38,13 @@ export default class Header extends React.PureComponent {
   render() {
     return (
       <header className="page-header">
-        <h1 className="page-title">
-          {translate('project_links.page')}
-        </h1>
+        <h1 className="page-title">{translate('project_links.page')}</h1>
         <div className="page-actions">
           <button id="create-project-link" onClick={this.handleCreateClick.bind(this)}>
             {translate('create')}
           </button>
         </div>
-        <div className="page-description">
-          {translate('project_links.page.description')}
-        </div>
+        <div className="page-description">{translate('project_links.page.description')}</div>
       </header>
     );
   }

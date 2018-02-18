@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -44,15 +44,15 @@ import org.sonar.db.user.UserDto;
 import org.sonar.server.exceptions.UnauthorizedException;
 import org.sonar.server.tester.UserSessionRule;
 import org.sonar.server.ws.WsActionTester;
-import org.sonarqube.ws.WsProjects.SearchMyProjectsWsResponse;
-import org.sonarqube.ws.WsProjects.SearchMyProjectsWsResponse.Project;
+import org.sonarqube.ws.Projects.SearchMyProjectsWsResponse;
+import org.sonarqube.ws.Projects.SearchMyProjectsWsResponse.Project;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonar.api.measures.CoreMetrics.ALERT_STATUS_KEY;
 import static org.sonar.db.component.ComponentTesting.newPrivateProjectDto;
 import static org.sonar.db.component.ComponentTesting.newView;
 import static org.sonar.db.component.SnapshotTesting.newAnalysis;
-import static org.sonar.db.measure.MeasureTesting.newMeasureDto;
+import static org.sonar.db.measure.MeasureTesting.newLiveMeasure;
 import static org.sonar.db.metric.MetricTesting.newMetricDto;
 import static org.sonar.db.user.UserTesting.newUserDto;
 import static org.sonar.test.JsonAssert.assertJson;
@@ -79,7 +79,7 @@ public class SearchMyProjectsActionTest {
     alertStatusMetric = dbClient.metricDao().insert(dbSession, newMetricDto().setKey(ALERT_STATUS_KEY).setValueType(ValueType.LEVEL.name()));
     db.commit();
 
-    ws = new WsActionTester(new SearchMyProjectsAction(dbClient, new SearchMyProjectsDataLoader(userSession, dbClient), userSession));
+    ws = new WsActionTester(new SearchMyProjectsAction(dbClient, userSession));
   }
 
   @Test
@@ -95,8 +95,8 @@ public class SearchMyProjectsActionTest {
     long anotherTime = DateUtils.parseDateTime("2016-06-11T14:25:53+0000").getTime();
     SnapshotDto jdk7Snapshot = dbClient.snapshotDao().insert(dbSession, newAnalysis(jdk7).setCreatedAt(oneTime));
     SnapshotDto cLangSnapshot = dbClient.snapshotDao().insert(dbSession, newAnalysis(cLang).setCreatedAt(anotherTime));
-    dbClient.measureDao().insert(dbSession, newMeasureDto(alertStatusMetric, jdk7, jdk7Snapshot).setData(Level.ERROR.name()));
-    dbClient.measureDao().insert(dbSession, newMeasureDto(alertStatusMetric, cLang, cLangSnapshot).setData(Level.OK.name()));
+    dbClient.liveMeasureDao().insert(dbSession, newLiveMeasure(jdk7, alertStatusMetric).setData(Level.ERROR.name()));
+    dbClient.liveMeasureDao().insert(dbSession, newLiveMeasure(cLang, alertStatusMetric).setData(Level.OK.name()));
     db.users().insertProjectPermissionOnUser(user, UserRole.ADMIN, jdk7);
     db.users().insertProjectPermissionOnUser(user, UserRole.ADMIN, cLang);
     db.commit();
@@ -173,7 +173,7 @@ public class SearchMyProjectsActionTest {
   }
 
   @Test
-  public void do_not_return_views() {
+  public void does_not_return_views() {
     OrganizationDto organizationDto = db.organizations().insert();
     ComponentDto jdk7 = insertJdk7(organizationDto);
     ComponentDto view = insertView(organizationDto);
@@ -185,6 +185,19 @@ public class SearchMyProjectsActionTest {
 
     assertThat(result.getProjectsCount()).isEqualTo(1);
     assertThat(result.getProjects(0).getId()).isEqualTo(jdk7.uuid());
+  }
+
+  @Test
+  public void does_not_return_branches() {
+    ComponentDto project = db.components().insertMainBranch();
+    ComponentDto branch = db.components().insertProjectBranch(project);
+    db.users().insertProjectPermissionOnUser(user, UserRole.ADMIN, project);
+
+    SearchMyProjectsWsResponse result = call_ws();
+
+    assertThat(result.getProjectsList())
+      .extracting(Project::getKey)
+      .containsExactlyInAnyOrder(project.getDbKey());
   }
 
   @Test
@@ -244,20 +257,20 @@ public class SearchMyProjectsActionTest {
   private ComponentDto insertClang(OrganizationDto organizationDto) {
     return db.components().insertComponent(newPrivateProjectDto(organizationDto, Uuids.UUID_EXAMPLE_01)
       .setName("Clang")
-      .setKey("clang"));
+      .setDbKey("clang"));
   }
 
   private ComponentDto insertJdk7(OrganizationDto organizationDto) {
     return db.components().insertComponent(newPrivateProjectDto(organizationDto, Uuids.UUID_EXAMPLE_02)
       .setName("JDK 7")
-      .setKey("net.java.openjdk:jdk7")
+      .setDbKey("net.java.openjdk:jdk7")
       .setDescription("JDK"));
   }
 
   private ComponentDto insertView(OrganizationDto organizationDto) {
     return db.components().insertComponent(newView(organizationDto, "752d8bfd-420c-4a83-a4e5-8ab19b13c8fc")
       .setName("Java")
-      .setKey("Java"));
+      .setDbKey("Java"));
   }
 
   private SearchMyProjectsWsResponse call_ws() {

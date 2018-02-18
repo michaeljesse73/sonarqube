@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,9 +20,17 @@
 import React from 'react';
 import { shallow } from 'enzyme';
 import ProjectActivityPageHeader from '../ProjectActivityPageHeader';
+import { parseDate } from '../../../../helpers/dates';
 
 it('should render correctly the list of series', () => {
   expect(
-    shallow(<ProjectActivityPageHeader category="" updateQuery={() => {}} />)
+    shallow(
+      <ProjectActivityPageHeader
+        category=""
+        from={parseDate('2016-10-27T12:21:15+0200')}
+        project={{}}
+        updateQuery={() => {}}
+      />
+    )
   ).toMatchSnapshot();
 });

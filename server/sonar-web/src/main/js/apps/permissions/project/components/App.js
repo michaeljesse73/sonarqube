@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,16 +21,17 @@
 import React from 'react';
 import Helmet from 'react-helmet';
 import { without } from 'lodash';
+import AllHoldersList from './AllHoldersList';
 import PageHeader from './PageHeader';
+import PublicProjectDisclaimer from './PublicProjectDisclaimer';
 import UpgradeOrganizationBox from '../../../../components/common/UpgradeOrganizationBox';
 import VisibilitySelector from '../../../../components/common/VisibilitySelector';
-import AllHoldersList from './AllHoldersList';
-import PublicProjectDisclaimer from './PublicProjectDisclaimer';
 import PageError from '../../shared/components/PageError';
 import * as api from '../../../../api/permissions';
 import { translate } from '../../../../helpers/l10n';
 import '../../styles.css';
 
+/*::
 export type Props = {|
   component: {
     configuration?: {
@@ -46,7 +47,9 @@ export type Props = {|
   onComponentChange: (changes: {}) => void,
   onRequestFail: Object => void
 |};
+*/
 
+/*::
 export type State = {|
   disclaimer: boolean,
   filter: string,
@@ -63,13 +66,14 @@ export type State = {|
     permissions: Array<string>
   }>
 |};
+*/
 
 export default class App extends React.PureComponent {
-  mounted: boolean;
-  props: Props;
-  state: State;
+  /*:: mounted: boolean; */
+  /*:: props: Props; */
+  /*:: state: State; */
 
-  constructor(props: Props) {
+  constructor(props /*: Props */) {
     super(props);
     this.state = {
       disclaimer: false,
@@ -103,23 +107,25 @@ export default class App extends React.PureComponent {
       const { component } = this.props;
       const { filter, query, selectedPermission } = this.state;
 
-      const getUsers = filter !== 'groups'
-        ? api.getPermissionsUsersForComponent(
-            component.key,
-            query,
-            selectedPermission,
-            component.organization
-          )
-        : Promise.resolve([]);
+      const getUsers =
+        filter !== 'groups'
+          ? api.getPermissionsUsersForComponent(
+              component.key,
+              query,
+              selectedPermission,
+              component.organization
+            )
+          : Promise.resolve([]);
 
-      const getGroups = filter !== 'users'
-        ? api.getPermissionsGroupsForComponent(
-            component.key,
-            query,
-            selectedPermission,
-            component.organization
-          )
-        : Promise.resolve([]);
+      const getGroups =
+        filter !== 'users'
+          ? api.getPermissionsGroupsForComponent(
+              component.key,
+              query,
+              selectedPermission,
+              component.organization
+            )
+          : Promise.resolve([]);
 
       Promise.all([getUsers, getGroups]).then(
         responses => {
@@ -137,68 +143,63 @@ export default class App extends React.PureComponent {
     }
   };
 
-  handleFilterChange = (filter: string) => {
+  handleFilterChange = (filter /*: string */) => {
     if (this.mounted) {
       this.setState({ filter }, this.loadHolders);
     }
   };
 
-  handleQueryChange = (query: string) => {
+  handleQueryChange = (query /*: string */) => {
     if (this.mounted) {
-      this.setState({ query }, () => {
-        if (query.length === 0 || query.length > 2) {
-          this.loadHolders();
-        }
-      });
+      this.setState({ query }, this.loadHolders);
     }
   };
 
-  handlePermissionSelect = (selectedPermission?: string) => {
+  handlePermissionSelect = (selectedPermission /*: ?string */) => {
     if (this.mounted) {
       this.setState(
-        (state: State) => ({
-          selectedPermission: state.selectedPermission === selectedPermission
-            ? undefined
-            : selectedPermission
+        (state /*: State */) => ({
+          selectedPermission:
+            state.selectedPermission === selectedPermission ? undefined : selectedPermission
         }),
         this.loadHolders
       );
     }
   };
 
-  addPermissionToGroup = (group: string, permission: string) =>
+  addPermissionToGroup = (group /*: string */, permission /*: string */) =>
     this.state.groups.map(
       candidate =>
-        (candidate.name === group
+        candidate.name === group
           ? { ...candidate, permissions: [...candidate.permissions, permission] }
-          : candidate)
+          : candidate
     );
 
-  addPermissionToUser = (user: string, permission: string) =>
+  addPermissionToUser = (user /*: string */, permission /*: string */) =>
     this.state.users.map(
       candidate =>
-        (candidate.login === user
+        candidate.login === user
           ? { ...candidate, permissions: [...candidate.permissions, permission] }
-          : candidate)
+          : candidate
     );
 
-  removePermissionFromGroup = (group: string, permission: string) =>
+  removePermissionFromGroup = (group /*: string */, permission /*: string */) =>
     this.state.groups.map(
       candidate =>
-        (candidate.name === group
+        candidate.name === group
           ? { ...candidate, permissions: without(candidate.permissions, permission) }
-          : candidate)
+          : candidate
     );
 
-  removePermissionFromUser = (user: string, permission: string) =>
+  removePermissionFromUser = (user /*: string */, permission /*: string */) =>
     this.state.users.map(
       candidate =>
-        (candidate.login === user
+        candidate.login === user
           ? { ...candidate, permissions: without(candidate.permissions, permission) }
-          : candidate)
+          : candidate
     );
 
-  grantPermissionToGroup = (group: string, permission: string) => {
+  grantPermissionToGroup = (group /*: string */, permission /*: string */) => {
     if (this.mounted) {
       this.setState({ loading: true, groups: this.addPermissionToGroup(group, permission) });
       api
@@ -220,7 +221,7 @@ export default class App extends React.PureComponent {
     }
   };
 
-  grantPermissionToUser = (user: string, permission: string) => {
+  grantPermissionToUser = (user /*: string */, permission /*: string */) => {
     if (this.mounted) {
       this.setState({ loading: true, users: this.addPermissionToUser(user, permission) });
       api
@@ -242,7 +243,7 @@ export default class App extends React.PureComponent {
     }
   };
 
-  revokePermissionFromGroup = (group: string, permission: string) => {
+  revokePermissionFromGroup = (group /*: string */, permission /*: string */) => {
     if (this.mounted) {
       this.setState({ loading: true, groups: this.removePermissionFromGroup(group, permission) });
       api
@@ -264,7 +265,7 @@ export default class App extends React.PureComponent {
     }
   };
 
-  revokePermissionFromUser = (user: string, permission: string) => {
+  revokePermissionFromUser = (user /*: string */, permission /*: string */) => {
     if (this.mounted) {
       this.setState({ loading: true, users: this.removePermissionFromUser(user, permission) });
       api
@@ -286,7 +287,7 @@ export default class App extends React.PureComponent {
     }
   };
 
-  handleVisibilityChange = (visibility: string) => {
+  handleVisibilityChange = (visibility /*: string */) => {
     if (visibility === 'public') {
       this.openDisclaimer();
     } else {
@@ -347,21 +348,25 @@ export default class App extends React.PureComponent {
           loadHolders={this.loadHolders}
         />
         <PageError />
-        {this.props.component.qualifier === 'TRK' &&
+        <div>
           <VisibilitySelector
             canTurnToPrivate={canTurnToPrivate}
             className="big-spacer-top big-spacer-bottom"
             onChange={this.handleVisibilityChange}
             visibility={this.props.component.visibility}
-          />}
-        {!canTurnToPrivate &&
-          <UpgradeOrganizationBox organization={this.props.component.organization} />}
-        {this.state.disclaimer &&
-          <PublicProjectDisclaimer
-            component={this.props.component}
-            onClose={this.closeDisclaimer}
-            onConfirm={this.turnProjectToPublic}
-          />}
+          />
+          {this.props.component.qualifier === 'TRK' &&
+            !canTurnToPrivate && (
+              <UpgradeOrganizationBox organization={this.props.component.organization} />
+            )}
+          {this.state.disclaimer && (
+            <PublicProjectDisclaimer
+              component={this.props.component}
+              onClose={this.closeDisclaimer}
+              onConfirm={this.turnProjectToPublic}
+            />
+          )}
+        </div>
         <AllHoldersList
           component={this.props.component}
           filter={this.state.filter}

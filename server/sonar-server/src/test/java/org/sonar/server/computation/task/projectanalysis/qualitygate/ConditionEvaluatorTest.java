@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -285,7 +285,7 @@ public class ConditionEvaluatorTest {
   }
 
   @Test
-  public void test_condition_on_rating() throws Exception {
+  public void test_condition_on_rating() {
     Metric metric = createMetric(RATING);
     Measure measure = newMeasureBuilder().create(4, "D");
 
@@ -294,7 +294,7 @@ public class ConditionEvaluatorTest {
   }
 
   @Test
-  public void test_condition_on_rating_on_leak_period() throws Exception {
+  public void test_condition_on_rating_on_leak_period() {
     Metric metric = createMetric(RATING);
     Measure measure = newMeasureBuilder().setVariation(4d).createNoValue();
 
@@ -303,7 +303,7 @@ public class ConditionEvaluatorTest {
   }
 
   @Test
-  public void test_condition_on_rating_on_leak_period_when_variation_is_zero() throws Exception {
+  public void test_condition_on_rating_on_leak_period_when_variation_is_zero() {
     Metric metric = createMetric(RATING);
     Measure measure = newMeasureBuilder().setVariation(0d).createNoValue();
 

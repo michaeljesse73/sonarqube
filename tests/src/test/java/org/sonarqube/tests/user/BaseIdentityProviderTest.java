@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,25 +20,24 @@
 package org.sonarqube.tests.user;
 
 import com.google.common.base.Joiner;
-import com.google.common.base.Optional;
 import com.sonar.orchestrator.Orchestrator;
-import org.sonarqube.tests.Category4Suite;
 import java.io.File;
+import java.util.Optional;
 import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.rules.RuleChain;
+import org.sonarqube.qa.util.pageobjects.Navigation;
 import org.sonarqube.ws.client.GetRequest;
 import org.sonarqube.ws.client.WsClient;
-import org.sonarqube.ws.client.user.CreateRequest;
-import org.sonarqube.pageobjects.Navigation;
+import org.sonarqube.ws.client.users.CreateRequest;
 import util.user.UserRule;
 import util.user.Users;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.guava.api.Assertions.assertThat;
 import static util.ItUtils.newAdminWsClient;
 import static util.ItUtils.resetSettings;
 import static util.ItUtils.setServerProperty;
@@ -51,10 +50,12 @@ import static util.selenium.Selenese.runSelenese;
 public class BaseIdentityProviderTest {
 
   @ClassRule
-  public static Orchestrator ORCHESTRATOR = Category4Suite.ORCHESTRATOR;
+  public static Orchestrator ORCHESTRATOR = UserSuite.ORCHESTRATOR;
+
+  private static UserRule userRule = UserRule.from(ORCHESTRATOR);
 
   @ClassRule
-  public static UserRule userRule = UserRule.from(ORCHESTRATOR);
+  public static RuleChain ruleChain = RuleChain.outerRule(ORCHESTRATOR).around(userRule);
 
   static String FAKE_PROVIDER_KEY = "fake-base-id-provider";
 
@@ -80,7 +81,7 @@ public class BaseIdentityProviderTest {
 
   @Before
   @After
-  public void resetData() throws Exception {
+  public void resetData() {
     userRule.resetUsers();
     userRule.removeGroups(GROUP1, GROUP2, GROUP3);
     resetSettings(ORCHESTRATOR, null,
@@ -93,7 +94,7 @@ public class BaseIdentityProviderTest {
   }
 
   @Test
-  public void create_new_user_when_authenticate() throws Exception {
+  public void create_new_user_when_authenticate() {
     enablePlugin();
     setUserCreatedByAuthPlugin(USER_LOGIN, USER_PROVIDER_ID, USER_NAME, USER_EMAIL);
 
@@ -106,7 +107,7 @@ public class BaseIdentityProviderTest {
   }
 
   @Test
-  public void authenticate_user_through_ui() throws Exception {
+  public void authenticate_user_through_ui() {
     enablePlugin();
     setUserCreatedByAuthPlugin(USER_LOGIN, USER_PROVIDER_ID, USER_NAME, USER_EMAIL);
 
@@ -116,7 +117,7 @@ public class BaseIdentityProviderTest {
   }
 
   @Test
-  public void display_unauthorized_page_when_authentication_failed() throws Exception {
+  public void display_unauthorized_page_when_authentication_failed() {
     enablePlugin();
     // As this property is null, the plugin will throw an exception
     setServerProperty(ORCHESTRATOR, "sonar.auth.fake-base-id-provider.user", null);
@@ -140,7 +141,7 @@ public class BaseIdentityProviderTest {
   }
 
   @Test
-  public void fail_to_authenticate_when_not_allowed_to_sign_up() throws Exception {
+  public void fail_to_authenticate_when_not_allowed_to_sign_up() {
     enablePlugin();
     setUserCreatedByAuthPlugin(USER_LOGIN, USER_PROVIDER_ID, USER_NAME, USER_EMAIL);
     setServerProperty(ORCHESTRATOR, "sonar.auth.fake-base-id-provider.allowsUsersToSignUp", "false");
@@ -151,7 +152,7 @@ public class BaseIdentityProviderTest {
   }
 
   @Test
-  public void update_existing_user_when_authenticate() throws Exception {
+  public void update_existing_user_when_authenticate() {
     enablePlugin();
     setUserCreatedByAuthPlugin(USER_LOGIN, USER_PROVIDER_ID, USER_NAME, USER_EMAIL);
 
@@ -167,7 +168,7 @@ public class BaseIdentityProviderTest {
   }
 
   @Test
-  public void reactivate_disabled_user() throws Exception {
+  public void reactivate_disabled_user() {
     enablePlugin();
     setUserCreatedByAuthPlugin(USER_LOGIN, USER_PROVIDER_ID, USER_NAME, USER_EMAIL);
 
@@ -188,7 +189,7 @@ public class BaseIdentityProviderTest {
   }
 
   @Test
-  public void not_authenticate_when_plugin_is_disabled() throws Exception {
+  public void not_authenticate_when_plugin_is_disabled() {
     setServerProperty(ORCHESTRATOR, "sonar.auth.fake-base-id-provider.enabled", "false");
     setUserCreatedByAuthPlugin(USER_LOGIN, USER_PROVIDER_ID, USER_NAME, USER_EMAIL);
 
@@ -217,7 +218,7 @@ public class BaseIdentityProviderTest {
   }
 
   @Test
-  public void synchronize_groups_for_new_user() throws Exception {
+  public void synchronize_groups_for_new_user() {
     enablePlugin();
     userRule.createGroup(GROUP1);
     userRule.createGroup(GROUP2);
@@ -231,7 +232,7 @@ public class BaseIdentityProviderTest {
   }
 
   @Test
-  public void synchronize_groups_for_existing_user() throws Exception {
+  public void synchronize_groups_for_existing_user() {
     enablePlugin();
     userRule.createGroup(GROUP1);
     userRule.createGroup(GROUP2);
@@ -248,7 +249,7 @@ public class BaseIdentityProviderTest {
   }
 
   @Test
-  public void remove_user_groups_when_groups_provided_by_plugin_are_empty() throws Exception {
+  public void remove_user_groups_when_groups_provided_by_plugin_are_empty() {
     enablePlugin();
     userRule.createGroup(GROUP1);
     userRule.createUser(USER_LOGIN, "password");
@@ -264,7 +265,7 @@ public class BaseIdentityProviderTest {
   }
 
   @Test
-  public void allow_user_login_with_2_characters() throws Exception {
+  public void allow_user_login_with_2_characters() {
     enablePlugin();
     String login = "jo";
     setUserCreatedByAuthPlugin(login, USER_PROVIDER_ID, USER_NAME, USER_EMAIL);
@@ -282,12 +283,11 @@ public class BaseIdentityProviderTest {
     setUserCreatedByAuthPlugin(USER_LOGIN, USER_PROVIDER_ID, USER_NAME, USER_EMAIL);
 
     // Provision none local user in database
-    newAdminWsClient(ORCHESTRATOR).users().create(CreateRequest.builder()
+    newAdminWsClient(ORCHESTRATOR).users().create(new CreateRequest()
       .setLogin(USER_LOGIN)
       .setName(USER_NAME)
       .setEmail(USER_EMAIL)
-      .setLocal(false)
-      .build());
+      .setLocal("false"));
     assertThat(userRule.getUserByLogin(USER_LOGIN).get())
       .extracting(Users.User::isLocal, Users.User::getExternalIdentity, Users.User::getExternalProvider)
       .containsOnly(false, USER_LOGIN, "sonarqube");

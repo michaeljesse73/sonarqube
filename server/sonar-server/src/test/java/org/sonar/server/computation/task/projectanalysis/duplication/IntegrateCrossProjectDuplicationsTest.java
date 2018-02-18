@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -206,7 +206,7 @@ public class IntegrateCrossProjectDuplicationsTest {
         .setUnit(0, 10)
         .build());
 
-    underTest.computeCpd(ORIGIN_FILE, originBlocks, Collections.<Block>emptyList());
+    underTest.computeCpd(ORIGIN_FILE, originBlocks, Collections.emptyList());
 
     assertNoDuplicationAdded(ORIGIN_FILE);
   }
@@ -272,7 +272,7 @@ public class IntegrateCrossProjectDuplicationsTest {
   }
 
   @Test
-  public void do_not_compute_more_than_one_hundred_duplications_when_too_many_duplicated_references() throws Exception {
+  public void do_not_compute_more_than_one_hundred_duplications_when_too_many_duplicated_references() {
     Collection<Block> originBlocks = new ArrayList<>();
     Collection<Block> duplicatedBlocks = new ArrayList<>();
 
@@ -302,7 +302,7 @@ public class IntegrateCrossProjectDuplicationsTest {
   }
 
   @Test
-  public void do_not_compute_more_than_one_hundred_duplications_when_too_many_duplications() throws Exception {
+  public void do_not_compute_more_than_one_hundred_duplications_when_too_many_duplications() {
     Collection<Block> originBlocks = new ArrayList<>();
     Collection<Block> duplicatedBlocks = new ArrayList<>();
 
@@ -332,8 +332,17 @@ public class IntegrateCrossProjectDuplicationsTest {
     assertThat(logTester.logs(LoggerLevel.WARN)).containsOnly("Too many duplication groups on file " + ORIGIN_FILE_KEY + ". Keeping only the first 100 groups.");
   }
 
+  @Test
+  public void log_warning_if_this_deprecated_feature_is_enabled() {
+    settings.setProperty("sonar.cpd.cross_project", "true");
+
+    new IntegrateCrossProjectDuplications(settings.asConfig(), duplicationRepository);
+
+    assertThat(logTester.logs()).containsExactly("This analysis uses the deprecated cross-project duplication feature.");
+  }
+
   private static Duplication crossProjectDuplication(TextBlock original, String otherFileKey, TextBlock duplicate) {
-    return new Duplication(original, Arrays.<Duplicate>asList(new CrossProjectDuplicate(otherFileKey, duplicate)));
+    return new Duplication(original, Arrays.asList(new CrossProjectDuplicate(otherFileKey, duplicate)));
   }
 
   private void assertNoDuplicationAdded(Component file) {

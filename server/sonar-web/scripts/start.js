@@ -28,13 +28,14 @@ const formatWebpackMessages = require('react-dev-utils/formatWebpackMessages');
 const errorOverlayMiddleware = require('react-error-overlay/middleware');
 const getConfig = require('../config/webpack.config');
 const paths = require('../config/paths');
+const getMessages = require('./utils/getMessages');
 
 const config = getConfig({ production: false });
 
 const port = process.env.PORT || 3000;
 const protocol = process.env.HTTPS === 'true' ? 'https' : 'http';
 const host = process.env.HOST || 'localhost';
-const proxy = 'http://localhost:9000';
+const proxy = process.env.PROXY || 'http://localhost:9000';
 
 const compiler = setupCompiler(host, port, protocol);
 
@@ -71,7 +72,6 @@ function setupCompiler(host, port, protocol) {
         console.log(message);
         console.log();
       });
-      return;
     }
   });
 
@@ -80,9 +80,18 @@ function setupCompiler(host, port, protocol) {
 
 function runDevServer(compiler, host, port, protocol) {
   const devServer = new WebpackDevServer(compiler, {
+    before(app) {
+      app.use(errorOverlayMiddleware());
+      app.get('/api/l10n/index', (req, res) => {
+        getMessages()
+          .then(messages => res.json({ effectiveLocale: 'en', messages }))
+          .catch(() => res.status(500));
+      });
+    },
     compress: true,
     clientLogLevel: 'none',
     contentBase: paths.appPublic,
+    disableHostCheck: true,
     hot: true,
     publicPath: config.output.publicPath,
     quiet: true,
@@ -98,16 +107,15 @@ function runDevServer(compiler, host, port, protocol) {
     proxy: {
       '/api': proxy,
       '/fonts': proxy,
-      '/images': proxy
-    },
-    setup(app) {
-      app.use(errorOverlayMiddleware());
+      '/images': proxy,
+      '/static': proxy
     }
   });
 
   devServer.listen(port, err => {
     if (err) {
-      return console.log(err);
+      console.log(err);
+      return;
     }
 
     clearConsole();

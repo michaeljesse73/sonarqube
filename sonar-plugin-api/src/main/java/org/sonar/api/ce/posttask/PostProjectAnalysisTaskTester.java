@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,6 +25,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
@@ -69,6 +70,7 @@ import static java.util.Objects.requireNonNull;
  *           .setName("name")
  *           .build())
  *       .at(new Date())
+ *       .withAnalysisUuid("uuid")
  *       .withQualityGate(
  *         newQualityGateBuilder()
  *           .setId("id")
@@ -97,8 +99,12 @@ public class PostProjectAnalysisTaskTester {
   private static final String CE_TASK_CAN_NOT_BE_NULL = "ceTask cannot be null";
   private static final String STATUS_CAN_NOT_BE_NULL = "status cannot be null";
   private static final String SCANNER_CONTEXT_CAN_NOT_BE_NULL = "scannerContext cannot be null";
+  private static final String KEY_CAN_NOT_BE_NULL = "key cannot be null";
+  private static final String NAME_CAN_NOT_BE_NULL = "name cannot be null";
 
   private final PostProjectAnalysisTask underTest;
+  @Nullable
+  private Organization organization;
   @CheckForNull
   private CeTask ceTask;
   @CheckForNull
@@ -107,7 +113,10 @@ public class PostProjectAnalysisTaskTester {
   private Date date;
   @CheckForNull
   private QualityGate qualityGate;
+  @CheckForNull
+  private Branch branch;
   private ScannerContext scannerContext;
+  private String analysisUuid;
 
   private PostProjectAnalysisTaskTester(PostProjectAnalysisTask underTest) {
     this.underTest = requireNonNull(underTest, "PostProjectAnalysisTask instance cannot be null");
@@ -117,12 +126,23 @@ public class PostProjectAnalysisTaskTester {
     return new PostProjectAnalysisTaskTester(underTest);
   }
 
+  /**
+   * @since 7.0
+   */
+  public static OrganizationBuilder newOrganizationBuilder() {
+    return new OrganizationBuilder();
+  }
+
   public static CeTaskBuilder newCeTaskBuilder() {
     return new CeTaskBuilder();
   }
 
   public static ProjectBuilder newProjectBuilder() {
     return new ProjectBuilder();
+  }
+
+  public static BranchBuilder newBranchBuilder() {
+    return new BranchBuilder();
   }
 
   public static QualityGateBuilder newQualityGateBuilder() {
@@ -137,6 +157,14 @@ public class PostProjectAnalysisTaskTester {
     return new ScannerContextBuilder();
   }
 
+  /**
+   * @since 7.0
+   */
+  public PostProjectAnalysisTaskTester withOrganization(@Nullable Organization organization) {
+    this.organization = organization;
+    return this;
+  }
+
   public PostProjectAnalysisTaskTester withCeTask(CeTask ceTask) {
     this.ceTask = requireNonNull(ceTask, CE_TASK_CAN_NOT_BE_NULL);
     return this;
@@ -148,7 +176,7 @@ public class PostProjectAnalysisTaskTester {
   }
 
   /**
-      * @since 6.1
+   * @since 6.1
    */
   public PostProjectAnalysisTaskTester withScannerContext(ScannerContext scannerContext) {
     this.scannerContext = requireNonNull(scannerContext, SCANNER_CONTEXT_CAN_NOT_BE_NULL);
@@ -165,55 +193,92 @@ public class PostProjectAnalysisTaskTester {
     return this;
   }
 
-  public void execute() {
-    this.ceTask = requireNonNull(ceTask, CE_TASK_CAN_NOT_BE_NULL);
-    this.project = requireNonNull(project, PROJECT_CAN_NOT_BE_NULL);
-    this.date = requireNonNull(date, DATE_CAN_NOT_BE_NULL);
+  public PostProjectAnalysisTaskTester withBranch(@Nullable Branch b) {
+    this.branch = b;
+    return this;
+  }
 
-    this.underTest.finished(
-      new PostProjectAnalysisTask.ProjectAnalysis() {
+  /**
+   * @since 6.6
+   */
+  public PostProjectAnalysisTaskTester withAnalysisUuid(@Nullable String analysisUuid) {
+    this.analysisUuid = analysisUuid;
+    return this;
+  }
+
+  public PostProjectAnalysisTask.ProjectAnalysis execute() {
+    requireNonNull(ceTask, CE_TASK_CAN_NOT_BE_NULL);
+    requireNonNull(project, PROJECT_CAN_NOT_BE_NULL);
+    requireNonNull(date, DATE_CAN_NOT_BE_NULL);
+
+    Analysis analysis = null;
+    if (analysisUuid != null) {
+      analysis = new AnalysisBuilder()
+        .setDate(date)
+        .setAnalysisUuid(analysisUuid)
+        .build();
+    }
+
+    PostProjectAnalysisTask.ProjectAnalysis projectAnalysis = new ProjectAnalysisBuilder()
+      .setOrganization(organization)
+      .setCeTask(ceTask)
+      .setProject(project)
+      .setBranch(branch)
+      .setQualityGate(qualityGate)
+      .setAnalysis(analysis)
+      .setScannerContext(scannerContext)
+      .setDate(date)
+      .build();
+
+    this.underTest.
+      finished(projectAnalysis);
+
+    return projectAnalysis;
+  }
+
+  public static final class OrganizationBuilder {
+    @CheckForNull
+    private String name;
+    @CheckForNull
+    private String key;
+
+    private OrganizationBuilder() {
+      // prevents instantiation
+    }
+
+    public OrganizationBuilder setName(String name) {
+      this.name = requireNonNull(name, NAME_CAN_NOT_BE_NULL);
+      return this;
+    }
+
+    public OrganizationBuilder setKey(String key) {
+      this.key = requireNonNull(key, KEY_CAN_NOT_BE_NULL);
+      return this;
+    }
+
+    public Organization build() {
+      requireNonNull(this.name, NAME_CAN_NOT_BE_NULL);
+      requireNonNull(this.key, KEY_CAN_NOT_BE_NULL);
+      return new Organization() {
         @Override
-        public ScannerContext getScannerContext() {
-          return scannerContext;
+        public String getName() {
+          return name;
         }
 
         @Override
-        public CeTask getCeTask() {
-          return ceTask;
-        }
-
-        @Override
-        public Project getProject() {
-          return project;
-        }
-
-        @Override
-        public QualityGate getQualityGate() {
-          return qualityGate;
-        }
-
-        @Override
-        public Date getDate() {
-          return date;
-        }
-
-        @Override
-        public Optional<Date> getAnalysisDate() {
-          return Optional.of(date);
+        public String getKey() {
+          return key;
         }
 
         @Override
         public String toString() {
-          return "ProjectAnalysis{" +
-            "ceTask=" + ceTask +
-            ", project=" + project +
-            ", date=" + date.getTime() +
-            ", analysisDate=" + date.getTime() +
-            ", qualityGate=" + qualityGate +
+          return "Organization{" +
+            "name='" + name + '\'' +
+            ", key='" + key + '\'' +
             '}';
         }
-      });
-
+      };
+    }
   }
 
   public static final class CeTaskBuilder {
@@ -265,8 +330,6 @@ public class PostProjectAnalysisTaskTester {
 
   public static final class ProjectBuilder {
     private static final String UUID_CAN_NOT_BE_NULL = "uuid cannot be null";
-    private static final String KEY_CAN_NOT_BE_NULL = "key cannot be null";
-    private static final String NAME_CAN_NOT_BE_NULL = "name cannot be null";
     private String uuid;
     private String key;
     private String name;
@@ -319,6 +382,51 @@ public class PostProjectAnalysisTaskTester {
             '}';
         }
 
+      };
+    }
+  }
+
+  public static final class BranchBuilder {
+    private boolean isMain = true;
+    private String name = null;
+    private Branch.Type type = Branch.Type.LONG;
+
+    private BranchBuilder() {
+      // prevents instantiation outside PostProjectAnalysisTaskTester
+    }
+
+    public BranchBuilder setName(@Nullable String s) {
+      this.name = s;
+      return this;
+    }
+
+    public BranchBuilder setType(Branch.Type t) {
+      this.type = Objects.requireNonNull(t);
+      return this;
+    }
+
+    public BranchBuilder setIsMain(boolean b) {
+      this.isMain = b;
+      return this;
+    }
+
+    public Branch build() {
+      return new Branch() {
+
+        @Override
+        public boolean isMain() {
+          return isMain;
+        }
+
+        @Override
+        public Optional<String> getName() {
+          return Optional.ofNullable(name);
+        }
+
+        @Override
+        public Type getType() {
+          return type;
+        }
       };
     }
   }
@@ -568,6 +676,157 @@ public class PostProjectAnalysisTaskTester {
 
     public ScannerContext build() {
       return () -> properties;
+    }
+  }
+
+  public static final class ProjectAnalysisBuilder {
+    private Organization organization;
+    private CeTask ceTask;
+    private Project project;
+    private Branch branch;
+    private QualityGate qualityGate;
+    private Analysis analysis;
+    private ScannerContext scannerContext;
+    private Date date;
+
+    private ProjectAnalysisBuilder() {
+      // prevents instantiation outside PostProjectAnalysisTaskTester
+    }
+
+    public ProjectAnalysisBuilder setOrganization(@Nullable Organization organization) {
+      this.organization = organization;
+      return this;
+    }
+
+    public ProjectAnalysisBuilder setCeTask(CeTask ceTask) {
+      this.ceTask = ceTask;
+      return this;
+    }
+
+    public ProjectAnalysisBuilder setProject(Project project) {
+      this.project = project;
+      return this;
+    }
+
+    public ProjectAnalysisBuilder setBranch(@Nullable Branch branch) {
+      this.branch = branch;
+      return this;
+    }
+
+    public ProjectAnalysisBuilder setQualityGate(QualityGate qualityGate) {
+      this.qualityGate = qualityGate;
+      return this;
+    }
+
+    public ProjectAnalysisBuilder setAnalysis(@Nullable Analysis analysis) {
+      this.analysis = analysis;
+      return this;
+    }
+
+    public ProjectAnalysisBuilder setScannerContext(ScannerContext scannerContext) {
+      this.scannerContext = scannerContext;
+      return this;
+    }
+
+    public ProjectAnalysisBuilder setDate(Date date) {
+      this.date = date;
+      return this;
+    }
+
+    public PostProjectAnalysisTask.ProjectAnalysis build() {
+      return new PostProjectAnalysisTask.ProjectAnalysis() {
+        @Override
+        public Optional<Organization> getOrganization() {
+          return Optional.ofNullable(organization);
+        }
+
+        @Override
+        public CeTask getCeTask() {
+          return ceTask;
+        }
+
+        @Override
+        public Project getProject() {
+          return project;
+        }
+
+        @Override
+        public Optional<Branch> getBranch() {
+          return Optional.ofNullable(branch);
+        }
+
+        @CheckForNull
+        @Override
+        public QualityGate getQualityGate() {
+          return qualityGate;
+        }
+
+        @Override
+        public Date getDate() {
+          return date;
+        }
+
+        @Override
+        public Optional<Date> getAnalysisDate() {
+          return getAnalysis().map(Analysis::getDate);
+        }
+
+        @Override
+        public Optional<Analysis> getAnalysis() {
+          return Optional.ofNullable(analysis);
+        }
+
+        @Override
+        public ScannerContext getScannerContext() {
+          return scannerContext;
+        }
+
+        @Override
+        public String toString() {
+          return "ProjectAnalysis{" +
+            "organization=" + organization +
+            ", ceTask=" + ceTask +
+            ", project=" + project +
+            ", date=" + date.getTime() +
+            ", analysisDate=" + date.getTime() +
+            ", qualityGate=" + qualityGate +
+            '}';
+        }
+      };
+    }
+  }
+
+  public static final class AnalysisBuilder {
+    private String analysisUuid;
+    private Date date;
+
+    private AnalysisBuilder() {
+      // prevents instantiation outside PostProjectAnalysisTaskTester
+    }
+
+    public AnalysisBuilder setAnalysisUuid(String analysisUuid) {
+      this.analysisUuid = analysisUuid;
+      return this;
+    }
+
+    public AnalysisBuilder setDate(Date date) {
+      this.date = date;
+      return this;
+    }
+
+    public Analysis build() {
+      return new Analysis() {
+
+        @Override
+        public String getAnalysisUuid() {
+          return analysisUuid;
+        }
+
+        @Override
+        public Date getDate() {
+          return date;
+        }
+      };
     }
   }
 }

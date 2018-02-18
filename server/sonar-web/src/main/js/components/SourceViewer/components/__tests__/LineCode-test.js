@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -36,6 +36,8 @@ it('render code', () => {
       onIssueSelect={jest.fn()}
       onSelectLocation={jest.fn()}
       onSymbolClick={jest.fn()}
+      onPopupToggle={jest.fn()}
+      openPopup={null}
       selectedIssue="issue-1"
       showIssues={true}
     />

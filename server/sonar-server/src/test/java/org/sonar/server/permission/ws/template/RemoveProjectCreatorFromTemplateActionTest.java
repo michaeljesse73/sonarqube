@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -57,7 +57,7 @@ public class RemoveProjectCreatorFromTemplateActionTest extends BasePermissionWs
   }
 
   @Test
-  public void update_template_permission() throws Exception {
+  public void update_template_permission() {
     PermissionTemplateCharacteristicDto characteristic = db.getDbClient().permissionTemplateCharacteristicDao().insert(db.getSession(),
       new PermissionTemplateCharacteristicDto()
         .setTemplateId(template.getId())
@@ -80,7 +80,7 @@ public class RemoveProjectCreatorFromTemplateActionTest extends BasePermissionWs
   }
 
   @Test
-  public void do_not_fail_when_no_template_permission() throws Exception {
+  public void do_not_fail_when_no_template_permission() {
     newRequest()
       .setParam(PARAM_PERMISSION, UserRole.ADMIN)
       .setParam(PARAM_TEMPLATE_ID, template.getUuid())
@@ -90,7 +90,7 @@ public class RemoveProjectCreatorFromTemplateActionTest extends BasePermissionWs
   }
 
   @Test
-  public void fail_when_template_does_not_exist() throws Exception {
+  public void fail_when_template_does_not_exist() {
     expectedException.expect(NotFoundException.class);
 
     newRequest()
@@ -100,7 +100,7 @@ public class RemoveProjectCreatorFromTemplateActionTest extends BasePermissionWs
   }
 
   @Test
-  public void fail_if_permission_is_not_a_project_permission() throws Exception {
+  public void fail_if_permission_is_not_a_project_permission() {
     expectedException.expect(IllegalArgumentException.class);
 
     newRequest()
@@ -110,7 +110,7 @@ public class RemoveProjectCreatorFromTemplateActionTest extends BasePermissionWs
   }
 
   @Test
-  public void fail_if_not_authenticated() throws Exception {
+  public void fail_if_not_authenticated() {
     userSession.anonymous();
 
     expectedException.expect(UnauthorizedException.class);
@@ -122,7 +122,7 @@ public class RemoveProjectCreatorFromTemplateActionTest extends BasePermissionWs
   }
 
   @Test
-  public void fail_if_insufficient_privileges() throws Exception {
+  public void fail_if_insufficient_privileges() {
     userSession.logIn();
 
     expectedException.expect(ForbiddenException.class);

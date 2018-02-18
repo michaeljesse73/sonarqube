@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,10 +24,12 @@ import java.util.List;
 import org.sonar.api.server.ws.Request;
 import org.sonar.api.server.ws.Response;
 import org.sonar.api.server.ws.WebService;
+import org.sonar.core.util.stream.MoreCollectors;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
 import org.sonar.db.component.ComponentDto;
 import org.sonar.db.organization.OrganizationDto;
+import org.sonar.db.qualitygate.QualityGateDto;
 import org.sonar.db.qualityprofile.QProfileDto;
 import org.sonar.server.component.ComponentCleanerService;
 import org.sonar.server.organization.DefaultOrganization;
@@ -93,11 +95,7 @@ public class DeleteAction implements OrganizationsWsAction {
       String key = request.mandatoryParam(PARAM_ORGANIZATION);
       preventDeletionOfDefaultOrganization(key, defaultOrganizationProvider.get());
 
-      OrganizationDto organization = checkFoundWithOptional(
-        dbClient.organizationDao().selectByKey(dbSession, key),
-        "Organization with key '%s' not found",
-        key);
-
+      OrganizationDto organization = checkFoundWithOptional(dbClient.organizationDao().selectByKey(dbSession, key), "Organization with key '%s' not found", key);
       if (organization.isGuarded()) {
         userSession.checkIsSystemAdministrator();
       } else {
@@ -108,6 +106,7 @@ public class DeleteAction implements OrganizationsWsAction {
       deletePermissions(dbSession, organization);
       deleteGroups(dbSession, organization);
       deleteQualityProfiles(dbSession, organization);
+      deleteQualityGates(dbSession, organization);
       deleteOrganization(dbSession, organization);
 
       response.noContent();
@@ -138,10 +137,20 @@ public class DeleteAction implements OrganizationsWsAction {
     qProfileFactory.delete(dbSession, profiles);
   }
 
+  private void deleteQualityGates(DbSession dbSession, OrganizationDto organization) {
+    Collection<QualityGateDto> qualityGates = dbClient.qualityGateDao().selectAll(dbSession, organization);
+    dbClient.qualityGateDao().deleteByUuids(dbSession, qualityGates.stream()
+      .filter(q -> !q.isBuiltIn())
+      .map(QualityGateDto::getUuid)
+      .collect(MoreCollectors.toList()));
+    dbClient.qualityGateDao().deleteOrgQualityGatesByOrganization(dbSession, organization);
+  }
+
   private void deleteOrganization(DbSession dbSession, OrganizationDto organization) {
     Collection<String> logins = dbClient.organizationMemberDao().selectLoginsByOrganizationUuid(dbSession, organization.getUuid());
     dbClient.organizationMemberDao().deleteByOrganizationUuid(dbSession, organization.getUuid());
     dbClient.organizationDao().deleteByUuid(dbSession, organization.getUuid());
+    dbClient.userDao().cleanHomepage(dbSession, organization);
     userIndexer.commitAndIndexByLogins(dbSession, logins);
   }
 

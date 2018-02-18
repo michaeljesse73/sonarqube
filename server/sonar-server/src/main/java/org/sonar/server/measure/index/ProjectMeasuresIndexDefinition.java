@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -26,11 +26,18 @@ import org.sonar.server.es.NewIndex;
 
 import static org.sonar.server.es.DefaultIndexSettingsElement.SEARCH_GRAMS_ANALYZER;
 import static org.sonar.server.es.DefaultIndexSettingsElement.SORTABLE_ANALYZER;
+import static org.sonar.server.es.NewIndex.SettingsConfiguration.MANUAL_REFRESH_INTERVAL;
+import static org.sonar.server.es.NewIndex.SettingsConfiguration.newBuilder;
 
 public class ProjectMeasuresIndexDefinition implements IndexDefinition {
 
   public static final IndexType INDEX_TYPE_PROJECT_MEASURES = new IndexType("projectmeasures", "projectmeasure");
+  public static final String FIELD_UUID = "uuid";
   public static final String FIELD_ORGANIZATION_UUID = "organizationUuid";
+
+  /**
+   * Project key. Only projects (qualifier=TRK)
+   */
   public static final String FIELD_KEY = "key";
   public static final String FIELD_NAME = "name";
   public static final String FIELD_ANALYSED_AT = "analysedAt";
@@ -40,6 +47,9 @@ public class ProjectMeasuresIndexDefinition implements IndexDefinition {
   public static final String FIELD_MEASURES_KEY = "key";
   public static final String FIELD_MEASURES_VALUE = "value";
   public static final String FIELD_LANGUAGES = "languages";
+  public static final String FIELD_NCLOC_LANGUAGE_DISTRIBUTION = "nclocLanguageDistribution";
+  public static final String FIELD_DISTRIB_LANGUAGE = "language";
+  public static final String FIELD_DISTRIB_NCLOC = "ncloc";
 
   private final Configuration config;
 
@@ -49,22 +59,30 @@ public class ProjectMeasuresIndexDefinition implements IndexDefinition {
 
   @Override
   public void define(IndexDefinitionContext context) {
-    NewIndex index = context.create(INDEX_TYPE_PROJECT_MEASURES.getIndex());
-    index.refreshHandledByIndexer();
-    index.configureShards(config, 5);
+    NewIndex index = context.create(
+      INDEX_TYPE_PROJECT_MEASURES.getIndex(),
+      newBuilder(config)
+        .setRefreshInterval(MANUAL_REFRESH_INTERVAL)
+        .setDefaultNbOfShards(5)
+        .build());
 
     NewIndex.NewIndexType mapping = index.createType(INDEX_TYPE_PROJECT_MEASURES.getType())
       .requireProjectAuthorization();
 
-    mapping.stringFieldBuilder(FIELD_ORGANIZATION_UUID).build();
-    mapping.stringFieldBuilder(FIELD_KEY).disableNorms().addSubFields(SORTABLE_ANALYZER).build();
-    mapping.stringFieldBuilder(FIELD_NAME).addSubFields(SORTABLE_ANALYZER, SEARCH_GRAMS_ANALYZER).build();
-    mapping.stringFieldBuilder(FIELD_QUALITY_GATE_STATUS).build();
-    mapping.stringFieldBuilder(FIELD_TAGS).build();
-    mapping.stringFieldBuilder(FIELD_LANGUAGES).build();
+    mapping.keywordFieldBuilder(FIELD_UUID).disableNorms().build();
+    mapping.keywordFieldBuilder(FIELD_ORGANIZATION_UUID).disableNorms().build();
+    mapping.keywordFieldBuilder(FIELD_KEY).disableNorms().addSubFields(SORTABLE_ANALYZER).build();
+    mapping.keywordFieldBuilder(FIELD_NAME).addSubFields(SORTABLE_ANALYZER, SEARCH_GRAMS_ANALYZER).build();
+    mapping.keywordFieldBuilder(FIELD_QUALITY_GATE_STATUS).build();
+    mapping.keywordFieldBuilder(FIELD_TAGS).build();
+    mapping.keywordFieldBuilder(FIELD_LANGUAGES).build();
     mapping.nestedFieldBuilder(FIELD_MEASURES)
-      .addStringField(FIELD_MEASURES_KEY)
+      .addKeywordField(FIELD_MEASURES_KEY)
       .addDoubleField(FIELD_MEASURES_VALUE)
+      .build();
+    mapping.nestedFieldBuilder(FIELD_NCLOC_LANGUAGE_DISTRIBUTION)
+      .addKeywordField(FIELD_DISTRIB_LANGUAGE)
+      .addIntegerField(FIELD_DISTRIB_NCLOC)
       .build();
     mapping.createDateTimeField(FIELD_ANALYSED_AT);
     mapping.setEnableSource(false);

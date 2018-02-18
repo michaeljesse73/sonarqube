@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -87,7 +87,7 @@ public class ExecuteVisitorsStepTest {
   }
 
   @Test
-  public void execute_with_type_aware_visitor() throws Exception {
+  public void execute_with_type_aware_visitor() {
     ExecuteVisitorsStep underStep = new ExecuteVisitorsStep(treeRootHolder, singletonList(new TestTypeAwareVisitor()));
 
     measureRepository.addRawMeasure(FILE_1_REF, NCLOC_KEY, newMeasureBuilder().create(1));
@@ -106,7 +106,7 @@ public class ExecuteVisitorsStepTest {
   }
 
   @Test
-  public void execute_with_path_aware_visitor() throws Exception {
+  public void execute_with_path_aware_visitor() {
     ExecuteVisitorsStep underStep = new ExecuteVisitorsStep(treeRootHolder, singletonList(new TestPathAwareVisitor()));
 
     measureRepository.addRawMeasure(FILE_1_REF, NCLOC_KEY, newMeasureBuilder().create(1));
@@ -144,26 +144,26 @@ public class ExecuteVisitorsStepTest {
   }
 
   private static class VisitorA extends TypeAwareVisitorAdapter {
-    public VisitorA() {
+    VisitorA() {
       super(CrawlerDepthLimit.PROJECT, Order.PRE_ORDER);
     }
   }
 
   private static class VisitorB extends TypeAwareVisitorAdapter {
-    public VisitorB() {
+    VisitorB() {
       super(CrawlerDepthLimit.PROJECT, Order.PRE_ORDER);
     }
   }
 
   private static class VisitorC extends TypeAwareVisitorAdapter {
-    public VisitorC() {
+    VisitorC() {
       super(CrawlerDepthLimit.PROJECT, Order.PRE_ORDER);
     }
   }
 
   private class TestTypeAwareVisitor extends TypeAwareVisitorAdapter {
 
-    public TestTypeAwareVisitor() {
+    TestTypeAwareVisitor() {
       super(CrawlerDepthLimit.FILE, ComponentVisitor.Order.POST_ORDER);
     }
 
@@ -176,7 +176,7 @@ public class ExecuteVisitorsStepTest {
 
   private class TestPathAwareVisitor extends PathAwareVisitorAdapter<Counter> {
 
-    public TestPathAwareVisitor() {
+    TestPathAwareVisitor() {
       super(CrawlerDepthLimit.FILE, ComponentVisitor.Order.POST_ORDER, new SimpleStackElementFactory<Counter>() {
         @Override
         public Counter createForAny(Component component) {

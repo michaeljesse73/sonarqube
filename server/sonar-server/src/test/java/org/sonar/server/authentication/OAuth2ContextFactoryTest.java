@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,6 +19,7 @@
  */
 package org.sonar.server.authentication;
 
+import java.util.Optional;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
@@ -29,10 +30,7 @@ import org.junit.rules.ExpectedException;
 import org.sonar.api.platform.Server;
 import org.sonar.api.server.authentication.OAuth2IdentityProvider;
 import org.sonar.api.server.authentication.UserIdentity;
-import org.sonar.api.utils.MessageException;
 import org.sonar.api.utils.System2;
-import org.sonar.db.DbClient;
-import org.sonar.db.DbSession;
 import org.sonar.db.DbTester;
 import org.sonar.db.user.UserDto;
 import org.sonar.server.user.TestUserSessionFactory;
@@ -45,21 +43,21 @@ import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.sonar.db.user.UserTesting.newUserDto;
+import static org.sonar.server.authentication.UserIdentityAuthenticator.ExistingEmailStrategy.ALLOW;
+import static org.sonar.server.authentication.UserIdentityAuthenticator.ExistingEmailStrategy.WARN;
 import static org.sonar.server.authentication.event.AuthenticationEvent.Source;
 
 public class OAuth2ContextFactoryTest {
 
   private static final String PROVIDER_KEY = "github";
   private static final String SECURED_PUBLIC_ROOT_URL = "https://mydomain.com";
-  private static final String NOT_SECURED_PUBLIC_URL = "http://mydomain.com";
   private static final String PROVIDER_NAME = "provider name";
   private static final UserIdentity USER_IDENTITY = UserIdentity.builder()
-      .setProviderLogin("johndoo")
-      .setLogin("id:johndoo")
-      .setName("John")
-      .setEmail("john@email.com")
-      .build();
+    .setProviderLogin("johndoo")
+    .setLogin("id:johndoo")
+    .setName("John")
+    .setEmail("john@email.com")
+    .build();
 
   @Rule
   public ExpectedException thrown = ExpectedException.none();
@@ -67,36 +65,30 @@ public class OAuth2ContextFactoryTest {
   @Rule
   public DbTester dbTester = DbTester.create(System2.INSTANCE);
 
-  private DbClient dbClient = dbTester.getDbClient();
-  private DbSession dbSession = dbTester.getSession();
-
   private ThreadLocalUserSession threadLocalUserSession = mock(ThreadLocalUserSession.class);
   private UserIdentityAuthenticator userIdentityAuthenticator = mock(UserIdentityAuthenticator.class);
   private Server server = mock(Server.class);
   private OAuthCsrfVerifier csrfVerifier = mock(OAuthCsrfVerifier.class);
   private JwtHttpHandler jwtHttpHandler = mock(JwtHttpHandler.class);
   private TestUserSessionFactory userSessionFactory = TestUserSessionFactory.standalone();
-
+  private OAuth2AuthenticationParameters oAuthParameters = mock(OAuth2AuthenticationParameters.class);
   private HttpServletRequest request = mock(HttpServletRequest.class);
   private HttpServletResponse response = mock(HttpServletResponse.class);
   private HttpSession session = mock(HttpSession.class);
   private OAuth2IdentityProvider identityProvider = mock(OAuth2IdentityProvider.class);
 
-  private OAuth2ContextFactory underTest = new OAuth2ContextFactory(threadLocalUserSession, userIdentityAuthenticator, server, csrfVerifier, jwtHttpHandler, userSessionFactory);
+  private OAuth2ContextFactory underTest = new OAuth2ContextFactory(threadLocalUserSession, userIdentityAuthenticator, server, csrfVerifier, jwtHttpHandler, userSessionFactory,
+    oAuthParameters);
 
   @Before
   public void setUp() throws Exception {
-    UserDto userDto = dbClient.userDao().insert(dbSession, newUserDto());
-    dbSession.commit();
-
     when(request.getSession()).thenReturn(session);
     when(identityProvider.getKey()).thenReturn(PROVIDER_KEY);
     when(identityProvider.getName()).thenReturn(PROVIDER_NAME);
-    when(userIdentityAuthenticator.authenticate(USER_IDENTITY, identityProvider, Source.oauth2(identityProvider))).thenReturn(userDto);
   }
 
   @Test
-  public void create_context() throws Exception {
+  public void create_context() {
     when(server.getPublicRootUrl()).thenReturn(SECURED_PUBLIC_ROOT_URL);
 
     OAuth2IdentityProvider.InitContext context = newInitContext();
@@ -107,7 +99,7 @@ public class OAuth2ContextFactoryTest {
   }
 
   @Test
-  public void generate_csrf_state() throws Exception {
+  public void generate_csrf_state() {
     OAuth2IdentityProvider.InitContext context = newInitContext();
 
     context.generateCsrfState();
@@ -125,18 +117,7 @@ public class OAuth2ContextFactoryTest {
   }
 
   @Test
-  public void fail_to_get_callback_url_on_not_secured_server() throws Exception {
-    when(server.getPublicRootUrl()).thenReturn(NOT_SECURED_PUBLIC_URL);
-
-    OAuth2IdentityProvider.InitContext context = newInitContext();
-
-    thrown.expect(MessageException.class);
-    thrown.expectMessage("The server url should be configured in https, please update the property 'sonar.core.serverBaseURL'");
-    context.getCallbackUrl();
-  }
-
-  @Test
-  public void create_callback() throws Exception {
+  public void create_callback() {
     when(server.getPublicRootUrl()).thenReturn(SECURED_PUBLIC_ROOT_URL);
 
     OAuth2IdentityProvider.CallbackContext callback = newCallbackContext();
@@ -147,19 +128,34 @@ public class OAuth2ContextFactoryTest {
   }
 
   @Test
-  public void authenticate() throws Exception {
+  public void authenticate() {
+    UserDto userDto = dbTester.users().insertUser();
+    when(userIdentityAuthenticator.authenticate(USER_IDENTITY, identityProvider, Source.oauth2(identityProvider), WARN)).thenReturn(userDto);
     OAuth2IdentityProvider.CallbackContext callback = newCallbackContext();
 
     callback.authenticate(USER_IDENTITY);
 
-    verify(userIdentityAuthenticator).authenticate(USER_IDENTITY, identityProvider, Source.oauth2(identityProvider));
+    verify(userIdentityAuthenticator).authenticate(USER_IDENTITY, identityProvider, Source.oauth2(identityProvider), WARN);
     verify(jwtHttpHandler).generateToken(any(UserDto.class), eq(request), eq(response));
     verify(threadLocalUserSession).set(any(UserSession.class));
   }
 
   @Test
-  public void redirect_to_requested_page() throws Exception {
+  public void authenticate_with_allow_email_shift() {
+    when(oAuthParameters.getAllowEmailShift(request)).thenReturn(Optional.of(true));
+    UserDto userDto = dbTester.users().insertUser();
+    when(userIdentityAuthenticator.authenticate(USER_IDENTITY, identityProvider, Source.oauth2(identityProvider), ALLOW)).thenReturn(userDto);
+    OAuth2IdentityProvider.CallbackContext callback = newCallbackContext();
+
+    callback.authenticate(USER_IDENTITY);
+
+    verify(userIdentityAuthenticator).authenticate(USER_IDENTITY, identityProvider, Source.oauth2(identityProvider), ALLOW);
+  }
+
+  @Test
+  public void redirect_to_home() throws Exception {
     when(server.getContextPath()).thenReturn("");
+    when(oAuthParameters.getReturnTo(request)).thenReturn(Optional.empty());
     OAuth2IdentityProvider.CallbackContext callback = newCallbackContext();
 
     callback.redirectToRequestedPage();
@@ -168,8 +164,9 @@ public class OAuth2ContextFactoryTest {
   }
 
   @Test
-  public void redirect_to_requested_page_with_context() throws Exception {
+  public void redirect_to_home_with_context() throws Exception {
     when(server.getContextPath()).thenReturn("/sonarqube");
+    when(oAuthParameters.getReturnTo(request)).thenReturn(Optional.empty());
     OAuth2IdentityProvider.CallbackContext callback = newCallbackContext();
 
     callback.redirectToRequestedPage();
@@ -178,12 +175,45 @@ public class OAuth2ContextFactoryTest {
   }
 
   @Test
-  public void verify_csrf_state() throws Exception {
+  public void redirect_to_requested_page() throws Exception {
+    when(oAuthParameters.getReturnTo(request)).thenReturn(Optional.of("/settings"));
+    when(server.getContextPath()).thenReturn("");
+    OAuth2IdentityProvider.CallbackContext callback = newCallbackContext();
+
+    callback.redirectToRequestedPage();
+
+    verify(response).sendRedirect("/settings");
+  }
+
+  @Test
+  public void redirect_to_requested_page_does_not_need_context() throws Exception {
+    when(oAuthParameters.getReturnTo(request)).thenReturn(Optional.of("/sonarqube/settings"));
+    when(server.getContextPath()).thenReturn("/other");
+    OAuth2IdentityProvider.CallbackContext callback = newCallbackContext();
+
+    callback.redirectToRequestedPage();
+
+    verify(response).sendRedirect("/sonarqube/settings");
+  }
+
+  @Test
+  public void verify_csrf_state() {
     OAuth2IdentityProvider.CallbackContext callback = newCallbackContext();
 
     callback.verifyCsrfState();
 
     verify(csrfVerifier).verifyState(request, response, identityProvider);
+  }
+
+  @Test
+  public void delete_oauth2_parameters_during_redirection() {
+    when(oAuthParameters.getReturnTo(request)).thenReturn(Optional.of("/settings"));
+    when(server.getContextPath()).thenReturn("");
+    OAuth2IdentityProvider.CallbackContext callback = newCallbackContext();
+
+    callback.redirectToRequestedPage();
+
+    verify(oAuthParameters).delete(eq(request), eq(response));
   }
 
   private OAuth2IdentityProvider.InitContext newInitContext() {

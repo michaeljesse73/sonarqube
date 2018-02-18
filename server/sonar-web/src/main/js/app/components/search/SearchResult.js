@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,13 +20,14 @@
 // @flow
 import React from 'react';
 import { Link } from 'react-router';
-import type { Component } from './utils';
-import FavoriteIcon from '../../../components/common/FavoriteIcon';
+/*:: import type { Component } from './utils'; */
+import FavoriteIcon from '../../../components/icons-components/FavoriteIcon';
 import QualifierIcon from '../../../components/shared/QualifierIcon';
 import ClockIcon from '../../../components/common/ClockIcon';
 import Tooltip from '../../../components/controls/Tooltip';
 import { getProjectUrl } from '../../../helpers/urls';
 
+/*::
 type Props = {|
   appState: { organizationsEnabled: boolean },
   component: Component,
@@ -37,17 +38,20 @@ type Props = {|
   projects: { [string]: { name: string } },
   selected: boolean
 |};
+*/
 
+/*::
 type State = {
   tooltipVisible: boolean
 };
+*/
 
 const TOOLTIP_DELAY = 1000;
 
 export default class SearchResult extends React.PureComponent {
-  interval: ?number;
-  props: Props;
-  state: State = { tooltipVisible: false };
+  /*:: interval: ?number; */
+  /*:: props: Props; */
+  state /*: State */ = { tooltipVisible: false };
 
   componentDidMount() {
     if (this.props.selected) {
@@ -55,7 +59,7 @@ export default class SearchResult extends React.PureComponent {
     }
   }
 
-  componentWillReceiveProps(nextProps: Props) {
+  componentWillReceiveProps(nextProps /*: Props */) {
     if (!this.props.selected && nextProps.selected) {
       this.scheduleTooltip();
     } else if (this.props.selected && !nextProps.selected) {
@@ -82,30 +86,33 @@ export default class SearchResult extends React.PureComponent {
     this.props.onSelect(this.props.component.key);
   };
 
-  renderOrganization = (component: Component) => {
+  renderOrganization = (component /*: Component */) => {
     if (!this.props.appState.organizationsEnabled) {
       return null;
     }
 
-    if (!['VW', 'SVW', 'TRK'].includes(component.qualifier) || component.organization == null) {
+    if (
+      !['VW', 'SVW', 'APP', 'TRK'].includes(component.qualifier) ||
+      component.organization == null
+    ) {
       return null;
     }
 
     const organization = this.props.organizations[component.organization];
-    return organization
-      ? <div className="navbar-search-item-right text-muted-2">{organization.name}</div>
-      : null;
+    return organization ? (
+      <div className="navbar-search-item-right text-muted-2">{organization.name}</div>
+    ) : null;
   };
 
-  renderProject = (component: Component) => {
+  renderProject = (component /*: Component */) => {
     if (!['BRC', 'FIL', 'UTS'].includes(component.qualifier) || component.project == null) {
       return null;
     }
 
     const project = this.props.projects[component.project];
-    return project
-      ? <div className="navbar-search-item-right text-muted-2">{project.name}</div>
-      : null;
+    return project ? (
+      <div className="navbar-search-item-right text-muted-2">{project.name}</div>
+    ) : null;
   };
 
   render() {
@@ -127,23 +134,23 @@ export default class SearchResult extends React.PureComponent {
             onClick={this.props.onClose}
             onMouseEnter={this.handleMouseEnter}
             to={getProjectUrl(component.key)}>
-
             <span className="navbar-search-item-icons little-spacer-right">
               {component.isFavorite && <FavoriteIcon favorite={true} size={12} />}
               {!component.isFavorite && component.isRecentlyBrowsed && <ClockIcon size={12} />}
               <QualifierIcon className="little-spacer-right" qualifier={component.qualifier} />
             </span>
 
-            {component.match
-              ? <span
-                  className="navbar-search-item-match"
-                  dangerouslySetInnerHTML={{ __html: component.match }}
-                />
-              : <span className="navbar-search-item-match">{component.name}</span>}
+            {component.match ? (
+              <span
+                className="navbar-search-item-match"
+                dangerouslySetInnerHTML={{ __html: component.match }}
+              />
+            ) : (
+              <span className="navbar-search-item-match">{component.name}</span>
+            )}
 
             {this.renderOrganization(component)}
             {this.renderProject(component)}
-
           </Link>
         </Tooltip>
       </li>

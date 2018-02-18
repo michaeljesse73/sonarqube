@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -54,7 +54,7 @@ public class HighlightingTest extends AbstractPerfTest {
   public static Orchestrator orchestrator = ScannerPerformanceSuite.ORCHESTRATOR;
 
   @BeforeClass
-  public static void setUp() throws IOException {
+  public static void setUp() {
     // Execute a first analysis to prevent any side effects with cache of plugin JAR files
     orchestrator.executeBuild(newScanner("-Xmx512m -server", "sonar.profile", "one-xoo-issue-per-line"));
   }
@@ -97,10 +97,10 @@ public class HighlightingTest extends AbstractPerfTest {
 
     BuildResult result = orchestrator.executeBuild(scanner);
     System.out.println("Total time: " + MavenLogs.extractTotalTime(result.getLogs()));
-    perfRule.assertDurationAround(MavenLogs.extractTotalTime(result.getLogs()), 25700L);
+    perfRule.assertDurationAround(MavenLogs.extractTotalTime(result.getLogs()), 28000L);
 
     Properties prof = readProfiling(baseDir, "highlighting");
-    perfRule.assertDurationAround(Long.valueOf(prof.getProperty("Xoo Highlighting Sensor")), 9600L);
+    perfRule.assertDurationAround(Long.valueOf(prof.getProperty("Xoo Highlighting Sensor")), 10000L);
 
   }
 }

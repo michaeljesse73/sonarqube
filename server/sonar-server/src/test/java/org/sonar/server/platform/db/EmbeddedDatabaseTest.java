@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -34,18 +34,16 @@ import org.junit.rules.Timeout;
 import org.sonar.api.config.internal.MapSettings;
 import org.sonar.api.utils.System2;
 import org.sonar.api.utils.log.LogTester;
-import org.sonar.process.NetworkUtils;
+import org.sonar.process.NetworkUtilsImpl;
 
 import static junit.framework.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
-import static org.sonar.api.database.DatabaseProperties.PROP_EMBEDDED_PORT;
-import static org.sonar.api.database.DatabaseProperties.PROP_PASSWORD;
-import static org.sonar.api.database.DatabaseProperties.PROP_PASSWORD_DEFAULT_VALUE;
-import static org.sonar.api.database.DatabaseProperties.PROP_URL;
-import static org.sonar.api.database.DatabaseProperties.PROP_USER;
-import static org.sonar.api.database.DatabaseProperties.PROP_USER_DEFAULT_VALUE;
-import static org.sonar.process.ProcessProperties.PATH_DATA;
+import static org.sonar.process.ProcessProperties.Property.JDBC_EMBEDDED_PORT;
+import static org.sonar.process.ProcessProperties.Property.JDBC_PASSWORD;
+import static org.sonar.process.ProcessProperties.Property.JDBC_URL;
+import static org.sonar.process.ProcessProperties.Property.JDBC_USERNAME;
+import static org.sonar.process.ProcessProperties.Property.PATH_DATA;
 
 public class EmbeddedDatabaseTest {
 
@@ -65,7 +63,7 @@ public class EmbeddedDatabaseTest {
   private EmbeddedDatabase underTest = new EmbeddedDatabase(settings.asConfig(), system2);
 
   @After
-  public void tearDown() throws Exception {
+  public void tearDown() {
     if (underTest != null) {
       underTest.stop();
     }
@@ -74,27 +72,27 @@ public class EmbeddedDatabaseTest {
   @Test
   public void start_fails_with_IAE_if_property_Data_Path_is_not_set() {
     expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("Missing property " + PATH_DATA);
+    expectedException.expectMessage("Missing property " + PATH_DATA.getKey());
 
     underTest.start();
   }
 
   @Test
   public void start_fails_with_IAE_if_property_Data_Path_is_empty() {
-    settings.setProperty(PATH_DATA, "");
+    settings.setProperty(PATH_DATA.getKey(), "");
 
     expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("Missing property " + PATH_DATA);
+    expectedException.expectMessage("Missing property " + PATH_DATA.getKey());
 
     underTest.start();
   }
 
   @Test
   public void start_fails_with_IAE_if_JDBC_URL_settings_is_not_set() throws IOException {
-    settings.setProperty(PATH_DATA, temporaryFolder.newFolder().getAbsolutePath());
+    settings.setProperty(PATH_DATA.getKey(), temporaryFolder.newFolder().getAbsolutePath());
 
     expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("Missing property " + PROP_URL);
+    expectedException.expectMessage("Missing property " + JDBC_URL.getKey());
 
     underTest.start();
   }
@@ -102,37 +100,37 @@ public class EmbeddedDatabaseTest {
   @Test
   public void start_fails_with_IAE_if_embedded_port_settings_is_not_set() throws IOException {
     settings
-      .setProperty(PATH_DATA, temporaryFolder.newFolder().getAbsolutePath())
-      .setProperty(PROP_URL, "jdbc url");
+      .setProperty(PATH_DATA.getKey(), temporaryFolder.newFolder().getAbsolutePath())
+      .setProperty(JDBC_URL.getKey(), "jdbc url");
 
     expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("Missing property " + PROP_EMBEDDED_PORT);
+    expectedException.expectMessage("Missing property " + JDBC_EMBEDDED_PORT.getKey());
 
     underTest.start();
   }
 
   @Test
-  public void start_ignores_URL_to_create_database_and_uses_default_username_and_password_when_then_are_not_set() throws IOException {
-    int port = NetworkUtils.getNextAvailablePort(InetAddress.getLoopbackAddress());
+  public void start_ignores_URL_to_create_database_and_uses_empty_username_and_password_when_then_are_not_set() throws IOException {
+    int port = NetworkUtilsImpl.INSTANCE.getNextAvailablePort(InetAddress.getLoopbackAddress());
     settings
-      .setProperty(PATH_DATA, temporaryFolder.newFolder().getAbsolutePath())
-      .setProperty(PROP_URL, "jdbc url")
-      .setProperty(PROP_EMBEDDED_PORT, "" + port);
+      .setProperty(PATH_DATA.getKey(), temporaryFolder.newFolder().getAbsolutePath())
+      .setProperty(JDBC_URL.getKey(), "jdbc url")
+      .setProperty(JDBC_EMBEDDED_PORT.getKey(), "" + port);
 
     underTest.start();
 
-    checkDbIsUp(port, PROP_USER_DEFAULT_VALUE, PROP_PASSWORD_DEFAULT_VALUE);
+    checkDbIsUp(port, "", "");
   }
 
   @Test
   public void start_creates_db_and_adds_tcp_listener() throws IOException {
-    int port = NetworkUtils.getNextAvailablePort(InetAddress.getLoopbackAddress());
+    int port = NetworkUtilsImpl.INSTANCE.getNextAvailablePort(InetAddress.getLoopbackAddress());
     settings
-      .setProperty(PATH_DATA, temporaryFolder.newFolder().getAbsolutePath())
-      .setProperty(PROP_URL, "jdbc url")
-      .setProperty(PROP_EMBEDDED_PORT, "" + port)
-      .setProperty(PROP_USER, "foo")
-      .setProperty(PROP_PASSWORD, "bar");
+      .setProperty(PATH_DATA.getKey(), temporaryFolder.newFolder().getAbsolutePath())
+      .setProperty(JDBC_URL.getKey(), "jdbc url")
+      .setProperty(JDBC_EMBEDDED_PORT.getKey(), "" + port)
+      .setProperty(JDBC_USERNAME.getKey(), "foo")
+      .setProperty(JDBC_PASSWORD.getKey(), "bar");
 
     underTest.start();
 
@@ -144,13 +142,13 @@ public class EmbeddedDatabaseTest {
 
   @Test
   public void start_supports_in_memory_H2_JDBC_URL() throws IOException {
-    int port = NetworkUtils.getNextAvailablePort(InetAddress.getLoopbackAddress());
+    int port = NetworkUtilsImpl.INSTANCE.getNextAvailablePort(InetAddress.getLoopbackAddress());
     settings
-      .setProperty(PATH_DATA, temporaryFolder.newFolder().getAbsolutePath())
-      .setProperty(PROP_URL, "jdbc:h2:mem:sonar")
-      .setProperty(PROP_EMBEDDED_PORT, "" + port)
-      .setProperty(PROP_USER, "foo")
-      .setProperty(PROP_PASSWORD, "bar");
+      .setProperty(PATH_DATA.getKey(), temporaryFolder.newFolder().getAbsolutePath())
+      .setProperty(JDBC_URL.getKey(), "jdbc:h2:mem:sonar")
+      .setProperty(JDBC_EMBEDDED_PORT.getKey(), "" + port)
+      .setProperty(JDBC_USERNAME.getKey(), "foo")
+      .setProperty(JDBC_PASSWORD.getKey(), "bar");
 
     underTest.start();
 

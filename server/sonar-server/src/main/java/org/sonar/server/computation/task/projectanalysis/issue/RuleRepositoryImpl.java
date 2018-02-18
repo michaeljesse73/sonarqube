@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,13 +19,16 @@
  */
 package org.sonar.server.computation.task.projectanalysis.issue;
 
-import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Multimap;
 import java.util.Map;
+import java.util.Optional;
 import javax.annotation.CheckForNull;
 import org.sonar.api.rule.RuleKey;
+import org.sonar.core.util.stream.MoreCollectors;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
+import org.sonar.db.rule.DeprecatedRuleKeyDto;
 import org.sonar.db.rule.RuleDto;
 import org.sonar.server.computation.task.projectanalysis.analysis.AnalysisMetadataHolder;
 
@@ -64,7 +67,7 @@ public class RuleRepositoryImpl implements RuleRepository {
 
     ensureInitialized();
 
-    return Optional.fromNullable(rulesByKey.get(key));
+    return Optional.ofNullable(rulesByKey.get(key));
   }
 
   @Override
@@ -80,7 +83,7 @@ public class RuleRepositoryImpl implements RuleRepository {
   public Optional<Rule> findById(int id) {
     ensureInitialized();
 
-    return Optional.fromNullable(rulesById.get(id));
+    return Optional.ofNullable(rulesById.get(id));
   }
 
   private static void verifyKeyArgument(RuleKey key) {
@@ -99,10 +102,13 @@ public class RuleRepositoryImpl implements RuleRepository {
     ImmutableMap.Builder<RuleKey, Rule> rulesByKeyBuilder = ImmutableMap.builder();
     ImmutableMap.Builder<Integer, Rule> rulesByIdBuilder = ImmutableMap.builder();
     String organizationUuid = analysisMetadataHolder.getOrganization().getUuid();
+    Multimap<Integer, DeprecatedRuleKeyDto> deprecatedRuleKeysByRuleId = dbClient.ruleDao().selectAllDeprecatedRuleKeys(dbSession).stream()
+      .collect(MoreCollectors.index(DeprecatedRuleKeyDto::getRuleId));
     for (RuleDto ruleDto : dbClient.ruleDao().selectAll(dbSession, organizationUuid)) {
       Rule rule = new RuleImpl(ruleDto);
       rulesByKeyBuilder.put(ruleDto.getKey(), rule);
       rulesByIdBuilder.put(ruleDto.getId(), rule);
+      deprecatedRuleKeysByRuleId.get(ruleDto.getId()).forEach(t -> rulesByKeyBuilder.put(RuleKey.of(t.getOldRepositoryKey(), t.getOldRuleKey()), rule));
     }
     this.rulesByKey = rulesByKeyBuilder.build();
     this.rulesById = rulesByIdBuilder.build();

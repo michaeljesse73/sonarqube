@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,14 +21,14 @@ package org.sonar.scanner.scan.filesystem;
 
 import org.picocontainer.injectors.ProviderAdapter;
 import org.sonar.api.batch.fs.internal.InputModuleHierarchy;
-import org.sonar.api.scan.filesystem.PathResolver;
+import org.sonar.scanner.scan.branch.BranchConfiguration;
 
 public class InputComponentStoreProvider extends ProviderAdapter {
   private InputComponentStore store;
 
-  public InputComponentStore provide(PathResolver pathResolver, InputModuleHierarchy hierarchy) {
+  public InputComponentStore provide(InputModuleHierarchy hierarchy, BranchConfiguration branchConfiguration) {
     if (store == null) {
-      store = new InputComponentStore(pathResolver, hierarchy.root());
+      store = new InputComponentStore(hierarchy.root(), branchConfiguration);
     }
     return store;
   }

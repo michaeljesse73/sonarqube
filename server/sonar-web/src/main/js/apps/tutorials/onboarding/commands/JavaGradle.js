@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,14 +22,16 @@ import React from 'react';
 import Command from './Command';
 import { translate } from '../../../../helpers/l10n';
 
+/*::
 type Props = {|
   host: string,
   organization?: string,
   token: string
 |};
+*/
 
-export default function JavaGradle(props: Props) {
-  const config = 'plugins {\n  id "org.sonarqube" version "2.5"\n}';
+export default function JavaGradle(props /*: Props */) {
+  const config = 'plugins {\n  id "org.sonarqube" version "2.6"\n}';
 
   const command = [
     './gradlew sonarqube',

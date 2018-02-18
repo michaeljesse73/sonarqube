@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,11 +19,14 @@
  */
 // @flow
 import React from 'react';
-import moment from 'moment';
 import BubblePopupHelper from '../../../components/common/BubblePopupHelper';
 import ChangelogPopup from '../popups/ChangelogPopup';
-import type { Issue } from '../types';
+import DateFromNow from '../../../components/intl/DateFromNow';
+import DateTimeFormatter from '../../../components/intl/DateTimeFormatter';
+import Tooltip from '../../../components/controls/Tooltip';
+/*:: import type { Issue } from '../types'; */
 
+/*::
 type Props = {
   isOpen: boolean,
   issue: Issue,
@@ -31,34 +34,40 @@ type Props = {
   togglePopup: (string, boolean | void) => void,
   onFail: Error => void
 };
+*/
 
 export default class IssueChangelog extends React.PureComponent {
-  props: Props;
+  /*:: props: Props; */
 
-  handleClick = (evt: SyntheticInputEvent) => {
+  handleClick = (evt /*: SyntheticInputEvent */) => {
     evt.preventDefault();
     this.toggleChangelog();
   };
 
-  toggleChangelog = (open?: boolean) => {
+  toggleChangelog = (open /*: boolean | void */) => {
     this.props.togglePopup('changelog', open);
   };
 
   render() {
-    const momentCreationDate = moment(this.props.creationDate);
     return (
       <BubblePopupHelper
         isOpen={this.props.isOpen}
         position="bottomright"
         togglePopup={this.toggleChangelog}
         popup={<ChangelogPopup issue={this.props.issue} onFail={this.props.onFail} />}>
-        <button
-          className="button-link issue-action issue-action-with-options js-issue-show-changelog"
-          title={momentCreationDate.format('LLL')}
-          onClick={this.handleClick}>
-          <span className="issue-meta-label">{momentCreationDate.fromNow()}</span>
-          <i className="icon-dropdown little-spacer-left" />
-        </button>
+        <Tooltip
+          overlay={<DateTimeFormatter date={this.props.creationDate} />}
+          placement="left"
+          mouseEnterDelay={0.5}>
+          <button
+            className="button-link issue-action issue-action-with-options js-issue-show-changelog"
+            onClick={this.handleClick}>
+            <span className="issue-meta-label">
+              <DateFromNow date={this.props.creationDate} />
+            </span>
+            <i className="icon-dropdown little-spacer-left" />
+          </button>
+        </Tooltip>
       </BubblePopupHelper>
     );
   }

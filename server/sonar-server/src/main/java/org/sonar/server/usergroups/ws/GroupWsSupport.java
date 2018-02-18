@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,11 +20,9 @@
 package org.sonar.server.usergroups.ws;
 
 import java.util.Optional;
-import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 import org.sonar.api.server.ws.Request;
 import org.sonar.api.server.ws.WebService;
-import org.sonar.api.user.UserGroupValidation;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
 import org.sonar.db.organization.OrganizationDto;
@@ -32,7 +30,7 @@ import org.sonar.db.user.GroupDto;
 import org.sonar.server.exceptions.NotFoundException;
 import org.sonar.server.organization.DefaultOrganizationProvider;
 import org.sonar.server.usergroups.DefaultGroupFinder;
-import org.sonarqube.ws.WsUserGroups;
+import org.sonarqube.ws.UserGroups;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.sonar.core.util.Protobuf.setNullable;
@@ -132,18 +130,6 @@ public class GroupWsSupport {
     return org.get();
   }
 
-  /**
-   * Similar to {@link UserGroupValidation#validateGroupName(String)} but kept internal. No need to publish
-   * this method in public API.
-   * @return the same description
-   */
-  @CheckForNull
-  String validateDescription(@Nullable String description) {
-    checkArgument(description == null || description.length() <= DESCRIPTION_MAX_LENGTH,
-      "Description cannot be longer than %s characters", DESCRIPTION_MAX_LENGTH);
-    return description;
-  }
-
   void checkNameDoesNotExist(DbSession dbSession, String organizationUuid, String name) {
     // There is no database constraint on column groups.name
     // because MySQL cannot create a unique index
@@ -156,8 +142,8 @@ public class GroupWsSupport {
     checkArgument(!defaultGroup.getId().equals(groupDto.getId()), "Default group '%s' cannot be used to perform this action", groupDto.getName());
   }
 
-  static WsUserGroups.Group.Builder toProtobuf(OrganizationDto organization, GroupDto group, int membersCount, boolean isDefault) {
-    WsUserGroups.Group.Builder wsGroup = WsUserGroups.Group.newBuilder()
+  static UserGroups.Group.Builder toProtobuf(OrganizationDto organization, GroupDto group, int membersCount, boolean isDefault) {
+    UserGroups.Group.Builder wsGroup = UserGroups.Group.newBuilder()
       .setId(group.getId())
       .setOrganization(organization.getKey())
       .setName(group.getName())

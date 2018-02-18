@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,11 +22,11 @@ package org.sonar.server.measure.ws;
 import org.sonar.api.server.ws.WebService.NewAction;
 import org.sonar.api.server.ws.WebService.NewParam;
 
-import static org.sonarqube.ws.client.measure.MeasuresWsParameters.ADDITIONAL_FIELDS;
-import static org.sonarqube.ws.client.measure.MeasuresWsParameters.PARAM_ADDITIONAL_FIELDS;
-import static org.sonarqube.ws.client.measure.MeasuresWsParameters.PARAM_DEVELOPER_ID;
-import static org.sonarqube.ws.client.measure.MeasuresWsParameters.PARAM_DEVELOPER_KEY;
-import static org.sonarqube.ws.client.measure.MeasuresWsParameters.PARAM_METRIC_KEYS;
+import static org.sonar.server.component.ws.MeasuresWsParameters.ADDITIONAL_FIELDS;
+import static org.sonar.server.component.ws.MeasuresWsParameters.PARAM_ADDITIONAL_FIELDS;
+import static org.sonar.server.component.ws.MeasuresWsParameters.PARAM_DEVELOPER_ID;
+import static org.sonar.server.component.ws.MeasuresWsParameters.PARAM_DEVELOPER_KEY;
+import static org.sonar.server.component.ws.MeasuresWsParameters.PARAM_METRIC_KEYS;
 
 class MeasuresWsParametersBuilder {
 
@@ -43,7 +43,7 @@ class MeasuresWsParametersBuilder {
 
   static NewParam createMetricKeysParameter(NewAction action) {
     return action.createParam(PARAM_METRIC_KEYS)
-      .setDescription("Metric keys")
+      .setDescription("Comma-separated list of metric keys")
       .setRequired(true)
       .setExampleValue("ncloc,complexity,violations");
   }

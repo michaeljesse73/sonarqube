@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,10 +19,12 @@
  */
 package org.sonar.server.user.ws;
 
-import com.google.common.collect.Sets;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nullable;
 import org.sonar.api.server.ws.Change;
 import org.sonar.api.server.ws.Request;
 import org.sonar.api.server.ws.Response;
@@ -34,10 +36,16 @@ import org.sonar.db.user.UserDto;
 import org.sonar.server.user.UpdateUser;
 import org.sonar.server.user.UserSession;
 import org.sonar.server.user.UserUpdater;
-import org.sonarqube.ws.client.user.UpdateRequest;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Strings.emptyToNull;
+import static com.google.common.base.Strings.isNullOrEmpty;
+import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
+import static org.sonar.server.user.UserUpdater.EMAIL_MAX_LENGTH;
+import static org.sonar.server.user.UserUpdater.LOGIN_MAX_LENGTH;
+import static org.sonar.server.user.UserUpdater.NAME_MAX_LENGTH;
+import static org.sonar.server.user.ws.EmailValidator.isValidIfPresent;
 import static org.sonar.server.ws.WsUtils.checkFound;
 import static org.sonarqube.ws.client.user.UsersWsParameters.ACTION_UPDATE;
 import static org.sonarqube.ws.client.user.UsersWsParameters.PARAM_EMAIL;
@@ -73,15 +81,18 @@ public class UpdateAction implements UsersWsAction {
       .setResponseExample(getClass().getResource("update-example.json"));
 
     action.createParam(PARAM_LOGIN)
-      .setDescription("User login")
       .setRequired(true)
+      .setMaximumLength(LOGIN_MAX_LENGTH)
+      .setDescription("User login")
       .setExampleValue("myuser");
 
     action.createParam(PARAM_NAME)
+      .setMaximumLength(NAME_MAX_LENGTH)
       .setDescription("User name")
       .setExampleValue("My Name");
 
     action.createParam(PARAM_EMAIL)
+      .setMaximumLength(EMAIL_MAX_LENGTH)
       .setDescription("User email")
       .setExampleValue("myname@email.com");
 
@@ -100,6 +111,7 @@ public class UpdateAction implements UsersWsAction {
   public void handle(Request request, Response response) throws Exception {
     userSession.checkLoggedIn().checkIsSystemAdministrator();
     UpdateRequest updateRequest = toWsRequest(request);
+    checkArgument(isValidIfPresent(updateRequest.getEmail()), "Email '%s' is not valid", updateRequest.getEmail());
     try (DbSession dbSession = dbClient.openSession(false)) {
       doHandle(dbSession, toWsRequest(request));
       writeUser(dbSession, response, updateRequest.getLogin());
@@ -118,17 +130,20 @@ public class UpdateAction implements UsersWsAction {
     if (!request.getScmAccounts().isEmpty()) {
       updateUser.setScmAccounts(request.getScmAccounts());
     }
-    userUpdater.updateAndCommit(dbSession, updateUser, u -> {});
+    userUpdater.updateAndCommit(dbSession, updateUser, u -> {
+    });
   }
 
   private void writeUser(DbSession dbSession, Response response, String login) {
-    JsonWriter json = response.newJsonWriter().beginObject();
-    json.name("user");
-    Set<String> groups = Sets.newHashSet();
-    UserDto user = checkFound(dbClient.userDao().selectByLogin(dbSession, login), "User '%s' doesn't exist", login);
-    groups.addAll(dbClient.groupMembershipDao().selectGroupsByLogins(dbSession, singletonList(login)).get(login));
-    userWriter.write(json, user, groups, UserJsonWriter.FIELDS);
-    json.endObject().close();
+    try (JsonWriter json = response.newJsonWriter()) {
+      json.beginObject();
+      json.name("user");
+      Set<String> groups = new HashSet<>();
+      UserDto user = checkFound(dbClient.userDao().selectByLogin(dbSession, login), "User '%s' doesn't exist", login);
+      groups.addAll(dbClient.groupMembershipDao().selectGroupsByLogins(dbSession, singletonList(login)).get(login));
+      userWriter.write(json, user, groups, UserJsonWriter.FIELDS);
+      json.endObject().close();
+    }
   }
 
   private static UpdateRequest toWsRequest(Request request) {
@@ -146,5 +161,78 @@ public class UpdateAction implements UsersWsAction {
     }
     List<String> oldScmAccounts = request.paramAsStrings(PARAM_SCM_ACCOUNTS);
     return oldScmAccounts != null ? oldScmAccounts : new ArrayList<>();
+  }
+
+  private static class UpdateRequest {
+
+    private final String login;
+    private final String name;
+    private final String email;
+    private final List<String> scmAccounts;
+
+    private UpdateRequest(Builder builder) {
+      this.login = builder.login;
+      this.name = builder.name;
+      this.email = builder.email;
+      this.scmAccounts = builder.scmAccounts;
+    }
+
+    public String getLogin() {
+      return login;
+    }
+
+    @CheckForNull
+    public String getName() {
+      return name;
+    }
+
+    @CheckForNull
+    public String getEmail() {
+      return email;
+    }
+
+    public List<String> getScmAccounts() {
+      return scmAccounts;
+    }
+
+    public static Builder builder() {
+      return new Builder();
+    }
+  }
+
+  private static class Builder {
+    private String login;
+    private String name;
+    private String email;
+    private List<String> scmAccounts = emptyList();
+
+    private Builder() {
+      // enforce factory method use
+    }
+
+    public Builder setLogin(String login) {
+      this.login = login;
+      return this;
+    }
+
+    public Builder setName(@Nullable String name) {
+      this.name = name;
+      return this;
+    }
+
+    public Builder setEmail(@Nullable String email) {
+      this.email = email;
+      return this;
+    }
+
+    public Builder setScmAccounts(List<String> scmAccounts) {
+      this.scmAccounts = scmAccounts;
+      return this;
+    }
+
+    public UpdateRequest build() {
+      checkArgument(!isNullOrEmpty(login), "Login is mandatory and must not be empty");
+      return new UpdateRequest(this);
+    }
   }
 }

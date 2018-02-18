@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -17,7 +17,6 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-
 package org.sonar.server.es;
 
 import java.util.concurrent.atomic.AtomicLong;
@@ -34,11 +33,11 @@ public class IndexingResult {
     return this;
   }
 
-  void incrementRequests() {
+  public void incrementRequests() {
     total.incrementAndGet();
   }
 
-  IndexingResult incrementSuccess() {
+  public IndexingResult incrementSuccess() {
     successes += 1;
     return this;
   }
@@ -60,13 +59,8 @@ public class IndexingResult {
     return successes;
   }
 
-  /**
-   * Get the failure ratio,
-   * if the total is 0, we always return 1 in order to break loop
-   * @see {@link RecoveryIndexer#recover()}
-   */
-  public double getFailureRatio() {
-    return total.get() == 0 ? 1 : (1.0d * getFailures()) / total.get();
+  public double getSuccessRatio() {
+    return total.get() == 0 ? 1.0 : ((1.0 * successes) / total.get());
   }
 
   public boolean isSuccess() {

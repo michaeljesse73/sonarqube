@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -39,7 +39,7 @@ public class DropColumnsBuilderTest {
   @Test
   public void drop_columns_on_oracle() {
     assertThat(new DropColumnsBuilder(new Oracle(), "issues", "date_in_ms", "name").build())
-      .containsOnly("ALTER TABLE issues DROP (date_in_ms, name)");
+      .containsOnly("ALTER TABLE issues SET UNUSED (date_in_ms, name)");
   }
 
   @Test

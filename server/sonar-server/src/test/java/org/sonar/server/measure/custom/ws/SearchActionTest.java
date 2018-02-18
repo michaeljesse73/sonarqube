@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -220,7 +220,7 @@ public class SearchActionTest {
   @Test
   public void fail_when_project_id_and_project_key_provided() throws Exception {
     expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("Either 'projectId' or 'projectKey' must be provided, not both");
+    expectedException.expectMessage("Either 'projectId' or 'projectKey' must be provided");
 
     newRequest()
       .setParam(SearchAction.PARAM_PROJECT_ID, DEFAULT_PROJECT_UUID)
@@ -231,7 +231,7 @@ public class SearchActionTest {
   @Test
   public void fail_when_project_id_nor_project_key_provided() throws Exception {
     expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("Either 'projectId' or 'projectKey' must be provided, not both");
+    expectedException.expectMessage("Either 'projectId' or 'projectKey' must be provided");
     newRequest().execute();
   }
 
@@ -263,7 +263,7 @@ public class SearchActionTest {
 
   private ComponentDto insertProject(String projectUuid, String projectKey) {
     ComponentDto project = ComponentTesting.newPrivateProjectDto(db.organizations().insert(), projectUuid)
-      .setKey(projectKey);
+      .setDbKey(projectKey);
     dbClient.componentDao().insert(dbSession, project);
     dbSession.commit();
 

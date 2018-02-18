@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -36,6 +36,8 @@ import org.sonar.db.dialect.PostgreSql;
  */
 public class DropColumnsBuilder {
 
+  private static final String ALTER_TABLE = "ALTER TABLE ";
+
   private final Dialect dialect;
   private final String tableName;
   private final String[] columns;
@@ -50,7 +52,7 @@ public class DropColumnsBuilder {
     switch (dialect.getId()) {
       case PostgreSql.ID:
       case MySql.ID:
-        StringBuilder sql = new StringBuilder().append("ALTER TABLE ").append(tableName).append(" ");
+        StringBuilder sql = new StringBuilder().append(ALTER_TABLE).append(tableName).append(" ");
         dropColumns(sql, "DROP COLUMN ", columns);
         return Collections.singletonList(sql.toString());
       case MsSql.ID:
@@ -65,18 +67,18 @@ public class DropColumnsBuilder {
   }
 
   private String getOracleStatement() {
-    StringBuilder sql2 = new StringBuilder().append("ALTER TABLE ").append(tableName).append(" ");
-    sql2.append("DROP (");
-    dropColumns(sql2, "", columns);
-    sql2.append(")");
-    return sql2.toString();
+    StringBuilder sql = new StringBuilder().append(ALTER_TABLE).append(tableName).append(" ");
+    sql.append("SET UNUSED (");
+    dropColumns(sql, "", columns);
+    sql.append(")");
+    return sql.toString();
   }
 
   private String getMsSQLStatement(String... columnNames) {
-    StringBuilder sql1 = new StringBuilder().append("ALTER TABLE ").append(tableName).append(" ");
-    sql1.append("DROP COLUMN ");
-    dropColumns(sql1, "", columnNames);
-    return sql1.toString();
+    StringBuilder sql = new StringBuilder().append(ALTER_TABLE).append(tableName).append(" ");
+    sql.append("DROP COLUMN ");
+    dropColumns(sql, "", columnNames);
+    return sql.toString();
   }
 
   private static void dropColumns(StringBuilder sql, String columnPrefix, String... columnNames) {

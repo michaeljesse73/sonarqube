@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" 
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <parent>
     <groupId>org.sonarsource.sonarqube</groupId>
     <artifactId>server</artifactId>
-    <version>6.5-SNAPSHOT</version>
+    <version>7.1-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
   <artifactId>sonar-server</artifactId>
@@ -21,11 +23,15 @@
     </dependency>
     <dependency>
       <groupId>org.slf4j</groupId>
-      <artifactId>log4j-over-slf4j</artifactId>
+      <artifactId>jul-to-slf4j</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>jul-to-slf4j</artifactId>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-api</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-core</artifactId>
     </dependency>
     <dependency>
       <groupId>ch.qos.logback</groupId>
@@ -84,10 +90,6 @@
       <version>${project.version}</version>
     </dependency>
     <dependency>
-      <groupId>org.sonarsource.update-center</groupId>
-      <artifactId>sonar-update-center-common</artifactId>
-    </dependency>
-    <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>sonar-plugin-api</artifactId>
       <version>${project.version}</version>
@@ -112,12 +114,18 @@
       </exclusions>
     </dependency>
     <dependency>
-      <groupId>org.sonarsource.sonarqube</groupId>
-      <artifactId>sonar-ce-api</artifactId>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>sonar-ws</artifactId>
+      <version>${project.version}</version>
     </dependency>
     <dependency>
-      <groupId>commons-beanutils</groupId>
-      <artifactId>commons-beanutils</artifactId>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>sonar-plugin-bridge</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.sonarsource.update-center</groupId>
+      <artifactId>sonar-update-center-common</artifactId>
     </dependency>
     <dependency>
       <groupId>commons-dbutils</groupId>
@@ -136,6 +144,11 @@
       <artifactId>commons-lang</artifactId>
     </dependency>
     <dependency>
+      <groupId>com.googlecode.java-diff-utils</groupId>
+      <artifactId>diffutils</artifactId>
+      <version>1.2</version>
+    </dependency>
+    <dependency>
       <groupId>org.picocontainer</groupId>
       <artifactId>picocontainer</artifactId>
     </dependency>
@@ -148,37 +161,48 @@
       <artifactId>commons-dbcp</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.elasticsearch</groupId>
-      <artifactId>elasticsearch</artifactId>
+      <groupId>org.apache.httpcomponents</groupId>
+      <artifactId>httpclient</artifactId>
+      <version>4.5.2</version>
     </dependency>
     <dependency>
-      <groupId>org.elasticsearch</groupId>
-      <artifactId>elasticsearch</artifactId>
+      <groupId>org.elasticsearch.client</groupId>
+      <artifactId>transport</artifactId>
+      <version>${elasticsearch.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.elasticsearch.test</groupId>
+      <artifactId>framework</artifactId>
       <version>${elasticsearch.version}</version>
       <scope>test</scope>
-      <type>test-jar</type>
+      <exclusions>
+        <!--should be excluded to avoid ES go into "test mode" and require to run EsTester-based UTs with RandomizedRunner-->
+        <exclusion>
+          <groupId>com.carrotsearch.randomizedtesting</groupId>
+          <artifactId>randomizedtesting-runner</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.elasticsearch</groupId>
+          <artifactId>securemock</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
-      <groupId>net.java.dev.jna</groupId>
-      <artifactId>jna</artifactId>
+      <groupId>com.hazelcast</groupId>
+      <artifactId>hazelcast-client</artifactId>
     </dependency>
     <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
     </dependency>
     <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>sonar-ws</artifactId>
-      <version>${project.version}</version>
+      <groupId>javax.xml.bind</groupId>
+      <artifactId>jaxb-api</artifactId>
     </dependency>
     <dependency>
       <groupId>com.google.code.findbugs</groupId>
       <artifactId>jsr305</artifactId>
       <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>sonar-plugin-bridge</artifactId>
     </dependency>
     <dependency>
       <groupId>io.jsonwebtoken</groupId>
@@ -231,12 +255,6 @@
     <dependency>
       <groupId>com.github.kevinsawicki</groupId>
       <artifactId>http-request</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>sonar-search</artifactId>
-      <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -294,6 +312,11 @@
             <goals>
               <goal>test-jar</goal>
             </goals>
+            <configuration>
+              <excludes>
+                <exclude>logback-test.xml</exclude>
+              </excludes>
+            </configuration>
           </execution>
         </executions>
         <configuration>
@@ -303,6 +326,16 @@
               <mainClass>org.sonar.server.app.App</mainClass>
             </manifest>
           </archive>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <!--see https://discuss.elastic.co/t/migrate-elasticsearch-java-api-to-version-5-in-spring-io-platform-application/72661-->
+          <classpathDependencyExcludes>
+            <classpathDependencyExcludes>org.apache.logging.log4j:log4j-to-slf4j</classpathDependencyExcludes>
+          </classpathDependencyExcludes>
         </configuration>
       </plugin>
     </plugins>

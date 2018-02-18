@@ -10,33 +10,39 @@ set -euo pipefail
 # at each build.
 #
 function installJdk8 {
-  echo "Setup JDK 1.8u131"
+  echo "Setup JDK 1.8u161"
   mkdir -p ~/jvm
   pushd ~/jvm > /dev/null
-  if [ ! -d "jdk1.8.0_131" ]; then
-    wget -c --header "Cookie: oraclelicense=accept-securebackup-cookie" http://download.oracle.com/otn-pub/java/jdk/8u131-b11/d54c1d3a095b4ff2b6607d096fa80163/jdk-8u131-linux-x64.tar.gz
-    tar xzf jdk-8u131-linux-x64.tar.gz
-    rm jdk-8u131-linux-x64.tar.gz
+  if [ ! -d "jdk1.8.0_161" ]; then
+    wget --quiet --continue --header "Cookie: oraclelicense=accept-securebackup-cookie" http://download.oracle.com/otn-pub/java/jdk/8u161-b12/2f38c3b165be4555a1fa6e98c45e0808/jdk-8u161-linux-x64.tar.gz
+    tar xzf jdk-8u161-linux-x64.tar.gz
+    rm jdk-8u161-linux-x64.tar.gz
   fi
   popd > /dev/null
-  export JAVA_HOME=~/jvm/jdk1.8.0_131
+  export JAVA_HOME=~/jvm/jdk1.8.0_161
   export PATH=$JAVA_HOME/bin:$PATH
 }
 
 #
-# Maven 3.2.5 is installed by default on Travis. Maven 3.3.9 is preferred.
+# Maven 3.2.5 is installed by default on Travis. Maven 3.5 is preferred.
 #
 function installMaven {
   echo "Setup Maven"
   mkdir -p ~/maven
   pushd ~/maven > /dev/null
-  if [ ! -d "apache-maven-3.3.9" ]; then
-    echo "Download Maven 3.3.9"
-    curl -sSL http://apache.mirrors.ovh.net/ftp.apache.org/dist/maven/maven-3/3.3.9/binaries/apache-maven-3.3.9-bin.tar.gz | tar zx -C ~/maven
+  if [ ! -d "apache-maven-3.5" ]; then
+    echo "Download Maven 3.5"
+    curl -sSL https://archive.apache.org/dist/maven/maven-3/3.5.0/binaries/apache-maven-3.5.0-bin.tar.gz | tar zx -C ~/maven
   fi
   popd > /dev/null
-  export M2_HOME=~/maven/apache-maven-3.3.9
+  export M2_HOME=~/maven/apache-maven-3.5.0
   export PATH=$M2_HOME/bin:$PATH
+}
+
+function installNode {
+  set +u
+  source ~/.nvm/nvm.sh && nvm install 8
+  set -u
 }
 
 #
@@ -99,15 +105,29 @@ function fixBuildVersion {
 #
 function configureTravis {
   mkdir -p ~/.local
-  curl -sSL https://github.com/SonarSource/travis-utils/tarball/v36 | tar zx --strip-components 1 -C ~/.local
+  curl -sSL https://github.com/SonarSource/travis-utils/tarball/v41 | tar zx --strip-components 1 -C ~/.local
   source ~/.local/bin/install
 }
 configureTravis
 
-# When pull request exists on the branch, then the job related to the branch does not need
-# to be executed and should be canceled. It does not book slaves for nothing.
+# When a pull request is open on the branch, then the job related
+# to the branch does not need to be executed and should be canceled.
+# It does not book slaves for nothing.
 # @TravisCI please provide the feature natively, like at AppVeyor or CircleCI ;-)
-cancel_branch_build_with_pr
+cancel_branch_build_with_pr || if [[ $? -eq 1 ]]; then exit 0; fi
+
+# configure environment variables for Artifactory
+export GIT_COMMIT=$TRAVIS_COMMIT
+export BUILD_NUMBER=$TRAVIS_BUILD_NUMBER
+if [ "$TRAVIS_PULL_REQUEST" == "false" ]; then
+  export GIT_BRANCH=$TRAVIS_BRANCH
+  unset PULL_REQUEST_BRANCH_TARGET
+  unset PULL_REQUEST_NUMBER
+else
+  export GIT_BRANCH=$TRAVIS_PULL_REQUEST_BRANCH
+  export PULL_REQUEST_BRANCH_TARGET=$TRAVIS_BRANCH
+  export PULL_REQUEST_NUMBER=$TRAVIS_PULL_REQUEST
+fi
 
 case "$TARGET" in
 
@@ -115,36 +135,54 @@ BUILD)
 
   installJdk8
   installMaven
+  installNode
   fixBuildVersion
 
   # Minimal Maven settings
   export MAVEN_OPTS="-Xmx1G -Xms128m"
-  MAVEN_ARGS="-T 1C -Dmaven.test.redirectTestOutputToFile=false -Dsurefire.useFile=false -B -e -V -DbuildVersion=$BUILD_VERSION"
+  MAVEN_ARGS="-T 1C -Dmaven.test.redirectTestOutputToFile=false -Dsurefire.useFile=false -B -e -V -DbuildVersion=$BUILD_VERSION -Dtests.es.logger.level=WARN -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn"
+
+
+  # Fetch all commit history so that SonarQube has exact blame information
+  # for issue auto-assignment
+  # This command can fail with "fatal: --unshallow on a complete repository does not make sense"
+  # if there are not enough commits in the Git repository (even if Travis executed git clone --depth 50).
+  # For this reason errors are ignored with "|| true"
+  git fetch --unshallow || true
+
 
   if [ "$TRAVIS_BRANCH" == "master" ] && [ "$TRAVIS_PULL_REQUEST" == "false" ]; then
     echo 'Build and analyze master'
-
-    # Fetch all commit history so that SonarQube has exact blame information
-    # for issue auto-assignment
-    # This command can fail with "fatal: --unshallow on a complete repository does not make sense"
-    # if there are not enough commits in the Git repository (even if Travis executed git clone --depth 50).
-    # For this reason errors are ignored with "|| true"
-    git fetch --unshallow || true
-
     mvn org.jacoco:jacoco-maven-plugin:prepare-agent deploy \
           $MAVEN_ARGS \
           -Pdeploy-sonarsource,release
+        
     mvn sonar:sonar \
           -Dsonar.host.url=$SONAR_HOST_URL \
           -Dsonar.login=$SONAR_TOKEN \
-          -Dsonar.projectVersion=$INITIAL_VERSION
-
+          -Dsonar.projectVersion=$INITIAL_VERSION \
+          -Dsonar.analysis.buildNumber=$BUILD_NUMBER \
+          -Dsonar.analysis.pipeline=$BUILD_NUMBER \
+          -Dsonar.analysis.sha1=$GIT_COMMIT \
+          -Dsonar.analysis.repository=$TRAVIS_REPO_SLUG
 
   elif [[ "$TRAVIS_BRANCH" == "branch-"* ]] && [ "$TRAVIS_PULL_REQUEST" == "false" ]; then
     echo 'Build release branch'
 
-    mvn deploy $MAVEN_ARGS -Pdeploy-sonarsource,release
+    mvn org.jacoco:jacoco-maven-plugin:prepare-agent deploy \
+        $MAVEN_ARGS \
+        -Pdeploy-sonarsource,release
 
+    mvn sonar:sonar \
+        -Dsonar.host.url=$SONAR_HOST_URL \
+        -Dsonar.login=$SONAR_TOKEN \
+        -Dsonar.branch.name=$TRAVIS_BRANCH \
+        -Dsonar.projectVersion=$INITIAL_VERSION \
+        -Dsonar.analysis.buildNumber=$BUILD_NUMBER \
+        -Dsonar.analysis.pipeline=$BUILD_NUMBER \
+        -Dsonar.analysis.sha1=$GIT_COMMIT \
+        -Dsonar.analysis.repository=$TRAVIS_REPO_SLUG
+  
   elif [ "$TRAVIS_PULL_REQUEST" != "false" ] && [ -n "${GITHUB_TOKEN:-}" ]; then
     echo 'Build and analyze internal pull request'
 
@@ -152,26 +190,32 @@ BUILD)
         $MAVEN_ARGS \
         -Dsource.skip=true \
         -Pdeploy-sonarsource
+
+    # TODO remove the sonar.pullrequest.github.* settings after sonar-core-plugins 7.1.0.330 is deployed on Next
     mvn sonar:sonar \
-        -Dsonar.analysis.mode=preview \
-        -Dsonar.github.pullRequest=$TRAVIS_PULL_REQUEST \
-        -Dsonar.github.repository=$TRAVIS_REPO_SLUG \
-        -Dsonar.github.oauth=$GITHUB_TOKEN \
         -Dsonar.host.url=$SONAR_HOST_URL \
-        -Dsonar.login=$SONAR_TOKEN
+        -Dsonar.login=$SONAR_TOKEN \
+        -Dsonar.branch.name=$TRAVIS_PULL_REQUEST_BRANCH \
+        -Dsonar.branch.target=$TRAVIS_BRANCH \
+        -Dsonar.analysis.buildNumber=$BUILD_NUMBER \
+        -Dsonar.analysis.pipeline=$BUILD_NUMBER \
+        -Dsonar.analysis.sha1=$TRAVIS_PULL_REQUEST_SHA \
+        -Dsonar.analysis.prNumber=$TRAVIS_PULL_REQUEST \
+        -Dsonar.analysis.repository=$TRAVIS_REPO_SLUG \
+        -Dsonar.pullrequest.id=$TRAVIS_PULL_REQUEST \
+        -Dsonar.pullrequest.github.id=$TRAVIS_PULL_REQUEST \
+        -Dsonar.pullrequest.github.repository=$TRAVIS_REPO_SLUG
 
   else
     echo 'Build feature branch or external pull request'
-
-    mvn install $MAVEN_ARGS -Dsource.skip=true
+    mvn deploy $MAVEN_ARGS -Pdeploy-sonarsource,release
   fi
 
   ./run-integration-tests.sh "Lite" ""
   ;;
 
 WEB_TESTS)
-  set +u
-  source ~/.nvm/nvm.sh && nvm install 6
+  installNode
   curl -o- -L https://yarnpkg.com/install.sh | bash
   export PATH=$HOME/.yarn/bin:$PATH
   cd server/sonar-web && yarn && yarn validate

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,21 +24,23 @@ import BubblePopupHelper from '../../../components/common/BubblePopupHelper';
 import CommentPopup from '../popups/CommentPopup';
 import { addIssueComment } from '../../../api/issues';
 import { translate } from '../../../helpers/l10n';
-import type { Issue } from '../types';
+/*:: import type { Issue } from '../types'; */
 
+/*::
 type Props = {|
   commentPlaceholder: string,
-  currentPopup: string,
+  currentPopup: ?string,
   issueKey: string,
   onChange: Issue => void,
   onFail: Error => void,
   toggleComment: (open?: boolean, placeholder?: string) => void
 |};
+*/
 
 export default class IssueCommentAction extends React.PureComponent {
-  props: Props;
+  /*:: props: Props; */
 
-  addComment = (text: string) => {
+  addComment = (text /*: string */) => {
     updateIssue(
       this.props.onChange,
       this.props.onFail,
@@ -67,9 +69,7 @@ export default class IssueCommentAction extends React.PureComponent {
           <button
             className="button-link issue-action js-issue-comment"
             onClick={this.handleCommentClick}>
-            <span className="issue-meta-label">
-              {translate('issue.comment.formlink')}
-            </span>
+            <span className="issue-meta-label">{translate('issue.comment.formlink')}</span>
           </button>
         </BubblePopupHelper>
       </li>

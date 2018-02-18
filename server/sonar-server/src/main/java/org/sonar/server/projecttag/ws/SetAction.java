@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -17,7 +17,6 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-
 package org.sonar.server.projecttag.ws;
 
 import java.util.List;
@@ -32,9 +31,10 @@ import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
 import org.sonar.db.component.ComponentDto;
 import org.sonar.server.component.ComponentFinder;
-import org.sonar.server.es.ProjectIndexer;
+import org.sonar.server.es.ProjectIndexers;
 import org.sonar.server.user.UserSession;
 
+import static java.util.Collections.singletonList;
 import static org.sonar.api.resources.Qualifiers.PROJECT;
 import static org.sonar.server.es.ProjectIndexer.Cause.PROJECT_TAGS_UPDATE;
 import static org.sonar.server.ws.KeyExamples.KEY_PROJECT_EXAMPLE_001;
@@ -52,13 +52,13 @@ public class SetAction implements ProjectTagsWsAction {
   private final DbClient dbClient;
   private final ComponentFinder componentFinder;
   private final UserSession userSession;
-  private final List<ProjectIndexer> indexers;
+  private final ProjectIndexers projectIndexers;
 
-  public SetAction(DbClient dbClient, ComponentFinder componentFinder, UserSession userSession, List<ProjectIndexer> indexers) {
+  public SetAction(DbClient dbClient, ComponentFinder componentFinder, UserSession userSession, ProjectIndexers projectIndexers) {
     this.dbClient = dbClient;
     this.componentFinder = componentFinder;
     this.userSession = userSession;
-    this.indexers = indexers;
+    this.projectIndexers = projectIndexers;
   }
 
   @Override
@@ -93,13 +93,12 @@ public class SetAction implements ProjectTagsWsAction {
 
     try (DbSession dbSession = dbClient.openSession(false)) {
       ComponentDto project = componentFinder.getByKey(dbSession, projectKey);
-      checkRequest(PROJECT.equals(project.qualifier()), "Component '%s' is not a project", project.key());
-      userSession.checkComponentUuidPermission(UserRole.ADMIN, project.uuid());
+      checkRequest(PROJECT.equals(project.qualifier()), "Component '%s' is not a project", project.getDbKey());
+      userSession.checkComponentPermission(UserRole.ADMIN, project);
 
       project.setTags(tags);
       dbClient.componentDao().updateTags(dbSession, project);
-      dbSession.commit();
-      indexers.forEach(i -> i.indexProject(project.uuid(), PROJECT_TAGS_UPDATE));
+      projectIndexers.commitAndIndex(dbSession, singletonList(project), PROJECT_TAGS_UPDATE);
     }
 
     response.noContent();

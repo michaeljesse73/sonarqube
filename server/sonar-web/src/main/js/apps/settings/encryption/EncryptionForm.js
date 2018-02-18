@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,12 +18,14 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import React from 'react';
+import PropTypes from 'prop-types';
+import { translate } from '../../../helpers/l10n';
 
 export default class EncryptionForm extends React.PureComponent {
   static propTypes = {
-    encryptedValue: React.PropTypes.string,
-    encryptValue: React.PropTypes.func.isRequired,
-    generateSecretKey: React.PropTypes.func.isRequired
+    encryptedValue: PropTypes.string,
+    encryptValue: PropTypes.func.isRequired,
+    generateSecretKey: PropTypes.func.isRequired
   };
 
   state = { value: '' };
@@ -41,29 +43,30 @@ export default class EncryptionForm extends React.PureComponent {
   render() {
     return (
       <div id="encryption-form-container">
-        <div className="spacer-bottom">
-          Secret key is registered. You can encrypt any property value with the following form:
-        </div>
+        <div className="spacer-bottom">{translate('encryption.form_intro')}</div>
 
         <form
           id="encryption-form"
           className="big-spacer-bottom"
           onSubmit={e => this.handleEncrypt(e)}>
-          <input
-            id="encryption-form-value"
-            className="input-large"
-            type="text"
+          <textarea
             autoFocus={true}
-            required={true}
-            value={this.state.value}
+            className="input-super-large"
+            id="encryption-form-value"
             onChange={e => this.setState({ value: e.target.value })}
+            required={true}
+            rows={3}
+            value={this.state.value}
           />
-          <button className="spacer-left">Encrypt</button>
+          <div className="spacer-top">
+            <button>{translate('encryption.encrypt')}</button>
+          </div>
         </form>
 
-        {this.props.encryptedValue != null &&
+        {this.props.encryptedValue != null && (
           <div>
-            Encrypted Value:{' '}
+            {translate('encryption.encrypted_value')}
+            {': '}
             <input
               id="encrypted-value"
               className="input-clear input-code input-super-large"
@@ -71,21 +74,16 @@ export default class EncryptionForm extends React.PureComponent {
               readOnly={true}
               value={this.props.encryptedValue}
             />
-          </div>}
+          </div>
+        )}
 
         <div className="huge-spacer-top bordered-top">
-          <div className="big-spacer-top spacer-bottom">
-            Note that the secret key can be changed, but all the encrypted properties
-            {' '}
-            will have to be updated.
-            {' '}
-            <a href="https://redirect.sonarsource.com/doc/settings-encryption.html">
-              More information
-            </a>
-          </div>
-
+          <div
+            className="big-spacer-top spacer-bottom"
+            dangerouslySetInnerHTML={{ __html: translate('encryption.form_note') }}
+          />
           <form id="encryption-new-key-form" onSubmit={e => this.handleGenerateNewKey(e)}>
-            <button>Generate New Secret Key</button>
+            <button>{translate('encryption.generate_new_secret_key')}</button>
           </form>
         </div>
       </div>

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,10 +22,12 @@ import { translate } from '../../../helpers/l10n';
 
 export default function Intro() {
   return (
-    <div className="search-navigator-workspace">
-      <div className="search-navigator-intro markdown">
-        <p>{translate('quality_gates.intro.1')}</p>
-        <p>{translate('quality_gates.intro.2')}</p>
+    <div className="layout-page-main">
+      <div className="layout-page-main-inner">
+        <div className="search-navigator-intro markdown">
+          <p>{translate('quality_gates.intro.1')}</p>
+          <p>{translate('quality_gates.intro.2')}</p>
+        </div>
       </div>
     </div>
   );

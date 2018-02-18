@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -43,12 +43,14 @@ public class AuthenticationModule extends Module {
       JwtSerializer.class,
       JwtHttpHandler.class,
       JwtCsrfVerifier.class,
+      OAuth2AuthenticationParametersImpl.class,
       LoginAction.class,
       LogoutAction.class,
       CredentialsAuthenticator.class,
       RealmAuthenticator.class,
       BasicAuthenticator.class,
       ValidateAction.class,
-      SsoAuthenticator.class);
+      SsoAuthenticator.class,
+      AuthenticatorsImpl.class);
   }
 }

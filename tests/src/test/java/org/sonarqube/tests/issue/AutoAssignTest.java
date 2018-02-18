@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,8 +19,9 @@
  */
 package org.sonarqube.tests.issue;
 
-import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import javax.annotation.Nullable;
 import org.junit.After;
 import org.junit.Before;
@@ -28,15 +29,17 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.sonar.wsclient.issue.Issue;
 import org.sonar.wsclient.issue.IssueQuery;
-import org.sonarqube.ws.WsUsers;
+import org.sonarqube.ws.Users;
 import org.sonarqube.ws.client.PostRequest;
 import org.sonarqube.ws.client.WsClient;
-import org.sonarqube.ws.client.user.CreateRequest;
-import org.sonarqube.ws.client.user.SearchRequest;
+import org.sonarqube.ws.client.users.CreateRequest;
+import org.sonarqube.ws.client.users.SearchRequest;
 import util.ProjectAnalysis;
 import util.ProjectAnalysisRule;
 
+import static java.util.Arrays.asList;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.groups.Tuple.tuple;
 import static util.ItUtils.newAdminWsClient;
 import static util.ItUtils.setServerProperty;
 
@@ -57,7 +60,7 @@ public class AutoAssignTest extends AbstractIssueTest {
   }
 
   @After
-  public void resetData() throws Exception {
+  public void resetData() {
     newAdminWsClient(ORCHESTRATOR).wsConnector().call(new PostRequest("api/projects/delete").setParam("project", "AutoAssignTest"));
     deleteAllUsers();
 
@@ -66,7 +69,7 @@ public class AutoAssignTest extends AbstractIssueTest {
   }
 
   @Test
-  public void auto_assign_issues_to_user() throws Exception {
+  public void auto_assign_issues_to_user() {
     // verify that login matches, case-sensitive
     createUser("user1", "User 1", "user1@email.com");
     createUser("USER2", "User 2", "user2@email.com");
@@ -79,6 +82,8 @@ public class AutoAssignTest extends AbstractIssueTest {
     // verify that SCM account matches, case-insensitive
     createUser("user7", "User 7", "user7@email.com", "user7ScmAccount");
     createUser("user8", "User 8", "user8@email.com", "user8SCMaccOUNT");
+    // SCM accounts longer than 255
+    createUser("user9", "User 9", "user9@email.com", IntStream.range(0, 256).mapToObj(i -> "s").collect(Collectors.joining()));
 
     projectAnalysis.run();
 
@@ -95,6 +100,8 @@ public class AutoAssignTest extends AbstractIssueTest {
     // SCM account match, case-insensitive
     verifyIssueAssignee(issues, 7, "user7");
     verifyIssueAssignee(issues, 8, "user8");
+    // SCM accounts longer than 255 chars
+    verifyIssueAssignee(issues, 10, "user9");
   }
 
   private static void verifyIssueAssignee(List<Issue> issues, int line, @Nullable String expectedAssignee) {
@@ -102,7 +109,7 @@ public class AutoAssignTest extends AbstractIssueTest {
   }
 
   @Test
-  public void auto_assign_issues_to_default_assignee() throws Exception {
+  public void auto_assign_issues_to_default_assignee() {
     createUser("user1", "User 1", "user1@email.com");
     createUser("user2", "User 2", "user2@email.com");
     setServerProperty(ORCHESTRATOR, "sonar.issues.defaultAssigneeLogin", "user2");
@@ -110,7 +117,7 @@ public class AutoAssignTest extends AbstractIssueTest {
 
     // user1 is assigned to his issues. All other issues are assigned to the default assignee.
     assertThat(search(IssueQuery.create().assignees("user1")).list()).hasSize(1);
-    assertThat(search(IssueQuery.create().assignees("user2")).list()).hasSize(8);
+    assertThat(search(IssueQuery.create().assignees("user2")).list()).hasSize(9);
     // No unassigned issues
     assertThat(search(IssueQuery.create().assigned(false)).list()).isEmpty();
   }
@@ -133,9 +140,19 @@ public class AutoAssignTest extends AbstractIssueTest {
     assertThat(issues).isNotEmpty();
 
     // No author and assignee are set
-    for (Issue issue : issues) {
-      assertThat(issue.author()).isEmpty();
-    }
+    assertThat(issues)
+      .extracting(Issue::line, Issue::author)
+      .containsExactlyInAnyOrder(
+        tuple(1, ""),
+        tuple(2, ""),
+        tuple(3, ""),
+        tuple(4, ""),
+        tuple(5, ""),
+        tuple(6, ""),
+        tuple(7, ""),
+        tuple(8, ""),
+        tuple(9, ""),
+        tuple(10, ""));
     assertThat(search(IssueQuery.create().assigned(true)).list()).isEmpty();
 
     // Run a second analysis with SCM
@@ -144,26 +161,36 @@ public class AutoAssignTest extends AbstractIssueTest {
     assertThat(issues).isNotEmpty();
 
     // Authors and assignees are set
-    for (Issue issue : issues) {
-      assertThat(issue.author()).isNotEmpty();
-    }
+    assertThat(issues)
+      .extracting(Issue::line, Issue::author)
+      .containsExactlyInAnyOrder(
+        tuple(1, "user1"),
+        tuple(2, "user2"),
+        tuple(3, "user3name"),
+        tuple(4, "user4name"),
+        tuple(5, "user5@email.com"),
+        tuple(6, "user6@email.com"),
+        tuple(7, "user7scmaccount"),
+        tuple(8, "user8scmaccount"),
+        tuple(9, "user8scmaccount"),
+        // SONAR-8727
+        tuple(10, ""));
     assertThat(search(IssueQuery.create().assignees("user1")).list()).hasSize(1);
   }
 
   private static void createUser(String login, String name, String email, String... scmAccounts) {
     newAdminWsClient(ORCHESTRATOR).users().create(
-      CreateRequest.builder()
+      new CreateRequest()
         .setLogin(login)
         .setName(name)
         .setEmail(email)
         .setPassword("xxxxxxx")
-        .setScmAccounts(Arrays.asList(scmAccounts))
-        .build());
+        .setScmAccounts(asList(scmAccounts)));
   }
 
   private static void deleteAllUsers() {
     WsClient wsClient = newAdminWsClient(ORCHESTRATOR);
-    WsUsers.SearchWsResponse searchResponse = wsClient.users().search(SearchRequest.builder().build());
+    Users.SearchWsResponse searchResponse = wsClient.users().search(new SearchRequest());
     searchResponse.getUsersList().forEach(user -> {
       wsClient.wsConnector().call(new PostRequest("api/users/deactivate").setParam("login", user.getLogin()));
     });

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,18 +25,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 public class MavenLogsTest {
   @Test
-  public void testExtractTotalTime() throws Exception {
+  public void testExtractTotalTime() {
     assertThat(MavenLogs.extractTotalTime(" \n  Total time: 6.015s \n ")).isEqualTo(6015);
     assertThat(MavenLogs.extractTotalTime(" \n  Total time: 3:14.025s\n  ")).isEqualTo(194025);
   }
 
   @Test
-  public void testMaxMemory() throws Exception {
+  public void testMaxMemory() {
     assertThat(MavenLogs.extractMaxMemory("  Final Memory: 68M/190M  ")).isEqualTo(190);
   }
 
   @Test
-  public void testEndMemory() throws Exception {
+  public void testEndMemory() {
     assertThat(MavenLogs.extractEndMemory("  Final Memory: 68M/190M  ")).isEqualTo(68);
   }
 }

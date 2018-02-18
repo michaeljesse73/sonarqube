@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -43,6 +43,8 @@ import org.sonar.api.utils.log.Loggers;
 import org.sonar.db.dialect.H2;
 import org.sonar.process.logging.LogbackHelper;
 
+import static org.sonar.process.ProcessProperties.Property.JDBC_USERNAME;
+
 /**
  * This class should be call using @ClassRule in order to create the schema once (if @Rule is used
  * the schema will be recreated before each test).
@@ -74,7 +76,7 @@ class CoreTestDb {
       if (settings.hasKey("orchestrator.configUrl")) {
         loadOrchestratorSettings(settings);
       }
-      String login = settings.getString("sonar.jdbc.username");
+      String login = settings.getString(JDBC_USERNAME.getKey());
       for (String key : settings.getKeysStartingWith("sonar.jdbc")) {
         LOG.info(key + ": " + settings.getString(key));
       }
@@ -91,11 +93,10 @@ class CoreTestDb {
           ((H2Database) db).executeScript(schemaPath);
         } else {
           db.stop();
-
         }
       }
       isDefault = (schemaPath == null);
-      LOG.info("Test Database: " + db);
+      LOG.debug("Test Database: " + db);
 
       commands = DatabaseCommands.forDialect(db.getDialect());
       tester = new DataSourceDatabaseTester(db.getDataSource(), commands.useLoginAsSchema() ? login : null);
@@ -153,6 +154,7 @@ class CoreTestDb {
     InputStream input = null;
     try {
       URI uri = new URI(url);
+
       if (url.startsWith("file:")) {
         File file = new File(uri);
         input = FileUtils.openInputStream(file);
@@ -164,8 +166,8 @@ class CoreTestDb {
         }
 
         input = connection.getInputStream();
-
       }
+
       Properties props = new Properties();
       props.load(input);
       settings.addProperties(props);
@@ -179,6 +181,4 @@ class CoreTestDb {
       IOUtils.closeQuietly(input);
     }
   }
-
-
 }

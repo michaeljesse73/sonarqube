@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,23 +19,25 @@
  */
 // @flow
 import React from 'react';
+import PageCounter from '../../../components/common/PageCounter';
 import { translate } from '../../../helpers/l10n';
 import { formatMeasure } from '../../../helpers/measures';
 
+/*::
 type Props = {
+  className? : string,
   current: ?number,
   total: number
 };
+*/
 
-const IssuesCounter = (props: Props) => (
-  <span>
-    <strong>
-      {props.current != null && <span>{formatMeasure(props.current + 1, 'INT')} / </span>}
-      {formatMeasure(props.total, 'INT')}
-    </strong>
-    {' '}
-    {translate('issues.issues')}
-  </span>
-);
-
-export default IssuesCounter;
+export default function IssuesCounter(props /*:Props*/) {
+  return (
+    <PageCounter
+      className="spacer-left flash flash-heavy"
+      current={props.current}
+      label={translate('issues.issues')}
+      total={props.total}
+    />
+  );
+}

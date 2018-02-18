@@ -23,7 +23,7 @@ package sonarqube.ws.ce;
 import "ws-commons.proto";
 
 option java_package = "org.sonarqube.ws";
-option java_outer_classname = "WsCe";
+option java_outer_classname = "Ce";
 option optimize_for = SPEED;
 
 // POST api/ce/submit
@@ -48,10 +48,11 @@ message ActivityResponse {
 message ActivityStatusWsResponse {
   optional int32 pending = 1;
   optional int32 failing = 2;
+  optional int32 inProgress = 3;
 }
 
-// GET api/ce/project
-message ProjectResponse {
+// GET api/ce/component
+message ComponentResponse {
   repeated Task queue = 1;
   optional Task current = 2;
 }
@@ -61,8 +62,13 @@ message TaskTypesWsResponse {
   repeated string taskTypes = 1;
 }
 
+// GET api/ce/worker_count
+message WorkerCountResponse {
+  optional int32 value = 1;
+  optional bool canSetWorkerCount = 2;
+}
+
 message Task {
-  optional string organization = 20;
   optional string id = 1;
   optional string type = 2;
   optional string componentId = 3;
@@ -82,6 +88,10 @@ message Task {
   optional string errorStacktrace = 17;
   optional string scannerContext = 18;
   optional bool hasScannerContext = 19;
+  optional string organization = 20;
+  optional string branch = 21;
+  optional sonarqube.ws.commons.BranchType branchType = 22;
+  optional string errorType = 23;
 }
 
 enum TaskStatus {

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -23,13 +23,14 @@ import Helmet from 'react-helmet';
 import { connect } from 'react-redux';
 import GlobalNotifications from './GlobalNotifications';
 import Projects from './Projects';
-import { translate } from '../../../helpers/l10n';
 import { fetchNotifications } from './actions';
+import { translate } from '../../../helpers/l10n';
 
 class Notifications extends React.PureComponent {
-  props: {
+  /*:: props: {
     fetchNotifications: () => void
   };
+*/
 
   componentDidMount() {
     this.props.fetchNotifications();
@@ -39,15 +40,8 @@ class Notifications extends React.PureComponent {
     return (
       <div className="account-body account-container">
         <Helmet title={translate('my_account.notifications')} />
-
-        <p className="big-spacer-bottom">
-          {translate('notification.dispatcher.information')}
-        </p>
-
+        <p className="alert alert-info">{translate('notification.dispatcher.information')}</p>
         <GlobalNotifications />
-
-        <hr className="account-separator" />
-
         <Projects />
       </div>
     );

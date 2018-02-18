@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -50,7 +50,7 @@ public class DebtModelPluginRepositoryTest {
   DebtModelPluginRepository underTest;
 
   @Test
-  public void test_component_initialization() throws Exception {
+  public void test_component_initialization() {
     // we do have the "csharp-model.xml" file in src/test/resources
     PluginInfo csharpPluginMetadata = new PluginInfo("csharp");
 

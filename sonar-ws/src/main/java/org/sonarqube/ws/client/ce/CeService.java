@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,74 +19,170 @@
  */
 package org.sonarqube.ws.client.ce;
 
-import org.sonarqube.ws.WsCe;
-import org.sonarqube.ws.WsCe.ActivityResponse;
-import org.sonarqube.ws.WsCe.TaskTypesWsResponse;
+import java.util.stream.Collectors;
+import javax.annotation.Generated;
+import org.sonarqube.ws.MediaTypes;
 import org.sonarqube.ws.client.BaseService;
 import org.sonarqube.ws.client.GetRequest;
+import org.sonarqube.ws.client.PostRequest;
 import org.sonarqube.ws.client.WsConnector;
-
-import static org.sonarqube.ws.client.ce.CeWsParameters.PARAM_COMPONENT_ID;
-import static org.sonarqube.ws.client.ce.CeWsParameters.PARAM_COMPONENT_KEY;
-import static org.sonarqube.ws.client.ce.CeWsParameters.PARAM_MAX_EXECUTED_AT;
-import static org.sonarqube.ws.client.ce.CeWsParameters.PARAM_MIN_SUBMITTED_AT;
-import static org.sonarqube.ws.client.ce.CeWsParameters.PARAM_ONLY_CURRENTS;
-import static org.sonarqube.ws.client.ce.CeWsParameters.PARAM_STATUS;
-import static org.sonarqube.ws.client.ce.CeWsParameters.PARAM_TYPE;
+import org.sonarqube.ws.Ce.ActivityResponse;
+import org.sonarqube.ws.Ce.ActivityStatusWsResponse;
+import org.sonarqube.ws.Ce.ComponentResponse;
+import org.sonarqube.ws.Ce.SubmitResponse;
+import org.sonarqube.ws.Ce.TaskResponse;
+import org.sonarqube.ws.Ce.TaskTypesWsResponse;
+import org.sonarqube.ws.Ce.WorkerCountResponse;
 
 /**
- * Maps web service {@code api/ce} (Compute Engine).
+ * @see <a href="https://next.sonarqube.com/sonarqube/web_api/api/ce">Further information about this web service online</a>
  */
+@Generated("sonar-ws-generator")
 public class CeService extends BaseService {
 
   public CeService(WsConnector wsConnector) {
     super(wsConnector, "api/ce");
   }
 
-  public ActivityResponse activity(ActivityWsRequest request) {
+  /**
+   *
+   * This is part of the internal API.
+   * This is a GET request.
+   * @see <a href="https://next.sonarqube.com/sonarqube/web_api/api/ce/activity">Further information about this action online (including a response example)</a>
+   * @since 5.2
+   */
+  public ActivityResponse activity(ActivityRequest request) {
     return call(
       new GetRequest(path("activity"))
-        .setParam(PARAM_COMPONENT_ID, request.getComponentId())
-        .setParam("q", request.getQuery())
-        .setParam(PARAM_STATUS, inlineMultipleParamValue(request.getStatus()))
-        .setParam(PARAM_TYPE, request.getType())
-        .setParam(PARAM_MAX_EXECUTED_AT, request.getMaxExecutedAt())
-        .setParam(PARAM_MIN_SUBMITTED_AT, request.getMinSubmittedAt())
-        .setParam(PARAM_ONLY_CURRENTS, request.getOnlyCurrents())
-        .setParam("p", request.getPage())
-        .setParam("ps", request.getPageSize()),
+        .setParam("componentId", request.getComponentId())
+        .setParam("componentQuery", request.getComponentQuery())
+        .setParam("maxExecutedAt", request.getMaxExecutedAt())
+        .setParam("minSubmittedAt", request.getMinSubmittedAt())
+        .setParam("onlyCurrents", request.getOnlyCurrents())
+        .setParam("p", request.getP())
+        .setParam("ps", request.getPs())
+        .setParam("q", request.getQ())
+        .setParam("status", request.getStatus() == null ? null : request.getStatus().stream().collect(Collectors.joining(",")))
+        .setParam("type", request.getType()),
       ActivityResponse.parser());
   }
 
-  public TaskTypesWsResponse taskTypes() {
-    return call(new GetRequest(path("task_types")), TaskTypesWsResponse.parser());
+  /**
+   *
+   * This is part of the internal API.
+   * This is a GET request.
+   * @see <a href="https://next.sonarqube.com/sonarqube/web_api/api/ce/activity_status">Further information about this action online (including a response example)</a>
+   * @since 5.5
+   */
+  public ActivityStatusWsResponse activityStatus(ActivityStatusRequest request) {
+    return call(
+      new GetRequest(path("activity_status"))
+        .setParam("componentId", request.getComponentId())
+        .setParam("componentKey", request.getComponentKey()),
+      ActivityStatusWsResponse.parser());
   }
 
   /**
-   * Gets details of a Compute Engine task.
    *
-   * @throws org.sonarqube.ws.client.HttpException if HTTP status code is not 2xx.
+   * This is part of the internal API.
+   * This is a POST request.
+   * @see <a href="https://next.sonarqube.com/sonarqube/web_api/api/ce/cancel">Further information about this action online (including a response example)</a>
+   * @since 5.2
+   */
+  public void cancel(CancelRequest request) {
+    call(
+      new PostRequest(path("cancel"))
+        .setParam("id", request.getId())
+        .setMediaType(MediaTypes.JSON)
+      ).content();
+  }
+
+  /**
+   *
+   * This is part of the internal API.
+   * This is a POST request.
+   * @see <a href="https://next.sonarqube.com/sonarqube/web_api/api/ce/cancel_all">Further information about this action online (including a response example)</a>
+   * @since 5.2
+   */
+  public void cancelAll() {
+    call(
+      new PostRequest(path("cancel_all"))
+        .setMediaType(MediaTypes.JSON)
+      ).content();
+  }
+
+  /**
+   *
+   * This is part of the internal API.
+   * This is a GET request.
+   * @see <a href="https://next.sonarqube.com/sonarqube/web_api/api/ce/component">Further information about this action online (including a response example)</a>
+   * @since 5.2
+   */
+  public ComponentResponse component(ComponentRequest request) {
+    return call(
+      new GetRequest(path("component"))
+        .setParam("component", request.getComponent())
+        .setParam("componentId", request.getComponentId()),
+      ComponentResponse.parser());
+  }
+
+  /**
+   *
+   * This is part of the internal API.
+   * This is a POST request.
+   * @see <a href="https://next.sonarqube.com/sonarqube/web_api/api/ce/submit">Further information about this action online (including a response example)</a>
+   * @since 5.2
+   */
+  public SubmitResponse submit(SubmitRequest request) {
+    return call(
+      new PostRequest(path("submit"))
+        .setParam("characteristic", request.getCharacteristic())
+        .setParam("organization", request.getOrganization())
+        .setParam("projectBranch", request.getProjectBranch())
+        .setParam("projectKey", request.getProjectKey())
+        .setParam("projectName", request.getProjectName())
+        .setParam("report", request.getReport()),
+      SubmitResponse.parser());
+  }
+
+  /**
+   *
+   * This is part of the internal API.
+   * This is a GET request.
+   * @see <a href="https://next.sonarqube.com/sonarqube/web_api/api/ce/task">Further information about this action online (including a response example)</a>
+   * @since 5.2
+   */
+  public TaskResponse task(TaskRequest request) {
+    return call(
+      new GetRequest(path("task"))
+        .setParam("additionalFields", request.getAdditionalFields() == null ? null : request.getAdditionalFields().stream().collect(Collectors.joining(",")))
+        .setParam("id", request.getId()),
+      TaskResponse.parser());
+  }
+
+  /**
+   *
+   * This is part of the internal API.
+   * This is a GET request.
+   * @see <a href="https://next.sonarqube.com/sonarqube/web_api/api/ce/task_types">Further information about this action online (including a response example)</a>
    * @since 5.5
    */
-  public WsCe.TaskResponse task(String id) {
-    return task(TaskWsRequest.newBuilder(id).build());
-  }
-
-  public WsCe.TaskResponse task(TaskWsRequest taskWsRequest) {
-    GetRequest request = new GetRequest(path("task"))
-      .setParam("id", taskWsRequest.getTaskUuid());
-    if (!taskWsRequest.getAdditionalFields().isEmpty()) {
-      request.setParam("additionalFields", inlineMultipleParamValue(taskWsRequest.getAdditionalFields()));
-    }
-    return call(request, WsCe.TaskResponse.parser());
-  }
-
-  public WsCe.ActivityStatusWsResponse activityStatus(ActivityStatusWsRequest request) {
+  public TaskTypesWsResponse taskTypes() {
     return call(
-      new GetRequest(path("activity_status"))
-        .setParam(PARAM_COMPONENT_ID, request.getComponentId())
-        .setParam(PARAM_COMPONENT_KEY, request.getComponentKey()),
-      WsCe.ActivityStatusWsResponse.parser());
+      new GetRequest(path("task_types")),
+      TaskTypesWsResponse.parser());
   }
 
+  /**
+   *
+   * This is part of the internal API.
+   * This is a GET request.
+   * @see <a href="https://next.sonarqube.com/sonarqube/web_api/api/ce/worker_count">Further information about this action online (including a response example)</a>
+   * @since 6.5
+   */
+  public WorkerCountResponse workerCount() {
+    return call(
+      new GetRequest(path("worker_count")),
+      WorkerCountResponse.parser());
+  }
 }

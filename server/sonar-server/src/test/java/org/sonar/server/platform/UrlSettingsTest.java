@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -46,38 +46,26 @@ public class UrlSettingsTest {
   }
 
   @Test
-  public void dev_mode_is_disabled_by_default() {
-    assertThat(underTest().isDev()).isFalse();
-  }
-
-  @Test
-  public void dev_mode_is_enabled() {
-    settings.setProperty("sonar.web.dev", true);
-
-    assertThat(underTest().isDev()).isTrue();
-  }
-
-  @Test
-  public void default_url() throws Exception {
+  public void default_url() {
     assertThat(underTest().getBaseUrl()).isEqualTo("http://localhost:9000");
   }
 
   @Test
-  public void base_url_is_configured() throws Exception {
+  public void base_url_is_configured() {
     settings.setProperty("sonar.core.serverBaseURL", "http://mydomain.com");
 
     assertThat(underTest().getBaseUrl()).isEqualTo("http://mydomain.com");
   }
 
   @Test
-  public void is_secured_on_https_server() throws Exception {
+  public void is_secured_on_https_server() {
     settings.setProperty("sonar.core.serverBaseURL", "https://mydomain.com");
 
     assertThat(underTest().isSecured()).isTrue();
   }
 
   @Test
-  public void is_not_secured_if_http() throws Exception {
+  public void is_not_secured_if_http() {
     settings.setProperty("sonar.core.serverBaseURL", "http://mydomain.com");
 
     assertThat(underTest().isSecured()).isFalse();

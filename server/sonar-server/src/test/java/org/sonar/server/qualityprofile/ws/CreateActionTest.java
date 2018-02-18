@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -50,8 +50,9 @@ import org.sonar.server.organization.DefaultOrganizationProvider;
 import org.sonar.server.organization.TestDefaultOrganizationProvider;
 import org.sonar.server.qualityprofile.QProfileExporters;
 import org.sonar.server.qualityprofile.QProfileFactoryImpl;
+import org.sonar.server.qualityprofile.QProfileRules;
+import org.sonar.server.qualityprofile.QProfileRulesImpl;
 import org.sonar.server.qualityprofile.RuleActivator;
-import org.sonar.server.qualityprofile.RuleActivatorContextFactory;
 import org.sonar.server.qualityprofile.index.ActiveRuleIndexer;
 import org.sonar.server.rule.index.RuleIndex;
 import org.sonar.server.rule.index.RuleIndexDefinition;
@@ -63,11 +64,10 @@ import org.sonar.server.ws.TestResponse;
 import org.sonar.server.ws.WsActionTester;
 import org.sonar.test.JsonAssert;
 import org.sonarqube.ws.MediaTypes;
-import org.sonarqube.ws.QualityProfiles.CreateWsResponse;
-import org.sonarqube.ws.QualityProfiles.CreateWsResponse.QualityProfile;
+import org.sonarqube.ws.Qualityprofiles.CreateWsResponse;
+import org.sonarqube.ws.Qualityprofiles.CreateWsResponse.QualityProfile;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
 import static org.sonar.db.permission.OrganizationPermission.ADMINISTER_QUALITY_PROFILES;
 import static org.sonar.server.language.LanguageTesting.newLanguages;
 
@@ -90,13 +90,13 @@ public class CreateActionTest {
 
   private DbClient dbClient = db.getDbClient();
   private DbSession dbSession = db.getSession();
-  private RuleIndex ruleIndex = new RuleIndex(es.client());
+  private RuleIndex ruleIndex = new RuleIndex(es.client(), System2.INSTANCE);
   private RuleIndexer ruleIndexer = new RuleIndexer(es.client(), dbClient);
   private ActiveRuleIndexer activeRuleIndexer = new ActiveRuleIndexer(dbClient, es.client());
   private ProfileImporter[] profileImporters = createImporters();
-  private QProfileExporters qProfileExporters = new QProfileExporters(dbClient, null,
-    new RuleActivator(mock(System2.class), dbClient, ruleIndex, new RuleActivatorContextFactory(dbClient), null, activeRuleIndexer, userSession),
-    profileImporters);
+  private RuleActivator ruleActivator = new RuleActivator(System2.INSTANCE, dbClient, null, userSession);
+  private QProfileRules qProfileRules = new QProfileRulesImpl(dbClient, ruleActivator, ruleIndex, activeRuleIndexer);
+  private QProfileExporters qProfileExporters = new QProfileExporters(dbClient, null, qProfileRules, profileImporters);
   private DefaultOrganizationProvider defaultOrganizationProvider = TestDefaultOrganizationProvider.from(db);
 
   private CreateAction underTest = new CreateAction(dbClient, new QProfileFactoryImpl(dbClient, UuidFactoryFast.getInstance(), System2.INSTANCE, activeRuleIndexer),
@@ -117,10 +117,10 @@ public class CreateActionTest {
 
     assertThat(definition.responseExampleAsString()).isNotEmpty();
     assertThat(definition.params()).extracting(Param::key)
-      .containsExactlyInAnyOrder("language", "organization", "profileName", "backup_with_messages", "backup_with_errors", "backup_xoo_lint");
-    Param profileName = definition.param("profileName");
-    assertThat(profileName.deprecatedKey()).isEqualTo("name");
-    assertThat(profileName.deprecatedKeySince()).isEqualTo("6.1");
+      .containsExactlyInAnyOrder("language", "organization", "name", "backup_with_messages", "backup_with_errors", "backup_xoo_lint");
+    Param name = definition.param("name");
+    assertThat(name.deprecatedKey()).isEqualTo("profileName");
+    assertThat(name.deprecatedKeySince()).isEqualTo("6.6");
   }
 
   @Test
@@ -234,7 +234,7 @@ public class CreateActionTest {
   }
 
   @Test
-  public void test_json() throws Exception {
+  public void test_json() {
     logInAsQProfileAdministrator(db.getDefaultOrganization());
 
     TestResponse response = ws.newRequest()
@@ -251,7 +251,7 @@ public class CreateActionTest {
   private void insertRule(RuleDefinitionDto ruleDto) {
     dbClient.ruleDao().insert(dbSession, ruleDto);
     dbSession.commit();
-    ruleIndexer.commitAndIndex(dbSession, ruleDto.getKey());
+    ruleIndexer.commitAndIndex(dbSession, ruleDto.getId());
   }
 
   private CreateWsResponse executeRequest(String name, String language) {

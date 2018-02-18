@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -31,7 +31,7 @@ import org.sonar.server.exceptions.ForbiddenException;
 import org.sonar.server.exceptions.NotFoundException;
 import org.sonar.server.exceptions.UnauthorizedException;
 import org.sonar.server.i18n.I18nRule;
-import org.sonarqube.ws.WsPermissions;
+import org.sonarqube.ws.Permissions;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonar.core.permission.GlobalPermissions.PROVISIONING;
@@ -58,7 +58,7 @@ public class SearchGlobalPermissionsActionTest extends BasePermissionWsTest<Sear
   }
 
   @Test
-  public void search_in_organization() throws Exception {
+  public void search_in_organization() {
     OrganizationDto org = db.organizations().insert();
     loginAsAdmin(org);
     GroupDto adminGroup = db.users().insertGroup(newGroup(org, "sonar-admins", "Administrators"));
@@ -89,7 +89,7 @@ public class SearchGlobalPermissionsActionTest extends BasePermissionWsTest<Sear
   }
 
   @Test
-  public void search_in_default_organization_by_default() throws Exception {
+  public void search_in_default_organization_by_default() {
     OrganizationDto org = db.organizations().insert();
     loginAsAdmin(org, db.getDefaultOrganization());
 
@@ -101,11 +101,11 @@ public class SearchGlobalPermissionsActionTest extends BasePermissionWsTest<Sear
     db.users().insertPermissionOnUser(org, user, ADMINISTER_QUALITY_GATES);
     db.organizations().addMember(org, user);
 
-    WsPermissions.WsSearchGlobalPermissionsResponse result = newRequest()
-      .executeProtobuf(WsPermissions.WsSearchGlobalPermissionsResponse.class);
+    Permissions.WsSearchGlobalPermissionsResponse result = newRequest()
+      .executeProtobuf(Permissions.WsSearchGlobalPermissionsResponse.class);
 
     assertThat(result.getPermissionsCount()).isEqualTo(GlobalPermissions.ALL.size());
-    for (WsPermissions.Permission permission : result.getPermissionsList()) {
+    for (Permissions.Permission permission : result.getPermissionsList()) {
       if (permission.getKey().equals(SCAN_EXECUTION)) {
         assertThat(permission.getUsersCount()).isEqualTo(1);
       } else {
@@ -115,17 +115,17 @@ public class SearchGlobalPermissionsActionTest extends BasePermissionWsTest<Sear
   }
 
   @Test
-  public void supports_protobuf_response() throws Exception {
+  public void supports_protobuf_response() {
     loginAsAdmin(db.getDefaultOrganization());
 
-    WsPermissions.WsSearchGlobalPermissionsResponse result = newRequest()
-      .executeProtobuf(WsPermissions.WsSearchGlobalPermissionsResponse.class);
+    Permissions.WsSearchGlobalPermissionsResponse result = newRequest()
+      .executeProtobuf(Permissions.WsSearchGlobalPermissionsResponse.class);
 
     assertThat(result).isNotNull();
   }
 
   @Test
-  public void fail_if_not_admin_of_default_organization() throws Exception {
+  public void fail_if_not_admin_of_default_organization() {
     userSession.logIn();
 
     expectedException.expect(ForbiddenException.class);
@@ -135,7 +135,7 @@ public class SearchGlobalPermissionsActionTest extends BasePermissionWsTest<Sear
   }
 
   @Test
-  public void fail_if_not_admin_of_specified_organization() throws Exception {
+  public void fail_if_not_admin_of_specified_organization() {
     OrganizationDto org = db.organizations().insert();
     loginAsAdmin(db.getDefaultOrganization());
 
@@ -147,7 +147,7 @@ public class SearchGlobalPermissionsActionTest extends BasePermissionWsTest<Sear
   }
 
   @Test
-  public void fail_if_not_logged_in() throws Exception {
+  public void fail_if_not_logged_in() {
     userSession.anonymous();
 
     expectedException.expect(UnauthorizedException.class);
@@ -156,7 +156,7 @@ public class SearchGlobalPermissionsActionTest extends BasePermissionWsTest<Sear
   }
 
   @Test
-  public void fail_if_organization_does_not_exist() throws Exception {
+  public void fail_if_organization_does_not_exist() {
     expectedException.expect(NotFoundException.class);
 
     newRequest()

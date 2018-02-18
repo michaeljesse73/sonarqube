@@ -1,18 +1,30 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`renders correctly 1`] = `
-<div
-  className="onboarding-command"
+<Command
+  command="foo
+bar"
 >
-  <pre>
-    foo
-    bar
-  </pre>
-  <button
-    data-clipboard-text="foo
-  bar"
+  <div
+    className="onboarding-command"
   >
-    copy
-  </button>
-</div>
+    <pre>
+      foo
+bar
+    </pre>
+    <ClipboardButton
+      copyValue="foo
+bar"
+      tooltipPlacement="top"
+    >
+      <button
+        className="js-copy-to-clipboard no-select"
+        data-clipboard-text="foo
+bar"
+      >
+        copy
+      </button>
+    </ClipboardButton>
+  </div>
+</Command>
 `;

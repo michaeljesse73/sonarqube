@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,7 +21,6 @@ package org.sonar.api.platform;
 
 import java.io.File;
 import java.util.Date;
-import javax.annotation.CheckForNull;
 import org.sonar.api.batch.ScannerSide;
 import org.sonar.api.ce.ComputeEngineSide;
 import org.sonar.api.server.ServerSide;
@@ -37,22 +36,25 @@ import org.sonar.api.server.ServerSide;
 public abstract class Server {
 
   /**
-   * Name is misleading, this is an UUID generated
-   * at each startup, so it changes if server is restarted.
+   * UUID identifying the installation. It is persisted
+   * so that it does not change over time, even after
+   * a restart.
    * In the context of cluster, the value is shared
    * by all the nodes.
+   *
    * @return a non-null UUID. Format can change over versions.
    */
   public abstract String getId();
 
   /**
-   * UUID generated on demand by system administrators. It is
-   * {@code null} by default on fresh installations. When defined,
-   * value does not change when server is restarted.
-   * In the context of cluster, value is the same on all nodes.
+   * Since 6.7, it returns exactly {@link #getId()}. In previous
+   * versions it returned ab UUID generated on demand by system
+   * administrators and may be null.
+   *
+   * @deprecated replaced by {@link #getId()} in 6.7.
    * @since 2.10
    */
-  @CheckForNull
+  @Deprecated
   public abstract String getPermanentServerId();
 
   /**
@@ -75,13 +77,6 @@ public abstract class Server {
   public abstract File getRootDir();
 
   /**
-   * @deprecated always {@code null} since version 6.0. No alternatives, as plugins do not have to touch this directory.
-   */
-  @Deprecated
-  @CheckForNull
-  public abstract File getDeployDir();
-
-  /**
    * Context path of web server. Value is blank {@code ""} by default. When defined by
    * the property {@code sonar.web.context} of conf/sonar.properties, then value starts but does
    * not end with slash {@code '/'}, for instance {@code "/sonarqube"}.
@@ -99,10 +94,12 @@ public abstract class Server {
   public abstract String getPublicRootUrl();
 
   /**
-   * The dev mode is enabled when the property {@code sonar.web.dev} is {@code true}.
-   *
+   * Before version 6.6, the dev mode is enabled when the property {@code sonar.web.dev} is {@code true}.
+   * Since 6.6, {@code false} is always returned.
+   * @deprecated in 6.6
    * @since 5.4
    */
+  @Deprecated
   public abstract boolean isDev();
 
   /**

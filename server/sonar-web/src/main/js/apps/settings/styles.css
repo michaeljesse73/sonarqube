@@ -1,3 +1,22 @@
+/*
+ * SonarQube
+ * Copyright (C) 2009-2018 SonarSource SA
+ * mailto:info AT sonarsource DOT com
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
 .settings-layout {
   margin-bottom: 60px;
 }
@@ -28,7 +47,6 @@
 .settings-definition-right {
   position: relative;
   width: calc(100% - 330px);
-  padding-top: 35px;
   box-sizing: border-box;
 }
 
@@ -48,54 +66,45 @@
 }
 
 .settings-definition-state {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  line-height: 24px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-height: 32px;
+  padding-bottom: 4px;
 }
 
-.settings-definition-state-icon {
-  display: inline-block;
-  vertical-align: middle;
-  width: 24px;
-  height: 24px;
-  margin-right: 8px;
-  text-align: center;
-}
-
-.settings-definition-state-icon > .icon-alert-error,
-.settings-definition-state-icon > .spinner {
-  position: relative;
-  top: -2px;
+.settings-definition-state > span {
+  display: flex;
 }
 
 .settings-definition-changes {
   margin-top: 20px;
   padding-top: 20px;
-  border-top: 1px dotted #e6e6e6;
+  border-top: 1px dotted var(--barBorderColor);
 }
 
-.settings-sub-categories-list {}
+.settings-sub-categories-list {
+}
 
-.settings-sub-categories-list > li {}
+.settings-sub-categories-list > li {
+}
 
 .settings-sub-categories-list > li + li {
   margin: 30px -20px 0;
   padding: 30px 20px;
-  border-top: 1px solid #e6e6e6;
+  border-top: 1px solid var(--barBorderColor);
 }
 
 .settings-sub-category-name {
   margin-bottom: 20px;
-  font-size: 16px;
+  font-size: var(--bigFontSize);
 }
 
 .settings-sub-category-description {
   margin-top: -15px;
   margin-bottom: 20px;
-  color: #777;
+  color: var(--secondFontColor);
+}
+
+.settings-large-input {
+  width: 100% !important;
+  max-width: 400px;
+  min-width: 200px;
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,12 +21,13 @@ package org.sonarqube.tests.qualityModel;
 
 import com.sonar.orchestrator.Orchestrator;
 import com.sonar.orchestrator.build.SonarScanner;
-import org.sonarqube.tests.Category2Suite;
 import java.util.Map;
 import org.junit.Before;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
-import org.sonarqube.ws.WsMeasures;
+import org.sonarqube.qa.util.Tester;
+import org.sonarqube.ws.Measures;
 import util.ItUtils;
 
 import static java.lang.Double.parseDouble;
@@ -49,12 +50,13 @@ public class ReliabilityMeasureTest {
   private static final String[] METRICS = new String[] {BUGS_METRIC, RELIABILITY_RATING_METRIC, RELIABILITY_REMEDIATION_EFFORT_METRIC};
 
   @ClassRule
-  public static Orchestrator orchestrator = Category2Suite.ORCHESTRATOR;
+  public static Orchestrator orchestrator = QualityModelSuite.ORCHESTRATOR;
+
+  @Rule
+  public Tester tester = new Tester(orchestrator);
 
   @Before
-  public void init() {
-    orchestrator.resetData();
-
+  public void setUp() {
     orchestrator.getServer().provisionProject(PROJECT, PROJECT);
   }
 
@@ -64,11 +66,11 @@ public class ReliabilityMeasureTest {
     orchestrator.getServer().associateProjectToQualityProfile(PROJECT, "xoo", "with-many-rules");
     orchestrator.executeBuild(SonarScanner.create(projectDir("shared/xoo-multi-modules-sample")));
 
-    assertMeasures(PROJECT, 61, 305, 4);
-    assertMeasures(MODULE, 37, 185, 4);
-    assertMeasures(SUB_MODULE, 16, 80, 4);
-    assertMeasures(DIRECTORY, 16, 80, 4);
-    assertMeasures(FILE, 16, 80, 4);
+    assertMeasures(PROJECT, 53, 265, 4);
+    assertMeasures(MODULE, 31, 155, 4);
+    assertMeasures(SUB_MODULE, 15, 75, 4);
+    assertMeasures(DIRECTORY, 15, 75, 4);
+    assertMeasures(FILE, 15, 75, 4);
   }
 
   @Test
@@ -81,7 +83,7 @@ public class ReliabilityMeasureTest {
   }
 
   private void assertMeasures(String componentKey, int expectedBugs, int expectedReliabilityRemediationEffort, int expectedReliabilityRating) {
-    Map<String, WsMeasures.Measure> measures = getMeasuresByMetricKey(orchestrator, componentKey, METRICS);
+    Map<String, Measures.Measure> measures = getMeasuresByMetricKey(orchestrator, componentKey, METRICS);
     assertThat(parseDouble(measures.get(BUGS_METRIC).getValue())).isEqualTo(expectedBugs);
     assertThat(parseDouble(measures.get(RELIABILITY_REMEDIATION_EFFORT_METRIC).getValue())).isEqualTo(expectedReliabilityRemediationEffort);
     assertThat(parseDouble(measures.get(RELIABILITY_RATING_METRIC).getValue())).isEqualTo(expectedReliabilityRating);

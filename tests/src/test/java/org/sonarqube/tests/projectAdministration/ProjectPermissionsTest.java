@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -27,8 +27,8 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
-import org.sonarqube.pageobjects.Navigation;
-import org.sonarqube.pageobjects.ProjectPermissionsPage;
+import org.sonarqube.qa.util.pageobjects.Navigation;
+import org.sonarqube.qa.util.pageobjects.ProjectPermissionsPage;
 import util.user.UserRule;
 
 import static util.ItUtils.projectDir;
@@ -57,7 +57,7 @@ public class ProjectPermissionsTest {
   }
 
   @Test
-  public void test_project_permissions_page_shows_only_single_project() throws Exception {
+  public void test_project_permissions_page_shows_only_single_project() {
     runSelenese(orchestrator, "/projectAdministration/ProjectPermissionsTest/test_project_permissions_page_shows_only_single_project.html");
   }
 

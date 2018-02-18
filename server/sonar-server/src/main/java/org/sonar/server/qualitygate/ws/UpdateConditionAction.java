@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,44 +24,41 @@ import org.sonar.api.server.ws.Response;
 import org.sonar.api.server.ws.WebService;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
+import org.sonar.db.organization.OrganizationDto;
+import org.sonar.db.qualitygate.QGateWithOrgDto;
 import org.sonar.db.qualitygate.QualityGateConditionDto;
-import org.sonar.server.organization.DefaultOrganizationProvider;
 import org.sonar.server.qualitygate.QualityGateConditionsUpdater;
-import org.sonar.server.user.UserSession;
-import org.sonarqube.ws.WsQualityGates.UpdateConditionWsResponse;
-import org.sonarqube.ws.client.qualitygate.UpdateConditionRequest;
+import org.sonarqube.ws.Qualitygates.UpdateConditionResponse;
 
+import static com.google.common.base.Preconditions.checkState;
 import static org.sonar.core.util.Protobuf.setNullable;
-import static org.sonar.db.permission.OrganizationPermission.ADMINISTER_QUALITY_GATES;
 import static org.sonar.server.qualitygate.ws.QualityGatesWs.addConditionParams;
+import static org.sonar.server.qualitygate.ws.QualityGatesWsParameters.ACTION_UPDATE_CONDITION;
+import static org.sonar.server.qualitygate.ws.QualityGatesWsParameters.PARAM_ERROR;
+import static org.sonar.server.qualitygate.ws.QualityGatesWsParameters.PARAM_ID;
+import static org.sonar.server.qualitygate.ws.QualityGatesWsParameters.PARAM_METRIC;
+import static org.sonar.server.qualitygate.ws.QualityGatesWsParameters.PARAM_OPERATOR;
+import static org.sonar.server.qualitygate.ws.QualityGatesWsParameters.PARAM_PERIOD;
+import static org.sonar.server.qualitygate.ws.QualityGatesWsParameters.PARAM_WARNING;
 import static org.sonar.server.ws.WsUtils.writeProtobuf;
-import static org.sonarqube.ws.client.qualitygate.QualityGatesWsParameters.ACTION_UPDATE_CONDITION;
-import static org.sonarqube.ws.client.qualitygate.QualityGatesWsParameters.PARAM_ERROR;
-import static org.sonarqube.ws.client.qualitygate.QualityGatesWsParameters.PARAM_ID;
-import static org.sonarqube.ws.client.qualitygate.QualityGatesWsParameters.PARAM_METRIC;
-import static org.sonarqube.ws.client.qualitygate.QualityGatesWsParameters.PARAM_OPERATOR;
-import static org.sonarqube.ws.client.qualitygate.QualityGatesWsParameters.PARAM_PERIOD;
-import static org.sonarqube.ws.client.qualitygate.QualityGatesWsParameters.PARAM_WARNING;
 
 public class UpdateConditionAction implements QualityGatesWsAction {
 
-  private final UserSession userSession;
   private final DbClient dbClient;
   private final QualityGateConditionsUpdater qualityGateConditionsUpdater;
-  private final DefaultOrganizationProvider defaultOrganizationProvider;
+  private final QualityGatesWsSupport wsSupport;
 
-  public UpdateConditionAction(UserSession userSession, DbClient dbClient, QualityGateConditionsUpdater qualityGateConditionsUpdater,
-    DefaultOrganizationProvider defaultOrganizationProvider) {
-    this.userSession = userSession;
+  public UpdateConditionAction(DbClient dbClient, QualityGateConditionsUpdater qualityGateConditionsUpdater, QualityGatesWsSupport wsSupport) {
     this.dbClient = dbClient;
     this.qualityGateConditionsUpdater = qualityGateConditionsUpdater;
-    this.defaultOrganizationProvider = defaultOrganizationProvider;
+    this.wsSupport = wsSupport;
   }
 
   @Override
   public void define(WebService.NewController controller) {
     WebService.NewAction createCondition = controller.createAction(ACTION_UPDATE_CONDITION)
-      .setDescription("Update a condition attached to a quality gate. Require Administer Quality Gates permission")
+      .setDescription("Update a condition attached to a quality gate.<br>" +
+        "Requires the 'Administer Quality Gates' permission.")
       .setPost(true)
       .setSince("4.3")
       .setHandler(this);
@@ -73,40 +70,34 @@ public class UpdateConditionAction implements QualityGatesWsAction {
       .setExampleValue("10");
 
     addConditionParams(createCondition);
+    wsSupport.createOrganizationParam(createCondition);
   }
 
   @Override
   public void handle(Request request, Response response) {
-    userSession.checkPermission(ADMINISTER_QUALITY_GATES, defaultOrganizationProvider.get().getUuid());
+    int id = request.mandatoryParamAsInt(PARAM_ID);
+    String metric = request.mandatoryParam(PARAM_METRIC);
+    String operator = request.mandatoryParam(PARAM_OPERATOR);
+    String warning = request.param(PARAM_WARNING);
+    String error = request.param(PARAM_ERROR);
+    Integer period = request.paramAsInt(PARAM_PERIOD);
 
     try (DbSession dbSession = dbClient.openSession(false)) {
-      writeProtobuf(doHandle(toWsRequest(request), dbSession), request, response);
+      OrganizationDto organization = wsSupport.getOrganization(dbSession, request);
+      QualityGateConditionDto condition = wsSupport.getCondition(dbSession, id);
+      QGateWithOrgDto qualityGateDto = dbClient.qualityGateDao().selectByOrganizationAndId(dbSession, organization, condition.getQualityGateId());
+      checkState(qualityGateDto != null, "Condition '%s' is linked to an unknown quality gate '%s'", id, condition.getQualityGateId());
+      wsSupport.checkCanEdit(qualityGateDto);
+      QualityGateConditionDto updatedCondition = qualityGateConditionsUpdater.updateCondition(dbSession, condition, metric, operator, warning, error, period);
+      UpdateConditionResponse.Builder updateConditionResponse = UpdateConditionResponse.newBuilder()
+        .setId(updatedCondition.getId())
+        .setMetric(updatedCondition.getMetricKey())
+        .setOp(updatedCondition.getOperator());
+      setNullable(updatedCondition.getWarningThreshold(), updateConditionResponse::setWarning);
+      setNullable(updatedCondition.getErrorThreshold(), updateConditionResponse::setError);
+      setNullable(updatedCondition.getPeriod(), updateConditionResponse::setPeriod);
+      writeProtobuf(updateConditionResponse.build(), request, response);
       dbSession.commit();
     }
   }
-
-  private UpdateConditionWsResponse doHandle(UpdateConditionRequest request, DbSession dbSession) {
-    QualityGateConditionDto condition = qualityGateConditionsUpdater.updateCondition(dbSession, request.getConditionId(), request.getMetricKey(), request.getOperator(),
-      request.getWarning(), request.getError(), request.getPeriod());
-    UpdateConditionWsResponse.Builder response = UpdateConditionWsResponse.newBuilder()
-      .setId(condition.getId())
-      .setMetric(condition.getMetricKey())
-      .setOp(condition.getOperator());
-    setNullable(condition.getWarningThreshold(), response::setWarning);
-    setNullable(condition.getErrorThreshold(), response::setError);
-    setNullable(condition.getPeriod(), response::setPeriod);
-    return response.build();
-  }
-
-  private static UpdateConditionRequest toWsRequest(Request request) {
-    return UpdateConditionRequest.builder()
-      .setConditionId(request.mandatoryParamAsInt(PARAM_ID))
-      .setMetricKey(request.mandatoryParam(PARAM_METRIC))
-      .setOperator(request.mandatoryParam(PARAM_OPERATOR))
-      .setWarning(request.param(PARAM_WARNING))
-      .setError(request.param(PARAM_ERROR))
-      .setPeriod(request.paramAsInt(PARAM_PERIOD))
-      .build();
-  }
-
 }

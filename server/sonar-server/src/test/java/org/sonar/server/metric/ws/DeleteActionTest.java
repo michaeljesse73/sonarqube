@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -110,9 +110,9 @@ public class DeleteActionTest {
     loggedAsSystemAdministrator();
     MetricDto customMetric = insertCustomMetric("custom-key");
     MetricDto nonCustomMetric = insertMetric(newMetricDto().setEnabled(true).setUserManaged(false).setKey("non-custom"));
-    QualityGateDto qualityGate1 = db.qualityGates().insertQualityGate();
+    QualityGateDto qualityGate1 = db.qualityGates().insertQualityGate(db.getDefaultOrganization());
     db.qualityGates().addCondition(qualityGate1, customMetric);
-    QualityGateDto qualityGate2 = db.qualityGates().insertQualityGate();
+    QualityGateDto qualityGate2 = db.qualityGates().insertQualityGate(db.getDefaultOrganization());
     db.qualityGates().addCondition(qualityGate2, customMetric);
     db.qualityGates().addCondition(qualityGate2, nonCustomMetric);
 

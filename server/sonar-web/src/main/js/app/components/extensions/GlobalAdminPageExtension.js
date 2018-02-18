@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,10 +20,11 @@
 // @flow
 import React from 'react';
 import { connect } from 'react-redux';
-import Extension from './Extension';
+import ExtensionContainer from './ExtensionContainer';
 import ExtensionNotFound from './ExtensionNotFound';
 import { getAppState } from '../../../store/rootReducer';
 
+/*::
 type Props = {
   adminPages: Array<{ key: string }>,
   params: {
@@ -31,11 +32,12 @@ type Props = {
     pluginKey: string
   }
 };
+*/
 
-function GlobalAdminPageExtension(props: Props) {
+function GlobalAdminPageExtension(props /*: Props */) {
   const { extensionKey, pluginKey } = props.params;
   const extension = props.adminPages.find(p => p.key === `${pluginKey}/${extensionKey}`);
-  return extension ? <Extension extension={extension} /> : <ExtensionNotFound />;
+  return extension ? <ExtensionContainer extension={extension} /> : <ExtensionNotFound />;
 }
 
 const mapStateToProps = state => ({

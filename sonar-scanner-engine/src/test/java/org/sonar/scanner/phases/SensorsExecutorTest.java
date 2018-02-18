@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,15 +19,8 @@
  */
 package org.sonar.scanner.phases;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-
 import java.io.IOException;
 import java.util.Collections;
-
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -37,11 +30,17 @@ import org.sonar.api.batch.SensorContext;
 import org.sonar.api.batch.bootstrap.ProjectDefinition;
 import org.sonar.api.batch.fs.internal.DefaultInputModule;
 import org.sonar.api.batch.fs.internal.InputModuleHierarchy;
+import org.sonar.api.batch.fs.internal.SensorStrategy;
 import org.sonar.api.batch.fs.internal.TestInputFileBuilder;
 import org.sonar.api.resources.Project;
 import org.sonar.scanner.bootstrap.ScannerExtensionDictionnary;
 import org.sonar.scanner.events.EventBus;
-import org.sonar.scanner.sensor.SensorStrategy;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class SensorsExecutorTest {
   @Rule
@@ -86,8 +85,8 @@ public class SensorsExecutorTest {
     when(selector.selectSensors(any(DefaultInputModule.class), eq(false))).thenReturn(Collections.singleton(perModuleSensor));
     when(selector.selectSensors(any(DefaultInputModule.class), eq(true))).thenReturn(Collections.singleton(globalSensor));
 
-    ProjectDefinition childDef = ProjectDefinition.create().setKey("sub").setBaseDir(temp.newFolder());
-    ProjectDefinition rootDef = ProjectDefinition.create().setKey("root").setBaseDir(temp.newFolder());
+    ProjectDefinition childDef = ProjectDefinition.create().setKey("sub").setBaseDir(temp.newFolder()).setWorkDir(temp.newFolder());
+    ProjectDefinition rootDef = ProjectDefinition.create().setKey("root").setBaseDir(temp.newFolder()).setWorkDir(temp.newFolder());
 
     DefaultInputModule rootModule = TestInputFileBuilder.newDefaultInputModule(rootDef);
     DefaultInputModule subModule = TestInputFileBuilder.newDefaultInputModule(childDef);

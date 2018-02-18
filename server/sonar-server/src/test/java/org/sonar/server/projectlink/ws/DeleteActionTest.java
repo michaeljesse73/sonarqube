@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -41,7 +41,7 @@ import org.sonar.server.ws.WsActionTester;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonar.core.util.Uuids.UUID_EXAMPLE_01;
 import static org.sonar.server.ws.KeyExamples.KEY_PROJECT_EXAMPLE_001;
-import static org.sonarqube.ws.client.projectlinks.ProjectLinksWsParameters.PARAM_ID;
+import static org.sonar.server.projectlink.ws.ProjectLinksWsParameters.PARAM_ID;
 
 public class DeleteActionTest {
 
@@ -152,7 +152,7 @@ public class DeleteActionTest {
     return componentDb.insertComponent(new ComponentDto()
       .setOrganizationUuid("org1")
       .setUuid(projectUuid)
-      .setKey(projectKey)
+      .setDbKey(projectKey)
       .setUuidPath("")
       .setRootUuid("")
       .setProjectUuid(""));

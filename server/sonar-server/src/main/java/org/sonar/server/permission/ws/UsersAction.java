@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -36,11 +36,13 @@ import org.sonar.db.organization.OrganizationDto;
 import org.sonar.db.permission.PermissionQuery;
 import org.sonar.db.permission.UserPermissionDto;
 import org.sonar.db.user.UserDto;
+import org.sonar.server.issue.ws.AvatarResolver;
 import org.sonar.server.permission.ProjectId;
 import org.sonar.server.user.UserSession;
-import org.sonarqube.ws.WsPermissions;
-import org.sonarqube.ws.WsPermissions.UsersWsResponse;
+import org.sonarqube.ws.Permissions;
+import org.sonarqube.ws.Permissions.UsersWsResponse;
 
+import static com.google.common.base.Strings.emptyToNull;
 import static java.util.Collections.emptyList;
 import static org.sonar.core.util.Protobuf.setNullable;
 import static org.sonar.db.permission.PermissionQuery.DEFAULT_PAGE_SIZE;
@@ -52,7 +54,6 @@ import static org.sonar.server.permission.ws.PermissionRequestValidator.validate
 import static org.sonar.server.permission.ws.PermissionsWsParametersBuilder.createOrganizationParameter;
 import static org.sonar.server.permission.ws.PermissionsWsParametersBuilder.createPermissionParameter;
 import static org.sonar.server.permission.ws.PermissionsWsParametersBuilder.createProjectParameters;
-import static org.sonar.server.ws.WsUtils.checkRequest;
 import static org.sonar.server.ws.WsUtils.writeProtobuf;
 import static org.sonarqube.ws.client.permission.PermissionsWsParameters.PARAM_ORGANIZATION;
 import static org.sonarqube.ws.client.permission.PermissionsWsParameters.PARAM_PERMISSION;
@@ -62,11 +63,13 @@ public class UsersAction implements PermissionsWsAction {
   private final DbClient dbClient;
   private final UserSession userSession;
   private final PermissionWsSupport support;
+  private final AvatarResolver avatarResolver;
 
-  public UsersAction(DbClient dbClient, UserSession userSession, PermissionWsSupport support) {
+  public UsersAction(DbClient dbClient, UserSession userSession, PermissionWsSupport support, AvatarResolver avatarResolver) {
     this.dbClient = dbClient;
     this.userSession = userSession;
     this.support = support;
+    this.avatarResolver = avatarResolver;
   }
 
   @Override
@@ -87,8 +90,9 @@ public class UsersAction implements PermissionsWsAction {
       .setHandler(this);
 
     action.createParam(Param.TEXT_QUERY)
-      .setDescription("Limit search to user names that contain the supplied string. Must have at least %d characters.<br/>" +
-        "When this parameter is not set, only users having at least one permission are returned.", SEARCH_QUERY_MIN_LENGTH)
+      .setMinimumLength(SEARCH_QUERY_MIN_LENGTH)
+      .setDescription("Limit search to user names that contain the supplied string. <br/>" +
+        "When this parameter is not set, only users having at least one permission are returned.")
       .setExampleValue("eri");
 
     createOrganizationParameter(action).setSince("6.2");
@@ -132,23 +136,21 @@ public class UsersAction implements PermissionsWsAction {
     }
     if (textQuery == null) {
       permissionQuery.withAtLeastOnePermission();
-    } else {
-      checkRequest(textQuery.length() >= SEARCH_QUERY_MIN_LENGTH,
-        "The '%s' parameter must have at least %d characters", Param.TEXT_QUERY, SEARCH_QUERY_MIN_LENGTH);
     }
     return permissionQuery.build();
   }
 
-  private static UsersWsResponse buildResponse(List<UserDto> users, List<UserPermissionDto> userPermissions, Paging paging) {
+  private UsersWsResponse buildResponse(List<UserDto> users, List<UserPermissionDto> userPermissions, Paging paging) {
     Multimap<Integer, String> permissionsByUserId = TreeMultimap.create();
     userPermissions.forEach(userPermission -> permissionsByUserId.put(userPermission.getUserId(), userPermission.getPermission()));
 
     UsersWsResponse.Builder response = UsersWsResponse.newBuilder();
     users.forEach(user -> {
-      WsPermissions.User.Builder userResponse = response.addUsersBuilder()
+      Permissions.User.Builder userResponse = response.addUsersBuilder()
         .setLogin(user.getLogin())
         .addAllPermissions(permissionsByUserId.get(user.getId()));
       setNullable(user.getEmail(), userResponse::setEmail);
+      setNullable(emptyToNull(user.getEmail()), u -> userResponse.setAvatar(avatarResolver.create(user)));
       setNullable(user.getName(), userResponse::setName);
     });
 

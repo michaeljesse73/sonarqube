@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,19 +21,18 @@
 import React from 'react';
 import { translate } from '../../../helpers/l10n';
 
-export default function Header(props: { component: { qualifier: string } }) {
-  const description = ['VW', 'SVW'].includes(props.component.qualifier)
+export default function Header(props /*: { component: { qualifier: string } } */) {
+  const { qualifier } = props.component;
+  const description = ['VW', 'SVW'].includes(qualifier)
     ? translate('portfolio_deletion.page.description')
-    : translate('project_deletion.page.description');
+    : qualifier === 'APP'
+      ? translate('application_deletion.page.description')
+      : translate('project_deletion.page.description');
 
   return (
     <header className="page-header">
-      <h1 className="page-title">
-        {translate('deletion.page')}
-      </h1>
-      <div className="page-description">
-        {description}
-      </div>
+      <h1 className="page-title">{translate('deletion.page')}</h1>
+      <div className="page-description">{description}</div>
     </header>
   );
 }

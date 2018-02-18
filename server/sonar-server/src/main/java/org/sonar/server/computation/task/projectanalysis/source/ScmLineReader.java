@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -29,6 +29,8 @@ public class ScmLineReader implements LineReader {
   private final ScmInfo scmReport;
   @CheckForNull
   private Changeset latestChange;
+  @CheckForNull
+  private Changeset latestChangeWithRevision;
 
   public ScmLineReader(ScmInfo scmReport) {
     this.scmReport = scmReport;
@@ -36,14 +38,23 @@ public class ScmLineReader implements LineReader {
 
   @Override
   public void read(DbFileSources.Line.Builder lineBuilder) {
-    Changeset changeset = scmReport.getChangesetForLine(lineBuilder.getLine());
-    String author = changeset.getAuthor();
-    if (author != null) {
-      lineBuilder.setScmAuthor(author);
+    if (scmReport.hasChangesetForLine(lineBuilder.getLine())) {
+      Changeset changeset = scmReport.getChangesetForLine(lineBuilder.getLine());
+      String author = changeset.getAuthor();
+      if (author != null) {
+        lineBuilder.setScmAuthor(author);
+      }
+      String revision = changeset.getRevision();
+      if (revision != null) {
+        lineBuilder.setScmRevision(revision);
+      }
+      lineBuilder.setScmDate(changeset.getDate());
+      updateLatestChange(changeset);
+
+      if (revision != null) {
+        updateLatestChangeWithRevision(changeset);
+      }
     }
-    lineBuilder.setScmRevision(changeset.getRevision());
-    lineBuilder.setScmDate(changeset.getDate());
-    updateLatestChange(changeset);
   }
 
   private void updateLatestChange(Changeset newChangeSet) {
@@ -56,6 +67,23 @@ public class ScmLineReader implements LineReader {
         latestChange = newChangeSet;
       }
     }
+  }
+
+  private void updateLatestChangeWithRevision(Changeset newChangeSet) {
+    if (latestChangeWithRevision == null) {
+      latestChangeWithRevision = newChangeSet;
+    } else {
+      long newChangesetDate = newChangeSet.getDate();
+      long latestChangeDate = latestChangeWithRevision.getDate();
+      if (newChangesetDate > latestChangeDate) {
+        latestChangeWithRevision = newChangeSet;
+      }
+    }
+  }
+
+  @CheckForNull
+  public Changeset getLatestChangeWithRevision() {
+    return latestChangeWithRevision;
   }
 
   @CheckForNull

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,8 +19,9 @@
  */
 package org.sonar.server.qualitygate.ws;
 
-import com.google.common.base.Optional;
+import java.util.Optional;
 import javax.annotation.Nullable;
+import org.sonar.api.server.ws.Change;
 import org.sonar.api.server.ws.Request;
 import org.sonar.api.server.ws.Response;
 import org.sonar.api.server.ws.WebService;
@@ -28,22 +29,22 @@ import org.sonar.core.util.Uuids;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
 import org.sonar.db.component.ComponentDto;
+import org.sonar.db.organization.OrganizationDto;
 import org.sonar.server.component.ComponentFinder;
-import org.sonar.server.qualitygate.QualityGates;
-import org.sonarqube.ws.client.qualitygate.QualityGatesWsParameters;
 
+import static org.sonar.server.qualitygate.QualityGateFinder.SONAR_QUALITYGATE_PROPERTY;
+import static org.sonar.server.qualitygate.ws.QualityGatesWsParameters.PARAM_PROJECT_ID;
+import static org.sonar.server.qualitygate.ws.QualityGatesWsParameters.PARAM_PROJECT_KEY;
 import static org.sonar.server.ws.KeyExamples.KEY_PROJECT_EXAMPLE_001;
-import static org.sonarqube.ws.client.qualitygate.QualityGatesWsParameters.PARAM_PROJECT_ID;
-import static org.sonarqube.ws.client.qualitygate.QualityGatesWsParameters.PARAM_PROJECT_KEY;
 
 public class DeselectAction implements QualityGatesWsAction {
 
-  private final QualityGates qualityGates;
   private final DbClient dbClient;
   private final ComponentFinder componentFinder;
+  private final QualityGatesWsSupport wsSupport;
 
-  public DeselectAction(QualityGates qualityGates, DbClient dbClient, ComponentFinder componentFinder) {
-    this.qualityGates = qualityGates;
+  public DeselectAction(DbClient dbClient, ComponentFinder componentFinder, QualityGatesWsSupport wsSupport) {
+    this.wsSupport = wsSupport;
     this.dbClient = dbClient;
     this.componentFinder = componentFinder;
   }
@@ -51,50 +52,63 @@ public class DeselectAction implements QualityGatesWsAction {
   @Override
   public void define(WebService.NewController controller) {
     WebService.NewAction action = controller.createAction("deselect")
-      .setDescription("Remove the association of a project from a quality gate. Require Administer Quality Gates permission")
+      .setDescription("Remove the association of a project from a quality gate.<br>" +
+        "Requires one of the following permissions:" +
+        "<ul>" +
+        "<li>'Administer Quality Gates'</li>" +
+        "<li>'Administer' rights on the project</li>" +
+        "</ul>")
       .setPost(true)
       .setSince("4.3")
-      .setHandler(this);
-
-    action.createParam(QualityGatesWsParameters.PARAM_GATE_ID)
-      .setDescription("Quality Gate id")
-      .setRequired(true)
-      .setExampleValue("23");
+      .setHandler(this)
+      .setChangelog(new Change("6.6", "The parameter 'gateId' was removed"));
 
     action.createParam(PARAM_PROJECT_ID)
-      .setDescription("Project id. Project id as an numeric value is deprecated since 6.1")
+      .setDescription("Project id")
+      .setDeprecatedSince("6.1")
       .setExampleValue(Uuids.UUID_EXAMPLE_01);
 
     action.createParam(PARAM_PROJECT_KEY)
       .setDescription("Project key")
       .setExampleValue(KEY_PROJECT_EXAMPLE_001)
       .setSince("6.1");
+
+    wsSupport.createOrganizationParam(action);
   }
 
   @Override
   public void handle(Request request, Response response) {
     try (DbSession dbSession = dbClient.openSession(false)) {
-      ComponentDto project = getProject(dbSession, request.param(PARAM_PROJECT_ID), request.param(PARAM_PROJECT_KEY));
-      qualityGates.dissociateProject(dbSession, QualityGatesWs.parseId(request, QualityGatesWsParameters.PARAM_GATE_ID), project);
+      OrganizationDto organization = wsSupport.getOrganization(dbSession, request);
+      ComponentDto project = getProject(dbSession, organization, request.param(PARAM_PROJECT_ID), request.param(PARAM_PROJECT_KEY));
+      dissociateProject(dbSession, organization, project);
       response.noContent();
     }
   }
 
-  private ComponentDto getProject(DbSession dbSession, @Nullable String projectId, @Nullable String projectKey) {
-    return selectProjectById(dbSession, projectId)
-        .or(() -> componentFinder.getByUuidOrKey(dbSession, projectId, projectKey, ComponentFinder.ParamNames.PROJECT_ID_AND_KEY));
+  private void dissociateProject(DbSession dbSession, OrganizationDto organization, ComponentDto project) {
+    wsSupport.checkCanAdminProject(organization, project);
+    dbClient.propertiesDao().deleteProjectProperty(SONAR_QUALITYGATE_PROPERTY, project.getId(), dbSession);
+    dbSession.commit();
+  }
+
+  private ComponentDto getProject(DbSession dbSession, OrganizationDto organization, @Nullable String projectId, @Nullable String projectKey) {
+    ComponentDto project = selectProjectById(dbSession, projectId)
+      .orElseGet(() -> componentFinder.getByUuidOrKey(dbSession, projectId, projectKey, ComponentFinder.ParamNames.PROJECT_ID_AND_KEY));
+    wsSupport.checkProjectBelongsToOrganization(organization, project);
+    return project;
   }
 
   private Optional<ComponentDto> selectProjectById(DbSession dbSession, @Nullable String projectId) {
     if (projectId == null) {
-      return Optional.absent();
+      return Optional.empty();
     }
 
     try {
       long dbId = Long.parseLong(projectId);
-      return dbClient.componentDao().selectById(dbSession, dbId);
+      return Optional.ofNullable(dbClient.componentDao().selectById(dbSession, dbId).orNull());
     } catch (NumberFormatException e) {
-      return Optional.absent();
+      return Optional.empty();
     }
   }
 

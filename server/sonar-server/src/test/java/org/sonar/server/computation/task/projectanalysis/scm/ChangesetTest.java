@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -31,7 +31,7 @@ public class ChangesetTest {
   public ExpectedException thrown = ExpectedException.none();
 
   @Test
-  public void create_changeset() throws Exception {
+  public void create_changeset() {
     Changeset underTest = Changeset.newChangesetBuilder()
       .setAuthor("john")
       .setDate(123456789L)
@@ -44,34 +44,14 @@ public class ChangesetTest {
   }
 
   @Test
-  public void create_changeset_with_minimum_fields() throws Exception {
+  public void create_changeset_with_minimum_fields() {
     Changeset underTest = Changeset.newChangesetBuilder()
       .setDate(123456789L)
-      .setRevision("rev-1")
       .build();
 
     assertThat(underTest.getAuthor()).isNull();
     assertThat(underTest.getDate()).isEqualTo(123456789L);
-    assertThat(underTest.getRevision()).isEqualTo("rev-1");
-  }
-
-  @Test
-  public void fail_with_NPE_when_setting_null_revision() throws Exception {
-    thrown.expect(NullPointerException.class);
-    thrown.expectMessage("Revision cannot be null");
-
-    Changeset.newChangesetBuilder().setRevision(null);
-  }
-
-  @Test
-  public void fail_with_NPE_when_building_without_revision() throws Exception {
-    thrown.expect(NullPointerException.class);
-    thrown.expectMessage("Revision cannot be null");
-
-    Changeset.newChangesetBuilder()
-      .setAuthor("john")
-      .setDate(123456789L)
-      .build();
+    assertThat(underTest.getRevision()).isNull();
   }
 
   @Test
@@ -83,7 +63,7 @@ public class ChangesetTest {
   }
 
   @Test
-  public void fail_with_NPE_when_building_without_date() throws Exception {
+  public void fail_with_NPE_when_building_without_date() {
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("Date cannot be null");
 
@@ -94,7 +74,7 @@ public class ChangesetTest {
   }
 
   @Test
-  public void test_to_string() throws Exception {
+  public void test_to_string() {
     Changeset underTest = Changeset.newChangesetBuilder()
       .setAuthor("john")
       .setDate(123456789L)
@@ -105,7 +85,7 @@ public class ChangesetTest {
   }
 
   @Test
-  public void equals_and_hashcode_are_based_on_revision_alone() throws Exception {
+  public void equals_and_hashcode_are_based_on_all_fields() throws Exception {
     Changeset.Builder changesetBuilder = Changeset.newChangesetBuilder()
       .setAuthor("john")
       .setDate(123456789L)
@@ -128,12 +108,12 @@ public class ChangesetTest {
 
     assertThat(changeset).isEqualTo(changeset);
     assertThat(changeset).isEqualTo(sameChangeset);
-    assertThat(changeset).isEqualTo(anotherChangesetWithSameRevision);
+    assertThat(changeset).isNotEqualTo(anotherChangesetWithSameRevision);
     assertThat(changeset).isNotEqualTo(anotherChangeset);
 
     assertThat(changeset.hashCode()).isEqualTo(changeset.hashCode());
     assertThat(changeset.hashCode()).isEqualTo(sameChangeset.hashCode());
-    assertThat(changeset.hashCode()).isEqualTo(anotherChangesetWithSameRevision.hashCode());
+    assertThat(changeset.hashCode()).isNotEqualTo(anotherChangesetWithSameRevision.hashCode());
     assertThat(changeset.hashCode()).isNotEqualTo(anotherChangeset.hashCode());
   }
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,7 +19,7 @@
  */
 package org.sonar.server.setting;
 
-import com.google.common.collect.ImmutableMap;
+import java.util.Map;
 import javax.annotation.CheckForNull;
 
 public interface SettingLoader {
@@ -27,6 +27,6 @@ public interface SettingLoader {
   @CheckForNull
   String load(String key);
 
-  void loadAll(ImmutableMap.Builder<String, String> appendTo);
+  Map<String,String> loadAll();
 
 }

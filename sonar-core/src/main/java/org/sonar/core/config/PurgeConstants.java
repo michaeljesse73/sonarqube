@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,6 +25,8 @@ public interface PurgeConstants {
   String HOURS_BEFORE_KEEPING_ONLY_ONE_SNAPSHOT_BY_DAY = "sonar.dbcleaner.hoursBeforeKeepingOnlyOneSnapshotByDay";
   String WEEKS_BEFORE_KEEPING_ONLY_ONE_SNAPSHOT_BY_WEEK = "sonar.dbcleaner.weeksBeforeKeepingOnlyOneSnapshotByWeek";
   String WEEKS_BEFORE_KEEPING_ONLY_ONE_SNAPSHOT_BY_MONTH = "sonar.dbcleaner.weeksBeforeKeepingOnlyOneSnapshotByMonth";
+  String WEEKS_BEFORE_KEEPING_ONLY_ANALYSES_WITH_VERSION = "sonar.dbcleaner.weeksBeforeKeepingOnlyAnalysesWithVersion";
   String WEEKS_BEFORE_DELETING_ALL_SNAPSHOTS = "sonar.dbcleaner.weeksBeforeDeletingAllSnapshots";
   String DAYS_BEFORE_DELETING_CLOSED_ISSUES = "sonar.dbcleaner.daysBeforeDeletingClosedIssues";
+  String DAYS_BEFORE_DELETING_INACTIVE_SHORT_LIVING_BRANCHES = "sonar.dbcleaner.daysBeforeDeletingInactiveShortLivingBranches";
 }

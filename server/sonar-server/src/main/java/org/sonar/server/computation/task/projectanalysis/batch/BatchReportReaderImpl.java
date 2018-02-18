@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,7 +19,6 @@
  */
 package org.sonar.server.computation.task.projectanalysis.batch;
 
-import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Parser;
@@ -29,6 +28,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import javax.annotation.CheckForNull;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
@@ -144,7 +144,7 @@ public class BatchReportReaderImpl implements BatchReportReader {
     ensureInitialized();
     File file = delegate.readFileSource(fileRef);
     if (file == null) {
-      return Optional.absent();
+      return Optional.empty();
     }
 
     try {
@@ -178,7 +178,7 @@ public class BatchReportReaderImpl implements BatchReportReader {
     }
 
     @Override
-    protected void doClose() throws Exception {
+    protected void doClose() {
       lineIterator.close();
     }
   }

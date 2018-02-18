@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -40,7 +40,7 @@ public class InstalledPluginsActionTest {
   private WsActionTester ws = new WsActionTester(new InstalledPluginsAction(pluginRepository));
 
   @Test
-  public void return_plugins() throws Exception {
+  public void return_plugins() {
     when(pluginRepository.getPluginInfos()).thenReturn(asList(
       new PluginInfo("java").setName("Java").setVersion(Version.create("3.14")),
       new PluginInfo("xoo").setName("Xoo").setVersion(Version.create("1.0"))));
@@ -62,7 +62,7 @@ public class InstalledPluginsActionTest {
   }
 
   @Test
-  public void return_plugins_with_plugin_having_no_version() throws Exception {
+  public void return_plugins_with_plugin_having_no_version() {
     when(pluginRepository.getPluginInfos()).thenReturn(singletonList(
       new PluginInfo("java").setName("Java")));
 

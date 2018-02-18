@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -35,7 +35,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
-import org.sonar.process.DefaultProcessCommands;
+import org.sonar.process.sharedmemoryfile.DefaultProcessCommands;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonar.process.ProcessEntryPoint.PROPERTY_PROCESS_INDEX;
@@ -68,7 +68,7 @@ public class CeHttpServerTest {
   }
 
   @Test
-  public void start_publishes_URL_in_IPC() throws Exception {
+  public void start_publishes_URL_in_IPC() {
     try (DefaultProcessCommands commands = DefaultProcessCommands.secondary(this.sharedDir, 1)) {
       assertThat(commands.getHttpUrl()).startsWith("http://127.0.0.1:");
     }

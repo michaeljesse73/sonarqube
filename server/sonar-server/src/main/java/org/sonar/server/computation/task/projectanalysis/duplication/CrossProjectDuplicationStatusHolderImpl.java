@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -47,13 +47,13 @@ public class CrossProjectDuplicationStatusHolderImpl implements CrossProjectDupl
 
   @Override
   public void start() {
-    boolean crossProjectDuplicationIsEnabledInReport = analysisMetadataHolder.isCrossProjectDuplicationEnabled();
-    boolean branchIsUsed = analysisMetadataHolder.getBranch() != null;
-    if (crossProjectDuplicationIsEnabledInReport && !branchIsUsed) {
+    boolean enabledInReport = analysisMetadataHolder.isCrossProjectDuplicationEnabled();
+    boolean supportedByBranch = analysisMetadataHolder.getBranch().supportsCrossProjectCpd();
+    if (enabledInReport && supportedByBranch) {
       LOGGER.debug("Cross project duplication is enabled");
       this.enabled = true;
     } else {
-      if (!crossProjectDuplicationIsEnabledInReport) {
+      if (!enabledInReport) {
         LOGGER.debug("Cross project duplication is disabled because it's disabled in the analysis report");
       } else {
         LOGGER.debug("Cross project duplication is disabled because of a branch is used");

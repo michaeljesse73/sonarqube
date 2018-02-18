@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,8 +21,9 @@
 import React from 'react';
 import ConciseIssue from './ConciseIssue';
 import { scrollToElement } from '../../../helpers/scrolling';
-import type { Issue } from '../../../components/issue/types';
+/*:: import type { Issue } from '../../../components/issue/types'; */
 
+/*::
 type Props = {|
   issues: Array<Issue>,
   onFlowSelect: number => void,
@@ -32,11 +33,12 @@ type Props = {|
   selectedFlowIndex: ?number,
   selectedLocationIndex: ?number
 |};
+*/
 
 export default class ConciseIssuesList extends React.PureComponent {
-  props: Props;
+  /*:: props: Props; */
 
-  handleScroll = (element: HTMLElement, bottomOffset: number = 100) => {
+  handleScroll = (element /*: HTMLElement */, bottomOffset /*: number */ = 100) => {
     const scrollableElement = document.querySelector('.layout-page-side');
     if (element && scrollableElement) {
       scrollToElement(element, { topOffset: 150, bottomOffset, parent: scrollableElement });

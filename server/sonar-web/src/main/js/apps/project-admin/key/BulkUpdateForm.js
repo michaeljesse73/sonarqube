@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,11 +18,12 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import React from 'react';
+import PropTypes from 'prop-types';
 import { translate } from '../../../helpers/l10n';
 
 export default class BulkUpdateForm extends React.PureComponent {
   static propTypes = {
-    onSubmit: React.PropTypes.func.isRequired
+    onSubmit: PropTypes.func.isRequired
   };
 
   handleSubmit(e) {
@@ -39,9 +40,7 @@ export default class BulkUpdateForm extends React.PureComponent {
     return (
       <form onSubmit={this.handleSubmit.bind(this)}>
         <div className="modal-field">
-          <label htmlFor="bulk-update-replace">
-            {translate('update_key.replace')}
-          </label>
+          <label htmlFor="bulk-update-replace">{translate('update_key.replace')}</label>
           <input
             ref="replace"
             id="bulk-update-replace"
@@ -53,9 +52,7 @@ export default class BulkUpdateForm extends React.PureComponent {
         </div>
 
         <div className="modal-field">
-          <label htmlFor="bulk-update-by">
-            {translate('update_key.by')}
-          </label>
+          <label htmlFor="bulk-update-by">{translate('update_key.by')}</label>
           <input
             ref="by"
             id="bulk-update-by"

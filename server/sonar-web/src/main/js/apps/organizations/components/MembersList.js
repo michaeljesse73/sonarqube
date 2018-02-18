@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,9 +20,10 @@
 //@flow
 import React from 'react';
 import MembersListItem from './MembersListItem';
-import type { Member } from '../../../store/organizationsMembers/actions';
-import type { Organization, OrgGroup } from '../../../store/organizations/duck';
+/*:: import type { Member } from '../../../store/organizationsMembers/actions'; */
+/*:: import type { Organization, OrgGroup } from '../../../store/organizations/duck'; */
 
+/*::
 type Props = {
   members: Array<Member>,
   organizationGroups: Array<OrgGroup>,
@@ -30,26 +31,29 @@ type Props = {
   removeMember: Member => void,
   updateMemberGroups: (member: Member, add: Array<string>, remove: Array<string>) => void
 };
+*/
 
 export default class MembersList extends React.PureComponent {
-  props: Props;
+  /*:: props: Props; */
 
   render() {
     return (
-      <table className="data zebra">
-        <tbody>
-          {this.props.members.map(member => (
-            <MembersListItem
-              key={member.login}
-              member={member}
-              organizationGroups={this.props.organizationGroups}
-              organization={this.props.organization}
-              removeMember={this.props.removeMember}
-              updateMemberGroups={this.props.updateMemberGroups}
-            />
-          ))}
-        </tbody>
-      </table>
+      <div className="boxed-group boxed-group-inner">
+        <table className="data zebra">
+          <tbody>
+            {this.props.members.map(member => (
+              <MembersListItem
+                key={member.login}
+                member={member}
+                organizationGroups={this.props.organizationGroups}
+                organization={this.props.organization}
+                removeMember={this.props.removeMember}
+                updateMemberGroups={this.props.updateMemberGroups}
+              />
+            ))}
+          </tbody>
+        </table>
+      </div>
     );
   }
 }

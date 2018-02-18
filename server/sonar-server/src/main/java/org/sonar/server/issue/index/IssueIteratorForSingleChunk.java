@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -28,14 +28,12 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Collection;
-import java.util.Date;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 import org.apache.commons.lang.StringUtils;
 import org.sonar.api.resources.Scopes;
-import org.sonar.api.rule.RuleKey;
 import org.sonar.api.rules.RuleType;
 import org.sonar.db.DatabaseUtils;
 import org.sonar.db.DbClient;
@@ -55,46 +53,39 @@ class IssueIteratorForSingleChunk implements IssueIterator {
   private static final String[] FIELDS = {
     // column 1
     "i.kee",
-    "root.uuid",
-    "i.updated_at",
     "i.assignee",
-    "i.gap",
-    "i.issue_attributes",
     "i.line",
-    "i.message",
     "i.resolution",
     "i.severity",
-
-    // column 11
-    "i.manual_severity",
-    "i.checksum",
     "i.status",
     "i.effort",
     "i.author_login",
     "i.issue_close_date",
     "i.issue_creation_date",
+
+    // column 11
     "i.issue_update_date",
-    "r.plugin_name",
-    "r.plugin_rule_key",
+    "r.id",
+    "r.language",
+    "c.uuid",
+    "c.module_uuid_path",
+    "c.path",
+    "c.scope",
+    "c.organization_uuid",
+    "c.project_uuid",
 
     // column 21
-    "r.language",
-    "p.uuid",
-    "p.module_uuid_path",
-    "p.path",
-    "p.scope",
-    "p.organization_uuid",
+    "c.main_branch_project_uuid",
     "i.tags",
     "i.issue_type"
   };
 
   private static final String SQL_ALL = "select " + StringUtils.join(FIELDS, ",") + " from issues i " +
-    "inner join rules r on r.id=i.rule_id " +
-    "inner join projects p on p.uuid=i.component_uuid " +
-    "inner join projects root on root.uuid=i.project_uuid";
+    "inner join rules r on r.id = i.rule_id " +
+    "inner join projects c on c.uuid = i.component_uuid ";
 
-  private static final String PROJECT_FILTER = " AND root.uuid=?";
-  private static final String ISSUE_KEY_FILTER_PREFIX = " AND i.kee IN (";
+  private static final String PROJECT_FILTER = " and c.project_uuid = ?";
+  private static final String ISSUE_KEY_FILTER_PREFIX = " and i.kee in (";
   private static final String ISSUE_KEY_FILTER_SUFFIX = ")";
 
   static final Splitter TAGS_SPLITTER = Splitter.on(',').trimResults().omitEmptyStrings();
@@ -194,43 +185,44 @@ class IssueIteratorForSingleChunk implements IssueIterator {
       IssueDoc doc = new IssueDoc(Maps.newHashMapWithExpectedSize(30));
 
       String key = rs.getString(1);
-      String projectUuid = rs.getString(2);
 
       // all the fields must be present, even if value is null
       doc.setKey(key);
-      doc.setProjectUuid(projectUuid);
-      doc.setTechnicalUpdateDate(new Date(rs.getLong(3)));
-      doc.setAssignee(rs.getString(4));
-      doc.setGap(DatabaseUtils.getDouble(rs, 5));
-      doc.setAttributes(rs.getString(6));
-      doc.setLine(DatabaseUtils.getInt(rs, 7));
-      doc.setMessage(rs.getString(8));
-      doc.setResolution(rs.getString(9));
-      doc.setSeverity(rs.getString(10));
-      doc.setManualSeverity(rs.getBoolean(11));
-      doc.setChecksum(rs.getString(12));
-      doc.setStatus(rs.getString(13));
-      doc.setEffort(getLong(rs, 14));
-      doc.setAuthorLogin(rs.getString(15));
-      doc.setFuncCloseDate(longToDate(getLong(rs, 16)));
-      doc.setFuncCreationDate(longToDate(getLong(rs, 17)));
-      doc.setFuncUpdateDate(longToDate(getLong(rs, 18)));
-      String ruleRepo = rs.getString(19);
-      String ruleKey = rs.getString(20);
-      doc.setRuleKey(RuleKey.of(ruleRepo, ruleKey).toString());
-      doc.setLanguage(rs.getString(21));
-      doc.setComponentUuid(rs.getString(22));
-      String moduleUuidPath = rs.getString(23);
+      doc.setAssignee(rs.getString(2));
+      doc.setLine(DatabaseUtils.getInt(rs, 3));
+      doc.setResolution(rs.getString(4));
+      doc.setSeverity(rs.getString(5));
+      doc.setStatus(rs.getString(6));
+      doc.setEffort(getLong(rs, 7));
+      doc.setAuthorLogin(rs.getString(8));
+      doc.setFuncCloseDate(longToDate(getLong(rs, 9)));
+      doc.setFuncCreationDate(longToDate(getLong(rs, 10)));
+      doc.setFuncUpdateDate(longToDate(getLong(rs, 11)));
+      Integer ruleId = rs.getInt(12);
+      doc.setRuleId(ruleId);
+      doc.setLanguage(rs.getString(13));
+      doc.setComponentUuid(rs.getString(14));
+      String moduleUuidPath = rs.getString(15);
       doc.setModuleUuid(extractModule(moduleUuidPath));
       doc.setModuleUuidPath(moduleUuidPath);
-      String scope = rs.getString(25);
-      String filePath = extractFilePath(rs.getString(24), scope);
+      String scope = rs.getString(17);
+      String filePath = extractFilePath(rs.getString(16), scope);
       doc.setFilePath(filePath);
       doc.setDirectoryPath(extractDirPath(doc.filePath(), scope));
-      doc.setOrganizationUuid(rs.getString(26));
-      String tags = rs.getString(27);
+      doc.setOrganizationUuid(rs.getString(18));
+      String branchUuid = rs.getString(19);
+      String mainBranchProjectUuid = DatabaseUtils.getString(rs, 20);
+      doc.setBranchUuid(branchUuid);
+      if (mainBranchProjectUuid == null) {
+        doc.setProjectUuid(branchUuid);
+        doc.setIsMainBranch(true);
+      } else {
+        doc.setProjectUuid(mainBranchProjectUuid);
+        doc.setIsMainBranch(false);
+      }
+      String tags = rs.getString(21);
       doc.setTags(ImmutableList.copyOf(IssueIteratorForSingleChunk.TAGS_SPLITTER.split(tags == null ? "" : tags)));
-      doc.setType(RuleType.valueOf(rs.getInt(28)));
+      doc.setType(RuleType.valueOf(rs.getInt(22)));
       return doc;
     }
 

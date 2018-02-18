@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -17,37 +17,47 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
+import { receiveValues } from './values/actions';
+import { receiveDefinitions } from './definitions/actions';
+import { startLoading, stopLoading } from './settingsPage/loading/actions';
+import { passValidation, failValidation } from './settingsPage/validationMessages/actions';
+import { cancelChange } from './settingsPage/changedValues/actions';
 import {
   getDefinitions,
   getValues,
   setSettingValue,
   resetSettingValue
 } from '../../../api/settings';
-import { receiveValues } from './values/actions';
-import { receiveDefinitions } from './definitions/actions';
-import { startLoading, stopLoading } from './settingsPage/loading/actions';
-import { parseError } from '../../code/utils';
+import { parseError } from '../../../helpers/request';
 import { addGlobalErrorMessage, closeAllGlobalMessages } from '../../../store/globalMessages/duck';
-import { passValidation, failValidation } from './settingsPage/validationMessages/actions';
-import { cancelChange } from './settingsPage/changedValues/actions';
 import { isEmptyValue } from '../utils';
 import { translate } from '../../../helpers/l10n';
 import { getSettingsAppDefinition, getSettingsAppChangedValue } from '../../../store/rootReducer';
 
 export const fetchSettings = componentKey => dispatch => {
-  return getDefinitions(componentKey)
-    .then(definitions => {
-      const withoutLicenses = definitions.filter(definition => definition.type !== 'LICENSE');
-      dispatch(receiveDefinitions(withoutLicenses));
-      const keys = withoutLicenses.map(definition => definition.key).join();
-      return getValues(keys, componentKey);
-    })
-    .then(settings => {
-      dispatch(receiveValues(settings));
-      dispatch(closeAllGlobalMessages());
-    })
-    .catch(e => parseError(e).then(message => dispatch(addGlobalErrorMessage(message))));
+  return getDefinitions(componentKey).then(
+    definitions => {
+      const filtered = definitions
+        .filter(definition => definition.type !== 'LICENSE')
+        // do not display this setting on project level
+        .filter(
+          definition =>
+            componentKey == null || definition.key !== 'sonar.branch.longLivedBranches.regex'
+        );
+      dispatch(receiveDefinitions(filtered));
+    },
+    e => parseError(e).then(message => dispatch(addGlobalErrorMessage(message)))
+  );
 };
+
+export const fetchValues = (keys, componentKey) => dispatch =>
+  getValues(keys, componentKey).then(
+    settings => {
+      dispatch(receiveValues(settings, componentKey));
+      dispatch(closeAllGlobalMessages());
+    },
+    () => {}
+  );
 
 export const saveValue = (key, componentKey) => (dispatch, getState) => {
   dispatch(startLoading(key));
@@ -65,7 +75,7 @@ export const saveValue = (key, componentKey) => (dispatch, getState) => {
   return setSettingValue(definition, value, componentKey)
     .then(() => getValues(key, componentKey))
     .then(values => {
-      dispatch(receiveValues(values));
+      dispatch(receiveValues(values, componentKey));
       dispatch(cancelChange(key));
       dispatch(passValidation(key));
       dispatch(stopLoading(key));
@@ -84,9 +94,9 @@ export const resetValue = (key, componentKey) => dispatch => {
     .then(() => getValues(key, componentKey))
     .then(values => {
       if (values.length > 0) {
-        dispatch(receiveValues(values));
+        dispatch(receiveValues(values, componentKey));
       } else {
-        dispatch(receiveValues([{ key }]));
+        dispatch(receiveValues([{ key }], componentKey));
       }
       dispatch(passValidation(key));
       dispatch(stopLoading(key));

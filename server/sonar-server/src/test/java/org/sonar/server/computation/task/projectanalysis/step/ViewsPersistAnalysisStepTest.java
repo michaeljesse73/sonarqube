@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -64,13 +64,9 @@ public class ViewsPersistAnalysisStepTest extends BaseStepTest {
   public PeriodHolderRule periodsHolder = new PeriodHolderRule();
 
   private System2 system2 = mock(System2.class);
-
   private DbClient dbClient = dbTester.getDbClient();
-
   private long analysisDate;
-
   private long now;
-
   private PersistAnalysisStep underTest;
 
   @Before
@@ -97,7 +93,7 @@ public class ViewsPersistAnalysisStepTest extends BaseStepTest {
   @Test
   public void persist_analysis() {
     OrganizationDto organizationDto = dbTester.organizations().insert();
-    ComponentDto viewDto = save(newView(organizationDto, "UUID_VIEW").setKey("KEY_VIEW"));
+    ComponentDto viewDto = save(newView(organizationDto, "UUID_VIEW").setDbKey("KEY_VIEW"));
     save(newSubView(viewDto, "UUID_SUBVIEW", "KEY_SUBVIEW"));
     save(newPrivateProjectDto(organizationDto, "proj"));
     dbTester.getSession().commit();
@@ -124,7 +120,7 @@ public class ViewsPersistAnalysisStepTest extends BaseStepTest {
   @Test
   public void persist_snapshots_with_leak_period() {
     OrganizationDto organizationDto = dbTester.organizations().insert();
-    ComponentDto viewDto = save(newView(organizationDto, "UUID_VIEW").setKey("KEY_VIEW"));
+    ComponentDto viewDto = save(newView(organizationDto, "UUID_VIEW").setDbKey("KEY_VIEW"));
     ComponentDto subViewDto = save(newSubView(viewDto, "UUID_SUBVIEW", "KEY_SUBVIEW"));
     dbTester.getSession().commit();
 

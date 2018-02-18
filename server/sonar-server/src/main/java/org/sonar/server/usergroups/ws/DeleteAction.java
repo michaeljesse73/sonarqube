@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -72,6 +72,7 @@ public class DeleteAction implements UserGroupsWsAction {
       removeGroupPermissions(dbSession, group);
       removeFromPermissionTemplates(dbSession, group);
       removeGroupMembers(dbSession, group);
+      dbClient.qProfileEditGroupsDao().deleteByGroup(dbSession, group);
       dbClient.groupDao().deleteById(dbSession, group.getId());
 
       dbSession.commit();

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -47,12 +47,12 @@ import org.sonar.server.user.index.UserDoc;
 import org.sonar.server.user.index.UserIndex;
 import org.sonar.server.user.index.UserIndexDefinition;
 import org.sonar.server.user.index.UserIndexer;
+import org.sonar.server.user.ws.CreateAction.CreateRequest;
 import org.sonar.server.usergroups.DefaultGroupFinder;
 import org.sonar.server.ws.TestRequest;
 import org.sonar.server.ws.WsActionTester;
-import org.sonarqube.ws.WsUsers.CreateWsResponse;
-import org.sonarqube.ws.WsUsers.CreateWsResponse.User;
-import org.sonarqube.ws.client.user.CreateRequest;
+import org.sonarqube.ws.Users.CreateWsResponse;
+import org.sonarqube.ws.Users.CreateWsResponse.User;
 
 import static java.util.Collections.singletonList;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -77,7 +77,7 @@ public class CreateActionTest {
   @Rule
   public ExpectedException expectedException = ExpectedException.none();
 
-  private UserIndex index = new UserIndex(esTester.client());
+  private UserIndex index = new UserIndex(esTester.client(), System2.INSTANCE);
   private UserIndexer userIndexer = new UserIndexer(db.getDbClient(), esTester.client());
   private GroupDto defaultGroupInDefaultOrg;
   private DefaultOrganizationProvider defaultOrganizationProvider = TestDefaultOrganizationProvider.from(db);
@@ -95,7 +95,7 @@ public class CreateActionTest {
   }
 
   @Test
-  public void create_user() throws Exception {
+  public void create_user() {
     logInAsSystemAdministrator();
 
     CreateWsResponse response = call(CreateRequest.builder()
@@ -126,21 +126,21 @@ public class CreateActionTest {
   }
 
   @Test
-  public void create_user_calls_create_personal_organization_if_personal_organizations_are_enabled() throws Exception {
+  public void create_user_calls_create_personal_organization_if_personal_organizations_are_enabled() {
     logInAsSystemAdministrator();
     enableCreatePersonalOrg(true);
     assertACallToOrganizationCreationWhenUserIsCreated();
   }
 
   @Test
-  public void create_user_calls_create_personal_organization_if_personal_organizations_are_disabled() throws Exception {
+  public void create_user_calls_create_personal_organization_if_personal_organizations_are_disabled() {
     logInAsSystemAdministrator();
     enableCreatePersonalOrg(false);
     assertACallToOrganizationCreationWhenUserIsCreated();
   }
 
   @Test
-  public void create_user_associates_him_to_default_organization() throws Exception {
+  public void create_user_associates_him_to_default_organization() {
     logInAsSystemAdministrator();
     enableCreatePersonalOrg(true);
 
@@ -156,7 +156,7 @@ public class CreateActionTest {
   }
 
   @Test
-  public void create_local_user() throws Exception {
+  public void create_local_user() {
     logInAsSystemAdministrator();
 
     call(CreateRequest.builder()
@@ -172,7 +172,7 @@ public class CreateActionTest {
   }
 
   @Test
-  public void create_none_local_user() throws Exception {
+  public void create_none_local_user() {
     logInAsSystemAdministrator();
 
     call(CreateRequest.builder()
@@ -187,7 +187,7 @@ public class CreateActionTest {
   }
 
   @Test
-  public void create_user_with_comma_in_scm_account() throws Exception {
+  public void create_user_with_comma_in_scm_account() {
     logInAsSystemAdministrator();
 
     CreateWsResponse response = call(CreateRequest.builder()
@@ -202,7 +202,23 @@ public class CreateActionTest {
   }
 
   @Test
-  public void create_user_with_deprecated_scmAccounts_parameter() throws Exception {
+  public void create_user_with_empty_email() {
+    logInAsSystemAdministrator();
+
+    call(CreateRequest.builder()
+      .setLogin("john")
+      .setName("John")
+      .setPassword("1234")
+      .setEmail("")
+      .build());
+
+    assertThat(db.users().selectUserByLogin("john").get())
+      .extracting(UserDto::getExternalIdentity)
+      .containsOnly("john");
+  }
+
+  @Test
+  public void create_user_with_deprecated_scmAccounts_parameter() {
     logInAsSystemAdministrator();
 
     tester.newRequest()
@@ -216,7 +232,7 @@ public class CreateActionTest {
   }
 
   @Test
-  public void create_user_with_deprecated_scm_accounts_parameter() throws Exception {
+  public void create_user_with_deprecated_scm_accounts_parameter() {
     logInAsSystemAdministrator();
 
     tester.newRequest()
@@ -230,7 +246,7 @@ public class CreateActionTest {
   }
 
   @Test
-  public void reactivate_user() throws Exception {
+  public void reactivate_user() {
     logInAsSystemAdministrator();
 
     db.users().insertUser(newUserDto("john", "John", "john@email.com").setActive(false));
@@ -248,7 +264,7 @@ public class CreateActionTest {
   }
 
   @Test
-  public void fail_when_missing_login() throws Exception {
+  public void fail_when_missing_login() {
     logInAsSystemAdministrator();
 
     expectedException.expect(IllegalArgumentException.class);
@@ -261,7 +277,7 @@ public class CreateActionTest {
   }
 
   @Test
-  public void fail_when_missing_name() throws Exception {
+  public void fail_when_missing_name() {
     logInAsSystemAdministrator();
 
     expectedException.expect(IllegalArgumentException.class);
@@ -274,7 +290,7 @@ public class CreateActionTest {
   }
 
   @Test
-  public void fail_when_missing_password() throws Exception {
+  public void fail_when_missing_password() {
     logInAsSystemAdministrator();
 
     expectedException.expect(IllegalArgumentException.class);
@@ -287,7 +303,7 @@ public class CreateActionTest {
   }
 
   @Test
-  public void fail_when_password_is_set_on_none_local_user() throws Exception {
+  public void fail_when_password_is_set_on_none_local_user() {
     logInAsSystemAdministrator();
 
     expectedException.expect(IllegalArgumentException.class);
@@ -297,6 +313,21 @@ public class CreateActionTest {
       .setName("John")
       .setPassword("1234")
       .setLocal(false)
+      .build());
+  }
+
+  @Test
+  public void fail_when_email_is_invalid() {
+    logInAsSystemAdministrator();
+
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("Email 'invalid-email' is not valid");
+
+    call(CreateRequest.builder()
+      .setLogin("pipo")
+      .setName("John")
+      .setPassword("1234")
+      .setEmail("invalid-email")
       .build());
   }
 
@@ -315,7 +346,7 @@ public class CreateActionTest {
     settings.setProperty("sonar.defaultGroup", adminGroup.getName());
   }
 
-  private CreateWsResponse executeRequest(String login) throws Exception {
+  private CreateWsResponse executeRequest(String login) {
     return call(CreateRequest.builder()
       .setLogin(login)
       .setName("name of " + login)

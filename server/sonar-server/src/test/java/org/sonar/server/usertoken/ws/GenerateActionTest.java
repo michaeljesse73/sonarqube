@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -35,9 +35,8 @@ import org.sonar.server.usertoken.TokenGenerator;
 import org.sonar.server.ws.TestRequest;
 import org.sonar.server.ws.WsActionTester;
 import org.sonarqube.ws.MediaTypes;
-import org.sonarqube.ws.WsUserTokens.GenerateWsResponse;
+import org.sonarqube.ws.UserTokens.GenerateWsResponse;
 
-import static org.apache.commons.lang.RandomStringUtils.randomAlphabetic;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -45,8 +44,8 @@ import static org.mockito.Mockito.when;
 import static org.sonar.db.user.UserTesting.newUserDto;
 import static org.sonar.db.user.UserTokenTesting.newUserToken;
 import static org.sonar.test.JsonAssert.assertJson;
-import static org.sonarqube.ws.client.usertoken.UserTokensWsParameters.PARAM_LOGIN;
-import static org.sonarqube.ws.client.usertoken.UserTokensWsParameters.PARAM_NAME;
+import static org.sonar.server.usertoken.ws.UserTokensWsParameters.PARAM_LOGIN;
+import static org.sonar.server.usertoken.ws.UserTokensWsParameters.PARAM_NAME;
 
 public class GenerateActionTest {
   private static final String GRACE_HOPPER = "grace.hopper";
@@ -84,7 +83,7 @@ public class GenerateActionTest {
       .setParam(PARAM_NAME, TOKEN_NAME)
       .execute().getInput();
 
-    assertJson(response).isSimilarTo(getClass().getResource("generate-example.json"));
+    assertJson(response).ignoreFields("createdAt").isSimilarTo(getClass().getResource("generate-example.json"));
   }
 
   @Test
@@ -94,16 +93,7 @@ public class GenerateActionTest {
     GenerateWsResponse response = newRequest(null, TOKEN_NAME);
 
     assertThat(response.getLogin()).isEqualTo(GRACE_HOPPER);
-  }
-
-  @Test
-  public void fail_if_name_is_longer_than_100_characters() {
-    logInAsSystemAdministrator();
-
-    expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("Token name length (101) is longer than the maximum authorized (100)");
-
-    newRequest(GRACE_HOPPER, randomAlphabetic(101));
+    assertThat(response.getCreatedAt()).isNotEmpty();
   }
 
   @Test

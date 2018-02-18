@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,7 +24,6 @@ import com.google.common.collect.Maps;
 import java.util.Map;
 import org.junit.Rule;
 import org.junit.Test;
-import org.sonar.api.rule.RuleKey;
 import org.sonar.api.utils.System2;
 import org.sonar.db.DbTester;
 
@@ -47,22 +46,18 @@ public class IssueIteratorFactoryTest {
     assertThat(issue.resolution()).isEqualTo("FIXED");
     assertThat(issue.status()).isEqualTo("RESOLVED");
     assertThat(issue.severity()).isEqualTo("BLOCKER");
-    assertThat(issue.isManualSeverity()).isFalse();
     assertThat(issue.assignee()).isEqualTo("guy1");
     assertThat(issue.authorLogin()).isEqualTo("guy2");
-    assertThat(issue.checksum()).isEqualTo("FFFFF");
     assertThat(issue.line()).isEqualTo(444);
-    assertThat(issue.ruleKey()).isEqualTo(RuleKey.of("squid", "AvoidCycles"));
+    assertThat(issue.ruleId()).isEqualTo(200);
     assertThat(issue.componentUuid()).isEqualTo("FILE1");
     assertThat(issue.projectUuid()).isEqualTo("PROJECT1");
     assertThat(issue.moduleUuid()).isEqualTo("PROJECT1");
     assertThat(issue.modulePath()).isEqualTo(".PROJECT1.");
     assertThat(issue.directoryPath()).isEqualTo("src/main/java");
     assertThat(issue.filePath()).isEqualTo("src/main/java/Action.java");
-    assertThat(issue.tags()).containsOnly("tag1", "tag2", "tag3");
+    assertThat(issue.getTags()).containsOnly("tag1", "tag2", "tag3");
     assertThat(issue.effort().toMinutes()).isGreaterThan(0L);
-    assertThat(issue.gap()).isEqualTo(2d);
-    assertThat(issue.attribute("JIRA")).isEqualTo("http://jira.com");
     assertThat(issue.type().getDbConstant()).isEqualTo(2);
   }
 
@@ -82,7 +77,7 @@ public class IssueIteratorFactoryTest {
     assertThat(issue.modulePath()).isEqualTo(".PROJECT1.");
     assertThat(issue.directoryPath()).isEqualTo("src/main/java");
     assertThat(issue.filePath()).isEqualTo("src/main/java/Action.java");
-    assertThat(issue.tags()).containsOnly("tag1", "tag2", "tag3");
+    assertThat(issue.getTags()).containsOnly("tag1", "tag2", "tag3");
     assertThat(issue.effort().toMinutes()).isGreaterThan(0L);
     assertThat(issue.type().getDbConstant()).isEqualTo(1);
 
@@ -95,7 +90,7 @@ public class IssueIteratorFactoryTest {
     assertThat(issue.modulePath()).isEqualTo(".PROJECT1.MODULE1.");
     assertThat(issue.directoryPath()).isNull();
     assertThat(issue.filePath()).isNull();
-    assertThat(issue.tags()).containsOnly("tag1", "tag2", "tag3");
+    assertThat(issue.getTags()).containsOnly("tag1", "tag2", "tag3");
     assertThat(issue.effort().toMinutes()).isGreaterThan(0L);
     assertThat(issue.type().getDbConstant()).isEqualTo(2);
 
@@ -108,7 +103,7 @@ public class IssueIteratorFactoryTest {
     assertThat(issue.modulePath()).isEqualTo(".PROJECT1.");
     assertThat(issue.directoryPath()).isEqualTo("src/main/java");
     assertThat(issue.filePath()).isEqualTo("src/main/java/Action.java");
-    assertThat(issue.tags()).isEmpty();
+    assertThat(issue.getTags()).isEmpty();
     assertThat(issue.effort().toMinutes()).isGreaterThan(0L);
     assertThat(issue.type().getDbConstant()).isEqualTo(1);
 
@@ -121,7 +116,7 @@ public class IssueIteratorFactoryTest {
     assertThat(issue.modulePath()).isEqualTo(".PROJECT1.MODULE1.");
     assertThat(issue.directoryPath()).isEqualTo("src/main/java");
     assertThat(issue.filePath()).isEqualTo("src/main/java");
-    assertThat(issue.tags()).isEmpty();
+    assertThat(issue.getTags()).isEmpty();
     assertThat(issue.effort().toMinutes()).isGreaterThan(0L);
     assertThat(issue.type().getDbConstant()).isEqualTo(1);
   }

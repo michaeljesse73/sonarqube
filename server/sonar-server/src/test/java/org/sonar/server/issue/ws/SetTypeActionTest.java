@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -45,6 +45,7 @@ import org.sonar.server.issue.IssueFieldsSetter;
 import org.sonar.server.issue.IssueFinder;
 import org.sonar.server.issue.IssueUpdater;
 import org.sonar.server.issue.ServerIssueStorage;
+import org.sonar.server.issue.TestIssueChangePostProcessor;
 import org.sonar.server.issue.index.IssueIndexDefinition;
 import org.sonar.server.issue.index.IssueIndexer;
 import org.sonar.server.issue.index.IssueIteratorFactory;
@@ -62,6 +63,7 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.sonar.api.rules.RuleType.BUG;
 import static org.sonar.api.rules.RuleType.CODE_SMELL;
 import static org.sonar.api.web.UserRole.ISSUE_ADMIN;
@@ -91,14 +93,18 @@ public class SetTypeActionTest {
   private OperationResponseWriter responseWriter = mock(OperationResponseWriter.class);
   private ArgumentCaptor<SearchResponseData> preloadedSearchResponseDataCaptor = ArgumentCaptor.forClass(SearchResponseData.class);
 
-  private IssueIndexer issueIndexer = new IssueIndexer(esTester.client(), new IssueIteratorFactory(dbClient));
+  private IssueIndexer issueIndexer = new IssueIndexer(esTester.client(), dbClient, new IssueIteratorFactory(dbClient));
+  private TestIssueChangePostProcessor issueChangePostProcessor = new TestIssueChangePostProcessor();
   private WsActionTester tester = new WsActionTester(new SetTypeAction(userSession, dbClient, new IssueFinder(dbClient, userSession), new IssueFieldsSetter(),
     new IssueUpdater(dbClient,
-      new ServerIssueStorage(system2, new DefaultRuleFinder(dbClient, defaultOrganizationProvider), dbClient, issueIndexer), mock(NotificationManager.class)),
-    responseWriter));
+      new ServerIssueStorage(system2, new DefaultRuleFinder(dbClient, defaultOrganizationProvider), dbClient, issueIndexer), mock(NotificationManager.class),
+      issueChangePostProcessor),
+    responseWriter, system2));
 
   @Test
-  public void set_type() throws Exception {
+  public void set_type() {
+    long now = 1_999_777_234L;
+    when(system2.now()).thenReturn(now);
     IssueDto issueDto = issueDbTester.insertIssue(newIssue().setType(CODE_SMELL));
     setUserWithBrowseAndAdministerIssuePermission(issueDto);
 
@@ -108,10 +114,14 @@ public class SetTypeActionTest {
     verifyContentOfPreloadedSearchResponseData(issueDto);
     IssueDto issueReloaded = dbClient.issueDao().selectByKey(dbTester.getSession(), issueDto.getKey()).get();
     assertThat(issueReloaded.getType()).isEqualTo(BUG.getDbConstant());
+
+    assertThat(issueChangePostProcessor.calledComponents())
+      .extracting(ComponentDto::uuid)
+      .containsExactlyInAnyOrder(issueDto.getComponentUuid());
   }
 
   @Test
-  public void insert_entry_in_changelog_when_setting_type() throws Exception {
+  public void insert_entry_in_changelog_when_setting_type() {
     IssueDto issueDto = issueDbTester.insertIssue(newIssue().setType(CODE_SMELL));
     setUserWithBrowseAndAdministerIssuePermission(issueDto);
 
@@ -135,13 +145,13 @@ public class SetTypeActionTest {
   }
 
   @Test
-  public void fail_when_not_authenticated() throws Exception {
+  public void fail_when_not_authenticated() {
     expectedException.expect(UnauthorizedException.class);
     call("ABCD", BUG.name());
   }
 
   @Test
-  public void fail_when_missing_browse_permission() throws Exception {
+  public void fail_when_missing_browse_permission() {
     IssueDto issueDto = issueDbTester.insertIssue();
     String login = "john";
     String permission = ISSUE_ADMIN;
@@ -152,7 +162,7 @@ public class SetTypeActionTest {
   }
 
   @Test
-  public void fail_when_missing_administer_issue_permission() throws Exception {
+  public void fail_when_missing_administer_issue_permission() {
     IssueDto issueDto = issueDbTester.insertIssue();
     logInAndAddProjectPermission("john", issueDto, USER);
 

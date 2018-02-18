@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -46,7 +46,7 @@ public abstract class CloseableIterator<O> implements Iterator<O>, AutoCloseable
     }
 
     @Override
-    protected void doClose() throws Exception {
+    protected void doClose() {
       // do nothing
     }
   };
@@ -173,7 +173,7 @@ public abstract class CloseableIterator<O> implements Iterator<O>, AutoCloseable
     }
 
     @Override
-    protected void doClose() throws Exception {
+    protected void doClose() {
       // do nothing
     }
   }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,16 +25,22 @@ import org.sonar.core.platform.ComponentContainer;
 import org.sonar.core.platform.ContainerPopulator;
 
 /**
- * The Compute Engine container. Created for a specific parent {@link ComponentContainer} and a specific {@link CeTask}.
+ * The Compute Engine task container. Created for a specific parent {@link ComponentContainer} and a specific {@link CeTask}.
  */
-public interface TaskContainer extends ContainerPopulator.Container {
+public interface TaskContainer extends ContainerPopulator.Container, AutoCloseable {
 
   ComponentContainer getParent();
 
   /**
+   * Starts task container, starting any startable component in it.
+   */
+  void bootup();
+
+  /**
    * Cleans up resources after process has been called and has returned.
    */
-  void cleanup();
+  @Override
+  void close();
 
   /**
    * Access to the underlying pico container.

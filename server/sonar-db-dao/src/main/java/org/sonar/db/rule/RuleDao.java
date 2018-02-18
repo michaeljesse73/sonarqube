@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,6 +22,7 @@ package org.sonar.db.rule;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Consumer;
 import javax.annotation.Nullable;
 import org.apache.ibatis.session.ResultHandler;
@@ -34,9 +35,11 @@ import org.sonar.db.es.RuleExtensionId;
 import org.sonar.db.organization.OrganizationDto;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Collections.emptyList;
 import static java.util.Optional.ofNullable;
 import static org.sonar.db.DatabaseUtils.executeLargeInputs;
 import static org.sonar.db.DatabaseUtils.executeLargeInputsWithoutOutput;
+import static org.sonar.db.DatabaseUtils.executeLargeUpdates;
 
 public class RuleDao implements Dao {
 
@@ -82,26 +85,41 @@ public class RuleDao implements Dao {
   }
 
   public List<RuleDto> selectByIds(DbSession session, String organizationUuid, List<Integer> ids) {
+    if (ids.isEmpty()) {
+      return emptyList();
+    }
     return ensureOrganizationIsSet(
       organizationUuid,
       executeLargeInputs(ids, chunk -> mapper(session).selectByIds(organizationUuid, chunk)));
   }
 
-  public List<RuleDefinitionDto> selectDefinitionByIds(DbSession session, List<Integer> ids) {
+  public List<RuleDefinitionDto> selectDefinitionByIds(DbSession session, Collection<Integer> ids) {
+    if (ids.isEmpty()) {
+      return emptyList();
+    }
     return executeLargeInputs(ids, mapper(session)::selectDefinitionByIds);
   }
 
   public List<RuleDto> selectByKeys(DbSession session, OrganizationDto organization, Collection<RuleKey> keys) {
+    if (keys.isEmpty()) {
+      return emptyList();
+    }
     return ensureOrganizationIsSet(organization.getUuid(),
       executeLargeInputs(keys, chunk -> mapper(session).selectByKeys(organization.getUuid(), chunk)));
   }
 
   public List<RuleDto> selectByKeys(DbSession session, String organizationUuid, Collection<RuleKey> keys) {
+    if (keys.isEmpty()) {
+      return emptyList();
+    }
     return ensureOrganizationIsSet(organizationUuid,
       executeLargeInputs(keys, chunk -> mapper(session).selectByKeys(organizationUuid, chunk)));
   }
 
   public List<RuleDefinitionDto> selectDefinitionByKeys(DbSession session, Collection<RuleKey> keys) {
+    if (keys.isEmpty()) {
+      return emptyList();
+    }
     return executeLargeInputs(keys, mapper(session)::selectDefinitionByKeys);
   }
 
@@ -168,12 +186,12 @@ public class RuleDao implements Dao {
     });
   }
 
-  public void scrollIndexingRulesByKeys(DbSession dbSession, Collection<RuleKey> ruleKeys, Consumer<RuleForIndexingDto> consumer) {
+  public void scrollIndexingRulesByKeys(DbSession dbSession, Collection<Integer> ruleIds, Consumer<RuleForIndexingDto> consumer) {
     RuleMapper mapper = mapper(dbSession);
 
-    executeLargeInputsWithoutOutput(ruleKeys,
-      pageOfRuleKeys -> mapper
-        .selectIndexingRulesByKeys(pageOfRuleKeys)
+    executeLargeInputsWithoutOutput(ruleIds,
+      pageOfRuleIds -> mapper
+        .selectIndexingRulesByIds(pageOfRuleIds)
         .forEach(consumer));
   }
 
@@ -200,7 +218,7 @@ public class RuleDao implements Dao {
     return executeLargeInputs(ruleKeys, mapper(session)::selectParamsByRuleKeys);
   }
 
-  public List<RuleParamDto> selectRuleParamsByRuleIds(DbSession dbSession, List<Integer> ruleIds) {
+  public List<RuleParamDto> selectRuleParamsByRuleIds(DbSession dbSession, Collection<Integer> ruleIds) {
     return executeLargeInputs(ruleIds, mapper(dbSession)::selectParamsByRuleIds);
   }
 
@@ -222,4 +240,18 @@ public class RuleDao implements Dao {
     mapper(session).deleteParameter(ruleParameterId);
   }
 
+  public Set<DeprecatedRuleKeyDto> selectAllDeprecatedRuleKeys(DbSession session) {
+    return mapper(session).selectAllDeprecatedRuleKeys();
+  }
+
+  public void deleteDeprecatedRuleKeys(DbSession dbSession, Collection<String> uuids) {
+    if (uuids.isEmpty()) {
+      return;
+    }
+    executeLargeUpdates(uuids, mapper(dbSession)::deleteDeprecatedRuleKeys);
+  }
+
+  public void insert(DbSession dbSession, DeprecatedRuleKeyDto deprecatedRuleKey) {
+    mapper(dbSession).insertDeprecatedRuleKey(deprecatedRuleKey);
+  }
 }

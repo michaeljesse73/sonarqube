@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,32 +19,33 @@
  */
 /* @flow */
 import React from 'react';
+import Tooltip from '../../../components/controls/Tooltip';
+import { DeleteButton } from '../../../components/ui/buttons';
 import { translate } from '../../../helpers/l10n';
 
+/*::
 type Props = {
   failingCount: number,
+  isSystemAdmin?: boolean,
   pendingCount: number,
   onShowFailing: () => void,
   onCancelAllPending: () => void
 };
+*/
 
+/*::
 type State = Object;
+*/
 
 export default class Stats extends React.PureComponent {
-  props: Props;
-  state: State;
+  /*:: props: Props; */
+  /*:: state: State; */
 
-  handleCancelAllPending(e: Object) {
-    e.preventDefault();
-    e.target.blur();
-    this.props.onCancelAllPending();
-  }
-
-  handleShowFailing(e: Object) {
-    e.preventDefault();
-    e.target.blur();
+  handleShowFailing = (event /*: Object */) => {
+    event.preventDefault();
+    event.currentTarget.blur();
     this.props.onShowFailing();
-  }
+  };
 
   renderPending() {
     if (this.props.pendingCount == null) {
@@ -56,13 +57,14 @@ export default class Stats extends React.PureComponent {
           <span className="js-pending-count emphasised-measure">{this.props.pendingCount}</span>
           &nbsp;
           {translate('background_tasks.pending')}
-          <a
-            onClick={this.handleCancelAllPending.bind(this)}
-            className="js-cancel-pending icon-delete spacer-left"
-            title={translate('background_tasks.cancel_all_tasks')}
-            data-toggle="tooltip"
-            href="#"
-          />
+          {this.props.isSystemAdmin && (
+            <Tooltip overlay={translate('background_tasks.cancel_all_tasks')}>
+              <DeleteButton
+                className="js-cancel-pending spacer-left"
+                onClick={this.props.onCancelAllPending}
+              />
+            </Tooltip>
+          )}
         </span>
       );
     } else {
@@ -88,14 +90,14 @@ export default class Stats extends React.PureComponent {
     if (this.props.failingCount > 0) {
       return (
         <span>
-          <a
-            onClick={this.handleShowFailing.bind(this)}
-            className="js-failures-count emphasised-measure"
-            data-toggle="tooltip"
-            title="Count of projects where processing of most recent analysis report failed"
-            href="#">
-            {this.props.failingCount}
-          </a>
+          <Tooltip overlay={translate('background_tasks.failing_count')}>
+            <a
+              className="js-failures-count emphasised-measure"
+              href="#"
+              onClick={this.handleShowFailing}>
+              {this.props.failingCount}
+            </a>
+          </Tooltip>
           &nbsp;
           {translate('background_tasks.failures')}
         </span>
@@ -103,12 +105,9 @@ export default class Stats extends React.PureComponent {
     } else {
       return (
         <span>
-          <span
-            className="js-failures-count emphasised-measure"
-            data-toggle="tooltip"
-            title="Count of projects where processing of most recent analysis report failed">
-            {this.props.failingCount}
-          </span>
+          <Tooltip overlay={translate('background_tasks.failing_count')}>
+            <span className="js-failures-count emphasised-measure">{this.props.failingCount}</span>
+          </Tooltip>
           &nbsp;
           {translate('background_tasks.failures')}
         </span>
@@ -119,12 +118,8 @@ export default class Stats extends React.PureComponent {
   render() {
     return (
       <section className="big-spacer-top big-spacer-bottom">
-        <span>
-          {this.renderPending()}
-        </span>
-        <span className="huge-spacer-left">
-          {this.renderFailures()}
-        </span>
+        <span>{this.renderPending()}</span>
+        <span className="huge-spacer-left">{this.renderFailures()}</span>
       </section>
     );
   }

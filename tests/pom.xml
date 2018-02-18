@@ -7,7 +7,7 @@
   <parent>
     <groupId>org.sonarsource.sonarqube</groupId>
     <artifactId>sonarqube</artifactId>
-    <version>6.5-SNAPSHOT</version>
+    <version>7.1-SNAPSHOT</version>
   </parent>
 
   <groupId>org.sonarsource.sonarqube.tests</groupId>
@@ -24,44 +24,62 @@
     <category>*</category>
     <skipIts>false</skipIts>
     <jetty.version>9.3.11.v20160721</jetty.version>
+    <byteman.version>3.0.10</byteman.version>
   </properties>
 
   <dependencies>
+   <!-- This is just to force Maven to download it in local repository -->
+    <dependency>
+      <groupId>com.sonarsource.license</groupId>
+      <artifactId>sonar-dev-license-plugin</artifactId>
+      <!-- Should be the same version than in Orchestrator builder in your test suite -->
+      <version>3.2.0.1163</version>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <!-- required for selenide -->
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+      <version>23.0</version>
+      <scope>test</scope>
+    </dependency>
     <!-- must be declared first -->
     <dependency>
       <groupId>org.sonarsource.orchestrator</groupId>
       <artifactId>sonar-orchestrator</artifactId>
-      <version>${orchestrator.version}</version>
       <scope>test</scope>
+    </dependency>
+    <dependency>
+      <!-- required for overriding ws-client 4.5 to have complete error stacktraces
+      in Issue tests -->
+      <groupId>org.codehaus.sonar</groupId>
+      <artifactId>sonar-ws-client</artifactId>
+      <version>5.0</version>
     </dependency>
     <dependency>
       <groupId>org.sonarsource.sonarqube</groupId>
       <artifactId>sonar-application</artifactId>
-      <version>${project.parent.version}</version>
+      <version>${project.version}</version>
       <type>zip</type>
       <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.sonarsource.sonarqube</groupId>
-      <artifactId>sonar-ws</artifactId>
-      <version>${project.parent.version}</version>
+      <artifactId>sonar-qa-util</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.sonarsource.sonarqube</groupId>
+      <artifactId>sonar-process</artifactId>
+      <version>${project.version}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>com.codeborne</groupId>
-      <artifactId>selenide</artifactId>
-      <version>4.4.3</version>
-    </dependency>
-    <dependency>
-      <groupId>com.google.guava</groupId>
-      <artifactId>guava</artifactId>
-      <!-- required for selenide -->
-      <version>21.0</version>
-    </dependency>
-    <dependency>
-      <groupId>org.codehaus.sonar</groupId>
-      <artifactId>sonar-ws-client</artifactId>
-      <version>5.0</version>
+      <groupId>org.sonarsource.sonarqube</groupId>
+      <artifactId>sonar-ws</artifactId>
+      <version>${project.version}</version>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>junit</groupId>
@@ -76,10 +94,6 @@
       <artifactId>assertj-guava</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.hamcrest</groupId>
-      <artifactId>hamcrest-all</artifactId>
-    </dependency>
-    <dependency>
       <groupId>com.googlecode.json-simple</groupId>
       <artifactId>json-simple</artifactId>
     </dependency>
@@ -89,17 +103,8 @@
       <version>1.2.0</version>
     </dependency>
     <dependency>
-      <groupId>org.jsoup</groupId>
-      <artifactId>jsoup</artifactId>
-      <version>1.8.3</version>
-    </dependency>
-    <dependency>
       <groupId>com.squareup.okhttp3</groupId>
       <artifactId>mockwebserver</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.commons</groupId>
-      <artifactId>commons-email</artifactId>
     </dependency>
     <dependency>
       <groupId>org.subethamail</groupId>
@@ -125,6 +130,11 @@
       <artifactId>sonar-scanner-cli</artifactId>
       <version>2.7</version>
       <type>zip</type>
+    </dependency>
+    <dependency>
+      <groupId>org.jboss.byteman</groupId>
+      <artifactId>byteman-submit</artifactId>
+      <version>${byteman.version}</version>
     </dependency>
 
     <!-- JDBC drivers -->
@@ -153,7 +163,10 @@
           </argLine>
           <skipTests>${skipIts}</skipTests>
           <includes>
-            <include>*/*${category}Suite.java</include>
+            <include>%regex[.*/(${category})/.*Suite.class]</include>
+
+            <!-- deprecated categories -->
+            <include>%regex[.*/(${category})Suite.class]</include>
           </includes>
         </configuration>
       </plugin>
@@ -172,7 +185,7 @@
                 <artifactItem>
                   <groupId>org.jboss.byteman</groupId>
                   <artifactId>byteman</artifactId>
-                  <version>3.0.10</version>
+                  <version>${byteman.version}</version>
                   <overWrite>false</overWrite>
                   <destFileName>byteman.jar</destFileName>
                 </artifactItem>
@@ -184,7 +197,6 @@
           </execution>
         </executions>
       </plugin>
-
     </plugins>
   </build>
 
@@ -199,8 +211,8 @@
       </activation>
       <dependencies>
         <dependency>
-          <groupId>com.oracle</groupId>
-          <artifactId>ojdbc6</artifactId>
+          <groupId>com.oracle.jdbc</groupId>
+          <artifactId>ojdbc8</artifactId>
         </dependency>
       </dependencies>
     </profile>

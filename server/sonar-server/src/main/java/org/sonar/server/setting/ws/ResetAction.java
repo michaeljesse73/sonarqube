@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Optional;
 import org.sonar.api.config.PropertyDefinition;
 import org.sonar.api.config.PropertyDefinitions;
+import org.sonar.api.server.ws.Change;
 import org.sonar.api.server.ws.Request;
 import org.sonar.api.server.ws.Response;
 import org.sonar.api.server.ws.WebService;
@@ -36,13 +37,13 @@ import org.sonar.db.component.ComponentDto;
 import org.sonar.server.component.ComponentFinder;
 import org.sonar.server.setting.ws.SettingValidations.SettingData;
 import org.sonar.server.user.UserSession;
-import org.sonarqube.ws.client.setting.ResetRequest;
 
 import static java.util.Collections.emptyList;
+import static org.sonar.server.setting.ws.SettingsWsParameters.PARAM_BRANCH;
+import static org.sonar.server.setting.ws.SettingsWsParameters.PARAM_COMPONENT;
+import static org.sonar.server.setting.ws.SettingsWsParameters.PARAM_KEYS;
+import static org.sonar.server.ws.KeyExamples.KEY_BRANCH_EXAMPLE_001;
 import static org.sonar.server.ws.KeyExamples.KEY_PROJECT_EXAMPLE_001;
-import static org.sonarqube.ws.client.setting.SettingsWsParameters.ACTION_RESET;
-import static org.sonarqube.ws.client.setting.SettingsWsParameters.PARAM_COMPONENT;
-import static org.sonarqube.ws.client.setting.SettingsWsParameters.PARAM_KEYS;
 
 public class ResetAction implements SettingsWsAction {
 
@@ -65,25 +66,32 @@ public class ResetAction implements SettingsWsAction {
 
   @Override
   public void define(WebService.NewController context) {
-    WebService.NewAction action = context.createAction(ACTION_RESET)
+    WebService.NewAction action = context.createAction("reset")
       .setDescription("Remove a setting value.<br>" +
+        "The settings defined in config/sonar.properties are read-only and can't be changed.<br/>" +
         "Requires one of the following permissions: " +
         "<ul>" +
         "<li>'Administer System'</li>" +
         "<li>'Administer' rights on the specified component</li>" +
         "</ul>")
       .setSince("6.1")
+      .setChangelog(new Change("7.1", "The settings defined in config/sonar.properties are read-only and can't be changed"))
       .setPost(true)
       .setHandler(this);
 
     action.createParam(PARAM_KEYS)
-      .setDescription("Setting keys")
+      .setDescription("Comma-separated list of keys")
       .setExampleValue("sonar.links.scm,sonar.debt.hoursInDay")
       .setRequired(true);
     action.createParam(PARAM_COMPONENT)
       .setDescription("Component key")
       .setDeprecatedKey("componentKey", "6.3")
       .setExampleValue(KEY_PROJECT_EXAMPLE_001);
+    action.createParam(PARAM_BRANCH)
+      .setDescription("Branch key")
+      .setExampleValue(KEY_BRANCH_EXAMPLE_001)
+      .setInternal(true)
+      .setSince("6.6");
   }
 
   @Override
@@ -93,6 +101,7 @@ public class ResetAction implements SettingsWsAction {
       Optional<ComponentDto> component = getComponent(dbSession, resetRequest);
       checkPermissions(component);
       resetRequest.getKeys().forEach(key -> {
+        SettingsWsSupport.validateKey(key);
         SettingData data = new SettingData(key, emptyList(), component.orElse(null));
         ImmutableList.of(validations.scope(), validations.qualifier())
           .forEach(validation -> validation.accept(data));
@@ -119,10 +128,10 @@ public class ResetAction implements SettingsWsAction {
   }
 
   private static ResetRequest toWsRequest(Request request) {
-    return ResetRequest.builder()
+    return new ResetRequest()
       .setKeys(request.paramAsStrings(PARAM_KEYS))
       .setComponent(request.param(PARAM_COMPONENT))
-      .build();
+      .setBranch(request.param(PARAM_BRANCH));
   }
 
   private Optional<ComponentDto> getComponent(DbSession dbSession, ResetRequest request) {
@@ -130,7 +139,7 @@ public class ResetAction implements SettingsWsAction {
     if (componentKey == null) {
       return Optional.empty();
     }
-    return Optional.of(componentFinder.getByKey(dbSession, componentKey));
+    return Optional.of(componentFinder.getByKeyAndOptionalBranch(dbSession, componentKey, request.getBranch()));
   }
 
   private void checkPermissions(Optional<ComponentDto> component) {
@@ -138,6 +147,40 @@ public class ResetAction implements SettingsWsAction {
       userSession.checkComponentPermission(UserRole.ADMIN, component.get());
     } else {
       userSession.checkIsSystemAdministrator();
+    }
+  }
+
+  private static class ResetRequest {
+
+    private String branch;
+    private String component;
+    private List<String> keys;
+
+    public ResetRequest setBranch(String branch) {
+      this.branch = branch;
+      return this;
+    }
+
+    public String getBranch() {
+      return branch;
+    }
+
+    public ResetRequest setComponent(String component) {
+      this.component = component;
+      return this;
+    }
+
+    public String getComponent() {
+      return component;
+    }
+
+    public ResetRequest setKeys(List<String> keys) {
+      this.keys = keys;
+      return this;
+    }
+
+    public List<String> getKeys() {
+      return keys;
     }
   }
 }

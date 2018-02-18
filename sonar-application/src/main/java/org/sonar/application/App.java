@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,18 +20,20 @@
 package org.sonar.application;
 
 import java.io.IOException;
+import org.sonar.application.command.CommandFactory;
+import org.sonar.application.command.CommandFactoryImpl;
 import org.sonar.application.config.AppSettings;
 import org.sonar.application.config.AppSettingsLoader;
 import org.sonar.application.config.AppSettingsLoaderImpl;
-import org.sonar.application.process.JavaCommandFactory;
-import org.sonar.application.process.JavaCommandFactoryImpl;
-import org.sonar.application.process.JavaProcessLauncher;
-import org.sonar.application.process.JavaProcessLauncherImpl;
+import org.sonar.application.process.ProcessLauncher;
+import org.sonar.application.process.ProcessLauncherImpl;
 import org.sonar.application.process.StopRequestWatcher;
 import org.sonar.application.process.StopRequestWatcherImpl;
+import org.sonar.process.System2;
 import org.sonar.process.SystemExit;
 
 import static org.sonar.application.config.SonarQubeVersionHelper.getSonarqubeVersion;
+import static org.sonar.process.ProcessProperties.Property.CLUSTER_NAME;
 
 public class App {
 
@@ -48,12 +50,13 @@ public class App {
 
     try (AppState appState = new AppStateFactory(settings).create()) {
       appState.registerSonarQubeVersion(getSonarqubeVersion());
+      appState.registerClusterName(settings.getProps().nonNullValue(CLUSTER_NAME.getKey()));
       AppReloader appReloader = new AppReloaderImpl(settingsLoader, fileSystem, appState, logging);
-      JavaCommandFactory javaCommandFactory = new JavaCommandFactoryImpl(settings);
       fileSystem.reset();
+      CommandFactory commandFactory = new CommandFactoryImpl(settings.getProps(), fileSystem.getTempDir(), System2.INSTANCE);
 
-      try (JavaProcessLauncher javaProcessLauncher = new JavaProcessLauncherImpl(fileSystem.getTempDir())) {
-        Scheduler scheduler = new SchedulerImpl(settings, appReloader, javaCommandFactory, javaProcessLauncher, appState);
+      try (ProcessLauncher processLauncher = new ProcessLauncherImpl(fileSystem.getTempDir())) {
+        Scheduler scheduler = new SchedulerImpl(settings, appReloader, commandFactory, processLauncher, appState);
 
         // intercepts CTRL-C
         Runtime.getRuntime().addShutdownHook(new ShutdownHook(scheduler));

@@ -22,6 +22,8 @@
     r.gap_description as "gapDescription",
     r.system_tags as "systemTagsField",
     r.rule_type as "type",
+    r.plugin_key as "pluginKey",
+    r.scope,
   </sql>
 
   <sql id="selectRuleTableColumns">
@@ -143,8 +145,7 @@
     <include refid="sqlSelectIndexingRuleExtensions" />
     and
     <foreach collection="ruleExtensionIds" index="index" item="ruleExtId" open="" separator=" or " close="">
-      ( r.plugin_name = #{ruleExtId.repositoryName, jdbcType=VARCHAR} and
-      r.plugin_rule_key = #{ruleExtId.ruleKey, jdbcType=VARCHAR} and
+      ( r.id = #{ruleExtId.ruleId, jdbcType=INTEGER} and
       rm.organization_uuid = #{ruleExtId.organizationUuid, jdbcType=VARCHAR} )
     </foreach>
   </select>
@@ -155,6 +156,7 @@
 
   <sql id="sqlSelectIndexingRuleExtensions">
     select
+      r.id as "ruleId",
       r.plugin_name as "pluginName",
       r.plugin_rule_key as "pluginRuleKey",
       rm.organization_uuid as "organizationUuid",
@@ -168,6 +170,7 @@
 
   <sql id="sqlSelectIndexingRuleExtensions" databaseId="oracle">
     select
+      r.id as "ruleId",
       r.plugin_name as "pluginName",
       r.plugin_rule_key as "pluginRuleKey",
       rm.organization_uuid as "organizationUuid",
@@ -224,11 +227,11 @@
       </foreach>
   </select>
 
-  <select id="selectIndexingRulesByKeys" parameterType="map" resultType="org.sonar.db.rule.RuleForIndexingDto">
+  <select id="selectIndexingRulesByIds" parameterType="map" resultType="org.sonar.db.rule.RuleForIndexingDto">
     <include refid="sqlSelectIndexingRules"/>
     where
-      <foreach collection="ruleKeys" index="index" item="ruleKey" open="" separator=" or " close="">
-        (r.plugin_name=#{ruleKey.repository,jdbcType=VARCHAR} and r.plugin_rule_key=#{ruleKey.rule,jdbcType=VARCHAR})
+      <foreach collection="ruleIds" index="index" item="ruleId" open="" separator=" or " close="">
+        r.id=#{ruleId,jdbcType=INTEGER}
       </foreach>
   </select>
 
@@ -282,6 +285,7 @@
 
   <insert id="insertDefinition" parameterType="org.sonar.db.rule.RuleDefinitionDto" keyColumn="id" useGeneratedKeys="true" keyProperty="id">
     insert into rules (
+      plugin_key,
       plugin_rule_key,
       plugin_name,
       description,
@@ -299,10 +303,12 @@
       gap_description,
       system_tags,
       rule_type,
+      scope,
       created_at,
       updated_at
     )
     values (
+      #{pluginKey,jdbcType=VARCHAR},
       #{ruleKey,jdbcType=VARCHAR},
       #{repositoryKey,jdbcType=VARCHAR},
       #{description,jdbcType=VARCHAR},
@@ -320,6 +326,7 @@
       #{gapDescription,jdbcType=VARCHAR},
       #{systemTagsField,jdbcType=VARCHAR},
       #{type,jdbcType=TINYINT},
+      #{scope,jdbcType=VARCHAR},
       #{createdAt,jdbcType=BIGINT},
       #{updatedAt,jdbcType=BIGINT}
     )
@@ -327,6 +334,7 @@
 
   <update id="updateDefinition" parameterType="org.sonar.db.rule.RuleDefinitionDto">
     update rules set
+      plugin_key=#{pluginKey,jdbcType=VARCHAR},
       plugin_rule_key=#{ruleKey,jdbcType=VARCHAR},
       plugin_name=#{repositoryKey,jdbcType=VARCHAR},
       description=#{description,jdbcType=VARCHAR},
@@ -343,6 +351,7 @@
       def_remediation_base_effort=#{defRemediationBaseEffort,jdbcType=VARCHAR},
       gap_description=#{gapDescription,jdbcType=VARCHAR},
       system_tags=#{systemTagsField,jdbcType=VARCHAR},
+      scope=#{scope,jdbcType=VARCHAR},
       rule_type=#{type,jdbcType=TINYINT},
       updated_at=#{updatedAt,jdbcType=BIGINT}
     where
@@ -489,5 +498,45 @@
     where
       id=#{id,jdbcType=INTEGER}
   </update>
+
+  <select id="selectAllDeprecatedRuleKeys" resultType="org.sonar.db.rule.DeprecatedRuleKeyDto">
+    SELECT
+      drk.uuid,
+      drk.rule_id as "ruleId",
+      drk.old_repository_key as "oldRepositoryKey",
+      drk.old_rule_key as "oldRuleKey",
+      r.plugin_rule_key as "newRuleKey",
+      r.plugin_name as "newRepositoryKey",
+      drk.created_at as "createdAt"
+    FROM
+      deprecated_rule_keys drk
+    LEFT OUTER JOIN rules r on r.id = drk.rule_id
+  </select>
+
+  <delete id="deleteDeprecatedRuleKeys">
+    DELETE FROM
+      deprecated_rule_keys
+    WHERE
+    <foreach collection="uuids" index="index" item="uuid" open="" separator=" or " close="">
+      uuid=#{uuid,jdbcType=INTEGER}
+    </foreach>
+  </delete>
+
+  <insert id="insertDeprecatedRuleKey" parameterType="org.sonar.db.rule.DeprecatedRuleKeyDto" keyColumn="uuid" useGeneratedKeys="false" keyProperty="uuid">
+    INSERT INTO deprecated_rule_keys (
+      uuid,
+      rule_id,
+      old_repository_key,
+      old_rule_key,
+      created_at
+    )
+    values (
+      #{uuid,jdbcType=VARCHAR},
+      #{ruleId,jdbcType=INTEGER},
+      #{oldRepositoryKey,jdbcType=VARCHAR},
+      #{oldRuleKey,jdbcType=VARCHAR},
+      #{createdAt,jdbcType=BIGINT}
+    )
+  </insert>
 </mapper>
 

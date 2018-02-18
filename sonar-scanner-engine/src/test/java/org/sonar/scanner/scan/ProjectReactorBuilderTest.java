@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -536,7 +536,7 @@ public class ProjectReactorBuilderTest {
     Map<String, String> props = new HashMap<>();
 
     props.put("prop", "  foo  ,,  bar  , toto,tutu");
-    assertThat(ProjectReactorBuilder.getListFromProperty(props, "prop")).containsOnly("foo", "", "bar", "toto", "tutu");
+    assertThat(ProjectReactorBuilder.getListFromProperty(props, "prop")).containsOnly("foo", "bar", "toto", "tutu");
   }
 
   @Test
@@ -560,7 +560,7 @@ public class ProjectReactorBuilderTest {
     String filePath = "shouldGetList/foo.properties";
     Map<String, String> props = loadPropsFromFile(filePath);
 
-    assertThat(ProjectReactorBuilder.getListFromProperty(props, "prop")).containsOnly("foo", "bar", "toto", "tutu", "");
+    assertThat(ProjectReactorBuilder.getListFromProperty(props, "prop")).containsOnly("foo", "bar", "toto", "tutu");
   }
 
   @Test

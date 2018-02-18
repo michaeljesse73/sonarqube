@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,14 +24,16 @@ import SelectList from '../../../components/common/SelectList';
 import SelectListItem from '../../../components/common/SelectListItem';
 import { translate } from '../../../helpers/l10n';
 
+/*::
 type Props = {
   transitions: Array<string>,
   onSelect: string => void,
   popupPosition?: {}
 };
+*/
 
 export default class SetTransitionPopup extends React.PureComponent {
-  props: Props;
+  /*:: props: Props; */
 
   render() {
     const { transitions } = this.props;

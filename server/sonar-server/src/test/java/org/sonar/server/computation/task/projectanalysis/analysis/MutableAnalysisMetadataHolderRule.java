@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -35,8 +35,20 @@ public class MutableAnalysisMetadataHolderRule extends ExternalResource implemen
   }
 
   @Override
-  public MutableAnalysisMetadataHolder setOrganization(Organization organization) {
-    return delegate.setOrganization(organization);
+  public boolean isOrganizationsEnabled() {
+    return delegate.isOrganizationsEnabled();
+  }
+
+  @Override
+  public MutableAnalysisMetadataHolderRule setOrganizationsEnabled(boolean isOrganizationsEnabled) {
+    delegate.setOrganizationsEnabled(isOrganizationsEnabled);
+    return this;
+  }
+
+  @Override
+  public MutableAnalysisMetadataHolderRule setOrganization(Organization organization) {
+    delegate.setOrganization(organization);
+    return this;
   }
 
   @Override
@@ -98,14 +110,25 @@ public class MutableAnalysisMetadataHolderRule extends ExternalResource implemen
   }
 
   @Override
-  public String getBranch() {
+  public Branch getBranch() {
     return delegate.getBranch();
   }
 
   @Override
-  public MutableAnalysisMetadataHolderRule setBranch(@Nullable String branch) {
+  public MutableAnalysisMetadataHolderRule setBranch(Branch branch) {
     delegate.setBranch(branch);
     return this;
+  }
+
+  @Override
+  public MutableAnalysisMetadataHolderRule setProject(@Nullable Project project) {
+    delegate.setProject(project);
+    return this;
+  }
+
+  @Override
+  public Project getProject() {
+    return delegate.getProject();
   }
 
   @Override
@@ -128,5 +151,26 @@ public class MutableAnalysisMetadataHolderRule extends ExternalResource implemen
   @Override
   public Map<String, QualityProfile> getQProfilesByLanguage() {
     return delegate.getQProfilesByLanguage();
+  }
+
+  @Override
+  public MutableAnalysisMetadataHolder setScannerPluginsByKey(Map<String, ScannerPlugin> plugins) {
+    delegate.setScannerPluginsByKey(plugins);
+    return this;
+  }
+
+  @Override
+  public Map<String, ScannerPlugin> getScannerPluginsByKey() {
+    return delegate.getScannerPluginsByKey();
+  }
+
+  @Override
+  public boolean isShortLivingBranch() {
+    return delegate.isShortLivingBranch();
+  }
+
+  @Override
+  public boolean isLongLivingBranch() {
+    return delegate.isLongLivingBranch();
   }
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,25 +20,29 @@
 // @flow
 import React from 'react';
 import ConciseIssueLocationBadge from './ConciseIssueLocationBadge';
-import type { Issue } from '../../../components/issue/types';
+/*:: import type { Issue } from '../../../components/issue/types'; */
 
+/*::
 type Props = {|
   issue: Issue,
   onFlowSelect: number => void,
   selectedFlowIndex: ?number
 |};
+*/
 
+/*::
 type State = {
   collapsed: boolean
 };
+*/
 
 const LIMIT = 3;
 
 export default class ConciseIssueLocations extends React.PureComponent {
-  props: Props;
-  state: State = { collapsed: true };
+  /*:: props: Props; */
+  state /*: State */ = { collapsed: true };
 
-  handleExpandClick = (event: Event) => {
+  handleExpandClick = (event /*: Event */) => {
     event.preventDefault();
     this.setState({ collapsed: false });
   };
@@ -77,13 +81,13 @@ export default class ConciseIssueLocations extends React.PureComponent {
       );
     });
 
-    return this.state.collapsed
-      ? <div className="concise-issue-locations pull-right">
-          {badges.slice(0, LIMIT)}
-          {badges.length > LIMIT && this.renderExpandButton()}
-        </div>
-      : <div className="concise-issue-locations spacer-top">
-          {badges}
-        </div>;
+    return this.state.collapsed ? (
+      <div className="concise-issue-locations pull-right">
+        {badges.slice(0, LIMIT)}
+        {badges.length > LIMIT && this.renderExpandButton()}
+      </div>
+    ) : (
+      <div className="concise-issue-locations spacer-top">{badges}</div>
+    );
   }
 }

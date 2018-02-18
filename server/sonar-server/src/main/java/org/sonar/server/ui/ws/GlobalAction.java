@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,7 +20,10 @@
 package org.sonar.server.ui.ws;
 
 import com.google.common.collect.ImmutableSet;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
+import org.sonar.api.Startable;
 import org.sonar.api.config.Configuration;
 import org.sonar.api.platform.Server;
 import org.sonar.api.resources.ResourceType;
@@ -32,50 +35,71 @@ import org.sonar.api.utils.text.JsonWriter;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
 import org.sonar.db.dialect.H2;
+import org.sonar.server.branch.BranchFeatureProxy;
 import org.sonar.server.organization.DefaultOrganizationProvider;
 import org.sonar.server.organization.OrganizationFlags;
+import org.sonar.server.platform.WebServer;
 import org.sonar.server.ui.PageRepository;
 import org.sonar.server.ui.VersionFormatter;
 import org.sonar.server.user.UserSession;
 
 import static org.sonar.api.CoreProperties.RATING_GRID;
-import static org.sonar.core.config.WebConstants.SONARQUBE_DOT_COM_ENABLED;
+import static org.sonar.core.config.CorePropertyDefinitions.EDITIONS_CONFIG_URL;
 import static org.sonar.core.config.WebConstants.SONAR_LF_ENABLE_GRAVATAR;
 import static org.sonar.core.config.WebConstants.SONAR_LF_GRAVATAR_SERVER_URL;
 import static org.sonar.core.config.WebConstants.SONAR_LF_LOGO_URL;
 import static org.sonar.core.config.WebConstants.SONAR_LF_LOGO_WIDTH_PX;
-import static org.sonar.core.config.WebConstants.SONAR_UPDATECENTER_ACTIVATE;
+import static org.sonar.process.ProcessProperties.Property.SONARCLOUD_ENABLED;
+import static org.sonar.process.ProcessProperties.Property.SONAR_UPDATECENTER_ACTIVATE;
 
-public class GlobalAction implements NavigationWsAction {
+public class GlobalAction implements NavigationWsAction, Startable {
 
-  private static final Set<String> SETTING_KEYS = ImmutableSet.of(
+  private static final Set<String> DYNAMIC_SETTING_KEYS = ImmutableSet.of(
     SONAR_LF_LOGO_URL,
     SONAR_LF_LOGO_WIDTH_PX,
     SONAR_LF_ENABLE_GRAVATAR,
     SONAR_LF_GRAVATAR_SERVER_URL,
-    SONAR_UPDATECENTER_ACTIVATE,
-    SONARQUBE_DOT_COM_ENABLED,
+    EDITIONS_CONFIG_URL,
     RATING_GRID);
+
+  private final Map<String, String> systemSettingValuesByKey;
 
   private final PageRepository pageRepository;
   private final Configuration config;
   private final ResourceTypes resourceTypes;
   private final Server server;
+  private final WebServer webServer;
   private final DbClient dbClient;
   private final OrganizationFlags organizationFlags;
   private final DefaultOrganizationProvider defaultOrganizationProvider;
+  private final BranchFeatureProxy branchFeature;
   private final UserSession userSession;
 
   public GlobalAction(PageRepository pageRepository, Configuration config, ResourceTypes resourceTypes, Server server,
-    DbClient dbClient, OrganizationFlags organizationFlags, DefaultOrganizationProvider defaultOrganizationProvider, UserSession userSession) {
+    WebServer webServer, DbClient dbClient, OrganizationFlags organizationFlags,
+    DefaultOrganizationProvider defaultOrganizationProvider, BranchFeatureProxy branchFeature, UserSession userSession) {
     this.pageRepository = pageRepository;
     this.config = config;
     this.resourceTypes = resourceTypes;
     this.server = server;
+    this.webServer = webServer;
     this.dbClient = dbClient;
     this.organizationFlags = organizationFlags;
     this.defaultOrganizationProvider = defaultOrganizationProvider;
+    this.branchFeature = branchFeature;
     this.userSession = userSession;
+    this.systemSettingValuesByKey = new HashMap<>();
+  }
+
+  @Override
+  public void start() {
+    this.systemSettingValuesByKey.put(SONARCLOUD_ENABLED.getKey(), config.get(SONARCLOUD_ENABLED.getKey()).orElse(null));
+    this.systemSettingValuesByKey.put(SONAR_UPDATECENTER_ACTIVATE.getKey(), config.get(SONAR_UPDATECENTER_ACTIVATE.getKey()).orElse(null));
+  }
+
+  @Override
+  public void stop() {
+    // Nothing to do
   }
 
   @Override
@@ -100,6 +124,8 @@ public class GlobalAction implements NavigationWsAction {
       writeVersion(json);
       writeDatabaseProduction(json);
       writeOrganizationSupport(json);
+      writeBranchSupport(json);
+      json.prop("standalone", webServer.isStandalone());
       json.endObject();
     }
   }
@@ -121,9 +147,8 @@ public class GlobalAction implements NavigationWsAction {
 
   private void writeSettings(JsonWriter json) {
     json.name("settings").beginObject();
-    for (String settingKey : SETTING_KEYS) {
-      json.prop(settingKey, config.get(settingKey).orElse(null));
-    }
+    DYNAMIC_SETTING_KEYS.forEach(key -> json.prop(key, config.get(key).orElse(null)));
+    systemSettingValuesByKey.forEach(json::prop);
     json.endObject();
   }
 
@@ -155,4 +180,9 @@ public class GlobalAction implements NavigationWsAction {
       json.prop("defaultOrganization", defaultOrganizationProvider.get().getKey());
     }
   }
+
+  private void writeBranchSupport(JsonWriter json) {
+    json.prop("branchesEnabled", branchFeature.isEnabled());
+  }
+
 }

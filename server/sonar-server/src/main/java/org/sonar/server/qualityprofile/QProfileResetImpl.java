@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,12 +19,11 @@
  */
 package org.sonar.server.qualityprofile;
 
-import com.google.common.collect.Sets;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import org.sonar.api.rule.RuleKey;
 import org.sonar.api.server.ServerSide;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
@@ -53,20 +52,24 @@ public class QProfileResetImpl implements QProfileReset {
   public BulkChangeResult reset(DbSession dbSession, QProfileDto profile, Collection<RuleActivation> activations) {
     requireNonNull(profile.getId(), "Quality profile must be persisted");
     checkArgument(!profile.isBuiltIn(), "Operation forbidden for built-in Quality Profile '%s'", profile.getKee());
+
     BulkChangeResult result = new BulkChangeResult();
-    Set<RuleKey> ruleToBeDeactivated = Sets.newHashSet();
+    Set<Integer> rulesToBeDeactivated = new HashSet<>();
     // Keep reference to all the activated rules before backup restore
     for (ActiveRuleDto activeRuleDto : db.activeRuleDao().selectByProfile(dbSession, profile)) {
       if (activeRuleDto.getInheritance() == null) {
         // inherited rules can't be deactivated
-        ruleToBeDeactivated.add(activeRuleDto.getRuleKey());
+        rulesToBeDeactivated.add(activeRuleDto.getRuleId());
       }
     }
+    Set<Integer> ruleKeys = new HashSet<>(rulesToBeDeactivated);
+    activations.forEach(a -> ruleKeys.add(a.getRuleId()));
+    RuleActivationContext context = activator.createContextForUserProfile(dbSession, profile, ruleKeys);
 
     for (RuleActivation activation : activations) {
       try {
-        List<ActiveRuleChange> changes = activator.activate(dbSession, activation, profile);
-        ruleToBeDeactivated.remove(activation.getRuleKey());
+        List<ActiveRuleChange> changes = activator.activate(dbSession, activation, context);
+        rulesToBeDeactivated.remove(activation.getRuleId());
         result.incrementSucceeded();
         result.addChanges(changes);
       } catch (BadRequestException e) {
@@ -75,11 +78,10 @@ public class QProfileResetImpl implements QProfileReset {
       }
     }
 
-    List<ActiveRuleChange> changes = new ArrayList<>();
-    changes.addAll(result.getChanges());
-    for (RuleKey ruleKey : ruleToBeDeactivated) {
+    List<ActiveRuleChange> changes = new ArrayList<>(result.getChanges());
+    for (Integer ruleId : rulesToBeDeactivated) {
       try {
-        changes.addAll(activator.deactivate(dbSession, profile, ruleKey));
+        changes.addAll(activator.deactivate(dbSession, context, ruleId, false));
       } catch (BadRequestException e) {
         // ignore, probably a rule inherited from parent that can't be deactivated
       }

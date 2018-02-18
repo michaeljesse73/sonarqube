@@ -4,22 +4,32 @@ exports[`render issues list 1`] = `
 <div
   className="issue-list"
 >
-  <BaseIssue
+  <Issue
+    displayLocationsCount={true}
+    displayLocationsLink={true}
     issue={
       Object {
         "key": "foo",
       }
     }
-    onClick={[Function]}
+    key="foo"
+    onClick={[MockFunction]}
+    onPopupToggle={[MockFunction]}
+    openPopup={null}
     selected={true}
   />
-  <BaseIssue
+  <Issue
+    displayLocationsCount={true}
+    displayLocationsLink={true}
     issue={
       Object {
         "key": "bar",
       }
     }
-    onClick={[Function]}
+    key="bar"
+    onClick={[MockFunction]}
+    onPopupToggle={[MockFunction]}
+    openPopup={null}
     selected={false}
   />
 </div>

@@ -1,17 +1,46 @@
+/* eslint-disable import/no-extraneous-dependencies */
 const path = require('path');
-const autoprefixer = require('autoprefixer');
 const ExtractTextPlugin = require('extract-text-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const InterpolateHtmlPlugin = require('react-dev-utils/InterpolateHtmlPlugin');
-const eslintFormatter = require('react-dev-utils/eslintFormatter');
 const webpack = require('webpack');
 const paths = require('./paths');
+
+const cssMinimizeOptions = {
+  discardComments: { removeAll: true }
+};
+
+const cssLoader = ({ production, fast }) => ({
+  loader: 'css-loader',
+  options: {
+    importLoaders: 1,
+    minimize: production && !fast && cssMinimizeOptions,
+    url: false
+  }
+});
+
+const postcssLoader = () => ({
+  loader: 'postcss-loader',
+  options: {
+    ident: 'postcss',
+    plugins: () => [
+      require('autoprefixer'),
+      require('postcss-custom-properties')({
+        variables: require('../src/main/js/app/theme')
+      }),
+      require('postcss-calc')
+    ]
+  }
+});
 
 module.exports = ({ production = true, fast = false }) => ({
   bail: production,
 
-  devtool: production ? fast ? false : 'source-map' : 'cheap-module-source-map',
-
+  devtool: production ? (fast ? false : 'source-map') : 'cheap-module-source-map',
+  resolve: {
+    // Add '.ts' and '.tsx' as resolvable extensions.
+    extensions: ['.ts', '.tsx', '.js', '.json']
+  },
   entry: {
     vendor: [
       !production && require.resolve('react-dev-utils/webpackHotDevClient'),
@@ -29,7 +58,6 @@ module.exports = ({ production = true, fast = false }) => ({
       'react-dom',
       'backbone',
       'backbone.marionette',
-      'moment',
       'handlebars/runtime',
       './src/main/js/libs/third-party/jquery-ui.js',
       './src/main/js/libs/third-party/select2.js',
@@ -51,22 +79,23 @@ module.exports = ({ production = true, fast = false }) => ({
   },
   module: {
     rules: [
-      // First, run the linter.
-      // It's important to do this before Babel processes the JS.
-      // Run for development or full build
-      (!production || !fast) && {
-        test: /\.js$/,
-        enforce: 'pre',
-        include: paths.appSrc,
-        use: {
-          loader: 'eslint-loader',
-          options: { formatter: eslintFormatter }
-        }
-      },
       {
         test: /\.js$/,
         loader: 'babel-loader',
         exclude: /(node_modules|libs)/
+      },
+      {
+        test: /\.tsx?$/,
+        use: [
+          {
+            loader: 'awesome-typescript-loader',
+            options: {
+              transpileOnly: true,
+              useBabel: true,
+              useCache: true
+            }
+          }
+        ]
       },
       {
         test: /\.hbs$/,
@@ -79,38 +108,18 @@ module.exports = ({ production = true, fast = false }) => ({
           }
         ]
       },
-      {
-        test: /\.css$/,
-        use: [
-          'style-loader',
-          'css-loader',
-          {
-            loader: 'postcss-loader',
-            options: {
-              plugins: () => [autoprefixer]
-            }
+      production
+        ? {
+            test: /\.css$/,
+            loader: ExtractTextPlugin.extract({
+              fallback: 'style-loader',
+              use: [cssLoader({ production, fast }), postcssLoader()]
+            })
           }
-        ]
-      },
-      {
-        test: /\.less$/,
-        use: ExtractTextPlugin.extract({
-          fallback: 'style-loader',
-          use: [
-            {
-              loader: 'css-loader',
-              options: { url: false }
-            },
-            {
-              loader: 'postcss-loader',
-              options: {
-                plugins: () => [autoprefixer]
-              }
-            },
-            'less-loader'
-          ]
-        })
-      },
+        : {
+            test: /\.css$/,
+            use: ['style-loader', cssLoader({ production, fast }), postcssLoader()]
+          },
       { test: require.resolve('jquery'), loader: 'expose-loader?$!expose-loader?jQuery' },
       { test: require.resolve('underscore'), loader: 'expose-loader?_' },
       { test: require.resolve('backbone'), loader: 'expose-loader?Backbone' },
@@ -122,10 +131,10 @@ module.exports = ({ production = true, fast = false }) => ({
   plugins: [
     new webpack.optimize.CommonsChunkPlugin({ name: 'vendor' }),
 
-    new ExtractTextPlugin({
-      filename: production ? 'css/sonar.[chunkhash:8].css' : 'css/sonar.css',
-      allChunks: true
-    }),
+    production &&
+      new ExtractTextPlugin({
+        filename: production ? 'css/sonar.[chunkhash:8].css' : 'css/sonar.css'
+      }),
 
     !production && new InterpolateHtmlPlugin({ WEB_CONTEXT: '' }),
 
@@ -133,18 +142,18 @@ module.exports = ({ production = true, fast = false }) => ({
       inject: false,
       template: paths.appHtml,
       minify: production &&
-      !fast && {
-        removeComments: true,
-        collapseWhitespace: true,
-        removeRedundantAttributes: true,
-        useShortDoctype: true,
-        removeEmptyAttributes: true,
-        removeStyleLinkTypeAttributes: true,
-        keepClosingSlash: true,
-        minifyJS: true,
-        minifyCSS: true,
-        minifyURLs: true
-      }
+        !fast && {
+          removeComments: true,
+          collapseWhitespace: true,
+          removeRedundantAttributes: true,
+          useShortDoctype: true,
+          removeEmptyAttributes: true,
+          removeStyleLinkTypeAttributes: true,
+          keepClosingSlash: true,
+          minifyJS: true,
+          minifyCSS: true,
+          minifyURLs: true
+        }
     }),
 
     new webpack.DefinePlugin({

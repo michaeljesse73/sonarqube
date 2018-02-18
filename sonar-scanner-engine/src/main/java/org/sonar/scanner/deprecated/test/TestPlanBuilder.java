@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -43,7 +43,7 @@ public class TestPlanBuilder extends PerspectiveBuilder<MutableTestPlan> {
     if (component.isFile()) {
       DefaultInputFile inputFile = (DefaultInputFile) component;
       if (inputFile.type() == Type.TEST) {
-        inputFile.setPublish(true);
+        inputFile.setPublished(true);
         if (!testPlanByFile.containsKey(inputFile)) {
           testPlanByFile.put(inputFile, new DefaultTestPlan());
         }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,8 +19,7 @@
  */
 package org.sonar.server.computation.task.projectanalysis.measure;
 
-import com.google.common.base.Predicate;
-import com.google.common.base.Predicates;
+import java.util.function.Predicate;
 import javax.annotation.Nonnull;
 import org.sonar.server.computation.task.projectanalysis.component.Component;
 import org.sonar.server.computation.task.projectanalysis.metric.Metric;
@@ -40,7 +39,7 @@ public class BestValueOptimization implements Predicate<Measure> {
     if (isBestValueOptimized(metric) && isBestValueOptimized(component)) {
       return new BestValueOptimization(metric);
     }
-    return Predicates.alwaysFalse();
+    return x -> false;
   }
 
   private static boolean isBestValueOptimized(Metric metric) {
@@ -52,7 +51,7 @@ public class BestValueOptimization implements Predicate<Measure> {
   }
 
   @Override
-  public boolean apply(@Nonnull Measure measure) {
+  public boolean test(@Nonnull Measure measure) {
     return isBestValueOptimized(measure);
   }
 
@@ -74,7 +73,7 @@ public class BestValueOptimization implements Predicate<Measure> {
   private static boolean isBestValue(Measure measure, Double bestValue) {
     switch (measure.getValueType()) {
       case BOOLEAN:
-        return bestValue.intValue() == 1 ? measure.getBooleanValue() : !measure.getBooleanValue();
+        return (bestValue.intValue() == 1) == measure.getBooleanValue();
       case INT:
         return bestValue.intValue() == measure.getIntValue();
       case LONG:

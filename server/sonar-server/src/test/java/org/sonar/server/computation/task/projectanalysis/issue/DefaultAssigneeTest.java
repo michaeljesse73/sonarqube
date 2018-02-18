@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -31,33 +31,30 @@ import org.sonar.server.computation.task.projectanalysis.analysis.AnalysisMetada
 import org.sonar.server.computation.task.projectanalysis.analysis.Organization;
 import org.sonar.server.computation.task.projectanalysis.component.ConfigurationRepository;
 import org.sonar.server.computation.task.projectanalysis.component.TestSettingsRepository;
-import org.sonar.server.computation.task.projectanalysis.component.TreeRootHolderRule;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.sonar.server.computation.task.projectanalysis.component.ReportComponent.DUMB_PROJECT;
 
 public class DefaultAssigneeTest {
 
   public static final String PROJECT_KEY = "PROJECT_KEY";
   public static final String ORGANIZATION_UUID = "ORGANIZATION_UUID";
+  public static final String QUALITY_GATE_UUID = "QUALITY_GATE_UUID";
 
   @Rule
   public DbTester db = DbTester.create();
-
-  @Rule
-  public TreeRootHolderRule rootHolder = new TreeRootHolderRule().setRoot(DUMB_PROJECT);
 
   private MapSettings settings = new MapSettings();
   private ConfigurationRepository settingsRepository = new TestSettingsRepository(settings.asConfig());
   private AnalysisMetadataHolderImpl analysisMetadataHolder = new AnalysisMetadataHolderImpl();
   private OrganizationDto organizationDto;
 
-  private DefaultAssignee underTest = new DefaultAssignee(db.getDbClient(), rootHolder, settingsRepository, analysisMetadataHolder);
+  private DefaultAssignee underTest = new DefaultAssignee(db.getDbClient(), settingsRepository, analysisMetadataHolder);
 
   @Before
   public void setUp() throws Exception {
     organizationDto = db.organizations().insertForUuid(ORGANIZATION_UUID);
-    analysisMetadataHolder.setOrganization(Organization.from(new OrganizationDto().setUuid(ORGANIZATION_UUID).setKey("Organization key").setName("Organization name")));
+    analysisMetadataHolder.setOrganization(Organization.from(
+      new OrganizationDto().setUuid(ORGANIZATION_UUID).setKey("Organization key").setName("Organization name").setDefaultQualityGateUuid(QUALITY_GATE_UUID)));
   }
 
   @Test

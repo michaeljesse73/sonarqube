@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -34,19 +34,21 @@ import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.AbstractHandler;
 import org.junit.rules.ExternalResource;
 
+import static java.util.Collections.synchronizedList;
+
 /**
  * This web server listens to requests sent by webhooks
  */
 class ExternalServer extends ExternalResource {
   private final Server jetty;
-  private final List<PayloadRequest> payloads = new ArrayList<>();
+  private final List<PayloadRequest> payloads = synchronizedList(new ArrayList<>());
 
   ExternalServer() {
     jetty = new Server(0);
     jetty.setHandler(new AbstractHandler() {
       @Override
       public void handle(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response)
-        throws IOException, ServletException {
+        throws IOException {
 
         if ("POST".equalsIgnoreCase(request.getMethod())) {
           String json = request.getReader().lines().collect(Collectors.joining(System.lineSeparator()));

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -41,9 +41,9 @@ public class ServletRequestTest {
   @Rule
   public ExpectedException expectedException = ExpectedException.none();
 
-  HttpServletRequest source = mock(HttpServletRequest.class);
+  private HttpServletRequest source = mock(HttpServletRequest.class);
 
-  ServletRequest underTest = new ServletRequest(source);
+  private ServletRequest underTest = new ServletRequest(source);
 
   @Test
   public void call_method() {
@@ -53,7 +53,7 @@ public class ServletRequestTest {
   }
 
   @Test
-  public void getMediaType() throws Exception {
+  public void getMediaType() {
     when(source.getHeader(HttpHeaders.ACCEPT)).thenReturn(MediaTypes.JSON);
     when(source.getRequestURI()).thenReturn("/path/to/resource/search");
 
@@ -61,14 +61,14 @@ public class ServletRequestTest {
   }
 
   @Test
-  public void default_media_type_is_octet_stream() throws Exception {
+  public void default_media_type_is_octet_stream() {
     when(source.getRequestURI()).thenReturn("/path/to/resource/search");
 
     assertThat(underTest.getMediaType()).isEqualTo(MediaTypes.DEFAULT);
   }
 
   @Test
-  public void media_type_taken_in_url_first() throws Exception {
+  public void media_type_taken_in_url_first() {
     when(source.getHeader(HttpHeaders.ACCEPT)).thenReturn(MediaTypes.JSON);
     when(source.getRequestURI()).thenReturn("/path/to/resource/search.protobuf");
 
@@ -142,21 +142,21 @@ public class ServletRequestTest {
   }
 
   @Test
-  public void return_no_input_stream_when_content_type_is_not_multipart() throws Exception {
+  public void return_no_input_stream_when_content_type_is_not_multipart() {
     when(source.getContentType()).thenReturn("multipart/form-data");
 
     assertThat(underTest.readInputStreamParam("param1")).isNull();
   }
 
   @Test
-  public void return_no_input_stream_when_content_type_is_null() throws Exception {
+  public void return_no_input_stream_when_content_type_is_null() {
     when(source.getContentType()).thenReturn(null);
 
     assertThat(underTest.readInputStreamParam("param1")).isNull();
   }
 
   @Test
-  public void throw_ISE_when_invalid_part() throws Exception {
+  public void returns_null_when_invalid_part() throws Exception {
     when(source.getContentType()).thenReturn("multipart/form-data");
     InputStream file = mock(InputStream.class);
     Part part = mock(Part.class);
@@ -164,14 +164,11 @@ public class ServletRequestTest {
     when(part.getInputStream()).thenReturn(file);
     doThrow(IllegalArgumentException.class).when(source).getPart("param1");
 
-    expectedException.expect(IllegalStateException.class);
-    expectedException.expectMessage("Can't read file part");
-
-    underTest.readInputStreamParam("param1");
+    assertThat(underTest.readInputStreamParam("param1")).isNull();
   }
 
   @Test
-  public void getPath() throws Exception {
+  public void getPath() {
     when(source.getRequestURI()).thenReturn("/sonar/path/to/resource/search");
     when(source.getContextPath()).thenReturn("/sonar");
 
@@ -187,4 +184,23 @@ public class ServletRequestTest {
 
     assertThat(underTest.toString()).isEqualTo("http:localhost:9000/api/issues?components=sonar");
   }
+
+  @Test
+  public void header_returns_the_value_of_http_header() {
+    when(source.getHeader("Accept")).thenReturn("text/plain");
+    assertThat(underTest.header("Accept")).hasValue("text/plain");
+  }
+
+  @Test
+  public void header_is_empty_if_absent_from_request() {
+    when(source.getHeader("Accept")).thenReturn(null);
+    assertThat(underTest.header("Accept")).isEmpty();
+  }
+
+  @Test
+  public void header_has_empty_value_if_present_in_request_without_value() {
+    when(source.getHeader("Accept")).thenReturn("");
+    assertThat(underTest.header("Accept")).hasValue("");
+  }
+
 }

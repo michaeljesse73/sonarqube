@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -36,9 +36,11 @@ import org.sonar.server.platform.db.migration.history.MigrationHistoryTable;
 import org.sonar.server.platform.db.migration.history.MigrationHistoryTableImpl;
 import org.sonar.server.platform.db.migration.version.DatabaseVersion;
 import org.sonar.server.plugins.InstalledPluginReferentialFactory;
+import org.sonar.server.plugins.PluginCompression;
 import org.sonar.server.plugins.ServerPluginJarExploder;
 import org.sonar.server.plugins.ServerPluginRepository;
 import org.sonar.server.plugins.WebServerExtensionInstaller;
+import org.sonar.server.startup.ClusterConfigurationCheck;
 
 public class PlatformLevel2 extends PlatformLevel {
   public PlatformLevel2(PlatformLevel parent) {
@@ -60,6 +62,7 @@ public class PlatformLevel2 extends PlatformLevel {
       ServerPluginRepository.class,
       ServerPluginJarExploder.class,
       PluginLoader.class,
+      PluginCompression.class,
       PluginClassloaderFactory.class,
       InstalledPluginReferentialFactory.class,
       WebServerExtensionInstaller.class,
@@ -74,6 +77,10 @@ public class PlatformLevel2 extends PlatformLevel {
       MigrationHistoryTableImpl.class,
       DatabaseMigrationStateImpl.class,
       DatabaseMigrationExecutorServiceImpl.class);
+
+    addIfCluster(
+      ClusterConfigurationCheck.class
+    );
 
     addIfStartupLeader(
       DatabaseCharsetChecker.class,

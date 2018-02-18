@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -32,6 +32,7 @@ import org.sonar.server.exceptions.BadRequestException;
 import org.sonar.server.exceptions.ForbiddenException;
 import org.sonar.server.exceptions.NotFoundException;
 
+import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonar.api.web.UserRole.ADMIN;
 import static org.sonar.api.web.UserRole.CODEVIEWER;
@@ -67,7 +68,7 @@ public class RemoveGroupActionTest extends BasePermissionWsTest<RemoveGroupActio
   }
 
   @Test
-  public void remove_permission_using_group_name() throws Exception {
+  public void remove_permission_using_group_name() {
     db.users().insertPermissionOnGroup(aGroup, ADMINISTER);
     db.users().insertPermissionOnGroup(aGroup, PROVISION_PROJECTS);
     loginAsAdmin(db.getDefaultOrganization());
@@ -81,7 +82,7 @@ public class RemoveGroupActionTest extends BasePermissionWsTest<RemoveGroupActio
   }
 
   @Test
-  public void remove_permission_using_group_id() throws Exception {
+  public void remove_permission_using_group_id() {
     db.users().insertPermissionOnGroup(aGroup, ADMINISTER);
     db.users().insertPermissionOnGroup(aGroup, PROVISION_PROJECTS);
     loginAsAdmin(db.getDefaultOrganization());
@@ -95,7 +96,7 @@ public class RemoveGroupActionTest extends BasePermissionWsTest<RemoveGroupActio
   }
 
   @Test
-  public void remove_project_permission() throws Exception {
+  public void remove_project_permission() {
     ComponentDto project = db.components().insertPrivateProject();
     db.users().insertPermissionOnGroup(aGroup, ADMINISTER);
     db.users().insertProjectPermissionOnGroup(aGroup, ADMIN, project);
@@ -113,7 +114,7 @@ public class RemoveGroupActionTest extends BasePermissionWsTest<RemoveGroupActio
   }
 
   @Test
-  public void remove_with_view_uuid() throws Exception {
+  public void remove_with_view_uuid() {
     ComponentDto view = db.components().insertView();
     db.users().insertPermissionOnGroup(aGroup, ADMINISTER);
     db.users().insertProjectPermissionOnGroup(aGroup, ADMIN, view);
@@ -131,7 +132,7 @@ public class RemoveGroupActionTest extends BasePermissionWsTest<RemoveGroupActio
   }
 
   @Test
-  public void remove_with_project_key() throws Exception {
+  public void remove_with_project_key() {
     ComponentDto project = db.components().insertPrivateProject();
     db.users().insertPermissionOnGroup(aGroup, ADMINISTER);
     db.users().insertProjectPermissionOnGroup(aGroup, ADMIN, project);
@@ -140,7 +141,7 @@ public class RemoveGroupActionTest extends BasePermissionWsTest<RemoveGroupActio
 
     newRequest()
       .setParam(PARAM_GROUP_NAME, aGroup.getName())
-      .setParam(PARAM_PROJECT_KEY, project.getKey())
+      .setParam(PARAM_PROJECT_KEY, project.getDbKey())
       .setParam(PARAM_PERMISSION, ADMIN)
       .execute();
 
@@ -161,7 +162,7 @@ public class RemoveGroupActionTest extends BasePermissionWsTest<RemoveGroupActio
   }
 
   @Test
-  public void fail_when_project_does_not_exist() throws Exception {
+  public void fail_when_project_does_not_exist() {
     loginAsAdmin(db.getDefaultOrganization());
 
     expectedException.expect(NotFoundException.class);
@@ -185,28 +186,28 @@ public class RemoveGroupActionTest extends BasePermissionWsTest<RemoveGroupActio
   }
 
   @Test
-  public void fail_when_component_is_a_module() throws Exception {
+  public void fail_when_component_is_a_module() {
     ComponentDto module = db.components().insertComponent(newModuleDto(ComponentTesting.newPrivateProjectDto(db.organizations().insert())));
 
     failIfComponentIsNotAProjectOrView(module);
   }
 
   @Test
-  public void fail_when_component_is_a_directory() throws Exception {
+  public void fail_when_component_is_a_directory() {
     ComponentDto file = db.components().insertComponent(newDirectory(ComponentTesting.newPrivateProjectDto(db.organizations().insert()), "A/B"));
 
     failIfComponentIsNotAProjectOrView(file);
   }
 
   @Test
-  public void fail_when_component_is_a_file() throws Exception {
+  public void fail_when_component_is_a_file() {
     ComponentDto file = db.components().insertComponent(newFileDto(ComponentTesting.newPrivateProjectDto(db.organizations().insert()), null, "file-uuid"));
 
     failIfComponentIsNotAProjectOrView(file);
   }
 
   @Test
-  public void fail_when_component_is_a_subview() throws Exception {
+  public void fail_when_component_is_a_subview() {
     ComponentDto file = db.components().insertComponent(newSubView(ComponentTesting.newView(db.organizations().insert())));
 
     failIfComponentIsNotAProjectOrView(file);
@@ -216,7 +217,7 @@ public class RemoveGroupActionTest extends BasePermissionWsTest<RemoveGroupActio
     loginAsAdmin(db.getDefaultOrganization());
 
     expectedException.expect(BadRequestException.class);
-    expectedException.expectMessage("Component '" + file.key() + "' (id: " + file.uuid() + ") must be a project or a view.");
+    expectedException.expectMessage("Component '" + file.getDbKey() + "' (id: " + file.uuid() + ") must be a project or a view.");
 
     newRequest()
         .setParam(PARAM_GROUP_NAME, aGroup.getName())
@@ -226,7 +227,7 @@ public class RemoveGroupActionTest extends BasePermissionWsTest<RemoveGroupActio
   }
 
   @Test
-  public void fail_when_group_name_is_missing() throws Exception {
+  public void fail_when_group_name_is_missing() {
     loginAsAdmin(db.getDefaultOrganization());
 
     expectedException.expect(BadRequestException.class);
@@ -238,7 +239,7 @@ public class RemoveGroupActionTest extends BasePermissionWsTest<RemoveGroupActio
   }
 
   @Test
-  public void fail_when_permission_name_and_id_are_missing() throws Exception {
+  public void fail_when_permission_name_and_id_are_missing() {
     loginAsAdmin(db.getDefaultOrganization());
 
     expectedException.expect(IllegalArgumentException.class);
@@ -250,7 +251,7 @@ public class RemoveGroupActionTest extends BasePermissionWsTest<RemoveGroupActio
   }
 
   @Test
-  public void fail_when_group_id_does_not_exist() throws Exception {
+  public void fail_when_group_id_does_not_exist() {
     loginAsAdmin(db.getDefaultOrganization());
 
     expectedException.expect(NotFoundException.class);
@@ -263,7 +264,7 @@ public class RemoveGroupActionTest extends BasePermissionWsTest<RemoveGroupActio
   }
 
   @Test
-  public void fail_when_project_uuid_and_project_key_are_provided() throws Exception {
+  public void fail_when_project_uuid_and_project_key_are_provided() {
     ComponentDto project = db.components().insertPrivateProject();
     loginAsAdmin(db.getDefaultOrganization());
 
@@ -274,18 +275,18 @@ public class RemoveGroupActionTest extends BasePermissionWsTest<RemoveGroupActio
       .setParam(PARAM_GROUP_NAME, aGroup.getName())
       .setParam(PARAM_PERMISSION, SYSTEM_ADMIN)
       .setParam(PARAM_PROJECT_ID, project.uuid())
-      .setParam(PARAM_PROJECT_KEY, project.getKey())
+      .setParam(PARAM_PROJECT_KEY, project.getDbKey())
       .execute();
   }
 
-  private void executeRequest(GroupDto groupDto, String permission) throws Exception {
+  private void executeRequest(GroupDto groupDto, String permission) {
     newRequest()
       .setParam(PARAM_GROUP_NAME, groupDto.getName())
       .setParam(PARAM_PERMISSION, permission)
       .execute();
   }
 
-  private void executeRequest(GroupDto groupDto, OrganizationDto organizationDto, String permission) throws Exception {
+  private void executeRequest(GroupDto groupDto, OrganizationDto organizationDto, String permission) {
     newRequest()
       .setParam(PARAM_GROUP_NAME, groupDto.getName())
       .setParam(PARAM_PERMISSION, permission)
@@ -294,7 +295,7 @@ public class RemoveGroupActionTest extends BasePermissionWsTest<RemoveGroupActio
   }
 
   @Test
-  public void removing_global_permission_fails_if_not_administrator_of_organization() throws Exception {
+  public void removing_global_permission_fails_if_not_administrator_of_organization() {
     userSession.logIn();
 
     expectedException.expect(ForbiddenException.class);
@@ -306,7 +307,7 @@ public class RemoveGroupActionTest extends BasePermissionWsTest<RemoveGroupActio
   }
 
   @Test
-  public void removing_project_permission_fails_if_not_administrator_of_project() throws Exception {
+  public void removing_project_permission_fails_if_not_administrator_of_project() {
     ComponentDto project = db.components().insertPrivateProject();
     userSession.logIn();
 
@@ -315,7 +316,7 @@ public class RemoveGroupActionTest extends BasePermissionWsTest<RemoveGroupActio
     newRequest()
       .setParam(PARAM_GROUP_NAME, aGroup.getName())
       .setParam(PARAM_PERMISSION, PROVISIONING)
-      .setParam(PARAM_PROJECT_KEY, project.key())
+      .setParam(PARAM_PROJECT_KEY, project.getDbKey())
       .execute();
   }
 
@@ -323,7 +324,7 @@ public class RemoveGroupActionTest extends BasePermissionWsTest<RemoveGroupActio
    * User is project administrator but not system administrator
    */
   @Test
-  public void removing_project_permission_is_allowed_to_project_administrators() throws Exception {
+  public void removing_project_permission_is_allowed_to_project_administrators() {
     ComponentDto project = db.components().insertPrivateProject();
     db.users().insertProjectPermissionOnGroup(aGroup, CODEVIEWER, project);
     db.users().insertProjectPermissionOnGroup(aGroup, ISSUE_ADMIN, project);
@@ -422,6 +423,44 @@ public class RemoveGroupActionTest extends BasePermissionWsTest<RemoveGroupActio
       .setParam(PARAM_GROUP_NAME, group.getName())
       .setParam(PARAM_PROJECT_ID, project.uuid())
       .setParam(PARAM_PERMISSION, CODEVIEWER)
+      .execute();
+  }
+
+  @Test
+  public void fail_when_using_branch_db_key() throws Exception {
+    OrganizationDto organization = db.organizations().insert();
+    GroupDto group = db.users().insertGroup(organization);
+    ComponentDto project = db.components().insertMainBranch(organization);
+    userSession.logIn().addProjectPermission(UserRole.ADMIN, project);
+    ComponentDto branch = db.components().insertProjectBranch(project);
+
+    expectedException.expect(NotFoundException.class);
+    expectedException.expectMessage(format("Project key '%s' not found", branch.getDbKey()));
+
+    newRequest()
+      .setParam(PARAM_ORGANIZATION, organization.getKey())
+      .setParam(PARAM_PROJECT_KEY, branch.getDbKey())
+      .setParam(PARAM_GROUP_NAME, group.getName())
+      .setParam(PARAM_PERMISSION, SYSTEM_ADMIN)
+      .execute();
+  }
+
+  @Test
+  public void fail_when_using_branch_uuid() {
+    OrganizationDto organization = db.organizations().insert();
+    GroupDto group = db.users().insertGroup(organization);
+    ComponentDto project = db.components().insertMainBranch(organization);
+    userSession.logIn().addProjectPermission(UserRole.ADMIN, project);
+    ComponentDto branch = db.components().insertProjectBranch(project);
+
+    expectedException.expect(NotFoundException.class);
+    expectedException.expectMessage(format("Project id '%s' not found", branch.uuid()));
+
+    newRequest()
+      .setParam(PARAM_ORGANIZATION, organization.getKey())
+      .setParam(PARAM_PROJECT_ID, branch.uuid())
+      .setParam(PARAM_GROUP_NAME, group.getName())
+      .setParam(PARAM_PERMISSION, SYSTEM_ADMIN)
       .execute();
   }
 

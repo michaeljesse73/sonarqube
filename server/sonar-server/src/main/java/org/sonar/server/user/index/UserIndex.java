@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -28,13 +28,14 @@ import org.elasticsearch.action.get.GetRequestBuilder;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.elasticsearch.index.query.BoolQueryBuilder;
-import org.elasticsearch.index.query.MatchQueryBuilder;
+import org.elasticsearch.index.query.Operator;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.sort.SortOrder;
 import org.sonar.api.ce.ComputeEngineSide;
 import org.sonar.api.server.ServerSide;
+import org.sonar.api.utils.System2;
 import org.sonar.server.es.EsClient;
 import org.sonar.server.es.SearchOptions;
 import org.sonar.server.es.SearchResult;
@@ -57,9 +58,11 @@ import static org.sonar.server.user.index.UserIndexDefinition.FIELD_SCM_ACCOUNTS
 public class UserIndex {
 
   private final EsClient esClient;
+  private final System2 system2;
 
-  public UserIndex(EsClient esClient) {
+  public UserIndex(EsClient esClient, System2 system2) {
     this.esClient = esClient;
+    this.system2 = system2;
   }
 
   @CheckForNull
@@ -78,19 +81,20 @@ public class UserIndex {
    * Returns the active users (at most 3) who are associated to the given SCM account. This method can be used
    * to detect user conflicts.
    */
-  public List<UserDoc> getAtMostThreeActiveUsersForScmAccount(String scmAccount) {
+  public List<UserDoc> getAtMostThreeActiveUsersForScmAccount(String scmAccount, String organizationUuid) {
     List<UserDoc> result = new ArrayList<>();
     if (!StringUtils.isEmpty(scmAccount)) {
       SearchRequestBuilder request = esClient.prepareSearch(UserIndexDefinition.INDEX_TYPE_USER)
         .setQuery(boolQuery().must(matchAllQuery()).filter(
           boolQuery()
             .must(termQuery(FIELD_ACTIVE, true))
+            .must(termQuery(FIELD_ORGANIZATION_UUIDS, organizationUuid))
             .should(termQuery(FIELD_LOGIN, scmAccount))
             .should(matchQuery(SORTABLE_ANALYZER.subField(FIELD_EMAIL), scmAccount))
             .should(matchQuery(SORTABLE_ANALYZER.subField(FIELD_SCM_ACCOUNTS), scmAccount))))
         .setSize(3);
       for (SearchHit hit : request.get().getHits().getHits()) {
-        result.add(new UserDoc(hit.sourceAsMap()));
+        result.add(new UserDoc(hit.getSourceAsMap()));
       }
     }
     return result;
@@ -118,12 +122,12 @@ public class UserIndex {
         USER_SEARCH_GRAMS_ANALYZER.subField(FIELD_NAME),
         FIELD_EMAIL,
         USER_SEARCH_GRAMS_ANALYZER.subField(FIELD_EMAIL))
-        .operator(MatchQueryBuilder.Operator.AND);
+        .operator(Operator.AND);
     }
 
     request.setQuery(boolQuery().must(esQuery).filter(filter));
 
-    return new SearchResult<>(request.get(), UserDoc::new);
+    return new SearchResult<>(request.get(), UserDoc::new, system2.getDefaultTimeZone());
   }
 
 }

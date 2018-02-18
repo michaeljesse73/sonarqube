@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,15 +21,21 @@ package org.sonarqube.tests;
 
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
+import org.sonarqube.tests.analysis.AnalysisEsResilienceTest;
+import org.sonarqube.tests.ce.CeShutdownTest;
+import org.sonarqube.tests.ce.CeWorkersTest;
+import org.sonarqube.tests.issue.IssueCreationDatePluginChangedTest;
+import org.sonarqube.tests.marketplace.UpdateCenterTest;
 import org.sonarqube.tests.qualityProfile.ActiveRuleEsResilienceTest;
 import org.sonarqube.tests.qualityProfile.BuiltInQualityProfilesNotificationTest;
 import org.sonarqube.tests.rule.RuleEsResilienceTest;
-import org.sonarqube.tests.serverSystem.ClusterTest;
 import org.sonarqube.tests.serverSystem.RestartTest;
 import org.sonarqube.tests.serverSystem.ServerSystemRestartingOrchestrator;
-import org.sonarqube.tests.settings.LicensesPageTest;
+import org.sonarqube.tests.serverSystem.SystemStateTest;
 import org.sonarqube.tests.settings.SettingsTestRestartingOrchestrator;
-import org.sonarqube.tests.updateCenter.UpdateCenterTest;
+import org.sonarqube.tests.startup.StartupIndexationTest;
+import org.sonarqube.tests.telemetry.TelemetryOptOutTest;
+import org.sonarqube.tests.telemetry.TelemetryUploadTest;
 import org.sonarqube.tests.user.OnboardingTest;
 import org.sonarqube.tests.user.RealmAuthenticationTest;
 import org.sonarqube.tests.user.SsoAuthenticationTest;
@@ -39,14 +45,17 @@ import org.sonarqube.tests.user.UserEsResilienceTest;
  * This suite is reserved to the tests that start their own instance of Orchestrator.
  * Indeed multiple instances of Orchestrator can't be started in parallel, so this
  * suite does not declare a shared Orchestrator.
+ *
+ * @deprecated use dedicated suites in each package (see {@link org.sonarqube.tests.measure.MeasureSuite}
+ * for instance)
  */
+@Deprecated
 @RunWith(Suite.class)
 @Suite.SuiteClasses({
-  ClusterTest.class,
   ServerSystemRestartingOrchestrator.class,
   RestartTest.class,
   SettingsTestRestartingOrchestrator.class,
-  LicensesPageTest.class,
+  SystemStateTest.class,
   // update center
   UpdateCenterTest.class,
   RealmAuthenticationTest.class,
@@ -54,8 +63,19 @@ import org.sonarqube.tests.user.UserEsResilienceTest;
   OnboardingTest.class,
   BuiltInQualityProfilesNotificationTest.class,
   ActiveRuleEsResilienceTest.class,
+  AnalysisEsResilienceTest.class,
   RuleEsResilienceTest.class,
-  UserEsResilienceTest.class
+  UserEsResilienceTest.class,
+  TelemetryUploadTest.class,
+  TelemetryOptOutTest.class,
+  // ce
+  CeShutdownTest.class,
+  CeWorkersTest.class,
+  // issues
+  IssueCreationDatePluginChangedTest.class,
+
+  // elasticsearch
+  StartupIndexationTest.class
 })
 public class Category5Suite {
 

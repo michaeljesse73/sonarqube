@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -30,8 +30,9 @@ import org.sonar.db.DbClient;
 import org.sonar.db.DbTester;
 import org.sonar.db.component.ComponentDto;
 import org.sonar.db.organization.OrganizationDto;
-import org.sonar.server.component.TestComponentFinder;
 import org.sonar.db.qualityprofile.QProfileDto;
+import org.sonar.db.user.UserDto;
+import org.sonar.server.component.TestComponentFinder;
 import org.sonar.server.exceptions.ForbiddenException;
 import org.sonar.server.exceptions.NotFoundException;
 import org.sonar.server.exceptions.UnauthorizedException;
@@ -42,6 +43,7 @@ import org.sonar.server.ws.TestRequest;
 import org.sonar.server.ws.TestResponse;
 import org.sonar.server.ws.WsActionTester;
 
+import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonar.db.permission.OrganizationPermission.ADMINISTER_QUALITY_PROFILES;
 
@@ -64,22 +66,20 @@ public class AddProjectActionTest {
   private WsActionTester tester = new WsActionTester(underTest);
 
   @Test
-  public void test_definition() {
+  public void definition() {
     WebService.Action definition = tester.getDef();
     assertThat(definition.since()).isEqualTo("5.2");
     assertThat(definition.isPost()).isTrue();
 
     // parameters
     assertThat(definition.params()).extracting(WebService.Param::key)
-      .containsExactlyInAnyOrder("profile", "profileName", "project", "language", "projectUuid", "organization");
-    WebService.Param profile = definition.param("profile");
+      .containsExactlyInAnyOrder("key", "qualityProfile", "project", "language", "projectUuid", "organization");
+    WebService.Param profile = definition.param("key");
     assertThat(profile.deprecatedKey()).isEqualTo("profileKey");
-    WebService.Param profileName = definition.param("profileName");
-    assertThat(profileName.deprecatedSince()).isEqualTo("6.5");
+    assertThat(profile.deprecatedSince()).isEqualTo("6.6");
     WebService.Param languageParam = definition.param("language");
     assertThat(languageParam.possibleValues()).containsOnly(LANGUAGE_1, LANGUAGE_2);
     assertThat(languageParam.exampleValue()).isNull();
-    assertThat(languageParam.deprecatedSince()).isEqualTo("6.5");
     WebService.Param project = definition.param("project");
     assertThat(project.deprecatedKey()).isEqualTo("projectKey");
     WebService.Param projectUuid = definition.param("projectUuid");
@@ -115,10 +115,24 @@ public class AddProjectActionTest {
   }
 
   @Test
-  public void throw_IAE_if_profile_and_project_are_in_different_organizations() {
+  public void as_qprofile_editor() {
+    OrganizationDto organization = db.organizations().insert();
+    UserDto user = db.users().insertUser();
+    QProfileDto qualityProfile = db.qualityProfiles().insert(organization, qp -> qp.setLanguage(LANGUAGE_1));
+    db.qualityProfiles().addUserPermission(qualityProfile, user);
+    ComponentDto project = db.components().insertPrivateProject(organization);
+    userSession.logIn(user);
+
+    call(organization, project, qualityProfile);
+
+    assertProjectIsAssociatedToProfile(project, qualityProfile);
+  }
+
+  @Test
+  public void fail_if_profile_and_project_are_in_different_organizations() {
     OrganizationDto org1 = db.organizations().insert();
     OrganizationDto org2 = db.organizations().insert();
-    logInAsProfileAdmin(org1);
+    logInAsProfileAdmin(org2);
     ComponentDto project = db.components().insertPrivateProject(org1);
     QProfileDto profileInOrg2 = db.qualityProfiles().insert(org2, p -> p.setLanguage(LANGUAGE_1));
 
@@ -126,12 +140,10 @@ public class AddProjectActionTest {
     expectedException.expectMessage("Project and quality profile must have the same organization");
 
     call(org2, project, profileInOrg2);
-
-    assertProjectIsNotAssociatedToProfile(project, profileInOrg2);
   }
 
   @Test
-  public void throw_NotFoundException_if_profile_is_not_found_in_specified_organization() {
+  public void fail_if_profile_is_not_found_in_specified_organization() {
     OrganizationDto org1 = db.organizations().insert();
     OrganizationDto org2 = db.organizations().insert();
     logInAsProfileAdmin(org1);
@@ -143,12 +155,10 @@ public class AddProjectActionTest {
       .expectMessage("Quality Profile for language '" + LANGUAGE_1 + "' and name '" + profileInOrg2.getName() + "' does not exist in organization '" + org1.getKey() + "'");
 
     call(org1, project, profileInOrg2);
-
-    assertProjectIsNotAssociatedToProfile(project, profileInOrg2);
   }
 
   @Test
-  public void change_association_in_default_organization() throws Exception {
+  public void change_association_in_default_organization() {
     logInAsProfileAdmin(db.getDefaultOrganization());
 
     ComponentDto project = db.components().insertPrivateProject(db.getDefaultOrganization());
@@ -164,7 +174,7 @@ public class AddProjectActionTest {
   }
 
   @Test
-  public void changing_association_does_not_change_other_language_associations() throws Exception {
+  public void changing_association_does_not_change_other_language_associations() {
     logInAsProfileAdmin(db.getDefaultOrganization());
     ComponentDto project = db.components().insertPrivateProject(db.getDefaultOrganization());
     QProfileDto profile1Language1 = db.qualityProfiles().insert(db.getDefaultOrganization(), p -> p.setLanguage(LANGUAGE_1));
@@ -179,10 +189,10 @@ public class AddProjectActionTest {
   }
 
   @Test
-  public void project_administrator_can_change_profile() throws Exception {
+  public void project_administrator_can_change_profile() {
     ComponentDto project = db.components().insertPrivateProject(db.getDefaultOrganization());
     QProfileDto profile = db.qualityProfiles().insert(db.getDefaultOrganization());
-    userSession.logIn().addProjectPermission(UserRole.ADMIN, project);
+    userSession.logIn(db.users().insertUser()).addProjectPermission(UserRole.ADMIN, project);
 
     call(project, profile);
 
@@ -191,7 +201,7 @@ public class AddProjectActionTest {
 
   @Test
   public void throw_ForbiddenException_if_not_project_nor_organization_administrator() {
-    userSession.logIn();
+    userSession.logIn(db.users().insertUser());
     ComponentDto project = db.components().insertPrivateProject(db.getDefaultOrganization());
     QProfileDto profile = db.qualityProfiles().insert(db.getDefaultOrganization());
 
@@ -241,6 +251,40 @@ public class AddProjectActionTest {
       .execute();
   }
 
+  @Test
+  public void fail_when_using_branch_db_key() throws Exception {
+    OrganizationDto organization = db.organizations().insert();
+    ComponentDto project = db.components().insertMainBranch(organization);
+    userSession.logIn(db.users().insertUser()).addProjectPermission(UserRole.ADMIN, project);
+    ComponentDto branch = db.components().insertProjectBranch(project);
+    QProfileDto profile = db.qualityProfiles().insert(organization);
+
+    expectedException.expect(NotFoundException.class);
+    expectedException.expectMessage(format("Component key '%s' not found", branch.getDbKey()));
+
+    tester.newRequest()
+      .setParam("project", branch.getDbKey())
+      .setParam("profileKey", profile.getKee())
+      .execute();
+  }
+
+  @Test
+  public void fail_when_using_branch_uuid() {
+    OrganizationDto organization = db.organizations().insert();
+    ComponentDto project = db.components().insertMainBranch(organization);
+    userSession.logIn(db.users().insertUser()).addProjectPermission(UserRole.ADMIN, project);
+    ComponentDto branch = db.components().insertProjectBranch(project);
+    QProfileDto profile = db.qualityProfiles().insert(organization);
+
+    expectedException.expect(NotFoundException.class);
+    expectedException.expectMessage(format("Component id '%s' not found", branch.uuid()));
+
+    tester.newRequest()
+      .setParam("projectUuid", branch.uuid())
+      .setParam("profileKey", profile.getKee())
+      .execute();
+  }
+
   private void assertProjectIsAssociatedToProfile(ComponentDto project, QProfileDto profile) {
     QProfileDto loaded = dbClient.qualityProfileDao().selectAssociatedToProjectAndLanguage(db.getSession(), project, profile.getLanguage());
     assertThat(loaded.getKee()).isEqualTo(profile.getKee());
@@ -252,13 +296,13 @@ public class AddProjectActionTest {
   }
 
   private void logInAsProfileAdmin(OrganizationDto organization) {
-    userSession.logIn().addPermission(ADMINISTER_QUALITY_PROFILES, organization);
+    userSession.logIn(db.users().insertUser()).addPermission(ADMINISTER_QUALITY_PROFILES, organization);
   }
 
   private TestResponse call(ComponentDto project, QProfileDto qualityProfile) {
     TestRequest request = tester.newRequest()
       .setParam("projectUuid", project.uuid())
-      .setParam("profile", qualityProfile.getKee());
+      .setParam("key", qualityProfile.getKee());
     return request.execute();
   }
 
@@ -267,7 +311,7 @@ public class AddProjectActionTest {
       .setParam("organization", organization.getKey())
       .setParam("projectUuid", project.uuid())
       .setParam("language", qualityProfile.getLanguage())
-      .setParam("profileName", qualityProfile.getName());
+      .setParam("qualityProfile", qualityProfile.getName());
     return request.execute();
   }
 }

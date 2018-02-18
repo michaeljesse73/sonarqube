@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -81,12 +81,11 @@ public class RuleCreator {
     validateCustomRule(newRule, dbSession, templateKey);
 
     RuleKey customRuleKey = RuleKey.of(templateRule.getRepositoryKey(), newRule.ruleKey());
-
-    loadRule(customRuleKey, dbSession)
-      .map(existingRule -> updateExistingRule(existingRule, newRule, dbSession))
+    Optional<RuleDefinitionDto> definition = loadRule(dbSession, customRuleKey);
+    int customRuleId = definition.map(d -> updateExistingRule(d, newRule, dbSession))
       .orElseGet(() -> createCustomRule(customRuleKey, newRule, templateRule, dbSession));
 
-    ruleIndexer.commitAndIndex(dbSession, customRuleKey);
+    ruleIndexer.commitAndIndex(dbSession, customRuleId);
     return customRuleKey;
   }
 
@@ -148,13 +147,14 @@ public class RuleCreator {
     }
   }
 
-  private Optional<RuleDefinitionDto> loadRule(RuleKey ruleKey, DbSession dbSession) {
+  private Optional<RuleDefinitionDto> loadRule(DbSession dbSession, RuleKey ruleKey) {
     return dbClient.ruleDao().selectDefinitionByKey(dbSession, ruleKey);
   }
 
-  private RuleKey createCustomRule(RuleKey ruleKey, NewCustomRule newRule, RuleDto templateRuleDto, DbSession dbSession) {
+  private int createCustomRule(RuleKey ruleKey, NewCustomRule newRule, RuleDto templateRuleDto, DbSession dbSession) {
     RuleDefinitionDto ruleDefinition = new RuleDefinitionDto()
       .setRuleKey(ruleKey)
+      .setPluginKey(templateRuleDto.getPluginKey())
       .setTemplateId(templateRuleDto.getId())
       .setConfigKey(templateRuleDto.getConfigKey())
       .setName(newRule.name())
@@ -162,13 +162,14 @@ public class RuleCreator {
       .setDescriptionFormat(Format.MARKDOWN)
       .setSeverity(newRule.severity())
       .setStatus(newRule.status())
+      .setType(newRule.type() == null ? templateRuleDto.getType() : newRule.type().getDbConstant())
       .setLanguage(templateRuleDto.getLanguage())
       .setDefRemediationFunction(templateRuleDto.getDefRemediationFunction())
       .setDefRemediationGapMultiplier(templateRuleDto.getDefRemediationGapMultiplier())
       .setDefRemediationBaseEffort(templateRuleDto.getDefRemediationBaseEffort())
       .setGapDescription(templateRuleDto.getGapDescription())
+      .setScope(templateRuleDto.getScope())
       .setSystemTags(templateRuleDto.getSystemTags())
-      .setType(templateRuleDto.getType())
       .setCreatedAt(system2.now())
       .setUpdatedAt(system2.now());
     dbClient.ruleDao().insert(dbSession, ruleDefinition);
@@ -188,7 +189,7 @@ public class RuleCreator {
       String customRuleParamValue = Strings.emptyToNull(newRule.parameter(templateRuleParamDto.getName()));
       createCustomRuleParams(customRuleParamValue, ruleDefinition, templateRuleParamDto, dbSession);
     }
-    return ruleKey;
+    return ruleDefinition.getId();
   }
 
   private void createCustomRuleParams(@Nullable String paramValue, RuleDefinitionDto ruleDto, RuleParamDto templateRuleParam, DbSession dbSession) {
@@ -200,7 +201,7 @@ public class RuleCreator {
     dbClient.ruleDao().insertRuleParam(dbSession, ruleDto, ruleParamDto);
   }
 
-  private RuleKey updateExistingRule(RuleDefinitionDto ruleDto, NewCustomRule newRule, DbSession dbSession) {
+  private int updateExistingRule(RuleDefinitionDto ruleDto, NewCustomRule newRule, DbSession dbSession) {
     if (ruleDto.getStatus().equals(RuleStatus.REMOVED)) {
       if (newRule.isPreventReactivation()) {
         throw new ReactivationException(format("A removed rule with the key '%s' already exists", ruleDto.getKey().rule()), ruleDto.getKey());
@@ -212,7 +213,7 @@ public class RuleCreator {
     } else {
       throw new IllegalArgumentException(format("A rule with the key '%s' already exists", ruleDto.getKey().rule()));
     }
-    return ruleDto.getKey();
+    return ruleDto.getId();
   }
 
 }

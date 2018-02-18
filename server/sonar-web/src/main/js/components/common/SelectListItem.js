@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,6 +22,7 @@ import React from 'react';
 import classNames from 'classnames';
 import Tooltip from '../controls/Tooltip';
 
+/*::
 type Props = {
   active?: string,
   children?: React.Element<*>,
@@ -30,22 +31,27 @@ type Props = {
   onHover?: string => void,
   title?: string
 };
+*/
 
 export default class SelectListItem extends React.PureComponent {
-  props: Props;
+  /*:: props: Props; */
 
-  handleSelect = (evt: SyntheticInputEvent) => {
+  handleSelect = (evt /*: SyntheticInputEvent */) => {
     evt.preventDefault();
-    this.props.onSelect && this.props.onSelect(this.props.item);
+    if (this.props.onSelect) {
+      this.props.onSelect(this.props.item);
+    }
   };
 
   handleHover = () => {
-    this.props.onHover && this.props.onHover(this.props.item);
+    if (this.props.onHover) {
+      this.props.onHover(this.props.item);
+    }
   };
 
   renderLink() {
     let children = this.props.item;
-    if (this.props.hasOwnProperty('children')) {
+    if (this.props.children) {
       children = this.props.children;
     }
     return (

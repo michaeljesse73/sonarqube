@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,6 +19,7 @@
  */
 package org.sonarqube.tests.user;
 
+import com.codeborne.selenide.Condition;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.sonar.orchestrator.Orchestrator;
@@ -36,9 +37,13 @@ import org.sonar.wsclient.base.HttpException;
 import org.sonar.wsclient.connectors.HttpClient4Connector;
 import org.sonar.wsclient.services.AuthenticationQuery;
 import org.sonar.wsclient.user.UserParameters;
+import org.sonarqube.qa.util.Tester;
+import org.sonarqube.qa.util.pageobjects.Navigation;
+import org.sonarqube.qa.util.pageobjects.SystemInfoPage;
+import org.sonarqube.qa.util.pageobjects.UsersManagementPage;
 import org.sonarqube.ws.client.GetRequest;
 import org.sonarqube.ws.client.WsResponse;
-import org.sonarqube.ws.client.user.CreateRequest;
+import org.sonarqube.ws.client.users.CreateRequest;
 import util.user.UserRule;
 import util.user.Users;
 
@@ -46,11 +51,9 @@ import static java.net.HttpURLConnection.HTTP_OK;
 import static java.net.HttpURLConnection.HTTP_UNAUTHORIZED;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.fail;
-import static util.ItUtils.newAdminWsClient;
 import static util.ItUtils.newUserWsClient;
 import static util.ItUtils.pluginArtifact;
 import static util.ItUtils.resetSettings;
-import static util.ItUtils.setServerProperty;
 import static util.selenium.Selenese.runSelenese;
 
 /**
@@ -81,14 +84,17 @@ public class RealmAuthenticationTest {
   @Rule
   public UserRule userRule = UserRule.from(orchestrator);
 
+  @Rule
+  public Tester tester = new Tester(orchestrator).disableOrganizations();
+
   @Before
   @After
-  public void resetData() throws Exception {
+  public void resetData() {
     resetSettings(orchestrator, null, USERS_PROPERTY, "sonar.security.updateUserAttributes");
   }
 
   @Before
-  public void initAdminUser() throws Exception {
+  public void initAdminUser() {
     userRule.createAdminUser(ADMIN_USER_LOGIN, ADMIN_USER_LOGIN);
   }
 
@@ -121,7 +127,8 @@ public class RealmAuthenticationTest {
     runSelenese(orchestrator, "/user/ExternalAuthenticationTest/external-user-details.html");
 
     // SONAR-4462
-    runSelenese(orchestrator, "/user/ExternalAuthenticationTest/system-info.html");
+    SystemInfoPage page = tester.openBrowser().logIn().submitCredentials(ADMIN_USER_LOGIN).openSystemInfo();
+    page.getCardItem("System").shouldHaveFieldWithValue("External User Authentication", "FakeRealm");
   }
 
   /**
@@ -225,11 +232,21 @@ public class RealmAuthenticationTest {
 
   // SONAR-3258
   @Test
-  public void shouldAutomaticallyReactivateDeletedUser() throws Exception {
+  public void shouldAutomaticallyReactivateDeletedUser() {
     // Given clean Sonar installation and no users in external system
 
     // Let's create and delete the user "tester" in Sonar DB
-    runSelenese(orchestrator, "/user/ExternalAuthenticationTest/create-and-delete-user.html");
+    Navigation nav = tester.openBrowser();
+    UsersManagementPage page = nav.logIn().submitCredentials(ADMIN_USER_LOGIN).openUsersManagement();
+    page
+      .createUser(USER_LOGIN)
+      .hasUsersCount(3)
+      .getUser(USER_LOGIN)
+      .deactivateUser();
+    page.hasUsersCount(2);
+    nav.logOut()
+      .logIn().submitWrongCredentials(USER_LOGIN, USER_LOGIN)
+      .getErrorMessage().shouldHave(Condition.text("Authentication failed"));
 
     // And now update the security with the user that was deleted
     String login = USER_LOGIN;
@@ -245,7 +262,7 @@ public class RealmAuthenticationTest {
    * SONAR-7036
    */
   @Test
-  public void update_password_of_technical_user() throws Exception {
+  public void update_password_of_technical_user() {
     // Create user in external authentication
     updateUsersInExtAuth(ImmutableMap.of(USER_LOGIN + ".password", USER_LOGIN));
     verifyAuthenticationIsOk(USER_LOGIN, USER_LOGIN);
@@ -271,7 +288,7 @@ public class RealmAuthenticationTest {
    * SONAR-7640
    */
   @Test
-  public void authentication_with_ws() throws Exception {
+  public void authentication_with_ws() {
     // Given clean Sonar installation and no users in external system
     String login = USER_LOGIN;
     String password = "1234567";
@@ -287,7 +304,7 @@ public class RealmAuthenticationTest {
     verifyAuthenticationIsNotOk(login, null);
     verifyAuthenticationIsOk(null, null);
 
-    setServerProperty(orchestrator, "sonar.forceAuthentication", "true");
+    tester.settings().setGlobalSettings("sonar.forceAuthentication", "true");
 
     verifyAuthenticationIsOk(login, password);
     verifyAuthenticationIsNotOk("wrong", password);
@@ -307,12 +324,11 @@ public class RealmAuthenticationTest {
 
   @Test
   public void provision_user_before_authentication() {
-    newAdminWsClient(orchestrator).users().create(CreateRequest.builder()
+    tester.wsClient().users().create(new CreateRequest()
       .setLogin(USER_LOGIN)
       .setName("Tester Testerovich")
       .setEmail("tester@example.org")
-      .setLocal(false)
-      .build());
+      .setLocal("false"));
     // The user is created in SonarQube but doesn't exist yet in external authentication system
     verifyAuthenticationIsNotOk(USER_LOGIN, "123");
 
@@ -325,6 +341,22 @@ public class RealmAuthenticationTest {
     assertThat(userRule.getUserByLogin(USER_LOGIN).get())
       .extracting(Users.User::isLocal, Users.User::getExternalIdentity, Users.User::getExternalProvider)
       .containsOnly(false, USER_LOGIN, "sonarqube");
+  }
+
+  @Test
+  public void fail_to_authenticate_user_when_email_already_exists() {
+    userRule.createUser("another", "Another", "tester@example.org", "another");
+
+    String username = USER_LOGIN;
+    String password = "123";
+    Map<String, String> users = Maps.newHashMap();
+    users.put(username + ".password", password);
+    users.put(username + ".name", "Tester Testerovich");
+    users.put(username + ".email", "tester@example.org");
+    users.put(username + ".groups", "sonar-user");
+    updateUsersInExtAuth(users);
+
+    verifyAuthenticationIsNotOk(username, password);
   }
 
   private void verifyHttpException(Exception e, int expectedCode) {
@@ -340,8 +372,8 @@ public class RealmAuthenticationTest {
   /**
    * Updates information about users in security-plugin.
    */
-  private static void updateUsersInExtAuth(Map<String, String> users) {
-    setServerProperty(orchestrator, USERS_PROPERTY, format(users));
+  private void updateUsersInExtAuth(Map<String, String> users) {
+    tester.settings().setGlobalSettings(USERS_PROPERTY, format(users));
   }
 
   private void createUserInDb(String login, String password) {

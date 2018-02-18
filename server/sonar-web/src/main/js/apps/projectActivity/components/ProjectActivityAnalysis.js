@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,87 +19,105 @@
  */
 // @flow
 import React from 'react';
+import classNames from 'classnames';
 import Events from './Events';
 import AddEventForm from './forms/AddEventForm';
 import RemoveAnalysisForm from './forms/RemoveAnalysisForm';
-import FormattedDate from '../../../components/ui/FormattedDate';
+import TimeTooltipFormatter from '../../../components/intl/TimeTooltipFormatter';
+import ActionsDropdown, {
+  ActionsDropdownDivider
+} from '../../../components/controls/ActionsDropdown';
 import { translate } from '../../../helpers/l10n';
-import type { Analysis } from '../types';
+/*:: import type { Analysis } from '../types'; */
 
+/*::
 type Props = {
   addCustomEvent: (analysis: string, name: string, category?: string) => Promise<*>,
   addVersion: (analysis: string, version: string) => Promise<*>,
   analysis: Analysis,
   canAdmin: boolean,
+  canDeleteAnalyses: boolean,
+  canCreateVersion: boolean,
   changeEvent: (event: string, name: string) => Promise<*>,
   deleteAnalysis: (analysis: string) => Promise<*>,
   deleteEvent: (analysis: string, event: string) => Promise<*>,
-  isFirst: boolean
+  isFirst: boolean,
+  selected: boolean,
+  updateSelectedDate: Date => void
 };
+*/
 
-export default function ProjectActivityAnalysis(props: Props) {
-  const { date, events } = props.analysis;
-  const { isFirst, canAdmin } = props;
-  const analysisTitle = translate('project_activity.analysis');
-  const hasVersion = events.find(event => event.category === 'VERSION') != null;
-  return (
-    <li className="project-activity-analysis clearfix">
-      <div className="project-activity-time spacer-right">
-        <FormattedDate date={date} format="LT" tooltipFormat="LTS" />
-      </div>
-      <div
-        className="project-activity-analysis-icon little-spacer-top big-spacer-right"
-        title={analysisTitle}
-      />
+export default class ProjectActivityAnalysis extends React.PureComponent {
+  /*:: props: Props; */
 
-      {canAdmin &&
-        <div className="project-activity-analysis-actions spacer-left">
-          <div className="dropdown display-inline-block">
-            <button
-              className="js-analysis-actions button-small button-compact dropdown-toggle"
-              data-toggle="dropdown">
-              <i className="icon-settings" />
-              {' '}
-              <i className="icon-dropdown" />
-            </button>
-            <ul className="dropdown-menu dropdown-menu-right">
-              {!hasVersion &&
-                <li>
-                  <AddEventForm
-                    addEvent={props.addVersion}
-                    analysis={props.analysis}
-                    addEventButtonText="project_activity.add_version"
-                  />
-                </li>}
-              <li>
+  handleClick = () => this.props.updateSelectedDate(this.props.analysis.date);
+
+  stopPropagation = (e /*: Event */) => e.stopPropagation();
+
+  render() {
+    const { analysis, isFirst, canAdmin } = this.props;
+    const { date, events } = analysis;
+    const analysisTitle = translate('project_activity.analysis');
+    const hasVersion = events.find(event => event.category === 'VERSION') != null;
+
+    const canAddVersion = canAdmin && !hasVersion && this.props.canCreateVersion;
+    const canAddEvent = canAdmin;
+    const canDeleteAnalyses = this.props.canDeleteAnalyses && !isFirst;
+
+    return (
+      <li
+        className={classNames('project-activity-analysis clearfix', {
+          selected: this.props.selected
+        })}
+        data-date={date.valueOf()}
+        onClick={this.handleClick}
+        role="listitem"
+        tabIndex="0">
+        <div className="project-activity-time spacer-right">
+          <TimeTooltipFormatter className="text-middle" date={date} placement="right" />
+        </div>
+        <div className="project-activity-analysis-icon spacer-right" title={analysisTitle} />
+
+        {(canAddVersion || canAddEvent || canDeleteAnalyses) && (
+          <div className="project-activity-analysis-actions big-spacer-right">
+            <ActionsDropdown menuPosition="left" small={true} toggleClassName="js-analysis-actions">
+              {canAddVersion && (
                 <AddEventForm
-                  addEvent={props.addCustomEvent}
-                  analysis={props.analysis}
+                  addEvent={this.props.addVersion}
+                  analysis={analysis}
+                  addEventButtonText="project_activity.add_version"
+                />
+              )}
+              {canAddEvent && (
+                <AddEventForm
+                  addEvent={this.props.addCustomEvent}
+                  analysis={analysis}
                   addEventButtonText="project_activity.add_custom_event"
                 />
-              </li>
-              {!isFirst && <li role="separator" className="divider" />}
-              {!isFirst &&
-                <li>
-                  <RemoveAnalysisForm
-                    analysis={props.analysis}
-                    deleteAnalysis={props.deleteAnalysis}
-                  />
-                </li>}
-            </ul>
+              )}
+              {(canAddVersion || canAddEvent) && canDeleteAnalyses && <ActionsDropdownDivider />}
+              {canDeleteAnalyses && (
+                <RemoveAnalysisForm
+                  analysis={analysis}
+                  deleteAnalysis={this.props.deleteAnalysis}
+                />
+              )}
+            </ActionsDropdown>
           </div>
-        </div>}
+        )}
 
-      {events.length > 0 &&
-        <Events
-          analysis={props.analysis.key}
-          canAdmin={canAdmin}
-          changeEvent={props.changeEvent}
-          deleteEvent={props.deleteEvent}
-          events={events}
-          isFirst={props.isFirst}
-        />}
-
-    </li>
-  );
+        {events.length > 0 && (
+          <Events
+            analysis={analysis.key}
+            canAdmin={canAdmin}
+            canDeleteAnalyses={this.props.canDeleteAnalyses}
+            changeEvent={this.props.changeEvent}
+            deleteEvent={this.props.deleteEvent}
+            events={events}
+            isFirst={this.props.isFirst}
+          />
+        )}
+      </li>
+    );
+  }
 }

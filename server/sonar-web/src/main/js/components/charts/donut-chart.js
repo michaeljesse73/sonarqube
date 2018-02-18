@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,22 +18,24 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import React from 'react';
+import createReactClass from 'create-react-class';
+import PropTypes from 'prop-types';
 import { arc as d3Arc, pie as d3Pie } from 'd3-shape';
 import { ResizeMixin } from './../mixins/resize-mixin';
 import { TooltipsMixin } from './../mixins/tooltips-mixin';
 
-const Sector = React.createClass({
-  render() {
-    const arc = d3Arc()
-      .outerRadius(this.props.radius)
-      .innerRadius(this.props.radius - this.props.thickness);
-    return <path d={arc(this.props.data)} style={{ fill: this.props.fill }} />;
-  }
-});
+function Sector(props) {
+  const arc = d3Arc()
+    .outerRadius(props.radius)
+    .innerRadius(props.radius - props.thickness);
+  return <path d={arc(props.data)} style={{ fill: props.fill }} />;
+}
 
-export const DonutChart = React.createClass({
+export const DonutChart = createReactClass({
+  displayName: 'DonutChart',
+
   propTypes: {
-    data: React.PropTypes.arrayOf(React.PropTypes.object).isRequired
+    data: PropTypes.arrayOf(PropTypes.object).isRequired
   },
 
   mixins: [ResizeMixin, TooltipsMixin],
@@ -57,7 +59,9 @@ export const DonutChart = React.createClass({
     const size = Math.min(availableWidth, availableHeight);
     const radius = Math.floor(size / 2);
 
-    const pie = d3Pie().sort(null).value(d => d.value);
+    const pie = d3Pie()
+      .sort(null)
+      .value(d => d.value);
     const sectors = pie(this.props.data).map((d, i) => {
       return (
         <Sector
@@ -73,9 +77,7 @@ export const DonutChart = React.createClass({
     return (
       <svg className="donut-chart" width={this.state.width} height={this.state.height}>
         <g transform={`translate(${this.props.padding[3]}, ${this.props.padding[0]})`}>
-          <g transform={`translate(${radius}, ${radius})`}>
-            {sectors}
-          </g>
+          <g transform={`translate(${radius}, ${radius})`}>{sectors}</g>
         </g>
       </svg>
     );

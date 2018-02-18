@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,18 +24,20 @@ import java.util.Map;
 import org.sonar.db.ce.CeActivityDao;
 import org.sonar.db.ce.CeQueueDao;
 import org.sonar.db.ce.CeScannerContextDao;
+import org.sonar.db.ce.CeTaskCharacteristicDao;
 import org.sonar.db.ce.CeTaskInputDao;
+import org.sonar.db.component.AnalysisPropertiesDao;
+import org.sonar.db.component.BranchDao;
 import org.sonar.db.component.ComponentDao;
 import org.sonar.db.component.ComponentKeyUpdaterDao;
 import org.sonar.db.component.ComponentLinkDao;
-import org.sonar.db.component.ResourceDao;
 import org.sonar.db.component.SnapshotDao;
 import org.sonar.db.duplication.DuplicationDao;
+import org.sonar.db.es.EsQueueDao;
 import org.sonar.db.event.EventDao;
 import org.sonar.db.issue.IssueChangeDao;
 import org.sonar.db.issue.IssueDao;
-import org.sonar.db.es.EsQueueDao;
-import org.sonar.db.loadedtemplate.LoadedTemplateDao;
+import org.sonar.db.measure.LiveMeasureDao;
 import org.sonar.db.measure.MeasureDao;
 import org.sonar.db.measure.custom.CustomMeasureDao;
 import org.sonar.db.metric.MetricDao;
@@ -47,6 +49,7 @@ import org.sonar.db.permission.GroupPermissionDao;
 import org.sonar.db.permission.UserPermissionDao;
 import org.sonar.db.permission.template.PermissionTemplateCharacteristicDao;
 import org.sonar.db.permission.template.PermissionTemplateDao;
+import org.sonar.db.plugin.PluginDao;
 import org.sonar.db.property.InternalPropertiesDao;
 import org.sonar.db.property.PropertiesDao;
 import org.sonar.db.purge.PurgeDao;
@@ -56,6 +59,8 @@ import org.sonar.db.qualitygate.QualityGateDao;
 import org.sonar.db.qualityprofile.ActiveRuleDao;
 import org.sonar.db.qualityprofile.DefaultQProfileDao;
 import org.sonar.db.qualityprofile.QProfileChangeDao;
+import org.sonar.db.qualityprofile.QProfileEditGroupsDao;
+import org.sonar.db.qualityprofile.QProfileEditUsersDao;
 import org.sonar.db.qualityprofile.QualityProfileDao;
 import org.sonar.db.rule.RuleDao;
 import org.sonar.db.rule.RuleRepositoryDao;
@@ -74,17 +79,16 @@ public class DbClient {
   private final Database database;
   private final MyBatis myBatis;
   private final DBSessions dbSessions;
+
   private final SchemaMigrationDao schemaMigrationDao;
   private final AuthorizationDao authorizationDao;
   private final OrganizationDao organizationDao;
   private final OrganizationMemberDao organizationMemberDao;
   private final QualityProfileDao qualityProfileDao;
-  private final LoadedTemplateDao loadedTemplateDao;
   private final PropertiesDao propertiesDao;
   private final InternalPropertiesDao internalPropertiesDao;
   private final SnapshotDao snapshotDao;
   private final ComponentDao componentDao;
-  private final ResourceDao resourceDao;
   private final ComponentKeyUpdaterDao componentKeyUpdaterDao;
   private final MeasureDao measureDao;
   private final UserDao userDao;
@@ -100,6 +104,7 @@ public class DbClient {
   private final CeActivityDao ceActivityDao;
   private final CeQueueDao ceQueueDao;
   private final CeTaskInputDao ceTaskInputDao;
+  private final CeTaskCharacteristicDao ceTaskCharacteristicsDao;
   private final CeScannerContextDao ceScannerContextDao;
   private final FileSourceDao fileSourceDao;
   private final ComponentLinkDao componentLinkDao;
@@ -121,6 +126,12 @@ public class DbClient {
   private final WebhookDeliveryDao webhookDeliveryDao;
   private final DefaultQProfileDao defaultQProfileDao;
   private final EsQueueDao esQueueDao;
+  private final PluginDao pluginDao;
+  private final BranchDao branchDao;
+  private final AnalysisPropertiesDao analysisPropertiesDao;
+  private final QProfileEditUsersDao qProfileEditUsersDao;
+  private final QProfileEditGroupsDao qProfileEditGroupsDao;
+  private final LiveMeasureDao liveMeasureDao;
 
   public DbClient(Database database, MyBatis myBatis, DBSessions dbSessions, Dao... daos) {
     this.database = database;
@@ -136,12 +147,10 @@ public class DbClient {
     organizationDao = getDao(map, OrganizationDao.class);
     organizationMemberDao = getDao(map, OrganizationMemberDao.class);
     qualityProfileDao = getDao(map, QualityProfileDao.class);
-    loadedTemplateDao = getDao(map, LoadedTemplateDao.class);
     propertiesDao = getDao(map, PropertiesDao.class);
     internalPropertiesDao = getDao(map, InternalPropertiesDao.class);
     snapshotDao = getDao(map, SnapshotDao.class);
     componentDao = getDao(map, ComponentDao.class);
-    resourceDao = getDao(map, ResourceDao.class);
     componentKeyUpdaterDao = getDao(map, ComponentKeyUpdaterDao.class);
     measureDao = getDao(map, MeasureDao.class);
     userDao = getDao(map, UserDao.class);
@@ -157,6 +166,7 @@ public class DbClient {
     ceActivityDao = getDao(map, CeActivityDao.class);
     ceQueueDao = getDao(map, CeQueueDao.class);
     ceTaskInputDao = getDao(map, CeTaskInputDao.class);
+    ceTaskCharacteristicsDao = getDao(map, CeTaskCharacteristicDao.class);
     ceScannerContextDao = getDao(map, CeScannerContextDao.class);
     fileSourceDao = getDao(map, FileSourceDao.class);
     componentLinkDao = getDao(map, ComponentLinkDao.class);
@@ -178,6 +188,12 @@ public class DbClient {
     webhookDeliveryDao = getDao(map, WebhookDeliveryDao.class);
     defaultQProfileDao = getDao(map, DefaultQProfileDao.class);
     esQueueDao = getDao(map, EsQueueDao.class);
+    pluginDao = getDao(map, PluginDao.class);
+    branchDao = getDao(map, BranchDao.class);
+    analysisPropertiesDao = getDao(map, AnalysisPropertiesDao.class);
+    qProfileEditUsersDao = getDao(map, QProfileEditUsersDao.class);
+    qProfileEditGroupsDao = getDao(map, QProfileEditGroupsDao.class);
+    liveMeasureDao = getDao(map, LiveMeasureDao.class);
   }
 
   public DbSession openSession(boolean batch) {
@@ -216,10 +232,6 @@ public class DbClient {
     return qualityProfileDao;
   }
 
-  public LoadedTemplateDao loadedTemplateDao() {
-    return loadedTemplateDao;
-  }
-
   public PropertiesDao propertiesDao() {
     return propertiesDao;
   }
@@ -232,12 +244,12 @@ public class DbClient {
     return snapshotDao;
   }
 
-  public ComponentDao componentDao() {
-    return componentDao;
+  public AnalysisPropertiesDao analysisPropertiesDao() {
+    return analysisPropertiesDao;
   }
 
-  public ResourceDao resourceDao() {
-    return resourceDao;
+  public ComponentDao componentDao() {
+    return componentDao;
   }
 
   public ComponentKeyUpdaterDao componentKeyUpdaterDao() {
@@ -290,6 +302,10 @@ public class DbClient {
 
   public CeTaskInputDao ceTaskInputDao() {
     return ceTaskInputDao;
+  }
+
+  public CeTaskCharacteristicDao ceTaskCharacteristicsDao() {
+    return ceTaskCharacteristicsDao;
   }
 
   public CeScannerContextDao ceScannerContextDao() {
@@ -376,6 +392,26 @@ public class DbClient {
     return esQueueDao;
   }
 
+  public PluginDao pluginDao() {
+    return pluginDao;
+  }
+
+  public BranchDao branchDao() {
+    return branchDao;
+  }
+
+  public QProfileEditUsersDao qProfileEditUsersDao() {
+    return qProfileEditUsersDao;
+  }
+
+  public QProfileEditGroupsDao qProfileEditGroupsDao() {
+    return qProfileEditGroupsDao;
+  }
+
+  public LiveMeasureDao liveMeasureDao() {
+    return liveMeasureDao;
+  }
+
   protected <K extends Dao> K getDao(Map<Class, Dao> map, Class<K> clazz) {
     return (K) map.get(clazz);
   }
@@ -384,4 +420,5 @@ public class DbClient {
   public MyBatis getMyBatis() {
     return myBatis;
   }
+
 }

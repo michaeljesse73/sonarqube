@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -35,9 +35,10 @@ import org.sonar.api.batch.fs.InputPath;
 import org.sonar.api.batch.fs.internal.DefaultInputFile;
 import org.sonar.api.batch.fs.internal.DefaultInputModule;
 import org.sonar.api.batch.fs.internal.TestInputFileBuilder;
-import org.sonar.api.scan.filesystem.PathResolver;
+import org.sonar.scanner.scan.branch.BranchConfiguration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
 public class InputComponentStoreTest {
   @ClassRule
@@ -51,14 +52,14 @@ public class InputComponentStoreTest {
     File rootBaseDir = temp.newFolder();
 
     ProjectDefinition moduleDef = ProjectDefinition.create()
-      .setKey(subModuleKey).setBaseDir(rootBaseDir);
+      .setKey(subModuleKey).setBaseDir(rootBaseDir).setWorkDir(temp.newFolder());
     ProjectDefinition rootDef = ProjectDefinition.create()
-      .setKey(rootModuleKey).setBaseDir(rootBaseDir).addSubProject(moduleDef);
+      .setKey(rootModuleKey).setBaseDir(rootBaseDir).setWorkDir(temp.newFolder()).addSubProject(moduleDef);
 
     DefaultInputModule rootModule = TestInputFileBuilder.newDefaultInputModule(rootDef);
     DefaultInputModule subModule = TestInputFileBuilder.newDefaultInputModule(moduleDef);
 
-    InputComponentStore cache = new InputComponentStore(new PathResolver(), rootModule);
+    InputComponentStore cache = new InputComponentStore(rootModule, mock(BranchConfiguration.class));
     cache.put(subModule);
 
     DefaultInputFile fooFile = new TestInputFileBuilder(rootModuleKey, "src/main/java/Foo.java")
@@ -102,7 +103,7 @@ public class InputComponentStoreTest {
 
   static class InputComponentStoreTester extends InputComponentStore {
     InputComponentStoreTester() throws IOException {
-      super(new PathResolver(), TestInputFileBuilder.newDefaultInputModule("root", temp.newFolder()));
+      super(TestInputFileBuilder.newDefaultInputModule("root", temp.newFolder()), mock(BranchConfiguration.class));
     }
 
     InputFile addFile(String moduleKey, String relpath, String language) {

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -47,12 +47,21 @@ public class RuleDoc extends BaseDoc {
 
   @Override
   public String getId() {
-    return key().toString();
+    return idAsString();
+  }
+
+  private String idAsString() {
+    return getField(RuleIndexDefinition.FIELD_RULE_ID);
+  }
+
+  public RuleDoc setId(int ruleId) {
+    setField(RuleIndexDefinition.FIELD_RULE_ID, String.valueOf(ruleId));
+    return this;
   }
 
   @Override
   public String getRouting() {
-    return keyAsString();
+    return idAsString();
   }
 
   @Override
@@ -164,7 +173,7 @@ public class RuleDoc extends BaseDoc {
   }
 
   public boolean isTemplate() {
-    return (Boolean) getField(RuleIndexDefinition.FIELD_RULE_IS_TEMPLATE);
+    return getField(RuleIndexDefinition.FIELD_RULE_IS_TEMPLATE);
   }
 
   public RuleDoc setIsTemplate(@Nullable Boolean b) {
@@ -206,6 +215,7 @@ public class RuleDoc extends BaseDoc {
 
   public static RuleDoc of(RuleForIndexingDto dto) {
     RuleDoc ruleDoc = new RuleDoc()
+      .setId(dto.getId())
       .setKey(dto.getRuleKey().toString())
       .setRepository(dto.getRepository())
       .setInternalKey(dto.getInternalKey())

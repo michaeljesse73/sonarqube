@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -48,7 +48,7 @@ final class LogsIteratorInputStream extends InputStream {
   }
 
   @Override
-  public int read() throws IOException {
+  public int read() {
     if (nextChar == UNSET || nextChar >= buf.length) {
       fill();
       if (nextChar == UNSET) {

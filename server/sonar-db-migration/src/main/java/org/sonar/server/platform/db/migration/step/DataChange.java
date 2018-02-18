@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,6 +22,7 @@ package org.sonar.server.platform.db.migration.step;
 import java.sql.Connection;
 import java.sql.SQLException;
 import org.sonar.db.Database;
+import org.sonar.db.dialect.Dialect;
 
 public abstract class DataChange implements MigrationStep {
 
@@ -29,6 +30,10 @@ public abstract class DataChange implements MigrationStep {
 
   public DataChange(Database db) {
     this.db = db;
+  }
+
+  protected final Dialect getDialect() {
+    return db.getDialect();
   }
 
   @Override

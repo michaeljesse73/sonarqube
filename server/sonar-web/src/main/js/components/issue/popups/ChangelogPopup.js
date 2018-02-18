@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,15 +19,16 @@
  */
 // @flow
 import React from 'react';
-import moment from 'moment';
 import { getIssueChangelog } from '../../../api/issues';
 import { translate } from '../../../helpers/l10n';
 import Avatar from '../../../components/ui/Avatar';
 import BubblePopup from '../../../components/common/BubblePopup';
+import DateTimeFormatter from '../../../components/intl/DateTimeFormatter';
 import IssueChangelogDiff from '../components/IssueChangelogDiff';
-import type { ChangelogDiff } from '../components/IssueChangelogDiff';
-import type { Issue } from '../types';
+/*:: import type { ChangelogDiff } from '../components/IssueChangelogDiff'; */
+/*:: import type { Issue } from '../types'; */
 
+/*::
 type Changelog = {
   avatar?: string,
   creationDate: string,
@@ -35,21 +36,26 @@ type Changelog = {
   user: string,
   userName: string
 };
+*/
 
+/*::
 type Props = {
   issue: Issue,
   onFail: Error => void,
   popupPosition?: {}
 };
+*/
 
+/*::
 type State = {
   changelogs: Array<Changelog>
 };
+*/
 
 export default class ChangelogPopup extends React.PureComponent {
-  mounted: boolean;
-  props: Props;
-  state: State = {
+  /*:: mounted: boolean; */
+  /*:: props: Props; */
+  state /*: State */ = {
     changelogs: []
   };
 
@@ -80,7 +86,7 @@ export default class ChangelogPopup extends React.PureComponent {
             <tbody>
               <tr>
                 <td className="thin text-left text-top nowrap">
-                  {moment(issue.creationDate).format('LLL')}
+                  <DateTimeFormatter date={issue.creationDate} />
                 </td>
                 <td className="text-left text-top">
                   {author ? `${translate('created_by')} ${author}` : translate('created')}
@@ -90,10 +96,10 @@ export default class ChangelogPopup extends React.PureComponent {
               {this.state.changelogs.map((item, idx) => (
                 <tr key={idx}>
                   <td className="thin text-left text-top nowrap">
-                    {moment(item.creationDate).format('LLL')}
+                    <DateTimeFormatter date={item.creationDate} />
                   </td>
                   <td className="text-left text-top">
-                    {item.userName &&
+                    {item.userName && (
                       <p>
                         <Avatar
                           className="little-spacer-right"
@@ -102,7 +108,8 @@ export default class ChangelogPopup extends React.PureComponent {
                           size={16}
                         />
                         {item.userName}
-                      </p>}
+                      </p>
+                    )}
                     {item.diffs.map(diff => <IssueChangelogDiff key={diff.key} diff={diff} />)}
                   </td>
                 </tr>

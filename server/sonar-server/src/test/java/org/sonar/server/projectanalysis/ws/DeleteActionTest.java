@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -40,7 +40,7 @@ import static org.assertj.core.api.Assertions.tuple;
 import static org.sonar.db.component.SnapshotDto.STATUS_PROCESSED;
 import static org.sonar.db.component.SnapshotDto.STATUS_UNPROCESSED;
 import static org.sonar.db.component.SnapshotTesting.newAnalysis;
-import static org.sonarqube.ws.client.projectanalysis.ProjectAnalysesWsParameters.PARAM_ANALYSIS;
+import static org.sonar.server.projectanalysis.ws.ProjectAnalysesWsParameters.PARAM_ANALYSIS;
 
 public class DeleteActionTest {
   @Rule

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,8 +20,8 @@
 package org.sonarqube.tests.webhook;
 
 import com.sonar.orchestrator.Orchestrator;
-import org.sonarqube.tests.Category3Suite;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -30,16 +30,29 @@ import org.apache.commons.lang3.StringUtils;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
+import org.sonarqube.qa.util.Tester;
+import org.sonarqube.tests.Category3Suite;
+import org.sonarqube.ws.Issues.Issue;
+import org.sonarqube.ws.Organizations.Organization;
+import org.sonarqube.ws.Projects.CreateWsResponse.Project;
+import org.sonarqube.ws.Qualitygates;
+import org.sonarqube.ws.Qualityprofiles.CreateWsResponse.QualityProfile;
 import org.sonarqube.ws.Webhooks;
 import org.sonarqube.ws.client.HttpException;
 import org.sonarqube.ws.client.WsClient;
-import org.sonarqube.ws.client.project.DeleteRequest;
-import org.sonarqube.ws.client.setting.ResetRequest;
-import org.sonarqube.ws.client.setting.SetRequest;
-import org.sonarqube.ws.client.webhook.DeliveriesRequest;
+import org.sonarqube.ws.client.issues.BulkChangeRequest;
+import org.sonarqube.ws.client.issues.SearchRequest;
+import org.sonarqube.ws.client.projects.DeleteRequest;
+import org.sonarqube.ws.client.qualitygates.CreateConditionRequest;
+import org.sonarqube.ws.client.settings.ResetRequest;
+import org.sonarqube.ws.client.settings.SetRequest;
+import org.sonarqube.ws.client.webhooks.DeliveriesRequest;
+import org.sonarqube.ws.client.webhooks.DeliveryRequest;
 import util.ItUtils;
 
+import static java.util.Collections.singletonList;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.IntStream.range;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -55,31 +68,33 @@ public class WebhooksTest {
 
   @ClassRule
   public static Orchestrator orchestrator = Category3Suite.ORCHESTRATOR;
-
   @ClassRule
   public static ExternalServer externalServer = new ExternalServer();
+
+  @Rule
+  public Tester tester = new Tester(orchestrator);
 
   private WsClient adminWs = ItUtils.newAdminWsClient(orchestrator);
 
   @Before
-  public void setUp() throws Exception {
+  public void setUp() {
     externalServer.clear();
   }
 
   @Before
   @After
-  public void reset() throws Exception {
+  public void reset() {
     disableGlobalWebhooks();
     try {
       // delete project and related properties/webhook deliveries
-      adminWs.projects().delete(DeleteRequest.builder().setKey(PROJECT_KEY).build());
+      adminWs.projects().delete(new DeleteRequest().setProject(PROJECT_KEY));
     } catch (HttpException e) {
       // ignore because project may not exist
     }
   }
 
   @Test
-  public void call_multiple_global_and_project_webhooks_when_analysis_is_done() {
+  public void call_multiple_global_and_project_webhooks_when_analysis_is_done() throws InterruptedException {
     orchestrator.getServer().provisionProject(PROJECT_KEY, PROJECT_NAME);
     enableGlobalWebhooks(
       new Webhook("Jenkins", externalServer.urlFor("/jenkins")),
@@ -90,6 +105,7 @@ public class WebhooksTest {
     analyseProject();
 
     // the same payload has been sent to three servers
+    waitUntilAllWebHooksCalled(3);
     assertThat(externalServer.getPayloadRequests()).hasSize(3);
     PayloadRequest request = externalServer.getPayloadRequests().get(0);
     for (int i = 1; i < 3; i++) {
@@ -107,8 +123,9 @@ public class WebhooksTest {
     Map<String, String> project = (Map<String, String>) payload.get("project");
     assertThat(project.get("key")).isEqualTo(PROJECT_KEY);
     assertThat(project.get("name")).isEqualTo(PROJECT_NAME);
+    assertThat(project.get("url")).isEqualTo(orchestrator.getServer().getUrl() + "/dashboard?id=" + PROJECT_KEY);
     Map<String, Object> gate = (Map<String, Object>) payload.get("qualityGate");
-    assertThat(gate.get("name")).isEqualTo("SonarQube way");
+    assertThat(gate.get("name")).isEqualTo("Sonar way");
     assertThat(gate.get("status")).isEqualTo("OK");
     assertThat(gate.get("conditions")).isNotNull();
 
@@ -158,7 +175,7 @@ public class WebhooksTest {
    * Restrict calls to ten webhooks per type (global or project)
    */
   @Test
-  public void do_not_become_a_denial_of_service_attacker() {
+  public void do_not_become_a_denial_of_service_attacker() throws InterruptedException {
     orchestrator.getServer().provisionProject(PROJECT_KEY, PROJECT_NAME);
 
     List<Webhook> globalWebhooks = range(0, 15).mapToObj(i -> new Webhook("G" + i, externalServer.urlFor("/global"))).collect(Collectors.toList());
@@ -169,6 +186,7 @@ public class WebhooksTest {
     analyseProject();
 
     // only the first ten global webhooks and ten project webhooks are called
+    waitUntilAllWebHooksCalled(10 + 10);
     assertThat(externalServer.getPayloadRequests()).hasSize(10 + 10);
     assertThat(externalServer.getPayloadRequestsOnPath("/global")).hasSize(10);
     assertThat(externalServer.getPayloadRequestsOnPath("/project")).hasSize(10);
@@ -195,8 +213,7 @@ public class WebhooksTest {
     assertThat(detail.getPayload()).isNotEmpty();
     assertThat(detail.getErrorStacktrace())
       .contains("java.lang.IllegalArgumentException")
-      .contains("unexpected url")
-      .contains("this_is_not_an_url");
+      .contains("Webhook URL is not valid: this_is_not_an_url");
   }
 
   @Test
@@ -211,6 +228,65 @@ public class WebhooksTest {
     assertThat(getPersistedDeliveries()).isEmpty();
   }
 
+  @Test
+  public void send_webhook_on_issue_change() throws InterruptedException {
+    Organization defaultOrganization = tester.organizations().getDefaultOrganization();
+    Project wsProject = tester.projects().provision(r -> r.setProject(PROJECT_KEY).setName(PROJECT_NAME));
+    enableProjectWebhooks(PROJECT_KEY, new Webhook("Burgr", externalServer.urlFor("/burgr")));
+    // quality profile with one issue per line
+    QualityProfile qualityProfile = tester.qProfiles().createXooProfile(defaultOrganization);
+    tester.qProfiles().activateRule(qualityProfile, "xoo:OneIssuePerLine");
+    tester.qProfiles().assignQProfileToProject(qualityProfile, wsProject);
+    // quality gate definition
+    Qualitygates.CreateResponse qGate = tester.qGates().generate();
+    tester.qGates().service().createCondition(new CreateConditionRequest().setGateId(String.valueOf(qGate.getId()))
+      .setMetric("reliability_rating").setOp("GT").setError("1"));
+    tester.qGates().associateProject(qGate, wsProject);
+    // analyze project and clear first webhook
+    analyseProject();
+    waitUntilAllWebHooksCalled(1);
+    externalServer.clear();
+
+    // change an issue to blocker bug, QG status goes from OK to ERROR, so webhook is called
+    List<Issue> issues = tester.wsClient().issues().search(new SearchRequest()).getIssuesList();
+    Issue firstIssue = issues.iterator().next();
+    tester.wsClient().issues().bulkChange(new BulkChangeRequest().setIssues(singletonList(firstIssue.getKey()))
+      .setSetSeverity(singletonList("BLOCKER"))
+      .setSetType(singletonList("BUG")));
+    waitUntilAllWebHooksCalled(1);
+
+    PayloadRequest request = externalServer.getPayloadRequests().get(0);
+    assertThat(request.getHttpHeaders().get("X-SonarQube-Project")).isEqualTo(PROJECT_KEY);
+    // verify content of payload
+    Map<String, Object> payload = jsonToMap(request.getJson());
+    assertThat(payload.get("status")).isEqualTo("SUCCESS");
+    assertThat(payload.get("analysedAt")).isNotNull();
+    Map<String, String> project = (Map<String, String>) payload.get("project");
+    assertThat(project.get("key")).isEqualTo(PROJECT_KEY);
+    assertThat(project.get("name")).isEqualTo(PROJECT_NAME);
+    assertThat(project.get("url")).isEqualTo(orchestrator.getServer().getUrl() + "/dashboard?id=" + PROJECT_KEY);
+    Map<String, Object> gate = (Map<String, Object>) payload.get("qualityGate");
+    assertThat(gate.get("name")).isEqualTo(qGate.getName());
+    assertThat(gate.get("status")).isEqualTo("ERROR");
+    assertThat(gate.get("conditions")).isNotNull();
+    externalServer.clear();
+
+    // change severity of issue, won't change the QG status, so no webhook called
+    tester.wsClient().issues().bulkChange(new BulkChangeRequest().setIssues(singletonList(firstIssue.getKey()))
+      .setSetSeverity(singletonList("MINOR")));
+    waitUntilAllWebHooksCalled(1);
+    assertThat(externalServer.getPayloadRequests()).isEmpty();
+
+    // resolve issue as won't fix, QG status goes to OK, so webhook called
+    tester.wsClient().issues().bulkChange(new BulkChangeRequest().setIssues(singletonList(firstIssue.getKey()))
+      .setDoTransition("wontfix"));
+    waitUntilAllWebHooksCalled(1);
+    request = externalServer.getPayloadRequests().get(0);
+    payload = jsonToMap(request.getJson());
+    gate = (Map<String, Object>) payload.get("qualityGate");
+    assertThat(gate.get("status")).isEqualTo("OK");
+  }
+
   private void analyseProject() {
     runProjectAnalysis(orchestrator, "shared/xoo-sample",
       "sonar.projectKey", PROJECT_KEY,
@@ -218,7 +294,7 @@ public class WebhooksTest {
   }
 
   private List<Webhooks.Delivery> getPersistedDeliveries() {
-    DeliveriesRequest deliveriesReq = DeliveriesRequest.builder().setComponentKey(PROJECT_KEY).build();
+    DeliveriesRequest deliveriesReq = new DeliveriesRequest().setComponentKey(PROJECT_KEY);
     return adminWs.webhooks().deliveries(deliveriesReq).getDeliveriesList();
   }
 
@@ -228,7 +304,7 @@ public class WebhooksTest {
   }
 
   private Webhooks.Delivery getDetailOfPersistedDelivery(Webhooks.Delivery delivery) {
-    Webhooks.Delivery detail = adminWs.webhooks().delivery(delivery.getId()).getDelivery();
+    Webhooks.Delivery detail = adminWs.webhooks().delivery(new DeliveryRequest().setDeliveryId(delivery.getId())).getDelivery();
     return requireNonNull(detail);
   }
 
@@ -269,10 +345,10 @@ public class WebhooksTest {
 
   private void setProperty(@Nullable String componentKey, String key, @Nullable String value) {
     if (value == null) {
-      ResetRequest req = ResetRequest.builder().setKeys(key).setComponent(componentKey).build();
+      ResetRequest req = new ResetRequest().setKeys(Collections.singletonList(key)).setComponent(componentKey);
       adminWs.settings().reset(req);
     } else {
-      SetRequest req = SetRequest.builder().setKey(key).setValue(value).setComponent(componentKey).build();
+      SetRequest req = new SetRequest().setKey(key).setValue(value).setComponent(componentKey);
       adminWs.settings().set(req);
     }
   }
@@ -284,6 +360,18 @@ public class WebhooksTest {
     Webhook(@Nullable String name, @Nullable String url) {
       this.name = name;
       this.url = url;
+    }
+  }
+
+  /**
+   * Wait up to 30 seconds
+   */
+  private static void waitUntilAllWebHooksCalled(int expectedNumberOfRequests) throws InterruptedException {
+    for (int i = 0; i < 60; i++) {
+      if (externalServer.getPayloadRequests().size() == expectedNumberOfRequests) {
+        break;
+      }
+      Thread.sleep(500);
     }
   }
 

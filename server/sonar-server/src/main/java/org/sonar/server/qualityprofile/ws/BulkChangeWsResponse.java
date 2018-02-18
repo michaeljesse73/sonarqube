@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -31,10 +31,12 @@ class BulkChangeWsResponse {
   }
 
   static void writeResponse(BulkChangeResult result, Response response) {
-    JsonWriter json = response.newJsonWriter().beginObject();
-    json.prop("succeeded", result.countSucceeded());
-    json.prop("failed", result.countFailed());
-    WebServiceEngine.writeErrors(json, result.getErrors());
-    json.endObject().close();
+    try (JsonWriter json = response.newJsonWriter()) {
+      json.beginObject();
+      json.prop("succeeded", result.countSucceeded());
+      json.prop("failed", result.countFailed());
+      WebServiceEngine.writeErrors(json, result.getErrors());
+      json.endObject();
+    }
   }
 }

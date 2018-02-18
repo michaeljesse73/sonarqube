@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,15 +19,17 @@
  */
 import React from 'react';
 import { shallow } from 'enzyme';
-import { UnconnectedOrganizationPage } from '../OrganizationPage';
+import { OrganizationPage } from '../OrganizationPage';
+
+const fetchOrganization = () => Promise.resolve();
 
 it('smoke test', () => {
   const wrapper = shallow(
-    <UnconnectedOrganizationPage params={{ organizationKey: 'foo' }}>
+    <OrganizationPage fetchOrganization={fetchOrganization} params={{ organizationKey: 'foo' }}>
       <div>hello</div>
-    </UnconnectedOrganizationPage>
+    </OrganizationPage>
   );
-  expect(wrapper).toMatchSnapshot();
+  expect(wrapper.type()).toBeNull();
 
   const organization = { key: 'foo', name: 'Foo', isDefault: false, canAdmin: false };
   wrapper.setProps({ organization });
@@ -36,9 +38,9 @@ it('smoke test', () => {
 
 it('not found', () => {
   const wrapper = shallow(
-    <UnconnectedOrganizationPage params={{ organizationKey: 'foo' }}>
+    <OrganizationPage fetchOrganization={fetchOrganization} params={{ organizationKey: 'foo' }}>
       <div>hello</div>
-    </UnconnectedOrganizationPage>
+    </OrganizationPage>
   );
   wrapper.setState({ loading: false });
   expect(wrapper).toMatchSnapshot();
@@ -47,12 +49,11 @@ it('not found', () => {
 it('should correctly update when the organization changes', () => {
   const fetchOrganization = jest.fn(() => Promise.resolve());
   const wrapper = shallow(
-    <UnconnectedOrganizationPage
-      params={{ organizationKey: 'foo' }}
-      fetchOrganization={fetchOrganization}>
+    <OrganizationPage params={{ organizationKey: 'foo' }} fetchOrganization={fetchOrganization}>
       <div>hello</div>
-    </UnconnectedOrganizationPage>
+    </OrganizationPage>
   );
   wrapper.setProps({ params: { organizationKey: 'bar' } });
+  expect(fetchOrganization).toHaveBeenCalledTimes(2);
   expect(fetchOrganization.mock.calls).toMatchSnapshot();
 });

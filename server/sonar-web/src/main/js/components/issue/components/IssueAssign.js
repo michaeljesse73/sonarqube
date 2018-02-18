@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -23,8 +23,9 @@ import Avatar from '../../../components/ui/Avatar';
 import BubblePopupHelper from '../../../components/common/BubblePopupHelper';
 import SetAssigneePopup from '../popups/SetAssigneePopup';
 import { translate } from '../../../helpers/l10n';
-import type { Issue } from '../types';
+/*:: import type { Issue } from '../types'; */
 
+/*::
 type Props = {
   isOpen: boolean,
   issue: Issue,
@@ -33,11 +34,12 @@ type Props = {
   onFail: Error => void,
   togglePopup: (string, boolean | void) => void
 };
+*/
 
 export default class IssueAssign extends React.PureComponent {
-  props: Props;
+  /*:: props: Props; */
 
-  toggleAssign = (open?: boolean) => {
+  toggleAssign = (open /*: boolean | void */) => {
     this.props.togglePopup('assign', open);
   };
 
@@ -45,7 +47,7 @@ export default class IssueAssign extends React.PureComponent {
     const { issue } = this.props;
     return (
       <span>
-        {issue.assignee &&
+        {issue.assignee && (
           <span className="text-top">
             <Avatar
               className="little-spacer-right"
@@ -53,7 +55,8 @@ export default class IssueAssign extends React.PureComponent {
               name={issue.assigneeName}
               size={16}
             />
-          </span>}
+          </span>
+        )}
         <span className="issue-meta-label">
           {issue.assignee ? issue.assigneeName : translate('unassigned')}
         </span>

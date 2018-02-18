@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -43,7 +43,7 @@ public class PluginUpdateAggregatorTest {
 
   @Test
   public void aggregates_returns_an_empty_collection_when_plugin_collection_is_empty() {
-    assertThat(underTest.aggregate(Collections.<PluginUpdate>emptyList())).isEmpty();
+    assertThat(underTest.aggregate(Collections.emptyList())).isEmpty();
   }
 
   @Test
@@ -53,8 +53,7 @@ public class PluginUpdateAggregatorTest {
       createPluginUpdate("key1"),
       createPluginUpdate("key0"),
       createPluginUpdate("key2"),
-      createPluginUpdate("key0")
-      ));
+      createPluginUpdate("key0")));
 
     assertThat(aggregates).hasSize(3);
     assertThat(aggregates).extracting("plugin.key").containsOnlyOnce("key1", "key0", "key2");
@@ -68,8 +67,7 @@ public class PluginUpdateAggregatorTest {
     Collection<PluginUpdateAggregator.PluginUpdateAggregate> aggregates = underTest.aggregate(ImmutableList.of(
       pluginUpdate1,
       pluginUpdate2,
-      pluginUpdate3
-      ));
+      pluginUpdate3));
 
     assertThat(aggregates).hasSize(1);
     Collection<PluginUpdate> releases = aggregates.iterator().next().getUpdates();

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -42,8 +42,8 @@ public final class ConditionEvaluator {
     }
 
     return evaluateCondition(condition, measureComparable, Measure.Level.ERROR)
-      .orElse(evaluateCondition(condition, measureComparable, Measure.Level.WARN)
-        .orElse(new EvaluationResult(Measure.Level.OK, measureComparable)));
+      .orElseGet(() -> evaluateCondition(condition, measureComparable, Measure.Level.WARN)
+        .orElseGet(() -> new EvaluationResult(Measure.Level.OK, measureComparable)));
   }
 
   private static Optional<EvaluationResult> evaluateCondition(Condition condition, Comparable<?> measureComparable, Measure.Level alertLevel) {

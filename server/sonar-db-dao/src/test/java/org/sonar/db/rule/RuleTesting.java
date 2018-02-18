@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -28,8 +28,11 @@ import org.sonar.api.rule.RuleStatus;
 import org.sonar.api.rule.Severity;
 import org.sonar.api.rules.RuleType;
 import org.sonar.api.server.rule.RuleParamType;
+import org.sonar.core.util.UuidFactory;
+import org.sonar.core.util.UuidFactoryFast;
 import org.sonar.db.organization.OrganizationDto;
 import org.sonar.db.rule.RuleDto.Format;
+import org.sonar.db.rule.RuleDto.Scope;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.collect.ImmutableSet.copyOf;
@@ -47,6 +50,8 @@ public class RuleTesting {
   public static final RuleKey XOO_X1 = RuleKey.of("xoo", "x1");
   public static final RuleKey XOO_X2 = RuleKey.of("xoo", "x2");
   public static final RuleKey XOO_X3 = RuleKey.of("xoo", "x3");
+
+  private static final UuidFactory uuidFactory = UuidFactoryFast.getInstance();
 
   private RuleTesting() {
     // only static helpers
@@ -76,7 +81,8 @@ public class RuleTesting {
       .setDefRemediationGapMultiplier(nextInt(10) + "h")
       .setDefRemediationFunction("LINEAR_OFFSET")
       .setCreatedAt(System.currentTimeMillis())
-      .setUpdatedAt(System.currentTimeMillis());
+      .setUpdatedAt(System.currentTimeMillis())
+      .setScope(Scope.MAIN);
   }
 
   public static RuleMetadataDto newRuleMetadata() {
@@ -108,6 +114,15 @@ public class RuleTesting {
       .setDefaultValue("default_" + randomAlphabetic(5))
       .setDescription("description_" + randomAlphabetic(5))
       .setType(RuleParamType.STRING.type());
+  }
+
+  public static DeprecatedRuleKeyDto newDeprecatedRuleKey() {
+    return new DeprecatedRuleKeyDto()
+      .setUuid(uuidFactory.create())
+      .setOldRepositoryKey(randomAlphanumeric(50))
+      .setOldRuleKey(randomAlphanumeric(50))
+      .setRuleId(nextInt(100_000))
+      .setCreatedAt(System.currentTimeMillis());
   }
 
   /**
@@ -189,7 +204,8 @@ public class RuleTesting {
       .setGapDescription(ruleKey.repository() + "." + ruleKey.rule() + ".effortToFix")
       .setType(RuleType.CODE_SMELL)
       .setCreatedAt(new Date().getTime())
-      .setUpdatedAt(new Date().getTime());
+      .setUpdatedAt(new Date().getTime())
+      .setScope(Scope.MAIN);
     if (organization != null) {
       res
         .setOrganizationUuid(organization.getUuid())

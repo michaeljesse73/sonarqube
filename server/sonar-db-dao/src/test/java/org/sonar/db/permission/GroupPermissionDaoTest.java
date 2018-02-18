@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -447,7 +447,7 @@ public class GroupPermissionDaoTest {
   }
 
   @Test
-  public void selectAllPermissionsByGroupId_on_public_project() throws Exception {
+  public void selectAllPermissionsByGroupId_on_public_project() {
     OrganizationDto org1 = db.organizations().insert();
     GroupDto group1 = db.users().insertGroup(org1, "group1");
     ComponentDto project1 = db.components().insertPublicProject(org1);
@@ -467,7 +467,7 @@ public class GroupPermissionDaoTest {
   }
 
   @Test
-  public void selectAllPermissionsByGroupId_on_private_project() throws Exception {
+  public void selectAllPermissionsByGroupId_on_private_project() {
     OrganizationDto org1 = db.organizations().insert();
     GroupDto group1 = db.users().insertGroup(org1, "group1");
     ComponentDto project1 = db.components().insertPrivateProject(org1);

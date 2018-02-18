@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,15 +21,17 @@
 import React from 'react';
 import { translate } from '../../../helpers/l10n';
 
+/*::
 type Props = {|
   myIssues: boolean,
   onMyIssuesChange: boolean => void
 |};
+*/
 
 export default class MyIssuesFilter extends React.PureComponent {
-  props: Props;
+  /*:: props: Props; */
 
-  handleClick = (myIssues: boolean) => (e: Event & { currentTarget: HTMLElement }) => {
+  handleClick = (myIssues /*: boolean */) => (e /*: Event & { currentTarget: HTMLElement } */) => {
     e.preventDefault();
     e.currentTarget.blur();
     this.props.onMyIssuesChange(myIssues);

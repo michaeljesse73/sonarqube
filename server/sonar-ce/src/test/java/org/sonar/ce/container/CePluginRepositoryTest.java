@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -67,7 +67,7 @@ public class CePluginRepositoryTest {
   }
 
   @Test
-  public void load_plugins() throws Exception {
+  public void load_plugins() {
     String pluginKey = "test";
     when(fs.getInstalledPluginsDir()).thenReturn(new File("src/test/plugins/sonar-test-plugin/target"));
 

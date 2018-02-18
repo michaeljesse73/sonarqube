@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -35,6 +35,7 @@ it('should not render actions for non admin', () => {
       members={members}
       status={status}
       fetchOrganizationMembers={jest.fn()}
+      fetchOrganizationGroups={jest.fn()}
       fetchMoreOrganizationMembers={jest.fn()}
     />
   );
@@ -48,6 +49,7 @@ it('should render actions for admin', () => {
       members={members}
       status={{ ...status, loading: true }}
       fetchOrganizationMembers={jest.fn()}
+      fetchOrganizationGroups={jest.fn()}
       fetchMoreOrganizationMembers={jest.fn()}
     />
   );

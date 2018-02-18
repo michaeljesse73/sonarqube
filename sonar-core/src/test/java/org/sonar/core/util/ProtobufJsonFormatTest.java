@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -211,7 +211,7 @@ public class ProtobufJsonFormatTest {
   }
 
   @Test
-  public void constructor_is_private() throws Exception {
+  public void constructor_is_private() {
     assertThat(TestUtils.hasOnlyPrivateConstructors(ProtobufJsonFormat.class)).isTrue();
   }
 }

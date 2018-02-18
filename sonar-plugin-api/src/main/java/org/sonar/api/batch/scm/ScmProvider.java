@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,12 +19,14 @@
  */
 package org.sonar.api.batch.scm;
 
-import org.sonar.api.batch.ScannerSide;
+import java.io.File;
+import java.nio.file.Path;
+import java.util.Set;
+import javax.annotation.Nullable;
 import org.sonar.api.CoreProperties;
 import org.sonar.api.ExtensionPoint;
 import org.sonar.api.batch.InstantiationStrategy;
-
-import java.io.File;
+import org.sonar.api.batch.ScannerSide;
 
 /**
  * See {@link CoreProperties#LINKS_SOURCES_DEV} to get old Maven URL format.
@@ -51,7 +53,34 @@ public abstract class ScmProvider {
   }
 
   public BlameCommand blameCommand() {
-    throw new UnsupportedOperationException("Blame command is not supported by " + key() + " provider");
+    throw new UnsupportedOperationException(formatUnsupportedMessage("Blame command"));
   }
 
+  /**
+   * Return absolute path of the files changed in the current branch, compared to the provided target branch.
+   * @return null if SCM provider was not able to compute the list of files.
+   */
+  @Nullable
+  public Set<Path> branchChangedFiles(String targetBranchName, Path rootBaseDir) {
+    return null;
+  }
+
+  /**
+  * The relative path from SCM root
+  */
+  public Path relativePathFromScmRoot(Path path) {
+    throw new UnsupportedOperationException(formatUnsupportedMessage("Getting relative path from SCM root"));
+  }
+
+  /**
+   * The current revision id of the analyzed code,
+   * for example the SHA1 of the current HEAD in a Git branch.
+   */
+  public String revisionId(Path path) {
+    throw new UnsupportedOperationException(formatUnsupportedMessage("Getting revision id"));
+  }
+
+  private String formatUnsupportedMessage(String prefix) {
+    return prefix + " is not supported by " + key() + " provider";
+  }
 }

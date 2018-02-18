@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,8 +22,9 @@ import React from 'react';
 import BackButton from './BackButton';
 import ReloadButton from '../components/ReloadButton';
 import IssuesCounter from '../components/IssuesCounter';
-import type { Paging } from '../utils';
+/*:: import type { Paging } from '../utils'; */
 
+/*::
 type Props = {|
   loading: boolean,
   onBackClick: () => void,
@@ -31,17 +32,20 @@ type Props = {|
   paging?: Paging,
   selectedIndex: ?number
 |};
+*/
 
-export default function ConciseIssuesListHeader(props: Props) {
+export default function ConciseIssuesListHeader(props /*: Props */) {
   const { paging, selectedIndex } = props;
 
   return (
     <header className="layout-page-header-panel concise-issues-list-header">
       <div className="layout-page-header-panel-inner concise-issues-list-header-inner">
         <BackButton className="pull-left" onClick={props.onBackClick} />
-        {props.loading
-          ? <i className="spinner pull-right" />
-          : <ReloadButton className="pull-right" onClick={props.onReload} />}
+        {props.loading ? (
+          <i className="spinner pull-right" />
+        ) : (
+          <ReloadButton className="pull-right" onClick={props.onReload} />
+        )}
         {paging != null && <IssuesCounter current={selectedIndex} total={paging.total} />}
       </div>
     </header>

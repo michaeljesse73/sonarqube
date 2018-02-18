@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,6 +22,7 @@ package org.sonar.server.permission.ws.template;
 import java.util.List;
 import org.junit.Before;
 import org.junit.Test;
+import org.sonar.api.resources.Qualifiers;
 import org.sonar.api.server.ws.WebService.Param;
 import org.sonar.api.web.UserRole;
 import org.sonar.db.component.ComponentDto;
@@ -31,20 +32,27 @@ import org.sonar.db.permission.PermissionQuery;
 import org.sonar.db.permission.template.PermissionTemplateDto;
 import org.sonar.db.user.GroupDto;
 import org.sonar.db.user.UserDto;
+import org.sonar.server.es.ProjectIndexers;
+import org.sonar.server.es.TestProjectIndexers;
 import org.sonar.server.exceptions.BadRequestException;
 import org.sonar.server.exceptions.NotFoundException;
 import org.sonar.server.i18n.I18nRule;
 import org.sonar.server.permission.PermissionTemplateService;
-import org.sonar.server.permission.index.PermissionIndexer;
 import org.sonar.server.permission.ws.BasePermissionWsTest;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
+import static org.sonar.api.utils.DateUtils.parseDate;
+import static org.sonar.db.component.ComponentTesting.newApplication;
 import static org.sonar.db.component.ComponentTesting.newView;
+import static org.sonar.db.component.SnapshotTesting.newAnalysis;
 import static org.sonarqube.ws.client.permission.PermissionsWsParameters.PARAM_ORGANIZATION;
-import static org.sonarqube.ws.client.permission.PermissionsWsParameters.PARAM_QUALIFIER;
 import static org.sonarqube.ws.client.permission.PermissionsWsParameters.PARAM_TEMPLATE_ID;
 import static org.sonarqube.ws.client.permission.PermissionsWsParameters.PARAM_TEMPLATE_NAME;
+import static org.sonarqube.ws.client.project.ProjectsWsParameters.PARAM_ANALYZED_BEFORE;
+import static org.sonarqube.ws.client.project.ProjectsWsParameters.PARAM_ON_PROVISIONED_ONLY;
+import static org.sonarqube.ws.client.project.ProjectsWsParameters.PARAM_PROJECTS;
+import static org.sonarqube.ws.client.project.ProjectsWsParameters.PARAM_QUALIFIERS;
+import static org.sonarqube.ws.client.project.ProjectsWsParameters.PARAM_VISIBILITY;
 
 public class BulkApplyTemplateActionTest extends BasePermissionWsTest<BulkApplyTemplateAction> {
 
@@ -58,12 +66,12 @@ public class BulkApplyTemplateActionTest extends BasePermissionWsTest<BulkApplyT
   private OrganizationDto organization;
   private PermissionTemplateDto template1;
   private PermissionTemplateDto template2;
-  private PermissionIndexer issuePermissionIndexer = mock(PermissionIndexer.class);
+  private ProjectIndexers projectIndexers = new TestProjectIndexers();
 
   @Override
   protected BulkApplyTemplateAction buildWsAction() {
     PermissionTemplateService permissionTemplateService = new PermissionTemplateService(db.getDbClient(),
-      issuePermissionIndexer, userSession, defaultTemplatesResolver);
+      projectIndexers, userSession, defaultTemplatesResolver);
     return new BulkApplyTemplateAction(db.getDbClient(), userSession, permissionTemplateService, newPermissionWsSupport(), new I18nRule(), newRootResourceTypes());
   }
 
@@ -101,18 +109,18 @@ public class BulkApplyTemplateActionTest extends BasePermissionWsTest<BulkApplyT
 
     ComponentDto privateProject = db.components().insertPrivateProject(organization);
     ComponentDto publicProject = db.components().insertPublicProject(organization);
-    ComponentDto view = db.components().insertView(organization);
     loginAsAdmin(organization);
 
-    newRequest().setParam(PARAM_TEMPLATE_ID, template1.getUuid()).execute();
+    newRequest()
+      .setParam(PARAM_TEMPLATE_ID, template1.getUuid())
+      .execute();
 
     assertTemplate1AppliedToPrivateProject(privateProject);
     assertTemplate1AppliedToPublicProject(publicProject);
-    assertTemplate1AppliedToPublicProject(view);
   }
 
   @Test
-  public void request_throws_NotFoundException_if_template_with_specified_name_does_not_exist_in_specified_organization() throws Exception {
+  public void request_throws_NotFoundException_if_template_with_specified_name_does_not_exist_in_specified_organization() {
     OrganizationDto otherOrganization = db.organizations().insert();
     loginAsAdmin(otherOrganization);
 
@@ -142,35 +150,37 @@ public class BulkApplyTemplateActionTest extends BasePermissionWsTest<BulkApplyT
   }
 
   @Test
-  public void apply_template_by_qualifier() throws Exception {
+  public void apply_template_by_qualifiers() throws Exception {
     ComponentDto publicProject = db.components().insertPublicProject(organization);
     ComponentDto privateProject = db.components().insertPrivateProject(organization);
     ComponentDto view = db.components().insertComponent(newView(organization));
+    ComponentDto application = db.components().insertComponent(newApplication(organization));
     loginAsAdmin(organization);
 
     newRequest()
       .setParam(PARAM_TEMPLATE_ID, template1.getUuid())
-      .setParam(PARAM_QUALIFIER, privateProject.qualifier()).execute();
+      .setParam(PARAM_QUALIFIERS, String.join(",", Qualifiers.PROJECT, Qualifiers.APP))
+      .execute();
 
     assertTemplate1AppliedToPrivateProject(privateProject);
     assertTemplate1AppliedToPublicProject(publicProject);
+    assertTemplate1AppliedToPublicProject(application);
     assertNoPermissionOnProject(view);
   }
 
   @Test
   public void apply_template_by_query_on_name_and_key_public_project() throws Exception {
-    ComponentDto publicProjectFoundByKey = ComponentTesting.newPublicProjectDto(organization).setKey("sonar");
+    ComponentDto publicProjectFoundByKey = ComponentTesting.newPublicProjectDto(organization).setDbKey("sonar");
     db.components().insertProjectAndSnapshot(publicProjectFoundByKey);
     ComponentDto publicProjectFoundByName = ComponentTesting.newPublicProjectDto(organization).setName("name-sonar-name");
     db.components().insertProjectAndSnapshot(publicProjectFoundByName);
-    // match must be exact on key
-    ComponentDto projectUntouched = ComponentTesting.newPublicProjectDto(organization).setKey("new-sonar").setName("project-name");
+    ComponentDto projectUntouched = ComponentTesting.newPublicProjectDto(organization).setDbKey("new-sona").setName("project-name");
     db.components().insertProjectAndSnapshot(projectUntouched);
     loginAsAdmin(organization);
 
     newRequest()
       .setParam(PARAM_TEMPLATE_ID, template1.getUuid())
-      .setParam(Param.TEXT_QUERY, "sonar")
+      .setParam(Param.TEXT_QUERY, "SONAR")
       .execute();
 
     assertTemplate1AppliedToPublicProject(publicProjectFoundByKey);
@@ -180,18 +190,18 @@ public class BulkApplyTemplateActionTest extends BasePermissionWsTest<BulkApplyT
 
   @Test
   public void apply_template_by_query_on_name_and_key() throws Exception {
-    ComponentDto privateProjectFoundByKey = ComponentTesting.newPrivateProjectDto(organization).setKey("sonar");
+    // partial match on key
+    ComponentDto privateProjectFoundByKey = ComponentTesting.newPrivateProjectDto(organization).setDbKey("sonarqube");
     db.components().insertProjectAndSnapshot(privateProjectFoundByKey);
     ComponentDto privateProjectFoundByName = ComponentTesting.newPrivateProjectDto(organization).setName("name-sonar-name");
     db.components().insertProjectAndSnapshot(privateProjectFoundByName);
-    // match must be exact on key
-    ComponentDto projectUntouched = ComponentTesting.newPublicProjectDto(organization).setKey("new-sonar").setName("project-name");
+    ComponentDto projectUntouched = ComponentTesting.newPublicProjectDto(organization).setDbKey("new-sona").setName("project-name");
     db.components().insertProjectAndSnapshot(projectUntouched);
     loginAsAdmin(organization);
 
     newRequest()
       .setParam(PARAM_TEMPLATE_ID, template1.getUuid())
-      .setParam(Param.TEXT_QUERY, "sonar")
+      .setParam(Param.TEXT_QUERY, "SONAR")
       .execute();
 
     assertTemplate1AppliedToPrivateProject(privateProjectFoundByKey);
@@ -200,7 +210,79 @@ public class BulkApplyTemplateActionTest extends BasePermissionWsTest<BulkApplyT
   }
 
   @Test
-  public void fail_if_no_template_parameter() throws Exception {
+  public void apply_template_by_project_keys() throws Exception {
+    ComponentDto project1 = db.components().insertPrivateProject(organization);
+    ComponentDto project2 = db.components().insertPrivateProject(organization);
+    ComponentDto untouchedProject = db.components().insertPrivateProject(organization);
+    loginAsAdmin(organization);
+
+    newRequest()
+      .setParam(PARAM_TEMPLATE_ID, template1.getUuid())
+      .setParam(PARAM_PROJECTS, String.join(",", project1.getKey(), project2.getKey()))
+      .execute();
+
+    assertTemplate1AppliedToPrivateProject(project1);
+    assertTemplate1AppliedToPrivateProject(project2);
+    assertNoPermissionOnProject(untouchedProject);
+  }
+
+  @Test
+  public void apply_template_by_provisioned_only() throws Exception {
+    ComponentDto provisionedProject1 = db.components().insertPrivateProject(organization);
+    ComponentDto provisionedProject2 = db.components().insertPrivateProject(organization);
+    ComponentDto analyzedProject = db.components().insertPrivateProject(organization);
+    db.components().insertSnapshot(newAnalysis(analyzedProject));
+    loginAsAdmin(organization);
+
+    newRequest()
+      .setParam(PARAM_TEMPLATE_ID, template1.getUuid())
+      .setParam(PARAM_ON_PROVISIONED_ONLY, "true")
+      .execute();
+
+    assertTemplate1AppliedToPrivateProject(provisionedProject1);
+    assertTemplate1AppliedToPrivateProject(provisionedProject2);
+    assertNoPermissionOnProject(analyzedProject);
+  }
+
+  @Test
+  public void apply_template_by_analyzed_before() throws Exception {
+    ComponentDto oldProject1 = db.components().insertPrivateProject(organization);
+    ComponentDto oldProject2 = db.components().insertPrivateProject(organization);
+    ComponentDto recentProject = db.components().insertPrivateProject(organization);
+    db.components().insertSnapshot(oldProject1, a -> a.setCreatedAt(parseDate("2015-02-03").getTime()));
+    db.components().insertSnapshot(oldProject2, a -> a.setCreatedAt(parseDate("2016-12-11").getTime()));
+    db.components().insertSnapshot(recentProject, a -> a.setCreatedAt(System.currentTimeMillis()));
+    loginAsAdmin(organization);
+
+    newRequest()
+      .setParam(PARAM_TEMPLATE_ID, template1.getUuid())
+      .setParam(PARAM_ANALYZED_BEFORE, "2017-09-07")
+      .execute();
+
+    assertTemplate1AppliedToPrivateProject(oldProject1);
+    assertTemplate1AppliedToPrivateProject(oldProject2);
+    assertNoPermissionOnProject(recentProject);
+  }
+
+  @Test
+  public void apply_template_by_visibility() throws Exception {
+    ComponentDto privateProject1 = db.components().insertPrivateProject(organization);
+    ComponentDto privateProject2 = db.components().insertPrivateProject(organization);
+    ComponentDto publicProject = db.components().insertPublicProject(organization);
+    loginAsAdmin(organization);
+
+    newRequest()
+      .setParam(PARAM_TEMPLATE_ID, template1.getUuid())
+      .setParam(PARAM_VISIBILITY, "private")
+      .execute();
+
+    assertTemplate1AppliedToPrivateProject(privateProject1);
+    assertTemplate1AppliedToPrivateProject(privateProject2);
+    assertNoPermissionOnProject(publicProject);
+  }
+
+  @Test
+  public void fail_if_no_template_parameter() {
     loginAsAdmin(db.getDefaultOrganization());
 
     expectedException.expect(BadRequestException.class);
@@ -210,7 +292,7 @@ public class BulkApplyTemplateActionTest extends BasePermissionWsTest<BulkApplyT
   }
 
   @Test
-  public void fail_if_template_name_is_incorrect() throws Exception {
+  public void fail_if_template_name_is_incorrect() {
     loginAsAdmin(db.getDefaultOrganization());
 
     expectedException.expect(NotFoundException.class);
@@ -219,7 +301,7 @@ public class BulkApplyTemplateActionTest extends BasePermissionWsTest<BulkApplyT
     newRequest().setParam(PARAM_TEMPLATE_ID, "unknown-template-uuid").execute();
   }
 
-  private void assertTemplate1AppliedToPublicProject(ComponentDto project) throws Exception {
+  private void assertTemplate1AppliedToPublicProject(ComponentDto project) {
     assertThat(selectProjectPermissionGroups(project, UserRole.ADMIN)).containsExactly(group1.getName());
     assertThat(selectProjectPermissionGroups(project, UserRole.USER)).isEmpty();
     assertThat(selectProjectPermissionUsers(project, UserRole.ADMIN)).isEmpty();
@@ -227,7 +309,7 @@ public class BulkApplyTemplateActionTest extends BasePermissionWsTest<BulkApplyT
     assertThat(selectProjectPermissionUsers(project, UserRole.ISSUE_ADMIN)).containsExactly(user2.getId());
   }
 
-  private void assertTemplate1AppliedToPrivateProject(ComponentDto project) throws Exception {
+  private void assertTemplate1AppliedToPrivateProject(ComponentDto project) {
     assertThat(selectProjectPermissionGroups(project, UserRole.ADMIN)).containsExactly(group1.getName());
     assertThat(selectProjectPermissionGroups(project, UserRole.USER)).containsExactly(group2.getName());
     assertThat(selectProjectPermissionUsers(project, UserRole.ADMIN)).isEmpty();
@@ -235,7 +317,7 @@ public class BulkApplyTemplateActionTest extends BasePermissionWsTest<BulkApplyT
     assertThat(selectProjectPermissionUsers(project, UserRole.ISSUE_ADMIN)).containsExactly(user2.getId());
   }
 
-  private void assertNoPermissionOnProject(ComponentDto project) throws Exception {
+  private void assertNoPermissionOnProject(ComponentDto project) {
     assertThat(selectProjectPermissionGroups(project, UserRole.ADMIN)).isEmpty();
     assertThat(selectProjectPermissionGroups(project, UserRole.CODEVIEWER)).isEmpty();
     assertThat(selectProjectPermissionGroups(project, UserRole.ISSUE_ADMIN)).isEmpty();

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,66 +19,74 @@
  */
 // @flow
 import React from 'react';
-import { debounce, map } from 'lodash';
+import { map } from 'lodash';
+import { connect } from 'react-redux';
+import * as PropTypes from 'prop-types';
 import Avatar from '../../../components/ui/Avatar';
 import BubblePopup from '../../../components/common/BubblePopup';
 import SelectList from '../../../components/common/SelectList';
 import SelectListItem from '../../../components/common/SelectListItem';
-import getCurrentUserFromStore from '../../../app/utils/getCurrentUserFromStore';
-import { areThereCustomOrganizations } from '../../../store/organizations/utils';
+import SearchBox from '../../../components/controls/SearchBox';
 import { searchMembers } from '../../../api/organizations';
 import { searchUsers } from '../../../api/users';
 import { translate } from '../../../helpers/l10n';
-import type { Issue } from '../types';
+import { getCurrentUser } from '../../../store/rootReducer';
+/*:: import type { Issue } from '../types'; */
 
+/*::
 type User = {
   avatar?: string,
   email?: string,
   login: string,
   name: string
 };
+*/
 
+/*::
 type Props = {
+  currentUser: User,
   issue: Issue,
   onFail: Error => void,
   onSelect: string => void,
   popupPosition?: {}
 };
+*/
 
+/*::
 type State = {
   query: string,
   users: Array<User>,
   currentUser: string
 };
+*/
 
 const LIST_SIZE = 10;
 
-export default class SetAssigneePopup extends React.PureComponent {
-  defaultUsersArray: Array<User>;
-  organizationEnabled: boolean;
-  props: Props;
-  state: State;
+class SetAssigneePopup extends React.PureComponent {
+  /*:: defaultUsersArray: Array<User>; */
+  /*:: props: Props; */
+  /*:: state: State; */
 
-  constructor(props: Props) {
+  static contextTypes = {
+    organizationsEnabled: PropTypes.bool
+  };
+
+  constructor(props /*: Props */) {
     super(props);
-    this.organizationEnabled = areThereCustomOrganizations();
-    this.searchUsers = debounce(this.searchUsers, 250);
-    this.searchMembers = debounce(this.searchMembers, 250);
     this.defaultUsersArray = [{ login: '', name: translate('unassigned') }];
 
-    const currentUser = getCurrentUserFromStore();
-    if (currentUser != null) {
-      this.defaultUsersArray = [currentUser, ...this.defaultUsersArray];
+    if (props.currentUser.isLoggedIn) {
+      this.defaultUsersArray = [props.currentUser, ...this.defaultUsersArray];
     }
 
     this.state = {
       query: '',
       users: this.defaultUsersArray,
-      currentUser: currentUser.login
+      currentUser: this.defaultUsersArray.length > 0 ? this.defaultUsersArray[0].login : ''
     };
   }
 
-  searchMembers = (query: string) => {
+  searchMembers = (query /*: string */) => {
     searchMembers({
       organization: this.props.issue.projectOrganization,
       q: query,
@@ -86,20 +94,18 @@ export default class SetAssigneePopup extends React.PureComponent {
     }).then(this.handleSearchResult, this.props.onFail);
   };
 
-  searchUsers = (query: string) => {
-    searchUsers(query, LIST_SIZE).then(this.handleSearchResult, this.props.onFail);
-  };
+  searchUsers = (query /*: string */) =>
+    searchUsers({ q: query, ps: LIST_SIZE }).then(this.handleSearchResult, this.props.onFail);
 
-  handleSearchResult = (data: Object) => {
+  handleSearchResult = (data /*: Object */) => {
     this.setState({
       users: data.users,
       currentUser: data.users.length > 0 ? data.users[0].login : ''
     });
   };
 
-  handleSearchChange = (evt: SyntheticInputEvent) => {
-    const query = evt.target.value;
-    if (query.length < 2) {
+  handleSearchChange = (query /*: string */) => {
+    if (query.length === 0) {
       this.setState({
         query,
         users: this.defaultUsersArray,
@@ -107,7 +113,7 @@ export default class SetAssigneePopup extends React.PureComponent {
       });
     } else {
       this.setState({ query });
-      if (this.organizationEnabled) {
+      if (this.context.organizationsEnabled) {
         this.searchMembers(query);
       } else {
         this.searchUsers(query);
@@ -121,18 +127,13 @@ export default class SetAssigneePopup extends React.PureComponent {
         position={this.props.popupPosition}
         customClass="bubble-popup-menu bubble-popup-bottom">
         <div className="multi-select">
-          <div className="search-box menu-search">
-            <button className="search-box-submit button-clean">
-              <i className="icon-search-new" />
-            </button>
-            <input
-              type="search"
-              value={this.state.query}
-              className="search-box-input"
-              placeholder={translate('search_verb')}
-              onChange={this.handleSearchChange}
-              autoComplete="off"
+          <div className="menu-search">
+            <SearchBox
               autoFocus={true}
+              minLength={2}
+              onChange={this.handleSearchChange}
+              placeholder={translate('search.search_for_users')}
+              value={this.state.query}
             />
           </div>
           <SelectList
@@ -141,14 +142,9 @@ export default class SetAssigneePopup extends React.PureComponent {
             onSelect={this.props.onSelect}>
             {this.state.users.map(user => (
               <SelectListItem key={user.login} item={user.login}>
-                {!!user.login &&
-                  <Avatar
-                    className="spacer-right"
-                    email={user.email}
-                    hash={user.avatar}
-                    name={user.name}
-                    size={16}
-                  />}
+                {!!user.login && (
+                  <Avatar className="spacer-right" hash={user.avatar} name={user.name} size={16} />
+                )}
                 <span
                   className="vertical-middle"
                   style={{ marginLeft: !user.login ? 24 : undefined }}>
@@ -162,3 +158,9 @@ export default class SetAssigneePopup extends React.PureComponent {
     );
   }
 }
+
+const mapStateToProps = state => ({
+  currentUser: getCurrentUser(state)
+});
+
+export default connect(mapStateToProps)(SetAssigneePopup);

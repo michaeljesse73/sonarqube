@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -77,6 +77,7 @@ public class CeActivityDaoTest {
     assertThat(dto.toString()).isNotEmpty();
     assertThat(dto.getErrorMessage()).isNull();
     assertThat(dto.getErrorStacktrace()).isNull();
+    assertThat(dto.getErrorType()).isNull();
     assertThat(dto.isHasScannerContext()).isFalse();
   }
 
@@ -111,6 +112,7 @@ public class CeActivityDaoTest {
     CeActivityDto read = saved.get();
     assertThat(read.getErrorMessage()).isEqualTo(dto.getErrorMessage());
     assertThat(read.getErrorStacktrace()).isEqualTo(dto.getErrorStacktrace());
+    assertThat(read.getErrorType()).isNotNull().isEqualTo(dto.getErrorType());
   }
 
   @Test
@@ -156,7 +158,7 @@ public class CeActivityDaoTest {
     insert("TASK_4", "views", null, CeActivityDto.Status.SUCCESS);
 
     // no filters
-    CeTaskQuery query = new CeTaskQuery().setStatuses(Collections.<String>emptyList());
+    CeTaskQuery query = new CeTaskQuery().setStatuses(Collections.emptyList());
     List<CeActivityDto> dtos = underTest.selectByQuery(db.getSession(), query, forPage(1).andSize(10));
     assertThat(dtos).extracting("uuid").containsExactly("TASK_4", "TASK_3", "TASK_2", "TASK_1");
 
@@ -360,6 +362,7 @@ public class CeActivityDaoTest {
     dto.setAnalysisUuid(uuid + "_2");
     if (status == FAILED) {
       dto.setErrorMessage("error msg for " + uuid);
+      dto.setErrorType("anErrorType");
     }
     return dto;
   }

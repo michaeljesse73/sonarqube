@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -37,6 +37,7 @@ import org.sonar.scanner.protocol.output.ScannerReportWriter;
 import org.sonar.scanner.report.ReportPublisher;
 import org.sonar.scanner.repository.FileData;
 import org.sonar.scanner.repository.ProjectRepositories;
+import org.sonar.scanner.scan.branch.BranchConfiguration;
 import org.sonar.scanner.scan.filesystem.DefaultModuleFileSystem;
 import org.sonar.scanner.scan.filesystem.ModuleInputComponentStore;
 
@@ -52,14 +53,16 @@ public final class ScmPublisher {
   private final ModuleInputComponentStore componentStore;
   private final DefaultModuleFileSystem fs;
   private final ScannerReportWriter writer;
+  private final BranchConfiguration branchConfiguration;
 
   public ScmPublisher(DefaultInputModule inputModule, ScmConfiguration configuration, ProjectRepositories projectRepositories,
-    ModuleInputComponentStore componentStore, DefaultModuleFileSystem fs, ReportPublisher reportPublisher) {
+    ModuleInputComponentStore componentStore, DefaultModuleFileSystem fs, ReportPublisher reportPublisher, BranchConfiguration branchConfiguration) {
     this.inputModule = inputModule;
     this.configuration = configuration;
     this.projectRepositories = projectRepositories;
     this.componentStore = componentStore;
     this.fs = fs;
+    this.branchConfiguration = branchConfiguration;
     this.writer = reportPublisher.getWriter();
   }
 
@@ -95,14 +98,14 @@ public final class ScmPublisher {
     List<InputFile> filesToBlame = new LinkedList<>();
     for (InputFile f : componentStore.inputFiles()) {
       DefaultInputFile inputFile = (DefaultInputFile) f;
-      if (!inputFile.publish()) {
+      if (!inputFile.isPublished()) {
         continue;
       }
       if (configuration.forceReloadAll() || f.status() != Status.SAME) {
         addIfNotEmpty(filesToBlame, f);
-      } else {
+      } else if (!branchConfiguration.isShortLivingBranch()) {
         // File status is SAME so that mean fileData exists
-        FileData fileData = projectRepositories.fileData(inputModule.definition().getKeyWithBranch(), f.relativePath());
+        FileData fileData = projectRepositories.fileData(inputModule.definition().getKeyWithBranch(), inputFile.getModuleRelativePath());
         if (StringUtils.isEmpty(fileData.revision())) {
           addIfNotEmpty(filesToBlame, f);
         } else {

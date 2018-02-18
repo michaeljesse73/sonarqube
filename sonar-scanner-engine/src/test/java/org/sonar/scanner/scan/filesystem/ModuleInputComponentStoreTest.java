@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -27,15 +27,16 @@ import org.junit.rules.TemporaryFolder;
 import org.sonar.api.batch.fs.InputFile;
 import org.sonar.api.batch.fs.InputModule;
 import org.sonar.api.batch.fs.internal.DefaultInputModule;
+import org.sonar.api.batch.fs.internal.SensorStrategy;
 import org.sonar.api.batch.fs.internal.TestInputFileBuilder;
-import org.sonar.api.scan.filesystem.PathResolver;
-import org.sonar.scanner.sensor.SensorStrategy;
+import org.sonar.scanner.scan.branch.BranchConfiguration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 public class ModuleInputComponentStoreTest {
   @Rule
@@ -48,7 +49,7 @@ public class ModuleInputComponentStoreTest {
   @Before
   public void setUp() throws IOException {
     DefaultInputModule root = TestInputFileBuilder.newDefaultInputModule(moduleKey, temp.newFolder());
-    componentStore = new InputComponentStore(new PathResolver(), root);
+    componentStore = new InputComponentStore(root, mock(BranchConfiguration.class));
   }
 
   @Test
@@ -120,10 +121,12 @@ public class ModuleInputComponentStoreTest {
   public void should_find_module_components_with_non_global_strategy() {
     InputComponentStore inputComponentStore = mock(InputComponentStore.class);
     SensorStrategy strategy = new SensorStrategy();
-    ModuleInputComponentStore store = new ModuleInputComponentStore(mock(InputModule.class), inputComponentStore, strategy);
+    InputModule module = mock(InputModule.class);
+    when(module.key()).thenReturn("foo");
+    ModuleInputComponentStore store = new ModuleInputComponentStore(module, inputComponentStore, strategy);
 
     store.inputFiles();
-    verify(inputComponentStore).filesByModule(any(String.class));
+    verify(inputComponentStore).filesByModule("foo");
 
     String relativePath = "somepath";
     store.inputFile(relativePath);

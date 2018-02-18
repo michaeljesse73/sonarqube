@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -156,6 +156,7 @@ public class QProfileBackuperImplTest {
 
   @Test
   public void restore_resets_the_activated_rules() {
+    Integer ruleId = db.rules().insert(RuleKey.of("sonarjs", "s001")).getId();
     OrganizationDto organization = db.organizations().insert();
     Reader backup = new StringReader("<?xml version='1.0' encoding='UTF-8'?>" +
       "<profile><name>foo</name>" +
@@ -177,12 +178,12 @@ public class QProfileBackuperImplTest {
     assertThat(reset.calledActivations).hasSize(1);
     RuleActivation activation = reset.calledActivations.get(0);
     assertThat(activation.getSeverity()).isEqualTo("BLOCKER");
-    assertThat(activation.getRuleKey()).isEqualTo(RuleKey.of("sonarjs", "s001"));
+    assertThat(activation.getRuleId()).isEqualTo(ruleId);
     assertThat(activation.getParameter("bar")).isEqualTo("baz");
   }
 
   @Test
-  public void fail_to_restore_if_not_xml_backup() throws Exception {
+  public void fail_to_restore_if_not_xml_backup() {
     OrganizationDto organization = db.organizations().insert();
     try {
       underTest.restore(db.getSession(), new StringReader("foo"), organization, null);
@@ -195,7 +196,7 @@ public class QProfileBackuperImplTest {
   }
 
   @Test
-  public void fail_to_restore_if_bad_xml_format() throws Exception {
+  public void fail_to_restore_if_bad_xml_format() {
     OrganizationDto organization = db.organizations().insert();
     try {
       underTest.restore(db.getSession(), new StringReader("<rules><rule></rules>"), organization, null);

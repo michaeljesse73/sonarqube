@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -26,9 +26,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.function.Predicate;
-import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import org.sonar.api.resources.Qualifiers;
 import org.sonar.api.resources.ResourceType;
@@ -45,8 +43,7 @@ import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
 import org.sonar.db.component.ComponentDto;
 import org.sonar.db.component.SnapshotDto;
-import org.sonar.db.measure.MeasureDto;
-import org.sonar.db.measure.MeasureQuery;
+import org.sonar.db.measure.LiveMeasureDto;
 import org.sonar.db.organization.OrganizationDto;
 import org.sonar.db.permission.OrganizationPermission;
 import org.sonar.db.property.PropertyDto;
@@ -69,11 +66,13 @@ import static org.sonar.api.web.UserRole.USER;
 import static org.sonar.db.permission.OrganizationPermission.ADMINISTER_QUALITY_GATES;
 import static org.sonar.db.permission.OrganizationPermission.ADMINISTER_QUALITY_PROFILES;
 import static org.sonar.server.user.AbstractUserSession.insufficientPrivilegesException;
+import static org.sonar.server.ws.KeyExamples.KEY_BRANCH_EXAMPLE_001;
 import static org.sonar.server.ws.KeyExamples.KEY_PROJECT_EXAMPLE_001;
 
 public class ComponentAction implements NavigationWsAction {
 
   static final String PARAM_COMPONENT = "component";
+  static final String PARAM_BRANCH = "branch";
 
   private static final String PROPERTY_CONFIGURABLE = "configurable";
   private static final String PROPERTY_HAS_ROLE_POLICY = "hasRolePolicy";
@@ -82,7 +81,7 @@ public class ComponentAction implements NavigationWsAction {
   /**
    * The concept of "visibility" will only be configured for these qualifiers.
    */
-  private static final Set<String> QUALIFIERS_WITH_VISIBILITY = ImmutableSet.of(Qualifiers.PROJECT, Qualifiers.VIEW);
+  private static final Set<String> QUALIFIERS_WITH_VISIBILITY = ImmutableSet.of(Qualifiers.PROJECT, Qualifiers.VIEW, Qualifiers.APP);
 
   private final DbClient dbClient;
   private final PageRepository pageRepository;
@@ -103,25 +102,6 @@ public class ComponentAction implements NavigationWsAction {
     this.billingValidations = billingValidations;
   }
 
-  private static Consumer<QualityProfile> writeToJson(JsonWriter json) {
-    return profile -> json.beginObject()
-      .prop("key", profile.getQpKey())
-      .prop("name", profile.getQpName())
-      .prop("language", profile.getLanguageKey())
-      .endObject();
-  }
-
-  private static Function<MeasureDto, Stream<QualityProfile>> toQualityProfiles() {
-    return dbMeasure -> QPMeasureData.fromJson(dbMeasure.getData()).getProfiles().stream();
-  }
-
-  private static void writePage(JsonWriter json, Page page) {
-    json.beginObject()
-      .prop("key", page.getKey())
-      .prop("name", page.getName())
-      .endObject();
-  }
-
   @Override
   public void define(NewController context) {
     NewAction projectNavigation = context.createAction("component")
@@ -138,13 +118,20 @@ public class ComponentAction implements NavigationWsAction {
       .setDescription("A component key.")
       .setDeprecatedKey("componentKey", "6.4")
       .setExampleValue(KEY_PROJECT_EXAMPLE_001);
+
+    projectNavigation
+      .createParam(PARAM_BRANCH)
+      .setDescription("Branch key")
+      .setInternal(true)
+      .setExampleValue(KEY_BRANCH_EXAMPLE_001);
   }
 
   @Override
   public void handle(Request request, Response response) throws Exception {
     String componentKey = request.mandatoryParam(PARAM_COMPONENT);
     try (DbSession session = dbClient.openSession(false)) {
-      ComponentDto component = componentFinder.getByKey(session, componentKey);
+      String branch = request.param(PARAM_BRANCH);
+      ComponentDto component = componentFinder.getByKeyAndOptionalBranch(session, componentKey, branch);
       if (!userSession.hasComponentPermission(USER, component) &&
         !userSession.hasComponentPermission(ADMIN, component) &&
         !userSession.isSystemAdministrator()) {
@@ -157,7 +144,7 @@ public class ComponentAction implements NavigationWsAction {
       json.beginObject();
       writeComponent(json, session, component, org, analysis.orElse(null));
       writeProfiles(json, session, component);
-      writeQualityGate(json, session, component);
+      writeQualityGate(json, session, org, component);
       if (userSession.hasComponentPermission(ADMIN, component) ||
         userSession.hasPermission(ADMINISTER_QUALITY_PROFILES, org) ||
         userSession.hasPermission(ADMINISTER_QUALITY_GATES, org)) {
@@ -168,8 +155,23 @@ public class ComponentAction implements NavigationWsAction {
     }
   }
 
+  private static Consumer<QualityProfile> writeToJson(JsonWriter json) {
+    return profile -> json.beginObject()
+      .prop("key", profile.getQpKey())
+      .prop("name", profile.getQpName())
+      .prop("language", profile.getLanguageKey())
+      .endObject();
+  }
+
+  private static void writePage(JsonWriter json, Page page) {
+    json.beginObject()
+      .prop("key", page.getKey())
+      .prop("name", page.getName())
+      .endObject();
+  }
+
   private void writeComponent(JsonWriter json, DbSession session, ComponentDto component, OrganizationDto organizationDto, @Nullable SnapshotDto analysis) {
-    json.prop("key", component.key())
+    json.prop("key", component.getDbKey())
       .prop("organization", organizationDto.getKey())
       .prop("id", component.uuid())
       .prop("name", component.name())
@@ -196,25 +198,21 @@ public class ComponentAction implements NavigationWsAction {
     return componentFavourites.size() == 1;
   }
 
-  private void writeProfiles(JsonWriter json, DbSession session, ComponentDto component) {
+  private void writeProfiles(JsonWriter json, DbSession dbSession, ComponentDto component) {
     json.name("qualityProfiles").beginArray();
-    dbClient.measureDao().selectSingle(session, MeasureQuery.builder().setComponentUuid(component.projectUuid()).setMetricKey(QUALITY_PROFILES_KEY).build())
-      .ifPresent(dbMeasure -> Stream.of(dbMeasure)
-        .flatMap(toQualityProfiles())
-        .forEach(writeToJson(json)));
+    dbClient.liveMeasureDao().selectMeasure(dbSession, component.projectUuid(), QUALITY_PROFILES_KEY)
+      .map(LiveMeasureDto::getDataAsString)
+      .ifPresent(data -> QPMeasureData.fromJson(data).getProfiles().forEach(writeToJson(json)));
     json.endArray();
   }
 
-  private void writeQualityGate(JsonWriter json, DbSession session, ComponentDto component) {
-    Optional<QualityGateFinder.QualityGateData> qualityGateData = qualityGateFinder.getQualityGate(session, component.getId());
-    if (!qualityGateData.isPresent()) {
-      return;
-    }
-    QualityGateDto qualityGateDto = qualityGateData.get().getQualityGate();
+  private void writeQualityGate(JsonWriter json, DbSession session, OrganizationDto organization, ComponentDto component) {
+    QualityGateFinder.QualityGateData qualityGateData = qualityGateFinder.getQualityGate(session, organization, component);
+    QualityGateDto qualityGateDto = qualityGateData.getQualityGate();
     json.name("qualityGate").beginObject()
       .prop("key", qualityGateDto.getId())
       .prop("name", qualityGateDto.getName())
-      .prop("isDefault", qualityGateData.get().isDefault())
+      .prop("isDefault", qualityGateData.isDefault())
       .endObject();
   }
 
@@ -248,7 +246,7 @@ public class ComponentAction implements NavigationWsAction {
   private void writeConfigPageAccess(JsonWriter json, boolean isProjectAdmin, ComponentDto component, OrganizationDto organization) {
     boolean isProject = Qualifiers.PROJECT.equals(component.qualifier());
     boolean showManualMeasures = isProjectAdmin && !Qualifiers.DIRECTORY.equals(component.qualifier());
-    boolean showBackgroundTasks = isProjectAdmin && (isProject || Qualifiers.VIEW.equals(component.qualifier()));
+    boolean showBackgroundTasks = isProjectAdmin && (isProject || Qualifiers.VIEW.equals(component.qualifier()) || Qualifiers.APP.equals(component.qualifier()));
     boolean isQualityProfileAdmin = userSession.hasPermission(OrganizationPermission.ADMINISTER_QUALITY_PROFILES, component.getOrganizationUuid());
     boolean isQualityGateAdmin = userSession.hasPermission(OrganizationPermission.ADMINISTER_QUALITY_GATES, component.getOrganizationUuid());
     boolean isOrganizationAdmin = userSession.hasPermission(OrganizationPermission.ADMINISTER, component.getOrganizationUuid());
@@ -281,7 +279,7 @@ public class ComponentAction implements NavigationWsAction {
 
     for (ComponentDto c : breadcrumb) {
       json.beginObject()
-        .prop("key", c.key())
+        .prop("key", c.getKey())
         .prop("name", c.name())
         .prop("qualifier", c.qualifier())
         .endObject();

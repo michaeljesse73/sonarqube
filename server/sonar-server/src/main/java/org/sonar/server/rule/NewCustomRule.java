@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -27,6 +27,7 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 import org.sonar.api.rule.RuleKey;
 import org.sonar.api.rule.RuleStatus;
+import org.sonar.api.rules.RuleType;
 
 public class NewCustomRule {
 
@@ -37,6 +38,7 @@ public class NewCustomRule {
   private String markdownDescription;
   private String severity;
   private RuleStatus status;
+  private RuleType type;
   private final Map<String, String> parameters = Maps.newHashMap();
 
   private boolean preventReactivation = false;
@@ -101,6 +103,16 @@ public class NewCustomRule {
 
   public NewCustomRule setStatus(@Nullable RuleStatus status) {
     this.status = status;
+    return this;
+  }
+
+  @CheckForNull
+  public RuleType type() {
+    return type;
+  }
+
+  public NewCustomRule setType(@Nullable RuleType type) {
+    this.type = type;
     return this;
   }
 

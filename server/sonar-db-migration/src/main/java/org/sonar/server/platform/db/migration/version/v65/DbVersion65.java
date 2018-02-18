@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -17,7 +17,6 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-
 package org.sonar.server.platform.db.migration.version.v65;
 
 import org.sonar.server.platform.db.migration.step.MigrationStepRegistry;
@@ -62,6 +61,7 @@ public class DbVersion65 implements DbVersion {
       .add(1732, "Make USERS.ONBOARDED not nullable", MakeUsersOnboardedNotNullable.class)
       .add(1733, "Create table es_queue", CreateEsQueueTable.class)
       .add(1734, "Add index on es_queue.created_at", AddIndexOnEsQueueCreatedAt.class)
+      .add(1735, "Delete sonar.ce.workerCount setting", DeleteCeWorkerCountSetting.class)
     ;
   }
 }

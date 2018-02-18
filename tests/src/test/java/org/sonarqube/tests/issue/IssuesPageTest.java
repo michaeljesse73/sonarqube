@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,15 +20,14 @@
 package org.sonarqube.tests.issue;
 
 import com.sonar.orchestrator.Orchestrator;
-import org.sonarqube.tests.Category2Suite;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
-import org.sonarqube.pageobjects.Navigation;
-import org.sonarqube.pageobjects.issues.Issue;
-import org.sonarqube.pageobjects.issues.IssuesPage;
+import org.sonarqube.qa.util.pageobjects.Navigation;
+import org.sonarqube.qa.util.pageobjects.issues.Issue;
+import org.sonarqube.qa.util.pageobjects.issues.IssuesPage;
 import util.ItUtils;
 import util.user.UserRule;
 
@@ -38,7 +37,7 @@ public class IssuesPageTest {
   private static final String PROJECT_KEY = "sample";
 
   @ClassRule
-  public static Orchestrator ORCHESTRATOR = Category2Suite.ORCHESTRATOR;
+  public static Orchestrator ORCHESTRATOR = IssueSuite.ORCHESTRATOR;
 
   @Rule
   public UserRule userRule = UserRule.from(ORCHESTRATOR);

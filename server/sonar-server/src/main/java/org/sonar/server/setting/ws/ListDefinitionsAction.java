@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -34,15 +34,16 @@ import org.sonar.server.component.ComponentFinder;
 import org.sonar.server.user.UserSession;
 import org.sonarqube.ws.Settings;
 import org.sonarqube.ws.Settings.ListDefinitionsWsResponse;
-import org.sonarqube.ws.client.setting.ListDefinitionsRequest;
 
 import static com.google.common.base.Strings.emptyToNull;
+import static java.util.Comparator.comparing;
 import static org.sonar.api.web.UserRole.USER;
 import static org.sonar.core.util.Protobuf.setNullable;
+import static org.sonar.server.setting.ws.SettingsWs.SETTING_ON_BRANCHES;
+import static org.sonar.server.setting.ws.SettingsWsParameters.PARAM_BRANCH;
+import static org.sonar.server.setting.ws.SettingsWsParameters.PARAM_COMPONENT;
 import static org.sonar.server.ws.KeyExamples.KEY_PROJECT_EXAMPLE_001;
 import static org.sonar.server.ws.WsUtils.writeProtobuf;
-import static org.sonarqube.ws.client.setting.SettingsWsParameters.ACTION_LIST_DEFINITIONS;
-import static org.sonarqube.ws.client.setting.SettingsWsParameters.PARAM_COMPONENT;
 
 public class ListDefinitionsAction implements SettingsWsAction {
 
@@ -63,7 +64,7 @@ public class ListDefinitionsAction implements SettingsWsAction {
 
   @Override
   public void define(WebService.NewController context) {
-    WebService.NewAction action = context.createAction(ACTION_LIST_DEFINITIONS)
+    WebService.NewAction action = context.createAction("list_definitions")
       .setDescription("List settings definitions.<br>" +
         "Requires 'Browse' permission when a component is specified<br/>",
         "To access licensed settings, authentication is required<br/>" +
@@ -79,6 +80,7 @@ public class ListDefinitionsAction implements SettingsWsAction {
     action.createParam(PARAM_COMPONENT)
       .setDescription("Component key")
       .setExampleValue(KEY_PROJECT_EXAMPLE_001);
+    settingsWsSupport.addBranchParam(action);
   }
 
   @Override
@@ -92,29 +94,33 @@ public class ListDefinitionsAction implements SettingsWsAction {
     Optional<String> qualifier = getQualifier(component);
     ListDefinitionsWsResponse.Builder wsResponse = ListDefinitionsWsResponse.newBuilder();
     propertyDefinitions.getAll().stream()
-      .filter(definition -> qualifier.isPresent() ? definition.qualifiers().contains(qualifier.get()) : definition.global())
+      .filter(definition -> qualifier.map(s -> definition.qualifiers().contains(s)).orElseGet(definition::global))
+      .filter(definition -> wsRequest.getBranch() == null || SETTING_ON_BRANCHES.contains(definition.key()))
       .filter(settingsWsSupport.isDefinitionVisible(component))
+      .sorted(comparing(PropertyDefinition::category, String::compareToIgnoreCase)
+        .thenComparingInt(PropertyDefinition::index)
+        .thenComparing(PropertyDefinition::name, String::compareToIgnoreCase))
       .forEach(definition -> addDefinition(definition, wsResponse));
     return wsResponse.build();
   }
 
   private static ListDefinitionsRequest toWsRequest(Request request) {
-    return ListDefinitionsRequest.builder()
+    return new ListDefinitionsRequest()
       .setComponent(request.param(PARAM_COMPONENT))
-      .build();
+      .setBranch(request.param(PARAM_BRANCH));
   }
 
   private static Optional<String> getQualifier(Optional<ComponentDto> component) {
     return component.isPresent() ? Optional.of(component.get().qualifier()) : Optional.empty();
   }
 
-  private Optional<ComponentDto> loadComponent(ListDefinitionsRequest valuesRequest) {
+  private Optional<ComponentDto> loadComponent(ListDefinitionsRequest request) {
     try (DbSession dbSession = dbClient.openSession(false)) {
-      String componentKey = valuesRequest.getComponent();
+      String componentKey = request.getComponent();
       if (componentKey == null) {
         return Optional.empty();
       }
-      ComponentDto component = componentFinder.getByKey(dbSession, componentKey);
+      ComponentDto component = componentFinder.getByKeyAndOptionalBranch(dbSession, componentKey, request.getBranch());
       userSession.checkComponentPermission(USER, component);
       return Optional.of(component);
     }
@@ -154,4 +160,27 @@ public class ListDefinitionsAction implements SettingsWsAction {
       .build();
   }
 
+  private static class ListDefinitionsRequest {
+
+    private String branch;
+    private String component;
+
+    public ListDefinitionsRequest setBranch(String branch) {
+      this.branch = branch;
+      return this;
+    }
+
+    public String getBranch() {
+      return branch;
+    }
+
+    public ListDefinitionsRequest setComponent(String component) {
+      this.component = component;
+      return this;
+    }
+
+    public String getComponent() {
+      return component;
+    }
+  }
 }

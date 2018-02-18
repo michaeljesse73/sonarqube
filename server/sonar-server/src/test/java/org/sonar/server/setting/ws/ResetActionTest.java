@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -28,21 +28,26 @@ import org.junit.rules.ExpectedException;
 import org.sonar.api.config.PropertyDefinition;
 import org.sonar.api.config.PropertyDefinitions;
 import org.sonar.api.server.ws.WebService;
+import org.sonar.api.server.ws.WebService.Param;
 import org.sonar.api.utils.System2;
+import org.sonar.api.web.UserRole;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
 import org.sonar.db.DbTester;
 import org.sonar.db.component.ComponentDbTester;
 import org.sonar.db.component.ComponentDto;
 import org.sonar.db.component.ComponentTesting;
+import org.sonar.db.organization.OrganizationDto;
 import org.sonar.db.property.PropertyDbTester;
 import org.sonar.db.property.PropertyQuery;
 import org.sonar.db.user.UserDto;
 import org.sonar.db.user.UserTesting;
+import org.sonar.process.ProcessProperties;
 import org.sonar.server.component.ComponentFinder;
 import org.sonar.server.component.TestComponentFinder;
 import org.sonar.server.exceptions.BadRequestException;
 import org.sonar.server.exceptions.ForbiddenException;
+import org.sonar.server.exceptions.NotFoundException;
 import org.sonar.server.i18n.I18nRule;
 import org.sonar.server.tester.UserSessionRule;
 import org.sonar.server.ws.TestRequest;
@@ -50,6 +55,7 @@ import org.sonar.server.ws.TestResponse;
 import org.sonar.server.ws.WsActionTester;
 import org.sonarqube.ws.MediaTypes;
 
+import static java.lang.String.format;
 import static java.net.HttpURLConnection.HTTP_NO_CONTENT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonar.api.resources.Qualifiers.PROJECT;
@@ -88,7 +94,7 @@ public class ResetActionTest {
   }
 
   @Test
-  public void remove_global_setting() throws Exception {
+  public void remove_global_setting() {
     logInAsSystemAdministrator();
     definitions.addComponent(PropertyDefinition.builder("foo").build());
     propertyDb.insertProperties(newGlobalPropertyDto().setKey("foo").setValue("one"));
@@ -98,7 +104,7 @@ public class ResetActionTest {
   }
 
   @Test
-  public void remove_global_setting_even_if_not_defined() throws Exception {
+  public void remove_global_setting_even_if_not_defined() {
     logInAsSystemAdministrator();
     propertyDb.insertProperties(newGlobalPropertyDto().setKey("foo").setValue("one"));
 
@@ -107,7 +113,7 @@ public class ResetActionTest {
   }
 
   @Test
-  public void remove_component_setting() throws Exception {
+  public void remove_component_setting() {
     logInAsProjectAdmin();
     definitions.addComponent(PropertyDefinition.builder("foo").onQualifiers(PROJECT).build());
     propertyDb.insertProperties(newComponentPropertyDto(project).setKey("foo").setValue("value"));
@@ -117,7 +123,7 @@ public class ResetActionTest {
   }
 
   @Test
-  public void remove_component_setting_even_if_not_defined() throws Exception {
+  public void remove_component_setting_even_if_not_defined() {
     logInAsProjectAdmin();
     propertyDb.insertProperties(newComponentPropertyDto(project).setKey("foo").setValue("value"));
 
@@ -126,7 +132,7 @@ public class ResetActionTest {
   }
 
   @Test
-  public void remove_hidden_setting() throws Exception {
+  public void remove_hidden_setting() {
     logInAsSystemAdministrator();
     definitions.addComponent(PropertyDefinition.builder("foo").hidden().build());
     propertyDb.insertProperties(newGlobalPropertyDto().setKey("foo").setValue("one"));
@@ -136,7 +142,7 @@ public class ResetActionTest {
   }
 
   @Test
-  public void ignore_project_setting_when_removing_global_setting() throws Exception {
+  public void ignore_project_setting_when_removing_global_setting() {
     logInAsSystemAdministrator();
     propertyDb.insertProperties(newGlobalPropertyDto().setKey("foo").setValue("one"));
     propertyDb.insertProperties(newComponentPropertyDto(project).setKey("foo").setValue("value"));
@@ -148,7 +154,7 @@ public class ResetActionTest {
   }
 
   @Test
-  public void ignore_global_setting_when_removing_project_setting() throws Exception {
+  public void ignore_global_setting_when_removing_project_setting() {
     logInAsProjectAdmin();
     propertyDb.insertProperties(newGlobalPropertyDto().setKey("foo").setValue("one"));
     propertyDb.insertProperties(newComponentPropertyDto(project).setKey("foo").setValue("value"));
@@ -160,7 +166,7 @@ public class ResetActionTest {
   }
 
   @Test
-  public void ignore_user_setting_when_removing_global_setting() throws Exception {
+  public void ignore_user_setting_when_removing_global_setting() {
     logInAsSystemAdministrator();
     UserDto user = dbClient.userDao().insert(dbSession, UserTesting.newUserDto());
     propertyDb.insertProperties(newUserPropertyDto("foo", "one", user));
@@ -170,7 +176,7 @@ public class ResetActionTest {
   }
 
   @Test
-  public void ignore_user_setting_when_removing_project_setting() throws Exception {
+  public void ignore_user_setting_when_removing_project_setting() {
     logInAsProjectAdmin();
     UserDto user = dbClient.userDao().insert(dbSession, UserTesting.newUserDto());
     propertyDb.insertProperties(newUserPropertyDto("foo", "one", user));
@@ -180,20 +186,38 @@ public class ResetActionTest {
   }
 
   @Test
-  public void ignore_unknown_setting_key() throws Exception {
+  public void ignore_unknown_setting_key() {
     logInAsSystemAdministrator();
 
     executeRequestOnGlobalSetting("unknown");
   }
 
   @Test
-  public void remove_setting_by_deprecated_key() throws Exception {
+  public void remove_setting_by_deprecated_key() {
     logInAsSystemAdministrator();
     definitions.addComponent(PropertyDefinition.builder("foo").deprecatedKey("old").build());
     propertyDb.insertProperties(newGlobalPropertyDto().setKey("foo").setValue("one"));
 
     executeRequestOnGlobalSetting("old");
     assertGlobalPropertyDoesNotExist("foo");
+  }
+
+  @Test
+  public void remove_setting_on_branch() {
+    ComponentDto project = db.components().insertMainBranch();
+    ComponentDto branch = db.components().insertProjectBranch(project);
+    definitions.addComponent(PropertyDefinition.builder("foo").onQualifiers(PROJECT).build());
+    propertyDb.insertProperties(newComponentPropertyDto(branch).setKey("foo").setValue("value"));
+    userSession.logIn().addProjectPermission(ADMIN, project);
+
+    ws.newRequest()
+      .setMediaType(MediaTypes.PROTOBUF)
+      .setParam("keys", "foo")
+      .setParam("component", branch.getKey())
+      .setParam("branch", branch.getBranch())
+      .execute();
+
+    assertProjectPropertyDoesNotExist(branch, "foo");
   }
 
   @Test
@@ -214,11 +238,11 @@ public class ResetActionTest {
     assertThat(action.isInternal()).isFalse();
     assertThat(action.isPost()).isTrue();
     assertThat(action.responseExampleAsString()).isNull();
-    assertThat(action.params()).hasSize(2);
+    assertThat(action.params()).extracting(Param::key).containsExactlyInAnyOrder("keys", "component", "branch");
   }
 
   @Test
-  public void throw_ForbiddenException_if_global_setting_and_not_system_administrator() throws Exception {
+  public void throw_ForbiddenException_if_global_setting_and_not_system_administrator() {
     userSession.logIn().setNonSystemAdministrator();
     definitions.addComponent(PropertyDefinition.builder("foo").build());
 
@@ -229,7 +253,7 @@ public class ResetActionTest {
   }
 
   @Test
-  public void throw_ForbiddenException_if_project_setting_and_not_project_administrator() throws Exception {
+  public void throw_ForbiddenException_if_project_setting_and_not_project_administrator() {
     userSession.logIn().addProjectPermission(USER, project);
     definitions.addComponent(PropertyDefinition.builder("foo").build());
 
@@ -240,7 +264,7 @@ public class ResetActionTest {
   }
 
   @Test
-  public void throw_ForbiddenException_if_project_setting_and_system_administrator() throws Exception {
+  public void throw_ForbiddenException_if_project_setting_and_system_administrator() {
     logInAsSystemAdministrator();
     definitions.addComponent(PropertyDefinition.builder("foo").build());
 
@@ -338,6 +362,66 @@ public class ResetActionTest {
     failForPropertyWithoutDefinitionOnUnsupportedComponent(view, projectCopy);
   }
 
+  @Test
+  public void fail_when_using_branch_db_key() throws Exception {
+    OrganizationDto organization = db.organizations().insert();
+    ComponentDto project = db.components().insertMainBranch(organization);
+    userSession.logIn().addProjectPermission(UserRole.ADMIN, project);
+    ComponentDto branch = db.components().insertProjectBranch(project);
+    definitions.addComponent(PropertyDefinition.builder("foo").onQualifiers(PROJECT).build());
+
+    expectedException.expect(NotFoundException.class);
+    expectedException.expectMessage(format("Component key '%s' not found", branch.getDbKey()));
+
+    ws.newRequest()
+      .setParam("keys", "foo")
+      .setParam("component", branch.getDbKey())
+      .execute();
+  }
+
+  @Test
+  public void fail_when_component_not_found() {
+    expectedException.expect(NotFoundException.class);
+    expectedException.expectMessage("Component key 'unknown' not found");
+
+    ws.newRequest()
+      .setParam("keys", "foo")
+      .setParam("component", "unknown")
+      .execute();
+  }
+
+  @Test
+  public void fail_when_branch_not_found() {
+    ComponentDto project = db.components().insertMainBranch();
+    logInAsProjectAdmin(project);
+    ComponentDto branch = db.components().insertProjectBranch(project);
+    String settingKey = "not_allowed_on_branch";
+
+    expectedException.expect(NotFoundException.class);
+    expectedException.expectMessage(format("Component '%s' on branch 'unknown' not found", branch.getKey()));
+
+    ws.newRequest()
+      .setParam("keys", settingKey)
+      .setParam("component", branch.getKey())
+      .setParam("branch", "unknown")
+      .execute();
+  }
+
+  @Test
+  public void fail_when_setting_key_is_defined_in_sonar_properties() {
+    ComponentDto project = db.components().insertPrivateProject();
+    logInAsProjectAdmin(project);
+    String settingKey = ProcessProperties.Property.JDBC_URL.getKey();
+
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage(format("Setting '%s' can only be used in sonar.properties", settingKey));
+
+    ws.newRequest()
+      .setParam("keys", settingKey)
+      .setParam("component", project.getKey())
+      .execute();
+  }
+
   private void succeedForPropertyWithoutDefinitionAndValidComponent(ComponentDto root, ComponentDto module) {
     logInAsProjectAdmin(root);
 
@@ -359,11 +443,11 @@ public class ResetActionTest {
   }
 
   private void executeRequestOnProjectSetting(String key) {
-    executeRequest(key, project.key());
+    executeRequest(key, project.getDbKey());
   }
 
   private void executeRequestOnComponentSetting(String key, ComponentDto componentDto) {
-    executeRequest(key, componentDto.key());
+    executeRequest(key, componentDto.getDbKey());
   }
 
   private void executeRequest(String key, @Nullable String componentKey) {
@@ -396,8 +480,12 @@ public class ResetActionTest {
     assertThat(dbClient.propertiesDao().selectGlobalProperty(dbSession, key)).isNotNull();
   }
 
+  private void assertProjectPropertyDoesNotExist(ComponentDto component, String key) {
+    assertThat(dbClient.propertiesDao().selectByQuery(PropertyQuery.builder().setComponentId(component.getId()).setKey(key).build(), dbSession)).isEmpty();
+  }
+
   private void assertProjectPropertyDoesNotExist(String key) {
-    assertThat(dbClient.propertiesDao().selectByQuery(PropertyQuery.builder().setComponentId(project.getId()).setKey(key).build(), dbSession)).isEmpty();
+    assertProjectPropertyDoesNotExist(project, key);
   }
 
   private void assertProjectPropertyExists(String key) {

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -61,19 +61,21 @@ import org.junit.Assert;
 import org.sonar.wsclient.issue.Issue;
 import org.sonar.wsclient.issue.IssueClient;
 import org.sonar.wsclient.issue.IssueQuery;
-import org.sonarqube.tests.Tester;
-import org.sonarqube.ws.WsComponents.Component;
-import org.sonarqube.ws.WsMeasures;
-import org.sonarqube.ws.WsMeasures.Measure;
+import org.sonarqube.qa.util.SettingTester;
+import org.sonarqube.qa.util.Tester;
+import org.sonarqube.ws.Components.Component;
+import org.sonarqube.ws.Measures;
+import org.sonarqube.ws.Measures.Measure;
+import org.sonarqube.ws.MediaTypes;
 import org.sonarqube.ws.client.GetRequest;
 import org.sonarqube.ws.client.HttpConnector;
+import org.sonarqube.ws.client.PostRequest;
 import org.sonarqube.ws.client.WsClient;
 import org.sonarqube.ws.client.WsClientFactories;
-import org.sonarqube.ws.client.component.ShowWsRequest;
-import org.sonarqube.ws.client.measure.ComponentWsRequest;
-import org.sonarqube.ws.client.qualityprofile.RestoreWsRequest;
-import org.sonarqube.ws.client.setting.ResetRequest;
-import org.sonarqube.ws.client.setting.SetRequest;
+import org.sonarqube.ws.client.components.ShowRequest;
+import org.sonarqube.ws.client.measures.ComponentRequest;
+import org.sonarqube.ws.client.settings.ResetRequest;
+import org.sonarqube.ws.client.settings.SetRequest;
 
 import static com.google.common.base.Preconditions.checkState;
 import static com.sonar.orchestrator.container.Server.ADMIN_LOGIN;
@@ -85,6 +87,8 @@ import static java.util.Locale.ENGLISH;
 import static org.apache.commons.lang.RandomStringUtils.randomAlphabetic;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
+import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.PARAM_ORGANIZATION;
+import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.RestoreActionParameters.PARAM_BACKUP;
 
 public class ItUtils {
   public static final Splitter LINE_SPLITTER = Splitter.on(System.getProperty("line.separator"));
@@ -126,6 +130,18 @@ public class ItUtils {
     return WsClientFactories.getDefault().newClient(HttpConnector.newBuilder()
       .url(server.getUrl())
       .credentials(login, password)
+      .build());
+  }
+
+  /**
+   * @deprecated replaced by {@link Tester#wsClient()}
+   */
+  @Deprecated
+  public static WsClient newSystemUserWsClient(Orchestrator orchestrator, @Nullable String systemPassCode) {
+    Server server = orchestrator.getServer();
+    return WsClientFactories.getDefault().newClient(HttpConnector.newBuilder()
+      .url(server.getUrl())
+      .systemPassCode(systemPassCode)
       .build());
   }
 
@@ -240,35 +256,59 @@ public class ItUtils {
     return scan;
   }
 
+  /**
+   * @deprecated replaced by {@link SettingTester#setGlobalSetting(String, String)}
+   */
+  @Deprecated
   public static void setServerProperty(Orchestrator orchestrator, String key, @Nullable String value) {
     setServerProperty(orchestrator, null, key, value);
   }
 
+  /**
+   * @deprecated replaced by {@link SettingTester#setProjectSetting(String, String, String)}
+   */
+  @Deprecated
   public static void setServerProperty(Orchestrator orchestrator, @Nullable String componentKey, String key, @Nullable String value) {
     if (value == null) {
-      newAdminWsClient(orchestrator).settings().reset(ResetRequest.builder().setKeys(key).setComponent(componentKey).build());
+      newAdminWsClient(orchestrator).settings().reset(new ResetRequest().setKeys(asList(key)).setComponent(componentKey));
     } else {
-      newAdminWsClient(orchestrator).settings().set(SetRequest.builder().setKey(key).setValue(value).setComponent(componentKey).build());
+      newAdminWsClient(orchestrator).settings().set(new SetRequest().setKey(key).setValue(value).setComponent(componentKey));
     }
   }
 
+  /**
+   * @deprecated replaced by {@link SettingTester#setGlobalSetting(String, String)} or {@link SettingTester#setProjectSettings(String, String...)}
+   */
+  @Deprecated
   public static void setServerProperties(Orchestrator orchestrator, @Nullable String componentKey, String... properties) {
     for (int i = 0; i < properties.length; i += 2) {
       setServerProperty(orchestrator, componentKey, properties[i], properties[i + 1]);
     }
   }
 
+  /**
+   * @deprecated replaced by {@link SettingTester#resetSettings(String...)}
+   */
+  @Deprecated
   public static void resetSettings(Orchestrator orchestrator, @Nullable String componentKey, String... keys) {
     if (keys.length > 0) {
-      newAdminWsClient(orchestrator).settings().reset(ResetRequest.builder().setKeys(keys).setComponent(componentKey).build());
+      newAdminWsClient(orchestrator).settings().reset(new ResetRequest().setKeys(Arrays.asList(keys)).setComponent(componentKey));
     }
   }
 
+  /**
+   * @deprecated no more needed as already done by n by {@link Tester#after()}
+   */
+  @Deprecated
   public static void resetEmailSettings(Orchestrator orchestrator) {
     resetSettings(orchestrator, null, "email.smtp_host.secured", "email.smtp_port.secured", "email.smtp_secure_connection.secured", "email.smtp_username.secured",
       "email.smtp_password.secured", "email.from", "email.prefix");
   }
 
+  /**
+   * @deprecated no more needed as already done by n by {@link Tester#after()}
+   */
+  @Deprecated
   public static void resetPeriod(Orchestrator orchestrator) {
     resetSettings(orchestrator, null, "sonar.leak.period");
   }
@@ -297,8 +337,8 @@ public class ItUtils {
   }
 
   private static Stream<Measure> getStreamMeasures(Orchestrator orchestrator, String componentKey, String... metricKeys) {
-    return newWsClient(orchestrator).measures().component(new ComponentWsRequest()
-      .setComponentKey(componentKey)
+    return newWsClient(orchestrator).measures().component(new ComponentRequest()
+      .setComponent(componentKey)
       .setMetricKeys(asList(metricKeys)))
       .getComponent().getMeasuresList()
       .stream();
@@ -306,8 +346,8 @@ public class ItUtils {
 
   @CheckForNull
   public static Measure getMeasureWithVariation(Orchestrator orchestrator, String componentKey, String metricKey) {
-    WsMeasures.ComponentWsResponse response = newWsClient(orchestrator).measures().component(new ComponentWsRequest()
-      .setComponentKey(componentKey)
+    Measures.ComponentWsResponse response = newWsClient(orchestrator).measures().component(new ComponentRequest()
+      .setComponent(componentKey)
       .setMetricKeys(singletonList(metricKey))
       .setAdditionalFields(singletonList("periods")));
     List<Measure> measures = response.getComponent().getMeasuresList();
@@ -316,8 +356,8 @@ public class ItUtils {
 
   @CheckForNull
   public static Map<String, Measure> getMeasuresWithVariationsByMetricKey(Orchestrator orchestrator, String componentKey, String... metricKeys) {
-    return newWsClient(orchestrator).measures().component(new ComponentWsRequest()
-      .setComponentKey(componentKey)
+    return newWsClient(orchestrator).measures().component(new ComponentRequest()
+      .setComponent(componentKey)
       .setMetricKeys(asList(metricKeys))
       .setAdditionalFields(singletonList("periods"))).getComponent().getMeasuresList()
       .stream()
@@ -329,14 +369,14 @@ public class ItUtils {
    */
   @CheckForNull
   public static Double getLeakPeriodValue(Orchestrator orchestrator, String componentKey, String metricKey) {
-    List<WsMeasures.PeriodValue> periodsValueList = getMeasureWithVariation(orchestrator, componentKey, metricKey).getPeriods().getPeriodsValueList();
+    List<Measures.PeriodValue> periodsValueList = getMeasureWithVariation(orchestrator, componentKey, metricKey).getPeriods().getPeriodsValueList();
     return periodsValueList.size() > 0 ? Double.parseDouble(periodsValueList.get(0).getValue()) : null;
   }
 
   @CheckForNull
   public static Component getComponent(Orchestrator orchestrator, String componentKey) {
     try {
-      return newWsClient(orchestrator).components().show(new ShowWsRequest().setKey((componentKey))).getComponent();
+      return newWsClient(orchestrator).components().show(new ShowRequest().setComponent((componentKey))).getComponent();
     } catch (org.sonarqube.ws.client.HttpException e) {
       if (e.code() == 404) {
         return null;
@@ -365,13 +405,14 @@ public class ItUtils {
     } catch (URISyntaxException e) {
       throw new IllegalArgumentException("Cannot find quality profile xml file '" + resource + "' in classpath");
     }
-    newAdminWsClient(orchestrator)
-      .qualityProfiles()
-      .restoreProfile(
-        RestoreWsRequest.builder()
-          .setBackup(new File(uri))
-          .setOrganization(organization)
-          .build());
+
+    PostRequest httpRequest = new PostRequest("api/qualityprofiles/restore")
+      .setParam(PARAM_ORGANIZATION, organization)
+      .setPart(PARAM_BACKUP, new PostRequest.Part(MediaTypes.XML, new File(uri)));
+    HttpConnector.newBuilder()
+      .url(orchestrator.getServer().getUrl())
+      .credentials(ADMIN_LOGIN, ADMIN_PASSWORD)
+      .build().call(httpRequest);
   }
 
   public static String newOrganizationKey() {
@@ -438,6 +479,11 @@ public class ItUtils {
 
   public static String formatDate(Date d) {
     SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+    return sdf.format(d);
+  }
+
+  public static String formatDateTime(Date d) {
+    SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ");
     return sdf.format(d);
   }
 

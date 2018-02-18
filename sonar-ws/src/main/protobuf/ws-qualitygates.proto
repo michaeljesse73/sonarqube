@@ -21,17 +21,18 @@ syntax = "proto2";
 package sonarqube.ws.qualitygate;
 
 option java_package = "org.sonarqube.ws";
-option java_outer_classname = "WsQualityGates";
+option java_outer_classname = "Qualitygates";
 option optimize_for = SPEED;
 
 // GET api/qualitygates/project_status
-message ProjectStatusWsResponse {
+message ProjectStatusResponse {
   optional ProjectStatus projectStatus = 1;
 
   message ProjectStatus {
     optional Status status = 1;
     repeated Condition conditions = 2;
     repeated Period periods = 3;
+    optional bool ignoredConditions = 4;
   }
 
   message Condition {
@@ -67,18 +68,18 @@ message ProjectStatusWsResponse {
 }
 
 // GET api/qualitygates/get_by_project
-message GetByProjectWsResponse {
+message GetByProjectResponse {
   optional QualityGate qualityGate = 1;
 }
 
 message QualityGate {
-  optional string id = 1;
+  optional int64 id = 1;
   optional string name = 2;
   optional bool default = 3;
 }
 
 // GET api/qualitygates/app
-message AppWsResponse {
+message AppResponse {
   optional bool edit = 1;
   repeated Metric metrics = 3;
 
@@ -92,13 +93,13 @@ message AppWsResponse {
 }
 
 // POST api/qualitygates/create
-message CreateWsResponse {
+message CreateResponse {
   optional int64 id = 1;
   optional string name = 2;
 }
 
 // POST api/qualitygates/create_condition
-message CreateConditionWsResponse {
+message CreateConditionResponse {
   optional int64 id = 1;
   optional string metric = 2;
   optional string op = 3;
@@ -108,13 +109,72 @@ message CreateConditionWsResponse {
 }
 
 // POST api/qualitygates/update_condition
-message UpdateConditionWsResponse {
+message UpdateConditionResponse {
   optional int64 id = 1;
   optional string metric = 2;
   optional string op = 3;
   optional string warning = 4;
   optional string error = 5;
   optional int32 period = 6;
+}
+
+// GET api/qualitygates/show
+message ShowWsResponse {
+  optional int64 id = 1;
+  optional string name = 2;
+  repeated Condition conditions = 3;
+  optional bool isBuiltIn = 4;
+  optional Actions actions = 5;
+
+  message Condition {
+    optional int64 id = 1;
+    optional string metric = 2;
+    optional int32 period = 3;
+    optional string op = 4;
+    optional string warning = 5;
+    optional string error = 6;
+  }
+}
+
+// GET api/qualitygates/search
+message SearchResponse {
+  optional bool more = 1;
+  repeated Result results = 2;
+
+  message Result {
+    optional int64 id = 1;
+    optional string name = 2;
+    optional bool selected = 3;
+  }
+}
+
+// GET api/qualitygates/list
+message ListWsResponse {
+  repeated QualityGate qualitygates = 1;
+  // Deprecated since 7.0
+  optional int64 default = 2;
+  optional RootActions actions = 3;
+
+  message QualityGate {
+    optional int64 id = 1;
+    optional string name = 2;
+    optional bool isDefault = 3;
+    optional bool isBuiltIn = 4;
+    optional Actions actions = 5;
+  }
+
+  message RootActions {
+    optional bool create = 1;
+  }
+}
+
+message Actions {
+  optional bool rename = 1;
+  optional bool setAsDefault = 2;
+  optional bool copy = 3;
+  optional bool associateProjects = 4;
+  optional bool delete = 5;
+  optional bool manageConditions = 6;
 }
 
 

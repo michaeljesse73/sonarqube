@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -26,6 +26,7 @@ import org.sonar.wsclient.issue.Issue;
 import org.sonarqube.ws.Issues;
 import org.sonarqube.ws.Issues.ChangelogWsResponse.Changelog;
 import org.sonarqube.ws.client.WsClient;
+import org.sonarqube.ws.client.issues.ChangelogRequest;
 import util.ItUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -47,7 +48,7 @@ public class IssueChangelogTest extends AbstractIssueTest {
   }
 
   @Test
-  public void update_changelog_when_assigning_issue_by_user() throws Exception {
+  public void update_changelog_when_assigning_issue_by_user() {
     runProjectAnalysis(ORCHESTRATOR, "shared/xoo-sample");
     Issue issue = searchRandomIssue();
     assertIssueHasNoChange(issue.key());
@@ -65,7 +66,7 @@ public class IssueChangelogTest extends AbstractIssueTest {
   }
 
   @Test
-  public void update_changelog_when_reopening_unresolved_issue_by_scan() throws Exception {
+  public void update_changelog_when_reopening_unresolved_issue_by_scan() {
     runProjectAnalysis(ORCHESTRATOR, "shared/xoo-sample");
     Issue issue = searchRandomIssue();
     assertIssueHasNoChange(issue.key());
@@ -118,7 +119,7 @@ public class IssueChangelogTest extends AbstractIssueTest {
   }
 
   private static Issues.ChangelogWsResponse changelog(String issueKey) {
-    return adminClient.issues().changelog(issueKey);
+    return adminClient.issues().changelog(new ChangelogRequest().setIssue(issueKey));
   }
 
 }

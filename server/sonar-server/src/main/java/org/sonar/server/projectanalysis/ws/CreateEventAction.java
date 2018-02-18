@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,7 +19,9 @@
  */
 package org.sonar.server.projectanalysis.ws;
 
+import com.google.common.collect.ImmutableSet;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import org.sonar.api.resources.Qualifiers;
@@ -40,23 +42,24 @@ import org.sonar.server.exceptions.NotFoundException;
 import org.sonar.server.user.UserSession;
 import org.sonarqube.ws.ProjectAnalyses.CreateEventResponse;
 import org.sonarqube.ws.ProjectAnalyses.Event;
-import org.sonarqube.ws.client.projectanalysis.CreateEventRequest;
-import org.sonarqube.ws.client.projectanalysis.EventCategory;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static java.lang.String.format;
 import static org.apache.commons.lang.StringUtils.isNotBlank;
 import static org.sonar.core.util.Protobuf.setNullable;
+import static org.sonar.db.event.EventValidator.MAX_NAME_LENGTH;
+import static org.sonar.server.projectanalysis.ws.EventCategory.OTHER;
+import static org.sonar.server.projectanalysis.ws.EventCategory.VERSION;
+import static org.sonar.server.projectanalysis.ws.EventCategory.fromLabel;
+import static org.sonar.server.projectanalysis.ws.ProjectAnalysesWsParameters.PARAM_ANALYSIS;
+import static org.sonar.server.projectanalysis.ws.ProjectAnalysesWsParameters.PARAM_CATEGORY;
+import static org.sonar.server.projectanalysis.ws.ProjectAnalysesWsParameters.PARAM_NAME;
 import static org.sonar.server.ws.WsUtils.writeProtobuf;
-import static org.sonarqube.ws.client.projectanalysis.EventCategory.OTHER;
-import static org.sonarqube.ws.client.projectanalysis.EventCategory.VERSION;
-import static org.sonarqube.ws.client.projectanalysis.EventCategory.fromLabel;
-import static org.sonarqube.ws.client.projectanalysis.ProjectAnalysesWsParameters.PARAM_ANALYSIS;
-import static org.sonarqube.ws.client.projectanalysis.ProjectAnalysesWsParameters.PARAM_CATEGORY;
-import static org.sonarqube.ws.client.projectanalysis.ProjectAnalysesWsParameters.PARAM_NAME;
 
 public class CreateEventAction implements ProjectAnalysesWsAction {
+  private static final Set<String> ALLOWED_QUALIFIERS = ImmutableSet.of(Qualifiers.PROJECT, Qualifiers.APP);
+
   private final DbClient dbClient;
   private final UuidFactory uuidFactory;
   private final System2 system;
@@ -96,9 +99,10 @@ public class CreateEventAction implements ProjectAnalysesWsAction {
       .setPossibleValues(VERSION, OTHER);
 
     action.createParam(PARAM_NAME)
+      .setRequired(true)
+      .setMaximumLength(MAX_NAME_LENGTH)
       .setDescription("Name")
-      .setExampleValue("5.6")
-      .setRequired(true);
+      .setExampleValue("5.6");
   }
 
   @Override
@@ -112,6 +116,8 @@ public class CreateEventAction implements ProjectAnalysesWsAction {
   private CreateEventResponse doHandle(CreateEventRequest request) {
     try (DbSession dbSession = dbClient.openSession(false)) {
       SnapshotDto analysis = getAnalysis(dbSession, request);
+      ComponentDto project = getProjectOrApplication(dbSession, analysis);
+      checkRequest(request, project);
       checkExistingDbEvents(dbSession, request, analysis);
       EventDto dbEvent = insertDbEvent(dbSession, request, analysis);
       return toCreateEventResponse(dbEvent);
@@ -129,14 +135,21 @@ public class CreateEventAction implements ProjectAnalysesWsAction {
   }
 
   private SnapshotDto getAnalysis(DbSession dbSession, CreateEventRequest request) {
-    SnapshotDto analysis = dbClient.snapshotDao().selectByUuid(dbSession, request.getAnalysis())
+    return dbClient.snapshotDao().selectByUuid(dbSession, request.getAnalysis())
       .orElseThrow(() -> new NotFoundException(format("Analysis '%s' is not found", request.getAnalysis())));
+  }
+
+  private ComponentDto getProjectOrApplication(DbSession dbSession, SnapshotDto analysis) {
     ComponentDto project = dbClient.componentDao().selectByUuid(dbSession, analysis.getComponentUuid()).orNull();
     checkState(project != null, "Project of analysis '%s' is not found", analysis.getUuid());
-    userSession.checkComponentPermission(UserRole.ADMIN, project);
-    checkArgument(Qualifiers.PROJECT.equals(project.qualifier()) && Scopes.PROJECT.equals(project.scope()),
-      "An event must be created on a project");
-    return analysis;
+    checkArgument(ALLOWED_QUALIFIERS.contains(project.qualifier()) && Scopes.PROJECT.equals(project.scope()),
+      "An event must be created on a project or an application");
+    return project;
+  }
+
+  private void checkRequest(CreateEventRequest request, ComponentDto component) {
+    userSession.checkComponentPermission(UserRole.ADMIN, component);
+    checkArgument(EventCategory.VERSION != request.getCategory() || Qualifiers.PROJECT.equals(component.qualifier()), "A version event must be created on a project");
   }
 
   private static CreateEventRequest toAddEventRequest(Request request) {
@@ -202,6 +215,67 @@ public class CreateEventAction implements ProjectAnalysesWsAction {
         };
       default:
         throw new IllegalStateException("Event category not handled: " + request.getCategory());
+    }
+  }
+
+  private static class CreateEventRequest {
+    private final String analysis;
+    private final EventCategory category;
+    private final String name;
+
+    private CreateEventRequest(Builder builder) {
+      analysis = builder.analysis;
+      category = builder.category;
+      name = builder.name;
+    }
+
+    public String getAnalysis() {
+      return analysis;
+    }
+
+    public EventCategory getCategory() {
+      return category;
+    }
+
+    public String getName() {
+      return name;
+    }
+
+    public static Builder builder() {
+      return new Builder();
+    }
+  }
+
+  private static class Builder {
+    private String analysis;
+    private EventCategory category = EventCategory.OTHER;
+    private String name;
+
+    private Builder() {
+      // enforce static factory method
+    }
+
+    public Builder setAnalysis(String analysis) {
+      this.analysis = analysis;
+      return this;
+    }
+
+    public Builder setCategory(EventCategory category) {
+      this.category = category;
+      return this;
+    }
+
+    public Builder setName(String name) {
+      this.name = name;
+      return this;
+    }
+
+    public CreateEventRequest build() {
+      checkArgument(analysis != null, "Analysis key is required");
+      checkArgument(category != null, "Category is required");
+      checkArgument(name != null, "Name is required");
+
+      return new CreateEventRequest(this);
     }
   }
 }

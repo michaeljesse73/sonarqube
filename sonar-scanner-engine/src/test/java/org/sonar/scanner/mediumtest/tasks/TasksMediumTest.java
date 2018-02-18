@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -23,7 +23,6 @@ import com.google.common.collect.ImmutableMap;
 import java.util.Arrays;
 import java.util.List;
 import org.assertj.core.api.Condition;
-import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -32,7 +31,6 @@ import org.sonar.api.task.Task;
 import org.sonar.api.task.TaskDefinition;
 import org.sonar.api.utils.MessageException;
 import org.sonar.api.utils.log.LogTester;
-import org.sonar.scanner.bootstrap.MockHttpServer;
 import org.sonar.scanner.mediumtest.ScannerMediumTester;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -45,31 +43,16 @@ public class TasksMediumTest {
   @Rule
   public LogTester logTester = new LogTester();
 
-  public ScannerMediumTester tester = ScannerMediumTester.builder()
-    .registerPlugin("faketask", new FakeTaskPlugin())
-    .build();
-
-  private MockHttpServer server = null;
-
-  @After
-  public void stopServer() {
-    if (server != null) {
-      server.stop();
-    }
-  }
-
-  @After
-  public void stop() {
-    tester.stop();
-  }
+  @Rule
+  public ScannerMediumTester tester = new ScannerMediumTester()
+    .registerPlugin("faketask", new FakeTaskPlugin());
 
   @Test
   public void listTasksIncludingBroken() throws Exception {
-    tester.start();
     tester.newTask()
       .properties(ImmutableMap.<String, String>builder()
         .put("sonar.task", "list").build())
-      .start();
+      .execute();
 
     assertThat(logTester.logs()).haveExactly(1, new Condition<String>() {
 
@@ -82,8 +65,6 @@ public class TasksMediumTest {
 
   @Test
   public void runBroken() throws Exception {
-    tester.start();
-
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage(
       "Unable to load component class org.sonar.scanner.mediumtest.tasks.TasksMediumTest$BrokenTask");
@@ -91,18 +72,15 @@ public class TasksMediumTest {
     tester.newTask()
       .properties(ImmutableMap.<String, String>builder()
         .put("sonar.task", "broken").build())
-      .start();
+      .execute();
   }
 
   @Test(expected = MessageException.class)
   public void unsupportedTask() throws Exception {
-    tester = ScannerMediumTester.builder()
-      .build();
-    tester.start();
     tester.newTask()
       .properties(ImmutableMap.<String, String>builder()
         .put("sonar.task", "foo").build())
-      .start();
+      .execute();
   }
 
   private static class FakeTaskPlugin extends SonarPlugin {

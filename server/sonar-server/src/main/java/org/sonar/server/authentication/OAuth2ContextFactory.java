@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,21 +20,24 @@
 package org.sonar.server.authentication;
 
 import java.io.IOException;
+import java.util.Optional;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.sonar.api.platform.Server;
+import org.sonar.api.server.ServerSide;
 import org.sonar.api.server.authentication.OAuth2IdentityProvider;
 import org.sonar.api.server.authentication.UserIdentity;
-import org.sonar.api.utils.MessageException;
 import org.sonar.db.user.UserDto;
 import org.sonar.server.authentication.event.AuthenticationEvent;
 import org.sonar.server.user.ThreadLocalUserSession;
 import org.sonar.server.user.UserSessionFactory;
 
 import static java.lang.String.format;
-import static org.sonar.api.CoreProperties.SERVER_BASE_URL;
 import static org.sonar.server.authentication.OAuth2CallbackFilter.CALLBACK_PATH;
+import static org.sonar.server.authentication.UserIdentityAuthenticator.ExistingEmailStrategy.ALLOW;
+import static org.sonar.server.authentication.UserIdentityAuthenticator.ExistingEmailStrategy.WARN;
 
+@ServerSide
 public class OAuth2ContextFactory {
 
   private final ThreadLocalUserSession threadLocalUserSession;
@@ -43,15 +46,17 @@ public class OAuth2ContextFactory {
   private final OAuthCsrfVerifier csrfVerifier;
   private final JwtHttpHandler jwtHttpHandler;
   private final UserSessionFactory userSessionFactory;
+  private final OAuth2AuthenticationParameters oAuthParameters;
 
   public OAuth2ContextFactory(ThreadLocalUserSession threadLocalUserSession, UserIdentityAuthenticator userIdentityAuthenticator, Server server,
-    OAuthCsrfVerifier csrfVerifier, JwtHttpHandler jwtHttpHandler, UserSessionFactory userSessionFactory) {
+    OAuthCsrfVerifier csrfVerifier, JwtHttpHandler jwtHttpHandler, UserSessionFactory userSessionFactory, OAuth2AuthenticationParameters oAuthParameters) {
     this.threadLocalUserSession = threadLocalUserSession;
     this.userIdentityAuthenticator = userIdentityAuthenticator;
     this.server = server;
     this.csrfVerifier = csrfVerifier;
     this.jwtHttpHandler = jwtHttpHandler;
     this.userSessionFactory = userSessionFactory;
+    this.oAuthParameters = oAuthParameters;
   }
 
   public OAuth2IdentityProvider.InitContext newContext(HttpServletRequest request, HttpServletResponse response, OAuth2IdentityProvider identityProvider) {
@@ -76,11 +81,7 @@ public class OAuth2ContextFactory {
 
     @Override
     public String getCallbackUrl() {
-      String publicRootUrl = server.getPublicRootUrl();
-      if (publicRootUrl.startsWith("http:") && !server.isDev()) {
-        throw MessageException.of(format("The server url should be configured in https, please update the property '%s'", SERVER_BASE_URL));
-      }
-      return publicRootUrl + CALLBACK_PATH + identityProvider.getKey();
+      return server.getPublicRootUrl() + CALLBACK_PATH + identityProvider.getKey();
     }
 
     @Override
@@ -115,15 +116,18 @@ public class OAuth2ContextFactory {
     @Override
     public void redirectToRequestedPage() {
       try {
-        getResponse().sendRedirect(server.getContextPath() + "/");
+        Optional<String> redirectTo = oAuthParameters.getReturnTo(request);
+        oAuthParameters.delete(request, response);
+        getResponse().sendRedirect(redirectTo.orElse(server.getContextPath() + "/"));
       } catch (IOException e) {
-        throw new IllegalStateException("Fail to redirect to home", e);
+        throw new IllegalStateException("Fail to redirect to requested page", e);
       }
     }
 
     @Override
     public void authenticate(UserIdentity userIdentity) {
-      UserDto userDto = userIdentityAuthenticator.authenticate(userIdentity, identityProvider, AuthenticationEvent.Source.oauth2(identityProvider));
+      Boolean allowEmailShift = oAuthParameters.getAllowEmailShift(request).orElse(false);
+      UserDto userDto = userIdentityAuthenticator.authenticate(userIdentity, identityProvider, AuthenticationEvent.Source.oauth2(identityProvider), allowEmailShift ? ALLOW : WARN);
       jwtHttpHandler.generateToken(userDto, request, response);
       threadLocalUserSession.set(userSessionFactory.create(userDto));
     }

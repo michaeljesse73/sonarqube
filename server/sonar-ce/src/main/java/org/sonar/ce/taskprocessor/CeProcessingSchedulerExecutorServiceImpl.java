@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -37,7 +37,7 @@ public class CeProcessingSchedulerExecutorServiceImpl extends AbstractStoppableE
   public CeProcessingSchedulerExecutorServiceImpl(CeConfiguration ceConfiguration) {
     super(
       MoreExecutors.listeningDecorator(
-        Executors.newScheduledThreadPool(ceConfiguration.getWorkerCount(),
+        Executors.newScheduledThreadPool(ceConfiguration.getWorkerMaxCount(),
           new ThreadFactoryBuilder()
             .setNameFormat(THREAD_NAME_PREFIX + "%d")
             .setPriority(Thread.MIN_PRIORITY)

@@ -6,12 +6,12 @@
   <parent>
     <groupId>org.sonarsource.parent</groupId>
     <artifactId>parent</artifactId>
-    <version>40</version>
+    <version>44</version>
   </parent>
   <groupId>org.sonarsource.sonarqube</groupId>
   <artifactId>sonarqube</artifactId>
   <packaging>pom</packaging>
-  <version>6.5-SNAPSHOT</version>
+  <version>7.1-SNAPSHOT</version>
   <name>SonarQube</name>
   <url>http://www.sonarqube.org/</url>
   <description>Open source platform for continuous inspection of code quality</description>
@@ -30,6 +30,7 @@
     <module>sonar-plugin-api</module>
     <module>server</module>
     <module>sonar-ws</module>
+    <module>sonar-ws-generator</module>
     <module>sonar-testing-harness</module>
     <module>plugins/sonar-xoo-plugin</module>
   </modules>
@@ -47,38 +48,52 @@
 
   <properties>
     <!-- see http://repo1.maven.org/maven2/org/sonarsource/dotnet/sonar-csharp-plugin/ -->
-    <sonarCSharp.version>5.10.1.1411</sonarCSharp.version>
+    <!-- Do not forget to exclude any new transitive dependencies -->
+    <sonarCSharp.version>6.7.1.4347</sonarCSharp.version>
     <!-- see http://repo1.maven.org/maven2/org/sonarsource/java/sonar-java-plugin/ -->
-    <sonarJava.version>4.9.0.9858</sonarJava.version>
+    <!-- Do not forget to exclude any new transitive dependencies -->
+    <sonarJava.version>5.1.0.13090</sonarJava.version>
     <!-- see http://repo1.maven.org/maven2/org/sonarsource/javascript/sonar-javascript-plugin/ -->
-    <sonarJavaScript.version>3.0.0.4962</sonarJavaScript.version>
+    <!-- Do not forget to exclude any new transitive dependencies -->
+    <sonarJavaScript.version>4.0.0.5862</sonarJavaScript.version>
     <!-- see http://repo1.maven.org/maven2/org/sonarsource/php/sonar-php-plugin/ -->
-    <sonarPhp.version>2.10.0.2087</sonarPhp.version>
+    <!-- Do not forget to exclude any new transitive dependencies -->
+    <sonarPhp.version>2.12.1.3018</sonarPhp.version>
     <!-- see http://repo1.maven.org/maven2/org/sonarsource/python/sonar-python-plugin/ -->
-    <sonarPython.version>1.7.0.1195</sonarPython.version>
+    <!-- Do not forget to exclude any new transitive dependencies -->
+    <sonarPython.version>1.9.0.2010</sonarPython.version>
     <!-- see http://repo1.maven.org/maven2/org/sonarsource/flex/sonar-flex-plugin/ -->
+    <!-- Do not forget to exclude any new transitive dependencies -->
     <sonarFlex.version>2.3</sonarFlex.version>
-    <!-- see http://http://repo1.maven.org/maven2/org/sonarsource/xml/sonar-xml-plugin/ -->
-    <sonarXml.version>1.4.2.885</sonarXml.version>
-    <sonarGit.version>1.2</sonarGit.version>
-    <sonarSvn.version>1.4.0.522</sonarSvn.version>
+    <!-- see http://repo1.maven.org/maven2/org/sonarsource/xml/sonar-xml-plugin/ -->
+    <!-- Do not forget to exclude any new transitive dependencies -->
+    <sonarXml.version>1.4.3.1027</sonarXml.version>
+    <!-- see https://repo1.maven.org/maven2/org/sonarsource/typescript/sonar-typescript-plugin/ -->
+    <sonarTs.version>1.5.0.2122</sonarTs.version>
+    <!-- see http://repo1.maven.org/maven2/org/sonarsource/scm/git/sonar-scm-git-plugin/ -->
+    <sonarGit.version>1.3.0.869</sonarGit.version>
+    <!-- see http://repo1.maven.org/maven2/org/sonarsource/scm/svn/sonar-scm-svn-plugin/ -->
+    <sonarSvn.version>1.6.0.860</sonarSvn.version>
     <sonarUpdateCenter.version>1.18.0.487</sonarUpdateCenter.version>
     <h2.version>1.3.176</h2.version>
     <jetty.version>8.1.12.v20130726</jetty.version>
-    <logback.version>1.1.7</logback.version>
-    <slf4j.version>1.7.21</slf4j.version>
-    <tomcat.version>8.5.16</tomcat.version>
-    <elasticsearch.version>2.4.4</elasticsearch.version>
-    <orchestrator.version>3.15.0.1090</orchestrator.version>
+    <logback.version>1.2.3</logback.version>
+    <slf4j.version>1.7.25</slf4j.version>
+
+    <!-- Be aware that Log4j is used by Elasticsearch client -->
+    <log4j.version>2.8.2</log4j.version>
+    <tomcat.version>8.5.23</tomcat.version>
+    <elasticsearch.version>5.6.3</elasticsearch.version>
+    <orchestrator.version>3.15.2.1322</orchestrator.version>
     <okhttp.version>3.7.0</okhttp.version>
     <jackson.version>2.6.6</jackson.version>
+    <jjwt.version>0.9.0</jjwt.version>
+    <protobuf.version>3.5.1</protobuf.version>
 
-    <protobuf.version>3.0.0-beta-2</protobuf.version>
-
-    <hazelcast.version>3.8</hazelcast.version>
+    <hazelcast.version>3.8.6</hazelcast.version>
 
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <maven.min.version>3.2</maven.min.version>
+    <maven.min.version>3.3.9</maven.min.version>
     <timestamp>${maven.build.timestamp}</timestamp>
     <maven.build.timestamp.format>yyyy-MM-dd'T'HH:mm:ssZ</maven.build.timestamp.format>
     <license.title>SonarQube</license.title>
@@ -94,16 +109,12 @@
     <artifactsToPublish>${project.groupId}:sonar-application:zip</artifactsToPublish>
   </properties>
 
-  <prerequisites>
-    <maven>3.2</maven>
-  </prerequisites>
-
   <build>
     <extensions>
       <extension>
         <groupId>kr.motd.maven</groupId>
         <artifactId>os-maven-plugin</artifactId>
-        <version>1.4.1.Final</version>
+        <version>1.5.0.Final</version>
       </extension>
     </extensions>
 
@@ -113,12 +124,12 @@
         <plugin>
           <groupId>com.github.eirslett</groupId>
           <artifactId>frontend-maven-plugin</artifactId>
-          <version>1.4</version>
+          <version>1.6</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-assembly-plugin</artifactId>
-          <version>2.4</version>
+          <version>3.1.0</version>
           <configuration>
             <archiverConfig>
               <!-- Workaround for http://jira.codehaus.org/browse/MASSEMBLY-422 -->
@@ -133,7 +144,7 @@
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>build-helper-maven-plugin</artifactId>
-          <version>1.12</version>
+          <version>3.0.0</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
@@ -143,12 +154,12 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-dependency-plugin</artifactId>
-          <version>2.10</version>
+          <version>3.0.2</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-enforcer-plugin</artifactId>
-          <version>1.4.1</version>
+          <version>3.0.0-M1</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
@@ -172,7 +183,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-javadoc-plugin</artifactId>
-          <version>2.10.4</version>
+          <version>3.0.0-M1</version>
           <configuration>
             <author>false</author>
             <linksource>true</linksource>
@@ -191,12 +202,12 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-resources-plugin</artifactId>
-          <version>3.0.1</version>
+          <version>3.0.2</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-shade-plugin</artifactId>
-          <version>3.0.0</version>
+          <version>3.1.0</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
@@ -206,12 +217,12 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-surefire-plugin</artifactId>
-          <version>2.20</version>
+          <version>2.20.1</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-war-plugin</artifactId>
-          <version>2.6</version>
+          <version>3.2.0</version>
         </plugin>
         <plugin>
           <!-- not thread safe -->
@@ -227,10 +238,11 @@
         <plugin>
           <groupId>org.owasp</groupId>
           <artifactId>dependency-check-maven</artifactId>
-          <version>1.2.11</version>
+          <version>3.0.1</version>
           <configuration>
             <failBuildOnCVSS>8</failBuildOnCVSS>
-            <suppressionFile>cve-false-positives.xml</suppressionFile>
+            <suppressionFile>dependency-check-suppressions.xml</suppressionFile>
+            <enableExperimental>true</enableExperimental>
           </configuration>
         </plugin>
         <plugin>
@@ -257,12 +269,12 @@
         <plugin>
           <groupId>org.xolstice.maven.plugins</groupId>
           <artifactId>protobuf-maven-plugin</artifactId>
-          <version>0.5.0</version>
+          <version>0.5.1</version>
         </plugin>
         <plugin>
           <groupId>com.github.genthaler</groupId>
           <artifactId>beanshell-maven-plugin</artifactId>
-          <version>1.2</version>
+          <version>1.4</version>
         </plugin>
       </plugins>
     </pluginManagement>
@@ -329,6 +341,7 @@
               <goal>run</goal>
             </goals>
             <configuration>
+              <quiet>true</quiet>
               <script>
                 <![CDATA[
                 String[] timezones = new String[] {"GMT-9", "UTC", "GMT+9"};
@@ -435,19 +448,24 @@
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>org.sonarsource.update-center</groupId>
-        <artifactId>sonar-update-center-common</artifactId>
-        <version>${sonarUpdateCenter.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.sonarsource.sonarqube</groupId>
-        <artifactId>sonar-ce-api</artifactId>
+        <groupId>${project.groupId}</groupId>
+        <artifactId>sonar-process</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
         <groupId>${project.groupId}</groupId>
         <artifactId>sonar-server</artifactId>
         <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.sonarsource.update-center</groupId>
+        <artifactId>sonar-update-center-common</artifactId>
+        <version>${sonarUpdateCenter.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.sonarsource.orchestrator</groupId>
+        <artifactId>sonar-orchestrator</artifactId>
+        <version>${orchestrator.version}</version>
       </dependency>
       <dependency>
         <groupId>org.codehaus.sonar</groupId>
@@ -499,6 +517,18 @@
           <exclusion>
             <groupId>org.tmatesoft.svnkit</groupId>
             <artifactId>svnkit</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+      <dependency>
+        <groupId>org.sonarsource.typescript</groupId>
+        <artifactId>sonar-typescript-plugin</artifactId>
+        <version>${sonarTs.version}</version>
+        <type>sonar-plugin</type>
+        <exclusions>
+          <exclusion>
+            <groupId>org.sonarsource.analyzer-commons</groupId>
+            <artifactId>sonar-analyzer-commons</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
@@ -644,6 +674,10 @@
             <groupId>org.codehaus.woodstox</groupId>
             <artifactId>woodstox-core-lgpl</artifactId>
           </exclusion>
+          <exclusion>
+            <groupId>org.codehaus.staxmate</groupId>
+            <artifactId>staxmate</artifactId>
+          </exclusion>
         </exclusions>
       </dependency>
       <dependency>
@@ -677,15 +711,18 @@
           is needed for the zip bundle
           -->
           <exclusion>
+            <groupId>xalan</groupId>
+            <artifactId>xalan</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>xerces</groupId>
+            <artifactId>xercesImpl</artifactId>
+          </exclusion>
+          <exclusion>
             <groupId>org.sonarsource.xml</groupId>
             <artifactId>xml-squid</artifactId>
           </exclusion>
         </exclusions>
-      </dependency>
-      <dependency>
-        <groupId>net.java.dev.jna</groupId>
-        <artifactId>jna</artifactId>
-        <version>4.1.0</version>
       </dependency>
       <dependency>
         <groupId>com.hazelcast</groupId>
@@ -698,9 +735,19 @@
         <version>${hazelcast.version}</version>
       </dependency>
       <dependency>
-        <groupId>org.elasticsearch</groupId>
-        <artifactId>elasticsearch</artifactId>
+        <groupId>org.elasticsearch.client</groupId>
+        <artifactId>transport</artifactId>
         <version>${elasticsearch.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>org.elasticsearch.plugin</groupId>
+            <artifactId>lang-mustache-client</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.elasticsearch.plugin</groupId>
+            <artifactId>transport-netty3-client</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
       <dependency>
         <groupId>com.github.tlrx</groupId>
@@ -740,7 +787,7 @@
       <dependency>
         <groupId>org.apache.commons</groupId>
         <artifactId>commons-email</artifactId>
-        <version>1.3.2</version>
+        <version>1.5</version>
       </dependency>
       <dependency>
         <groupId>commons-lang</groupId>
@@ -753,22 +800,15 @@
         <version>1.4</version>
       </dependency>
       <dependency>
-        <!-- See SONAR-2512 -->
-        <groupId>commons-beanutils</groupId>
-        <artifactId>commons-beanutils</artifactId>
-        <version>1.8.3</version>
-        <exclusions>
-          <exclusion>
-            <groupId>commons-logging</groupId>
-            <artifactId>commons-logging</artifactId>
-          </exclusion>
-        </exclusions>
-      </dependency>
-      <dependency>
         <groupId>com.ibm.icu</groupId>
         <artifactId>icu4j</artifactId>
         <!-- animal-sniffer doesn't work with 2.6.1 -->
         <version>3.4.4</version>
+      </dependency>
+      <dependency>
+        <groupId>javax.xml.bind</groupId>
+        <artifactId>jaxb-api</artifactId>
+        <version>2.3.0</version>
       </dependency>
       <dependency>
         <groupId>com.googlecode.json-simple</groupId>
@@ -784,7 +824,7 @@
       <dependency>
         <groupId>io.jsonwebtoken</groupId>
         <artifactId>jjwt</artifactId>
-        <version>0.6.0</version>
+        <version>${jjwt.version}</version>
       </dependency>
       <dependency>
         <groupId>com.fasterxml.jackson.core</groupId>
@@ -800,6 +840,11 @@
         <groupId>com.fasterxml.jackson.core</groupId>
         <artifactId>jackson-annotations</artifactId>
         <version>${jackson.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.yaml</groupId>
+        <artifactId>snakeyaml</artifactId>
+        <version>1.15</version>
       </dependency>
       <dependency>
         <groupId>org.mybatis</groupId>
@@ -837,6 +882,21 @@
         <version>${slf4j.version}</version>
       </dependency>
       <dependency>
+        <groupId>org.apache.logging.log4j</groupId>
+        <artifactId>log4j-to-slf4j</artifactId>
+        <version>${log4j.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.logging.log4j</groupId>
+        <artifactId>log4j-api</artifactId>
+        <version>${log4j.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.logging.log4j</groupId>
+        <artifactId>log4j-core</artifactId>
+        <version>${log4j.version}</version>
+      </dependency>
+      <dependency>
         <groupId>ch.qos.logback</groupId>
         <artifactId>logback-access</artifactId>
         <version>${logback.version}</version>
@@ -859,7 +919,7 @@
       <dependency>
         <groupId>com.microsoft.sqlserver</groupId>
         <artifactId>mssql-jdbc</artifactId>
-        <version>6.1.0.jre8</version>
+        <version>6.2.2.jre8</version>
       </dependency>
       <dependency>
         <groupId>mysql</groupId>
@@ -867,16 +927,18 @@
         <version>5.1.42</version>
       </dependency>
       <dependency>
-        <groupId>com.oracle</groupId>
-        <artifactId>ojdbc6</artifactId>
-        <!-- SonarSource internal tests: -->
-        <!-- This version should be the same as at http://infra.internal.sonarsource.com/jenkins/orch-oracle*.properties -->
-        <version>11.2.0.3.0</version>
+        <groupId>com.oracle.jdbc</groupId>
+        <artifactId>ojdbc8</artifactId>
+        <!--
+             This version is compatible with Oracle 11g and 12c :
+             http://www.oracle.com/technetwork/database/enterprise-edition/jdbc-faq-090281.html#01_02
+        -->
+        <version>12.2.0.1.0</version>
       </dependency>
       <dependency>
         <groupId>org.postgresql</groupId>
         <artifactId>postgresql</artifactId>
-        <version>9.4.1209.jre7</version>
+        <version>42.2.1</version>
       </dependency>
       <dependency>
         <groupId>org.codehaus.woodstox</groupId>
@@ -913,7 +975,7 @@
       <dependency>
         <groupId>org.mockito</groupId>
         <artifactId>mockito-core</artifactId>
-        <version>1.10.19</version>
+        <version>2.13.0</version>
         <exclusions>
           <exclusion>
             <groupId>org.hamcrest</groupId>
@@ -924,7 +986,7 @@
       <dependency>
         <groupId>org.assertj</groupId>
         <artifactId>assertj-core</artifactId>
-        <version>3.4.1</version>
+        <version>3.9.0</version>
       </dependency>
       <dependency>
         <groupId>org.assertj</groupId>
@@ -951,6 +1013,11 @@
         <groupId>org.eclipse.jetty</groupId>
         <artifactId>jetty-server</artifactId>
         <version>${jetty.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.hamcrest</groupId>
+        <artifactId>hamcrest-core</artifactId>
+        <version>1.3</version>
       </dependency>
       <dependency>
         <groupId>org.hamcrest</groupId>
@@ -1386,6 +1453,102 @@
         <module>tests/plugins</module>
       </modules>
     </profile>
+
+    <profile>
+      <id>deploy-sonarsource</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-enforcer-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>enforce-deploy-settings</id>
+                <goals>
+                  <goal>enforce</goal>
+                </goals>
+                <configuration>
+                  <rules>
+                    <requireProperty>
+                      <property>gitRepositoryName</property>
+                      <message>You must set name of Git repository in your pom</message>
+                    </requireProperty>
+                    <requireEnvironmentVariable>
+                      <variableName>ARTIFACTORY_URL</variableName>
+                    </requireEnvironmentVariable>
+                    <requireEnvironmentVariable>
+                      <variableName>ARTIFACTORY_DEPLOY_REPO</variableName>
+                    </requireEnvironmentVariable>
+                    <requireEnvironmentVariable>
+                      <variableName>ARTIFACTORY_DEPLOY_USERNAME</variableName>
+                    </requireEnvironmentVariable>
+                    <requireEnvironmentVariable>
+                      <variableName>ARTIFACTORY_DEPLOY_PASSWORD</variableName>
+                    </requireEnvironmentVariable>
+                  </rules>
+                  <fail>true</fail>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <!-- this maven plugin is not deployed in Maven Central. It should be downloaded
+            from JFrog JCenter or from SonarSource repositories -->
+            <groupId>org.jfrog.buildinfo</groupId>
+            <artifactId>artifactory-maven-plugin</artifactId>
+            <version>${version.artifactory.plugin}</version>
+            <executions>
+              <execution>
+                <id>build-info</id>
+                <goals>
+                  <goal>publish</goal>
+                </goals>
+                <configuration>
+                  <artifactory>
+                    <envVarsExcludePatterns>
+                      *password*,*PASSWORD*,*secret*,*MAVEN_CMD_LINE_ARGS*,sun.java.command,*token*,*TOKEN*,*LOGIN*,*login*
+                    </envVarsExcludePatterns>
+                    <includeEnvVars>true</includeEnvVars>
+                    <timeoutSec>60</timeoutSec>
+                  </artifactory>
+                  <deployProperties>
+                    <build.name>${gitRepositoryName}</build.name>
+                    <build.number>{{BUILD_NUMBER}}</build.number>
+                    <pr.branch.target>{{PULL_REQUEST_BRANCH_TARGET}}</pr.branch.target>
+                    <pr.number>{{PULL_REQUEST_NUMBER}}</pr.number>
+                    <vcs.branch>{{GIT_BRANCH}}</vcs.branch>
+                    <vcs.revision>{{GIT_COMMIT}}</vcs.revision>
+                    <version>${project.version}</version>
+                  </deployProperties>
+                  <licenses>
+                    <autoDiscover>true</autoDiscover>
+                    <includePublishedArtifacts>false</includePublishedArtifacts>
+                    <runChecks>true</runChecks>
+                    <scopes>project,provided</scopes>
+                    <violationRecipients>licences-control@sonarsource.com</violationRecipients>
+                  </licenses>
+                  <publisher>
+                    <contextUrl>${env.ARTIFACTORY_URL}</contextUrl>
+                    <repoKey>${env.ARTIFACTORY_DEPLOY_REPO}</repoKey>
+                    <username>${env.ARTIFACTORY_DEPLOY_USERNAME}</username>
+                    <password>${env.ARTIFACTORY_DEPLOY_PASSWORD}</password>
+                    <publishBuildInfo>true</publishBuildInfo>
+                    <publishArtifacts>true</publishArtifacts>
+                  </publisher>
+                  <buildInfo>
+                    <buildName>${gitRepositoryName}</buildName>
+                    <buildNumber>{{BUILD_NUMBER}}</buildNumber>
+                    <buildUrl>{{CI_BUILD_URL|BUILD_URL}}</buildUrl>
+                    <vcsRevision>{{GIT_COMMIT}}</vcsRevision>
+                  </buildInfo>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+
   </profiles>
 
 </project>

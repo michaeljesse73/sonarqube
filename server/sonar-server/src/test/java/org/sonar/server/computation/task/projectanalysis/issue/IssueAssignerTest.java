@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,6 +19,7 @@
  */
 package org.sonar.server.computation.task.projectanalysis.issue;
 
+import org.junit.Rule;
 import org.junit.Test;
 import org.sonar.api.rules.RuleType;
 import org.sonar.api.utils.log.LogTester;
@@ -30,6 +31,8 @@ import org.sonar.server.computation.task.projectanalysis.scm.Changeset;
 import org.sonar.server.computation.task.projectanalysis.scm.ScmInfoRepositoryRule;
 import org.sonar.server.issue.IssueFieldsSetter;
 
+import static java.util.stream.Collectors.joining;
+import static java.util.stream.IntStream.range;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -40,13 +43,13 @@ public class IssueAssignerTest {
   static final int FILE_REF = 1;
   static final Component FILE = builder(Component.Type.FILE, FILE_REF).setKey("FILE_KEY").setUuid("FILE_UUID").build();
 
-  @org.junit.Rule
+  @Rule
   public LogTester logTester = new LogTester();
 
-  @org.junit.Rule
+  @Rule
   public ScmInfoRepositoryRule scmInfoRepository = new ScmInfoRepositoryRule();
 
-  @org.junit.Rule
+  @Rule
   public AnalysisMetadataHolderRule analysisMetadataHolder = new AnalysisMetadataHolderRule().setAnalysisDate(123456789L);
 
   ScmAccountToUser scmAccountToUser = mock(ScmAccountToUser.class);
@@ -55,7 +58,7 @@ public class IssueAssignerTest {
   IssueAssigner underTest = new IssueAssigner(analysisMetadataHolder, scmInfoRepository, scmAccountToUser, defaultAssignee, new IssueFieldsSetter());
 
   @Test
-  public void nothing_to_do_if_no_changeset() throws Exception {
+  public void nothing_to_do_if_no_changeset() {
     DefaultIssue issue = new DefaultIssue().setLine(1);
 
     underTest.onIssue(FILE, issue);
@@ -64,7 +67,7 @@ public class IssueAssignerTest {
   }
 
   @Test
-  public void set_author_to_issue() throws Exception {
+  public void set_author_to_issue() {
     setSingleChangeset("john", 123456789L, "rev-1");
     DefaultIssue issue = new DefaultIssue().setLine(1);
 
@@ -74,7 +77,7 @@ public class IssueAssignerTest {
   }
 
   @Test
-  public void does_not_set_author_to_issue_if_already_set() throws Exception {
+  public void does_not_set_author_to_issue_if_already_set() {
     setSingleChangeset("john", 123456789L, "rev-1");
     DefaultIssue issue = new DefaultIssue()
       .setLine(1)
@@ -86,7 +89,7 @@ public class IssueAssignerTest {
   }
 
   @Test
-  public void set_assignee_to_issue() throws Exception {
+  public void set_assignee_to_issue() {
     addScmUser("john", "John C");
     setSingleChangeset("john", 123456789L, "rev-1");
     DefaultIssue issue = new DefaultIssue().setLine(1);
@@ -97,7 +100,22 @@ public class IssueAssignerTest {
   }
 
   @Test
-  public void set_default_assignee_if_author_not_found() throws Exception {
+  public void dont_store_author_too_long() {
+    String scmAuthor = range(0, 256).mapToObj(i -> "s").collect(joining());
+    addScmUser(scmAuthor, "John C");
+    setSingleChangeset(scmAuthor, 123456789L, "rev-1");
+    DefaultIssue issue = new DefaultIssue().setLine(1);
+
+    underTest.onIssue(FILE, issue);
+
+    assertThat(issue.authorLogin()).isNull();
+    assertThat(issue.assignee()).isEqualTo("John C");
+
+    assertThat(logTester.logs(LoggerLevel.DEBUG)).contains("SCM account '" + scmAuthor + "' is too long to be stored as issue author");
+  }
+
+  @Test
+  public void set_default_assignee_if_author_not_found() {
     addScmUser("john", null);
     setSingleChangeset("john", 123456789L, "rev-1");
     when(defaultAssignee.loadDefaultAssigneeLogin()).thenReturn("John C");
@@ -109,7 +127,7 @@ public class IssueAssignerTest {
   }
 
   @Test
-  public void doest_not_set_assignee_if_no_author() throws Exception {
+  public void doest_not_set_assignee_if_no_author() {
     addScmUser("john", "John C");
     setSingleChangeset(null, 123456789L, "rev-1");
     DefaultIssue issue = new DefaultIssue().setLine(1);
@@ -121,7 +139,7 @@ public class IssueAssignerTest {
   }
 
   @Test
-  public void doest_not_set_assignee_if_author_already_set_and_assignee_null() throws Exception {
+  public void doest_not_set_assignee_if_author_already_set_and_assignee_null() {
     addScmUser("john", "John C");
     setSingleChangeset("john", 123456789L, "rev-1");
     DefaultIssue issue = new DefaultIssue().setLine(1)
@@ -135,7 +153,7 @@ public class IssueAssignerTest {
   }
 
   @Test
-  public void set_last_committer_when_line_is_null() throws Exception {
+  public void set_last_committer_when_line_is_null() {
     addScmUser("henry", "Henry V");
     Changeset changeset1 = Changeset.newChangesetBuilder()
       .setAuthor("john")
@@ -158,7 +176,17 @@ public class IssueAssignerTest {
   }
 
   @Test
-  public void set_last_committer_when_line_is_bigger_than_changeset_size() throws Exception {
+  public void when_noscm_data_is_available_defaultAssignee_should_be_used() {
+    DefaultIssue issue = new DefaultIssue().setLine(null);
+
+    when(defaultAssignee.loadDefaultAssigneeLogin()).thenReturn("DefaultAssignee");
+    underTest.onIssue(FILE, issue);
+
+    assertThat(issue.assignee()).isEqualTo("DefaultAssignee");
+  }
+
+  @Test
+  public void set_last_committer_when_line_is_bigger_than_changeset_size() {
     addScmUser("john", "John C");
     Changeset changeset = Changeset.newChangesetBuilder()
       .setAuthor("john")
@@ -174,7 +202,7 @@ public class IssueAssignerTest {
   }
 
   @Test
-  public void display_warning_when_line_is_above_max_size() throws Exception {
+  public void display_warning_when_line_is_above_max_size() {
     setSingleChangeset("john", 123456789L, "rev-1");
     DefaultIssue issue = new DefaultIssue().setLine(2).setType(RuleType.VULNERABILITY);
 
@@ -185,7 +213,7 @@ public class IssueAssignerTest {
         "moduleUuid=<null>,moduleUuidPath=<null>,projectUuid=<null>,projectKey=<null>,ruleKey=<null>,language=<null>,severity=<null>," +
         "manualSeverity=false,message=<null>,line=2,gap=<null>,effort=<null>,status=<null>,resolution=<null>," +
         "assignee=<null>,checksum=<null>,attributes=<null>,authorLogin=<null>,comments=<null>,tags=<null>," +
-        "locations=<null>,creationDate=<null>,updateDate=<null>,closeDate=<null>,currentChange=<null>,changes=<null>,isNew=true," +
+        "locations=<null>,creationDate=<null>,updateDate=<null>,closeDate=<null>,currentChange=<null>,changes=<null>,isNew=true,isCopied=false," +
         "beingClosed=false,onDisabledRule=false,isChanged=false,sendNotifications=false,selectedAt=<null>]");
   }
 

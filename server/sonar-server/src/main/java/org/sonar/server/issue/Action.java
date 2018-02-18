@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -74,6 +74,8 @@ public abstract class Action {
   public abstract boolean verify(Map<String, Object> properties, Collection<DefaultIssue> issues, UserSession userSession);
 
   public abstract boolean execute(Map<String, Object> properties, Context context);
+
+  public abstract boolean shouldRefreshMeasures();
 
   public interface Context {
     DefaultIssue issue();

@@ -5,17 +5,16 @@ exports[`should match snapshot 1`] = `
   className="account-body account-container"
 >
   <HelmetWrapper
+    defer={true}
+    encodeSpecialCharacters={true}
     title="my_account.notifications"
   />
   <p
-    className="big-spacer-bottom"
+    className="alert alert-info"
   >
     notification.dispatcher.information
   </p>
   <Connect(GlobalNotifications) />
-  <hr
-    className="account-separator"
-  />
   <Connect(Projects) />
 </div>
 `;

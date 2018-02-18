@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -144,16 +144,11 @@ public interface Select extends SqlStatement<Select> {
   RowReader<Long> LONG_READER = new LongReader();
 
   class StringReader implements RowReader<String> {
-    private StringReader() {
-    }
-
     @Override
     public String read(Row row) throws SQLException {
       return row.getNullableString(1);
     }
   }
-
-  RowReader<String> STRING_READER = new StringReader();
 
   @FunctionalInterface
   interface RowHandler {

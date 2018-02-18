@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,37 +20,41 @@
 import React from 'react';
 import { Link } from 'react-router';
 import enhance from './enhance';
-import LeakPeriodLegend from '../components/LeakPeriodLegend';
-import { getMetricName } from '../helpers/metrics';
-import { translate } from '../../../helpers/l10n';
+import ApplicationLeakPeriodLegend from '../components/ApplicationLeakPeriodLegend';
+import BubblesIcon from '../../../components/icons-components/BubblesIcon';
 import BugIcon from '../../../components/icons-components/BugIcon';
+import LeakPeriodLegend from '../components/LeakPeriodLegend';
 import VulnerabilityIcon from '../../../components/icons-components/VulnerabilityIcon';
+import { getMetricName } from '../helpers/metrics';
+import { getComponentDrilldownUrl } from '../../../helpers/urls';
+import { translate } from '../../../helpers/l10n';
 
 class BugsAndVulnerabilities extends React.PureComponent {
   renderHeader() {
-    const { component } = this.props;
-    const bugsDomainUrl = {
-      pathname: '/component_measures/domain/Reliability',
-      query: { id: component.key }
-    };
-    const vulnerabilitiesDomainUrl = {
-      pathname: '/component_measures/domain/Security',
-      query: { id: component.key }
-    };
+    const { branch, component } = this.props;
 
     return (
       <div className="overview-card-header">
         <div className="overview-title">
-          <Link to={bugsDomainUrl}>{translate('metric.bugs.name')}</Link>
-          {' & '}
-          <Link to={vulnerabilitiesDomainUrl}>{translate('metric.vulnerabilities.name')}</Link>
+          <span>{translate('metric.bugs.name')}</span>
+          <Link
+            className="button button-small spacer-left text-text-bottom"
+            to={getComponentDrilldownUrl(component.key, 'Reliability', branch)}>
+            <BubblesIcon size={14} />
+          </Link>
+          <span className="big-spacer-left">{translate('metric.vulnerabilities.name')}</span>
+          <Link
+            className="button button-small spacer-left text-text-bottom"
+            to={getComponentDrilldownUrl(component.key, 'Security', branch)}>
+            <BubblesIcon size={14} />
+          </Link>
         </div>
       </div>
     );
   }
 
   renderLeak() {
-    const { leakPeriod } = this.props;
+    const { component, leakPeriod } = this.props;
 
     if (leakPeriod == null) {
       return null;
@@ -58,22 +62,23 @@ class BugsAndVulnerabilities extends React.PureComponent {
 
     return (
       <div className="overview-domain-leak">
-        <LeakPeriodLegend period={leakPeriod} />
+        {component.qualifier === 'APP' ? (
+          <ApplicationLeakPeriodLegend component={component} />
+        ) : (
+          <LeakPeriodLegend period={leakPeriod} />
+        )}
 
         <div className="overview-domain-measures">
           <div className="overview-domain-measure">
             <div className="overview-domain-measure-value">
-              <span style={{ marginLeft: 30 }}>
-                {this.props.renderIssues('new_bugs', 'BUG')}
-              </span>
+              <span style={{ marginLeft: 30 }}>{this.props.renderIssues('new_bugs', 'BUG')}</span>
               {this.props.renderRating('new_reliability_rating')}
             </div>
             <div className="overview-domain-measure-label">
-              <span className="little-spacer-right"><BugIcon /></span>
+              <BugIcon className="little-spacer-right" />
               {getMetricName('new_bugs')}
             </div>
           </div>
-
           <div className="overview-domain-measure">
             <div className="overview-domain-measure-value">
               <span style={{ marginLeft: 30 }}>
@@ -82,7 +87,7 @@ class BugsAndVulnerabilities extends React.PureComponent {
               {this.props.renderRating('new_security_rating')}
             </div>
             <div className="overview-domain-measure-label">
-              <span className="little-spacer-right"><VulnerabilityIcon /></span>
+              <VulnerabilityIcon className="little-spacer-right" />
               {getMetricName('new_vulnerabilities')}
             </div>
           </div>
@@ -95,30 +100,26 @@ class BugsAndVulnerabilities extends React.PureComponent {
     return (
       <div className="overview-domain-nutshell">
         <div className="overview-domain-measures">
-
           <div className="overview-domain-measure">
-            <div className="display-inline-block text-middle" style={{ paddingLeft: 56 }}>
-              <div className="overview-domain-measure-value">
-                {this.props.renderIssues('bugs', 'BUG')}
-                {this.props.renderRating('reliability_rating')}
-              </div>
-              <div className="overview-domain-measure-label">
-                <span className="little-spacer-right"><BugIcon /></span>
-                {getMetricName('bugs')}
-              </div>
+            <div className="overview-domain-measure-value">
+              {this.props.renderIssues('bugs', 'BUG')}
+              {this.props.renderRating('reliability_rating')}
+            </div>
+            <div className="overview-domain-measure-label">
+              <BugIcon className="little-spacer-right " />
+              {getMetricName('bugs')}
+              {this.props.renderHistoryLink('bugs')}
             </div>
           </div>
-
           <div className="overview-domain-measure">
-            <div className="display-inline-block text-middle">
-              <div className="overview-domain-measure-value">
-                {this.props.renderIssues('vulnerabilities', 'VULNERABILITY')}
-                {this.props.renderRating('security_rating')}
-              </div>
-              <div className="overview-domain-measure-label">
-                <span className="little-spacer-right"><VulnerabilityIcon /></span>
-                {getMetricName('vulnerabilities')}
-              </div>
+            <div className="overview-domain-measure-value">
+              {this.props.renderIssues('vulnerabilities', 'VULNERABILITY')}
+              {this.props.renderRating('security_rating')}
+            </div>
+            <div className="overview-domain-measure-label">
+              <VulnerabilityIcon className="little-spacer-right " />
+              {getMetricName('vulnerabilities')}
+              {this.props.renderHistoryLink('vulnerabilities')}
             </div>
           </div>
         </div>
@@ -127,6 +128,11 @@ class BugsAndVulnerabilities extends React.PureComponent {
   }
 
   render() {
+    const { measures } = this.props;
+    const bugsMeasure = measures.find(measure => measure.metric.key === 'bugs');
+    if (bugsMeasure == null) {
+      return null;
+    }
     return (
       <div className="overview-card overview-card-special">
         {this.renderHeader()}

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,8 +24,9 @@ import ConciseIssueLocations from './ConciseIssueLocations';
 import ConciseIssueLocationsNavigator from './ConciseIssueLocationsNavigator';
 import SeverityHelper from '../../../components/shared/SeverityHelper';
 import TypeHelper from '../../../components/shared/TypeHelper';
-import type { Issue } from '../../../components/issue/types';
+/*:: import type { Issue } from '../../../components/issue/types'; */
 
+/*::
 type Props = {|
   issue: Issue,
   onClick: string => void,
@@ -36,11 +37,12 @@ type Props = {|
   selectedFlowIndex: ?number,
   selectedLocationIndex: ?number
 |};
+*/
 
 export default class ConciseIssueBox extends React.PureComponent {
-  messageElement: HTMLElement;
-  rootElement: HTMLElement;
-  props: Props;
+  /*:: messageElement: HTMLElement; */
+  /*:: rootElement: HTMLElement; */
+  /*:: props: Props; */
 
   componentDidMount() {
     if (this.props.selected) {
@@ -48,7 +50,7 @@ export default class ConciseIssueBox extends React.PureComponent {
     }
   }
 
-  componentDidUpdate(prevProps: Props) {
+  componentDidUpdate(prevProps /*: Props */) {
     if (this.props.selected && prevProps.selected !== this.props.selected) {
       this.handleScroll();
     }
@@ -58,9 +60,10 @@ export default class ConciseIssueBox extends React.PureComponent {
     const { selectedFlowIndex } = this.props;
     const { flows, secondaryLocations } = this.props.issue;
 
-    const locations = selectedFlowIndex != null
-      ? flows[selectedFlowIndex]
-      : flows.length > 0 ? flows[0] : secondaryLocations;
+    const locations =
+      selectedFlowIndex != null
+        ? flows[selectedFlowIndex]
+        : flows.length > 0 ? flows[0] : secondaryLocations;
 
     if (locations == null || locations.length < 15) {
       // if there are no locations, or there are just few
@@ -68,11 +71,11 @@ export default class ConciseIssueBox extends React.PureComponent {
       this.props.scroll(this.rootElement);
     } else {
       // otherwise scroll until the the message element is located on top
-      this.props.scroll(this.messageElement, window.innerHeight - 200);
+      this.props.scroll(this.messageElement, window.innerHeight - 250);
     }
   };
 
-  handleClick = (event: Event) => {
+  handleClick = (event /*: Event */) => {
     event.preventDefault();
     this.props.onClick(this.props.issue.key);
   };
@@ -101,14 +104,15 @@ export default class ConciseIssueBox extends React.PureComponent {
             selectedFlowIndex={this.props.selectedFlowIndex}
           />
         </div>
-        {selected &&
+        {selected && (
           <ConciseIssueLocationsNavigator
             issue={issue}
             onLocationSelect={this.props.onLocationSelect}
             scroll={this.props.scroll}
             selectedFlowIndex={this.props.selectedFlowIndex}
             selectedLocationIndex={this.props.selectedLocationIndex}
-          />}
+          />
+        )}
       </div>
     );
   }

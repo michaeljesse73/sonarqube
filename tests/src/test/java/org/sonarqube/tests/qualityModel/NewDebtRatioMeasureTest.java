@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,13 +20,12 @@
 package org.sonarqube.tests.qualityModel;
 
 import com.sonar.orchestrator.Orchestrator;
-import org.sonarqube.tests.Category2Suite;
 import java.util.Date;
 import javax.annotation.Nullable;
-import org.junit.AfterClass;
-import org.junit.Before;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
+import org.sonarqube.qa.util.Tester;
 import util.ItUtils;
 
 import static org.apache.commons.lang.time.DateUtils.addDays;
@@ -34,8 +33,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 import static util.ItUtils.formatDate;
 import static util.ItUtils.getLeakPeriodValue;
-import static util.ItUtils.resetPeriod;
-import static util.ItUtils.setServerProperty;
 import static util.ItUtils.toDate;
 
 /**
@@ -44,27 +41,19 @@ import static util.ItUtils.toDate;
 public class NewDebtRatioMeasureTest {
 
   private static final String NEW_DEBT_RATIO_METRIC_KEY = "new_sqale_debt_ratio";
-
   private static final Date FIRST_COMMIT_DATE = toDate("2016-09-01");
   private static final Date SECOND_COMMIT_DATE = toDate("2016-09-17");
   private static final Date THIRD_COMMIT_DATE = toDate("2016-09-20");
 
   @ClassRule
-  public static Orchestrator orchestrator = Category2Suite.ORCHESTRATOR;
+  public static Orchestrator orchestrator = QualityModelSuite.ORCHESTRATOR;
 
-  @AfterClass
-  public static void reset() throws Exception {
-    resetPeriod(orchestrator);
-  }
-
-  @Before
-  public void cleanUpAnalysisData() {
-    orchestrator.resetData();
-  }
+  @Rule
+  public Tester tester = new Tester(orchestrator);
 
   @Test
-  public void new_debt_ratio_is_computed_from_new_debt_and_new_ncloc_count_per_file() throws Exception {
-    setServerProperty(orchestrator, "sonar.leak.period", "previous_analysis");
+  public void new_debt_ratio_is_computed_from_new_debt_and_new_ncloc_count_per_file() {
+    tester.settings().setGlobalSettings("sonar.leak.period", "previous_version");
 
     // run analysis on the day of after the first commit, with 'one-issue-per-line' profile
     defineQualityProfile("one-issue-per-line");
@@ -87,8 +76,8 @@ public class NewDebtRatioMeasureTest {
   }
 
   @Test
-  public void compute_new_debt_ratio_using_number_days_in_leak_period() throws Exception {
-    setServerProperty(orchestrator, "sonar.leak.period", "30");
+  public void compute_new_debt_ratio_using_number_days_in_leak_period() {
+    tester.settings().setGlobalSettings("sonar.leak.period", "30");
 
     // run analysis on the day of after the first commit, with 'one-issue-per-line' profile
     defineQualityProfile("one-issue-per-line");
@@ -136,7 +125,8 @@ public class NewDebtRatioMeasureTest {
       "measure/xoo-new-debt-ratio-" + projectVersion,
       ItUtils.concat(properties,
         // disable standard scm support so that it does not interfere with Xoo Scm sensor
-        "sonar.scm.disabled", "false"));
+        "sonar.scm.disabled", "false",
+        "sonar.projectVersion", projectVersion));
   }
 
 }

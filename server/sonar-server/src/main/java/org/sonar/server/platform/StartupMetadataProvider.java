@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -30,7 +30,6 @@ import org.sonar.api.utils.System2;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
 import org.sonar.db.property.PropertyDto;
-import org.sonar.server.platform.cluster.Cluster;
 
 import static com.google.common.base.Preconditions.checkState;
 import static org.apache.commons.lang.StringUtils.isBlank;
@@ -42,9 +41,9 @@ public class StartupMetadataProvider extends ProviderAdapter {
 
   private StartupMetadata cache = null;
 
-  public StartupMetadata provide(System2 system, SonarRuntime runtime, Cluster cluster, DbClient dbClient) {
+  public StartupMetadata provide(System2 system, SonarRuntime runtime, WebServer webServer, DbClient dbClient) {
     if (cache == null) {
-      if (runtime.getSonarQubeSide() == SonarQubeSide.SERVER && cluster.isStartupLeader()) {
+      if (runtime.getSonarQubeSide() == SonarQubeSide.SERVER && webServer.isStartupLeader()) {
         cache = generate(system);
       } else {
         cache = load(dbClient);
@@ -54,8 +53,7 @@ public class StartupMetadataProvider extends ProviderAdapter {
   }
 
   /**
-   * Generate {@link CoreProperties#SERVER_ID} if it doesn't exist yet, otherwise just load it from DB, and always
-   * generate a {@link CoreProperties#SERVER_STARTTIME}.
+   * Generate a {@link CoreProperties#SERVER_STARTTIME}.
    * <p>
    * Persistence is performed by {@link StartupMetadataPersister}.
    * </p>

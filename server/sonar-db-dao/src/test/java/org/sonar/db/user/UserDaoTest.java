@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -34,6 +34,8 @@ import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
 import org.sonar.db.DbTester;
 import org.sonar.db.RowNotFoundException;
+import org.sonar.db.component.ComponentDto;
+import org.sonar.db.organization.OrganizationDto;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
@@ -321,7 +323,9 @@ public class UserDaoTest {
       .setExternalIdentityProvider("github")
       .setLocal(true)
       .setCreatedAt(date)
-      .setUpdatedAt(date);
+      .setUpdatedAt(date)
+      .setHomepageType("project")
+      .setHomepageParameter("OB1");
     underTest.insert(db.getSession(), userDto);
     db.getSession().commit();
 
@@ -340,6 +344,8 @@ public class UserDaoTest {
     assertThat(user.getExternalIdentityProvider()).isEqualTo("github");
     assertThat(user.isLocal()).isTrue();
     assertThat(user.isRoot()).isFalse();
+    assertThat(user.getHomepageType()).isEqualTo("project");
+    assertThat(user.getHomepageParameter()).isEqualTo("OB1");
   }
 
   @Test
@@ -364,7 +370,9 @@ public class UserDaoTest {
       .setCryptedPassword("abcde")
       .setExternalIdentity("johngithub")
       .setExternalIdentityProvider("github")
-      .setLocal(false);
+      .setLocal(false)
+      .setHomepageType("project")
+      .setHomepageParameter("OB1");
     underTest.update(db.getSession(), userUpdate);
 
     UserDto reloaded = underTest.selectByLogin(db.getSession(), user.getLogin());
@@ -382,6 +390,8 @@ public class UserDaoTest {
     assertThat(reloaded.getExternalIdentityProvider()).isEqualTo("github");
     assertThat(reloaded.isLocal()).isFalse();
     assertThat(reloaded.isRoot()).isFalse();
+    assertThat(reloaded.getHomepageType()).isEqualTo("project");
+    assertThat(reloaded.getHomepageParameter()).isEqualTo("OB1");
   }
 
   @Test
@@ -403,7 +413,57 @@ public class UserDaoTest {
     assertThat(userReloaded.getExternalIdentityProvider()).isNull();
     assertThat(userReloaded.isRoot()).isFalse();
     assertThat(userReloaded.getUpdatedAt()).isEqualTo(NOW);
+    assertThat(userReloaded.getHomepageType()).isNull();
+    assertThat(userReloaded.getHomepageParameter()).isNull();
     assertThat(underTest.selectUserById(session, otherUser.getId())).isNotNull();
+  }
+
+  @Test
+  public void clean_users_homepage_when_deleting_organization() {
+
+    UserDto userUnderTest = newUserDto().setHomepageType("ORGANIZATION").setHomepageParameter("dummy-organization-UUID");
+    underTest.insert(session, userUnderTest);
+
+    UserDto untouchedUser = newUserDto().setHomepageType("ORGANIZATION").setHomepageParameter("not-so-dummy-organization-UUID");
+    underTest.insert(session, untouchedUser);
+
+    session.commit();
+
+    underTest.cleanHomepage(session, new OrganizationDto().setUuid("dummy-organization-UUID"));
+
+    UserDto userWithAHomepageReloaded = underTest.selectUserById(session, userUnderTest.getId());
+    assertThat(userWithAHomepageReloaded.getUpdatedAt()).isEqualTo(NOW);
+    assertThat(userWithAHomepageReloaded.getHomepageType()).isNull();
+    assertThat(userWithAHomepageReloaded.getHomepageParameter()).isNull();
+
+    UserDto untouchedUserReloaded = underTest.selectUserById(session, untouchedUser.getId());
+    assertThat(untouchedUserReloaded.getUpdatedAt()).isEqualTo(untouchedUser.getUpdatedAt());
+    assertThat(untouchedUserReloaded.getHomepageType()).isEqualTo(untouchedUser.getHomepageType());
+    assertThat(untouchedUserReloaded.getHomepageParameter()).isEqualTo(untouchedUser.getHomepageParameter());
+  }
+
+  @Test
+  public void clean_users_homepage_when_deleting_project() {
+
+    UserDto userUnderTest = newUserDto().setHomepageType("PROJECT").setHomepageParameter("dummy-project-UUID");
+    underTest.insert(session, userUnderTest);
+
+    UserDto untouchedUser = newUserDto().setHomepageType("PROJECT").setHomepageParameter("not-so-dummy-project-UUID");
+    underTest.insert(session, untouchedUser);
+
+    session.commit();
+
+    underTest.cleanHomepage(session, new ComponentDto().setUuid("dummy-project-UUID"));
+
+    UserDto userWithAHomepageReloaded = underTest.selectUserById(session, userUnderTest.getId());
+    assertThat(userWithAHomepageReloaded.getUpdatedAt()).isEqualTo(NOW);
+    assertThat(userWithAHomepageReloaded.getHomepageType()).isNull();
+    assertThat(userWithAHomepageReloaded.getHomepageParameter()).isNull();
+
+    UserDto untouchedUserReloaded = underTest.selectUserById(session, untouchedUser.getId());
+    assertThat(untouchedUserReloaded.getUpdatedAt()).isEqualTo(untouchedUser.getUpdatedAt());
+    assertThat(untouchedUserReloaded.getHomepageType()).isEqualTo(untouchedUser.getHomepageType());
+    assertThat(untouchedUserReloaded.getHomepageParameter()).isEqualTo(untouchedUser.getHomepageParameter());
   }
 
   @Test
@@ -420,7 +480,9 @@ public class UserDaoTest {
       .setActive(true)
       .setScmAccounts("\nma\nmarius33\n")
       .setSalt("79bd6a8e79fb8c76ac8b121cc7e8e11ad1af8365")
-      .setCryptedPassword("650d2261c98361e2f67f90ce5c65a95e7d8ea2fg"));
+      .setCryptedPassword("650d2261c98361e2f67f90ce5c65a95e7d8ea2fg")
+      .setHomepageType("project")
+      .setHomepageParameter("OB1"));
     UserDto user2 = db.users().insertUser();
     underTest.setRoot(session, user2.getLogin(), true);
 
@@ -436,6 +498,8 @@ public class UserDaoTest {
     assertThat(dto.isRoot()).isFalse();
     assertThat(dto.getCreatedAt()).isEqualTo(user1.getCreatedAt());
     assertThat(dto.getUpdatedAt()).isEqualTo(user1.getUpdatedAt());
+    assertThat(dto.getHomepageType()).isEqualTo("project");
+    assertThat(dto.getHomepageParameter()).isEqualTo("OB1");
 
     dto = underTest.selectOrFailByLogin(session, user2.getLogin());
     assertThat(dto.isRoot()).isTrue();
@@ -483,13 +547,13 @@ public class UserDaoTest {
   }
 
   @Test
-  public void exists_by_email() {
-    UserDto activeUser = insertActiveUser();
-    UserDto disableUser = insertUser(false);
+  public void select_by_email() {
+    UserDto activeUser = db.users().insertUser();
+    UserDto disableUser = db.users().insertUser(u -> u.setActive(false));
 
-    assertThat(underTest.doesEmailExist(session, activeUser.getEmail())).isTrue();
-    assertThat(underTest.doesEmailExist(session, disableUser.getEmail())).isFalse();
-    assertThat(underTest.doesEmailExist(session, "unknown")).isFalse();
+    assertThat(underTest.selectByEmail(session, activeUser.getEmail())).isNotNull();
+    assertThat(underTest.selectByEmail(session, disableUser.getEmail())).isNull();
+    assertThat(underTest.selectByEmail(session, "unknown")).isNull();
   }
 
   @Test

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,6 +24,7 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
+import org.apache.commons.dbcp.BasicDataSource;
 import org.apache.commons.lang.StringUtils;
 import org.picocontainer.containers.TransientPicoContainer;
 import org.sonar.api.utils.System2;
@@ -38,10 +39,13 @@ import org.sonar.db.organization.OrganizationDbTester;
 import org.sonar.db.organization.OrganizationDto;
 import org.sonar.db.organization.OrganizationTesting;
 import org.sonar.db.permission.template.PermissionTemplateDbTester;
+import org.sonar.db.plugin.PluginDbTester;
 import org.sonar.db.property.PropertyDbTester;
 import org.sonar.db.qualitygate.QualityGateDbTester;
+import org.sonar.db.qualitygate.QualityGateDto;
 import org.sonar.db.qualityprofile.QualityProfileDbTester;
 import org.sonar.db.rule.RuleDbTester;
+import org.sonar.db.source.FileSourceTester;
 import org.sonar.db.user.RootFlagAssertions;
 import org.sonar.db.user.UserDbTester;
 
@@ -61,6 +65,7 @@ public class DbTester extends AbstractDbTester<TestDb> {
   private boolean started = false;
   private String defaultOrganizationUuid = randomAlphanumeric(40);
   private OrganizationDto defaultOrganization;
+  private QualityGateDto builtInQualityGate;
 
   private final UserDbTester userTester;
   private final ComponentDbTester componentTester;
@@ -76,6 +81,8 @@ public class DbTester extends AbstractDbTester<TestDb> {
   private final RootFlagAssertions rootFlagAssertions;
   private final QualityProfileDbTester qualityProfileDbTester;
   private final MeasureDbTester measureDbTester;
+  private final FileSourceTester fileSourceTester;
+  private final PluginDbTester pluginDbTester;
 
   public DbTester(System2 system2, @Nullable String schemaPath) {
     super(TestDb.create(schemaPath));
@@ -96,6 +103,8 @@ public class DbTester extends AbstractDbTester<TestDb> {
     this.rootFlagAssertions = new RootFlagAssertions(this);
     this.qualityProfileDbTester = new QualityProfileDbTester(this);
     this.measureDbTester = new MeasureDbTester(this);
+    this.fileSourceTester = new FileSourceTester(this);
+    this.pluginDbTester = new PluginDbTester(this);
   }
 
   public static DbTester create() {
@@ -142,7 +151,7 @@ public class DbTester extends AbstractDbTester<TestDb> {
   }
 
   @Override
-  protected void before() throws Throwable {
+  protected void before() {
     db.start();
     db.truncateTables();
     initDbClient();
@@ -222,8 +231,16 @@ public class DbTester extends AbstractDbTester<TestDb> {
     return qualityProfileDbTester;
   }
 
-  public MeasureDbTester measureDbTester() {
+  public MeasureDbTester measures() {
     return measureDbTester;
+  }
+
+  public FileSourceTester fileSources() {
+    return fileSourceTester;
+  }
+
+  public PluginDbTester pluginDbTester() {
+    return pluginDbTester;
   }
 
   @Override
@@ -286,6 +303,10 @@ public class DbTester extends AbstractDbTester<TestDb> {
     return db.getDatabase();
   }
 
+  public String getUrl() {
+    return ((BasicDataSource) db.getDatabase().getDataSource()).getUrl();
+  }
+
   public DatabaseCommands getCommands() {
     return db.getCommands();
   }
@@ -298,7 +319,7 @@ public class DbTester extends AbstractDbTester<TestDb> {
     }
 
     @Override
-    public Connection get() throws SQLException {
+    public Connection get() {
       return dbSession.getConnection();
     }
 

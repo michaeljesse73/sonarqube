@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,16 +21,22 @@
 import React from 'react';
 import { mount } from 'enzyme';
 import TokenStep from '../TokenStep';
-import { change, click, doAsync, submit } from '../../../../helpers/testUtils';
+import { change, click, submit, waitAndUpdate } from '../../../../helpers/testUtils';
 
 jest.mock('../../../../api/user-tokens', () => ({
+  getTokens: () => Promise.resolve([{ name: 'foo' }]),
   generateToken: () => Promise.resolve({ token: 'abcd1234' }),
   revokeToken: () => Promise.resolve()
 }));
 
-it('generates token', () => {
+jest.mock('../../../../components/icons-components/ClearIcon');
+
+const currentUser = { login: 'user' };
+
+it('generates token', async () => {
   const wrapper = mount(
     <TokenStep
+      currentUser={currentUser}
       finished={false}
       open={true}
       onContinue={jest.fn()}
@@ -38,16 +44,19 @@ it('generates token', () => {
       stepNumber={1}
     />
   );
+  await waitAndUpdate(wrapper);
   expect(wrapper).toMatchSnapshot();
   change(wrapper.find('input'), 'my token');
   submit(wrapper.find('form'));
   expect(wrapper).toMatchSnapshot(); // spinner
-  return doAsync(() => expect(wrapper).toMatchSnapshot());
+  await waitAndUpdate(wrapper);
+  expect(wrapper).toMatchSnapshot();
 });
 
-it('revokes token', () => {
+it('revokes token', async () => {
   const wrapper = mount(
     <TokenStep
+      currentUser={currentUser}
       finished={false}
       open={true}
       onContinue={jest.fn()}
@@ -55,17 +64,21 @@ it('revokes token', () => {
       stepNumber={1}
     />
   );
+  await new Promise(setImmediate);
   wrapper.setState({ token: 'abcd1234', tokenName: 'my token' });
   expect(wrapper).toMatchSnapshot();
-  submit(wrapper.find('form'));
+  wrapper.find('DeleteButton').prop('onClick')();
+  wrapper.update();
   expect(wrapper).toMatchSnapshot(); // spinner
-  return doAsync(() => expect(wrapper).toMatchSnapshot());
+  await waitAndUpdate(wrapper);
+  expect(wrapper).toMatchSnapshot();
 });
 
-it('continues', () => {
+it('continues', async () => {
   const onContinue = jest.fn();
   const wrapper = mount(
     <TokenStep
+      currentUser={currentUser}
       finished={false}
       open={true}
       onContinue={onContinue}
@@ -73,7 +86,26 @@ it('continues', () => {
       stepNumber={1}
     />
   );
+  await new Promise(setImmediate);
   wrapper.setState({ token: 'abcd1234', tokenName: 'my token' });
+  click(wrapper.find('.js-continue'));
+  expect(onContinue).toBeCalledWith('abcd1234');
+});
+
+it('uses existing token', async () => {
+  const onContinue = jest.fn();
+  const wrapper = mount(
+    <TokenStep
+      currentUser={currentUser}
+      finished={false}
+      open={true}
+      onContinue={onContinue}
+      onOpen={jest.fn()}
+      stepNumber={1}
+    />
+  );
+  await new Promise(setImmediate);
+  wrapper.setState({ existingToken: 'abcd1234', selection: 'use-existing' });
   click(wrapper.find('.js-continue'));
   expect(onContinue).toBeCalledWith('abcd1234');
 });

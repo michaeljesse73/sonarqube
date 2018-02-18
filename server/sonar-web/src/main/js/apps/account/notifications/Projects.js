@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,37 +18,41 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import React from 'react';
-import Select from 'react-select';
 import { connect } from 'react-redux';
 import { differenceBy } from 'lodash';
 import ProjectNotifications from './ProjectNotifications';
+import { AsyncSelect } from '../../../components/controls/Select';
 import Organization from '../../../components/shared/Organization';
 import { translate } from '../../../helpers/l10n';
 import { getSuggestions } from '../../../api/components';
 import { getProjectsWithNotifications } from '../../../store/rootReducer';
 
+/*::
 type Props = {
   projects: Array<{
     key: string,
     name: string
   }>
 };
+*/
 
+/*::
 type State = {
   addedProjects: Array<{
     key: string,
     name: string
   }>
 };
+*/
 
 class Projects extends React.PureComponent {
-  props: Props;
+  /*:: props: Props; */
 
-  state: State = {
+  state /*: State */ = {
     addedProjects: []
   };
 
-  componentWillReceiveProps(nextProps: Props) {
+  componentWillReceiveProps(nextProps /*: Props */) {
     // remove all projects from `this.state.addedProjects`
     // that already exist in `nextProps.projects`
     const nextAddedProjects = differenceBy(
@@ -109,33 +113,32 @@ class Projects extends React.PureComponent {
     const allProjects = [...this.props.projects, ...this.state.addedProjects];
 
     return (
-      <section>
-        <h2 className="spacer-bottom">
-          {translate('my_profile.per_project_notifications.title')}
-        </h2>
+      <section className="boxed-group">
+        <h2>{translate('my_profile.per_project_notifications.title')}</h2>
 
-        {allProjects.length === 0 &&
-          <div className="note">
-            {translate('my_account.no_project_notifications')}
-          </div>}
+        <div className="boxed-group-inner">
+          {allProjects.length === 0 && (
+            <div className="note">{translate('my_account.no_project_notifications')}</div>
+          )}
 
-        {allProjects.map(project => <ProjectNotifications key={project.key} project={project} />)}
+          {allProjects.map(project => <ProjectNotifications key={project.key} project={project} />)}
 
-        <div className="spacer-top panel bg-muted">
-          <span className="text-middle spacer-right">
-            Set notifications for:
-          </span>
-          <Select.Async
-            autoload={false}
-            cache={false}
-            name="new_project"
-            style={{ width: '300px' }}
-            loadOptions={this.loadOptions}
-            minimumInput={2}
-            optionRenderer={this.renderOption}
-            onChange={this.handleAddProject}
-            placeholder="Search Project"
-          />
+          <div className="spacer-top panel bg-muted">
+            <span className="text-middle spacer-right">
+              {translate('my_account.set_notifications_for')}:
+            </span>
+            <AsyncSelect
+              autoload={false}
+              cache={false}
+              name="new_project"
+              style={{ width: '300px' }}
+              loadOptions={this.loadOptions}
+              minimumInput={2}
+              optionRenderer={this.renderOption}
+              onChange={this.handleAddProject}
+              placeholder={translate('my_account.search_project')}
+            />
+          </div>
         </div>
       </section>
     );

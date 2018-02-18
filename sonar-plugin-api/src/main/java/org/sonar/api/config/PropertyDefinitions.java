@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -34,6 +34,8 @@ import org.sonar.api.batch.ScannerSide;
 import org.sonar.api.ce.ComputeEngineSide;
 import org.sonar.api.server.ServerSide;
 import org.sonar.api.utils.AnnotationUtils;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * Metadata of all the properties declared by plugins
@@ -127,7 +129,9 @@ public final class PropertyDefinitions {
   }
 
   public String validKey(String key) {
-    return StringUtils.defaultString(deprecatedKeys.get(key), key);
+    requireNonNull(key, "key can't be null");
+    String trimmedKey = key.trim();
+    return StringUtils.defaultString(deprecatedKeys.get(trimmedKey), trimmedKey);
   }
 
   /**

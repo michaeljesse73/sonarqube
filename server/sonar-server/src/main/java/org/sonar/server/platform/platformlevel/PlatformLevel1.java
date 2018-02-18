@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,9 +19,9 @@
  */
 package org.sonar.server.platform.platformlevel;
 
+import java.time.Clock;
 import java.util.Properties;
 import javax.annotation.Nullable;
-import org.sonar.db.DBSessionsImpl;
 import org.sonar.api.SonarQubeSide;
 import org.sonar.api.SonarQubeVersion;
 import org.sonar.api.internal.ApiVersion;
@@ -29,15 +29,16 @@ import org.sonar.api.internal.SonarRuntimeImpl;
 import org.sonar.api.utils.System2;
 import org.sonar.api.utils.Version;
 import org.sonar.api.utils.internal.TempFolderCleaner;
-import org.sonar.core.config.ConfigurationProvider;
+import org.sonar.server.config.ConfigurationProvider;
 import org.sonar.core.config.CorePropertyDefinitions;
 import org.sonar.core.util.UuidFactoryImpl;
+import org.sonar.db.DBSessionsImpl;
 import org.sonar.db.DaoModule;
 import org.sonar.db.DatabaseChecker;
 import org.sonar.db.DbClient;
 import org.sonar.db.DefaultDatabase;
 import org.sonar.db.purge.PurgeProfiler;
-import org.sonar.db.semaphore.SemaphoresImpl;
+import org.sonar.process.NetworkUtilsImpl;
 import org.sonar.process.logging.LogbackHelper;
 import org.sonar.server.app.ProcessCommandWrapperImpl;
 import org.sonar.server.app.RestartFlagHolderImpl;
@@ -48,11 +49,12 @@ import org.sonar.server.platform.Platform;
 import org.sonar.server.platform.ServerFileSystemImpl;
 import org.sonar.server.platform.TempFolderProvider;
 import org.sonar.server.platform.UrlSettings;
-import org.sonar.server.platform.cluster.ClusterImpl;
+import org.sonar.server.platform.WebServerImpl;
 import org.sonar.server.platform.db.EmbeddedDatabaseFactory;
 import org.sonar.server.rule.index.RuleIndex;
 import org.sonar.server.search.EsSearchModule;
 import org.sonar.server.setting.ThreadLocalSettings;
+import org.sonar.server.user.SystemPasscodeImpl;
 import org.sonar.server.user.ThreadLocalUserSession;
 import org.sonar.server.util.OkHttpClientProvider;
 
@@ -83,6 +85,7 @@ public class PlatformLevel1 extends PlatformLevel {
       ProcessCommandWrapperImpl.class,
       RestartFlagHolderImpl.class,
       UuidFactoryImpl.INSTANCE,
+      NetworkUtilsImpl.INSTANCE,
       UrlSettings.class,
       EmbeddedDatabaseFactory.class,
       LogbackHelper.class,
@@ -94,13 +97,14 @@ public class PlatformLevel1 extends PlatformLevel {
       org.sonar.core.persistence.MyBatis.class,
       PurgeProfiler.class,
       ServerFileSystemImpl.class,
-      SemaphoresImpl.class,
       TempFolderCleaner.class,
       new TempFolderProvider(),
       System2.INSTANCE,
+      Clock.systemDefaultZone(),
 
       // user session
       ThreadLocalUserSession.class,
+      SystemPasscodeImpl.class,
 
       // DB
       DBSessionsImpl.class,
@@ -122,7 +126,7 @@ public class PlatformLevel1 extends PlatformLevel {
     addAll(CorePropertyDefinitions.all());
 
     // cluster
-    add(ClusterImpl.class);
+    add(WebServerImpl.class);
   }
 
   private void addExtraRootComponents() {

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,28 +19,27 @@
  */
 // @flow
 import React from 'react';
+import Tooltip from '../../../components/controls/Tooltip';
 import ProjectEventIcon from '../../../components/icons-components/ProjectEventIcon';
-import { TooltipsContainer } from '../../../components/mixins/tooltips-mixin';
 import { translate } from '../../../helpers/l10n';
-import type { Event as EventType } from '../types';
+/*:: import type { Event as EventType } from '../types'; */
 
-export default function EventInner(props: { event: EventType }) {
+export default function EventInner(props /*: { event: EventType } */) {
   const { event } = props;
 
   return (
-    <TooltipsContainer>
-      <div className="project-activity-event-inner">
-        <div className="project-activity-event-inner-icon little-spacer-right">
-          <ProjectEventIcon
-            className={'text-text-bottom project-activity-event-icon ' + event.category}
-          />
-        </div>
-        <span className="project-activity-event-inner-text">
-          <span className="note">{translate('event.category', event.category)}:</span>
-          {' '}
-          <strong title={event.description} data-toggle="tooltip">{event.name}</strong>
-        </span>
+    <div className="project-activity-event-inner">
+      <div className="project-activity-event-inner-icon little-spacer-right">
+        <ProjectEventIcon
+          className={'project-activity-event-icon margin-align ' + event.category}
+        />
       </div>
-    </TooltipsContainer>
+      <Tooltip mouseEnterDelay={0.5} overlay={event.name}>
+        <span className="project-activity-event-inner-text">
+          <span className="note">{translate('event.category', event.category)}:</span>{' '}
+          <strong title={event.description}>{event.name}</strong>
+        </span>
+      </Tooltip>
+    </div>
   );
 }

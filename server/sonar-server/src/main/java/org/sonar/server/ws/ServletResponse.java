@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,18 +19,19 @@
  */
 package org.sonar.server.ws;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.sonarqube.ws.MediaTypes.JSON;
-import static org.sonarqube.ws.MediaTypes.XML;
-
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import javax.servlet.http.HttpServletResponse;
 import org.sonar.api.server.ws.Response;
 import org.sonar.api.utils.text.JsonWriter;
 import org.sonar.api.utils.text.XmlWriter;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.sonarqube.ws.MediaTypes.JSON;
+import static org.sonarqube.ws.MediaTypes.XML;
 
 public class ServletResponse implements Response {
 
@@ -84,7 +85,7 @@ public class ServletResponse implements Response {
   @Override
   public JsonWriter newJsonWriter() {
     stream.setMediaType(JSON);
-    return JsonWriter.of(new OutputStreamWriter(stream.output(), UTF_8));
+    return JsonWriter.of(new CacheWriter(new OutputStreamWriter(stream.output(), StandardCharsets.UTF_8)));
   }
 
   @Override

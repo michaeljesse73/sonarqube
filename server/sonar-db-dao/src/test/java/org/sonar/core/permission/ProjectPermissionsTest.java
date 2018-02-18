@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -27,12 +27,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class ProjectPermissionsTest {
 
   @Test
-  public void all_permissions() throws Exception {
+  public void all_permissions() {
     assertThat(ProjectPermissions.ALL).containsExactly(UserRole.ADMIN, UserRole.CODEVIEWER, UserRole.ISSUE_ADMIN, GlobalPermissions.SCAN_EXECUTION, UserRole.USER);
   }
 
   @Test
-  public void all_permissions_as_string() throws Exception {
+  public void all_permissions_as_string() {
     assertThat(ProjectPermissions.ALL_ON_ONE_LINE).isEqualTo("admin, codeviewer, issueadmin, scan, user");
   }
 }

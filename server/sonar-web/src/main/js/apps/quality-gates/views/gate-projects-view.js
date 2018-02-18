@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,16 +19,25 @@
  */
 import Marionette from 'backbone.marionette';
 import escapeHtml from 'escape-html';
-import '../../../components/SelectList';
+import SelectList from '../../../components/SelectList';
 import { translate } from '../../../helpers/l10n';
 
 export default Marionette.ItemView.extend({
   template: () => {},
 
   onRender() {
-    const { qualityGate } = this.options;
+    const { qualityGate, organization } = this.options;
 
-    new window.SelectList({
+    const extra = {
+      gateId: qualityGate.id
+    };
+    let orgQuery = '';
+    if (organization) {
+      extra.organization = organization;
+      orgQuery = '&organization=' + organization;
+    }
+
+    new SelectList({
       el: this.options.container,
       width: '100%',
       readOnly: !this.options.edit,
@@ -36,12 +45,10 @@ export default Marionette.ItemView.extend({
       dangerouslyUnescapedHtmlFormat(item) {
         return escapeHtml(item.name);
       },
-      searchUrl: window.baseUrl + '/api/qualitygates/search?gateId=' + qualityGate.id,
+      searchUrl: `${window.baseUrl}/api/qualitygates/search?gateId=${qualityGate.id}${orgQuery}`,
       selectUrl: window.baseUrl + '/api/qualitygates/select',
       deselectUrl: window.baseUrl + '/api/qualitygates/deselect',
-      extra: {
-        gateId: qualityGate.id
-      },
+      extra,
       selectParameter: 'projectId',
       selectParameterValue: 'id',
       labels: {

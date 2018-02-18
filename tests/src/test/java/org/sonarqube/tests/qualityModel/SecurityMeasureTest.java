@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,12 +21,13 @@ package org.sonarqube.tests.qualityModel;
 
 import com.sonar.orchestrator.Orchestrator;
 import com.sonar.orchestrator.build.SonarScanner;
-import org.sonarqube.tests.Category2Suite;
 import java.util.Map;
 import org.junit.Before;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
-import org.sonarqube.ws.WsMeasures;
+import org.sonarqube.qa.util.Tester;
+import org.sonarqube.ws.Measures;
 import util.ItUtils;
 
 import static java.lang.Double.parseDouble;
@@ -49,12 +50,13 @@ public class SecurityMeasureTest {
   private static final String[] METRICS = new String[] {VULNERABILITIES_METRIC, SECURITY_REMEDIATION_EFFORT_METRIC, SECURITY_RATING_METRIC};
 
   @ClassRule
-  public static Orchestrator orchestrator = Category2Suite.ORCHESTRATOR;
+  public static Orchestrator orchestrator = QualityModelSuite.ORCHESTRATOR;
+
+  @Rule
+  public Tester tester = new Tester(orchestrator);
 
   @Before
   public void init() {
-    orchestrator.resetData();
-
     orchestrator.getServer().provisionProject(PROJECT, PROJECT);
   }
 
@@ -81,7 +83,7 @@ public class SecurityMeasureTest {
   }
 
   private void assertMeasures(String componentKey, int expectedVulnerabilities, int expectedReliabilityRemediationEffort, int expectedReliabilityRating) {
-    Map<String, WsMeasures.Measure> measures = getMeasuresByMetricKey(orchestrator, componentKey, METRICS);
+    Map<String, Measures.Measure> measures = getMeasuresByMetricKey(orchestrator, componentKey, METRICS);
     assertThat(parseDouble(measures.get(VULNERABILITIES_METRIC).getValue())).isEqualTo(expectedVulnerabilities);
     assertThat(parseDouble(measures.get(SECURITY_REMEDIATION_EFFORT_METRIC).getValue())).isEqualTo(expectedReliabilityRemediationEffort);
     assertThat(parseDouble(measures.get(SECURITY_RATING_METRIC).getValue())).isEqualTo(expectedReliabilityRating);

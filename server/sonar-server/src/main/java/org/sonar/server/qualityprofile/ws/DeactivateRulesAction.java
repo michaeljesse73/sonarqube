@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,9 +24,10 @@ import org.sonar.api.server.ws.Response;
 import org.sonar.api.server.ws.WebService;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
+import org.sonar.db.organization.OrganizationDto;
 import org.sonar.db.qualityprofile.QProfileDto;
 import org.sonar.server.qualityprofile.BulkChangeResult;
-import org.sonar.server.qualityprofile.RuleActivator;
+import org.sonar.server.qualityprofile.QProfileRules;
 import org.sonar.server.rule.ws.RuleQueryFactory;
 import org.sonar.server.user.UserSession;
 
@@ -34,18 +35,18 @@ import static org.sonar.core.util.Uuids.UUID_EXAMPLE_04;
 import static org.sonar.server.qualityprofile.ws.BulkChangeWsResponse.writeResponse;
 import static org.sonar.server.rule.ws.SearchAction.defineRuleSearchParameters;
 import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.ACTION_DEACTIVATE_RULES;
-import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.PARAM_TARGET_PROFILE;
+import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.PARAM_TARGET_KEY;
 
 public class DeactivateRulesAction implements QProfileWsAction {
   public static final String SEVERITY = "activation_severity";
 
   private final RuleQueryFactory ruleQueryFactory;
   private final UserSession userSession;
-  private final RuleActivator ruleActivator;
+  private final QProfileRules ruleActivator;
   private final QProfileWsSupport wsSupport;
   private final DbClient dbClient;
 
-  public DeactivateRulesAction(RuleQueryFactory ruleQueryFactory, UserSession userSession, RuleActivator ruleActivator, QProfileWsSupport wsSupport, DbClient dbClient) {
+  public DeactivateRulesAction(RuleQueryFactory ruleQueryFactory, UserSession userSession, QProfileRules ruleActivator, QProfileWsSupport wsSupport, DbClient dbClient) {
     this.ruleQueryFactory = ruleQueryFactory;
     this.userSession = userSession;
     this.ruleActivator = ruleActivator;
@@ -57,14 +58,18 @@ public class DeactivateRulesAction implements QProfileWsAction {
     WebService.NewAction deactivate = controller
       .createAction(ACTION_DEACTIVATE_RULES)
       .setDescription("Bulk deactivate rules on Quality profiles.<br>" +
-        "Requires to be logged in and the 'Administer Quality Profiles' permission.")
+        "Requires one of the following permissions:" +
+        "<ul>" +
+        "  <li>'Administer Quality Profiles'</li>" +
+        "  <li>Edit right on the specified quality profile</li>" +
+        "</ul>")
       .setPost(true)
       .setSince("4.4")
       .setHandler(this);
 
     defineRuleSearchParameters(deactivate);
 
-    deactivate.createParam(PARAM_TARGET_PROFILE)
+    deactivate.createParam(PARAM_TARGET_KEY)
       .setDescription("Quality Profile key on which the rule deactivation is done. To retrieve a profile key please see <code>api/qualityprofiles/search</code>")
       .setDeprecatedKey("profile_key", "6.5")
       .setRequired(true)
@@ -73,14 +78,14 @@ public class DeactivateRulesAction implements QProfileWsAction {
 
   @Override
   public void handle(Request request, Response response) throws Exception {
-    String qualityProfileKey = request.mandatoryParam(PARAM_TARGET_PROFILE);
+    String qualityProfileKey = request.mandatoryParam(PARAM_TARGET_KEY);
     userSession.checkLoggedIn();
     BulkChangeResult result;
     try (DbSession dbSession = dbClient.openSession(false)) {
       QProfileDto profile = wsSupport.getProfile(dbSession, QProfileReference.fromKey(qualityProfileKey));
-      wsSupport.checkPermission(dbSession, profile);
-      wsSupport.checkNotBuiltInt(profile);
-      result = ruleActivator.bulkDeactivateAndCommit(dbSession, ruleQueryFactory.createRuleQuery(dbSession, request), profile);
+      OrganizationDto organization = wsSupport.getOrganization(dbSession, profile);
+      wsSupport.checkCanEdit(dbSession, organization, profile);
+      result = ruleActivator.bulkDeactivateAndCommit(dbSession, profile, ruleQueryFactory.createRuleQuery(dbSession, request));
     }
     writeResponse(result, response);
   }

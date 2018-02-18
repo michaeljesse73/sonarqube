@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -47,7 +47,7 @@ public class DdlUtilsTest {
   @Test
   public void shouldCreateSchema_with_schema_migrations() throws SQLException {
     DriverManager.registerDriver(new Driver());
-    try (Connection connection = DriverManager.getConnection("jdbc:h2:mem:sonar_test");) {
+    try (Connection connection = DriverManager.getConnection("jdbc:h2:mem:sonar_test")) {
       DdlUtils.createSchema(connection, "h2", true);
 
       int tableCount = countTables(connection);

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -26,24 +26,27 @@ import { sortBy, uniq } from 'lodash';
 import AutoSizer from 'react-virtualized/dist/commonjs/AutoSizer';
 import { TooltipsContainer } from '../mixins/tooltips-mixin';
 
+/*::
 type Scale = {
   (number): number,
   range: () => [number, number],
   ticks: number => Array<number>
 };
+*/
 
 const TICKS_COUNT = 5;
 
 export class Bubble extends React.PureComponent {
-  props: {
+  /*:: props: {
     color?: string,
     link?: string,
-    onClick: ?string => void,
+    onClick: (?string) => void,
     r: number,
     tooltip?: string,
     x: number,
     y: number
   };
+*/
 
   handleClick = () => {
     if (this.props.onClick) {
@@ -77,12 +80,18 @@ export class Bubble extends React.PureComponent {
       circle = <Link to={this.props.link}>{circle}</Link>;
     }
 
-    return this.props.tooltip ? <TooltipsContainer><g>{circle}</g></TooltipsContainer> : circle;
+    return this.props.tooltip ? (
+      <TooltipsContainer>
+        <g>{circle}</g>
+      </TooltipsContainer>
+    ) : (
+      circle
+    );
   }
 }
 
 export default class BubbleChart extends React.PureComponent {
-  props: {|
+  /*:: props: {|
     items: Array<{|
       x: number,
       y: number,
@@ -101,10 +110,11 @@ export default class BubbleChart extends React.PureComponent {
     padding: [number, number, number, number],
     formatXTick: number => string,
     formatYTick: number => string,
-    onBubbleClick?: ?string => void,
+    onBubbleClick?: (?string) => void,
     xDomain?: [number, number],
     yDomain?: [number, number]
   |};
+*/
 
   static defaultProps = {
     sizeRange: [5, 45],
@@ -117,7 +127,7 @@ export default class BubbleChart extends React.PureComponent {
     formatYTick: d => d
   };
 
-  getXRange(xScale: Scale, sizeScale: Scale, availableWidth: number) {
+  getXRange(xScale /*: Scale */, sizeScale /*: Scale */, availableWidth /*: number */) {
     const minX = min(this.props.items, d => xScale(d.x) - sizeScale(d.size));
     const maxX = max(this.props.items, d => xScale(d.x) + sizeScale(d.size));
     const dMinX = minX < 0 ? xScale.range()[0] - minX : xScale.range()[0];
@@ -125,7 +135,7 @@ export default class BubbleChart extends React.PureComponent {
     return [dMinX, availableWidth - dMaxX];
   }
 
-  getYRange(yScale: Scale, sizeScale: Scale, availableHeight: number) {
+  getYRange(yScale /*: Scale */, sizeScale /*: Scale */, availableHeight /*: number */) {
     const minY = min(this.props.items, d => yScale(d.y) - sizeScale(d.size));
     const maxY = max(this.props.items, d => yScale(d.y) + sizeScale(d.size));
     const dMinY = minY < 0 ? yScale.range()[1] - minY : yScale.range()[1];
@@ -133,14 +143,14 @@ export default class BubbleChart extends React.PureComponent {
     return [availableHeight - dMaxY, dMinY];
   }
 
-  getTicks(scale: Scale, format: number => string) {
+  getTicks(scale /*: Scale */, format /*: number => string */) {
     const ticks = scale.ticks(TICKS_COUNT).map(tick => format(tick));
     const uniqueTicksCount = uniq(ticks).length;
     const ticksCount = uniqueTicksCount < TICKS_COUNT ? uniqueTicksCount - 1 : TICKS_COUNT;
     return scale.ticks(ticksCount);
   }
 
-  renderXGrid(ticks: Array<number>, xScale: Scale, yScale: Scale) {
+  renderXGrid(ticks /*: Array<number> */, xScale /*: Scale */, yScale /*: Scale */) {
     if (!this.props.displayXGrid) {
       return null;
     }
@@ -155,7 +165,7 @@ export default class BubbleChart extends React.PureComponent {
     return <g ref="xGrid">{lines}</g>;
   }
 
-  renderYGrid(ticks: Array<number>, xScale: Scale, yScale: Scale) {
+  renderYGrid(ticks /*: Array<number> */, xScale /*: Scale */, yScale /*: Scale */) {
     if (!this.props.displayYGrid) {
       return null;
     }
@@ -170,7 +180,7 @@ export default class BubbleChart extends React.PureComponent {
     return <g ref="yGrid">{lines}</g>;
   }
 
-  renderXTicks(xTicks: Array<number>, xScale: Scale, yScale: Scale) {
+  renderXTicks(xTicks /*: Array<number> */, xScale /*: Scale */, yScale /*: Scale */) {
     if (!this.props.displayXTicks) {
       return null;
     }
@@ -189,7 +199,7 @@ export default class BubbleChart extends React.PureComponent {
     return <g>{ticks}</g>;
   }
 
-  renderYTicks(yTicks: Array<number>, xScale: Scale, yScale: Scale) {
+  renderYTicks(yTicks /*: Array<number> */, xScale /*: Scale */, yScale /*: Scale */) {
     if (!this.props.displayYTicks) {
       return null;
     }
@@ -214,7 +224,7 @@ export default class BubbleChart extends React.PureComponent {
     return <g>{ticks}</g>;
   }
 
-  renderChart(width: number) {
+  renderChart(width /*: number */) {
     const availableWidth = width - this.props.padding[1] - this.props.padding[3];
     const availableHeight = this.props.height - this.props.padding[0] - this.props.padding[2];
 
@@ -268,10 +278,6 @@ export default class BubbleChart extends React.PureComponent {
   }
 
   render() {
-    return (
-      <AutoSizer disableHeight={true}>
-        {size => this.renderChart(size.width)}
-      </AutoSizer>
-    );
+    return <AutoSizer disableHeight={true}>{size => this.renderChart(size.width)}</AutoSizer>;
   }
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -28,7 +28,7 @@ import org.sonar.db.event.EventTesting;
 import org.sonar.db.organization.OrganizationTesting;
 
 import static org.sonar.db.component.SnapshotTesting.newAnalysis;
-import static org.sonarqube.ws.client.projectanalysis.EventCategory.QUALITY_GATE;
+import static org.sonar.server.projectanalysis.ws.EventCategory.QUALITY_GATE;
 
 public class EventValidatorTest {
   @Rule

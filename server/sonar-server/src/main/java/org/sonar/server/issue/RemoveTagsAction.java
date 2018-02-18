@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,8 +19,8 @@
  */
 package org.sonar.server.issue;
 
-import com.google.common.collect.Sets;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.Set;
 import org.sonar.api.server.ServerSide;
 
@@ -35,7 +35,7 @@ public class RemoveTagsAction extends AbstractChangeTagsAction {
 
   @Override
   protected Collection<String> getTagsToSet(Context context, Collection<String> tagsFromParams) {
-    Set<String> newTags = Sets.newHashSet(context.issue().tags());
+    Set<String> newTags = new HashSet<>(context.issue().tags());
     newTags.removeAll(tagsFromParams);
     return newTags;
   }

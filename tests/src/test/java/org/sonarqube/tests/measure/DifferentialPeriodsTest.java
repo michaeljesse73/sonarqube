@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,70 +20,41 @@
 package org.sonarqube.tests.measure;
 
 import com.sonar.orchestrator.Orchestrator;
-import org.sonarqube.tests.Category1Suite;
 import java.util.Date;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
-import org.sonarqube.ws.client.WsClient;
-import org.sonarqube.pageobjects.Navigation;
+import org.sonarqube.qa.util.Tester;
 import util.ItUtils;
-import util.user.UserRule;
 
 import static org.apache.commons.lang.time.DateUtils.addDays;
 import static org.assertj.core.api.Assertions.assertThat;
 import static util.ItUtils.formatDate;
 import static util.ItUtils.getLeakPeriodValue;
 import static util.ItUtils.getMeasuresAsDoubleByMetricKey;
-import static util.ItUtils.newAdminWsClient;
-import static util.ItUtils.resetPeriod;
 import static util.ItUtils.runProjectAnalysis;
-import static util.ItUtils.setServerProperty;
 
 public class DifferentialPeriodsTest {
 
-  static final String PROJECT_KEY = "sample";
-  static final String MULTI_MODULE_PROJECT_KEY = "com.sonarsource.it.samples:multi-modules-sample";
-
-  static WsClient CLIENT;
+  private static final String PROJECT_KEY = "sample";
+  private static final String MULTI_MODULE_PROJECT_KEY = "com.sonarsource.it.samples:multi-modules-sample";
 
   @ClassRule
-  public static final Orchestrator orchestrator = Category1Suite.ORCHESTRATOR;
+  public static final Orchestrator orchestrator = MeasureSuite.ORCHESTRATOR;
 
   @Rule
-  public UserRule userRule = UserRule.from(orchestrator);
-
-  private String adminUser;
-
-  @BeforeClass
-  public static void createWsClient() throws Exception {
-    CLIENT = newAdminWsClient(orchestrator);
-  }
-
-  @Before
-  public void cleanUpAnalysisData() {
-    orchestrator.resetData();
-    adminUser = userRule.createAdminUser();
-  }
-
-  @After
-  public void reset() throws Exception {
-    resetPeriod(orchestrator);
-  }
+  public Tester tester = new Tester(orchestrator);
 
   /**
    * SONAR-7093
    */
   @Test
-  public void ensure_leak_period_defined_at_project_level_is_taken_into_account() throws Exception {
+  public void ensure_leak_period_defined_at_project_level_is_taken_into_account() {
     orchestrator.getServer().provisionProject(PROJECT_KEY, PROJECT_KEY);
 
     // Set a global property and a project property to ensure project property is used
-    setServerProperty(orchestrator, "sonar.leak.period", "previous_analysis");
-    setServerProperty(orchestrator, PROJECT_KEY, "sonar.leak.period", "30");
+    tester.settings().setGlobalSettings("sonar.leak.period", "previous_version");
+    tester.settings().setProjectSetting(PROJECT_KEY, "sonar.leak.period", "30");
 
     // Execute an analysis in the past to have a past snapshot without any issues
     orchestrator.getServer().associateProjectToQualityProfile(PROJECT_KEY, "xoo", "empty");
@@ -101,7 +72,8 @@ public class DifferentialPeriodsTest {
     assertThat(getLeakPeriodValue(orchestrator, PROJECT_KEY, "violations")).isEqualTo(17);
 
     // Check on ui that it's possible to define leak period on project
-    Navigation.create(orchestrator).openHome().logIn().submitCredentials(adminUser).openSettings("sample")
+    tester.wsClient().users().skipOnboardingTutorial();
+    tester.openBrowser().openHome().logIn().submitCredentials("admin", "admin").openSettings("sample")
       .assertSettingDisplayed("sonar.leak.period");
   }
 
@@ -109,9 +81,9 @@ public class DifferentialPeriodsTest {
    * SONAR-7237
    */
   @Test
-  public void ensure_differential_measures_are_computed_when_adding_new_component_after_period() throws Exception {
+  public void ensure_differential_measures_are_computed_when_adding_new_component_after_period() {
     orchestrator.getServer().provisionProject(MULTI_MODULE_PROJECT_KEY, MULTI_MODULE_PROJECT_KEY);
-    setServerProperty(orchestrator, MULTI_MODULE_PROJECT_KEY, "sonar.leak.period", "30");
+    tester.settings().setProjectSetting(MULTI_MODULE_PROJECT_KEY, "sonar.leak.period", "30");
 
     // Execute an analysis 60 days ago without module b
     orchestrator.getServer().associateProjectToQualityProfile(MULTI_MODULE_PROJECT_KEY, "xoo", "empty");
@@ -131,9 +103,9 @@ public class DifferentialPeriodsTest {
   }
 
   @Test
-  public void compute_no_new_lines_measures_when_changes_but_no_scm() throws Exception {
+  public void compute_no_new_lines_measures_when_changes_but_no_scm() {
     orchestrator.getServer().provisionProject(MULTI_MODULE_PROJECT_KEY, MULTI_MODULE_PROJECT_KEY);
-    setServerProperty(orchestrator, MULTI_MODULE_PROJECT_KEY, "sonar.leak.period", "previous_analysis");
+    tester.settings().setProjectSetting(MULTI_MODULE_PROJECT_KEY, "sonar.leak.period", "previous_version");
 
     // Execute an analysis 60 days ago without module b
     orchestrator.getServer().associateProjectToQualityProfile(MULTI_MODULE_PROJECT_KEY, "xoo", "empty");
@@ -153,10 +125,10 @@ public class DifferentialPeriodsTest {
   }
 
   @Test
-  public void compute_zero_new_lines_measures_when_no_changes_and_scm_available() throws Exception {
+  public void compute_zero_new_lines_measures_when_no_changes_and_scm_available() {
     String projectKey = "sample-scm";
     orchestrator.getServer().provisionProject(projectKey, projectKey);
-    setServerProperty(orchestrator, projectKey, "sonar.leak.period", "previous_analysis");
+    tester.settings().setProjectSetting(projectKey, "sonar.leak.period", "previous_version");
 
     // Execute an analysis 60 days ago
     runProjectAnalysis(orchestrator, "scm/xoo-sample-with-scm", "sonar.projectDate", formatDate(addDays(new Date(), -60)),

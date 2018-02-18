@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -30,20 +30,6 @@ public final class ComponentFunctions {
 
   public static Function<Component, Integer> toReportRef() {
     return ToReportRef.INSTANCE;
-  }
-
-  public static Function<Component, String> toKey() {
-    return ToKey.INSTANCE;
-  }
-
-  private enum ToKey implements Function<Component, String> {
-    INSTANCE;
-
-    @Override
-    @Nonnull
-    public String apply(@Nonnull Component input) {
-      return input.getKey();
-    }
   }
 
   private enum ToReportRef implements Function<Component, Integer> {

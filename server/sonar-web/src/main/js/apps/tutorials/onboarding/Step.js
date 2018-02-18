@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,6 +21,7 @@
 import React from 'react';
 import classNames from 'classnames';
 
+/*::
 type Props = {|
   finished: boolean,
   onOpen: () => void,
@@ -30,8 +31,9 @@ type Props = {|
   stepNumber: number,
   stepTitle: string
 |};
+*/
 
-export default function Step(props: Props) {
+export default function Step(props /*: Props */) {
   const className = classNames('boxed-group', 'onboarding-step', {
     'is-open': props.open,
     'is-finished': props.finished
@@ -39,8 +41,8 @@ export default function Step(props: Props) {
 
   const clickable = !props.open && props.finished;
 
-  const handleClick = (event: Event) => {
-    event.preventDefault;
+  const handleClick = (event /*: Event */) => {
+    event.preventDefault();
     props.onOpen();
   };
 

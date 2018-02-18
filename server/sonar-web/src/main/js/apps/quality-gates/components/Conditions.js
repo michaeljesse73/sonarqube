@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -62,15 +62,19 @@ export default class Conditions extends React.PureComponent {
       edit,
       onAddCondition,
       onSaveCondition,
-      onDeleteCondition
+      onDeleteCondition,
+      organization
     } = this.props;
 
-    const sortedConditions = sortBy(conditions, condition => {
-      return metrics.find(metric => metric.key === condition.metric).name;
-    });
+    const existingConditions = conditions.filter(condition => metrics[condition.metric]);
+
+    const sortedConditions = sortBy(
+      existingConditions,
+      condition => metrics[condition.metric] && metrics[condition.metric].name
+    );
 
     const duplicates = [];
-    const savedConditions = conditions.filter(condition => condition.id != null);
+    const savedConditions = existingConditions.filter(condition => condition.id != null);
     savedConditions.forEach(condition => {
       const sameCount = savedConditions.filter(
         sample => sample.metric === condition.metric && sample.period === condition.period
@@ -80,25 +84,19 @@ export default class Conditions extends React.PureComponent {
       }
     });
 
-    const uniqDuplicates = uniqBy(duplicates, d => d.metric).map(condition => {
-      const metric = metrics.find(metric => metric.key === condition.metric);
-      return { ...condition, metric };
-    });
-
+    const uniqDuplicates = uniqBy(duplicates, d => d.metric).map(condition => ({
+      ...condition,
+      metric: metrics[condition.metric]
+    }));
     return (
       <div id="quality-gate-conditions" className="quality-gate-section">
-        <h3 className="spacer-bottom">
-          {translate('quality_gates.conditions')}
-        </h3>
+        <h3 className="spacer-bottom">{translate('quality_gates.conditions')}</h3>
 
         <ConditionsAlert />
 
-        {this.state.error &&
-          <div className="alert alert-danger">
-            {this.state.error}
-          </div>}
+        {this.state.error && <div className="alert alert-danger">{this.state.error}</div>}
 
-        {uniqDuplicates.length > 0 &&
+        {uniqDuplicates.length > 0 && (
           <div className="alert alert-warning">
             <p>{translate('quality_gates.duplicated_conditions')}</p>
             <ul className="list-styled spacer-top">
@@ -106,49 +104,41 @@ export default class Conditions extends React.PureComponent {
                 <li key={d.metric.key}>{getLocalizedMetricName(d.metric)}</li>
               ))}
             </ul>
-          </div>}
+          </div>
+        )}
 
-        {sortedConditions.length
-          ? <table id="quality-gate-conditions" className="data zebra zebra-hover">
-              <thead>
-                <tr>
-                  <th className="nowrap">
-                    {translate('quality_gates.conditions.metric')}
-                  </th>
-                  <th className="thin nowrap">
-                    {translate('quality_gates.conditions.leak')}
-                  </th>
-                  <th className="thin nowrap">
-                    {translate('quality_gates.conditions.operator')}
-                  </th>
-                  <th className="thin nowrap">
-                    {translate('quality_gates.conditions.warning')}
-                  </th>
-                  <th className="thin nowrap">
-                    {translate('quality_gates.conditions.error')}
-                  </th>
-                  {edit && <th />}
-                </tr>
-              </thead>
-              <tbody>
-                {sortedConditions.map((condition, index) => (
-                  <Condition
-                    key={getKey(condition, index)}
-                    qualityGate={qualityGate}
-                    condition={condition}
-                    metric={metrics.find(metric => metric.key === condition.metric)}
-                    edit={edit}
-                    onSaveCondition={onSaveCondition}
-                    onDeleteCondition={onDeleteCondition}
-                    onError={this.handleError.bind(this)}
-                    onResetError={this.handleResetError.bind(this)}
-                  />
-                ))}
-              </tbody>
-            </table>
-          : <div className="big-spacer-top">
-              {translate('quality_gates.no_conditions')}
-            </div>}
+        {sortedConditions.length ? (
+          <table id="quality-gate-conditions" className="data zebra zebra-hover">
+            <thead>
+              <tr>
+                <th className="nowrap">{translate('quality_gates.conditions.metric')}</th>
+                <th className="thin nowrap">{translate('quality_gates.conditions.leak')}</th>
+                <th className="thin nowrap">{translate('quality_gates.conditions.operator')}</th>
+                <th className="thin nowrap">{translate('quality_gates.conditions.warning')}</th>
+                <th className="thin nowrap">{translate('quality_gates.conditions.error')}</th>
+                {edit && <th />}
+              </tr>
+            </thead>
+            <tbody>
+              {sortedConditions.map((condition, index) => (
+                <Condition
+                  key={getKey(condition, index)}
+                  qualityGate={qualityGate}
+                  condition={condition}
+                  metric={metrics[condition.metric]}
+                  edit={edit}
+                  onSaveCondition={onSaveCondition}
+                  onDeleteCondition={onDeleteCondition}
+                  onError={this.handleError.bind(this)}
+                  onResetError={this.handleResetError.bind(this)}
+                  organization={organization}
+                />
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <div className="big-spacer-top">{translate('quality_gates.no_conditions')}</div>
+        )}
 
         {edit && <AddConditionForm metrics={metrics} onSelect={onAddCondition} />}
       </div>

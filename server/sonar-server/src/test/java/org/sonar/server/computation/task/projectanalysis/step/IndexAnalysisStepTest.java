@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -54,7 +54,7 @@ public class IndexAnalysisStepTest extends BaseStepTest {
 
     underTest.execute();
 
-    verify(componentIndexer).indexProject(PROJECT_UUID, ProjectIndexer.Cause.NEW_ANALYSIS);
+    verify(componentIndexer).indexOnAnalysis(PROJECT_UUID);
   }
 
   @Test
@@ -64,7 +64,7 @@ public class IndexAnalysisStepTest extends BaseStepTest {
 
     underTest.execute();
 
-    verify(componentIndexer).indexProject(PROJECT_UUID, ProjectIndexer.Cause.NEW_ANALYSIS);
+    verify(componentIndexer).indexOnAnalysis(PROJECT_UUID);
   }
 
   @Override

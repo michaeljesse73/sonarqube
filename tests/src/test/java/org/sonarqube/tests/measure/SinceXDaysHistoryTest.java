@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,36 +21,39 @@ package org.sonarqube.tests.measure;
 
 import com.sonar.orchestrator.Orchestrator;
 import com.sonar.orchestrator.build.SonarScanner;
-import org.sonarqube.tests.Category1Suite;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import javax.annotation.Nullable;
 import org.apache.commons.lang.time.DateUtils;
-import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
-import org.sonarqube.ws.WsMeasures;
+import org.junit.rules.RuleChain;
+import org.sonarqube.qa.util.Tester;
+import org.sonarqube.ws.Measures;
 import util.ItUtils;
 
 import static java.lang.Integer.parseInt;
 import static org.assertj.core.api.Assertions.assertThat;
 import static util.ItUtils.getMeasureWithVariation;
 import static util.ItUtils.projectDir;
-import static util.ItUtils.setServerProperty;
 
 public class SinceXDaysHistoryTest {
 
-  @ClassRule
-  public static Orchestrator orchestrator = Category1Suite.ORCHESTRATOR;
-
   private static final String PROJECT = "multi-files-sample";
+
+  @ClassRule
+  public static Orchestrator orchestrator = MeasureSuite.ORCHESTRATOR;
+
+  private static Tester tester = new Tester(orchestrator);
+
+  @ClassRule
+  public static RuleChain ruleChain = RuleChain.outerRule(orchestrator).around(tester);
 
   @BeforeClass
   public static void analyseProjectWithHistory() {
-    initPeriod();
+    tester.settings().setGlobalSettings("sonar.leak.period", "30");
 
-    orchestrator.resetData();
     ItUtils.restoreProfile(orchestrator, SinceXDaysHistoryTest.class.getResource("/measure/one-issue-per-line-profile.xml"));
     orchestrator.getServer().provisionProject(PROJECT, PROJECT);
     orchestrator.getServer().associateProjectToQualityProfile(PROJECT, "xoo", "one-issue-per-line");
@@ -68,32 +71,23 @@ public class SinceXDaysHistoryTest {
     analyzeProject();
   }
 
-  private static void initPeriod() {
-    setServerProperty(orchestrator, "sonar.leak.period", "30");
-  }
-
-  @AfterClass
-  public static void resetPeriods() throws Exception {
-    ItUtils.resetPeriod(orchestrator);
-  }
-
   @Test
-  public void check_files_variation() throws Exception {
+  public void check_files_variation() {
     checkMeasure("files", 3);
   }
 
   @Test
-  public void check_issues_variation() throws Exception {
+  public void check_issues_variation() {
     checkMeasure("violations", 45);
   }
 
   @Test
-  public void check_new_issues_measures() throws Exception {
+  public void check_new_issues_measures() {
     checkMeasure("new_violations", 45);
   }
 
   private void checkMeasure(String metric, int variation) {
-    WsMeasures.Measure measure = getMeasureWithVariation(orchestrator, PROJECT, metric);
+    Measures.Measure measure = getMeasureWithVariation(orchestrator, PROJECT, metric);
     assertThat(measure.getPeriods().getPeriodsValueList()).extracting(periodValue -> parseInt(periodValue.getValue())).containsOnly(variation);
   }
 

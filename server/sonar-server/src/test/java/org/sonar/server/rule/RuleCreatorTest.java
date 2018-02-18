@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -68,7 +68,7 @@ public class RuleCreatorTest {
   @Rule
   public EsTester es = new EsTester(new RuleIndexDefinition(new MapSettings().asConfig()));
 
-  private RuleIndex ruleIndex = new RuleIndex(es.client());
+  private RuleIndex ruleIndex = new RuleIndex(es.client(), system2);
   private RuleIndexer ruleIndexer = new RuleIndexer(es.client(), dbTester.getDbClient());
   private DbSession dbSession = dbTester.getSession();
 
@@ -91,6 +91,7 @@ public class RuleCreatorTest {
     RuleDto rule = dbTester.getDbClient().ruleDao().selectOrFailByKey(dbSession, dbTester.getDefaultOrganization(), customRuleKey);
     assertThat(rule).isNotNull();
     assertThat(rule.getKey()).isEqualTo(RuleKey.of("java", "CUSTOM_RULE"));
+    assertThat(rule.getPluginKey()).isEqualTo("sonarjava");
     assertThat(rule.getTemplateId()).isEqualTo(templateRule.getId());
     assertThat(rule.getName()).isEqualTo("My custom");
     assertThat(rule.getDescription()).isEqualTo("Some description");
@@ -116,7 +117,7 @@ public class RuleCreatorTest {
     // From user
     assertThat(param.getDefaultValue()).isEqualTo("a.*");
 
-    assertThat(ruleIndex.search(new RuleQuery(), new SearchOptions()).getIds()).containsOnly(customRuleKey, templateRule.getKey());
+    assertThat(ruleIndex.search(new RuleQuery(), new SearchOptions()).getIds()).containsOnly(rule.getId(), templateRule.getId());
   }
 
   @Test
@@ -444,7 +445,7 @@ public class RuleCreatorTest {
   }
 
   @Test
-  public void fail_to_create_custom_rule_when_unknown_template() throws Exception {
+  public void fail_to_create_custom_rule_when_unknown_template() {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("The template key doesn't exist: java:S001");
 
@@ -461,6 +462,7 @@ public class RuleCreatorTest {
     RuleDto templateRule = RuleTesting.newDto(RuleKey.of("java", "S001"), dbTester.getDefaultOrganization())
       .setIsTemplate(true)
       .setLanguage("java")
+      .setPluginKey("sonarjava")
       .setConfigKey("S001")
       .setDefRemediationFunction(DebtRemediationFunction.Type.LINEAR_OFFSET.name())
       .setDefRemediationGapMultiplier("1h")
@@ -473,7 +475,7 @@ public class RuleCreatorTest {
     dbTester.rules().insert(templateRule.getDefinition());
     dbTester.rules().insertOrUpdateMetadata(templateRule.getMetadata().setRuleId(templateRule.getId()));
     dbTester.rules().insertRuleParam(templateRule.getDefinition(), param -> param.setName("regex").setType("STRING").setDescription("Reg ex").setDefaultValue(".*"));
-    ruleIndexer.commitAndIndex(dbTester.getSession(), templateRule.getDefinition().getKey());
+    ruleIndexer.commitAndIndex(dbTester.getSession(), templateRule.getDefinition().getId());
     return templateRule;
   }
 
@@ -489,8 +491,9 @@ public class RuleCreatorTest {
       .setCreatedAt(new Date().getTime())
       .setUpdatedAt(new Date().getTime());
     dbTester.rules().insert(templateRule);
-    dbTester.rules().insertRuleParam(templateRule, param -> param.setName("myIntegers").setType("INTEGER,multiple=true,values=1;2;3").setDescription("My Integers").setDefaultValue("1"));
-    ruleIndexer.commitAndIndex(dbTester.getSession(), templateRule.getKey());
+    dbTester.rules().insertRuleParam(templateRule,
+      param -> param.setName("myIntegers").setType("INTEGER,multiple=true,values=1;2;3").setDescription("My Integers").setDefaultValue("1"));
+    ruleIndexer.commitAndIndex(dbTester.getSession(), templateRule.getId());
     return templateRule;
   }
 

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,14 +21,14 @@
 import React from 'react';
 import { collapsePath } from '../../../helpers/path';
 
+/*::
 type Props = {
   path: string
 };
+*/
 
-const ConciseIssueComponent = (props: Props) => (
-  <div className="concise-issue-component note text-ellipsis">
-    {collapsePath(props.path, 20)}
-  </div>
+const ConciseIssueComponent = (props /*: Props */) => (
+  <div className="concise-issue-component note text-ellipsis">{collapsePath(props.path, 20)}</div>
 );
 
 export default ConciseIssueComponent;

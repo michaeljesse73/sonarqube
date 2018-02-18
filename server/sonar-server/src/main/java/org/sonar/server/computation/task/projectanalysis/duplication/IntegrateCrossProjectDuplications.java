@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -27,6 +27,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nonnull;
+import org.sonar.api.CoreProperties;
 import org.sonar.api.config.Configuration;
 import org.sonar.api.utils.log.Logger;
 import org.sonar.api.utils.log.Loggers;
@@ -60,6 +61,9 @@ public class IntegrateCrossProjectDuplications {
   public IntegrateCrossProjectDuplications(Configuration config, DuplicationRepository duplicationRepository) {
     this.config = config;
     this.duplicationRepository = duplicationRepository;
+    if (config.getBoolean(CoreProperties.CPD_CROSS_PROJECT).orElse(false)) {
+      LOGGER.warn("This analysis uses the deprecated cross-project duplication feature.");
+    }
   }
 
   public void computeCpd(Component component, Collection<Block> originBlocks, Collection<Block> duplicationBlocks) {

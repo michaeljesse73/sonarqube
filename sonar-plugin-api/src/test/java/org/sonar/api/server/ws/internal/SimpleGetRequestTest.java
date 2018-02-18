@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -87,5 +87,22 @@ public class SimpleGetRequestTest {
       .setParam("fee", "beer");
 
     assertThat(underTest.getParams()).containsOnly(entry("foo", "bar"), entry("fee", "beer"));
+  }
+
+  @Test
+  public void header_returns_empty_if_header_is_not_present() {
+    assertThat(underTest.header("foo")).isEmpty();
+  }
+
+  @Test
+  public void header_returns_value_of_header_if_present() {
+    underTest.setHeader("foo", "bar");
+    assertThat(underTest.header("foo")).hasValue("bar");
+  }
+
+  @Test
+  public void header_returns_empty_string_value_if_header_is_present_without_value() {
+    underTest.setHeader("foo", "");
+    assertThat(underTest.header("foo")).hasValue("");
   }
 }

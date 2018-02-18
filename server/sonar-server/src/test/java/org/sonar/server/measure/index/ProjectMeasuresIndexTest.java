@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -35,6 +35,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.sonar.api.config.internal.MapSettings;
 import org.sonar.api.resources.Qualifiers;
+import org.sonar.api.utils.System2;
 import org.sonar.db.component.ComponentDto;
 import org.sonar.db.component.ComponentTesting;
 import org.sonar.db.organization.OrganizationDto;
@@ -87,9 +88,9 @@ public class ProjectMeasuresIndexTest {
   private static final String LANGUAGES = "languages";
 
   private static final OrganizationDto ORG = OrganizationTesting.newOrganizationDto();
-  private static final ComponentDto PROJECT1 = ComponentTesting.newPrivateProjectDto(ORG).setUuid("Project-1").setName("Project 1").setKey("key-1");
-  private static final ComponentDto PROJECT2 = ComponentTesting.newPrivateProjectDto(ORG).setUuid("Project-2").setName("Project 2").setKey("key-2");
-  private static final ComponentDto PROJECT3 = ComponentTesting.newPrivateProjectDto(ORG).setUuid("Project-3").setName("Project 3").setKey("key-3");
+  private static final ComponentDto PROJECT1 = ComponentTesting.newPrivateProjectDto(ORG).setUuid("Project-1").setName("Project 1").setDbKey("key-1");
+  private static final ComponentDto PROJECT2 = ComponentTesting.newPrivateProjectDto(ORG).setUuid("Project-2").setName("Project 2").setDbKey("key-2");
+  private static final ComponentDto PROJECT3 = ComponentTesting.newPrivateProjectDto(ORG).setUuid("Project-3").setName("Project 3").setDbKey("key-3");
   private static final UserDto USER1 = newUserDto();
   private static final UserDto USER2 = newUserDto();
   private static final GroupDto GROUP1 = newGroupDto();
@@ -111,7 +112,7 @@ public class ProjectMeasuresIndexTest {
 
   private ProjectMeasuresIndexer projectMeasureIndexer = new ProjectMeasuresIndexer(null, es.client());
   private PermissionIndexerTester authorizationIndexerTester = new PermissionIndexerTester(es, projectMeasureIndexer);
-  private ProjectMeasuresIndex underTest = new ProjectMeasuresIndex(es.client(), new AuthorizationTypeSupport(userSession));
+  private ProjectMeasuresIndex underTest = new ProjectMeasuresIndex(es.client(), new AuthorizationTypeSupport(userSession), System2.INSTANCE);
 
   @Test
   public void return_empty_if_no_projects() {
@@ -120,10 +121,10 @@ public class ProjectMeasuresIndexTest {
 
   @Test
   public void default_sort_is_by_ascending_case_insensitive_name_then_by_key() {
-    ComponentDto windows = ComponentTesting.newPrivateProjectDto(ORG).setUuid("windows").setName("Windows").setKey("project1");
-    ComponentDto apachee = ComponentTesting.newPrivateProjectDto(ORG).setUuid("apachee").setName("apachee").setKey("project2");
-    ComponentDto apache1 = ComponentTesting.newPrivateProjectDto(ORG).setUuid("apache-1").setName("Apache").setKey("project3");
-    ComponentDto apache2 = ComponentTesting.newPrivateProjectDto(ORG).setUuid("apache-2").setName("Apache").setKey("project4");
+    ComponentDto windows = ComponentTesting.newPrivateProjectDto(ORG).setUuid("windows").setName("Windows").setDbKey("project1");
+    ComponentDto apachee = ComponentTesting.newPrivateProjectDto(ORG).setUuid("apachee").setName("apachee").setDbKey("project2");
+    ComponentDto apache1 = ComponentTesting.newPrivateProjectDto(ORG).setUuid("apache-1").setName("Apache").setDbKey("project3");
+    ComponentDto apache2 = ComponentTesting.newPrivateProjectDto(ORG).setUuid("apache-2").setName("Apache").setDbKey("project4");
     index(newDoc(windows), newDoc(apachee), newDoc(apache1), newDoc(apache2));
 
     assertResults(new ProjectMeasuresQuery(), apache1, apache2, apachee, windows);
@@ -153,10 +154,10 @@ public class ProjectMeasuresIndexTest {
 
   @Test
   public void sort_by_a_metric_then_by_name_then_by_key() {
-    ComponentDto windows = ComponentTesting.newPrivateProjectDto(ORG).setUuid("windows").setName("Windows").setKey("project1");
-    ComponentDto apachee = ComponentTesting.newPrivateProjectDto(ORG).setUuid("apachee").setName("apachee").setKey("project2");
-    ComponentDto apache1 = ComponentTesting.newPrivateProjectDto(ORG).setUuid("apache-1").setName("Apache").setKey("project3");
-    ComponentDto apache2 = ComponentTesting.newPrivateProjectDto(ORG).setUuid("apache-2").setName("Apache").setKey("project4");
+    ComponentDto windows = ComponentTesting.newPrivateProjectDto(ORG).setUuid("windows").setName("Windows").setDbKey("project1");
+    ComponentDto apachee = ComponentTesting.newPrivateProjectDto(ORG).setUuid("apachee").setName("apachee").setDbKey("project2");
+    ComponentDto apache1 = ComponentTesting.newPrivateProjectDto(ORG).setUuid("apache-1").setName("Apache").setDbKey("project3");
+    ComponentDto apache2 = ComponentTesting.newPrivateProjectDto(ORG).setUuid("apache-2").setName("Apache").setDbKey("project4");
     index(
       newDoc(windows, NCLOC, 10_000d),
       newDoc(apachee, NCLOC, 5_000d),
@@ -169,7 +170,7 @@ public class ProjectMeasuresIndexTest {
 
   @Test
   public void sort_by_quality_gate_status() {
-    ComponentDto project4 = ComponentTesting.newPrivateProjectDto(ORG).setUuid("Project-4").setName("Project 4").setKey("key-4");
+    ComponentDto project4 = ComponentTesting.newPrivateProjectDto(ORG).setUuid("Project-4").setName("Project 4").setDbKey("key-4");
     index(
       newDoc(PROJECT1).setQualityGateStatus(OK.name()),
       newDoc(PROJECT2).setQualityGateStatus(ERROR.name()),
@@ -182,10 +183,10 @@ public class ProjectMeasuresIndexTest {
 
   @Test
   public void sort_by_quality_gate_status_then_by_name_then_by_key() {
-    ComponentDto windows = ComponentTesting.newPrivateProjectDto(ORG).setUuid("windows").setName("Windows").setKey("project1");
-    ComponentDto apachee = ComponentTesting.newPrivateProjectDto(ORG).setUuid("apachee").setName("apachee").setKey("project2");
-    ComponentDto apache1 = ComponentTesting.newPrivateProjectDto(ORG).setUuid("apache-1").setName("Apache").setKey("project3");
-    ComponentDto apache2 = ComponentTesting.newPrivateProjectDto(ORG).setUuid("apache-2").setName("Apache").setKey("project4");
+    ComponentDto windows = ComponentTesting.newPrivateProjectDto(ORG).setUuid("windows").setName("Windows").setDbKey("project1");
+    ComponentDto apachee = ComponentTesting.newPrivateProjectDto(ORG).setUuid("apachee").setName("apachee").setDbKey("project2");
+    ComponentDto apache1 = ComponentTesting.newPrivateProjectDto(ORG).setUuid("apache-1").setName("Apache").setDbKey("project3");
+    ComponentDto apache2 = ComponentTesting.newPrivateProjectDto(ORG).setUuid("apache-2").setName("Apache").setDbKey("project4");
     index(
       newDoc(windows).setQualityGateStatus(WARN.name()),
       newDoc(apachee).setQualityGateStatus(OK.name()),
@@ -343,7 +344,7 @@ public class ProjectMeasuresIndexTest {
 
   @Test
   public void filter_on_languages() {
-    ComponentDto project4 = ComponentTesting.newPrivateProjectDto(ORG).setUuid("Project-4").setName("Project 4").setKey("key-4");
+    ComponentDto project4 = ComponentTesting.newPrivateProjectDto(ORG).setUuid("Project-4").setName("Project 4").setDbKey("key-4");
     index(
       newDoc(PROJECT1).setLanguages(singletonList("java")),
       newDoc(PROJECT2).setLanguages(singletonList("xoo")),
@@ -357,10 +358,10 @@ public class ProjectMeasuresIndexTest {
 
   @Test
   public void filter_on_query_text() {
-    ComponentDto windows = ComponentTesting.newPrivateProjectDto(ORG).setUuid("windows").setName("Windows").setKey("project1");
-    ComponentDto apachee = ComponentTesting.newPrivateProjectDto(ORG).setUuid("apachee").setName("apachee").setKey("project2");
-    ComponentDto apache1 = ComponentTesting.newPrivateProjectDto(ORG).setUuid("apache-1").setName("Apache").setKey("project3");
-    ComponentDto apache2 = ComponentTesting.newPrivateProjectDto(ORG).setUuid("apache-2").setName("Apache").setKey("project4");
+    ComponentDto windows = ComponentTesting.newPrivateProjectDto(ORG).setUuid("windows").setName("Windows").setDbKey("project1");
+    ComponentDto apachee = ComponentTesting.newPrivateProjectDto(ORG).setUuid("apachee").setName("apachee").setDbKey("project2");
+    ComponentDto apache1 = ComponentTesting.newPrivateProjectDto(ORG).setUuid("apache-1").setName("Apache").setDbKey("project3");
+    ComponentDto apache2 = ComponentTesting.newPrivateProjectDto(ORG).setUuid("apache-2").setName("Apache").setDbKey("project4");
     index(newDoc(windows), newDoc(apachee), newDoc(apache1), newDoc(apache2));
 
     assertResults(new ProjectMeasuresQuery().setQueryText("windows"), windows);
@@ -412,7 +413,7 @@ public class ProjectMeasuresIndexTest {
   }
 
   @Test
-  public void return_only_projects_authorized_for_user() throws Exception {
+  public void return_only_projects_authorized_for_user() {
     indexForUser(USER1, newDoc(PROJECT1), newDoc(PROJECT2));
     indexForUser(USER2, newDoc(PROJECT3));
 
@@ -421,7 +422,7 @@ public class ProjectMeasuresIndexTest {
   }
 
   @Test
-  public void return_only_projects_authorized_for_user_groups() throws Exception {
+  public void return_only_projects_authorized_for_user_groups() {
     indexForGroup(GROUP1, newDoc(PROJECT1), newDoc(PROJECT2));
     indexForGroup(GROUP2, newDoc(PROJECT3));
 
@@ -430,7 +431,7 @@ public class ProjectMeasuresIndexTest {
   }
 
   @Test
-  public void return_only_projects_authorized_for_user_and_groups() throws Exception {
+  public void return_only_projects_authorized_for_user_and_groups() {
     indexForUser(USER1, newDoc(PROJECT1), newDoc(PROJECT2));
     indexForGroup(GROUP1, newDoc(PROJECT3));
 
@@ -439,7 +440,7 @@ public class ProjectMeasuresIndexTest {
   }
 
   @Test
-  public void anonymous_user_can_only_access_projects_authorized_for_anyone() throws Exception {
+  public void anonymous_user_can_only_access_projects_authorized_for_anyone() {
     index(newDoc(PROJECT1));
     indexForUser(USER1, newDoc(PROJECT2));
 
@@ -457,7 +458,7 @@ public class ProjectMeasuresIndexTest {
   }
 
   @Test
-  public void does_not_return_facet_when_no_facets_in_options() throws Exception {
+  public void does_not_return_facet_when_no_facets_in_options() {
     index(
       newDoc(PROJECT1, NCLOC, 10d, COVERAGE_KEY, 30d, MAINTAINABILITY_RATING, 3d)
         .setQualityGateStatus(OK.name()));
@@ -543,7 +544,7 @@ public class ProjectMeasuresIndexTest {
   }
 
   @Test
-  public void facet_ncloc_contains_only_projects_authorized_for_user() throws Exception {
+  public void facet_ncloc_contains_only_projects_authorized_for_user() {
     // User can see these projects
     indexForUser(USER1,
       // docs with ncloc<1K
@@ -692,7 +693,7 @@ public class ProjectMeasuresIndexTest {
   }
 
   @Test
-  public void facet_coverage_contains_only_projects_authorized_for_user() throws Exception {
+  public void facet_coverage_contains_only_projects_authorized_for_user() {
     // User can see these projects
     indexForUser(USER1,
       // 1 doc with no coverage
@@ -846,7 +847,7 @@ public class ProjectMeasuresIndexTest {
   }
 
   @Test
-  public void facet_duplicated_lines_density_contains_only_projects_authorized_for_user() throws Exception {
+  public void facet_duplicated_lines_density_contains_only_projects_authorized_for_user() {
     // User can see these projects
     indexForUser(USER1,
       // docs with no duplication
@@ -1004,7 +1005,7 @@ public class ProjectMeasuresIndexTest {
 
   @Test
   @UseDataProvider("rating_metric_keys")
-  public void facet_on_rating_contains_only_projects_authorized_for_user(String metricKey) throws Exception {
+  public void facet_on_rating_contains_only_projects_authorized_for_user(String metricKey) {
     // User can see these projects
     indexForUser(USER1,
       // 3 docs with rating A
@@ -1095,7 +1096,7 @@ public class ProjectMeasuresIndexTest {
   }
 
   @Test
-  public void facet_quality_gate_contains_only_projects_authorized_for_user() throws Exception {
+  public void facet_quality_gate_contains_only_projects_authorized_for_user() {
     // User can see these projects
     indexForUser(USER1,
       // 2 docs with QG OK
@@ -1208,7 +1209,7 @@ public class ProjectMeasuresIndexTest {
   }
 
   @Test
-  public void facet_languages_contains_only_projects_authorized_for_user() throws Exception {
+  public void facet_languages_contains_only_projects_authorized_for_user() {
     // User can see these projects
     indexForUser(USER1,
       newDoc().setLanguages(singletonList("java")),
@@ -1269,7 +1270,7 @@ public class ProjectMeasuresIndexTest {
   }
 
   @Test
-  public void facet_tags_size_limited_to_10() {
+  public void facet_tags_returns_10_elements_by_default() {
     index(
       newDoc().setTags(newArrayList("finance1", "finance2", "finance3", "finance4", "finance5", "finance6", "finance7", "finance8", "finance9", "finance10")),
       newDoc().setTags(newArrayList("finance1", "finance2", "finance3", "finance4", "finance5", "finance6", "finance7", "finance8", "finance9", "finance10")),
@@ -1371,17 +1372,38 @@ public class ProjectMeasuresIndexTest {
   }
 
   @Test
-  public void fail_if_page_size_greater_than_100() {
-    expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("Page size must be lower than or equals to 100");
+  public void search_statistics() {
+    es.putDocuments(INDEX_TYPE_PROJECT_MEASURES,
+      newDoc("lines", 10, "ncloc", 20, "coverage", 80)
+        .setLanguages(Arrays.asList("java", "cs", "js"))
+        .setNclocLanguageDistributionFromMap(ImmutableMap.of("java", 200, "cs", 250, "js", 50)),
+      newDoc("lines", 20, "ncloc", 30, "coverage", 80)
+        .setLanguages(Arrays.asList("java", "python", "kotlin"))
+        .setNclocLanguageDistributionFromMap(ImmutableMap.of("java", 300, "python", 100, "kotlin", 404)));
 
-    underTest.searchTags("whatever", 101);
+    ProjectMeasuresStatistics result = underTest.searchTelemetryStatistics();
+
+    assertThat(result.getProjectCount()).isEqualTo(2);
+    assertThat(result.getLines()).isEqualTo(30);
+    assertThat(result.getNcloc()).isEqualTo(50);
+    assertThat(result.getProjectCountByLanguage()).containsOnly(
+      entry("java", 2L), entry("cs", 1L), entry("js", 1L), entry("python", 1L), entry("kotlin", 1L));
+    assertThat(result.getNclocByLanguage()).containsOnly(
+      entry("java", 500L), entry("cs", 250L), entry("js", 50L), entry("python", 100L), entry("kotlin", 404L));
+  }
+
+  @Test
+  public void fail_if_page_size_greater_than_500() {
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("Page size must be lower than or equals to 500");
+
+    underTest.searchTags("whatever", 501);
   }
 
   private void index(ProjectMeasuresDoc... docs) {
     es.putDocuments(INDEX_TYPE_PROJECT_MEASURES, docs);
     for (ProjectMeasuresDoc doc : docs) {
-      PermissionIndexerDao.Dto access = new PermissionIndexerDao.Dto(doc.getId(), System.currentTimeMillis(), Qualifiers.PROJECT);
+      PermissionIndexerDao.Dto access = new PermissionIndexerDao.Dto(doc.getId(), Qualifiers.PROJECT);
       access.allowAnyone();
       authorizationIndexerTester.allow(access);
     }
@@ -1390,7 +1412,7 @@ public class ProjectMeasuresIndexTest {
   private void indexForUser(UserDto user, ProjectMeasuresDoc... docs) {
     es.putDocuments(INDEX_TYPE_PROJECT_MEASURES, docs);
     for (ProjectMeasuresDoc doc : docs) {
-      PermissionIndexerDao.Dto access = new PermissionIndexerDao.Dto(doc.getId(), System.currentTimeMillis(), Qualifiers.PROJECT);
+      PermissionIndexerDao.Dto access = new PermissionIndexerDao.Dto(doc.getId(), Qualifiers.PROJECT);
       access.addUserId(user.getId());
       authorizationIndexerTester.allow(access);
     }
@@ -1399,7 +1421,7 @@ public class ProjectMeasuresIndexTest {
   private void indexForGroup(GroupDto group, ProjectMeasuresDoc... docs) {
     es.putDocuments(INDEX_TYPE_PROJECT_MEASURES, docs);
     for (ProjectMeasuresDoc doc : docs) {
-      PermissionIndexerDao.Dto access = new PermissionIndexerDao.Dto(doc.getId(), System.currentTimeMillis(), Qualifiers.PROJECT);
+      PermissionIndexerDao.Dto access = new PermissionIndexerDao.Dto(doc.getId(), Qualifiers.PROJECT);
       access.addGroupId(group.getId());
       authorizationIndexerTester.allow(access);
     }
@@ -1409,7 +1431,7 @@ public class ProjectMeasuresIndexTest {
     return new ProjectMeasuresDoc()
       .setOrganizationUuid(project.getOrganizationUuid())
       .setId(project.uuid())
-      .setKey(project.key())
+      .setKey(project.getDbKey())
       .setName(project.name());
   }
 

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -45,6 +45,7 @@ import org.sonar.server.issue.IssueFinder;
 import org.sonar.server.issue.IssueUpdater;
 import org.sonar.server.user.UserSession;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Strings.emptyToNull;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -120,7 +121,7 @@ public class AssignAction implements IssuesWsAction {
       }
       IssueChangeContext context = IssueChangeContext.createUser(new Date(system2.now()), userSession.getLogin());
       if (issueFieldsSetter.assign(issue, user, context)) {
-        return issueUpdater.saveIssueAndPreloadSearchResponseData(dbSession, issue, context, null);
+        return issueUpdater.saveIssueAndPreloadSearchResponseData(dbSession, issue, context, null, false);
       }
       return new SearchResponseData(issueDto);
     }
@@ -148,8 +149,8 @@ public class AssignAction implements IssuesWsAction {
     ComponentDto project = Optional.ofNullable(dbClient.componentDao().selectByUuid(dbSession, projectUuid).orNull())
       .orElseThrow(() -> new IllegalStateException(format("Unknown project %s", projectUuid)));
     OrganizationDto organizationDto = dbClient.organizationDao().selectByUuid(dbSession, project.getOrganizationUuid())
-      .orElseThrow(() -> new IllegalStateException(format("Unknown organization %s", project.getOrganizationUuid())));
-    dbClient.organizationMemberDao().select(dbSession, organizationDto.getUuid(), user.getId())
-      .orElseThrow(() -> new IllegalArgumentException(format("User '%s' is not member of organization '%s'", user.getLogin(), organizationDto.getKey())));
+      .orElseThrow(() -> new IllegalStateException(format("Unknown organizationMember %s", project.getOrganizationUuid())));
+    checkArgument(dbClient.organizationMemberDao().select(dbSession, organizationDto.getUuid(), user.getId()).isPresent(),
+      "User '%s' is not member of organization '%s'", user.getLogin(), organizationDto.getKey());
   }
 }

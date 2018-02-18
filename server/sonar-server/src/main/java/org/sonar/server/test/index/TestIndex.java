@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,8 +22,10 @@ package org.sonar.server.test.index;
 import com.google.common.base.Optional;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.lucene.search.join.ScoreMode;
 import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.elasticsearch.search.SearchHit;
+import org.sonar.api.utils.System2;
 import org.sonar.server.es.EsClient;
 import org.sonar.server.es.SearchOptions;
 import org.sonar.server.es.SearchResult;
@@ -40,9 +42,11 @@ import static org.sonar.server.test.index.TestIndexDefinition.FIELD_TEST_UUID;
 
 public class TestIndex {
   private final EsClient client;
+  private final System2 system2;
 
-  public TestIndex(EsClient client) {
+  public TestIndex(EsClient client, System2 system2) {
     this.client = client;
+    this.system2 = system2;
   }
 
   public List<CoveredFileDoc> coveredFiles(String testUuid) {
@@ -52,7 +56,7 @@ public class TestIndex {
       .setSize(1)
       .setQuery(boolQuery().must(matchAllQuery()).filter(termQuery(FIELD_TEST_UUID, testUuid)))
       .get().getHits().getHits()) {
-      coveredFiles.addAll(new TestDoc(hit.sourceAsMap()).coveredFiles());
+      coveredFiles.addAll(new TestDoc(hit.getSourceAsMap()).coveredFiles());
     }
 
     return coveredFiles;
@@ -64,18 +68,21 @@ public class TestIndex {
       .setFrom(searchOptions.getOffset())
       .setQuery(boolQuery().must(matchAllQuery()).filter(termQuery(FIELD_FILE_UUID, testFileUuid)));
 
-    return new SearchResult<>(searchRequest.get(), TestDoc::new);
+    return new SearchResult<>(searchRequest.get(), TestDoc::new, system2.getDefaultTimeZone());
   }
 
   public SearchResult<TestDoc> searchBySourceFileUuidAndLineNumber(String sourceFileUuid, int lineNumber, SearchOptions searchOptions) {
     SearchRequestBuilder searchRequest = client.prepareSearch(TestIndexDefinition.INDEX_TYPE_TEST)
       .setSize(searchOptions.getLimit())
       .setFrom(searchOptions.getOffset())
-      .setQuery(nestedQuery(FIELD_COVERED_FILES, boolQuery()
-        .must(termQuery(FIELD_COVERED_FILES + "." + FIELD_COVERED_FILE_UUID, sourceFileUuid))
-        .must(termQuery(FIELD_COVERED_FILES + "." + FIELD_COVERED_FILE_LINES, lineNumber))));
+      .setQuery(nestedQuery(
+        FIELD_COVERED_FILES,
+        boolQuery()
+          .must(termQuery(FIELD_COVERED_FILES + "." + FIELD_COVERED_FILE_UUID, sourceFileUuid))
+          .must(termQuery(FIELD_COVERED_FILES + "." + FIELD_COVERED_FILE_LINES, lineNumber)),
+        ScoreMode.Avg));
 
-    return new SearchResult<>(searchRequest.get(), TestDoc::new);
+    return new SearchResult<>(searchRequest.get(), TestDoc::new, system2.getDefaultTimeZone());
   }
 
   public TestDoc getByTestUuid(String testUuid) {
@@ -93,7 +100,7 @@ public class TestIndex {
       .setQuery(boolQuery().must(matchAllQuery()).filter(termQuery(FIELD_TEST_UUID, testUuid)))
       .get().getHits().getHits();
     if (hits.length > 0) {
-      return Optional.of(new TestDoc(hits[0].sourceAsMap()));
+      return Optional.of(new TestDoc(hits[0].getSourceAsMap()));
     }
     return Optional.absent();
   }
@@ -104,6 +111,6 @@ public class TestIndex {
       .setFrom(searchOptions.getOffset())
       .setQuery(boolQuery().must(matchAllQuery()).filter(termQuery(FIELD_TEST_UUID, testUuid)));
 
-    return new SearchResult<>(searchRequest.get(), TestDoc::new);
+    return new SearchResult<>(searchRequest.get(), TestDoc::new, system2.getDefaultTimeZone());
   }
 }

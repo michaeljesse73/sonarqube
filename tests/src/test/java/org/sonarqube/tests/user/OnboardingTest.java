@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,19 +20,16 @@
 package org.sonarqube.tests.user;
 
 import com.sonar.orchestrator.Orchestrator;
-import org.junit.After;
-import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
-import org.sonarqube.tests.Tester;
-import org.sonarqube.ws.WsUsers.CreateWsResponse.User;
+import org.sonarqube.qa.util.Tester;
+import org.sonarqube.ws.Users.CreateWsResponse.User;
 import org.sonarqube.ws.client.WsClient;
+import org.sonarqube.ws.client.users.DeactivateRequest;
 import util.ItUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static util.ItUtils.resetSettings;
-import static util.ItUtils.setServerProperty;
 
 public class OnboardingTest {
 
@@ -43,16 +40,6 @@ public class OnboardingTest {
 
   @Rule
   public Tester tester = new Tester(orchestrator).disableOrganizations();
-
-  @Before
-  public void setUp() {
-    resetSettings(orchestrator, null, ONBOARDING_TUTORIAL_SHOW_TO_NEW_USERS);
-  }
-
-  @After
-  public void reset() {
-    resetSettings(orchestrator, null, ONBOARDING_TUTORIAL_SHOW_TO_NEW_USERS);
-  }
 
   @Test
   public void by_default_new_user_does_not_see_onboarding_tutorial() {
@@ -139,14 +126,14 @@ public class OnboardingTest {
     tester.as(user.getLogin()).wsClient().users().skipOnboardingTutorial();
     verifyTutorial(user, false);
 
-    tester.wsClient().users().deactivate(user.getLogin());
+    tester.wsClient().users().deactivate(new DeactivateRequest().setLogin(user.getLogin()));
     User reactivatedUser = tester.users().generate(u -> u.setLogin(user.getLogin()).setName(user.getName()).setPassword(user.getLogin()));
 
     verifyTutorial(reactivatedUser, true);
   }
 
-  private static void setShownOnboardingSetting(boolean showTutorial) {
-    setServerProperty(orchestrator, ONBOARDING_TUTORIAL_SHOW_TO_NEW_USERS, String.valueOf(showTutorial));
+  private void setShownOnboardingSetting(boolean showTutorial) {
+    tester.settings().setGlobalSettings(ONBOARDING_TUTORIAL_SHOW_TO_NEW_USERS, String.valueOf(showTutorial));
   }
 
   private void verifyTutorial(User user, boolean expectedTutorial) {

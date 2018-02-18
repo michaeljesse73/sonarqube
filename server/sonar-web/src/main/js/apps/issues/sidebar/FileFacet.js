@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,15 +20,17 @@
 // @flow
 import React from 'react';
 import { sortBy, without } from 'lodash';
-import FacetBox from './components/FacetBox';
-import FacetHeader from './components/FacetHeader';
-import FacetItem from './components/FacetItem';
-import FacetItemsList from './components/FacetItemsList';
-import type { ReferencedComponent } from '../utils';
+import FacetBox from '../../../components/facet/FacetBox';
+import FacetHeader from '../../../components/facet/FacetHeader';
+import FacetItem from '../../../components/facet/FacetItem';
+import FacetItemsList from '../../../components/facet/FacetItemsList';
 import QualifierIcon from '../../../components/shared/QualifierIcon';
 import { translate } from '../../../helpers/l10n';
 import { collapsePath } from '../../../helpers/path';
+import { formatFacetStat } from '../utils';
+/*:: import type { ReferencedComponent } from '../utils'; */
 
+/*::
 type Props = {|
   facetMode: string,
   onChange: (changes: { [string]: Array<string> }) => void,
@@ -38,17 +40,18 @@ type Props = {|
   referencedComponents: { [string]: ReferencedComponent },
   files: Array<string>
 |};
+*/
 
 export default class FileFacet extends React.PureComponent {
-  props: Props;
+  /*:: props: Props; */
+
+  property = 'files';
 
   static defaultProps = {
     open: true
   };
 
-  property = 'files';
-
-  handleItemClick = (itemValue: string) => {
+  handleItemClick = (itemValue /*: string */) => {
     const { files } = this.props;
     const newValue = sortBy(
       files.includes(itemValue) ? without(files, itemValue) : [...files, itemValue]
@@ -64,16 +67,18 @@ export default class FileFacet extends React.PureComponent {
     this.props.onChange({ [this.property]: [] });
   };
 
-  getStat(file: string): ?number {
+  getStat(file /*: string */) /*: ?number */ {
     const { stats } = this.props;
     return stats ? stats[file] : null;
   }
 
-  renderName(file: string): React.Element<*> | string {
+  getFileName(file /*: string */) {
     const { referencedComponents } = this.props;
-    const name = referencedComponents[file]
-      ? collapsePath(referencedComponents[file].path, 15)
-      : file;
+    return referencedComponents[file] ? collapsePath(referencedComponents[file].path, 15) : file;
+  }
+
+  renderName(file /*: string */) /*: React.Element<*> | string */ {
+    const name = this.getFileName(file);
     return (
       <span>
         <QualifierIcon className="little-spacer-right" qualifier="FIL" />
@@ -96,11 +101,10 @@ export default class FileFacet extends React.PureComponent {
         {files.map(file => (
           <FacetItem
             active={this.props.files.includes(file)}
-            facetMode={this.props.facetMode}
             key={file}
             name={this.renderName(file)}
             onClick={this.handleItemClick}
-            stat={this.getStat(file)}
+            stat={formatFacetStat(this.getStat(file), this.props.facetMode)}
             value={file}
           />
         ))}
@@ -109,6 +113,7 @@ export default class FileFacet extends React.PureComponent {
   }
 
   render() {
+    const values = this.props.files.map(file => this.getFileName(file));
     return (
       <FacetBox property={this.property}>
         <FacetHeader
@@ -116,7 +121,7 @@ export default class FileFacet extends React.PureComponent {
           onClear={this.handleClear}
           onClick={this.handleHeaderClick}
           open={this.props.open}
-          values={this.props.files.length}
+          values={values}
         />
 
         {this.props.open && this.renderList()}

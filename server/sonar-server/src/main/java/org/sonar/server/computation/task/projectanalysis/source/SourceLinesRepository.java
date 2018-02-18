@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -29,7 +29,7 @@ public interface SourceLinesRepository {
    * <p>
    * The returned {@link CloseableIterator} will wrap the {@link CloseableIterator} returned by
    * {@link org.sonar.server.computation.task.projectanalysis.batch.BatchReportReader#readFileSource(int)} but enforces that the number
-   * of lines specified by {@link org.sonar.batch.protocol.output.ScannerReport.Component#getLines()} is respected, adding
+   * of lines specified by {@link org.sonar.scanner.protocol.output.ScannerReport.Component#getLines()} is respected, adding
    * an extra empty last line if required.
    * </p>
    *

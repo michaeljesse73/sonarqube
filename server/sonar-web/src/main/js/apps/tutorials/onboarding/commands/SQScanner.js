@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,12 +21,14 @@
 import React from 'react';
 import { translate } from '../../../../helpers/l10n';
 
+/*::
 type Props = {
   className?: string,
   os: string
 };
+*/
 
-export default function SQScanner(props: Props) {
+export default function SQScanner(props /*: Props */) {
   return (
     <div className={props.className}>
       <h4 className="spacer-bottom">

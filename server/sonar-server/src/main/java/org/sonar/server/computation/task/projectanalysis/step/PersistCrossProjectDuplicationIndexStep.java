@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -87,9 +87,12 @@ public class PersistCrossProjectDuplicationIndexStep implements ComputationStep 
     }
 
     private void visitComponent(Component component) {
+      readFromReport(component);
+    }
+
+    private void readFromReport(Component component) {
       int indexInFile = 0;
-      CloseableIterator<ScannerReport.CpdTextBlock> blocks = reportReader.readCpdTextBlocks(component.getReportAttributes().getRef());
-      try {
+      try (CloseableIterator<ScannerReport.CpdTextBlock> blocks = reportReader.readCpdTextBlocks(component.getReportAttributes().getRef())) {
         while (blocks.hasNext()) {
           ScannerReport.CpdTextBlock block = blocks.next();
           dbClient.duplicationDao().insert(
@@ -103,10 +106,9 @@ public class PersistCrossProjectDuplicationIndexStep implements ComputationStep 
               .setComponentUuid(component.getUuid()));
           indexInFile++;
         }
-      } finally {
-        blocks.close();
       }
     }
+
   }
 
   @Override

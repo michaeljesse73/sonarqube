@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -138,7 +138,7 @@ public class UpdateActionTest {
   @Test
   public void IAE_is_raised_when_update_center_is_unavailable() throws Exception {
     logInAsSystemAdministrator();
-    when(updateCenterFactory.getUpdateCenter(anyBoolean())).thenReturn(Optional.<UpdateCenter>absent());
+    when(updateCenterFactory.getUpdateCenter(anyBoolean())).thenReturn(Optional.absent());
 
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("No plugin with key 'pluginKey'");
@@ -151,8 +151,7 @@ public class UpdateActionTest {
     logInAsSystemAdministrator();
     Version version = Version.create("1.0");
     when(updateCenter.findPluginUpdates()).thenReturn(ImmutableList.of(
-      PluginUpdate.createWithStatus(new Release(Plugin.factory(PLUGIN_KEY), version), Status.COMPATIBLE)
-    ));
+      PluginUpdate.createWithStatus(new Release(Plugin.factory(PLUGIN_KEY), version), Status.COMPATIBLE)));
 
     underTest.handle(validRequest, response);
 

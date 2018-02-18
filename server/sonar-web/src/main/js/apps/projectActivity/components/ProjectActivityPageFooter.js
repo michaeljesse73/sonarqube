@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,15 +20,19 @@
 // @flow
 import React from 'react';
 import ListFooter from '../../../components/controls/ListFooter';
-import type { Paging } from '../types';
+/*:: import type { Paging } from '../types'; */
 
+/*::
 type Props = {
   analyses: Array<*>,
   fetchMoreActivity: () => void,
   paging?: Paging
 };
+*/
 
-export default function ProjectActivityPageFooter({ analyses, fetchMoreActivity, paging }: Props) {
+export default function ProjectActivityPageFooter(
+  { analyses, fetchMoreActivity, paging } /*: Props */
+) {
   if (!paging || analyses.length === 0) {
     return null;
   }

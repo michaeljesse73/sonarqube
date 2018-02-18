@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,20 +18,24 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import React from 'react';
+import createReactClass from 'create-react-class';
+import PropTypes from 'prop-types';
 import { max } from 'd3-array';
 import { scaleLinear, scaleBand } from 'd3-scale';
 import { ResizeMixin } from './../mixins/resize-mixin';
 import { TooltipsContainer } from './../mixins/tooltips-mixin';
 
-export const BarChart = React.createClass({
+export const BarChart = createReactClass({
+  displayName: 'BarChart',
+
   propTypes: {
-    data: React.PropTypes.arrayOf(React.PropTypes.object).isRequired,
-    xTicks: React.PropTypes.arrayOf(React.PropTypes.any),
-    xValues: React.PropTypes.arrayOf(React.PropTypes.any),
-    height: React.PropTypes.number,
-    padding: React.PropTypes.arrayOf(React.PropTypes.number),
-    barsWidth: React.PropTypes.number.isRequired,
-    onBarClick: React.PropTypes.func
+    data: PropTypes.arrayOf(PropTypes.object).isRequired,
+    xTicks: PropTypes.arrayOf(PropTypes.any),
+    xValues: PropTypes.arrayOf(PropTypes.any),
+    height: PropTypes.number,
+    padding: PropTypes.arrayOf(PropTypes.number),
+    barsWidth: PropTypes.number.isRequired,
+    onBarClick: PropTypes.func
   },
 
   mixins: [ResizeMixin],
@@ -46,6 +50,15 @@ export const BarChart = React.createClass({
 
   getInitialState() {
     return { width: this.props.width, height: this.props.height };
+  },
+
+  componentDidUpdate(prevProps) {
+    if (this.props.width && prevProps.width !== this.props.width) {
+      this.setState({ width: this.props.width });
+    }
+    if (this.props.height && prevProps.height !== this.props.height) {
+      this.setState({ height: this.props.height });
+    }
   },
 
   handleClick(point) {
@@ -160,7 +173,9 @@ export const BarChart = React.createClass({
       .domain(this.props.data.map(d => d.x))
       .range([0, availableWidth])
       .paddingInner(relativeInnerPadding);
-    const yScale = scaleLinear().domain([0, maxY]).range([availableHeight, 0]);
+    const yScale = scaleLinear()
+      .domain([0, maxY])
+      .range([availableHeight, 0]);
 
     return (
       <TooltipsContainer>

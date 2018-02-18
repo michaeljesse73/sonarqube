@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -66,11 +66,11 @@ public class IndexActionTest {
   }
 
   @Test
-  public void search_all_projects() throws Exception {
+  public void search_all_projects() {
     insertProjectsAuthorizedForUser(
-      ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization()).setKey("org.jenkins-ci.plugins:sonar").setName("Jenkins Sonar Plugin"),
-      ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization()).setKey("org.codehaus.sonar-plugins:sonar-ant-task").setName("Sonar Ant Task"),
-      ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization()).setKey("org.codehaus.sonar-plugins:sonar-build-breaker-plugin").setName("Sonar Build Breaker Plugin"));
+      ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization()).setDbKey("org.jenkins-ci.plugins:sonar").setName("Jenkins Sonar Plugin"),
+      ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization()).setDbKey("org.codehaus.sonar-plugins:sonar-ant-task").setName("Sonar Ant Task"),
+      ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization()).setDbKey("org.codehaus.sonar-plugins:sonar-build-breaker-plugin").setName("Sonar Build Breaker Plugin"));
 
     String result = call(null, null, null);
 
@@ -78,13 +78,13 @@ public class IndexActionTest {
   }
 
   @Test
-  public void search_projects_with_modules() throws Exception {
-    ComponentDto project1 = ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization()).setKey("org.jenkins-ci.plugins:sonar").setName("Jenkins Sonar Plugin");
-    ComponentDto project2 = ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization()).setKey("org.codehaus.sonar-plugins:sonar-ant-task").setName("Sonar Ant Task");
+  public void search_projects_with_modules() {
+    ComponentDto project1 = ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization()).setDbKey("org.jenkins-ci.plugins:sonar").setName("Jenkins Sonar Plugin");
+    ComponentDto project2 = ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization()).setDbKey("org.codehaus.sonar-plugins:sonar-ant-task").setName("Sonar Ant Task");
     insertProjectsAuthorizedForUser(project1, project2);
     db.components().insertComponents(
-      newModuleDto(project1).setKey("org.jenkins-ci.plugins:sonar-common").setName("Common"),
-      newModuleDto(project2).setKey("org.codehaus.sonar-plugins:sonar-ant-db").setName("Ant DB"));
+      newModuleDto(project1).setDbKey("org.jenkins-ci.plugins:sonar-common").setName("Common"),
+      newModuleDto(project2).setDbKey("org.codehaus.sonar-plugins:sonar-ant-db").setName("Ant DB"));
 
     String result = call(null, null, true);
 
@@ -92,11 +92,11 @@ public class IndexActionTest {
   }
 
   @Test
-  public void search_project_by_key() throws Exception {
+  public void search_project_by_key() {
     insertProjectsAuthorizedForUser(
-      ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization()).setKey("org.jenkins-ci.plugins:sonar").setName("Jenkins Sonar Plugin"),
-      ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization()).setKey("org.codehaus.sonar-plugins:sonar-ant-task").setName("Sonar Ant Task"),
-      ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization()).setKey("org.codehaus.sonar-plugins:sonar-build-breaker-plugin").setName("Sonar Build Breaker Plugin"));
+      ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization()).setDbKey("org.jenkins-ci.plugins:sonar").setName("Jenkins Sonar Plugin"),
+      ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization()).setDbKey("org.codehaus.sonar-plugins:sonar-ant-task").setName("Sonar Ant Task"),
+      ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization()).setDbKey("org.codehaus.sonar-plugins:sonar-build-breaker-plugin").setName("Sonar Build Breaker Plugin"));
 
     String result = call("org.jenkins-ci.plugins:sonar", null, null);
 
@@ -104,12 +104,12 @@ public class IndexActionTest {
   }
 
   @Test
-  public void search_project_by_id() throws Exception {
-    ComponentDto project = ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization()).setKey("org.jenkins-ci.plugins:sonar").setName("Jenkins Sonar Plugin");
+  public void search_project_by_id() {
+    ComponentDto project = ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization()).setDbKey("org.jenkins-ci.plugins:sonar").setName("Jenkins Sonar Plugin");
     insertProjectsAuthorizedForUser(
       project,
-      ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization()).setKey("org.codehaus.sonar-plugins:sonar-ant-task").setName("Sonar Ant Task"),
-      ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization()).setKey("org.codehaus.sonar-plugins:sonar-build-breaker-plugin").setName("Sonar Build Breaker Plugin"));
+      ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization()).setDbKey("org.codehaus.sonar-plugins:sonar-ant-task").setName("Sonar Ant Task"),
+      ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization()).setDbKey("org.codehaus.sonar-plugins:sonar-build-breaker-plugin").setName("Sonar Build Breaker Plugin"));
 
     String result = call(Long.toString(project.getId()), null, null);
 
@@ -117,11 +117,11 @@ public class IndexActionTest {
   }
 
   @Test
-  public void search_projects_by_name() throws Exception {
+  public void search_projects_by_name() {
     insertProjectsAuthorizedForUser(
-      ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization()).setKey("org.jenkins-ci.plugins:sonar").setName("Jenkins Sonar Plugin"),
-      ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization()).setKey("org.codehaus.sonar-plugins:sonar-ant-task").setName("Sonar Ant Task"),
-      ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization()).setKey("org.codehaus.sonar-plugins:sonar-build-breaker-plugin").setName("Sonar Build Breaker Plugin"));
+      ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization()).setDbKey("org.jenkins-ci.plugins:sonar").setName("Jenkins Sonar Plugin"),
+      ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization()).setDbKey("org.codehaus.sonar-plugins:sonar-ant-task").setName("Sonar Ant Task"),
+      ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization()).setDbKey("org.codehaus.sonar-plugins:sonar-build-breaker-plugin").setName("Sonar Build Breaker Plugin"));
 
     String result = call(null, "Plu", null);
 
@@ -129,14 +129,14 @@ public class IndexActionTest {
   }
 
   @Test
-  public void search_projects_with_modules_by_name() throws Exception {
-    ComponentDto project1 = ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization()).setKey("org.jenkins-ci.plugins:sonar").setName("Jenkins Sonar Plugin");
-    ComponentDto project2 = ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization()).setKey("org.codehaus.sonar-plugins:sonar-ant-task").setName("Sonar Ant Task");
+  public void search_projects_with_modules_by_name() {
+    ComponentDto project1 = ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization()).setDbKey("org.jenkins-ci.plugins:sonar").setName("Jenkins Sonar Plugin");
+    ComponentDto project2 = ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization()).setDbKey("org.codehaus.sonar-plugins:sonar-ant-task").setName("Sonar Ant Task");
     insertProjectsAuthorizedForUser(project1, project2);
     db.components().insertComponents(
-      newModuleDto(project1).setKey("org.jenkins-ci.plugins:sonar-common-db").setName("Jenkins Common DB"),
-      newModuleDto(project1).setKey("org.jenkins-ci.plugins:sonar-common-server").setName("Jenkins Common Server"),
-      newModuleDto(project2).setKey("org.codehaus.sonar-plugins:sonar-ant-db").setName("Ant DB"));
+      newModuleDto(project1).setDbKey("org.jenkins-ci.plugins:sonar-common-db").setName("Jenkins Common DB"),
+      newModuleDto(project1).setDbKey("org.jenkins-ci.plugins:sonar-common-server").setName("Jenkins Common Server"),
+      newModuleDto(project2).setDbKey("org.codehaus.sonar-plugins:sonar-ant-db").setName("Ant DB"));
 
     String result = call(null, "Com", true);
 
@@ -144,11 +144,11 @@ public class IndexActionTest {
   }
 
   @Test
-  public void return_empty_list_when_no_project_match_search() throws Exception {
+  public void return_empty_list_when_no_project_match_search() {
     insertProjectsAuthorizedForUser(
-      ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization()).setKey("org.jenkins-ci.plugins:sonar").setName("Jenkins Sonar Plugin"),
-      ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization()).setKey("org.codehaus.sonar-plugins:sonar-ant-task").setName("Sonar Ant Task"),
-      ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization()).setKey("org.codehaus.sonar-plugins:sonar-build-breaker-plugin").setName("Sonar Build Breaker Plugin"));
+      ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization()).setDbKey("org.jenkins-ci.plugins:sonar").setName("Jenkins Sonar Plugin"),
+      ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization()).setDbKey("org.codehaus.sonar-plugins:sonar-ant-task").setName("Sonar Ant Task"),
+      ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization()).setDbKey("org.codehaus.sonar-plugins:sonar-build-breaker-plugin").setName("Sonar Build Breaker Plugin"));
 
     String result = call(null, "Unknown", null);
 
@@ -156,12 +156,12 @@ public class IndexActionTest {
   }
 
   @Test
-  public void return_only_projects_authorized_for_user() throws Exception {
+  public void return_only_projects_authorized_for_user() {
     insertProjectsAuthorizedForUser(
-      ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization()).setKey("org.jenkins-ci.plugins:sonar").setName("Jenkins Sonar Plugin"),
-      ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization()).setKey("org.codehaus.sonar-plugins:sonar-ant-task").setName("Sonar Ant Task"));
+      ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization()).setDbKey("org.jenkins-ci.plugins:sonar").setName("Jenkins Sonar Plugin"),
+      ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization()).setDbKey("org.codehaus.sonar-plugins:sonar-ant-task").setName("Sonar Ant Task"));
     db.components()
-      .insertComponent(ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization()).setKey("org.codehaus.sonar-plugins:sonar-build-breaker-plugin").setName("Sonar Build Breaker Plugin"));
+      .insertComponent(ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization()).setDbKey("org.codehaus.sonar-plugins:sonar-build-breaker-plugin").setName("Sonar Build Breaker Plugin"));
 
     String result = call(null, null, null);
 
@@ -169,8 +169,8 @@ public class IndexActionTest {
   }
 
   @Test
-  public void do_not_verify_permissions_if_user_is_root() throws Exception {
-    ComponentDto project = db.components().insertPrivateProject(p -> p.setKey("P1").setName("POne"));
+  public void do_not_verify_permissions_if_user_is_root() {
+    ComponentDto project = db.components().insertPrivateProject(p -> p.setDbKey("P1").setName("POne"));
 
     String result = call(null, null, null);
 
@@ -191,11 +191,37 @@ public class IndexActionTest {
   }
 
   @Test
+  public void does_not_return_branches_when_searching_all_components() {
+    ComponentDto project = db.components().insertMainBranch();
+    ComponentDto branch = db.components().insertProjectBranch(project);
+    userSession.setRoot();
+
+    String result = call(null, null, null);
+
+    assertJson(result).isSimilarTo("[" +
+      "  {" +
+      "  \"id\":" + project.getId() + "," +
+      "  }" +
+      "]");
+  }
+
+  @Test
+  public void does_not_return_branches_when_searching_by_key() {
+    ComponentDto project = db.components().insertMainBranch();
+    ComponentDto branch = db.components().insertProjectBranch(project);
+    userSession.setRoot();
+
+    String result = call(branch.getDbKey(), null, null);
+
+    assertJson(result).isSimilarTo("[]");
+  }
+
+  @Test
   public void test_example() {
     insertProjectsAuthorizedForUser(
-      ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization()).setKey("org.jenkins-ci.plugins:sonar").setName("Jenkins Sonar Plugin"),
-      ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization()).setKey("org.codehaus.sonar-plugins:sonar-ant-task").setName("Sonar Ant Task"),
-      ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization()).setKey("org.codehaus.sonar-plugins:sonar-build-breaker-plugin").setName("Sonar Build Breaker Plugin"));
+      ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization()).setDbKey("org.jenkins-ci.plugins:sonar").setName("Jenkins Sonar Plugin"),
+      ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization()).setDbKey("org.codehaus.sonar-plugins:sonar-ant-task").setName("Sonar Ant Task"),
+      ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization()).setDbKey("org.codehaus.sonar-plugins:sonar-build-breaker-plugin").setName("Sonar Build Breaker Plugin"));
 
     String result = call(null, null, null);
 

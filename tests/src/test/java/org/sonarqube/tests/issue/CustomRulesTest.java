@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -45,7 +45,7 @@ public class CustomRulesTest extends AbstractIssueTest {
   }
 
   @Test
-  public void analyzeProjectWithCustomRules() throws Exception {
+  public void analyzeProjectWithCustomRules() {
     ORCHESTRATOR.getServer().adminWsClient().post("api/rules/create",
       "template_key", "xoo:TemplateRule",
       "custom_key", "MyCustomRule",
@@ -62,7 +62,7 @@ public class CustomRulesTest extends AbstractIssueTest {
     Issue issue = issues.get(0);
     assertThat(issue.ruleKey()).isEqualTo("xoo:MyCustomRule");
     assertThat(issue.line()).isEqualTo(2);
-    // Overriden in quality profile
+    // Overridden in quality profile
     assertThat(issue.severity()).isEqualTo("CRITICAL");
   }
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -32,14 +32,13 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 import org.sonar.api.resources.Scopes;
 import org.sonar.api.utils.System2;
+import org.sonar.api.web.UserRole;
 import org.sonar.db.Dao;
 import org.sonar.db.DbSession;
 import org.sonar.db.MyBatis;
-import org.sonar.db.WildcardPosition;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.commons.lang.StringUtils.repeat;
-import static org.sonar.db.DaoDatabaseUtils.buildLikeValue;
 import static org.sonar.db.DatabaseUtils.executeLargeInputs;
 import static org.sonar.db.DatabaseUtils.executeLargeInputsWithoutOutput;
 
@@ -60,17 +59,14 @@ public class PropertiesDao implements Dao {
    * Returns the logins of users who have subscribed to the given notification dispatcher with the given notification channel.
    * If a resource ID is passed, the search is made on users who have specifically subscribed for the given resource.
    *
-   * @return the list of logins (maybe be empty - obviously)
+   * Note that {@link  UserRole#USER} permission is not checked here, filter the results with
+   * {@link org.sonar.db.permission.AuthorizationDao#keepAuthorizedLoginsOnProject}
+   *
+   * @return the list of Subscriber (maybe be empty - obviously)
    */
-  public List<String> selectUsersForNotification(String notificationDispatcherKey, String notificationChannelKey, @Nullable String projectUuid) {
+  public Set<Subscriber> findUsersForNotification(String notificationDispatcherKey, String notificationChannelKey, @Nullable String projectKey) {
     try (DbSession session = mybatis.openSession(false)) {
-      return getMapper(session).findUsersForNotification(NOTIFICATION_PREFIX + notificationDispatcherKey + "." + notificationChannelKey, projectUuid);
-    }
-  }
-
-  public List<String> selectNotificationSubscribers(String notificationDispatcherKey, String notificationChannelKey, @Nullable String componentKey) {
-    try (DbSession session = mybatis.openSession(false)) {
-      return getMapper(session).findNotificationSubscribers(NOTIFICATION_PREFIX + notificationDispatcherKey + "." + notificationChannelKey, componentKey);
+      return getMapper(session).findUsersForNotification(NOTIFICATION_PREFIX + notificationDispatcherKey + "." + notificationChannelKey, projectKey);
     }
   }
 
@@ -153,11 +149,7 @@ public class PropertiesDao implements Dao {
   }
 
   public List<PropertyDto> selectGlobalPropertiesByKeys(DbSession session, Set<String> keys) {
-    return selectByKeys(session, keys, null);
-  }
-
-  public List<PropertyDto> selectPropertiesByKeysAndComponentId(DbSession session, Set<String> keys, long componentId) {
-    return selectByKeys(session, keys, componentId);
+    return executeLargeInputs(keys, partitionKeys -> getMapper(session).selectByKeys(partitionKeys));
   }
 
   public List<PropertyDto> selectPropertiesByKeysAndComponentIds(DbSession session, Set<String> keys, Set<Long> componentIds) {
@@ -167,14 +159,6 @@ public class PropertiesDao implements Dao {
 
   public List<PropertyDto> selectPropertiesByComponentIds(DbSession session, Set<Long> componentIds) {
     return executeLargeInputs(componentIds, getMapper(session)::selectByComponentIds);
-  }
-
-  private List<PropertyDto> selectByKeys(DbSession session, Set<String> keys, @Nullable Long componentId) {
-    return executeLargeInputs(keys, partitionKeys -> getMapper(session).selectByKeys(partitionKeys, componentId));
-  }
-
-  public List<PropertyDto> selectGlobalPropertiesByKeyQuery(DbSession session, String keyQuery) {
-    return getMapper(session).selectGlobalPropertiesByKeyQuery(buildLikeValue(keyQuery, WildcardPosition.BEFORE_AND_AFTER));
   }
 
   /**

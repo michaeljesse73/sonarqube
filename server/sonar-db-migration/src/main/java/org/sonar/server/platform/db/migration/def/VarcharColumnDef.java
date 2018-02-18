@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -66,7 +66,7 @@ public class VarcharColumnDef extends AbstractColumnDef {
       case MsSql.ID:
         return format("NVARCHAR (%d)", columnSize);
       case Oracle.ID:
-        return format("VARCHAR (%d%s)", columnSize, ignoreOracleUnit ? "" : " CHAR");
+        return format("VARCHAR2 (%d%s)", columnSize, ignoreOracleUnit ? "" : " CHAR");
       default:
         return format("VARCHAR (%d)", columnSize);
     }

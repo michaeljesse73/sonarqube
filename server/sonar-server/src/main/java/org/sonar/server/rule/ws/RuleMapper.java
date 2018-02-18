@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -31,40 +31,43 @@ import org.sonar.api.resources.Languages;
 import org.sonar.api.server.debt.DebtRemediationFunction;
 import org.sonar.api.server.debt.internal.DefaultDebtRemediationFunction;
 import org.sonar.db.rule.RuleDefinitionDto;
+import org.sonar.db.rule.RuleDto.Scope;
 import org.sonar.db.rule.RuleMetadataDto;
 import org.sonar.db.rule.RuleParamDto;
 import org.sonar.markdown.Markdown;
 import org.sonar.server.rule.ws.SearchAction.SearchResult;
 import org.sonar.server.text.MacroInterpreter;
 import org.sonarqube.ws.Common;
+import org.sonarqube.ws.Common.RuleScope;
 import org.sonarqube.ws.Rules;
 
 import static java.lang.String.format;
 import static org.sonar.api.utils.DateUtils.formatDateTime;
-import static org.sonarqube.ws.client.rule.RulesWsParameters.FIELD_CREATED_AT;
-import static org.sonarqube.ws.client.rule.RulesWsParameters.FIELD_DEBT_OVERLOADED;
-import static org.sonarqube.ws.client.rule.RulesWsParameters.FIELD_DEBT_REM_FUNCTION;
-import static org.sonarqube.ws.client.rule.RulesWsParameters.FIELD_DEFAULT_DEBT_REM_FUNCTION;
-import static org.sonarqube.ws.client.rule.RulesWsParameters.FIELD_DEFAULT_REM_FUNCTION;
-import static org.sonarqube.ws.client.rule.RulesWsParameters.FIELD_EFFORT_TO_FIX_DESCRIPTION;
-import static org.sonarqube.ws.client.rule.RulesWsParameters.FIELD_GAP_DESCRIPTION;
-import static org.sonarqube.ws.client.rule.RulesWsParameters.FIELD_HTML_DESCRIPTION;
-import static org.sonarqube.ws.client.rule.RulesWsParameters.FIELD_INTERNAL_KEY;
-import static org.sonarqube.ws.client.rule.RulesWsParameters.FIELD_IS_TEMPLATE;
-import static org.sonarqube.ws.client.rule.RulesWsParameters.FIELD_LANGUAGE;
-import static org.sonarqube.ws.client.rule.RulesWsParameters.FIELD_LANGUAGE_NAME;
-import static org.sonarqube.ws.client.rule.RulesWsParameters.FIELD_MARKDOWN_DESCRIPTION;
-import static org.sonarqube.ws.client.rule.RulesWsParameters.FIELD_NAME;
-import static org.sonarqube.ws.client.rule.RulesWsParameters.FIELD_NOTE_LOGIN;
-import static org.sonarqube.ws.client.rule.RulesWsParameters.FIELD_PARAMS;
-import static org.sonarqube.ws.client.rule.RulesWsParameters.FIELD_REM_FUNCTION;
-import static org.sonarqube.ws.client.rule.RulesWsParameters.FIELD_REM_FUNCTION_OVERLOADED;
-import static org.sonarqube.ws.client.rule.RulesWsParameters.FIELD_REPO;
-import static org.sonarqube.ws.client.rule.RulesWsParameters.FIELD_SEVERITY;
-import static org.sonarqube.ws.client.rule.RulesWsParameters.FIELD_STATUS;
-import static org.sonarqube.ws.client.rule.RulesWsParameters.FIELD_SYSTEM_TAGS;
-import static org.sonarqube.ws.client.rule.RulesWsParameters.FIELD_TAGS;
-import static org.sonarqube.ws.client.rule.RulesWsParameters.FIELD_TEMPLATE_KEY;
+import static org.sonar.server.rule.ws.RulesWsParameters.FIELD_CREATED_AT;
+import static org.sonar.server.rule.ws.RulesWsParameters.FIELD_DEBT_OVERLOADED;
+import static org.sonar.server.rule.ws.RulesWsParameters.FIELD_DEBT_REM_FUNCTION;
+import static org.sonar.server.rule.ws.RulesWsParameters.FIELD_DEFAULT_DEBT_REM_FUNCTION;
+import static org.sonar.server.rule.ws.RulesWsParameters.FIELD_DEFAULT_REM_FUNCTION;
+import static org.sonar.server.rule.ws.RulesWsParameters.FIELD_EFFORT_TO_FIX_DESCRIPTION;
+import static org.sonar.server.rule.ws.RulesWsParameters.FIELD_GAP_DESCRIPTION;
+import static org.sonar.server.rule.ws.RulesWsParameters.FIELD_HTML_DESCRIPTION;
+import static org.sonar.server.rule.ws.RulesWsParameters.FIELD_INTERNAL_KEY;
+import static org.sonar.server.rule.ws.RulesWsParameters.FIELD_IS_TEMPLATE;
+import static org.sonar.server.rule.ws.RulesWsParameters.FIELD_LANGUAGE;
+import static org.sonar.server.rule.ws.RulesWsParameters.FIELD_LANGUAGE_NAME;
+import static org.sonar.server.rule.ws.RulesWsParameters.FIELD_MARKDOWN_DESCRIPTION;
+import static org.sonar.server.rule.ws.RulesWsParameters.FIELD_NAME;
+import static org.sonar.server.rule.ws.RulesWsParameters.FIELD_NOTE_LOGIN;
+import static org.sonar.server.rule.ws.RulesWsParameters.FIELD_PARAMS;
+import static org.sonar.server.rule.ws.RulesWsParameters.FIELD_REM_FUNCTION;
+import static org.sonar.server.rule.ws.RulesWsParameters.FIELD_REM_FUNCTION_OVERLOADED;
+import static org.sonar.server.rule.ws.RulesWsParameters.FIELD_REPO;
+import static org.sonar.server.rule.ws.RulesWsParameters.FIELD_SEVERITY;
+import static org.sonar.server.rule.ws.RulesWsParameters.FIELD_STATUS;
+import static org.sonar.server.rule.ws.RulesWsParameters.FIELD_SYSTEM_TAGS;
+import static org.sonar.server.rule.ws.RulesWsParameters.FIELD_SCOPE;
+import static org.sonar.server.rule.ws.RulesWsParameters.FIELD_TAGS;
+import static org.sonar.server.rule.ws.RulesWsParameters.FIELD_TEMPLATE_KEY;
 
 /**
  * Conversion of {@link org.sonar.db.rule.RuleDto} to {@link org.sonarqube.ws.Rules.Rule}
@@ -115,6 +118,7 @@ public class RuleMapper {
     setTemplateKey(ruleResponse, ruleDefinitionDto, result, fieldsToReturn);
     setDefaultDebtRemediationFunctionFields(ruleResponse, ruleDefinitionDto, fieldsToReturn);
     setEffortToFixDescription(ruleResponse, ruleDefinitionDto, fieldsToReturn);
+    setScope(ruleResponse, ruleDefinitionDto, fieldsToReturn);
     return ruleResponse;
   }
 
@@ -127,6 +131,25 @@ public class RuleMapper {
   private static void setRepository(Rules.Rule.Builder ruleResponse, RuleDefinitionDto ruleDto, Set<String> fieldsToReturn) {
     if (shouldReturnField(fieldsToReturn, FIELD_REPO)) {
       ruleResponse.setRepo(ruleDto.getKey().repository());
+    }
+  }
+
+  private static void setScope(Rules.Rule.Builder ruleResponse, RuleDefinitionDto ruleDto, Set<String> fieldsToReturn) {
+    if (shouldReturnField(fieldsToReturn, FIELD_SCOPE)) {
+      ruleResponse.setScope(toWsRuleScope(ruleDto.getScope()));
+    }
+  }
+
+  private static RuleScope toWsRuleScope(Scope scope) {
+    switch (scope) {
+      case ALL:
+        return RuleScope.ALL;
+      case MAIN:
+        return RuleScope.MAIN;
+      case TEST:
+        return RuleScope.TEST;
+      default:
+        throw new IllegalArgumentException("Unknown rule scope: " + scope);
     }
   }
 

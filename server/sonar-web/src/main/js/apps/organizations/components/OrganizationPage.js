@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,15 +22,18 @@ import React from 'react';
 import Helmet from 'react-helmet';
 import { connect } from 'react-redux';
 import OrganizationNavigation from '../navigation/OrganizationNavigation';
+import NotFound from '../../../app/components/NotFound';
 import { fetchOrganization } from '../actions';
 import { getOrganizationByKey } from '../../../store/rootReducer';
-import type { Organization } from '../../../store/organizations/duck';
-import NotFound from '../../../app/components/NotFound';
+/*:: import type { Organization } from '../../../store/organizations/duck'; */
 
+/*::
 type OwnProps = {
   params: { organizationKey: string }
 };
+*/
 
+/*::
 type Props = {
   children?: React.Element<*>,
   location: Object,
@@ -38,22 +41,25 @@ type Props = {
   params: { organizationKey: string },
   fetchOrganization: string => Promise<*>
 };
+*/
 
+/*::
 type State = {
   loading: boolean
 };
+*/
 
-class OrganizationPage extends React.PureComponent {
-  mounted: boolean;
-  props: Props;
-  state: State = { loading: true };
+export class OrganizationPage extends React.PureComponent {
+  /*:: mounted: boolean; */
+  /*:: props: Props; */
+  state /*: State */ = { loading: true };
 
   componentDidMount() {
     this.mounted = true;
     this.updateOrganization(this.props.params.organizationKey);
   }
 
-  componentWillReceiveProps(nextProps: Props) {
+  componentWillReceiveProps(nextProps /*: Props */) {
     if (nextProps.params.organizationKey !== this.props.params.organizationKey) {
       this.updateOrganization(nextProps.params.organizationKey);
     }
@@ -63,7 +69,7 @@ class OrganizationPage extends React.PureComponent {
     this.mounted = false;
   }
 
-  updateOrganization = (organizationKey: string) => {
+  updateOrganization = (organizationKey /*: string */) => {
     if (this.mounted) {
       this.setState({ loading: true });
     }
@@ -95,12 +101,10 @@ class OrganizationPage extends React.PureComponent {
   }
 }
 
-const mapStateToProps = (state, ownProps: OwnProps) => ({
+const mapStateToProps = (state, ownProps /*: OwnProps */) => ({
   organization: getOrganizationByKey(state, ownProps.params.organizationKey)
 });
 
 const mapDispatchToProps = { fetchOrganization };
 
 export default connect(mapStateToProps, mapDispatchToProps)(OrganizationPage);
-
-export const UnconnectedOrganizationPage = OrganizationPage;

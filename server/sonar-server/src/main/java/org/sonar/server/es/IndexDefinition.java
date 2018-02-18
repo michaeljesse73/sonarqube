@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -31,9 +31,9 @@ public interface IndexDefinition {
   class IndexDefinitionContext {
     private final Map<String, NewIndex> byKey = Maps.newHashMap();
 
-    public NewIndex create(String key) {
+    public NewIndex create(String key, NewIndex.SettingsConfiguration settingsConfiguration) {
       Preconditions.checkArgument(!byKey.containsKey(key), String.format("Index already exists: %s", key));
-      NewIndex index = new NewIndex(key);
+      NewIndex index = new NewIndex(key, settingsConfiguration);
       byKey.put(key, index);
       return index;
     }

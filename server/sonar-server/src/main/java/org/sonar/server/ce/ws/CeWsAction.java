@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,7 +25,7 @@ import org.sonar.server.ws.WsAction;
 /**
  * Used by {@link CeWs} to loop over all its actions
  */
-interface CeWsAction extends WsAction {
+public interface CeWsAction extends WsAction {
   @Override
   void define(WebService.NewController controller);
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -33,7 +33,7 @@ public class PingTest {
   public static final Orchestrator orchestrator = Category4Suite.ORCHESTRATOR;
 
   @Test
-  public void ping_answers_pong() throws Exception {
+  public void ping_answers_pong() {
     HttpResponse response = orchestrator.getServer().newHttpCall("/api/system/ping").execute();
 
     assertThat(response.getBodyAsString()).isEqualTo("pong");

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -23,8 +23,8 @@ import thunk from 'redux-thunk';
 const middlewares = [thunk];
 const composed = [];
 
-if (process.env.NODE_ENV !== 'production') {
-  const createLogger = require('redux-logger');
+if (process.env.NODE_ENV === 'development') {
+  const { createLogger } = require('redux-logger');
   middlewares.push(createLogger());
 
   composed.push(window.devToolsExtension ? window.devToolsExtension() : f => f);

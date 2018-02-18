@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -39,7 +39,6 @@ import org.sonar.server.computation.task.projectanalysis.component.Component;
 import org.sonar.server.computation.task.projectanalysis.component.FileAttributes;
 import org.sonar.server.computation.task.projectanalysis.component.ReportComponent;
 import org.sonar.server.computation.task.projectanalysis.component.TreeRootHolderRule;
-import org.sonar.server.computation.task.projectanalysis.duplication.Duplicate;
 import org.sonar.server.computation.task.projectanalysis.duplication.Duplication;
 import org.sonar.server.computation.task.projectanalysis.duplication.DuplicationRepositoryRule;
 import org.sonar.server.computation.task.projectanalysis.duplication.InnerDuplicate;
@@ -56,10 +55,12 @@ import static org.mockito.Mockito.when;
 
 public class PersistFileSourcesStepTest extends BaseStepTest {
 
-  private static final int FILE_REF = 3;
+  private static final int FILE1_REF = 3;
+  private static final int FILE2_REF = 4;
   private static final String PROJECT_UUID = "PROJECT";
   private static final String PROJECT_KEY = "PROJECT_KEY";
-  private static final String FILE_UUID = "FILE";
+  private static final String FILE1_UUID = "FILE1";
+  private static final String FILE2_UUID = "FILE2";
   private static final long NOW = 123456789L;
 
   private System2 system2 = mock(System2.class);
@@ -88,7 +89,8 @@ public class PersistFileSourcesStepTest extends BaseStepTest {
   @Before
   public void setup() {
     when(system2.now()).thenReturn(NOW);
-    underTest = new PersistFileSourcesStep(dbClient, system2, treeRootHolder, reportReader, fileSourceRepository, scmInfoRepository, duplicationRepository);
+    underTest = new PersistFileSourcesStep(dbClient, system2, treeRootHolder, reportReader, fileSourceRepository, scmInfoRepository,
+      duplicationRepository);
   }
 
   @Override
@@ -103,9 +105,9 @@ public class PersistFileSourcesStepTest extends BaseStepTest {
     underTest.execute();
 
     assertThat(dbTester.countRowsOfTable("file_sources")).isEqualTo(1);
-    FileSourceDto fileSourceDto = dbClient.fileSourceDao().selectSourceByFileUuid(session, FILE_UUID);
+    FileSourceDto fileSourceDto = dbClient.fileSourceDao().selectSourceByFileUuid(session, FILE1_UUID);
     assertThat(fileSourceDto.getProjectUuid()).isEqualTo(PROJECT_UUID);
-    assertThat(fileSourceDto.getFileUuid()).isEqualTo(FILE_UUID);
+    assertThat(fileSourceDto.getFileUuid()).isEqualTo(FILE1_UUID);
     assertThat(fileSourceDto.getBinaryData()).isNotEmpty();
     assertThat(fileSourceDto.getDataHash()).isNotEmpty();
     assertThat(fileSourceDto.getLineHashes()).isNotEmpty();
@@ -127,7 +129,7 @@ public class PersistFileSourcesStepTest extends BaseStepTest {
     underTest.execute();
 
     assertThat(dbTester.countRowsOfTable("file_sources")).isEqualTo(1);
-    FileSourceDto fileSourceDto = dbClient.fileSourceDao().selectSourceByFileUuid(session, "FILE");
+    FileSourceDto fileSourceDto = dbClient.fileSourceDao().selectSourceByFileUuid(session, FILE1_UUID);
     assertThat(fileSourceDto.getLineHashes()).isEqualTo("137f72c3708c6bd0de00a0e5a69c699b\ne6251bcf1a7dc3ba5e7933e325bbe605");
     assertThat(fileSourceDto.getSrcHash()).isEqualTo("ee5a58024a155466b43bc559d953e018");
   }
@@ -136,7 +138,7 @@ public class PersistFileSourcesStepTest extends BaseStepTest {
   public void persist_coverage() {
     initBasicReport(1);
 
-    reportReader.putCoverage(FILE_REF, newArrayList(ScannerReport.LineCoverage.newBuilder()
+    reportReader.putCoverage(FILE1_REF, newArrayList(ScannerReport.LineCoverage.newBuilder()
       .setLine(1)
       .setConditions(10)
       .setHits(true)
@@ -146,7 +148,7 @@ public class PersistFileSourcesStepTest extends BaseStepTest {
     underTest.execute();
 
     assertThat(dbTester.countRowsOfTable("file_sources")).isEqualTo(1);
-    FileSourceDto fileSourceDto = dbClient.fileSourceDao().selectSourceByFileUuid(session, FILE_UUID);
+    FileSourceDto fileSourceDto = dbClient.fileSourceDao().selectSourceByFileUuid(session, FILE1_UUID);
     DbFileSources.Data data = fileSourceDto.getSourceData();
 
     assertThat(data.getLinesList()).hasSize(1);
@@ -159,7 +161,7 @@ public class PersistFileSourcesStepTest extends BaseStepTest {
   @Test
   public void persist_scm() {
     initBasicReport(1);
-    scmInfoRepository.setScmInfo(FILE_REF, Changeset.newChangesetBuilder()
+    scmInfoRepository.setScmInfo(FILE1_REF, Changeset.newChangesetBuilder()
       .setAuthor("john")
       .setDate(123456789L)
       .setRevision("rev-1")
@@ -168,7 +170,7 @@ public class PersistFileSourcesStepTest extends BaseStepTest {
     underTest.execute();
 
     assertThat(dbTester.countRowsOfTable("file_sources")).isEqualTo(1);
-    FileSourceDto fileSourceDto = dbClient.fileSourceDao().selectSourceByFileUuid(session, FILE_UUID);
+    FileSourceDto fileSourceDto = dbClient.fileSourceDao().selectSourceByFileUuid(session, FILE1_UUID);
 
     assertThat(fileSourceDto.getRevision()).isEqualTo("rev-1");
 
@@ -182,10 +184,47 @@ public class PersistFileSourcesStepTest extends BaseStepTest {
   }
 
   @Test
+  public void persist_scm_some_lines() {
+    initBasicReport(3);
+    scmInfoRepository.setScmInfo(FILE1_REF, Changeset.newChangesetBuilder()
+      .setAuthor("john")
+      .setDate(123456789L)
+      .setRevision("rev-1")
+      .build(),
+      Changeset.newChangesetBuilder()
+        .setDate(223456789L)
+        .build());
+
+    underTest.execute();
+
+    assertThat(dbTester.countRowsOfTable("file_sources")).isEqualTo(1);
+    FileSourceDto fileSourceDto = dbClient.fileSourceDao().selectSourceByFileUuid(session, FILE1_UUID);
+
+    assertThat(fileSourceDto.getRevision()).isEqualTo("rev-1");
+
+    DbFileSources.Data data = fileSourceDto.getSourceData();
+
+    assertThat(data.getLinesList()).hasSize(3);
+
+    assertThat(data.getLines(0).getScmAuthor()).isEqualTo("john");
+    assertThat(data.getLines(0).getScmDate()).isEqualTo(123456789L);
+    assertThat(data.getLines(0).getScmRevision()).isEqualTo("rev-1");
+
+    assertThat(data.getLines(1).getScmAuthor()).isEmpty();
+    assertThat(data.getLines(1).getScmDate()).isEqualTo(223456789L);
+    assertThat(data.getLines(1).getScmRevision()).isEmpty();
+
+    assertThat(data.getLines(2).getScmAuthor()).isEmpty();
+    assertThat(data.getLines(2).getScmDate()).isEqualTo(0);
+    assertThat(data.getLines(2).getScmRevision()).isEmpty();
+
+  }
+
+  @Test
   public void persist_highlighting() {
     initBasicReport(1);
 
-    reportReader.putSyntaxHighlighting(FILE_REF, newArrayList(ScannerReport.SyntaxHighlightingRule.newBuilder()
+    reportReader.putSyntaxHighlighting(FILE1_REF, newArrayList(ScannerReport.SyntaxHighlightingRule.newBuilder()
       .setRange(ScannerReport.TextRange.newBuilder()
         .setStartLine(1).setEndLine(1)
         .setStartOffset(2).setEndOffset(4)
@@ -196,7 +235,7 @@ public class PersistFileSourcesStepTest extends BaseStepTest {
     underTest.execute();
 
     assertThat(dbTester.countRowsOfTable("file_sources")).isEqualTo(1);
-    FileSourceDto fileSourceDto = dbClient.fileSourceDao().selectSourceByFileUuid(session, FILE_UUID);
+    FileSourceDto fileSourceDto = dbClient.fileSourceDao().selectSourceByFileUuid(session, FILE1_UUID);
     DbFileSources.Data data = fileSourceDto.getSourceData();
 
     assertThat(data.getLinesList()).hasSize(1);
@@ -208,7 +247,7 @@ public class PersistFileSourcesStepTest extends BaseStepTest {
   public void persist_symbols() {
     initBasicReport(3);
 
-    reportReader.putSymbols(FILE_REF, newArrayList(
+    reportReader.putSymbols(FILE1_REF, newArrayList(
       ScannerReport.Symbol.newBuilder()
         .setDeclaration(ScannerReport.TextRange.newBuilder()
           .setStartLine(1).setEndLine(1).setStartOffset(2).setEndOffset(4)
@@ -221,7 +260,7 @@ public class PersistFileSourcesStepTest extends BaseStepTest {
     underTest.execute();
 
     assertThat(dbTester.countRowsOfTable("file_sources")).isEqualTo(1);
-    FileSourceDto fileSourceDto = dbClient.fileSourceDao().selectSourceByFileUuid(session, FILE_UUID);
+    FileSourceDto fileSourceDto = dbClient.fileSourceDao().selectSourceByFileUuid(session, FILE1_UUID);
     DbFileSources.Data data = fileSourceDto.getSourceData();
 
     assertThat(data.getLinesList()).hasSize(3);
@@ -236,13 +275,13 @@ public class PersistFileSourcesStepTest extends BaseStepTest {
     initBasicReport(1);
 
     duplicationRepository.add(
-      FILE_REF,
-      new Duplication(new TextBlock(1, 2), Arrays.<Duplicate>asList(new InnerDuplicate(new TextBlock(3, 4)))));
+      FILE1_REF,
+      new Duplication(new TextBlock(1, 2), Arrays.asList(new InnerDuplicate(new TextBlock(3, 4)))));
 
     underTest.execute();
 
     assertThat(dbTester.countRowsOfTable("file_sources")).isEqualTo(1);
-    FileSourceDto fileSourceDto = dbClient.fileSourceDao().selectSourceByFileUuid(session, FILE_UUID);
+    FileSourceDto fileSourceDto = dbClient.fileSourceDao().selectSourceByFileUuid(session, FILE1_UUID);
     DbFileSources.Data data = fileSourceDto.getSourceData();
 
     assertThat(data.getLinesList()).hasSize(1);
@@ -253,7 +292,7 @@ public class PersistFileSourcesStepTest extends BaseStepTest {
   @Test
   public void save_revision() {
     initBasicReport(1);
-    scmInfoRepository.setScmInfo(FILE_REF, Changeset.newChangesetBuilder()
+    scmInfoRepository.setScmInfo(FILE1_REF, Changeset.newChangesetBuilder()
       .setAuthor("john")
       .setDate(123456789L)
       .setRevision("rev-1")
@@ -261,7 +300,7 @@ public class PersistFileSourcesStepTest extends BaseStepTest {
 
     underTest.execute();
 
-    FileSourceDto fileSourceDto = dbClient.fileSourceDao().selectSourceByFileUuid(session, FILE_UUID);
+    FileSourceDto fileSourceDto = dbClient.fileSourceDao().selectSourceByFileUuid(session, FILE1_UUID);
     assertThat(fileSourceDto.getRevision()).isEqualTo("rev-1");
   }
 
@@ -271,7 +310,7 @@ public class PersistFileSourcesStepTest extends BaseStepTest {
 
     underTest.execute();
 
-    FileSourceDto fileSourceDto = dbClient.fileSourceDao().selectSourceByFileUuid(session, FILE_UUID);
+    FileSourceDto fileSourceDto = dbClient.fileSourceDao().selectSourceByFileUuid(session, FILE1_UUID);
     assertThat(fileSourceDto.getRevision()).isNull();
   }
 
@@ -285,7 +324,7 @@ public class PersistFileSourcesStepTest extends BaseStepTest {
 
     dbClient.fileSourceDao().insert(dbTester.getSession(), new FileSourceDto()
       .setProjectUuid(PROJECT_UUID)
-      .setFileUuid(FILE_UUID)
+      .setFileUuid(FILE1_UUID)
       .setSrcHash(srcHash)
       .setLineHashes(lineHashes)
       .setDataHash(dataHash)
@@ -305,7 +344,7 @@ public class PersistFileSourcesStepTest extends BaseStepTest {
     underTest.execute();
 
     assertThat(dbTester.countRowsOfTable("file_sources")).isEqualTo(1);
-    FileSourceDto fileSourceDto = dbClient.fileSourceDao().selectSourceByFileUuid(session, FILE_UUID);
+    FileSourceDto fileSourceDto = dbClient.fileSourceDao().selectSourceByFileUuid(session, FILE1_UUID);
     assertThat(fileSourceDto.getSrcHash()).isEqualTo(srcHash);
     assertThat(fileSourceDto.getLineHashes()).isEqualTo(lineHashes);
     assertThat(fileSourceDto.getDataHash()).isEqualTo(dataHash);
@@ -319,7 +358,7 @@ public class PersistFileSourcesStepTest extends BaseStepTest {
     long past = 150000L;
     dbClient.fileSourceDao().insert(dbTester.getSession(), new FileSourceDto()
       .setProjectUuid(PROJECT_UUID)
-      .setFileUuid(FILE_UUID)
+      .setFileUuid(FILE1_UUID)
       .setDataType(Type.SOURCE)
       .setSrcHash("5b4bd9815cdb17b8ceae19eb1810c34c")
       .setLineHashes("6438c669e0d0de98e6929c2cc0fac474\n")
@@ -337,7 +376,7 @@ public class PersistFileSourcesStepTest extends BaseStepTest {
 
     initBasicReport(1);
 
-    scmInfoRepository.setScmInfo(FILE_REF, Changeset.newChangesetBuilder()
+    scmInfoRepository.setScmInfo(FILE1_REF, Changeset.newChangesetBuilder()
       .setAuthor("john")
       .setDate(123456789L)
       .setRevision("rev-1")
@@ -346,7 +385,7 @@ public class PersistFileSourcesStepTest extends BaseStepTest {
     underTest.execute();
 
     assertThat(dbTester.countRowsOfTable("file_sources")).isEqualTo(1);
-    FileSourceDto fileSourceDto = dbClient.fileSourceDao().selectSourceByFileUuid(session, FILE_UUID);
+    FileSourceDto fileSourceDto = dbClient.fileSourceDao().selectSourceByFileUuid(session, FILE1_UUID);
     assertThat(fileSourceDto.getCreatedAt()).isEqualTo(past);
     assertThat(fileSourceDto.getUpdatedAt()).isEqualTo(NOW);
     assertThat(fileSourceDto.getRevision()).isEqualTo("rev-1");
@@ -358,7 +397,7 @@ public class PersistFileSourcesStepTest extends BaseStepTest {
     long past = 150000L;
     dbClient.fileSourceDao().insert(dbTester.getSession(), new FileSourceDto()
       .setProjectUuid(PROJECT_UUID)
-      .setFileUuid(FILE_UUID)
+      .setFileUuid(FILE1_UUID)
       .setDataType(Type.SOURCE)
       // Source hash is missing, update will be made
       .setLineHashes("137f72c3708c6bd0de00a0e5a69c699b")
@@ -378,7 +417,7 @@ public class PersistFileSourcesStepTest extends BaseStepTest {
     underTest.execute();
 
     assertThat(dbTester.countRowsOfTable("file_sources")).isEqualTo(1);
-    FileSourceDto fileSourceDto = dbClient.fileSourceDao().selectSourceByFileUuid(session, FILE_UUID);
+    FileSourceDto fileSourceDto = dbClient.fileSourceDao().selectSourceByFileUuid(session, FILE1_UUID);
     assertThat(fileSourceDto.getCreatedAt()).isEqualTo(past);
     assertThat(fileSourceDto.getUpdatedAt()).isEqualTo(NOW);
     assertThat(fileSourceDto.getSrcHash()).isEqualTo("137f72c3708c6bd0de00a0e5a69c699b");
@@ -390,7 +429,7 @@ public class PersistFileSourcesStepTest extends BaseStepTest {
     long past = 150000L;
     dbClient.fileSourceDao().insert(dbTester.getSession(), new FileSourceDto()
       .setProjectUuid(PROJECT_UUID)
-      .setFileUuid(FILE_UUID)
+      .setFileUuid(FILE1_UUID)
       .setDataType(Type.SOURCE)
       .setSrcHash("137f72c3708c6bd0de00a0e5a69c699b")
       .setLineHashes("137f72c3708c6bd0de00a0e5a69c699b")
@@ -406,7 +445,7 @@ public class PersistFileSourcesStepTest extends BaseStepTest {
       .setUpdatedAt(past));
     dbTester.getSession().commit();
 
-    scmInfoRepository.setScmInfo(FILE_REF, Changeset.newChangesetBuilder()
+    scmInfoRepository.setScmInfo(FILE1_REF, Changeset.newChangesetBuilder()
       .setAuthor("john")
       .setDate(123456789L)
       .setRevision("rev-1")
@@ -417,7 +456,7 @@ public class PersistFileSourcesStepTest extends BaseStepTest {
     underTest.execute();
 
     assertThat(dbTester.countRowsOfTable("file_sources")).isEqualTo(1);
-    FileSourceDto fileSourceDto = dbClient.fileSourceDao().selectSourceByFileUuid(session, FILE_UUID);
+    FileSourceDto fileSourceDto = dbClient.fileSourceDao().selectSourceByFileUuid(session, FILE1_UUID);
     assertThat(fileSourceDto.getCreatedAt()).isEqualTo(past);
     assertThat(fileSourceDto.getUpdatedAt()).isEqualTo(NOW);
     assertThat(fileSourceDto.getRevision()).isEqualTo("rev-1");
@@ -429,7 +468,7 @@ public class PersistFileSourcesStepTest extends BaseStepTest {
     long past = 150000L;
     dbClient.fileSourceDao().insert(dbTester.getSession(), new FileSourceDto()
       .setProjectUuid(PROJECT_UUID)
-      .setFileUuid(FILE_UUID)
+      .setFileUuid(FILE1_UUID)
       .setDataType(Type.SOURCE)
       .setSrcHash("137f72c3708c6bd0de00a0e5a69c699b")
       .setLineHashes("137f72c3708c6bd0de00a0e5a69c699b")
@@ -450,7 +489,7 @@ public class PersistFileSourcesStepTest extends BaseStepTest {
     underTest.execute();
 
     assertThat(dbTester.countRowsOfTable("file_sources")).isEqualTo(1);
-    FileSourceDto fileSourceDto = dbClient.fileSourceDao().selectSourceByFileUuid(session, FILE_UUID);
+    FileSourceDto fileSourceDto = dbClient.fileSourceDao().selectSourceByFileUuid(session, FILE1_UUID);
     assertThat(fileSourceDto.getCreatedAt()).isEqualTo(past);
     assertThat(fileSourceDto.getUpdatedAt()).isEqualTo(NOW);
     assertThat(fileSourceDto.getRevision()).isNull();
@@ -459,7 +498,7 @@ public class PersistFileSourcesStepTest extends BaseStepTest {
   private void initBasicReport(int numberOfLines) {
     treeRootHolder.setRoot(ReportComponent.builder(Component.Type.PROJECT, 1).setUuid(PROJECT_UUID).setKey(PROJECT_KEY).addChildren(
       ReportComponent.builder(Component.Type.MODULE, 2).setUuid("MODULE").setKey("MODULE_KEY").addChildren(
-        ReportComponent.builder(Component.Type.FILE, FILE_REF).setUuid(FILE_UUID).setKey("MODULE_KEY:src/Foo.java")
+        ReportComponent.builder(Component.Type.FILE, FILE1_REF).setUuid(FILE1_UUID).setKey("MODULE_KEY:src/Foo.java")
           .setFileAttributes(new FileAttributes(false, null, numberOfLines)).build())
         .build())
       .build());
@@ -472,17 +511,16 @@ public class PersistFileSourcesStepTest extends BaseStepTest {
     reportReader.putComponent(ScannerReport.Component.newBuilder()
       .setRef(2)
       .setType(ComponentType.MODULE)
-      .addChildRef(FILE_REF)
+      .addChildRef(FILE1_REF)
       .build());
     reportReader.putComponent(ScannerReport.Component.newBuilder()
-      .setRef(FILE_REF)
+      .setRef(FILE1_REF)
       .setType(ComponentType.FILE)
       .setLines(numberOfLines)
       .build());
 
     for (int i = 1; i <= numberOfLines; i++) {
-      fileSourceRepository.addLine(FILE_REF, "line" + i);
+      fileSourceRepository.addLine(FILE1_REF, "line" + i);
     }
   }
-
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -28,7 +28,6 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.sonar.api.config.Encryption;
-import org.sonar.api.config.Settings;
 import org.sonar.api.config.internal.MapSettings;
 import org.sonar.api.server.ws.WebService;
 import org.sonar.server.exceptions.BadRequestException;
@@ -39,8 +38,8 @@ import org.sonar.server.ws.WsActionTester;
 import org.sonarqube.ws.Settings.EncryptWsResponse;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.sonar.server.setting.ws.SettingsWsParameters.PARAM_VALUE;
 import static org.sonar.test.JsonAssert.assertJson;
-import static org.sonarqube.ws.client.setting.SettingsWsParameters.PARAM_VALUE;
 
 public class EncryptActionTest {
   @Rule
@@ -95,7 +94,7 @@ public class EncryptActionTest {
   }
 
   @Test
-  public void throw_ForbiddenException_if_not_system_administrator() throws Exception {
+  public void throw_ForbiddenException_if_not_system_administrator() {
     userSession.logIn().setNonSystemAdministrator();
 
     expectedException.expect(ForbiddenException.class);

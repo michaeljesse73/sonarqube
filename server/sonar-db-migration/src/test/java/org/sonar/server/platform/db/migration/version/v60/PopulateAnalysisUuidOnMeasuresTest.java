@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -81,7 +81,24 @@ public class PopulateAnalysisUuidOnMeasuresTest {
     assertThat(rows.get("analysisUuid")).isEqualTo(expectedAnalysisUuid);
   }
 
-  private String insertSnapshot(long id, String uuid, String qualifier, @Nullable Long rootSnapshotId) {
+  private void insertSnapshot(long id, String uuid, String qualifier, @Nullable Long rootSnapshotId) {
+    int depth;
+    switch (qualifier) {
+      case "TRK":
+        depth = 0;
+        break;
+      case "BRC":
+        depth = 1;
+        break;
+      case "DIR":
+        depth = 2;
+        break;
+      case "FIL":
+        depth = 3;
+        break;
+      default:
+        throw new IllegalArgumentException();
+    }
     db.executeInsert(
       TABLE_SNAPSHOTS,
       "ID", valueOf(id),
@@ -89,8 +106,8 @@ public class PopulateAnalysisUuidOnMeasuresTest {
       "COMPONENT_UUID", valueOf(id + 10),
       "ROOT_COMPONENT_UUID", valueOf(id + 10),
       "ROOT_SNAPSHOT_ID", rootSnapshotId != null ? valueOf(rootSnapshotId) : null,
-      "QUALIFIER", qualifier);
-    return uuid;
+      "QUALIFIER", qualifier,
+      "DEPTH", valueOf(depth));
   }
 
   private void insertMeasure(long id, long snapshotId) {

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,53 +19,49 @@
  */
 // @flow
 import React from 'react';
-import { some } from 'lodash';
-import { AutoSizer } from 'react-virtualized';
+import AutoSizer from 'react-virtualized/dist/commonjs/AutoSizer';
 import ZoomTimeLine from '../../../components/charts/ZoomTimeLine';
-import type { Serie } from '../../../components/charts/AdvancedTimeline';
+import { hasHistoryData } from '../utils';
+/*:: import type { Serie } from '../../../components/charts/AdvancedTimeline'; */
 
+/*::
 type Props = {
   graphEndDate: ?Date,
   graphStartDate: ?Date,
-  leakPeriodDate: Date,
+  leakPeriodDate?: Date,
   loading: boolean,
   metricsType: string,
   series: Array<Serie>,
   showAreas?: boolean,
   updateGraphZoom: (from: ?Date, to: ?Date) => void
 };
+*/
 
-export default class GraphsZoom extends React.PureComponent {
-  props: Props;
-
-  hasHistoryData = () => some(this.props.series, serie => serie.data && serie.data.length > 2);
-
-  render() {
-    const { loading } = this.props;
-    if (loading || !this.hasHistoryData()) {
-      return null;
-    }
-
-    return (
-      <div className="project-activity-graph-zoom">
-        <AutoSizer disableHeight={true}>
-          {({ width }) => (
-            <ZoomTimeLine
-              endDate={this.props.graphEndDate}
-              height={64}
-              width={width}
-              interpolate="linear"
-              leakPeriodDate={this.props.leakPeriodDate}
-              metricType={this.props.metricsType}
-              padding={[0, 10, 18, 60]}
-              series={this.props.series}
-              showAreas={this.props.showAreas}
-              startDate={this.props.graphStartDate}
-              updateZoom={this.props.updateGraphZoom}
-            />
-          )}
-        </AutoSizer>
-      </div>
-    );
+export default function GraphsZoom(props /*: Props */) {
+  const { loading } = props;
+  if (loading || !hasHistoryData(props.series)) {
+    return null;
   }
+
+  return (
+    <div className="project-activity-graph-zoom">
+      <AutoSizer disableHeight={true}>
+        {({ width }) => (
+          <ZoomTimeLine
+            endDate={props.graphEndDate}
+            height={64}
+            width={width}
+            interpolate="linear"
+            leakPeriodDate={props.leakPeriodDate}
+            metricType={props.metricsType}
+            padding={[0, 10, 18, 60]}
+            series={props.series}
+            showAreas={props.showAreas}
+            startDate={props.graphStartDate}
+            updateZoom={props.updateGraphZoom}
+          />
+        )}
+      </AutoSizer>
+    </div>
+  );
 }

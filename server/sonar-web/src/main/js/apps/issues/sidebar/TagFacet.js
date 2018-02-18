@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,33 +20,39 @@
 // @flow
 import React from 'react';
 import { sortBy, uniq, without } from 'lodash';
-import FacetBox from './components/FacetBox';
-import FacetHeader from './components/FacetHeader';
-import FacetItem from './components/FacetItem';
-import FacetItemsList from './components/FacetItemsList';
-import FacetFooter from './components/FacetFooter';
+import FacetBox from '../../../components/facet/FacetBox';
+import FacetHeader from '../../../components/facet/FacetHeader';
+import FacetItem from '../../../components/facet/FacetItem';
+import FacetItemsList from '../../../components/facet/FacetItemsList';
+import FacetFooter from '../../../components/facet/FacetFooter';
 import { searchIssueTags } from '../../../api/issues';
 import { translate } from '../../../helpers/l10n';
+/*:: import type { Component } from '../utils'; */
+import { formatFacetStat } from '../utils';
 
+/*::
 type Props = {|
+  component?: Component,
   facetMode: string,
   onChange: (changes: { [string]: Array<string> }) => void,
   onToggle: (property: string) => void,
   open: boolean,
+  organization?: { key: string },
   stats?: { [string]: number },
   tags: Array<string>
 |};
+*/
 
 export default class TagFacet extends React.PureComponent {
-  props: Props;
+  /*:: props: Props; */
+
+  property = 'tags';
 
   static defaultProps = {
     open: true
   };
 
-  property = 'tags';
-
-  handleItemClick = (itemValue: string) => {
+  handleItemClick = (itemValue /*: string */) => {
     const { tags } = this.props;
     const newValue = sortBy(
       tags.includes(itemValue) ? without(tags, itemValue) : [...tags, itemValue]
@@ -62,23 +68,27 @@ export default class TagFacet extends React.PureComponent {
     this.props.onChange({ [this.property]: [] });
   };
 
-  handleSearch = (query: string) => {
-    return searchIssueTags({ ps: 50, q: query }).then(tags =>
+  handleSearch = (query /*: string */) => {
+    let organization = this.props.component && this.props.component.organization;
+    if (this.props.organization && !organization) {
+      organization = this.props.organization.key;
+    }
+    return searchIssueTags({ organization, ps: 50, q: query }).then(tags =>
       tags.map(tag => ({ label: tag, value: tag }))
     );
   };
 
-  handleSelect = (tag: string) => {
+  handleSelect = (tag /*: string */) => {
     const { tags } = this.props;
     this.props.onChange({ [this.property]: uniq([...tags, tag]) });
   };
 
-  getStat(tag: string): ?number {
+  getStat(tag /*: string */) /*: ?number */ {
     const { stats } = this.props;
     return stats ? stats[tag] : null;
   }
 
-  renderTag(tag: string) {
+  renderTag(tag /*: string */) {
     return (
       <span>
         <i className="icon-tags icon-gray little-spacer-right" />
@@ -101,11 +111,10 @@ export default class TagFacet extends React.PureComponent {
         {tags.map(tag => (
           <FacetItem
             active={this.props.tags.includes(tag)}
-            facetMode={this.props.facetMode}
             key={tag}
             name={this.renderTag(tag)}
             onClick={this.handleItemClick}
-            stat={this.getStat(tag)}
+            stat={formatFacetStat(this.getStat(tag), this.props.facetMode)}
             value={tag}
           />
         ))}
@@ -123,13 +132,13 @@ export default class TagFacet extends React.PureComponent {
 
   render() {
     return (
-      <FacetBox property={this.property}>
+      <FacetBox>
         <FacetHeader
           name={translate('issues.facet', this.property)}
           onClear={this.handleClear}
           onClick={this.handleHeaderClick}
           open={this.props.open}
-          values={this.props.tags.length}
+          values={this.props.tags}
         />
 
         {this.props.open && this.renderList()}

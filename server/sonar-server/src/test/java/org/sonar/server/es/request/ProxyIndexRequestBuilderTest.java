@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,6 +19,7 @@
  */
 package org.sonar.server.es.request;
 
+import org.elasticsearch.action.DocWriteResponse.Result;
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.common.unit.TimeValue;
@@ -46,7 +47,7 @@ public class ProxyIndexRequestBuilderTest {
     IndexResponse response = esTester.client().prepareIndex(FakeIndexDefinition.INDEX_TYPE_FAKE)
       .setSource(FakeIndexDefinition.newDoc(42).getFields())
       .get();
-    assertThat(response.isCreated()).isTrue();
+    assertThat(response.getResult()).isSameAs(Result.CREATED);
   }
 
   @Test
@@ -55,7 +56,7 @@ public class ProxyIndexRequestBuilderTest {
     IndexResponse response = esTester.client().prepareIndex(FakeIndexDefinition.INDEX_TYPE_FAKE)
       .setSource(FakeIndexDefinition.newDoc(42).getFields())
       .get();
-    assertThat(response.isCreated()).isTrue();
+    assertThat(response.getResult()).isSameAs(Result.CREATED);
     assertThat(logTester.logs(LoggerLevel.TRACE)).hasSize(1);
   }
 

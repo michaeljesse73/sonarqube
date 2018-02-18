@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -31,7 +31,6 @@ import org.sonar.server.computation.task.projectanalysis.issue.ComponentIssuesRe
 import org.sonar.server.computation.task.projectanalysis.measure.Measure;
 import org.sonar.server.computation.task.projectanalysis.measure.MeasureRepositoryRule;
 import org.sonar.server.computation.task.projectanalysis.metric.MetricRepositoryRule;
-import org.sonar.server.computation.task.projectanalysis.qualitymodel.RatingGrid.Rating;
 
 import static java.util.Collections.singletonList;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -57,9 +56,9 @@ import static org.sonar.server.computation.task.projectanalysis.component.Report
 import static org.sonar.server.computation.task.projectanalysis.measure.Measure.newMeasureBuilder;
 import static org.sonar.server.computation.task.projectanalysis.measure.MeasureRepoEntry.entryOf;
 import static org.sonar.server.computation.task.projectanalysis.measure.MeasureRepoEntry.toEntries;
-import static org.sonar.server.computation.task.projectanalysis.qualitymodel.RatingGrid.Rating.A;
-import static org.sonar.server.computation.task.projectanalysis.qualitymodel.RatingGrid.Rating.C;
-import static org.sonar.server.computation.task.projectanalysis.qualitymodel.RatingGrid.Rating.E;
+import static org.sonar.server.computation.task.projectanalysis.qualitymodel.Rating.A;
+import static org.sonar.server.computation.task.projectanalysis.qualitymodel.Rating.C;
+import static org.sonar.server.computation.task.projectanalysis.qualitymodel.Rating.E;
 
 public class MaintainabilityMeasuresVisitorTest {
 
@@ -114,7 +113,7 @@ public class MaintainabilityMeasuresVisitorTest {
   @Before
   public void setUp() {
     // assumes rating configuration is consistent
-    when(ratingSettings.getRatingGrid()).thenReturn(new RatingGrid(RATING_GRID));
+    when(ratingSettings.getDebtRatingGrid()).thenReturn(new DebtRatingGrid(RATING_GRID));
     when(ratingSettings.getDevCost(LANGUAGE_KEY_1)).thenReturn(DEV_COST_LANGUAGE_1);
     when(ratingSettings.getDevCost(LANGUAGE_KEY_2)).thenReturn(DEV_COST_LANGUAGE_2);
 
@@ -219,7 +218,7 @@ public class MaintainabilityMeasuresVisitorTest {
   }
 
   @Test
-  public void compute_maintainability_debt_ratio_measure() throws Exception {
+  public void compute_maintainability_debt_ratio_measure() {
     treeRootHolder.setRoot(ROOT_PROJECT);
 
     int file1Ncloc = 10;
@@ -251,7 +250,7 @@ public class MaintainabilityMeasuresVisitorTest {
   }
 
   @Test
-  public void compute_maintainability_rating_measure() throws Exception {
+  public void compute_maintainability_rating_measure() {
     treeRootHolder.setRoot(ROOT_PROJECT);
 
     addRawMeasure(NCLOC_KEY, FILE_1_REF, 10);
@@ -274,7 +273,7 @@ public class MaintainabilityMeasuresVisitorTest {
   }
 
   @Test
-  public void compute_effort_to_maintainability_rating_A_measure() throws Exception {
+  public void compute_effort_to_maintainability_rating_A_measure() {
     treeRootHolder.setRoot(ROOT_PROJECT);
 
     int file1Ncloc = 10;
@@ -311,7 +310,7 @@ public class MaintainabilityMeasuresVisitorTest {
   }
 
   @Test
-  public void compute_0_effort_to_maintainability_rating_A_when_effort_is_lower_than_dev_cost() throws Exception {
+  public void compute_0_effort_to_maintainability_rating_A_when_effort_is_lower_than_dev_cost() {
     treeRootHolder.setRoot(ROOT_PROJECT);
 
     addRawMeasure(NCLOC_KEY, FILE_1_REF, 10);
@@ -323,7 +322,7 @@ public class MaintainabilityMeasuresVisitorTest {
   }
 
   @Test
-  public void effort_to_maintainability_rating_A_is_same_as_effort_when_no_dev_cost() throws Exception {
+  public void effort_to_maintainability_rating_A_is_same_as_effort_when_no_dev_cost() {
     treeRootHolder.setRoot(ROOT_PROJECT);
 
     addRawMeasure(TECHNICAL_DEBT_KEY, FILE_1_REF, 100L);

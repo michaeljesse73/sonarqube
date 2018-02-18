@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,18 +19,18 @@
  */
 package org.sonar.api.server.rule;
 
-import com.google.common.base.MoreObjects;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
@@ -38,6 +38,8 @@ import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
 import org.sonar.api.ExtensionPoint;
 import org.sonar.api.ce.ComputeEngineSide;
+import org.sonar.api.rule.RuleKey;
+import org.sonar.api.rule.RuleScope;
 import org.sonar.api.rule.RuleStatus;
 import org.sonar.api.rule.Severity;
 import org.sonar.api.rules.RuleType;
@@ -159,8 +161,9 @@ public interface RulesDefinition {
 
   /**
    * Default sub-characteristics of technical debt model. See http://www.sqale.org
+   *
    * @deprecated in 5.5. SQALE Quality Model is replaced by SonarQube Quality Model.
-   *             See https://jira.sonarsource.com/browse/MMF-184
+   * See https://jira.sonarsource.com/browse/MMF-184
    */
   @Deprecated
   final class SubCharacteristics {
@@ -384,6 +387,7 @@ public interface RulesDefinition {
    */
   class Context {
     private final Map<String, Repository> repositoriesByKey = new HashMap<>();
+    private String currentPluginKey;
 
     /**
      * New builder for {@link org.sonar.api.server.rule.RulesDefinition.Repository}.
@@ -441,12 +445,17 @@ public interface RulesDefinition {
       }
       repositoriesByKey.put(newRepository.key, new RepositoryImpl(newRepository, existing));
     }
+
+    public void setCurrentPluginKey(@Nullable String pluginKey) {
+      this.currentPluginKey = pluginKey;
+    }
   }
 
   interface NewExtendedRepository {
     /**
      * Create a rule with specified key. Max length of key is 200 characters. Key must be unique
      * among the repository
+     *
      * @throws IllegalArgumentException is key is not unique. Note a warning was logged up to version 5.4 (included)
      */
     NewRule createRule(String ruleKey);
@@ -494,7 +503,7 @@ public interface RulesDefinition {
     @Override
     public NewRule createRule(String ruleKey) {
       checkArgument(!newRules.containsKey(ruleKey), "The rule '%s' of repository '%s' is declared several times", ruleKey, key);
-      NewRule newRule = new NewRule(key, ruleKey);
+      NewRule newRule = new NewRule(context.currentPluginKey, key, ruleKey);
       newRules.put(ruleKey, newRule);
       return newRule;
     }
@@ -520,10 +529,11 @@ public interface RulesDefinition {
 
     @Override
     public String toString() {
-      return MoreObjects.toStringHelper(this)
-        .add("key", key)
-        .add("language", language)
-        .toString();
+      StringBuilder sb = new StringBuilder("NewRepository{");
+      sb.append("key='").append(key).append('\'');
+      sb.append(", language='").append(language).append('\'');
+      sb.append('}');
+      return sb.toString();
     }
   }
 
@@ -620,10 +630,11 @@ public interface RulesDefinition {
 
     @Override
     public String toString() {
-      return MoreObjects.toStringHelper(this)
-        .add("language", language)
-        .add("key", key)
-        .toString();
+      StringBuilder sb = new StringBuilder("Repository{");
+      sb.append("key='").append(key).append('\'');
+      sb.append(", language='").append(language).append('\'');
+      sb.append('}');
+      return sb.toString();
     }
   }
 
@@ -634,6 +645,7 @@ public interface RulesDefinition {
 
     /**
      * Shortcut for {@code create(Type.LINEAR, gap multiplier, null)}.
+     *
      * @param gapMultiplier the duration to fix one issue. See {@link DebtRemediationFunction} for details about format.
      * @see org.sonar.api.server.debt.DebtRemediationFunction.Type#LINEAR
      */
@@ -641,14 +653,16 @@ public interface RulesDefinition {
 
     /**
      * Shortcut for {@code create(Type.LINEAR_OFFSET, gap multiplier, base effort)}.
+     *
      * @param gapMultiplier duration to fix one point of complexity. See {@link DebtRemediationFunction} for details and format.
-     * @param baseEffort duration to make basic analysis. See {@link DebtRemediationFunction} for details and format.
+     * @param baseEffort    duration to make basic analysis. See {@link DebtRemediationFunction} for details and format.
      * @see org.sonar.api.server.debt.DebtRemediationFunction.Type#LINEAR_OFFSET
      */
     DebtRemediationFunction linearWithOffset(String gapMultiplier, String baseEffort);
 
     /**
      * Shortcut for {@code create(Type.CONSTANT_ISSUE, null, base effort)}.
+     *
      * @param baseEffort cost per issue. See {@link DebtRemediationFunction} for details and format.
      * @see org.sonar.api.server.debt.DebtRemediationFunction.Type#CONSTANT_ISSUE
      */
@@ -657,12 +671,14 @@ public interface RulesDefinition {
     /**
      * Flexible way to create a {@link DebtRemediationFunction}. An unchecked exception is thrown if
      * coefficient and/or offset are not valid according to the given @{code type}.
+     *
      * @since 5.3
      */
     DebtRemediationFunction create(DebtRemediationFunction.Type type, @Nullable String gapMultiplier, @Nullable String baseEffort);
   }
 
   class NewRule {
+    private final String pluginKey;
     private final String repoKey;
     private final String key;
     private RuleType type;
@@ -675,12 +691,15 @@ public interface RulesDefinition {
     private RuleStatus status = RuleStatus.defaultStatus();
     private DebtRemediationFunction debtRemediationFunction;
     private String gapDescription;
-    private final Set<String> tags = Sets.newTreeSet();
+    private final Set<String> tags = new TreeSet<>();
     private final Map<String, NewParam> paramsByKey = new HashMap<>();
     private final DebtRemediationFunctions functions;
     private boolean activatedByDefault;
+    private RuleScope scope;
+    private final Set<RuleKey> deprecatedRuleKeys = new TreeSet<>();
 
-    private NewRule(String repoKey, String key) {
+    private NewRule(@Nullable String pluginKey, String repoKey, String key) {
+      this.pluginKey = pluginKey;
       this.repoKey = repoKey;
       this.key = key;
       this.functions = new DefaultDebtRemediationFunctions(repoKey, key);
@@ -688,6 +707,22 @@ public interface RulesDefinition {
 
     public String key() {
       return this.key;
+    }
+
+    /**
+     * @since 7.1
+     */
+    @CheckForNull
+    public RuleScope scope() {
+      return this.scope;
+    }
+
+    /**
+     * @since 7.1
+     */
+    public NewRule setScope(RuleScope scope) {
+      this.scope = scope;
+      return this;
     }
 
     /**
@@ -705,6 +740,7 @@ public interface RulesDefinition {
 
     /**
      * Should this rule be enabled by default. For example in SonarLint standalone.
+     *
      * @since 6.0
      */
     public NewRule setActivatedByDefault(boolean activatedByDefault) {
@@ -731,6 +767,7 @@ public interface RulesDefinition {
      * </ul>
      * Finally the "bug" and "security" tags are considered as reserved. They
      * are silently removed from the final state of definition.
+     *
      * @since 5.5
      */
     public NewRule setType(RuleType t) {
@@ -805,9 +842,9 @@ public interface RulesDefinition {
      * SQALE sub-characteristic. See http://www.sqale.org
      *
      * @see org.sonar.api.server.rule.RulesDefinition.SubCharacteristics for constant values
-     * @deprecated in 5.5. SQALE Quality Model is replaced by SonarQube Quality Model. This method does nothing.
-     *             See https://jira.sonarsource.com/browse/MMF-184
      * @see #setType(RuleType)
+     * @deprecated in 5.5. SQALE Quality Model is replaced by SonarQube Quality Model. This method does nothing.
+     * See https://jira.sonarsource.com/browse/MMF-184
      */
     public NewRule setDebtSubCharacteristic(@Nullable String s) {
       return this;
@@ -908,6 +945,21 @@ public interface RulesDefinition {
       }
     }
 
+    /**
+     * Register a repository and key under which this rule used to be known
+     * (see {@link Rule#deprecatedRuleKeys} for details).
+     * <p>
+     * Deprecated keys should be added with this method in order, oldest first, for documentation purpose.
+     *
+     * @since 7.1
+     * @throws IllegalArgumentException if {@code repository} or {@code key} is {@code null} or empty.
+     * @see Rule#deprecatedRuleKeys
+     */
+    public NewRule addDeprecatedRuleKey(String repository, String key) {
+      deprecatedRuleKeys.add(RuleKey.of(repository, key));
+      return this;
+    }
+
     @Override
     public String toString() {
       return format("[repository=%s, key=%s]", repoKey, key);
@@ -916,6 +968,7 @@ public interface RulesDefinition {
 
   @Immutable
   class Rule {
+    private final String pluginKey;
     private final Repository repository;
     private final String repoKey;
     private final String key;
@@ -932,8 +985,11 @@ public interface RulesDefinition {
     private final Map<String, Param> params;
     private final RuleStatus status;
     private final boolean activatedByDefault;
+    private final RuleScope scope;
+    private final Set<RuleKey> deprecatedRuleKeys;
 
     private Rule(Repository repository, NewRule newRule) {
+      this.pluginKey = newRule.pluginKey;
       this.repository = repository;
       this.repoKey = newRule.repoKey;
       this.key = newRule.key;
@@ -946,18 +1002,28 @@ public interface RulesDefinition {
       this.status = newRule.status;
       this.debtRemediationFunction = newRule.debtRemediationFunction;
       this.gapDescription = newRule.gapDescription;
+      this.scope = newRule.scope == null ? RuleScope.MAIN : newRule.scope;
       this.type = newRule.type == null ? RuleTagsToTypeConverter.convert(newRule.tags) : newRule.type;
       this.tags = ImmutableSortedSet.copyOf(Sets.difference(newRule.tags, RuleTagsToTypeConverter.RESERVED_TAGS));
-      ImmutableMap.Builder<String, Param> paramsBuilder = ImmutableMap.builder();
+      Map<String, Param> paramsBuilder = new HashMap<>();
       for (NewParam newParam : newRule.paramsByKey.values()) {
         paramsBuilder.put(newParam.key, new Param(newParam));
       }
-      this.params = paramsBuilder.build();
+      this.params = Collections.unmodifiableMap(paramsBuilder);
       this.activatedByDefault = newRule.activatedByDefault;
+      this.deprecatedRuleKeys = ImmutableSortedSet.copyOf(newRule.deprecatedRuleKeys);
     }
 
     public Repository repository() {
       return repository;
+    }
+
+    /**
+     * @since 6.6 the plugin the rule was declared in
+     */
+    @CheckForNull
+    public String pluginKey() {
+      return pluginKey;
     }
 
     public String key() {
@@ -969,8 +1035,16 @@ public interface RulesDefinition {
     }
 
     /**
-     * @since 5.5
+     * @since 7.1
+     * @return
+     */
+    public RuleScope scope() {
+      return scope;
+    }
+
+    /**
      * @see NewRule#setType(RuleType)
+     * @since 5.5
      */
     public RuleType type() {
       return type;
@@ -996,6 +1070,7 @@ public interface RulesDefinition {
 
     /**
      * Should this rule be enabled by default. For example in SonarLint standalone.
+     *
      * @since 6.0
      */
     public boolean activatedByDefault() {
@@ -1007,9 +1082,9 @@ public interface RulesDefinition {
     }
 
     /**
+     * @see #type()
      * @deprecated in 5.5. SQALE Quality Model is replaced by SonarQube Quality Model. {@code null} is
      * always returned. See https://jira.sonarsource.com/browse/MMF-184
-     * @see #type()
      */
     @CheckForNull
     @Deprecated
@@ -1047,6 +1122,69 @@ public interface RulesDefinition {
 
     public Set<String> tags() {
       return tags;
+    }
+
+    /**
+     * Deprecated rules keys for this rule.
+     * <p>
+     * If you want to rename the key of a rule or change its repository or both, register the rule's previous repository
+     * and key (see {@link NewRule#addDeprecatedRuleKey(String, String) addDeprecatedRuleKey}). This will allow
+     * SonarQube to support "issue re-keying" for this rule.
+     * <p>
+     * If the repository and/or key of an existing rule is changed without declaring deprecated keys, existing issues
+     * for this rule, created under the rule's previous repository and/or key, will be closed and new ones will be
+     * created under the issue's new repository and/or key.
+     * <p>
+     * Several deprecated keys can be provided to allow SonarQube to support several key (and/or repository) changes
+     * across multiple versions of a plugin.
+     * <br>
+     * Consider the following use case scenario:
+     * <ul>
+     *   <li>Rule {@code Foo:A} is defined in version 1 of the plugin
+     * <pre>
+     * NewRepository newRepository = context.createRepository("Foo", "my_language");
+     * NewRule r = newRepository.createRule("A");
+     * </pre>
+     *   </li>
+     *   <li>Rule's key is renamed to B in version 2 of the plugin
+     * <pre>
+     * NewRepository newRepository = context.createRepository("Foo", "my_language");
+     * NewRule r = newRepository.createRule("B")
+     *   .addDeprecatedRuleKey("Foo", "A");
+     * </pre>
+     *   </li>
+     *   <li>All rules, including {@code Foo:B}, are moved to a new repository Bar in version 3 of the plugin
+     * <pre>
+     * NewRepository newRepository = context.createRepository("Bar", "my_language");
+     * NewRule r = newRepository.createRule("B")
+     *   .addDeprecatedRuleKey("Foo", "A")
+     *   .addDeprecatedRuleKey("Bar", "B");
+     * </pre>
+     *   </li>
+     * </ul>
+     *
+     * With all deprecated keys defined in version 3 of the plugin, SonarQube will be able to support "issue re-keying"
+     * for this rule in all cases:
+     * <ul>
+     *   <li>plugin upgrade from v1 to v2,</li>
+     *   <li>plugin upgrade from v2 to v3</li>
+     *   <li>AND plugin upgrade from v1 to v3</li>
+     * </ul>
+     * <p>
+     * Finally, repository/key pairs must be unique across all rules and their deprecated keys.
+     * <br>
+     * This implies that no rule can use the same repository and key as the deprecated key of another rule. This
+     * uniqueness applies across plugins.
+     * <p>
+     * Note that, even though this method returns a {@code Set}, its elements are ordered according to calls to
+     * {@link NewRule#addDeprecatedRuleKey(String, String) addDeprecatedRuleKey}. This allows to describe the history
+     * of a rule's repositories and keys over time. Oldest repository and key must be specified first.
+     *
+     * @since 7.1
+     * @see NewRule#addDeprecatedRuleKey(String, String)
+     */
+    public Set<RuleKey> deprecatedRuleKeys() {
+      return deprecatedRuleKeys;
     }
 
     /**

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,7 +19,7 @@
  */
 import React from 'react';
 import enhance from './enhance';
-import { DrilldownLink } from '../../../components/shared/drilldown-link';
+import DrilldownLink from '../../../components/shared/DrilldownLink';
 import { getMetricName } from '../helpers/metrics';
 import { formatMeasure, getPeriodValue } from '../../../helpers/measures';
 import { translate } from '../../../helpers/l10n';
@@ -55,7 +55,7 @@ class Coverage extends React.PureComponent {
   }
 
   renderCoverage() {
-    const { component } = this.props;
+    const { branch, component } = this.props;
     const metric = 'coverage';
     const coverage = this.getCoverage();
 
@@ -67,7 +67,7 @@ class Coverage extends React.PureComponent {
 
         <div className="display-inline-block text-middle">
           <div className="overview-domain-measure-value">
-            <DrilldownLink component={component.key} metric={metric}>
+            <DrilldownLink branch={branch} component={component.key} metric={metric}>
               <span className="js-overview-main-coverage">
                 {formatMeasure(coverage, 'PERCENT')}
               </span>
@@ -76,6 +76,7 @@ class Coverage extends React.PureComponent {
 
           <div className="overview-domain-measure-label">
             {getMetricName('coverage')}
+            {this.props.renderHistoryLink('coverage')}
           </div>
         </div>
       </div>
@@ -83,7 +84,7 @@ class Coverage extends React.PureComponent {
   }
 
   renderNewCoverage() {
-    const { component, leakPeriod } = this.props;
+    const { branch, component, leakPeriod } = this.props;
     const newCoverageMeasure = this.getNewCoverageMeasure();
     const newLinesToCover = this.getNewLinesToCover();
 
@@ -94,20 +95,28 @@ class Coverage extends React.PureComponent {
       ? getPeriodValue(newLinesToCover, leakPeriod.index)
       : null;
 
-    const formattedValue = newCoverageValue != null
-      ? <div>
-          <DrilldownLink component={component.key} metric={newCoverageMeasure.metric.key}>
+    const formattedValue =
+      newCoverageValue != null ? (
+        <div>
+          <DrilldownLink
+            branch={branch}
+            component={component.key}
+            metric={newCoverageMeasure.metric.key}>
             <span className="js-overview-main-new-coverage">
               {formatMeasure(newCoverageValue, 'PERCENT')}
             </span>
           </DrilldownLink>
         </div>
-      : <span>—</span>;
-    const label = newLinesToCoverValue != null && newLinesToCoverValue > 0
-      ? <div className="overview-domain-measure-label">
+      ) : (
+        <span>—</span>
+      );
+    const label =
+      newLinesToCoverValue != null && newLinesToCoverValue > 0 ? (
+        <div className="overview-domain-measure-label">
           {translate('overview.coverage_on')}
           <br />
           <DrilldownLink
+            branch={branch}
             className="spacer-right overview-domain-secondary-measure-value"
             component={component.key}
             metric={newLinesToCover.metric.key}>
@@ -117,18 +126,17 @@ class Coverage extends React.PureComponent {
           </DrilldownLink>
           {getMetricName('new_lines_to_cover')}
         </div>
-      : <div className="overview-domain-measure-label">
-          {getMetricName('new_coverage')}
-        </div>;
+      ) : (
+        <div className="overview-domain-measure-label">{getMetricName('new_coverage')}</div>
+      );
     return (
       <div className="overview-domain-measure">
-        <div className="overview-domain-measure-value">
-          {formattedValue}
-        </div>
+        <div className="overview-domain-measure-value">{formattedValue}</div>
         {label}
       </div>
     );
   }
+
   renderNutshell() {
     return (
       <div className="overview-domain-nutshell">
@@ -141,6 +149,7 @@ class Coverage extends React.PureComponent {
       </div>
     );
   }
+
   renderLeak() {
     const { leakPeriod } = this.props;
     if (leakPeriod == null) {
@@ -148,14 +157,13 @@ class Coverage extends React.PureComponent {
     }
     return (
       <div className="overview-domain-leak">
-        <div className="overview-domain-measures">
-          {this.renderNewCoverage()}
-        </div>
+        <div className="overview-domain-measures">{this.renderNewCoverage()}</div>
 
         {this.renderTimeline('after')}
       </div>
     );
   }
+
   render() {
     const { measures } = this.props;
     const coverageMeasure = measures.find(measure => measure.metric.key === 'coverage');
@@ -174,4 +182,5 @@ class Coverage extends React.PureComponent {
     );
   }
 }
+
 export default enhance(Coverage);

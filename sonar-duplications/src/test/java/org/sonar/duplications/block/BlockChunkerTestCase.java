@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,14 +19,16 @@
  */
 package org.sonar.duplications.block;
 
-import com.google.common.collect.Lists;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import org.junit.Test;
 import org.sonar.duplications.statement.Statement;
 
-import java.util.Collections;
-import java.util.List;
-
-import static org.hamcrest.Matchers.*;
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.not;
+import static org.hamcrest.CoreMatchers.sameInstance;
 import static org.junit.Assert.assertThat;
 
 /**
@@ -131,7 +133,7 @@ public abstract class BlockChunkerTestCase {
    * Creates list of statements from Strings, each statement on a new line starting from 0.
    */
   protected static List<Statement> createStatementsFromStrings(String... values) {
-    List<Statement> result = Lists.newArrayList();
+    List<Statement> result = new ArrayList<>();
     for (int i = 0; i < values.length; i++) {
       result.add(new Statement(i, i, values[i]));
     }

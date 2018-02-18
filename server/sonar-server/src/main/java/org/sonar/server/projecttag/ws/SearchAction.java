@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -17,7 +17,6 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-
 package org.sonar.server.projecttag.ws;
 
 import java.util.List;
@@ -25,7 +24,7 @@ import org.sonar.api.server.ws.Request;
 import org.sonar.api.server.ws.Response;
 import org.sonar.api.server.ws.WebService;
 import org.sonar.server.measure.index.ProjectMeasuresIndex;
-import org.sonarqube.ws.WsProjectTags;
+import org.sonarqube.ws.ProjectTags;
 
 import static org.sonar.api.server.ws.WebService.Param.PAGE_SIZE;
 import static org.sonar.api.server.ws.WebService.Param.TEXT_QUERY;
@@ -52,12 +51,12 @@ public class SearchAction implements ProjectTagsWsAction {
 
   @Override
   public void handle(Request request, Response response) throws Exception {
-    WsProjectTags.SearchResponse wsResponse = doHandle(request);
+    ProjectTags.SearchResponse wsResponse = doHandle(request);
     writeProtobuf(wsResponse, request, response);
   }
 
-  private WsProjectTags.SearchResponse doHandle(Request request) {
+  private ProjectTags.SearchResponse doHandle(Request request) {
     List<String> tags = index.searchTags(request.param(TEXT_QUERY), request.mandatoryParamAsInt(PAGE_SIZE));
-    return WsProjectTags.SearchResponse.newBuilder().addAllTags(tags).build();
+    return ProjectTags.SearchResponse.newBuilder().addAllTags(tags).build();
   }
 }

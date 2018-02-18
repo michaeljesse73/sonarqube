@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,26 +21,38 @@ package org.sonarqube.tests.qualityProfile;
 
 import com.sonar.orchestrator.Orchestrator;
 import java.util.function.Predicate;
+import org.json.JSONException;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
+import org.skyscreamer.jsonassert.JSONAssert;
+import org.skyscreamer.jsonassert.JSONCompareMode;
+import org.sonarqube.qa.util.Tester;
 import org.sonarqube.tests.Category6Suite;
-import org.sonarqube.tests.Tester;
 import org.sonarqube.ws.Organizations.Organization;
-import org.sonarqube.ws.QualityProfiles.CreateWsResponse;
-import org.sonarqube.ws.QualityProfiles.SearchWsResponse;
-import org.sonarqube.ws.QualityProfiles.ShowResponse;
-import org.sonarqube.ws.QualityProfiles.ShowResponse.CompareToSonarWay;
-import org.sonarqube.ws.QualityProfiles.ShowResponse.QualityProfile;
+import org.sonarqube.ws.Qualityprofiles.CreateWsResponse;
+import org.sonarqube.ws.Qualityprofiles.SearchWsResponse;
+import org.sonarqube.ws.Qualityprofiles.ShowResponse;
+import org.sonarqube.ws.Qualityprofiles.ShowResponse.CompareToSonarWay;
+import org.sonarqube.ws.Qualityprofiles.ShowResponse.QualityProfile;
+import org.sonarqube.ws.client.GetRequest;
 import org.sonarqube.ws.client.PostRequest;
-import org.sonarqube.ws.client.qualityprofile.SearchWsRequest;
-import org.sonarqube.ws.client.qualityprofile.ShowRequest;
+import org.sonarqube.ws.client.WsResponse;
+import org.sonarqube.ws.client.qualityprofiles.ChangelogRequest;
+import org.sonarqube.ws.client.qualityprofiles.SearchRequest;
+import org.sonarqube.ws.client.qualityprofiles.ShowRequest;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class QualityProfilesWsTest {
   private static final String RULE_ONE_BUG_PER_LINE = "xoo:OneBugIssuePerLine";
   private static final String RULE_ONE_ISSUE_PER_LINE = "xoo:OneIssuePerLine";
+
+  private static final String EXPECTED_CHANGELOG = "{\"total\":2,\"p\":1,\"ps\":50,\"events\":[" +
+    "{\"authorLogin\":\"admin\",\"authorName\":\"Administrator\",\"action\":\"ACTIVATED\",\"ruleKey\":\"xoo:OneIssuePerLine\",\"ruleName\":\"One Issue Per Line\",\"params\":{\"severity\":\"MAJOR\"}}," +
+    "{\"authorLogin\":\"admin\",\"authorName\":\"Administrator\",\"action\":\"ACTIVATED\",\"ruleKey\":\"xoo:OneBugIssuePerLine\",\"ruleName\":\"One Bug Issue Per Line\",\"params\":{\"severity\":\"MAJOR\"}}" +
+    "]}";
+  private static final String EXPECTED_CHANGELOG_EMPTY = "{\"total\":0,\"p\":1,\"ps\":50,\"events\":[]}";
 
   @ClassRule
   public static Orchestrator orchestrator = Category6Suite.ORCHESTRATOR;
@@ -55,7 +67,7 @@ public class QualityProfilesWsTest {
     tester.qProfiles().activateRule(xooProfile, RULE_ONE_BUG_PER_LINE);
     tester.qProfiles().activateRule(xooProfile, RULE_ONE_ISSUE_PER_LINE);
 
-    ShowResponse result = tester.qProfiles().service().show(new ShowRequest().setProfile(xooProfile.getKey()));
+    ShowResponse result = tester.qProfiles().service().show(new ShowRequest().setKey(xooProfile.getKey()));
 
     assertThat(result.getProfile())
       .extracting(QualityProfile::getName, QualityProfile::getLanguage, QualityProfile::getIsBuiltIn, QualityProfile::getIsDefault,
@@ -72,8 +84,8 @@ public class QualityProfilesWsTest {
     SearchWsResponse.QualityProfile sonarWay = getProfile(org, p -> "Sonar way".equals(p.getName()) && "xoo".equals(p.getLanguage()) && p.getIsBuiltIn());
 
     CompareToSonarWay result = tester.qProfiles().service().show(new ShowRequest()
-      .setProfile(xooProfile.getKey())
-      .setCompareToSonarWay(true)).getCompareToSonarWay();
+      .setKey(xooProfile.getKey())
+      .setCompareToSonarWay("true")).getCompareToSonarWay();
 
     assertThat(result)
       .extracting(CompareToSonarWay::getProfile, CompareToSonarWay::getProfileName, CompareToSonarWay::getMissingRuleCount)
@@ -90,22 +102,63 @@ public class QualityProfilesWsTest {
 
     // Bulk activate missing rules from the Sonar way profile
     tester.wsClient().wsConnector().call(new PostRequest("api/qualityprofiles/activate_rules")
-      .setParam("targetProfile", xooProfile.getKey())
+      .setParam("targetKey", xooProfile.getKey())
       .setParam("qprofile", xooProfile.getKey())
       .setParam("activation", "false")
       .setParam("compareToProfile", sonarWay.getKey())).failIfNotSuccessful();
 
     // Check that the profile has no missing rule from the Sonar way profile
     assertThat(tester.qProfiles().service().show(new ShowRequest()
-      .setProfile(xooProfile.getKey())
-      .setCompareToSonarWay(true)).getCompareToSonarWay())
-        .extracting(CompareToSonarWay::getProfile, CompareToSonarWay::getProfileName, CompareToSonarWay::getMissingRuleCount)
-        .containsExactly(sonarWay.getKey(), sonarWay.getName(), 0L);
+      .setKey(xooProfile.getKey())
+      .setCompareToSonarWay("true")).getCompareToSonarWay())
+      .extracting(CompareToSonarWay::getProfile, CompareToSonarWay::getProfileName, CompareToSonarWay::getMissingRuleCount)
+      .containsExactly(sonarWay.getKey(), sonarWay.getName(), 0L);
+  }
+
+  @Test
+  public void redirect_profiles_export_to_api_qualityprofiles_export() {
+    WsResponse response = tester.wsClient().wsConnector().call(new GetRequest("profiles/export?language=xoo&format=XooFakeExporter"));
+    assertThat(response.isSuccessful()).isTrue();
+    assertThat(response.requestUrl()).endsWith("/api/qualityprofiles/export?language=xoo&format=XooFakeExporter");
+    assertThat(response.content()).isEqualTo("xoo -> Basic -> 1");
+
+    // Check 'name' parameter is taken into account
+    assertThat(tester.wsClient().wsConnector()
+      .call(new GetRequest("profiles/export?language=xoo&qualityProfile=empty&format=XooFakeExporter")).content())
+      .isEqualTo("xoo -> empty -> 0");
+  }
+
+  @Test
+  public void changelog() throws JSONException {
+    Organization org = tester.organizations().generate();
+    CreateWsResponse.QualityProfile profile = tester.qProfiles().createXooProfile(org);
+
+    String changelog = tester.wsClient().qualityprofiles().changelog(new ChangelogRequest()
+      .setOrganization(org.getKey())
+      .setLanguage(profile.getLanguage())
+      .setQualityProfile(profile.getName()));
+    JSONAssert.assertEquals(EXPECTED_CHANGELOG_EMPTY, changelog, JSONCompareMode.STRICT);
+
+    tester.qProfiles().activateRule(profile, RULE_ONE_BUG_PER_LINE);
+    tester.qProfiles().activateRule(profile, RULE_ONE_ISSUE_PER_LINE);
+
+    String changelog2 = tester.wsClient().qualityprofiles().changelog(new ChangelogRequest()
+      .setOrganization(org.getKey())
+      .setLanguage(profile.getLanguage())
+      .setQualityProfile(profile.getName()));
+    JSONAssert.assertEquals(EXPECTED_CHANGELOG, changelog2, JSONCompareMode.LENIENT);
+
+    String changelog3 = tester.wsClient().qualityprofiles().changelog(new ChangelogRequest()
+      .setOrganization(org.getKey())
+      .setLanguage(profile.getLanguage())
+      .setQualityProfile(profile.getName())
+      .setSince("2999-12-31T23:59:59+0000"));
+    JSONAssert.assertEquals(EXPECTED_CHANGELOG_EMPTY, changelog3, JSONCompareMode.STRICT);
   }
 
   private SearchWsResponse.QualityProfile getProfile(Organization organization, Predicate<SearchWsResponse.QualityProfile> filter) {
-    return tester.qProfiles().service().search(new SearchWsRequest()
-      .setOrganizationKey(organization.getKey())).getProfilesList()
+    return tester.qProfiles().service().search(new SearchRequest()
+      .setOrganization(organization.getKey())).getProfilesList()
       .stream()
       .filter(filter)
       .findAny().orElseThrow(IllegalStateException::new);

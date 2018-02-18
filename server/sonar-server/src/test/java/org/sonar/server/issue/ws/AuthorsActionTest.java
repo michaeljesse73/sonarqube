@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -26,7 +26,6 @@ import org.sonar.api.server.ws.WebService;
 import org.sonar.api.utils.System2;
 import org.sonar.db.DbTester;
 import org.sonar.server.es.EsTester;
-import org.sonar.server.issue.IssueService;
 import org.sonar.server.issue.index.IssueIndex;
 import org.sonar.server.issue.index.IssueIndexDefinition;
 import org.sonar.server.issue.index.IssueIndexer;
@@ -49,11 +48,10 @@ public class AuthorsActionTest {
   @Rule
   public UserSessionRule userSession = UserSessionRule.standalone();
 
-  private IssueIndexer issueIndexer = new IssueIndexer(es.client(), new IssueIteratorFactory(db.getDbClient()));
+  private IssueIndexer issueIndexer = new IssueIndexer(es.client(), db.getDbClient(), new IssueIteratorFactory(db.getDbClient()));
   private IssueIndex issueIndex = new IssueIndex(es.client(), System2.INSTANCE, userSession, new AuthorizationTypeSupport(userSession));
-  private IssueService issueService = new IssueService(issueIndex);
 
-  private WsActionTester ws = new WsActionTester(new AuthorsAction(issueService));
+  private WsActionTester ws = new WsActionTester(new AuthorsAction(issueIndex));
 
   @Test
   public void json_example() {

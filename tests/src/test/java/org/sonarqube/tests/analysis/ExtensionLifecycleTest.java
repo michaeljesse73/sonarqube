@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -41,8 +41,7 @@ public class ExtensionLifecycleTest {
   public void testInstantiationStrategyAndLifecycleOfBatchExtensions() {
     MavenBuild build = MavenBuild.create(ItUtils.projectPom("analysis/extension-lifecycle"))
       .setCleanSonarGoals()
-      .setProperty("extension.lifecycle", "true")
-      .setProperty("sonar.dynamicAnalysis", "false");
+      .setProperty("extension.lifecycle", "true");
 
     // Build fails if the extensions provided in the extension-lifecycle-plugin are not correctly
     // managed.

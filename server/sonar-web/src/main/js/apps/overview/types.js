@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,31 +19,45 @@
  */
 //@flow
 
+/*::
 export type Component = {
   id: string,
   key: string,
-  qualifier: string
+  qualifier: string,
+  organization?: string
 };
+*/
 
+/*::
 export type History = { [string]: Array<{ date: Date, value: string }> };
+*/
 
+/*::
 export type Metric = {
+  custom?: boolean,
+  hidden?: boolean,
   key: string,
   name: string,
   type: string
 };
+*/
 
+/*::
 export type Measure = {
   metric: Metric,
   value?: string,
   periods?: Array<Period>
 };
+*/
 
+/*::
 export type Period = {
   index: number,
   date: string,
   mode: string,
   parameter?: string
 };
+*/
 
-export type MeasuresList = Array<Measure>;
+/*::
+export type MeasuresList = Array<Measure>; */

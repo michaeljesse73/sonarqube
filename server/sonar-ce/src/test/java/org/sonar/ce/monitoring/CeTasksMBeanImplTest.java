@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -36,6 +36,7 @@ public class CeTasksMBeanImplTest {
   private static final long ERROR_COUNT = 10;
   private static final long SUCCESS_COUNT = 13;
   private static final long PROCESSING_TIME = 987;
+  private static final int WORKER_MAX_COUNT = 666;
   private static final int WORKER_COUNT = 56;
 
   private CeTasksMBeanImpl underTest = new CeTasksMBeanImpl(new DumbCEQueueStatus(), new DumbCeConfiguration());
@@ -49,6 +50,19 @@ public class CeTasksMBeanImplTest {
 
     underTest.stop();
     assertThat(getMBean()).isNull();
+  }
+
+  /**
+   * Dumb implementation of CEQueueStatus which returns constant values for get methods and throws UnsupportedOperationException
+   * for other methods.
+   */
+  @CheckForNull
+  private ObjectInstance getMBean() throws Exception {
+    try {
+      return ManagementFactory.getPlatformMBeanServer().getObjectInstance(new ObjectName(CeTasksMBean.OBJECT_NAME));
+    } catch (InstanceNotFoundException e) {
+      return null;
+    }
   }
 
   @Test
@@ -66,17 +80,18 @@ public class CeTasksMBeanImplTest {
   }
 
   @Test
+  public void getWorkerMaxCount_delegates_to_the_CEConfiguration_instance() {
+    assertThat(underTest.getWorkerMaxCount()).isEqualTo(WORKER_MAX_COUNT);
+  }
+
+  @Test
   public void export_system_info() {
     ProtobufSystemInfo.Section section = underTest.toProtobuf();
     assertThat(section.getName()).isEqualTo("Compute Engine Tasks");
-    assertThat(section.getAttributesCount()).isEqualTo(6);
+    assertThat(section.getAttributesCount()).isEqualTo(7);
   }
-
-  /**
-   * Dumb implementation of CEQueueStatus which returns constant values for get methods and throws UnsupportedOperationException
-   * for other methods.
-   */
   private static class DumbCEQueueStatus implements CEQueueStatus {
+
 
     @Override
     public long getPendingCount() {
@@ -117,13 +132,23 @@ public class CeTasksMBeanImplTest {
     public long getProcessingTime() {
       return PROCESSING_TIME;
     }
-
     private long methodNotImplemented() {
       throw new UnsupportedOperationException("Not Implemented");
     }
-  }
 
+  }
   private static class DumbCeConfiguration implements CeConfiguration {
+
+    @Override
+    public void refresh() {
+      throw new UnsupportedOperationException("Refresh is not implemented");
+    }
+
+    @Override
+    public int getWorkerMaxCount() {
+      return WORKER_MAX_COUNT;
+    }
+
     @Override
     public int getWorkerCount() {
       return WORKER_COUNT;
@@ -144,14 +169,10 @@ public class CeTasksMBeanImplTest {
       throw new UnsupportedOperationException("getCleanCeTasksDelay is not implemented");
     }
 
-  }
-
-  @CheckForNull
-  private ObjectInstance getMBean() throws Exception {
-    try {
-      return ManagementFactory.getPlatformMBeanServer().getObjectInstance(new ObjectName(CeTasksMBean.OBJECT_NAME));
-    } catch (InstanceNotFoundException e) {
-      return null;
+    @Override
+    public int getGracefulStopTimeoutInMs() {
+      return 40_000;
     }
+
   }
 }

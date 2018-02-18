@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,10 +22,10 @@ package org.sonar.server.platform.db;
 import com.google.common.annotations.VisibleForTesting;
 import org.picocontainer.Startable;
 import org.sonar.api.config.Configuration;
-import org.sonar.api.database.DatabaseProperties;
 import org.sonar.api.utils.System2;
 
 import static org.apache.commons.lang.StringUtils.startsWith;
+import static org.sonar.process.ProcessProperties.Property.JDBC_URL;
 
 public class EmbeddedDatabaseFactory implements Startable {
 
@@ -43,7 +43,7 @@ public class EmbeddedDatabaseFactory implements Startable {
   @Override
   public void start() {
     if (embeddedDatabase == null) {
-      String jdbcUrl = config.get(DatabaseProperties.PROP_URL).get();
+      String jdbcUrl = config.get(JDBC_URL.getKey()).get();
       if (startsWith(jdbcUrl, URL_PREFIX)) {
         embeddedDatabase = createEmbeddedDatabase();
         embeddedDatabase.start();

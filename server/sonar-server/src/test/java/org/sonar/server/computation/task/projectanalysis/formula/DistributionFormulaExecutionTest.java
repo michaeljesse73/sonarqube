@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -56,7 +56,7 @@ public class DistributionFormulaExecutionTest {
   @Before
   public void setUp() throws Exception {
     underTest = FormulaExecutorComponentVisitor.newBuilder(metricRepository, measureRepository)
-      .buildFor(Lists.<Formula>newArrayList(new DistributionFormula(FUNCTION_COMPLEXITY_DISTRIBUTION_KEY)));
+      .buildFor(Lists.newArrayList(new DistributionFormula(FUNCTION_COMPLEXITY_DISTRIBUTION_KEY)));
   }
 
   @Test

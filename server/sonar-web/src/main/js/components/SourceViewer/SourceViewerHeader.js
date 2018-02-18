@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,13 +22,14 @@ import React from 'react';
 import { Link } from 'react-router';
 import QualifierIcon from '../shared/QualifierIcon';
 import FavoriteContainer from '../controls/FavoriteContainer';
-import { getProjectUrl, getComponentIssuesUrl } from '../../helpers/urls';
+import { getPathUrlAsString, getProjectUrl, getComponentIssuesUrl } from '../../helpers/urls';
 import { collapsedDirFromPath, fileFromPath } from '../../helpers/path';
 import { translate } from '../../helpers/l10n';
 import { formatMeasure } from '../../helpers/measures';
 
 export default class SourceViewerHeader extends React.PureComponent {
-  props: {
+  /*:: props: {
+    branch?: string,
     component: {
       canMarkAsFavorite: boolean,
       key: string,
@@ -49,17 +50,18 @@ export default class SourceViewerHeader extends React.PureComponent {
     },
     showMeasures: () => void
   };
+*/
 
-  showMeasures = (e: SyntheticInputEvent) => {
+  showMeasures = (e /*: SyntheticInputEvent */) => {
     e.preventDefault();
     this.props.showMeasures();
   };
 
-  openInWorkspace = (e: SyntheticInputEvent) => {
+  openInWorkspace = (e /*: SyntheticInputEvent */) => {
     e.preventDefault();
     const { key } = this.props.component;
     const Workspace = require('../workspace/main').default;
-    Workspace.openComponent({ key });
+    Workspace.openComponent({ key, branch: this.props.branch });
   };
 
   render() {
@@ -75,10 +77,12 @@ export default class SourceViewerHeader extends React.PureComponent {
       uuid
     } = this.props.component;
     const isUnitTest = q === 'UTS';
-    // TODO check if source viewer is displayed inside workspace
     const workspace = false;
-    const rawSourcesLink =
+    let rawSourcesLink =
       window.baseUrl + `/api/sources/raw?key=${encodeURIComponent(this.props.component.key)}`;
+    if (this.props.branch) {
+      rawSourcesLink += `&branch=${encodeURIComponent(this.props.branch)}`;
+    }
 
     // TODO favorite
     return (
@@ -86,26 +90,29 @@ export default class SourceViewerHeader extends React.PureComponent {
         <div className="source-viewer-header-component">
           <div className="component-name">
             <div className="component-name-parent">
-              <Link to={getProjectUrl(project)} className="link-with-icon">
+              <a
+                href={getPathUrlAsString(getProjectUrl(project, this.props.branch))}
+                className="link-with-icon">
                 <QualifierIcon qualifier="TRK" /> <span>{projectName}</span>
-              </Link>
+              </a>
             </div>
 
-            {subProject != null &&
+            {subProject != null && (
               <div className="component-name-parent">
-                <Link to={getProjectUrl(subProject)} className="link-with-icon">
+                <a
+                  href={getPathUrlAsString(getProjectUrl(subProject, this.props.branch))}
+                  className="link-with-icon">
                   <QualifierIcon qualifier="BRC" /> <span>{subProjectName}</span>
-                </Link>
-              </div>}
+                </a>
+              </div>
+            )}
 
             <div className="component-name-path">
-              <QualifierIcon qualifier={q} />
-              {' '}
-              <span>{collapsedDirFromPath(path)}</span>
+              <QualifierIcon qualifier={q} /> <span>{collapsedDirFromPath(path)}</span>
               <span className="component-name-file">{fileFromPath(path)}</span>
-
-              {this.props.component.canMarkAsFavorite &&
-                <FavoriteContainer className="component-name-favorite" componentKey={key} />}
+              {this.props.component.canMarkAsFavorite && (
+                <FavoriteContainer className="component-name-favorite" componentKey={key} />
+              )}
             </div>
           </div>
         </div>
@@ -123,19 +130,23 @@ export default class SourceViewerHeader extends React.PureComponent {
               </a>
             </li>
             <li>
-              <Link
+              <a
                 className="js-new-window"
                 target="_blank"
-                to={{ pathname: '/component', query: { id: this.props.component.key } }}>
+                href={getPathUrlAsString({
+                  pathname: '/component',
+                  query: { branch: this.props.branch, id: this.props.component.key }
+                })}>
                 {translate('component_viewer.new_window')}
-              </Link>
+              </a>
             </li>
-            {!workspace &&
+            {!workspace && (
               <li>
                 <a className="js-workspace" href="#" onClick={this.openInWorkspace}>
                   {translate('component_viewer.open_in_workspace')}
                 </a>
-              </li>}
+              </li>
+            )}
             <li>
               <a className="js-raw-source" href={rawSourcesLink} target="_blank">
                 {translate('component_viewer.show_raw_source')}
@@ -145,7 +156,7 @@ export default class SourceViewerHeader extends React.PureComponent {
         </div>
 
         <div className="source-viewer-header-measures">
-          {isUnitTest &&
+          {isUnitTest && (
             <div className="source-viewer-header-measure">
               <span className="source-viewer-header-measure-value">
                 {formatMeasure(measures.tests, 'SHORT_INT')}
@@ -153,9 +164,10 @@ export default class SourceViewerHeader extends React.PureComponent {
               <span className="source-viewer-header-measure-label">
                 {translate('metric.tests.name')}
               </span>
-            </div>}
+            </div>
+          )}
 
-          {!isUnitTest &&
+          {!isUnitTest && (
             <div className="source-viewer-header-measure">
               <span className="source-viewer-header-measure-value">
                 {formatMeasure(measures.lines, 'SHORT_INT')}
@@ -163,17 +175,18 @@ export default class SourceViewerHeader extends React.PureComponent {
               <span className="source-viewer-header-measure-label">
                 {translate('metric.lines.name')}
               </span>
-            </div>}
+            </div>
+          )}
 
           <div className="source-viewer-header-measure">
             <span className="source-viewer-header-measure-value">
               <Link
-                to={getComponentIssuesUrl(project, { resolved: 'false', fileUuids: uuid })}
-                className="source-viewer-header-external-link"
-                target="_blank">
+                to={getComponentIssuesUrl(project, {
+                  resolved: 'false',
+                  fileUuids: uuid,
+                  branch: this.props.branch
+                })}>
                 {measures.issues != null ? formatMeasure(measures.issues, 'SHORT_INT') : 0}
-                {' '}
-                <i className="icon-detach" />
               </Link>
             </span>
             <span className="source-viewer-header-measure-label">
@@ -181,7 +194,7 @@ export default class SourceViewerHeader extends React.PureComponent {
             </span>
           </div>
 
-          {measures.coverage != null &&
+          {measures.coverage != null && (
             <div className="source-viewer-header-measure">
               <span className="source-viewer-header-measure-value">
                 {formatMeasure(measures.coverage, 'PERCENT')}
@@ -189,9 +202,10 @@ export default class SourceViewerHeader extends React.PureComponent {
               <span className="source-viewer-header-measure-label">
                 {translate('metric.coverage.name')}
               </span>
-            </div>}
+            </div>
+          )}
 
-          {measures.duplicationDensity != null &&
+          {measures.duplicationDensity != null && (
             <div className="source-viewer-header-measure">
               <span className="source-viewer-header-measure-value">
                 {formatMeasure(measures.duplicationDensity, 'PERCENT')}
@@ -199,7 +213,8 @@ export default class SourceViewerHeader extends React.PureComponent {
               <span className="source-viewer-header-measure-label">
                 {translate('duplications')}
               </span>
-            </div>}
+            </div>
+          )}
         </div>
       </div>
     );

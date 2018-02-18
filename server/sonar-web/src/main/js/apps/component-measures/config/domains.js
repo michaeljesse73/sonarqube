@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -17,60 +17,78 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-export const domains = {
+// @flow
+export const domains /*: { [string]: { categories?: Array<string>, order: Array<string> } }*/ = {
   Reliability: {
-    main: ['bugs', 'new_bugs', 'reliability_rating'],
+    categories: ['new_code_category', 'overall_category'],
     order: [
-      'bugs',
+      'new_code_category',
       'new_bugs',
+      'new_reliability_rating',
+      'new_reliability_remediation_effort',
+
+      'overall_category',
+      'bugs',
       'reliability_rating',
-      'reliability_remediation_effort',
-      'new_reliability_remediation_effort'
+      'reliability_remediation_effort'
     ]
   },
 
   Security: {
-    main: ['vulnerabilities', 'new_vulnerabilities', 'security_rating'],
+    categories: ['new_code_category', 'overall_category'],
     order: [
-      'vulnerabilities',
+      'new_code_category',
       'new_vulnerabilities',
+      'new_security_rating',
+      'new_security_remediation_effort',
+
+      'overall_category',
+      'vulnerabilities',
       'security_rating',
-      'security_remediation_effort',
-      'new_security_remediation_effort'
+      'security_remediation_effort'
     ]
   },
 
   Maintainability: {
-    main: ['code_smells', 'new_code_smells', 'sqale_rating'],
+    categories: ['new_code_category', 'overall_category'],
     order: [
-      'code_smells',
+      'new_code_category',
       'new_code_smells',
-      'sqale_rating',
-      'sqale_index',
       'new_technical_debt',
-      'sqale_debt_ratio',
       'new_sqale_debt_ratio',
+      'new_maintainability_rating',
+
+      'overall_category',
+      'code_smells',
+      'sqale_index',
+      'sqale_debt_ratio',
+      'sqale_rating',
       'effort_to_reach_maintainability_rating_a'
     ]
   },
 
   Coverage: {
-    main: ['coverage', 'new_coverage', 'tests'],
+    categories: ['new_code_category', 'overall_category', 'tests_category'],
     order: [
-      'coverage',
+      'new_code_category',
       'new_coverage',
-      'line_coverage',
-      'new_line_coverage',
-      'branch_coverage',
-      'new_branch_coverage',
-      'uncovered_lines',
-      'new_uncovered_lines',
-      'uncovered_conditions',
-      'new_uncovered_conditions',
       'new_lines_to_cover',
+      'new_uncovered_lines',
+      'new_line_coverage',
+      'new_conditions_to_cover',
+      'new_uncovered_conditions',
+      'new_branch_coverage',
 
+      'overall_category',
+      'coverage',
       'lines_to_cover',
+      'uncovered_lines',
+      'line_coverage',
+      'conditions_to_cover',
+      'uncovered_conditions',
+      'branch_coverage',
 
+      'tests_category',
       'tests',
       'test_success',
       'test_errors',
@@ -82,24 +100,27 @@ export const domains = {
   },
 
   Duplications: {
-    main: ['duplicated_lines_density', 'new_duplicated_lines_density'],
+    categories: ['new_code_category', 'overall_category'],
     order: [
-      'duplicated_lines_density',
+      'new_code_category',
       'new_duplicated_lines_density',
-      'duplicated_blocks',
-      'new_duplicated_blocks',
-      'duplicated_lines',
       'new_duplicated_lines',
+      'new_duplicated_blocks',
+
+      'overall_category',
+      'duplicated_lines_density',
+      'duplicated_lines',
+      'duplicated_blocks',
       'duplicated_files'
     ]
   },
 
   Size: {
-    main: ['ncloc'],
     order: [
+      'new_lines',
+
       'ncloc',
       'lines',
-      'new_lines',
       'statements',
       'functions',
       'classes',
@@ -109,30 +130,28 @@ export const domains = {
   },
 
   Complexity: {
-    main: ['complexity'],
     order: ['complexity', 'function_complexity', 'file_complexity', 'class_complexity']
   },
 
   Releasability: {
-    main: ['alert_status', 'releasability_rating'],
-    order: ['alert_status']
+    order: ['releasability_rating', 'releasability_effort', 'alert_status']
   },
 
   Issues: {
-    main: ['violations', 'new_violations'],
     order: [
-      'violations',
       'new_violations',
-      'blocker_violations',
       'new_blocker_violations',
-      'critical_violations',
       'new_critical_violations',
-      'major_violations',
       'new_major_violations',
-      'minor_violations',
       'new_minor_violations',
-      'info_violations',
       'new_info_violations',
+
+      'violations',
+      'blocker_violations',
+      'critical_violations',
+      'major_violations',
+      'minor_violations',
+      'info_violations',
       'open_issues',
       'reopened_issues',
       'confirmed_issues',

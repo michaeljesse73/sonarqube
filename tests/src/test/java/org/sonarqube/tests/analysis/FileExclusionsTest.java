@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -27,8 +27,8 @@ import java.util.Map;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
-import org.sonarqube.ws.WsComponents.Component;
-import org.sonarqube.ws.client.component.TreeWsRequest;
+import org.sonarqube.ws.Components.Component;
+import org.sonarqube.ws.client.components.TreeRequest;
 import util.ItUtils;
 
 import static java.util.Collections.singletonList;
@@ -80,9 +80,7 @@ public class FileExclusionsTest {
    */
   @Test
   public void include_source_files() {
-    scan(
-      "sonar.dynamicAnalysis", "false",
-      "sonar.inclusions", "**/*One.xoo,**/*Two.xoo");
+    scan("sonar.inclusions", "**/*One.xoo,**/*Two.xoo");
 
     assertThat(getMeasuresAsDouble("files").get("files")).isEqualTo(2);
 
@@ -134,6 +132,6 @@ public class FileExclusionsTest {
   }
 
   public static List<Component> getComponents(String qualifier) {
-    return newWsClient(orchestrator).components().tree(new TreeWsRequest().setBaseComponentKey(PROJECT).setQualifiers(singletonList(qualifier))).getComponentsList();
+    return newWsClient(orchestrator).components().tree(new TreeRequest().setComponent(PROJECT).setQualifiers(singletonList(qualifier))).getComponentsList();
   }
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,12 +20,13 @@
 package org.sonar.server.setting;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableMap;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
+import org.apache.ibatis.exceptions.PersistenceException;
 import org.sonar.api.CoreProperties;
 import org.sonar.api.ce.ComputeEngineSide;
 import org.sonar.api.config.Encryption;
@@ -34,10 +35,12 @@ import org.sonar.api.config.Settings;
 import org.sonar.api.server.ServerSide;
 
 import static com.google.common.base.Preconditions.checkState;
+import static java.util.Collections.unmodifiableMap;
+import static java.util.Objects.requireNonNull;
 
 /**
- * Merge of {@link SystemSettings} and the global properties stored in the db table "properties". These
- * settings do not contain the settings specific to a project.
+ * Merge of system settings (including conf/sonar.properties) and the global properties stored
+ * in the db table "properties". These settings do not contain the settings specific to a project.
  *
  * <p>
  * System settings have precedence on others.
@@ -55,6 +58,8 @@ public class ThreadLocalSettings extends Settings {
 
   private final Properties systemProps;
   private static final ThreadLocal<Map<String, String>> CACHE = new ThreadLocal<>();
+  private Map<String, String> getPropertyDbFailureCache = Collections.emptyMap();
+  private Map<String, String> getPropertiesDbFailureCache = Collections.emptyMap();
   private SettingLoader settingLoader;
 
   public ThreadLocalSettings(PropertyDefinitions definitions, Properties props) {
@@ -65,7 +70,8 @@ public class ThreadLocalSettings extends Settings {
   ThreadLocalSettings(PropertyDefinitions definitions, Properties props, SettingLoader settingLoader) {
     super(definitions, new Encryption(null));
     this.settingLoader = settingLoader;
-    this.systemProps = props;
+    this.systemProps = new Properties();
+    props.forEach((k, v) -> systemProps.put(k, v == null ? null : v.toString().trim()));
 
     // TODO something wrong about lifecycle here. It could be improved
     getEncryption().setPathToSecretKey(props.getProperty(CoreProperties.ENCRYPTION_SECRET_KEY_PATH));
@@ -95,7 +101,7 @@ public class ThreadLocalSettings extends Settings {
     Map<String, String> dbProps = CACHE.get();
     // caching is disabled
     if (dbProps == null) {
-      return Optional.ofNullable(settingLoader.load(key));
+      return Optional.ofNullable(load(key));
     }
 
     String loadedValue;
@@ -106,17 +112,27 @@ public class ThreadLocalSettings extends Settings {
     } else {
       // cache the effective value (null if the property
       // is not persisted)
-      loadedValue = settingLoader.load(key);
+      loadedValue = load(key);
       dbProps.put(key, loadedValue);
     }
     return Optional.ofNullable(loadedValue);
   }
 
+  private String load(String key) {
+    try {
+      return settingLoader.load(key);
+    } catch (PersistenceException e) {
+      return getPropertyDbFailureCache.get(key);
+    }
+  }
+
   @Override
   protected void set(String key, String value) {
+    requireNonNull(key, "key can't be null");
+    requireNonNull(value, "value can't be null");
     Map<String, String> dbProps = CACHE.get();
     if (dbProps != null) {
-      dbProps.put(key, value);
+      dbProps.put(key, value.trim());
     }
   }
 
@@ -143,14 +159,27 @@ public class ThreadLocalSettings extends Settings {
    * Clears the cache specific to the current thread (if any).
    */
   public void unload() {
+    Map<String, String> settings = CACHE.get();
     CACHE.remove();
+    // update cache of settings to be used in case of DB connectivity error
+    this.getPropertyDbFailureCache = settings;
   }
 
   @Override
   public Map<String, String> getProperties() {
-    ImmutableMap.Builder<String, String> builder = ImmutableMap.builder();
-    settingLoader.loadAll(builder);
-    systemProps.entrySet().forEach(entry -> builder.put((String) entry.getKey(), (String) entry.getValue()));
-    return builder.build();
+    Map<String, String> result = new HashMap<>();
+    loadAll(result);
+    systemProps.forEach((key, value) -> result.put((String) key, (String) value));
+    return unmodifiableMap(result);
+  }
+
+  private void loadAll(Map<String, String> appendTo) {
+    try {
+      Map<String, String> cache = settingLoader.loadAll();
+      appendTo.putAll(cache);
+      getPropertiesDbFailureCache = cache;
+    } catch (PersistenceException e) {
+      appendTo.putAll(getPropertiesDbFailureCache);
+    }
   }
 }

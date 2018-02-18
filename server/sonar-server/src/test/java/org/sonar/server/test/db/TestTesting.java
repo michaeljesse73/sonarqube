@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -58,7 +58,7 @@ public class TestTesting {
   /**
    * Generate random data.
    */
-  public static List<DbFileSources.Test> newRandomTests(int numberOfTests) throws IOException {
+  public static List<DbFileSources.Test> newRandomTests(int numberOfTests) {
     List<DbFileSources.Test> tests = new ArrayList<>();
     for (int i = 1; i <= numberOfTests; i++) {
       DbFileSources.Test.Builder test = DbFileSources.Test.newBuilder()
@@ -79,7 +79,7 @@ public class TestTesting {
     return tests;
   }
 
-  public static DbFileSources.Test.Builder newTest(ComponentDto mainFile, Integer... coveredLines) throws IOException {
+  public static DbFileSources.Test.Builder newTest(ComponentDto mainFile, Integer... coveredLines) {
     DbFileSources.Test.Builder test = DbFileSources.Test.newBuilder()
       .setUuid(Uuids.create())
       .setName(RandomStringUtils.randomAlphanumeric(20))

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -287,7 +287,7 @@ public class Rule {
    */
   @Deprecated
   public Rule getParent() {
-    return template;
+    return getTemplate();
   }
 
   /**
@@ -295,8 +295,7 @@ public class Rule {
    */
   @Deprecated
   public Rule setParent(Rule parent) {
-    this.template = parent;
-    return this;
+    return setTemplate(parent);
   }
 
   /**
@@ -399,6 +398,11 @@ public class Rule {
    */
   public String[] getSystemTags() {
     return systemTags == null ? new String[0] : StringUtils.split(systemTags, ',');
+  }
+
+  public Rule setSystemTags(String[] tags) {
+    this.systemTags = tags == null ? null : StringUtils.join(tags, ',');
+    return this;
   }
 
   /**

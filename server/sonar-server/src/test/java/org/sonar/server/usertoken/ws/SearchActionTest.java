@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -34,14 +34,13 @@ import org.sonar.server.exceptions.UnauthorizedException;
 import org.sonar.server.tester.UserSessionRule;
 import org.sonar.server.ws.TestRequest;
 import org.sonar.server.ws.WsActionTester;
-import org.sonarqube.ws.MediaTypes;
-import org.sonarqube.ws.WsUserTokens.SearchWsResponse;
+import org.sonarqube.ws.UserTokens.SearchWsResponse;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonar.db.user.UserTesting.newUserDto;
 import static org.sonar.db.user.UserTokenTesting.newUserToken;
 import static org.sonar.test.JsonAssert.assertJson;
-import static org.sonarqube.ws.client.usertoken.UserTokensWsParameters.PARAM_LOGIN;
+import static org.sonar.server.usertoken.ws.UserTokensWsParameters.PARAM_LOGIN;
 
 public class SearchActionTest {
   private static final String GRACE_HOPPER = "grace.hopper";

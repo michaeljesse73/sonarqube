@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -27,7 +27,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.sonar.db.rule.RuleMapper;
 
-import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.junit.Assert.assertThat;
 
 public class MyBatisTest {
@@ -47,7 +47,7 @@ public class MyBatisTest {
   private MyBatis underTest = new MyBatis(database);
 
   @After
-  public void tearDown() throws Exception {
+  public void tearDown() {
     underTest.stop();
   }
 

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,6 +18,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import React from 'react';
+import PropTypes from 'prop-types';
 import Helmet from 'react-helmet';
 import { debounce } from 'lodash';
 import TemplateHeader from './TemplateHeader';
@@ -30,24 +31,20 @@ import { translate } from '../../../helpers/l10n';
 
 export default class Template extends React.PureComponent {
   static propTypes = {
-    organization: React.PropTypes.object,
-    template: React.PropTypes.object.isRequired,
-    refresh: React.PropTypes.func.isRequired,
-    topQualifiers: React.PropTypes.array.isRequired
+    organization: PropTypes.object,
+    template: PropTypes.object.isRequired,
+    refresh: PropTypes.func.isRequired,
+    topQualifiers: PropTypes.array.isRequired
   };
 
-  constructor(props) {
-    super(props);
-    this.state = {
-      loading: false,
-      users: [],
-      groups: [],
-      query: '',
-      filter: 'all',
-      selectedPermission: null
-    };
-    this.requestHoldersDebounced = debounce(this.requestHolders, 250);
-  }
+  state = {
+    loading: false,
+    users: [],
+    groups: [],
+    query: '',
+    filter: 'all',
+    selectedPermission: null
+  };
 
   componentDidMount() {
     this.mounted = true;
@@ -139,9 +136,7 @@ export default class Template extends React.PureComponent {
 
   handleSearch = query => {
     this.setState({ query });
-    if (query.length === 0 || query.length > 2) {
-      this.requestHoldersDebounced(query);
-    }
+    this.requestHolders(query);
   };
 
   handleFilter = filter => {
@@ -216,14 +211,12 @@ export default class Template extends React.PureComponent {
           onSelectPermission={this.handleSelectPermission}
           onToggleUser={this.handleToggleUser}
           onToggleGroup={this.handleToggleGroup}>
-
           <SearchForm
             query={this.state.query}
             filter={this.state.filter}
             onSearch={this.handleSearch}
             onFilter={this.handleFilter}
           />
-
         </HoldersList>
       </div>
     );

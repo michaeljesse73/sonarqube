@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -32,6 +32,10 @@ public class RuleDto {
 
   public enum Format {
     HTML, MARKDOWN
+  }
+  
+  public enum Scope {
+    MAIN, TEST, ALL;
   }
 
   private final RuleDefinitionDto definition;
@@ -89,6 +93,16 @@ public class RuleDto {
     return this;
   }
 
+  @CheckForNull
+  public String getPluginKey() {
+    return definition.getPluginKey();
+  }
+
+  public RuleDto setPluginKey(@Nullable String s) {
+    definition.setPluginKey(s);
+    return this;
+  }
+
   public String getDescription() {
     return definition.getDescription();
   }
@@ -128,9 +142,18 @@ public class RuleDto {
   public String getConfigKey() {
     return definition.getConfigKey();
   }
-
+  
   public RuleDto setConfigKey(@Nullable String configKey) {
     definition.setConfigKey(configKey);
+    return this;
+  }
+  
+  public Scope getScope() {
+    return definition.getScope();
+  }
+  
+  public RuleDto setScope(Scope scope) {
+    definition.setScope(scope);
     return this;
   }
 

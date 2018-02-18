@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -33,15 +33,18 @@ export default class PermissionCell extends React.PureComponent {
       <td className="permission-column" data-permission={p.key}>
         <div className="permission-column-inner">
           <ul>
-            {p.withProjectCreator &&
+            {p.withProjectCreator && (
               <li className="little-spacer-bottom">
                 {translate('permission_templates.project_creators')}
-              </li>}
+              </li>
+            )}
             <li className="little-spacer-bottom">
-              <strong>{p.usersCount}</strong>{'  user(s)'}
+              <strong>{p.usersCount}</strong>
+              {'  user(s)'}
             </li>
             <li>
-              <strong>{p.groupsCount}</strong>{' group(s)'}
+              <strong>{p.groupsCount}</strong>
+              {' group(s)'}
             </li>
           </ul>
         </div>

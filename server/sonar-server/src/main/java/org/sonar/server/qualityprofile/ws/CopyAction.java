@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -30,7 +30,7 @@ import org.sonar.db.DbSession;
 import org.sonar.db.qualityprofile.QProfileDto;
 import org.sonar.server.qualityprofile.QProfileCopier;
 import org.sonar.server.user.UserSession;
-import org.sonarqube.ws.QualityProfiles.CopyWsResponse;
+import org.sonarqube.ws.Qualityprofiles.CopyWsResponse;
 
 import static org.sonar.core.util.Protobuf.setNullable;
 import static org.sonar.core.util.Uuids.UUID_EXAMPLE_01;
@@ -63,6 +63,7 @@ public class CopyAction implements QProfileWsAction {
       .setSince("5.2")
       .setDescription("Copy a quality profile.<br> " +
         "Requires to be logged in and the 'Administer Quality Profiles' permission.")
+      .setResponseExample(getClass().getResource("copy-example.json"))
       .setPost(true)
       .setHandler(this);
 

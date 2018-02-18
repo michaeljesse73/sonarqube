@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -23,25 +23,27 @@ import Command from './Command';
 import MSBuildScanner from './MSBuildScanner';
 import { translate } from '../../../../helpers/l10n';
 
+/*::
 type Props = {|
   host: string,
   organization?: string,
   projectKey: string,
   token: string
 |};
+*/
 
-export default function DotNet(props: Props) {
+export default function DotNet(props /*: Props */) {
   const command1 = [
     'SonarQube.Scanner.MSBuild.exe begin',
     `/k:"${props.projectKey}"`,
-    props.organization && `/d:"sonar.organization=${props.organization}"`,
-    `/d:"sonar.host.url=${props.host}`,
-    `/d:"sonar.login=${props.token}"`
+    props.organization && `/d:sonar.organization="${props.organization}"`,
+    `/d:sonar.host.url="${props.host}"`,
+    `/d:sonar.login="${props.token}"`
   ];
 
   const command2 = 'MsBuild.exe /t:Rebuild';
 
-  const command3 = ['SonarQube.Scanner.MSBuild.exe end', `/d:"sonar.login=${props.token}"`];
+  const command3 = ['SonarQube.Scanner.MSBuild.exe end', `/d:sonar.login="${props.token}"`];
 
   return (
     <div>
@@ -56,9 +58,9 @@ export default function DotNet(props: Props) {
           __html: translate('onboarding.analysis.msbuild.execute.text')
         }}
       />
-      <Command command={command1} />
-      <Command command={command2} />
-      <Command command={command3} />
+      <Command command={command1} isOneLine={true} />
+      <Command command={command2} isOneLine={true} />
+      <Command command={command3} isOneLine={true} />
       <p
         className="big-spacer-top markdown"
         dangerouslySetInnerHTML={{ __html: translate('onboarding.analysis.msbuild.docs') }}

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -23,6 +23,7 @@ import Command from './Command';
 import SQScanner from './SQScanner';
 import { translate } from '../../../../helpers/l10n';
 
+/*::
 type Props = {|
   host: string,
   organization?: string,
@@ -30,8 +31,9 @@ type Props = {|
   projectKey: string,
   token: string
 |};
+*/
 
-export default function Other(props: Props) {
+export default function Other(props /*: Props */) {
   const command = [
     props.os === 'win' ? 'sonar-scanner.bat' : 'sonar-scanner',
     `-Dsonar.projectKey=${props.projectKey}`,
@@ -54,7 +56,7 @@ export default function Other(props: Props) {
           __html: translate('onboarding.analysis.sq_scanner.execute.text')
         }}
       />
-      <Command command={command} />
+      <Command command={command} isOneLine={props.os === 'win'} />
       <p
         className="big-spacer-top markdown"
         dangerouslySetInnerHTML={{ __html: translate('onboarding.analysis.sq_scanner.docs') }}

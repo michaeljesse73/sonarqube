@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -34,7 +34,7 @@ import org.sonar.db.DbSession;
 import org.sonar.db.metric.MetricDto;
 import org.sonar.db.qualitygate.QualityGateConditionDto;
 import org.sonar.db.qualitygate.QualityGateDto;
-import org.sonar.server.computation.task.projectanalysis.qualitymodel.RatingGrid.Rating;
+import org.sonar.server.computation.task.projectanalysis.qualitymodel.Rating;
 import org.sonar.server.exceptions.NotFoundException;
 
 import static com.google.common.base.Strings.isNullOrEmpty;
@@ -44,7 +44,7 @@ import static java.util.Arrays.stream;
 import static org.sonar.api.measures.Metric.ValueType.RATING;
 import static org.sonar.api.measures.Metric.ValueType.valueOf;
 import static org.sonar.db.qualitygate.QualityGateConditionDto.isOperatorAllowed;
-import static org.sonar.server.computation.task.projectanalysis.qualitymodel.RatingGrid.Rating.E;
+import static org.sonar.server.computation.task.projectanalysis.qualitymodel.Rating.E;
 import static org.sonar.server.qualitygate.ValidRatingMetrics.isCoreRatingMetric;
 import static org.sonar.server.ws.WsUtils.checkRequest;
 
@@ -58,14 +58,13 @@ public class QualityGateConditionsUpdater {
     this.dbClient = dbClient;
   }
 
-  public QualityGateConditionDto createCondition(DbSession dbSession, long qGateId, String metricKey, String operator,
+  public QualityGateConditionDto createCondition(DbSession dbSession, QualityGateDto qualityGate, String metricKey, String operator,
     @Nullable String warningThreshold, @Nullable String errorThreshold, @Nullable Integer period) {
-    getNonNullQgate(dbSession, qGateId);
     MetricDto metric = getNonNullMetric(dbSession, metricKey);
     validateCondition(metric, operator, warningThreshold, errorThreshold, period);
-    checkConditionDoesNotAlreadyExistOnSameMetricAndPeriod(getConditions(dbSession, qGateId, null), metric, period);
+    checkConditionDoesNotAlreadyExistOnSameMetricAndPeriod(getConditions(dbSession, qualityGate.getId(), null), metric, period);
 
-    QualityGateConditionDto newCondition = new QualityGateConditionDto().setQualityGateId(qGateId)
+    QualityGateConditionDto newCondition = new QualityGateConditionDto().setQualityGateId(qualityGate.getId())
       .setMetricId(metric.getId()).setMetricKey(metric.getKey())
       .setOperator(operator)
       .setWarningThreshold(warningThreshold)
@@ -75,9 +74,8 @@ public class QualityGateConditionsUpdater {
     return newCondition;
   }
 
-  public QualityGateConditionDto updateCondition(DbSession dbSession, long condId, String metricKey, String operator,
+  public QualityGateConditionDto updateCondition(DbSession dbSession, QualityGateConditionDto condition, String metricKey, String operator,
     @Nullable String warningThreshold, @Nullable String errorThreshold, @Nullable Integer period) {
-    QualityGateConditionDto condition = getNonNullCondition(dbSession, condId);
     MetricDto metric = getNonNullMetric(dbSession, metricKey);
     validateCondition(metric, operator, warningThreshold, errorThreshold, period);
     checkConditionDoesNotAlreadyExistOnSameMetricAndPeriod(getConditions(dbSession, condition.getQualityGateId(), condition.getId()), metric, period);
@@ -93,28 +91,12 @@ public class QualityGateConditionsUpdater {
     return condition;
   }
 
-  private QualityGateDto getNonNullQgate(DbSession dbSession, long id) {
-    QualityGateDto qGate = dbClient.qualityGateDao().selectById(dbSession, id);
-    if (qGate == null) {
-      throw new NotFoundException(format("There is no quality gate with id=%s", id));
-    }
-    return qGate;
-  }
-
   private MetricDto getNonNullMetric(DbSession dbSession, String metricKey) {
     MetricDto metric = dbClient.metricDao().selectByKey(dbSession, metricKey);
     if (metric == null) {
       throw new NotFoundException(format("There is no metric with key=%s", metricKey));
     }
     return metric;
-  }
-
-  private QualityGateConditionDto getNonNullCondition(DbSession dbSession, long id) {
-    QualityGateConditionDto condition = dbClient.gateConditionDao().selectById(id, dbSession);
-    if (condition == null) {
-      throw new NotFoundException("There is no condition with id=" + id);
-    }
-    return condition;
   }
 
   private Collection<QualityGateConditionDto> getConditions(DbSession dbSession, long qGateId, @Nullable Long conditionId) {

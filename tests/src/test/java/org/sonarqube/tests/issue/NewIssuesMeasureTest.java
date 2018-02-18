@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,17 +20,21 @@
 package org.sonarqube.tests.issue;
 
 import com.sonar.orchestrator.build.SonarScanner;
+import java.util.Date;
 import java.util.Map;
 import org.junit.AfterClass;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.sonar.wsclient.issue.IssueQuery;
-import org.sonarqube.ws.WsMeasures;
-import org.sonarqube.ws.WsMeasures.Measure;
+import org.sonarqube.ws.Measures;
+import org.sonarqube.ws.Measures.Measure;
 import util.ItUtils;
 
 import static java.lang.Integer.parseInt;
+import static org.apache.commons.lang.time.DateUtils.addDays;
 import static org.assertj.core.api.Assertions.assertThat;
+import static util.ItUtils.formatDate;
 import static util.ItUtils.getLeakPeriodValue;
 import static util.ItUtils.getMeasuresWithVariationsByMetricKey;
 import static util.ItUtils.projectDir;
@@ -52,39 +56,44 @@ public class NewIssuesMeasureTest extends AbstractIssueTest {
   }
 
   @Test
-  public void new_issues_measures() throws Exception {
-    setServerProperty(ORCHESTRATOR, "sonar.leak.period", "previous_analysis");
+  public void new_issues_measures() {
+    setServerProperty(ORCHESTRATOR, "sonar.leak.period", "previous_version");
     ORCHESTRATOR.getServer().provisionProject("sample", "Sample");
 
     // Execute an analysis in the past with no issue to have a past snapshot
+    String past = formatDate(addDays(new Date(), -30));
     ORCHESTRATOR.getServer().associateProjectToQualityProfile("sample", "xoo", "empty");
-    ORCHESTRATOR.executeBuild(SonarScanner.create(projectDir("shared/xoo-sample")).setProperty("sonar.projectDate", "2013-01-01"));
+    ORCHESTRATOR.executeBuild(SonarScanner.create(projectDir("shared/xoo-sample-missing-some-lines")).setProperty("sonar.projectDate", past));
 
-    // Execute a analysis now with some issues
+    // Execute an analysis now with some issues. Issues on new lines will be new, while the issues on matching lines will be backdated.
     ItUtils.restoreProfile(ORCHESTRATOR, getClass().getResource("/issue/one-issue-per-line-profile.xml"));
     ORCHESTRATOR.getServer().associateProjectToQualityProfile("sample", "xoo", "one-issue-per-line-profile");
     ORCHESTRATOR.executeBuild(SonarScanner.create(projectDir("shared/xoo-sample")));
 
     assertThat(ORCHESTRATOR.getServer().wsClient().issueClient().find(IssueQuery.create()).list()).isNotEmpty();
-    assertThat(getLeakPeriodValue(ORCHESTRATOR, "sample:src/main/xoo/sample/Sample.xoo", "new_violations")).isEqualTo(17);
+    assertThat(getLeakPeriodValue(ORCHESTRATOR, "sample:src/main/xoo/sample/Sample.xoo", "new_violations")).isEqualTo(7);
+    assertThat(ItUtils.getMeasureAsDouble(ORCHESTRATOR, "sample:src/main/xoo/sample/Sample.xoo", "violations")).isEqualTo(17);
+
 
     // second analysis, with exactly the same profile -> no new issues
     ORCHESTRATOR.executeBuild(SonarScanner.create(projectDir("shared/xoo-sample")));
 
     assertThat(ORCHESTRATOR.getServer().wsClient().issueClient().find(IssueQuery.create()).list()).isNotEmpty();
-    assertThat(getLeakPeriodValue(ORCHESTRATOR, "sample:src/main/xoo/sample/Sample.xoo", "new_violations")).isZero();
+    assertThat(getLeakPeriodValue(ORCHESTRATOR, "sample:src/main/xoo/sample/Sample.xoo", "new_violations")).isEqualTo(7);
   }
 
   @Test
-  public void new_issues_measures_should_be_zero_on_project_when_no_new_issues_since_x_days() throws Exception {
-    setServerProperty(ORCHESTRATOR, "sonar.leak.period", "30");
+  public void new_issues_measures_should_be_zero_on_project_when_no_new_issues_since_x_days() {
+    int leak = 30;
+    setServerProperty(ORCHESTRATOR, "sonar.leak.period", String.valueOf(leak));
     ORCHESTRATOR.getServer().provisionProject("sample", "Sample");
     ItUtils.restoreProfile(ORCHESTRATOR, getClass().getResource("/issue/one-issue-per-line-profile.xml"));
     ORCHESTRATOR.getServer().associateProjectToQualityProfile("sample", "xoo", "one-issue-per-line-profile");
 
+    String olderThanLeak = formatDate(addDays(new Date(), -leak-2));
     ORCHESTRATOR.executeBuild(SonarScanner.create(projectDir("shared/xoo-sample"))
       // Analyse a project in the past, with a date older than 30 last days (second period)
-      .setProperty("sonar.projectDate", "2013-01-01"));
+      .setProperty("sonar.projectDate", olderThanLeak));
     ORCHESTRATOR.executeBuild(SonarScanner.create(projectDir("shared/xoo-sample")));
 
     // new issues measures should be to 0 on project on 2 periods as new issues has been created
@@ -95,8 +104,8 @@ public class NewIssuesMeasureTest extends AbstractIssueTest {
    * SONAR-3647
    */
   @Test
-  public void new_issues_measures_consistent_with_variations() throws Exception {
-    setServerProperty(ORCHESTRATOR, "sonar.leak.period", "previous_analysis");
+  public void new_issues_measures_consistent_with_variations() {
+    setServerProperty(ORCHESTRATOR, "sonar.leak.period", "previous_version");
     ORCHESTRATOR.getServer().provisionProject("sample", "Sample");
     ItUtils.restoreProfile(ORCHESTRATOR, getClass().getResource("/issue/one-issue-per-line-profile.xml"));
     ORCHESTRATOR.getServer().associateProjectToQualityProfile("sample", "xoo", "one-issue-per-line-profile");
@@ -111,7 +120,7 @@ public class NewIssuesMeasureTest extends AbstractIssueTest {
     assertThat(ORCHESTRATOR.getServer().wsClient().issueClient().find(IssueQuery.create()).list()).isNotEmpty();
 
     Map<String, Measure> measures = getMeasuresWithVariationsByMetricKey(ORCHESTRATOR, "sample", "new_violations", "violations", "ncloc");
-    assertThat(measures.get("new_violations").getPeriods().getPeriodsValueList()).extracting(WsMeasures.PeriodValue::getValue).containsOnly("17");
+    assertThat(measures.get("new_violations").getPeriods().getPeriodsValueList()).extracting(Measures.PeriodValue::getValue).containsOnly("17");
 
     Measure violations = measures.get("violations");
     assertThat(parseInt(violations.getValue())).isEqualTo(43);
@@ -123,8 +132,8 @@ public class NewIssuesMeasureTest extends AbstractIssueTest {
   }
 
   @Test
-  public void new_issues_measures_should_be_correctly_calculated_when_adding_a_new_module() throws Exception {
-    setServerProperty(ORCHESTRATOR, "sonar.leak.period", "previous_analysis");
+  public void new_issues_measures_should_be_correctly_calculated_when_adding_a_new_module() {
+    setServerProperty(ORCHESTRATOR, "sonar.leak.period", "previous_version");
     ORCHESTRATOR.getServer().provisionProject("com.sonarsource.it.samples:multi-modules-sample", "com.sonarsource.it.samples:multi-modules-sample");
 
     // First analysis without module b
@@ -138,7 +147,9 @@ public class NewIssuesMeasureTest extends AbstractIssueTest {
     ORCHESTRATOR.getServer().associateProjectToQualityProfile("com.sonarsource.it.samples:multi-modules-sample", "xoo", "profile2");
     ORCHESTRATOR.executeBuild(SonarScanner.create(projectDir("shared/xoo-multi-modules-sample")));
 
-    assertThat(getLeakPeriodValue(ORCHESTRATOR, "com.sonarsource.it.samples:multi-modules-sample", "new_violations")).isEqualTo(65);
+    // new issues only in module B. For module B, even with the new rule activated, issues are backdated
+    // 2 issuePerModule + 2 issuePerFile + 24 issuePerLine
+    assertThat(getLeakPeriodValue(ORCHESTRATOR, "com.sonarsource.it.samples:multi-modules-sample", "new_violations")).isEqualTo(28);
   }
 
 }

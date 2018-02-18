@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,13 +24,15 @@ import LocationIndex from '../../../components/common/LocationIndex';
 import { translateWithParameters } from '../../../helpers/l10n';
 import { formatMeasure } from '../../../helpers/measures';
 
+/*::
 type Props = {|
   count: number,
   onClick?: () => void,
   selected?: boolean
 |};
+*/
 
-export default function ConciseIssueLocationBadge(props: Props) {
+export default function ConciseIssueLocationBadge(props /*: Props */) {
   return (
     <Tooltip
       mouseEnterDelay={0.5}
@@ -39,7 +41,8 @@ export default function ConciseIssueLocationBadge(props: Props) {
         formatMeasure(props.count)
       )}>
       <LocationIndex onClick={props.onClick} selected={props.selected}>
-        {'+'}{props.count}
+        {'+'}
+        {props.count}
       </LocationIndex>
     </Tooltip>
   );

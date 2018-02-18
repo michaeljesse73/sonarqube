@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,18 +20,21 @@
 package org.sonarqube.tests.rule;
 
 import com.sonar.orchestrator.Orchestrator;
-import org.sonarqube.tests.Category6Suite;
 import java.util.List;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.RuleChain;
 import org.junit.rules.TestRule;
-import org.sonarqube.tests.Tester;
+import org.sonarqube.qa.util.Tester;
+import org.sonarqube.tests.Category6Suite;
 import org.sonarqube.ws.Organizations;
-import org.sonarqube.ws.client.PostRequest;
+import org.sonarqube.ws.client.rules.ShowRequest;
+import org.sonarqube.ws.client.rules.TagsRequest;
+import org.sonarqube.ws.client.rules.UpdateRequest;
 import util.ItUtils;
 
+import static java.util.Arrays.asList;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class RuleTagsTest {
@@ -88,23 +91,22 @@ public class RuleTagsTest {
   }
 
   private List<String> listTags(Organizations.Organization organization) {
-    String json = orchestrator.getServer().newHttpCall("/api/rules/tags")
-      .setParam("organization", organization.getKey())
-      .execute()
-      .getBodyAsString();
+    String json = tester
+      .wsClient()
+      .rules()
+      .tags(new TagsRequest().setOrganization(organization.getKey()));
     return (List<String>) ItUtils.jsonToMap(json).get("tags");
   }
 
   private List<String> showRuleTags(Organizations.Organization organization) {
-    return tester.wsClient().rules().show(organization.getKey(), "xoo:OneIssuePerFile")
+    return tester.wsClient().rules().show(new ShowRequest().setOrganization(organization.getKey()).setKey("xoo:OneIssuePerFile"))
       .getRule().getTags().getTagsList();
   }
 
   private void updateTag(String tag, Organizations.Organization organization) {
-    tester.wsClient().wsConnector().call(new PostRequest("/api/rules/update")
-      .setParam("organization", organization.getKey())
-      .setParam("key", "xoo:OneIssuePerFile")
-      .setParam("tags", tag))
-      .failIfNotSuccessful();
+    tester.wsClient().rules().update(new UpdateRequest()
+      .setOrganization(organization.getKey())
+      .setKey("xoo:OneIssuePerFile")
+      .setTags(asList(tag)));
   }
 }

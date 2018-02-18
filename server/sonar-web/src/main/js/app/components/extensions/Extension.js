@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,34 +22,38 @@ import React from 'react';
 import Helmet from 'react-helmet';
 import { connect } from 'react-redux';
 import { withRouter } from 'react-router';
+import { injectIntl } from 'react-intl';
+import { getExtensionStart } from './utils';
 import { addGlobalErrorMessage } from '../../../store/globalMessages/duck';
 import { getCurrentUser } from '../../../store/rootReducer';
 import { translate } from '../../../helpers/l10n';
-import { getExtensionStart } from './utils';
 import getStore from '../../utils/getStore';
 
+/*::
 type Props = {
   currentUser: Object,
   extension: {
     key: string,
     name: string
   },
+  intl: Object,
   location: { hash: string },
   onFail: string => void,
   options?: {},
   router: Object
 };
+*/
 
 class Extension extends React.PureComponent {
-  container: Object;
-  props: Props;
-  stop: ?Function;
+  /*:: container: Object; */
+  /*:: props: Props; */
+  /*:: stop: ?Function; */
 
   componentDidMount() {
     this.startExtension();
   }
 
-  componentDidUpdate(prevProps: Props) {
+  componentDidUpdate(prevProps /*: Props */) {
     if (prevProps.extension !== this.props.extension) {
       this.stopExtension();
       this.startExtension();
@@ -66,12 +70,13 @@ class Extension extends React.PureComponent {
     this.stopExtension();
   }
 
-  handleStart = (start: Function) => {
+  handleStart = (start /*: Function */) => {
     const store = getStore();
     this.stop = start({
       store,
       el: this.container,
       currentUser: this.props.currentUser,
+      intl: this.props.intl,
       location: this.props.location,
       router: this.props.router,
       ...this.props.options
@@ -88,8 +93,10 @@ class Extension extends React.PureComponent {
   }
 
   stopExtension() {
-    this.stop && this.stop();
-    this.stop = null;
+    if (this.stop) {
+      this.stop();
+      this.stop = null;
+    }
   }
 
   render() {
@@ -102,10 +109,4 @@ class Extension extends React.PureComponent {
   }
 }
 
-const mapStateToProps = state => ({
-  currentUser: getCurrentUser(state)
-});
-
-const mapDispatchToProps = { onFail: addGlobalErrorMessage };
-
-export default connect(mapStateToProps, mapDispatchToProps)(withRouter(Extension));
+export default injectIntl(withRouter(Extension));

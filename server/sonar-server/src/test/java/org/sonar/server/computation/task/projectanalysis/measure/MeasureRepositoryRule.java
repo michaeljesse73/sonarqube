@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,6 +24,7 @@ import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableSetMultimap;
 import com.google.common.collect.SetMultimap;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -62,6 +63,8 @@ public class MeasureRepositoryRule extends ExternalResource implements MeasureRe
   private final Map<InternalKey, Measure> baseMeasures = new HashMap<>();
   private final Map<InternalKey, Measure> rawMeasures = new HashMap<>();
   private final Map<InternalKey, Measure> initialRawMeasures = new HashMap<>();
+  private Collection<Component> loadedAsRawComponents;
+  private Collection<Metric> loadedAsRawMetrics;
   private final Predicate<Map.Entry<InternalKey, Measure>> isAddedMeasure = new Predicate<Map.Entry<InternalKey, Measure>>() {
     @Override
     public boolean apply(@Nonnull Map.Entry<InternalKey, Measure> input) {
@@ -181,10 +184,17 @@ public class MeasureRepositoryRule extends ExternalResource implements MeasureRe
 
     return this;
   }
-
   @Override
   public Optional<Measure> getBaseMeasure(Component component, Metric metric) {
     return Optional.fromNullable(baseMeasures.get(new InternalKey(component, metric)));
+  }
+
+  public Collection<Component> getComponentsLoadedAsRaw() {
+    return loadedAsRawComponents;
+  }
+  
+  public Collection<Metric> getMetricsLoadedAsRaw() {
+    return loadedAsRawMetrics;
   }
 
   @Override

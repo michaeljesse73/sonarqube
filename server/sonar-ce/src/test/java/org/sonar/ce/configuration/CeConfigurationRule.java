@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,6 +19,7 @@
  */
 package org.sonar.ce.configuration;
 
+import java.util.function.Consumer;
 import org.junit.rules.ExternalResource;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -27,10 +28,33 @@ import static com.google.common.base.Preconditions.checkArgument;
  * Mutable implementation of {@link CeConfiguration} as {@link org.junit.Rule}.
  */
 public class CeConfigurationRule extends ExternalResource implements CeConfiguration {
+  private int workerThreadCount = 1;
   private int workerCount = 1;
   private long queuePollingDelay = 2 * 1000L;
   private long cancelWornOutsInitialDelay = 1L;
   private long cancelWornOutsDelay = 10L;
+  private Consumer<CeConfigurationRule> refreshCallHook;
+
+  @Override
+  public void refresh() {
+    if (this.refreshCallHook != null) {
+      this.refreshCallHook.accept(this);
+    }
+  }
+
+  public void setRefreshCallHook(Consumer<CeConfigurationRule> refreshCallHook) {
+    this.refreshCallHook = refreshCallHook;
+  }
+
+  @Override
+  public int getWorkerMaxCount() {
+    return workerThreadCount;
+  }
+
+  public void setWorkerThreadCount(int workerThreadCount) {
+    checkArgument(workerThreadCount >= 1, "worker thread count must be >= 1");
+    this.workerThreadCount = workerThreadCount;
+  }
 
   @Override
   public int getWorkerCount() {
@@ -66,6 +90,11 @@ public class CeConfigurationRule extends ExternalResource implements CeConfigura
   @Override
   public long getCleanCeTasksDelay() {
     return cancelWornOutsDelay;
+  }
+
+  @Override
+  public int getGracefulStopTimeoutInMs() {
+    return 40_000;
   }
 
   public void setCleanCeTasksDelay(long cancelWornOutsDelay) {

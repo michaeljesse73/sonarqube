@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -39,9 +39,21 @@ const issue = {
   secondaryLocations: []
 };
 
+const issueWithLocations = {
+  ...issue,
+  flows: [[{}, {}, {}], [{}, {}]],
+  secondaryLocations: [{}, {}]
+};
+
 it('should render the titlebar correctly', () => {
   const element = shallow(
-    <IssueTitleBar issue={issue} currentPopup="" onFail={jest.fn()} togglePopup={jest.fn()} />
+    <IssueTitleBar
+      branch="feature-1.0"
+      issue={issue}
+      currentPopup={null}
+      onFail={jest.fn()}
+      togglePopup={jest.fn()}
+    />
   );
   expect(element).toMatchSnapshot();
 });
@@ -50,7 +62,7 @@ it('should render the titlebar with the filter', () => {
   const element = shallow(
     <IssueTitleBar
       issue={issue}
-      currentPopup=""
+      currentPopup={null}
       onFail={jest.fn()}
       onFilter={jest.fn()}
       togglePopup={jest.fn()}
@@ -60,11 +72,8 @@ it('should render the titlebar with the filter', () => {
 });
 
 it('should count all code locations', () => {
-  const issueWithLocations = {
-    ...issue,
-    flows: [[{}, {}, {}], [{}, {}]],
-    secondaryLocations: [{}, {}]
-  };
-  const element = shallow(<IssueTitleBar issue={issueWithLocations} />);
-  expect(element.find('LocationIndex').children().text()).toBe('7');
+  const element = shallow(
+    <IssueTitleBar displayLocationsCount={true} issue={issueWithLocations} />
+  );
+  expect(element.find('LocationIndex')).toMatchSnapshot();
 });

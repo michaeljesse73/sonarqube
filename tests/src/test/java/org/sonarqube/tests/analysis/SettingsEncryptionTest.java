@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -69,7 +69,7 @@ public class SettingsEncryptionTest {
    * SONAR-2084
    */
   @Test(expected = BuildFailureException.class)
-  public void failIfEncryptedPropertyButNoSecretKey() throws Exception {
+  public void failIfEncryptedPropertyButNoSecretKey() {
     // path to secret key is missing
     SonarScanner build = SonarScanner.create(ItUtils.projectDir("shared/xoo-sample"))
       .setProperty("encryptedProperty", "{aes}9mx5Zq4JVyjeChTcVjEide4kWCwusFl7P2dSVXtg9IY=");

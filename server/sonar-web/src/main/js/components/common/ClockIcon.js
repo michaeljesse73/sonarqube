@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,12 +21,14 @@
 import React from 'react';
 import classNames from 'classnames';
 
+/*::
 type Props = {
   className?: string,
   size?: number
 };
+*/
 
-export default function ClockIcon(props: Props) {
+export default function ClockIcon(props /*: Props */) {
   /* eslint max-len: 0 */
   return (
     <svg

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -96,7 +96,7 @@ public class RegisterMetricsTest {
     dbTester.prepareDbUnit(getClass(), "disable_undefined_metrics.xml");
 
     RegisterMetrics register = new RegisterMetrics(dbClient);
-    register.register(Collections.<Metric>emptyList());
+    register.register(Collections.emptyList());
 
     dbTester.assertDbUnit(getClass(), "disable_undefined_metrics-result.xml", "metrics");
   }

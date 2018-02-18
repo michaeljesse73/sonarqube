@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -26,23 +26,27 @@ import { translate } from '../../../helpers/l10n';
 const INTERVAL = 5000;
 const TIMEOUT = 10 * 60 * 1000; // 10 min
 
+/*::
 type Props = {
   onFinish: () => void,
   onTimeout: () => void,
   projectKey: string
 };
+*/
 
+/*::
 type State = {
   inQueue: boolean,
   status: ?string
 };
+*/
 
 export default class ProjectWatcher extends React.PureComponent {
-  interval: number;
-  mounted: boolean;
-  props: Props;
-  timeout: number;
-  state: State = {
+  /*:: interval: number; */
+  /*:: mounted: boolean; */
+  /*:: props: Props; */
+  /*:: timeout: number; */
+  state /*: State */ = {
     inQueue: false,
     status: null
   };
@@ -63,23 +67,26 @@ export default class ProjectWatcher extends React.PureComponent {
 
   checkProject = () => {
     const { projectKey } = this.props;
-    getTasksForComponent(projectKey).then(response => {
-      if (response.queue.length > 0) {
-        this.setState({ inQueue: true });
-      }
+    getTasksForComponent(projectKey).then(
+      response => {
+        if (response.queue.length > 0) {
+          this.setState({ inQueue: true });
+        }
 
-      if (response.current != null) {
-        const { status } = response.current;
-        this.setState({ status });
-        if (status === STATUSES.SUCCESS) {
-          this.props.onFinish();
-        } else if (status === STATUSES.PENDING || status === STATUSES.IN_PROGRESS) {
+        if (response.current != null) {
+          const { status } = response.current;
+          this.setState({ status });
+          if (status === STATUSES.SUCCESS) {
+            this.props.onFinish();
+          } else if (status === STATUSES.PENDING || status === STATUSES.IN_PROGRESS) {
+            this.watch();
+          }
+        } else {
           this.watch();
         }
-      } else {
-        this.watch();
-      }
-    });
+      },
+      () => {}
+    );
   };
 
   render() {

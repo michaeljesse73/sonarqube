@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -28,6 +28,7 @@ import org.sonar.db.organization.OrganizationDto;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.commons.lang.RandomStringUtils.randomAlphanumeric;
 import static org.sonar.db.component.ComponentDto.UUID_PATH_SEPARATOR;
 
 public class ComponentTesting {
@@ -41,10 +42,11 @@ public class ComponentTesting {
   }
 
   public static ComponentDto newFileDto(ComponentDto module, @Nullable ComponentDto directory, String fileUuid) {
-    String path = "src/main/xoo/org/sonar/samples/File.xoo";
+    String filename = "NAME_" + fileUuid;
+    String path = directory != null ? directory.path() + "/" + filename : module.path() + "/" + filename;
     return newChildComponent(fileUuid, module, directory == null ? module : directory)
-      .setKey("KEY_" + fileUuid)
-      .setName("NAME_" + fileUuid)
+      .setDbKey(generateKey("FILE_KEY_" + fileUuid, module))
+      .setName(filename)
       .setLongName(path)
       .setScope(Scopes.FILE)
       .setQualifier(Qualifiers.FILE)
@@ -58,8 +60,9 @@ public class ComponentTesting {
   }
 
   public static ComponentDto newDirectory(ComponentDto module, String uuid, String path) {
+    String key = !path.equals("/") ? module.getKey() + ":" + path : module.getKey() + ":/";
     return newChildComponent(uuid, module, module)
-      .setKey(!path.equals("/") ? module.getKey() + ":" + path : module.getKey() + ":/")
+      .setDbKey(generateKey(key, module))
       .setName(path)
       .setLongName(path)
       .setPath(path)
@@ -68,12 +71,13 @@ public class ComponentTesting {
   }
 
   public static ComponentDto newSubView(ComponentDto viewOrSubView, String uuid, String key) {
-    return newChildComponent(uuid, viewOrSubView, viewOrSubView)
-      .setKey(key)
+    return newModuleDto(uuid, viewOrSubView)
+      .setDbKey(key)
       .setName(key)
       .setLongName(key)
       .setScope(Scopes.PROJECT)
-      .setQualifier(Qualifiers.SUBVIEW);
+      .setQualifier(Qualifiers.SUBVIEW)
+      .setPath(null);
   }
 
   public static ComponentDto newSubView(ComponentDto viewOrSubView) {
@@ -84,13 +88,18 @@ public class ComponentTesting {
   public static ComponentDto newModuleDto(String uuid, ComponentDto parentModuleOrProject) {
     return newChildComponent(uuid, parentModuleOrProject, parentModuleOrProject)
       .setModuleUuidPath(parentModuleOrProject.moduleUuidPath() + uuid + UUID_PATH_SEPARATOR)
-      .setKey("KEY_" + uuid)
+      .setDbKey(generateKey("MODULE_KEY_" + uuid, parentModuleOrProject))
       .setName("NAME_" + uuid)
       .setLongName("LONG_NAME_" + uuid)
       .setPath("module")
       .setScope(Scopes.PROJECT)
       .setQualifier(Qualifiers.MODULE)
       .setLanguage(null);
+  }
+
+  private static String generateKey(String key, ComponentDto parentModuleOrProject) {
+    String branch = parentModuleOrProject.getBranch();
+    return branch == null ? key : ComponentDto.generateBranchKey(key, branch);
   }
 
   public static ComponentDto newModuleDto(ComponentDto subProjectOrProject) {
@@ -121,7 +130,7 @@ public class ComponentTesting {
       .setProjectUuid(uuid)
       .setModuleUuidPath(UUID_PATH_SEPARATOR + uuid + UUID_PATH_SEPARATOR)
       .setRootUuid(uuid)
-      .setKey("KEY_" + uuid)
+      .setDbKey("KEY_" + uuid)
       .setName("NAME_" + uuid)
       .setLongName("LONG_NAME_" + uuid)
       .setDescription("DESCRIPTION_" + uuid)
@@ -152,11 +161,19 @@ public class ComponentTesting {
       .setQualifier(Qualifiers.VIEW);
   }
 
+  public static ComponentDto newApplication(OrganizationDto organizationDto) {
+    return newView(organizationDto.getUuid(), Uuids.createFast())
+      .setQualifier(Qualifiers.APP);
+  }
+
+  public static ComponentDto newProjectCopy(ComponentDto project, ComponentDto view) {
+    return newProjectCopy(Uuids.createFast(), project, view);
+  }
+
   public static ComponentDto newProjectCopy(String uuid, ComponentDto project, ComponentDto view) {
     checkNotNull(project.getId(), "The project need to be persisted before creating this technical project.");
     return newChildComponent(uuid, view, view)
-      .setUuid(uuid)
-      .setKey(view.key() + project.key())
+      .setDbKey(view.getDbKey() + project.getDbKey())
       .setName(project.name())
       .setLongName(project.longName())
       .setCopyComponentUuid(project.uuid())
@@ -178,8 +195,61 @@ public class ComponentTesting {
       .setRootUuid(moduleOrProject.uuid())
       .setModuleUuid(moduleOrProject.uuid())
       .setModuleUuidPath(moduleOrProject.moduleUuidPath())
+      .setMainBranchProjectUuid(moduleOrProject.getMainBranchProjectUuid())
       .setCreatedAt(new Date())
       .setEnabled(true)
       .setPrivate(moduleOrProject.isPrivate());
+  }
+
+  public static BranchDto newBranchDto(@Nullable String projectUuid, BranchType branchType) {
+    String key = projectUuid == null ? null : "branch_" + randomAlphanumeric(248);
+    return new BranchDto()
+      .setKey(key)
+      .setUuid(Uuids.createFast())
+      // MainBranchProjectUuid will be null if it's a main branch
+      .setProjectUuid(projectUuid)
+      .setBranchType(branchType);
+  }
+
+  public static BranchDto newBranchDto(ComponentDto project) {
+    return newBranchDto(project.projectUuid(), BranchType.LONG);
+  }
+
+  public static BranchDto newBranchDto(ComponentDto branchComponent, BranchType branchType) {
+    boolean isMain = branchComponent.getMainBranchProjectUuid() == null;
+    String projectUuid = isMain ? branchComponent.uuid() : branchComponent.getMainBranchProjectUuid();
+    String key = isMain ? "master" : "branch_" + randomAlphanumeric(248);
+
+    return new BranchDto()
+      .setKey(key)
+      .setUuid(branchComponent.uuid())
+      .setProjectUuid(projectUuid)
+      .setBranchType(branchType);
+  }
+
+  public static ComponentDto newProjectBranch(ComponentDto project, BranchDto branchDto) {
+    checkArgument(project.qualifier().equals(Qualifiers.PROJECT));
+    checkArgument(project.getMainBranchProjectUuid() == null);
+    String branchName = branchDto.getKey();
+    String uuid = branchDto.getUuid();
+    return new ComponentDto()
+      .setUuid(uuid)
+      .setOrganizationUuid(project.getOrganizationUuid())
+      .setUuidPath(ComponentDto.UUID_PATH_OF_ROOT)
+      .setProjectUuid(uuid)
+      .setModuleUuidPath(UUID_PATH_SEPARATOR + uuid + UUID_PATH_SEPARATOR)
+      .setRootUuid(uuid)
+      // name of the branch is not mandatory on the main branch
+      .setDbKey(branchName != null ? project.getDbKey() + ":BRANCH:" + branchName : project.getKey())
+      .setMainBranchProjectUuid(project.uuid())
+      .setName(project.name())
+      .setLongName(project.longName())
+      .setDescription(project.description())
+      .setScope(project.scope())
+      .setQualifier(project.qualifier())
+      .setPath(null)
+      .setLanguage(null)
+      .setEnabled(true)
+      .setPrivate(project.isPrivate());
   }
 }

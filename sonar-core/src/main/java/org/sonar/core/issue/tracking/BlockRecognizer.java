@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -84,7 +84,9 @@ class BlockRecognizer<RAW extends Trackable, BASE extends Trackable> {
     for (Integer baseLine : basesByLine.keySet()) {
       for (Integer rawLine : rawsByLine.keySet()) {
         int weight = lengthOfMaximalBlock(baseInput.getLineHashSequence(), baseLine, rawInput.getLineHashSequence(), rawLine);
-        possibleLinePairs.add(new LinePair(baseLine, rawLine, weight));
+        if (weight > 0) {
+          possibleLinePairs.add(new LinePair(baseLine, rawLine, weight));
+        }
       }
     }
     Collections.sort(possibleLinePairs, LinePairComparator.INSTANCE);

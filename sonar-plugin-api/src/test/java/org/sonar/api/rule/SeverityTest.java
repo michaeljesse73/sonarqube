@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -26,8 +26,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class SeverityTest {
 
   @Test
-  public void test_ALL() throws Exception {
-    assertThat(Severity.ALL).hasSize(5).containsSequence("INFO", "MINOR", "MAJOR", "CRITICAL", "BLOCKER");
+  public void test_ALL() {
+    assertThat(Severity.ALL).hasSize(5).containsSubsequence("INFO", "MINOR", "MAJOR", "CRITICAL", "BLOCKER");
   }
 
   @Test

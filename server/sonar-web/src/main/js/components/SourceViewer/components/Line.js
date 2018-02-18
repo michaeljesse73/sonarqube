@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -28,16 +28,20 @@ import LineDuplications from './LineDuplications';
 import LineDuplicationBlock from './LineDuplicationBlock';
 import LineIssuesIndicator from './LineIssuesIndicator';
 import LineCode from './LineCode';
-import type { SourceLine } from '../types';
-import type { LinearIssueLocation } from '../helpers/indexing';
-import type { Issue } from '../../issue/types';
+/*:: import type { SourceLine } from '../types'; */
+/*:: import type { LinearIssueLocation } from '../helpers/indexing'; */
+/*:: import type { Issue } from '../../issue/types'; */
 
+/*::
 type Props = {|
+  branch?: string,
   displayAllIssues: boolean,
   displayCoverage: boolean,
   displayDuplications: boolean,
-  displayFiltered: boolean,
   displayIssues: boolean,
+  displayIssueLocationsCount?: boolean;
+  displayIssueLocationsLink?: boolean;
+  displayLocationMarkers?: boolean;
   duplications: Array<number>,
   duplicationsCount: number,
   filtered: boolean | null,
@@ -59,8 +63,10 @@ type Props = {|
   onIssuesClose: SourceLine => void,
   onLocationSelect?: number => void,
   onSCMClick: (SourceLine, HTMLElement) => void,
-  onSymbolClick: Array<string> => void,
+  onSymbolClick: (Array<string>) => void,
   openIssues: boolean,
+  onPopupToggle: (issue: string, popupName: string, open: ?boolean ) => void,
+  openPopup: ?{ issue: string, name: string},
   previousLine?: SourceLine,
   scroll?: HTMLElement => void,
   secondaryIssueLocations: Array<{
@@ -72,9 +78,10 @@ type Props = {|
   }>,
   selectedIssue: string | null
 |};
+*/
 
 export default class Line extends React.PureComponent {
-  props: Props;
+  /*:: props: Props; */
 
   handleIssuesIndicatorClick = () => {
     if (this.props.openIssues) {
@@ -91,11 +98,13 @@ export default class Line extends React.PureComponent {
   };
 
   render() {
-    const { line, duplications, duplicationsCount, filtered } = this.props;
+    const { line, duplications, displayCoverage, duplicationsCount, filtered } = this.props;
     const className = classNames('source-line', {
       'source-line-highlighted': this.props.highlighted,
-      'source-line-shadowed': filtered === false,
       'source-line-filtered': filtered === true,
+      'source-line-filtered-dark':
+        displayCoverage &&
+        (line.coverageStatus === 'uncovered' || line.coverageStatus === 'partially-covered'),
       'source-line-last': this.props.last
     });
 
@@ -109,11 +118,13 @@ export default class Line extends React.PureComponent {
           previousLine={this.props.previousLine}
         />
 
-        {this.props.displayCoverage &&
-          <LineCoverage line={line} onClick={this.props.onCoverageClick} />}
+        {this.props.displayCoverage && (
+          <LineCoverage line={line} onClick={this.props.onCoverageClick} />
+        )}
 
-        {this.props.displayDuplications &&
-          <LineDuplications line={line} onClick={this.props.loadDuplications} />}
+        {this.props.displayDuplications && (
+          <LineDuplications line={line} onClick={this.props.loadDuplications} />
+        )}
 
         {times(duplicationsCount).map(index => (
           <LineDuplicationBlock
@@ -126,19 +137,19 @@ export default class Line extends React.PureComponent {
         ))}
 
         {this.props.displayIssues &&
-          !this.props.displayAllIssues &&
-          <LineIssuesIndicator
-            issues={this.props.issues}
-            line={line}
-            onClick={this.handleIssuesIndicatorClick}
-          />}
-
-        {this.props.displayFiltered &&
-          <td className="source-meta source-line-filtered-container" data-line-number={line.line}>
-            <div className="source-line-bar" />
-          </td>}
+          !this.props.displayAllIssues && (
+            <LineIssuesIndicator
+              issues={this.props.issues}
+              line={line}
+              onClick={this.handleIssuesIndicatorClick}
+            />
+          )}
 
         <LineCode
+          branch={this.props.branch}
+          displayIssueLocationsCount={this.props.displayIssueLocationsCount}
+          displayIssueLocationsLink={this.props.displayIssueLocationsLink}
+          displayLocationMarkers={this.props.displayLocationMarkers}
           highlightedLocationMessage={this.props.highlightedLocationMessage}
           highlightedSymbols={this.props.highlightedSymbols}
           issues={this.props.issues}
@@ -148,6 +159,8 @@ export default class Line extends React.PureComponent {
           onIssueSelect={this.props.onIssueSelect}
           onLocationSelect={this.props.onLocationSelect}
           onSymbolClick={this.props.onSymbolClick}
+          onPopupToggle={this.props.onPopupToggle}
+          openPopup={this.props.openPopup}
           scroll={this.props.scroll}
           secondaryIssueLocations={this.props.secondaryIssueLocations}
           selectedIssue={this.props.selectedIssue}

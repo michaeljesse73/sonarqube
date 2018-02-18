@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,6 +19,13 @@
  */
 package org.sonar.server.ws;
 
+import javax.servlet.ServletOutputStream;
+import javax.servlet.http.HttpServletResponse;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.ExpectedException;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -27,23 +34,15 @@ import static org.mockito.Mockito.when;
 import static org.sonarqube.ws.MediaTypes.JSON;
 import static org.sonarqube.ws.MediaTypes.XML;
 
-import javax.servlet.ServletOutputStream;
-import javax.servlet.http.HttpServletResponse;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
-
 public class ServletResponseTest {
 
   @Rule
   public ExpectedException expectedException = ExpectedException.none();
 
-  ServletOutputStream output = mock(ServletOutputStream.class);
+  private ServletOutputStream output = mock(ServletOutputStream.class);
+  private HttpServletResponse response = mock(HttpServletResponse.class);
 
-  HttpServletResponse response = mock(HttpServletResponse.class);
-
-  ServletResponse underTest = new ServletResponse(response);
+  private ServletResponse underTest = new ServletResponse(response);
 
   @Before
   public void setUp() throws Exception {
@@ -51,51 +50,51 @@ public class ServletResponseTest {
   }
 
   @Test
-  public void test_default_header() throws Exception {
+  public void test_default_header() {
     verify(response).setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
   }
 
   @Test
-  public void set_header() throws Exception {
+  public void set_header() {
     underTest.setHeader("header", "value");
 
     verify(response).setHeader("header", "value");
   }
 
   @Test
-  public void get_header() throws Exception {
+  public void get_header() {
     underTest.getHeader("header");
 
     verify(response).getHeader("header");
   }
 
   @Test
-  public void get_header_names() throws Exception {
+  public void get_header_names() {
     underTest.getHeaderNames();
 
     verify(response).getHeaderNames();
   }
 
   @Test
-  public void test_default_status() throws Exception {
+  public void test_default_status() {
     verify(response).setStatus(200);
   }
 
   @Test
-  public void set_status() throws Exception {
+  public void set_status() {
     underTest.stream().setStatus(404);
 
     verify(response).setStatus(404);
   }
 
   @Test
-  public void test_output() throws Exception {
+  public void test_output() {
     assertThat(underTest.stream().output()).isEqualTo(output);
   }
 
 
   @Test
-  public void test_reset() throws Exception {
+  public void test_reset() {
     underTest.stream().reset();
 
     verify(response).reset();

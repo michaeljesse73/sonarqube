@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -63,7 +63,7 @@ public class WebhookDeliveriesActionTest {
     ComponentFinder componentFinder = TestComponentFinder.from(db);
     WebhookDeliveriesAction underTest = new WebhookDeliveriesAction(dbClient, userSession, componentFinder);
     ws = new WsActionTester(underTest);
-    project = db.components().insertComponent(ComponentTesting.newPrivateProjectDto(db.organizations().insert()).setKey("my-project"));
+    project = db.components().insertComponent(ComponentTesting.newPrivateProjectDto(db.organizations().insert()).setDbKey("my-project"));
   }
 
   @Test
@@ -82,18 +82,18 @@ public class WebhookDeliveriesActionTest {
   }
 
   @Test
-  public void search_by_component_and_return_no_records() throws Exception {
+  public void search_by_component_and_return_no_records() {
     userSession.logIn().addProjectPermission(UserRole.ADMIN, project);
 
     Webhooks.DeliveriesWsResponse response = ws.newRequest()
-      .setParam("componentKey", project.getKey())
+      .setParam("componentKey", project.getDbKey())
       .executeProtobuf(Webhooks.DeliveriesWsResponse.class);
 
     assertThat(response.getDeliveriesCount()).isEqualTo(0);
   }
 
   @Test
-  public void search_by_task_and_return_no_records() throws Exception {
+  public void search_by_task_and_return_no_records() {
     userSession.logIn().addProjectPermission(UserRole.ADMIN, project);
 
     Webhooks.DeliveriesWsResponse response = ws.newRequest()
@@ -104,7 +104,7 @@ public class WebhookDeliveriesActionTest {
   }
 
   @Test
-  public void search_by_component_and_return_records_of_example() throws Exception {
+  public void search_by_component_and_return_records_of_example() {
     WebhookDeliveryDto dto = newWebhookDeliveryDto()
       .setUuid("d1")
       .setComponentUuid(project.uuid())
@@ -120,7 +120,7 @@ public class WebhookDeliveriesActionTest {
     userSession.logIn().addProjectPermission(UserRole.ADMIN, project);
 
     String json = ws.newRequest()
-      .setParam("componentKey", project.getKey())
+      .setParam("componentKey", project.getDbKey())
       .execute()
       .getInput();
 
@@ -128,7 +128,7 @@ public class WebhookDeliveriesActionTest {
   }
 
   @Test
-  public void search_by_task_and_return_records() throws Exception {
+  public void search_by_task_and_return_records() {
     WebhookDeliveryDto dto1 = newWebhookDeliveryDto().setComponentUuid(project.uuid()).setCeTaskUuid("t1");
     WebhookDeliveryDto dto2 = newWebhookDeliveryDto().setComponentUuid(project.uuid()).setCeTaskUuid("t1");
     WebhookDeliveryDto dto3 = newWebhookDeliveryDto().setComponentUuid(project.uuid()).setCeTaskUuid("t2");
@@ -146,7 +146,7 @@ public class WebhookDeliveriesActionTest {
   }
 
   @Test
-  public void search_by_component_and_throw_ForbiddenException_if_not_admin_of_project() throws Exception {
+  public void search_by_component_and_throw_ForbiddenException_if_not_admin_of_project() {
     WebhookDeliveryDto dto = newWebhookDeliveryDto()
       .setComponentUuid(project.uuid());
     dbClient.webhookDeliveryDao().insert(db.getSession(), dto);
@@ -157,12 +157,12 @@ public class WebhookDeliveriesActionTest {
     expectedException.expectMessage("Insufficient privileges");
 
     ws.newRequest()
-      .setParam("componentKey", project.getKey())
+      .setParam("componentKey", project.getDbKey())
       .execute();
   }
 
   @Test
-  public void search_by_task_and_throw_ForbiddenException_if_not_admin_of_project() throws Exception {
+  public void search_by_task_and_throw_ForbiddenException_if_not_admin_of_project() {
     WebhookDeliveryDto dto = newWebhookDeliveryDto()
       .setComponentUuid(project.uuid());
     dbClient.webhookDeliveryDao().insert(db.getSession(), dto);
@@ -178,14 +178,14 @@ public class WebhookDeliveriesActionTest {
   }
 
   @Test
-  public void throw_IAE_if_both_component_and_task_parameters_are_set() throws Exception {
+  public void throw_IAE_if_both_component_and_task_parameters_are_set() {
     userSession.logIn();
 
     expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("Either parameter 'ceTaskId' or 'componentKey' must be defined");
+    expectedException.expectMessage("Either 'ceTaskId' or 'componentKey' must be provided");
 
     ws.newRequest()
-      .setParam("componentKey", project.getKey())
+      .setParam("componentKey", project.getDbKey())
       .setParam("ceTaskId", "t1")
       .execute();
   }

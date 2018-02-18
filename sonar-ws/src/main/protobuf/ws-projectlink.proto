@@ -3,7 +3,7 @@ syntax = "proto2";
 package sonarqube.ws.projectlink;
 
 option java_package = "org.sonarqube.ws";
-option java_outer_classname = "WsProjectLinks";
+option java_outer_classname = "ProjectLinks";
 option optimize_for = SPEED;
 
 // WS api/project_links/list

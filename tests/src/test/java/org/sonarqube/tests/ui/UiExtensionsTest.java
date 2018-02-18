@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,16 +20,17 @@
 package org.sonarqube.tests.ui;
 
 import com.sonar.orchestrator.Orchestrator;
-import org.sonarqube.tests.Category4Suite;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.openqa.selenium.By;
-import org.sonarqube.tests.Tester;
-import org.sonarqube.ws.WsProjects;
-import org.sonarqube.ws.WsUsers.CreateWsResponse.User;
-import org.sonarqube.ws.client.project.CreateRequest;
+import org.sonarqube.qa.util.Tester;
+import org.sonarqube.tests.Category4Suite;
+import org.sonarqube.ws.Projects;
+import org.sonarqube.ws.Users.CreateWsResponse.User;
+import org.sonarqube.ws.client.projects.CreateRequest;
 import util.ItUtils;
+import util.selenium.Selenese;
 
 import static com.codeborne.selenide.Condition.text;
 import static com.codeborne.selenide.Selenide.$;
@@ -46,7 +47,7 @@ public class UiExtensionsTest {
 
   @Test
   public void test_static_files() {
-    tester.runHtmlTests("/ui/UiExtensionsTest/static-files.html");
+    Selenese.runSelenese(orchestrator, "/ui/UiExtensionsTest/static-files.html");
   }
 
   @Test
@@ -66,9 +67,8 @@ public class UiExtensionsTest {
     User administrator = tester.users().generateAdministrator();
     tester.openBrowser()
       .logIn().submitCredentials(administrator.getLogin())
-      .open("/about");
+      .open("/settings");
 
-    $(".navbar-admin-link").click();
     $("#settings-navigation-configuration").click();
     $(By.linkText("Global Admin Page")).click();
 
@@ -78,7 +78,7 @@ public class UiExtensionsTest {
 
   @Test
   public void test_project_page() {
-    WsProjects.CreateWsResponse.Project project = createSampleProject();
+    Projects.CreateWsResponse.Project project = createSampleProject();
 
     tester.openBrowser().open("/dashboard?id=" + project.getKey());
 
@@ -91,7 +91,7 @@ public class UiExtensionsTest {
 
   @Test
   public void test_project_administration_page() {
-    WsProjects.CreateWsResponse.Project project = createSampleProject();
+    Projects.CreateWsResponse.Project project = createSampleProject();
     User administrator = tester.users().generateAdministrator();
 
     tester.openBrowser()
@@ -105,11 +105,10 @@ public class UiExtensionsTest {
     $("body").shouldHave(text("uiextensionsplugin/project_admin_page"));
   }
 
-  private WsProjects.CreateWsResponse.Project createSampleProject() {
+  private Projects.CreateWsResponse.Project createSampleProject() {
     String projectKey = ItUtils.newProjectKey();
-    return tester.wsClient().projects().create(CreateRequest.builder()
-      .setKey(projectKey)
-      .setName("Name of " + projectKey)
-      .build()).getProject();
+    return tester.wsClient().projects().create(new CreateRequest()
+      .setProject(projectKey)
+      .setName("Name of " + projectKey)).getProject();
   }
 }

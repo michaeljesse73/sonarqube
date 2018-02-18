@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,7 +19,8 @@
  */
 package org.sonar.scanner.repository;
 
+import javax.annotation.Nullable;
 
 public interface ProjectRepositoriesLoader {
-  ProjectRepositories load(String projectKeyWithBranch, boolean issuesMode);
+  ProjectRepositories load(String projectKeyWithBranch, boolean issuesMode, @Nullable String branchBase);
 }

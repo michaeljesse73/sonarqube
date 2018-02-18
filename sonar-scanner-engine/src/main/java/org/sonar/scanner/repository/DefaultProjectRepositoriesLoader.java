@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -27,16 +27,17 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.util.Date;
 import java.util.Map;
+import javax.annotation.Nullable;
 import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.sonar.api.utils.MessageException;
 import org.sonar.scanner.bootstrap.ScannerWsClient;
 import org.sonar.scanner.util.ScannerUtils;
-import org.sonarqube.ws.WsBatch;
-import org.sonarqube.ws.WsBatch.WsProjectResponse;
-import org.sonarqube.ws.WsBatch.WsProjectResponse.FileDataByPath;
-import org.sonarqube.ws.WsBatch.WsProjectResponse.Settings;
+import org.sonarqube.ws.Batch;
+import org.sonarqube.ws.Batch.WsProjectResponse;
+import org.sonarqube.ws.Batch.WsProjectResponse.FileDataByPath;
+import org.sonarqube.ws.Batch.WsProjectResponse.Settings;
 import org.sonarqube.ws.client.GetRequest;
 import org.sonarqube.ws.client.HttpException;
 import org.sonarqube.ws.client.WsResponse;
@@ -51,8 +52,8 @@ public class DefaultProjectRepositoriesLoader implements ProjectRepositoriesLoad
   }
 
   @Override
-  public ProjectRepositories load(String projectKey, boolean issuesMode) {
-    GetRequest request = new GetRequest(getUrl(projectKey, issuesMode));
+  public ProjectRepositories load(String projectKey, boolean issuesMode, @Nullable String branchBase) {
+    GetRequest request = new GetRequest(getUrl(projectKey, issuesMode, branchBase));
     try (WsResponse response = wsClient.call(request)) {
       InputStream is = response.contentStream();
       return processStream(is, projectKey);
@@ -66,13 +67,16 @@ public class DefaultProjectRepositoriesLoader implements ProjectRepositoriesLoad
     }
   }
 
-  private static String getUrl(String projectKey, boolean issuesMode) {
+  private static String getUrl(String projectKey, boolean issuesMode, @Nullable String branchBase) {
     StringBuilder builder = new StringBuilder();
 
     builder.append(BATCH_PROJECT_URL)
       .append("?key=").append(ScannerUtils.encodeForUrl(projectKey));
     if (issuesMode) {
       builder.append("&issues_mode=true");
+    }
+    if (branchBase != null) {
+      builder.append("&branch=").append(branchBase);
     }
     return builder.toString();
   }
@@ -107,7 +111,7 @@ public class DefaultProjectRepositoriesLoader implements ProjectRepositoriesLoad
 
       Map<String, FileDataByPath> fileDataByModuleAndPath = response.getFileDataByModuleAndPath();
       for (Map.Entry<String, FileDataByPath> e1 : fileDataByModuleAndPath.entrySet()) {
-        for (Map.Entry<String, WsBatch.WsProjectResponse.FileData> e2 : e1.getValue().getFileDataByPath().entrySet()) {
+        for (Map.Entry<String, Batch.WsProjectResponse.FileData> e2 : e1.getValue().getFileDataByPath().entrySet()) {
           FileData fd = new FileData(e2.getValue().getHash(), e2.getValue().getRevision());
           fileDataTable.put(e1.getKey(), e2.getKey(), fd);
         }

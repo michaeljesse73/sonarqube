@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -36,7 +36,6 @@ public class OrganizationsWsModule extends Module {
       RemoveMemberAction.class,
       SearchAction.class,
       SearchMembersAction.class,
-      SearchMyOrganizationsAction.class,
       UpdateAction.class,
       UpdateProjectVisibilityAction.class);
   }

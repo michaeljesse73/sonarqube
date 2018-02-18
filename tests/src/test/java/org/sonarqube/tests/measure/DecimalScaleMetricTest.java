@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,9 +20,10 @@
 package org.sonarqube.tests.measure;
 
 import com.sonar.orchestrator.Orchestrator;
-import org.sonarqube.tests.Category3Suite;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
+import org.sonarqube.qa.util.Tester;
 import util.ItUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -37,7 +38,10 @@ public class DecimalScaleMetricTest {
    * Requires the plugin "batch-plugin" 
    */
   @ClassRule
-  public static Orchestrator orchestrator = Category3Suite.ORCHESTRATOR;
+  public static Orchestrator orchestrator = MeasureSuite.ORCHESTRATOR;
+
+  @Rule
+  public Tester tester = new Tester(orchestrator);
 
   @Test
   public void override_decimal_scale_of_numeric_metric() {

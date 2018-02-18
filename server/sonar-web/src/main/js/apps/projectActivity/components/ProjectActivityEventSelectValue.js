@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,14 +20,16 @@
 //@flow
 import React from 'react';
 import ProjectEventIcon from '../../../components/icons-components/ProjectEventIcon';
-import type { Option } from './ProjectActivityEventSelectOption';
+/*:: import type { Option } from './ProjectActivityEventSelectOption'; */
 
+/*::
 type Props = {
   value: Option,
   children?: Element | Text
 };
+*/
 
-export default function ProjectActivityEventSelectValue(props: Props) {
+export default function ProjectActivityEventSelectValue(props /*: Props */) {
   const { value } = props;
   return (
     <div className="Select-value" title={value.label}>

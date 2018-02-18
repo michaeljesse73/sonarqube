@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,13 +22,13 @@ package org.sonar.server.computation.task.projectanalysis.component;
 import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static java.util.Arrays.asList;
+import static java.util.Objects.requireNonNull;
 
 /**
  * Implementation of {@link Component} to unit test report components.
@@ -37,13 +37,21 @@ public class ReportComponent implements Component {
 
   private static final FileAttributes DEFAULT_FILE_ATTRIBUTES = new FileAttributes(false, null, 1);
 
-  public static final Component DUMB_PROJECT = builder(Type.PROJECT, 1).setKey("PROJECT_KEY").setUuid("PROJECT_UUID").setName("Project Name").setVersion("1.0-SNAPSHOT").build();
+  public static final Component DUMB_PROJECT = builder(Type.PROJECT, 1)
+    .setKey("PROJECT_KEY")
+    .setPublicKey("PUBLIC_PROJECT_KEY")
+    .setUuid("PROJECT_UUID")
+    .setName("Project Name")
+    .setVersion("1.0-SNAPSHOT")
+    .build();
 
   private final Type type;
+  private final Status status;
   private final String name;
   @CheckForNull
   private final String description;
   private final String key;
+  private final String publicKey;
   private final String uuid;
   private final ReportAttributes reportAttributes;
   private final FileAttributes fileAttributes;
@@ -51,7 +59,9 @@ public class ReportComponent implements Component {
 
   private ReportComponent(Builder builder) {
     this.type = builder.type;
+    this.status = builder.status;
     this.key = builder.key;
+    this.publicKey = builder.publicKey;
     this.name = builder.name == null ? String.valueOf(builder.key) : builder.name;
     this.description = builder.description;
     this.uuid = builder.uuid;
@@ -69,6 +79,11 @@ public class ReportComponent implements Component {
   }
 
   @Override
+  public Status getStatus() {
+    return status;
+  }
+
+  @Override
   public String getUuid() {
     if (uuid == null) {
       throw new UnsupportedOperationException(String.format("Component uuid of ref '%d' has not be fed yet", this.reportAttributes.getRef()));
@@ -82,6 +97,14 @@ public class ReportComponent implements Component {
       throw new UnsupportedOperationException(String.format("Component key of ref '%d' has not be fed yet", this.reportAttributes.getRef()));
     }
     return key;
+  }
+
+  @Override
+  public String getPublicKey() {
+    if (publicKey == null) {
+      throw new UnsupportedOperationException(String.format("Component key of ref '%d' has not be fed yet", this.reportAttributes.getRef()));
+    }
+    return publicKey;
   }
 
   @Override
@@ -122,6 +145,11 @@ public class ReportComponent implements Component {
   }
 
   @Override
+  public ViewAttributes getViewAttributes() {
+    throw new IllegalStateException("Only component of type VIEW have a ViewAttributes object");
+  }
+
+  @Override
   public boolean equals(@Nullable Object o) {
     if (this == o) {
       return true;
@@ -148,14 +176,17 @@ public class ReportComponent implements Component {
   }
 
   public static Builder builder(Type type, int ref) {
-    return new Builder(type, ref).setKey("key_" + ref).setUuid("uuid_" + ref);
+    String key = "key_" + ref;
+    return new Builder(type, ref).setKey(key).setPublicKey(key).setUuid("uuid_" + ref).setName("name_" + ref);
   }
 
   public static final class Builder {
     private final Type type;
     private final int ref;
+    private Status status;
     private String uuid;
     private String key;
+    private String publicKey;
     private String name;
     private String version;
     private String description;
@@ -169,8 +200,13 @@ public class ReportComponent implements Component {
       this.ref = ref;
     }
 
+    public Builder setStatus(Status s) {
+      this.status = requireNonNull(s);
+      return this;
+    }
+
     public Builder setUuid(String s) {
-      this.uuid = Objects.requireNonNull(s);
+      this.uuid = requireNonNull(s);
       return this;
     }
 
@@ -180,7 +216,12 @@ public class ReportComponent implements Component {
     }
 
     public Builder setKey(String s) {
-      this.key = Objects.requireNonNull(s);
+      this.key = requireNonNull(s);
+      return this;
+    }
+
+    public Builder setPublicKey(String publicKey) {
+      this.publicKey = requireNonNull(publicKey);
       return this;
     }
 
@@ -217,4 +258,5 @@ public class ReportComponent implements Component {
       return new ReportComponent(this);
     }
   }
+
 }

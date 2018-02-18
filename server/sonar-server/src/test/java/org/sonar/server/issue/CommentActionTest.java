@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,7 +25,6 @@ import org.junit.Before;
 import org.junit.Test;
 import org.sonar.api.issue.Issue;
 import org.sonar.core.issue.DefaultIssue;
-import org.sonar.core.issue.IssueChangeContext;
 import org.sonar.server.tester.AnonymousMockUserSession;
 
 import static com.google.common.collect.Maps.newHashMap;
@@ -60,7 +59,7 @@ public class CommentActionTest {
     when(context.issue()).thenReturn(issue);
 
     action.execute(properties, context);
-    verify(issueUpdater).addComment(eq(issue), eq(comment), any(IssueChangeContext.class));
+    verify(issueUpdater).addComment(eq(issue), eq(comment), any());
   }
 
   @Test
@@ -68,7 +67,7 @@ public class CommentActionTest {
     Map<String, Object> properties = newHashMap();
     properties.put("unknwown", "unknown value");
     try {
-      action.verify(properties, Lists.<DefaultIssue>newArrayList(), new AnonymousMockUserSession());
+      action.verify(properties, Lists.newArrayList(), new AnonymousMockUserSession());
       fail();
     } catch (Exception e) {
       assertThat(e).isInstanceOf(IllegalArgumentException.class).hasMessage("Missing parameter : 'comment'");

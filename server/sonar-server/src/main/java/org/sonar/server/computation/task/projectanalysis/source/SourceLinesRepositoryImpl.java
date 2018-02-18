@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,7 +19,7 @@
  */
 package org.sonar.server.computation.task.projectanalysis.source;
 
-import com.google.common.base.Optional;
+import java.util.Optional;
 import org.sonar.core.util.CloseableIterator;
 import org.sonar.server.computation.task.projectanalysis.batch.BatchReportReader;
 import org.sonar.server.computation.task.projectanalysis.component.Component;
@@ -94,7 +94,7 @@ public class SourceLinesRepositoryImpl implements SourceLinesRepository {
     }
 
     @Override
-    protected void doClose() throws Exception {
+    protected void doClose() {
       delegate.close();
     }
   }

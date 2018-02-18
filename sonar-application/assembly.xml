@@ -28,36 +28,6 @@
       <scope>provided</scope>
     </dependencySet>
 
-
-    <dependencySet>
-      <outputDirectory>lib/common</outputDirectory>
-      <useTransitiveFiltering>true</useTransitiveFiltering>
-      <useProjectArtifact>false</useProjectArtifact>
-      <scope>runtime</scope>
-    </dependencySet>
-
-    <dependencySet>
-      <outputDirectory>lib/common</outputDirectory>
-      <useTransitiveFiltering>true</useTransitiveFiltering>
-      <useProjectArtifact>false</useProjectArtifact>
-      <includes>
-        <include>org.elasticsearch:elasticsearch</include>
-        <include>net.java.dev.jna:jna</include>
-      </includes>
-      <scope>provided</scope>
-    </dependencySet>
-
-    <dependencySet>
-      <outputDirectory>lib/search</outputDirectory>
-      <useProjectArtifact>false</useProjectArtifact>
-      <useTransitiveDependencies>true</useTransitiveDependencies>
-      <useTransitiveFiltering>false</useTransitiveFiltering>
-      <includes>
-        <include>org.sonarsource.sonarqube:sonar-search</include>
-      </includes>
-      <scope>provided</scope>
-    </dependencySet>
-
     <dependencySet>
       <outputDirectory>lib/server</outputDirectory>
       <useProjectArtifact>false</useProjectArtifact>
@@ -94,7 +64,6 @@
       <outputDirectory>lib/bundled-plugins</outputDirectory>
       <useTransitiveDependencies>false</useTransitiveDependencies>
       <includes>
-        <include>org.codehaus.sonar-plugins*:sonar-*-plugin</include>
         <include>org.sonarsource.*:sonar-*-plugin</include>
       </includes>
       <scope>provided</scope>
@@ -144,23 +113,30 @@
   </dependencySets>
 
   <fileSets>
+    <!-- common directory -->
+    <fileSet>
+      <directory>target/common</directory>
+      <outputDirectory>lib/common</outputDirectory>
+    </fileSet>
     <!-- wrapper binaries -->
     <fileSet>
       <directory>src/main/assembly</directory>
-      <outputDirectory>/</outputDirectory>
+      <outputDirectory></outputDirectory>
       <includes>
         <include>bin/*/lib/*.so</include>
         <include>bin/*/lib/*.jnilib</include>
         <include>bin/*/lib/*.dll</include>
         <include>bin/*/wrapper</include>
         <include>bin/*/wrapper.exe</include>
+        <include>elasticsearch/bin/elasticsearch</include>
+        <include>elasticsearch/bin/elasticsearch.bat</include>
       </includes>
       <fileMode>0755</fileMode>
     </fileSet>
     <!-- Configuration Files -->
     <fileSet>
       <directory>src/main/assembly</directory>
-      <outputDirectory>/</outputDirectory>
+      <outputDirectory></outputDirectory>
       <includes>
         <include>conf/**</include>
       </includes>
@@ -171,7 +147,7 @@
     <!-- Windows Scripts -->
     <fileSet>
       <directory>src/main/assembly</directory>
-      <outputDirectory>/</outputDirectory>
+      <outputDirectory></outputDirectory>
       <includes>
         <include>**/*.bat</include>
         <include>**/*.cmd</include>
@@ -182,7 +158,7 @@
     <!-- Linux Scripts -->
     <fileSet>
       <directory>src/main/assembly</directory>
-      <outputDirectory>/</outputDirectory>
+      <outputDirectory></outputDirectory>
       <includes>
         <include>**/*.sh</include>
         <include>**/ant</include>
@@ -194,7 +170,7 @@
     <!-- Other stuff -->
     <fileSet>
       <directory>src/main/assembly</directory>
-      <outputDirectory>/</outputDirectory>
+      <outputDirectory></outputDirectory>
       <excludes>
         <exclude>conf/**</exclude>
         <exclude>**/*.bat</exclude>
@@ -202,6 +178,12 @@
         <exclude>**/*.sh</exclude>
         <exclude>**/ant</exclude>
         <exclude>**/antRun</exclude>
+        <!--exclude ES modules by default in the distribution that we don't use-->
+        <exclude>elasticsearch/modules/lang-expression/</exclude>
+        <exclude>elasticsearch/modules/lang-groovy/</exclude>
+        <exclude>elasticsearch/modules/lang-mustache/</exclude>
+        <exclude>elasticsearch/modules/lang-painless/</exclude>
+        <exclude>elasticsearch/modules/transport-netty3/</exclude>
       </excludes>
       <fileMode>0644</fileMode>
     </fileSet>
@@ -218,6 +200,13 @@
       <outputDirectory>logs/</outputDirectory>
       <excludes>
         <exclude>**/*</exclude>
+      </excludes>
+    </fileSet>
+    <fileSet>
+      <directory>src/main/assembly</directory>
+      <outputDirectory>elasticsearch/plugins</outputDirectory>
+      <excludes>
+        <exclude>*/**</exclude>
       </excludes>
     </fileSet>
   </fileSets>

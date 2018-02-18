@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -38,7 +38,7 @@ import org.sonar.server.i18n.I18nRule;
 import org.sonar.server.permission.ws.BasePermissionWsTest;
 import org.sonar.server.ws.TestRequest;
 import org.sonar.server.ws.WsActionTester;
-import org.sonarqube.ws.WsPermissions;
+import org.sonarqube.ws.Permissions;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonar.api.server.ws.WebService.Param.TEXT_QUERY;
@@ -61,16 +61,14 @@ public class SearchTemplatesActionTest extends BasePermissionWsTest<SearchTempla
   @Override
   protected SearchTemplatesAction buildWsAction() {
     DefaultTemplatesResolver defaultTemplatesResolverWithViews = new DefaultTemplatesResolverImpl(resourceTypesWithViews);
-    SearchTemplatesDataLoader dataLoaderWithViews = new SearchTemplatesDataLoader(dbClient, defaultTemplatesResolverWithViews);
-    SearchTemplatesAction searchTemplatesAction = new SearchTemplatesAction(dbClient, userSession, i18n, newPermissionWsSupport(), dataLoaderWithViews);
+    SearchTemplatesAction searchTemplatesAction = new SearchTemplatesAction(dbClient, userSession, i18n, newPermissionWsSupport(), defaultTemplatesResolverWithViews);
     return searchTemplatesAction;
   }
 
   @Before
   public void setUp() {
     DefaultTemplatesResolver defaultTemplatesResolverWithViews = new DefaultTemplatesResolverImpl(resourceTypesWithoutViews);
-    SearchTemplatesDataLoader dataLoaderWithViews = new SearchTemplatesDataLoader(dbClient, defaultTemplatesResolverWithViews);
-    underTestWithoutViews = new WsActionTester(new SearchTemplatesAction(dbClient, userSession, i18n, newPermissionWsSupport(), dataLoaderWithViews));
+    underTestWithoutViews = new WsActionTester(new SearchTemplatesAction(dbClient, userSession, i18n, newPermissionWsSupport(), defaultTemplatesResolverWithViews));
     i18n.setProjectPermissions();
     userSession.logIn().addPermission(ADMINISTER, db.getDefaultOrganization());
   }
@@ -170,7 +168,7 @@ public class SearchTemplatesActionTest extends BasePermissionWsTest<SearchTempla
   }
 
   @Test
-  public void search_in_organization() throws Exception {
+  public void search_in_organization() {
     OrganizationDto org = db.organizations().insert();
     PermissionTemplateDto projectDefaultTemplate = db.permissionTemplates().insertTemplate(org);
     db.organizations().setDefaultTemplates(projectDefaultTemplate, null);
@@ -179,13 +177,13 @@ public class SearchTemplatesActionTest extends BasePermissionWsTest<SearchTempla
     db.commit();
     userSession.addPermission(ADMINISTER, org);
 
-    WsPermissions.SearchTemplatesWsResponse result = newRequest(underTestWithoutViews)
+    Permissions.SearchTemplatesWsResponse result = newRequest(underTestWithoutViews)
       .setParam("organization", org.getKey())
-      .executeProtobuf(WsPermissions.SearchTemplatesWsResponse.class);
+      .executeProtobuf(Permissions.SearchTemplatesWsResponse.class);
 
     assertThat(result.getPermissionTemplatesCount()).isEqualTo(2);
     assertThat(result.getPermissionTemplatesList())
-      .extracting(WsPermissions.PermissionTemplate::getId)
+      .extracting(Permissions.PermissionTemplate::getId)
       .containsOnly(projectDefaultTemplate.getUuid(), templateInOrg.getUuid());
   }
 

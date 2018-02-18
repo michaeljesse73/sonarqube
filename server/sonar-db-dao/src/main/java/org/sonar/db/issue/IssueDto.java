@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -51,6 +51,7 @@ import static org.sonar.api.utils.DateUtils.longToDate;
 
 public final class IssueDto implements Serializable {
 
+  public static final int AUTHOR_MAX_SIZE = 255;
   private static final char TAGS_SEPARATOR = ',';
   private static final Joiner TAGS_JOINER = Joiner.on(TAGS_SEPARATOR).skipNulls();
   private static final Splitter TAGS_SPLITTER = Splitter.on(',').trimResults().omitEmptyStrings();
@@ -211,7 +212,7 @@ public final class IssueDto implements Serializable {
   }
 
   public IssueDto setComponent(ComponentDto component) {
-    this.componentKey = component.getKey();
+    this.componentKey = component.getDbKey();
     this.componentUuid = component.uuid();
     this.moduleUuid = component.moduleUuid();
     this.moduleUuidPath = component.moduleUuidPath();
@@ -220,7 +221,7 @@ public final class IssueDto implements Serializable {
   }
 
   public IssueDto setProject(ComponentDto project) {
-    this.projectKey = project.getKey();
+    this.projectKey = project.getDbKey();
     this.projectUuid = project.uuid();
     return this;
   }
@@ -350,7 +351,7 @@ public final class IssueDto implements Serializable {
   }
 
   public IssueDto setAuthorLogin(@Nullable String s) {
-    checkArgument(s == null || s.length() <= 255, "Value is too long for issue author login: %s", s);
+    checkArgument(s == null || s.length() <= AUTHOR_MAX_SIZE, "Value is too long for issue author login: %s", s);
     this.authorLogin = s;
     return this;
   }
@@ -559,10 +560,6 @@ public final class IssueDto implements Serializable {
     return this;
   }
 
-  /**
-   * Can be null on Views or Devs
-   */
-  @CheckForNull
   public String getProjectUuid() {
     return projectUuid;
   }
@@ -572,8 +569,8 @@ public final class IssueDto implements Serializable {
    * <p/>
    * Please use {@link #setProject(ComponentDto)} instead
    */
-  public IssueDto setProjectUuid(@Nullable String s) {
-    checkArgument(s == null || s.length() <= 50, "Value is too long for column ISSUES.PROJECT_UUID: %s", s);
+  public IssueDto setProjectUuid(String s) {
+    checkArgument(s.length() <= 50, "Value is too long for column ISSUES.PROJECT_UUID: %s", s);
     this.projectUuid = s;
     return this;
   }

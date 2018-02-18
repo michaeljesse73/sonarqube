@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -46,13 +46,13 @@ public class Migration1304Test {
 
   private ShrinkModuleUuidPathOfProjects shrinkModuleUuidPathOfProjects = new ShrinkModuleUuidPathOfProjects(database) {
     @Override
-    public void execute(Context context) throws SQLException {
+    public void execute(Context context) {
       calls.add(Call.CALL_1);
     }
   };
   private AddBUuidPathToProjects addBUuidPathToProjects = new AddBUuidPathToProjects(database) {
     @Override
-    public void execute(Context context) throws SQLException {
+    public void execute(Context context) {
       calls.add(Call.CALL_2);
     }
   };

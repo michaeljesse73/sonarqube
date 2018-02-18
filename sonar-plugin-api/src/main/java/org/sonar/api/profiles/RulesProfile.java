@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,7 +21,6 @@ package org.sonar.api.profiles;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
@@ -309,10 +308,7 @@ public class RulesProfile implements Cloneable {
         "The definition of the profile '%s' (language '%s') contains multiple occurrences of the '%s:%s' rule. The plugin which declares this profile should fix this.",
         getName(), getLanguage(), rule.getRepositoryKey(), rule.getKey()));
     }
-    ActiveRule activeRule = new ActiveRule();
-    activeRule.setRule(rule);
-    activeRule.setRulesProfile(this);
-    activeRule.setSeverity(optionalSeverity == null ? rule.getSeverity() : optionalSeverity);
+    ActiveRule activeRule = new ActiveRule(this, rule, optionalSeverity);
     activeRules.add(activeRule);
     return activeRule;
   }
@@ -359,16 +355,4 @@ public class RulesProfile implements Cloneable {
     return new RulesProfile();
   }
 
-  private static class MatchRule implements Predicate<ActiveRule> {
-    private final Rule rule;
-
-    public MatchRule(Rule rule) {
-      this.rule = rule;
-    }
-
-    @Override
-    public boolean test(ActiveRule input) {
-      return input.getRule().equals(rule);
-    }
-  }
 }

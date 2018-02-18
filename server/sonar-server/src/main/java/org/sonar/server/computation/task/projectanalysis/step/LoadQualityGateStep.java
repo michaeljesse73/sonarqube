@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,81 +19,85 @@
  */
 package org.sonar.server.computation.task.projectanalysis.step;
 
-import com.google.common.base.Optional;
-import org.apache.commons.lang.StringUtils;
+import java.util.Optional;
 import org.sonar.api.config.Configuration;
-import org.sonar.api.utils.log.Logger;
-import org.sonar.api.utils.log.Loggers;
-import org.sonar.server.computation.task.projectanalysis.component.Component;
+import org.sonar.server.computation.task.projectanalysis.analysis.AnalysisMetadataHolder;
 import org.sonar.server.computation.task.projectanalysis.component.ConfigurationRepository;
-import org.sonar.server.computation.task.projectanalysis.component.CrawlerDepthLimit;
-import org.sonar.server.computation.task.projectanalysis.component.DepthTraversalTypeAwareCrawler;
-import org.sonar.server.computation.task.projectanalysis.component.TreeRootHolder;
-import org.sonar.server.computation.task.projectanalysis.component.TypeAwareVisitorAdapter;
 import org.sonar.server.computation.task.projectanalysis.qualitygate.MutableQualityGateHolder;
 import org.sonar.server.computation.task.projectanalysis.qualitygate.QualityGate;
 import org.sonar.server.computation.task.projectanalysis.qualitygate.QualityGateService;
 import org.sonar.server.computation.task.step.ComputationStep;
+import org.sonar.server.qualitygate.ShortLivingBranchQualityGate;
 
-import static org.sonar.server.computation.task.projectanalysis.component.ComponentVisitor.Order.PRE_ORDER;
+import static org.apache.commons.lang.StringUtils.isBlank;
 
 /**
  * This step retrieves the QualityGate and stores it in
  * {@link MutableQualityGateHolder}.
  */
 public class LoadQualityGateStep implements ComputationStep {
-  private static final Logger LOGGER = Loggers.get(LoadQualityGateStep.class);
+  private static final String PROPERTY_PROJECT_QUALITY_GATE = "sonar.qualitygate";
 
-  private static final String PROPERTY_QUALITY_GATE = "sonar.qualitygate";
-
-  private final TreeRootHolder treeRootHolder;
   private final ConfigurationRepository configRepository;
   private final QualityGateService qualityGateService;
   private final MutableQualityGateHolder qualityGateHolder;
+  private final AnalysisMetadataHolder analysisMetadataHolder;
 
-  public LoadQualityGateStep(TreeRootHolder treeRootHolder, ConfigurationRepository settingsRepository,
-    QualityGateService qualityGateService, MutableQualityGateHolder qualityGateHolder) {
-    this.treeRootHolder = treeRootHolder;
+  public LoadQualityGateStep(ConfigurationRepository settingsRepository, QualityGateService qualityGateService, MutableQualityGateHolder qualityGateHolder,
+    AnalysisMetadataHolder analysisMetadataHolder) {
     this.configRepository = settingsRepository;
     this.qualityGateService = qualityGateService;
     this.qualityGateHolder = qualityGateHolder;
+    this.analysisMetadataHolder = analysisMetadataHolder;
   }
 
   @Override
   public void execute() {
-    new DepthTraversalTypeAwareCrawler(
-      new TypeAwareVisitorAdapter(CrawlerDepthLimit.PROJECT, PRE_ORDER) {
-        @Override
-        public void visitProject(Component project) {
-          executeForProject(project);
-        }
-      }).visit(treeRootHolder.getRoot());
+    Optional<QualityGate> qualityGate = getShortLivingBranchQualityGate();
+    if (!qualityGate.isPresent()) {
+      // Not on a short living branch, let's retrieve the QG of the project
+      qualityGate = getProjectQualityGate();
+      if (!qualityGate.isPresent()) {
+        // No QG defined for the project, let's retrieve the QG on the organization
+        qualityGate = Optional.of(getOrganizationDefaultQualityGate());
+      }
+    }
+
+    qualityGateHolder.setQualityGate(qualityGate.orElseThrow(() -> new IllegalStateException("Quality gate not present")));
   }
 
-  private void executeForProject(Component project) {
-    String projectKey = project.getKey();
-    Configuration config = configRepository.getConfiguration(project);
-    String qualityGateSetting = config.get(PROPERTY_QUALITY_GATE).orElse(null);
+  private Optional<QualityGate> getShortLivingBranchQualityGate() {
+    if (analysisMetadataHolder.isShortLivingBranch()) {
+      Optional<QualityGate> qualityGate = qualityGateService.findById(ShortLivingBranchQualityGate.ID);
+      if (qualityGate.isPresent()) {
+        return qualityGate;
+      } else {
+        throw new IllegalStateException("Failed to retrieve hardcoded short living branch Quality Gate");
+      }
+    } else {
+      return Optional.empty();
+    }
+  }
 
-    if (StringUtils.isBlank(qualityGateSetting)) {
-      LOGGER.debug("No quality gate is configured for project " + projectKey);
-      qualityGateHolder.setNoQualityGate();
-      return;
+  private Optional<QualityGate> getProjectQualityGate() {
+    Configuration config = configRepository.getConfiguration();
+    String qualityGateSetting = config.get(PROPERTY_PROJECT_QUALITY_GATE).orElse(null);
+
+    if (isBlank(qualityGateSetting)) {
+      return Optional.empty();
     }
 
     try {
       long qualityGateId = Long.parseLong(qualityGateSetting);
-      Optional<QualityGate> qualityGate = qualityGateService.findById(qualityGateId);
-      if (qualityGate.isPresent()) {
-        qualityGateHolder.setQualityGate(qualityGate.get());
-      } else {
-        qualityGateHolder.setNoQualityGate();
-      }
+      return qualityGateService.findById(qualityGateId);
     } catch (NumberFormatException e) {
       throw new IllegalStateException(
-        String.format("Unsupported value (%s) in property %s", qualityGateSetting, PROPERTY_QUALITY_GATE),
-        e);
+        String.format("Unsupported value (%s) in property %s", qualityGateSetting, PROPERTY_PROJECT_QUALITY_GATE), e);
     }
+  }
+
+  private QualityGate getOrganizationDefaultQualityGate() {
+    return qualityGateService.findDefaultQualityGate(analysisMetadataHolder.getOrganization());
   }
 
   @Override

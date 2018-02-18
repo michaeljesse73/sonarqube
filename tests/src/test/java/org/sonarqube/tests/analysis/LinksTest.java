@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -23,15 +23,15 @@ import com.google.common.collect.ImmutableMap;
 import com.sonar.orchestrator.Orchestrator;
 import com.sonar.orchestrator.build.MavenBuild;
 import com.sonar.orchestrator.build.SonarScanner;
-import org.sonarqube.tests.Category3Suite;
 import java.util.List;
 import java.util.Optional;
 import org.junit.After;
 import org.junit.ClassRule;
 import org.junit.Test;
-import org.sonarqube.ws.WsProjectLinks;
+import org.sonarqube.tests.Category3Suite;
+import org.sonarqube.ws.ProjectLinks;
 import org.sonarqube.ws.client.WsClient;
-import org.sonarqube.ws.client.projectlinks.SearchWsRequest;
+import org.sonarqube.ws.client.projectlinks.SearchRequest;
 import util.ItUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -75,7 +75,7 @@ public class LinksTest {
 
   private void verifyLinks() {
     WsClient wsClient = ItUtils.newWsClient(orchestrator);
-    List<WsProjectLinks.Link> links = wsClient.projectLinks().search(new SearchWsRequest().setProjectKey(PROJECT_KEY)).getLinksList();
+    List<ProjectLinks.Link> links = wsClient.projectLinks().search(new SearchRequest().setProjectKey(PROJECT_KEY)).getLinksList();
     verifyLink(links, "homepage", "http://www.simplesample.org_OVERRIDDEN");
     verifyLink(links, "ci", "http://bamboo.ci.codehaus.org/browse/SIMPLESAMPLE");
     verifyLink(links, "issue", "http://jira.codehaus.org/browse/SIMPLESAMPLE");
@@ -83,8 +83,8 @@ public class LinksTest {
     verifyLink(links, "scm_dev", "scm:git:git@github.com:SonarSource/simplesample.git");
   }
 
-  private void verifyLink(List<WsProjectLinks.Link> links, String expectedType, String expectedUrl) {
-    Optional<WsProjectLinks.Link> link = links.stream()
+  private void verifyLink(List<ProjectLinks.Link> links, String expectedType, String expectedUrl) {
+    Optional<ProjectLinks.Link> link = links.stream()
       .filter(l -> l.getType().equals(expectedType))
       .findFirst();
     assertThat(link).isPresent();

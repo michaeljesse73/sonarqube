@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -144,7 +144,7 @@ public class UpdateActionTest {
       .setKey("metric-key");
     dbClient.metricDao().insert(dbSession, metric);
     OrganizationDto organizationDto = db.organizations().insert();
-    ComponentDto component = ComponentTesting.newPrivateProjectDto(organizationDto, "project-uuid").setKey("project-key");
+    ComponentDto component = ComponentTesting.newPrivateProjectDto(organizationDto, "project-uuid").setDbKey("project-key");
     dbClient.componentDao().insert(dbSession, component);
     CustomMeasureDto customMeasure = newCustomMeasure(component, metric)
       .setCreatedAt(100_000_000L)

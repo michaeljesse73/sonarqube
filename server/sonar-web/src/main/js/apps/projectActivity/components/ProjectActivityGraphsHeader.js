@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,22 +19,29 @@
  */
 // @flow
 import React from 'react';
-import Select from 'react-select';
-import { GRAPH_TYPES } from '../utils';
+import AddGraphMetric from './forms/AddGraphMetric';
+import { isCustomGraph, GRAPH_TYPES } from '../utils';
+import Select from '../../../components/controls/Select';
 import { translate } from '../../../helpers/l10n';
-import type { RawQuery } from '../../../helpers/query';
+/*:: import type { Metric } from '../types'; */
 
+/*::
 type Props = {
-  updateQuery: RawQuery => void,
-  graph: string
+  addCustomMetric: string => void,
+  graph: string,
+  metrics: Array<Metric>,
+  metricsTypeFilter: ?Array<string>,
+  selectedMetrics: Array<string>,
+  updateGraph: string => void
 };
+*/
 
 export default class ProjectActivityGraphsHeader extends React.PureComponent {
-  props: Props;
+  /*:: props: Props; */
 
-  handleGraphChange = (option: { value: string }) => {
+  handleGraphChange = (option /*: { value: string } */) => {
     if (option.value !== this.props.graph) {
-      this.props.updateQuery({ graph: option.value });
+      this.props.updateGraph(option.value);
     }
   };
 
@@ -47,13 +54,22 @@ export default class ProjectActivityGraphsHeader extends React.PureComponent {
     return (
       <header className="page-header">
         <Select
-          className="input-medium"
+          className="pull-left input-medium"
           clearable={false}
           searchable={false}
           value={this.props.graph}
           options={selectOptions}
           onChange={this.handleGraphChange}
         />
+        {isCustomGraph(this.props.graph) && (
+          <AddGraphMetric
+            addMetric={this.props.addCustomMetric}
+            className="pull-left spacer-left"
+            metrics={this.props.metrics}
+            metricsTypeFilter={this.props.metricsTypeFilter}
+            selectedMetrics={this.props.selectedMetrics}
+          />
+        )}
       </header>
     );
   }

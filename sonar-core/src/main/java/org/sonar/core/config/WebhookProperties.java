@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,12 +19,13 @@
  */
 package org.sonar.core.config;
 
-import com.google.common.collect.ImmutableList;
 import java.util.List;
 import org.sonar.api.PropertyType;
 import org.sonar.api.config.PropertyDefinition;
 import org.sonar.api.config.PropertyFieldDefinition;
 import org.sonar.api.resources.Qualifiers;
+
+import static java.util.Arrays.asList;
 
 public class WebhookProperties {
 
@@ -50,13 +51,16 @@ public class WebhookProperties {
   private static final String DESCRIPTION = "Webhooks are used to notify external services when a project analysis is done. " +
     "An HTTP POST request including a JSON payload is sent to each of the first ten provided URLs. <br/>" +
     "Learn more in the <a href=\"https://redirect.sonarsource.com/doc/webhooks.html\">Webhooks documentation</a>.";
+  private static final String URL_DESCRIPTION = "Server endpoint that will receive the webhook payload, for example 'http://my_server/foo'. " +
+    "If HTTP Basic authentication is used, HTTPS is recommended to avoid man in the middle attacks. " +
+    "Example: 'https://myLogin:myPassword@my_server/foo'";
 
   private WebhookProperties() {
     // only static stuff
   }
 
   static List<PropertyDefinition> all() {
-    return ImmutableList.of(
+    return asList(
       PropertyDefinition.builder(GLOBAL_KEY)
         .category(CATEGORY)
         .name("Webhooks")
@@ -69,6 +73,7 @@ public class WebhookProperties {
           PropertyFieldDefinition.build(URL_FIELD)
             .name("URL")
             .type(PropertyType.STRING)
+            .description(URL_DESCRIPTION)
             .build())
         .build(),
 
@@ -85,7 +90,9 @@ public class WebhookProperties {
           PropertyFieldDefinition.build(URL_FIELD)
             .name("URL")
             .type(PropertyType.STRING)
+            .description(URL_DESCRIPTION)
             .build())
         .build());
   }
+
 }

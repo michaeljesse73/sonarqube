@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,8 +19,11 @@
  */
 package org.sonar.server.computation.task.projectanalysis.scm;
 
+import java.util.Map;
+
 /**
- * Represents the Scm information for a specific file.
+ * Represents changeset information for a file. If SCM information is present, it will be the author, revision and date fetched from SCM
+ * for every line. Otherwise, it's a date that corresponds the the analysis date in which the line was modified. 
  */
 public interface ScmInfo {
 
@@ -32,7 +35,7 @@ public interface ScmInfo {
   /**
    * Get ChangeSet of the file for given line
    *
-   * @throws IllegalArgumentException if there is no Changeset for the specified line, ie. the line number in invalid (either less than 1 or > linecount of the file)
+   * @throws IllegalArgumentException if there is no Changeset for the specified line
    */
   Changeset getChangesetForLine(int lineNumber);
 
@@ -42,8 +45,8 @@ public interface ScmInfo {
   boolean hasChangesetForLine(int lineNumber);
 
   /**
-   * Return all ChangeSets, in order, for all lines of the file
+   * Return all ChangeSets, in order, for all lines that have changesets.
    */
-  Iterable<Changeset> getAllChangesets();
+  Map<Integer, Changeset> getAllChangesets();
 
 }

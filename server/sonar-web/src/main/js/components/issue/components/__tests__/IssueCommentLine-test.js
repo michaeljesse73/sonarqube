@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -31,8 +31,6 @@ const comment = {
   updatable: true
 };
 
-jest.mock('moment', () => () => ({ fromNow: () => 'a month ago' }));
-
 it('should render correctly a comment that is not updatable', () => {
   const element = shallow(
     <IssueCommentLine
@@ -55,9 +53,10 @@ it('should open the right popups when the buttons are clicked', () => {
   const element = shallow(
     <IssueCommentLine comment={comment} onDelete={jest.fn()} onEdit={jest.fn()} />
   );
-  click(element.find('button.js-issue-comment-edit'));
+  element.find('.js-issue-comment-edit').prop('onClick')();
   expect(element.state()).toMatchSnapshot();
-  click(element.find('button.js-issue-comment-delete'));
+  element.find('.js-issue-comment-delete').prop('onClick')();
   expect(element.state()).toMatchSnapshot();
+  element.update();
   expect(element).toMatchSnapshot();
 });

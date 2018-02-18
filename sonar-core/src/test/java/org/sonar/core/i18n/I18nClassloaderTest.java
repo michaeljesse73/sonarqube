@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -46,7 +46,7 @@ public class I18nClassloaderTest {
   public void aggregate_plugin_classloaders() {
     URLClassLoader checkstyle = newCheckstyleClassloader();
 
-    I18nClassloader i18nClassloader = new I18nClassloader(Lists.<ClassLoader>newArrayList(checkstyle));
+    I18nClassloader i18nClassloader = new I18nClassloader(Lists.newArrayList(checkstyle));
     assertThat(i18nClassloader.getResource("org/sonar/l10n/checkstyle.properties")).isNotNull();
     assertThat(i18nClassloader.getResource("org/sonar/l10n/checkstyle.properties").getFile()).endsWith("checkstyle.properties");
   }

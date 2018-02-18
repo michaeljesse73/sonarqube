@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,6 +21,7 @@ package org.sonar.server.computation.task.projectanalysis.metric;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import org.junit.rules.ExternalResource;
 
 import static com.google.common.base.Preconditions.checkState;
@@ -101,6 +102,11 @@ public class MetricRepositoryRule extends ExternalResource implements MetricRepo
     Metric res = metricsById.get(id);
     checkState(res != null, format("No Metric can be found for id %s", id));
     return res;
+  }
+
+  @Override
+  public Optional<Metric> getOptionalById(long id) {
+    return Optional.of(metricsById.get(id));
   }
 
   @Override

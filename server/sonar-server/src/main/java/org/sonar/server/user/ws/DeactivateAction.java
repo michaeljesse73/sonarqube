@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,8 +19,8 @@
  */
 package org.sonar.server.user.ws;
 
-import com.google.common.collect.Sets;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -100,6 +100,7 @@ public class DeactivateAction implements UsersWsAction {
       dbClient.userGroupDao().deleteByUserId(dbSession, userId);
       dbClient.userPermissionDao().deleteByUserId(dbSession, userId);
       dbClient.permissionTemplateDao().deleteUserPermissionsByUserId(dbSession, userId);
+      dbClient.qProfileEditUsersDao().deleteByUser(dbSession, user);
       dbClient.organizationMemberDao().deleteByUserId(dbSession, userId);
       dbClient.userDao().deactivateUser(dbSession, user);
       userIndexer.commitAndIndex(dbSession, user);
@@ -118,7 +119,7 @@ public class DeactivateAction implements UsersWsAction {
       try (JsonWriter json = response.newJsonWriter()) {
         json.beginObject();
         json.name("user");
-        Set<String> groups = Sets.newHashSet();
+        Set<String> groups = new HashSet<>();
         groups.addAll(dbClient.groupMembershipDao().selectGroupsByLogins(dbSession, singletonList(login)).get(login));
         userWriter.write(json, user, groups, UserJsonWriter.FIELDS);
         json.endObject();

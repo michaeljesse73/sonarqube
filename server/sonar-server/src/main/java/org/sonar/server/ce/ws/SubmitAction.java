@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,6 +21,8 @@ package org.sonar.server.ce.ws;
 
 import java.io.BufferedInputStream;
 import java.io.InputStream;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import org.apache.commons.lang.StringUtils;
 import org.sonar.api.server.ws.Request;
 import org.sonar.api.server.ws.Response;
@@ -29,7 +31,11 @@ import org.sonar.ce.queue.CeTask;
 import org.sonar.server.computation.queue.ReportSubmitter;
 import org.sonar.server.organization.DefaultOrganizationProvider;
 import org.sonar.server.ws.WsUtils;
-import org.sonarqube.ws.WsCe;
+import org.sonarqube.ws.Ce;
+
+import static org.sonar.core.component.ComponentKeys.MAX_COMPONENT_KEY_LENGTH;
+import static org.sonar.db.component.ComponentValidator.MAX_COMPONENT_NAME_LENGTH;
+import static org.sonar.server.ws.WsUtils.checkRequest;
 
 public class SubmitAction implements CeWsAction {
 
@@ -38,6 +44,7 @@ public class SubmitAction implements CeWsAction {
   private static final String PARAM_PROJECT_BRANCH = "projectBranch";
   private static final String PARAM_PROJECT_NAME = "projectName";
   private static final String PARAM_REPORT_DATA = "report";
+  private static final String PARAM_ANALYSIS_CHARACTERISTIC = "characteristic";
 
   private final ReportSubmitter reportSubmitter;
   private final DefaultOrganizationProvider defaultOrganizationProvider;
@@ -67,6 +74,7 @@ public class SubmitAction implements CeWsAction {
     action
       .createParam(PARAM_PROJECT_KEY)
       .setRequired(true)
+      .setMaximumLength(MAX_COMPONENT_KEY_LENGTH)
       .setDescription("Key of project")
       .setExampleValue("my_project");
 
@@ -78,6 +86,7 @@ public class SubmitAction implements CeWsAction {
     action
       .createParam(PARAM_PROJECT_NAME)
       .setRequired(false)
+      .setMaximumLength(MAX_COMPONENT_NAME_LENGTH)
       .setDescription("Optional name of the project, used only if the project does not exist yet.")
       .setExampleValue("My Project");
 
@@ -85,6 +94,13 @@ public class SubmitAction implements CeWsAction {
       .createParam(PARAM_REPORT_DATA)
       .setRequired(true)
       .setDescription("Report file. Format is not an API, it changes among SonarQube versions.");
+
+    action
+      .createParam(PARAM_ANALYSIS_CHARACTERISTIC)
+      .setRequired(false)
+      .setDescription("Optional characteristic of the analysis. Can be repeated to define multiple characteristics.")
+      .setExampleValue("branchType=long")
+      .setSince("6.6");
   }
 
   @Override
@@ -96,15 +112,28 @@ public class SubmitAction implements CeWsAction {
     String projectBranch = wsRequest.param(PARAM_PROJECT_BRANCH);
     String projectName = StringUtils.defaultIfBlank(wsRequest.param(PARAM_PROJECT_NAME), projectKey);
 
-    CeTask task;
-    try (InputStream report = new BufferedInputStream(wsRequest.paramAsInputStream(PARAM_REPORT_DATA))) {
-      task = reportSubmitter.submit(organizationKey, projectKey, projectBranch, projectName, report);
-    }
+    Map<String, String> characteristics = parseTaskCharacteristics(wsRequest);
 
-    WsCe.SubmitResponse submitResponse = WsCe.SubmitResponse.newBuilder()
-      .setTaskId(task.getUuid())
-      .setProjectId(task.getComponentUuid())
-      .build();
-    WsUtils.writeProtobuf(submitResponse, wsRequest, wsResponse);
+    try (InputStream report = new BufferedInputStream(wsRequest.mandatoryParamAsPart(PARAM_REPORT_DATA).getInputStream())) {
+      CeTask task = reportSubmitter.submit(organizationKey, projectKey, projectBranch, projectName, characteristics, report);
+      Ce.SubmitResponse submitResponse = Ce.SubmitResponse.newBuilder()
+        .setTaskId(task.getUuid())
+        .setProjectId(task.getComponentUuid())
+        .build();
+      WsUtils.writeProtobuf(submitResponse, wsRequest, wsResponse);
+    }
   }
+
+  private static Map<String, String> parseTaskCharacteristics(Request wsRequest) {
+    Map<String, String> characteristics = new LinkedHashMap<>();
+
+    for (String param : wsRequest.multiParam(PARAM_ANALYSIS_CHARACTERISTIC)) {
+      String[] pair = StringUtils.split(param, "=", 2);
+      checkRequest(pair.length == 2, "Parameter '%s' must be a key-value pair with the format 'key=value'.", PARAM_ANALYSIS_CHARACTERISTIC);
+      checkRequest(!characteristics.containsKey(pair[0]), "Key '%s' was provided twice with parameters '%s'", pair[0], PARAM_ANALYSIS_CHARACTERISTIC);
+      characteristics.put(pair[0], pair[1]);
+    }
+    return characteristics;
+  }
+
 }

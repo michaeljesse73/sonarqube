@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -41,7 +41,7 @@ public class RuleTagHelperTest {
   @Test
   public void applyTags_remove_all_existing_tags() {
     RuleDto rule = new RuleDto().setTags(Sets.newHashSet("performance"));
-    boolean changed = RuleTagHelper.applyTags(rule, Collections.<String>emptySet());
+    boolean changed = RuleTagHelper.applyTags(rule, Collections.emptySet());
     assertThat(rule.getTags()).isEmpty();
     assertThat(changed).isTrue();
   }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,9 +20,12 @@
 package org.sonarqube.ws.client;
 
 import java.io.File;
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
+import java.util.Base64;
 import java.util.List;
+import java.util.Random;
 import javax.net.ssl.SSLSocketFactory;
 import okhttp3.ConnectionSpec;
 import okhttp3.mockwebserver.MockResponse;
@@ -30,6 +33,7 @@ import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang.RandomStringUtils;
 import org.apache.commons.lang.StringUtils;
 import org.junit.After;
 import org.junit.Before;
@@ -39,6 +43,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.sonarqube.ws.MediaTypes;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static okhttp3.Credentials.basic;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.fail;
@@ -69,6 +74,31 @@ public class HttpConnectorTest {
   }
 
   @Test
+  public void follow_redirects_post() throws IOException, InterruptedException {
+    MockWebServer server2 = new MockWebServer();
+    server2.start();
+    server2.url("").url().toString();
+
+    server.enqueue(new MockResponse()
+      .setResponseCode(302)
+      .setHeader("Location", server2.url("").url().toString()));
+
+    server2.enqueue(new MockResponse()
+      .setResponseCode(200));
+
+    underTest = HttpConnector.newBuilder().url(serverUrl).build();
+    PostRequest request = new PostRequest("api/ce/submit").setParam("projectKey", "project");
+    WsResponse response = underTest.call(request);
+
+    RecordedRequest recordedRequest = server2.takeRequest();
+
+    assertThat(recordedRequest.getMethod()).isEqualTo("POST");
+    assertThat(recordedRequest.getBody().readUtf8()).isEqualTo("projectKey=project");
+    assertThat(response.requestUrl()).isEqualTo(server2.url("").url().toString());
+    assertThat(response.code()).isEqualTo(200);
+  }
+
+  @Test
   public void test_default_settings() throws Exception {
     answerHelloWorld();
     underTest = HttpConnector.newBuilder().url(serverUrl).build();
@@ -93,6 +123,21 @@ public class HttpConnectorTest {
     assertThat(recordedRequest.getHeader("User-Agent")).startsWith("okhttp/");
     // compression is handled by OkHttp
     assertThat(recordedRequest.getHeader("Accept-Encoding")).isEqualTo("gzip");
+  }
+
+  @Test
+  public void add_headers_to_GET_request() throws Exception {
+    answerHelloWorld();
+    GetRequest request = new GetRequest("api/issues/search")
+      .setHeader("X-Foo", "fooz")
+      .setHeader("X-Bar", "barz");
+
+    underTest = HttpConnector.newBuilder().url(serverUrl).build();
+    underTest.call(request);
+
+    RecordedRequest recordedRequest = server.takeRequest();
+    assertThat(recordedRequest.getHeader("X-Foo")).isEqualTo("fooz");
+    assertThat(recordedRequest.getHeader("X-Bar")).isEqualTo("barz");
   }
 
   @Test
@@ -125,6 +170,26 @@ public class HttpConnectorTest {
     assertThat(recordedRequest.getHeader("Authorization")).isEqualTo(basic("theLogin", ""));
   }
 
+  @Test
+  public void use_basic_authentication_with_utf8_login_and_password() throws Exception {
+    answerHelloWorld();
+    String login = "我能";
+    String password = "吞下";
+    underTest = HttpConnector.newBuilder()
+      .url(serverUrl)
+      .credentials(login, password)
+      .build();
+
+    GetRequest request = new GetRequest("api/issues/search");
+    underTest.call(request);
+
+    RecordedRequest recordedRequest = server.takeRequest();
+    // do not use OkHttp Credentials.basic() in order to not use the same code as the code under test
+
+    String expectedHeader = "Basic " + Base64.getEncoder().encodeToString((login + ":" + password).getBytes(UTF_8));
+    assertThat(recordedRequest.getHeader("Authorization")).isEqualTo(expectedHeader);
+  }
+
   /**
    * Access token replaces the couple {login,password} and is sent through
    * the login field
@@ -142,6 +207,23 @@ public class HttpConnectorTest {
 
     RecordedRequest recordedRequest = server.takeRequest();
     assertThat(recordedRequest.getHeader("Authorization")).isEqualTo(basic("theToken", ""));
+  }
+
+  @Test
+  public void systemPassCode_sets_header_when_value_is_not_null() throws InterruptedException {
+    answerHelloWorld();
+    String systemPassCode = new Random().nextBoolean() ? "" : RandomStringUtils.randomAlphanumeric(21);
+    underTest = HttpConnector.newBuilder()
+      .url(serverUrl)
+      .systemPassCode(systemPassCode)
+      .build();
+
+    GetRequest request = new GetRequest("api/issues/search");
+    underTest.call(request);
+
+    RecordedRequest recordedRequest = server.takeRequest();
+    assertThat(recordedRequest.getHeader("X-sonar-passcode"))
+      .isEqualTo(systemPassCode);
   }
 
   @Test
@@ -256,6 +338,22 @@ public class HttpConnectorTest {
     assertThat(recordedRequest.getMethod()).isEqualTo("POST");
     assertThat(recordedRequest.getPath()).isEqualTo("/api/issues/search");
     assertThat(recordedRequest.getBody().readUtf8()).isEqualTo("severity=MAJOR");
+    assertThat(recordedRequest.getHeader("Accept")).isEqualTo("application/x-protobuf");
+  }
+
+  @Test
+  public void add_header_to_POST_request() throws Exception {
+    answerHelloWorld();
+    PostRequest request = new PostRequest("api/issues/search")
+      .setHeader("X-Foo", "fooz")
+      .setHeader("X-Bar", "barz");
+
+    underTest = HttpConnector.newBuilder().url(serverUrl).build();
+    underTest.call(request);
+
+    RecordedRequest recordedRequest = server.takeRequest();
+    assertThat(recordedRequest.getHeader("X-Foo")).isEqualTo("fooz");
+    assertThat(recordedRequest.getHeader("X-Bar")).isEqualTo("barz");
   }
 
   @Test

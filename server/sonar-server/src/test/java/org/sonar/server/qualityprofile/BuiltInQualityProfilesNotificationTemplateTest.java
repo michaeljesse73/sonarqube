@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -17,7 +17,6 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-
 package org.sonar.server.qualityprofile;
 
 import java.util.Date;
@@ -63,7 +62,7 @@ public class BuiltInQualityProfilesNotificationTemplateTest {
   }
 
   @Test
-  public void notification_contains_list_of_new_rules() {
+  public void notification_contains_count_of_new_rules() {
     String profileName = newProfileName();
     String languageKey = newLanguageKey();
     String languageName = newLanguageName();
@@ -77,12 +76,11 @@ public class BuiltInQualityProfilesNotificationTemplateTest {
 
     EmailMessage emailMessage = underTest.format(notification.serialize());
 
-    assertMessage(emailMessage,
-        "\n 2 new rules\n");
+    assertMessage(emailMessage, "\n 2 new rules\n");
   }
 
   @Test
-  public void notification_contains_list_of_updated_rules() {
+  public void notification_contains_count_of_updated_rules() {
     String profileName = newProfileName();
     String languageKey = newLanguageKey();
     String languageName = newLanguageName();
@@ -96,13 +94,11 @@ public class BuiltInQualityProfilesNotificationTemplateTest {
 
     EmailMessage emailMessage = underTest.format(notification.serialize());
 
-    assertMessage(emailMessage,
-      "\n" +
-        " 2 rules have been updated\n");
+    assertMessage(emailMessage, "\n 2 rules have been updated\n");
   }
 
   @Test
-  public void notification_contains_list_of_removed_rules() {
+  public void notification_contains_count_of_removed_rules() {
     String profileName = newProfileName();
     String languageKey = newLanguageKey();
     String languageName = newLanguageName();
@@ -116,9 +112,30 @@ public class BuiltInQualityProfilesNotificationTemplateTest {
 
     EmailMessage emailMessage = underTest.format(notification.serialize());
 
-    assertMessage(emailMessage,
-      "\n" +
-        " 2 rules removed\n");
+    assertMessage(emailMessage, "\n 2 rules removed\n");
+  }
+
+  @Test
+  public void notification_supports_grammar_for_single_rule_added_removed_or_updated() {
+    String profileName = newProfileName();
+    String languageKey = newLanguageKey();
+    String languageName = newLanguageName();
+    BuiltInQualityProfilesNotification notification = new BuiltInQualityProfilesNotification()
+        .addProfile(Profile.newBuilder()
+            .setProfileName(profileName)
+            .setLanguageKey(languageKey)
+            .setLanguageName(languageName)
+            .setNewRules(1)
+            .setUpdatedRules(1)
+            .setRemovedRules(1)
+            .build());
+
+    EmailMessage emailMessage = underTest.format(notification.serialize());
+
+    assertThat(emailMessage.getMessage())
+        .contains("\n 1 new rule\n")
+        .contains("\n 1 rule has been updated\n")
+        .contains("\n 1 rule removed\n");
   }
 
   @Test
@@ -139,7 +156,7 @@ public class BuiltInQualityProfilesNotificationTemplateTest {
     EmailMessage emailMessage = underTest.format(notification.serialize());
 
     assertMessage(emailMessage,
-        "\n" +
+      "\n" +
         " 2 new rules\n" +
         " 3 rules have been updated\n" +
         " 4 rules removed\n");
@@ -169,11 +186,11 @@ public class BuiltInQualityProfilesNotificationTemplateTest {
 
     EmailMessage emailMessage = underTest.format(notification.serialize());
 
-    assertThat(emailMessage.getMessage()).containsSequence("The following built-in profiles have been updated:\n",
+    assertThat(emailMessage.getMessage()).containsSubsequence("The following built-in profiles have been updated:\n",
       profileTitleText(profileName1, languageKey1, languageName1),
-        " 2 new rules\n",
-        profileTitleText(profileName2, languageKey2, languageName2),
-        " 13 new rules\n",
+      " 2 new rules\n",
+      profileTitleText(profileName2, languageKey2, languageName2),
+      " 13 new rules\n",
       "This is a good time to review your quality profiles and update them to benefit from the latest evolutions: " + server.getPublicRootUrl() + "/profiles");
   }
 
@@ -193,7 +210,7 @@ public class BuiltInQualityProfilesNotificationTemplateTest {
 
     EmailMessage emailMessage = underTest.format(notification.serialize());
 
-    assertThat(emailMessage.getMessage()).containsSequence(
+    assertThat(emailMessage.getMessage()).containsSubsequence(
       "\"" + profileName2 + "\" - " + languageName1,
       "\"" + profileName1 + "\" - " + languageName2,
       "\"" + profileName3 + "\" - " + languageName2);
@@ -236,9 +253,11 @@ public class BuiltInQualityProfilesNotificationTemplateTest {
   }
 
   private void assertMessage(EmailMessage emailMessage, String expectedProfileDetails) {
-    assertThat(emailMessage.getMessage()).containsSequence("The following built-in profiles have been updated:\n\n",
-      expectedProfileDetails,
-      "\nThis is a good time to review your quality profiles and update them to benefit from the latest evolutions: " + server.getPublicRootUrl() + "/profiles");
+    assertThat(emailMessage.getMessage())
+      .containsSubsequence(
+        "The following built-in profiles have been updated:\n\n",
+        expectedProfileDetails,
+        "\nThis is a good time to review your quality profiles and update them to benefit from the latest evolutions: " + server.getPublicRootUrl() + "/profiles");
   }
 
   private String profileTitleText(String profileName, String languageKey, String languageName) {

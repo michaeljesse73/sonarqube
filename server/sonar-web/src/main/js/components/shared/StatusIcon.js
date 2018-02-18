@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,7 +21,7 @@
 import React from 'react';
 import classNames from 'classnames';
 
-export default function StatusIcon(props: { status: string, className?: string }) {
+export default function StatusIcon(props /*: { status: string, className?: string } */) {
   const className = classNames('icon-status-' + props.status.toLowerCase(), props.className);
   return <i className={className} />;
 }

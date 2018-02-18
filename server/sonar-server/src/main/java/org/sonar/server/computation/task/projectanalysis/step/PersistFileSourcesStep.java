@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -114,21 +114,17 @@ public class PersistFileSourcesStep implements ComputationStep {
 
     @Override
     public void visitFile(Component file) {
-      CloseableIterator<String> linesIterator = sourceLinesRepository.readLines(file);
-      LineReaders lineReaders = new LineReaders(reportReader, scmInfoRepository, duplicationRepository, file);
-      try {
+      try (CloseableIterator<String> linesIterator = sourceLinesRepository.readLines(file);
+        LineReaders lineReaders = new LineReaders(reportReader, scmInfoRepository, duplicationRepository, file)) {
         ComputeFileSourceData computeFileSourceData = new ComputeFileSourceData(linesIterator, lineReaders.readers(), file.getFileAttributes().getLines());
         ComputeFileSourceData.Data fileSourceData = computeFileSourceData.compute();
-        persistSource(fileSourceData, file.getUuid(), lineReaders.getLatestChange());
+        persistSource(fileSourceData, file.getUuid(), lineReaders.getLatestChangeWithRevision());
       } catch (Exception e) {
         throw new IllegalStateException(String.format("Cannot persist sources of %s", file.getKey()), e);
-      } finally {
-        linesIterator.close();
-        lineReaders.close();
       }
     }
 
-    private void persistSource(ComputeFileSourceData.Data fileSourceData, String componentUuid, @Nullable Changeset latestChange) {
+    private void persistSource(ComputeFileSourceData.Data fileSourceData, String componentUuid, @Nullable Changeset latestChangeWithRevision) {
       DbFileSources.Data fileData = fileSourceData.getFileSourceData();
 
       byte[] data = FileSourceDto.encodeSourceData(fileData);
@@ -148,14 +144,14 @@ public class PersistFileSourcesStep implements ComputationStep {
           .setLineHashes(lineHashes)
           .setCreatedAt(system2.now())
           .setUpdatedAt(system2.now())
-          .setRevision(computeRevision(latestChange));
+          .setRevision(computeRevision(latestChangeWithRevision));
         dbClient.fileSourceDao().insert(session, dto);
         session.commit();
       } else {
         // Update only if data_hash has changed or if src_hash is missing or revision is missing (progressive migration)
         boolean binaryDataUpdated = !dataHash.equals(previousDto.getDataHash());
         boolean srcHashUpdated = !srcHash.equals(previousDto.getSrcHash());
-        String revision = computeRevision(latestChange);
+        String revision = computeRevision(latestChangeWithRevision);
         boolean revisionUpdated = !ObjectUtils.equals(revision, previousDto.getRevision());
         if (binaryDataUpdated || srcHashUpdated || revisionUpdated) {
           previousDto
@@ -172,15 +168,15 @@ public class PersistFileSourcesStep implements ComputationStep {
     }
 
     @CheckForNull
-    private String computeRevision(@Nullable Changeset latestChange) {
-      if (latestChange == null) {
+    private String computeRevision(@Nullable Changeset latestChangeWithRevision) {
+      if (latestChangeWithRevision == null) {
         return null;
       }
-      return latestChange.getRevision();
+      return latestChangeWithRevision.getRevision();
     }
   }
 
-  private static class LineReaders {
+  private static class LineReaders implements AutoCloseable {
     private final List<LineReader> readers = new ArrayList<>();
     private final List<CloseableIterator<?>> closeables = new ArrayList<>();
     @CheckForNull
@@ -208,7 +204,6 @@ public class PersistFileSourcesStep implements ComputationStep {
       CloseableIterator<ScannerReport.Symbol> symbolsIt = reportReader.readComponentSymbols(componentRef);
       closeables.add(symbolsIt);
       readers.add(new SymbolsLineReader(component, symbolsIt, rangeOffsetConverter));
-
       readers.add(new DuplicationLineReader(duplicationRepository.getDuplications(component)));
     }
 
@@ -216,18 +211,19 @@ public class PersistFileSourcesStep implements ComputationStep {
       return readers;
     }
 
-    void close() {
+    @Override
+    public void close() {
       for (CloseableIterator<?> reportIterator : closeables) {
         reportIterator.close();
       }
     }
 
     @CheckForNull
-    public Changeset getLatestChange() {
+    public Changeset getLatestChangeWithRevision() {
       if (scmLineReader == null) {
         return null;
       }
-      return scmLineReader.getLatestChange();
+      return scmLineReader.getLatestChangeWithRevision();
     }
   }
 

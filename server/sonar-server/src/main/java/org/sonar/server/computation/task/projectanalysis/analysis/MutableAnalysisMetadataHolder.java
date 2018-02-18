@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,6 +24,11 @@ import javax.annotation.Nullable;
 import org.sonar.server.qualityprofile.QualityProfile;
 
 public interface MutableAnalysisMetadataHolder extends AnalysisMetadataHolder {
+
+  /**
+   * @throws IllegalStateException if organizations enabled flag has already been set
+   */
+  MutableAnalysisMetadataHolder setOrganizationsEnabled(boolean isOrganizationsEnabled);
 
   /**
    * @throws IllegalStateException if the organization uuid has already been set
@@ -53,7 +58,12 @@ public interface MutableAnalysisMetadataHolder extends AnalysisMetadataHolder {
   /**
    * @throws IllegalStateException if branch has already been set
    */
-  MutableAnalysisMetadataHolder setBranch(@Nullable String branch);
+  MutableAnalysisMetadataHolder setBranch(Branch branch);
+
+  /**
+   * @throws IllegalStateException if project has already been set
+   */
+  MutableAnalysisMetadataHolder setProject(Project project);
 
   /**
    * @throws IllegalStateException if root component ref has already been set
@@ -65,4 +75,8 @@ public interface MutableAnalysisMetadataHolder extends AnalysisMetadataHolder {
    */
   MutableAnalysisMetadataHolder setQProfilesByLanguage(Map<String, QualityProfile> qprofilesByLanguage);
 
+  /**
+   * @throws IllegalStateException if Plugins by key has already been set
+   */
+  MutableAnalysisMetadataHolder setScannerPluginsByKey(Map<String, ScannerPlugin> pluginsByKey);
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,13 +20,13 @@
 package org.sonar.server.computation.task.projectanalysis.formula.counter;
 
 import org.junit.Test;
-import org.sonar.server.computation.task.projectanalysis.qualitymodel.RatingGrid.Rating;
+import org.sonar.server.computation.task.projectanalysis.qualitymodel.Rating;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.sonar.server.computation.task.projectanalysis.qualitymodel.RatingGrid.Rating.A;
-import static org.sonar.server.computation.task.projectanalysis.qualitymodel.RatingGrid.Rating.B;
-import static org.sonar.server.computation.task.projectanalysis.qualitymodel.RatingGrid.Rating.C;
-import static org.sonar.server.computation.task.projectanalysis.qualitymodel.RatingGrid.Rating.D;
+import static org.sonar.server.computation.task.projectanalysis.qualitymodel.Rating.A;
+import static org.sonar.server.computation.task.projectanalysis.qualitymodel.Rating.B;
+import static org.sonar.server.computation.task.projectanalysis.qualitymodel.Rating.C;
+import static org.sonar.server.computation.task.projectanalysis.qualitymodel.Rating.D;
 
 public class RatingValueTest {
 

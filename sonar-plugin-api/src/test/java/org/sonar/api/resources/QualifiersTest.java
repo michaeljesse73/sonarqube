@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -31,6 +31,15 @@ public class QualifiersTest {
     View root = View.createRootView();
     assertThat(Qualifiers.isView(root, true)).isTrue();
     assertThat(Qualifiers.isView(root, false)).isTrue();
+    assertThat(Qualifiers.isProject(root, true)).isFalse();
+    assertThat(Qualifiers.isProject(root, false)).isFalse();
+  }
+
+  @Test
+  public void application() {
+    View root = View.createRootApp();
+    assertThat(Qualifiers.isView(root, true)).isFalse();
+    assertThat(Qualifiers.isView(root, false)).isFalse();
     assertThat(Qualifiers.isProject(root, true)).isFalse();
     assertThat(Qualifiers.isProject(root, false)).isFalse();
   }
@@ -78,6 +87,10 @@ public class QualifiersTest {
 
     static View createRootView() {
       return new View(Qualifiers.VIEW);
+    }
+
+    static View createRootApp() {
+      return new View(Qualifiers.APP);
     }
 
     static View createSubView() {

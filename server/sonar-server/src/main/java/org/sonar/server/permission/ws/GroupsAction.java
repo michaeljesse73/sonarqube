@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -40,8 +40,8 @@ import org.sonar.db.permission.PermissionQuery;
 import org.sonar.db.user.GroupDto;
 import org.sonar.server.permission.ProjectId;
 import org.sonar.server.user.UserSession;
-import org.sonarqube.ws.WsPermissions.Group;
-import org.sonarqube.ws.WsPermissions.WsGroupsResponse;
+import org.sonarqube.ws.Permissions.Group;
+import org.sonarqube.ws.Permissions.WsGroupsResponse;
 
 import static java.util.Collections.emptyList;
 import static org.sonar.core.util.Protobuf.setNullable;
@@ -81,10 +81,12 @@ public class GroupsAction implements PermissionsWsAction {
         "<li>'Administer' rights on the specified project</li>" +
         "</ul>")
       .addPagingParams(DEFAULT_PAGE_SIZE, RESULTS_MAX_SIZE)
-      .addSearchQuery("sonar", "names").setDescription("Limit search to group names that contain the supplied string. Must have at least %d characters.<br/>" +
-        "When this parameter is not set, only groups having at least one permission are returned.", SEARCH_QUERY_MIN_LENGTH)
       .setResponseExample(Resources.getResource(getClass(), "groups-example.json"))
       .setHandler(this);
+
+    action.createSearchQuery("sonar", "names")
+      .setDescription("Limit search to group names that contain the supplied string. When this parameter is not set, only groups having at least one permission are returned.")
+      .setMinimumLength(SEARCH_QUERY_MIN_LENGTH);
 
     createOrganizationParameter(action).setSince("6.2");
     createPermissionParameter(action).setRequired(false);

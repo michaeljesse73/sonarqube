@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -62,7 +62,7 @@ public class DBSessionsImplTest {
   private final DBSessionsImpl underTest = new DBSessionsImpl(myBatis);
 
   @After
-  public void tearDown() throws Exception {
+  public void tearDown() {
     underTest.disableCaching();
   }
 

@@ -35,13 +35,16 @@ exports[`should open the right popups when the buttons are clicked 3`] = `
         "__html": "<b>test</b>",
       }
     }
+    onClick={[Function]}
+    role="Listitem"
+    tabIndex={0}
   />
   <div
     className="issue-comment-age"
   >
-    (
-    a month ago
-    )
+    <DateFromNow
+      date="2017-03-01T09:36:01+0100"
+    />
   </div>
   <div
     className="issue-comment-actions"
@@ -76,8 +79,8 @@ exports[`should open the right popups when the buttons are clicked 3`] = `
       position="bottomright"
       togglePopup={[Function]}
     >
-      <button
-        className="js-issue-comment-edit button-link icon-edit icon-half-transparent"
+      <EditButton
+        className="js-issue-comment-edit button-small"
         onClick={[Function]}
       />
     </BubblePopupHelper>
@@ -98,8 +101,8 @@ exports[`should open the right popups when the buttons are clicked 3`] = `
       position="bottomright"
       togglePopup={[Function]}
     >
-      <button
-        className="js-issue-comment-delete button-link icon-delete icon-half-transparent"
+      <DeleteButton
+        className="js-issue-comment-delete button-small"
         onClick={[Function]}
       />
     </BubblePopupHelper>
@@ -130,13 +133,16 @@ exports[`should render correctly a comment that is not updatable 1`] = `
         "__html": "<b>test</b>",
       }
     }
+    onClick={[Function]}
+    role="Listitem"
+    tabIndex={0}
   />
   <div
     className="issue-comment-age"
   >
-    (
-    a month ago
-    )
+    <DateFromNow
+      date="2017-03-01T09:36:01+0100"
+    />
   </div>
   <div
     className="issue-comment-actions"
@@ -167,13 +173,16 @@ exports[`should render correctly a comment that is updatable 1`] = `
         "__html": "<b>test</b>",
       }
     }
+    onClick={[Function]}
+    role="Listitem"
+    tabIndex={0}
   />
   <div
     className="issue-comment-age"
   >
-    (
-    a month ago
-    )
+    <DateFromNow
+      date="2017-03-01T09:36:01+0100"
+    />
   </div>
   <div
     className="issue-comment-actions"
@@ -208,8 +217,8 @@ exports[`should render correctly a comment that is updatable 1`] = `
       position="bottomright"
       togglePopup={[Function]}
     >
-      <button
-        className="js-issue-comment-edit button-link icon-edit icon-half-transparent"
+      <EditButton
+        className="js-issue-comment-edit button-small"
         onClick={[Function]}
       />
     </BubblePopupHelper>
@@ -230,8 +239,8 @@ exports[`should render correctly a comment that is updatable 1`] = `
       position="bottomright"
       togglePopup={[Function]}
     >
-      <button
-        className="js-issue-comment-delete button-link icon-delete icon-half-transparent"
+      <DeleteButton
+        className="js-issue-comment-delete button-small"
         onClick={[Function]}
       />
     </BubblePopupHelper>

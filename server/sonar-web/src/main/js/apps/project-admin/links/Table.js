@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,14 +18,15 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import React from 'react';
+import PropTypes from 'prop-types';
 import LinkRow from './LinkRow';
 import { orderLinks } from './utils';
 import { translate } from '../../../helpers/l10n';
 
 export default class Table extends React.PureComponent {
   static propTypes = {
-    links: React.PropTypes.array.isRequired,
-    onDelete: React.PropTypes.func.isRequired
+    links: PropTypes.array.isRequired,
+    onDelete: PropTypes.func.isRequired
   };
 
   handleDeleteLink(link) {
@@ -37,12 +38,8 @@ export default class Table extends React.PureComponent {
     return (
       <thead>
         <tr>
-          <th className="nowrap">
-            {translate('project_links.name')}
-          </th>
-          <th className="nowrap width-100">
-            {translate('project_links.url')}
-          </th>
+          <th className="nowrap">{translate('project_links.name')}</th>
+          <th className="nowrap width-100">{translate('project_links.url')}</th>
           <th className="thin">&nbsp;</th>
         </tr>
       </thead>
@@ -57,10 +54,12 @@ export default class Table extends React.PureComponent {
     ));
 
     return (
-      <table id="project-links" className="data zebra">
-        {this.renderHeader()}
-        <tbody>{linkRows}</tbody>
-      </table>
+      <div className="boxed-group boxed-group-inner">
+        <table id="project-links" className="data zebra">
+          {this.renderHeader()}
+          <tbody>{linkRows}</tbody>
+        </table>
+      </div>
     );
   }
 }

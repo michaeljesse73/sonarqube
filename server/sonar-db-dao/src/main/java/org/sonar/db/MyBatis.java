@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -32,7 +32,11 @@ import org.sonar.api.Startable;
 import org.sonar.db.ce.CeActivityMapper;
 import org.sonar.db.ce.CeQueueMapper;
 import org.sonar.db.ce.CeScannerContextMapper;
+import org.sonar.db.ce.CeTaskCharacteristicDto;
+import org.sonar.db.ce.CeTaskCharacteristicMapper;
 import org.sonar.db.ce.CeTaskInputMapper;
+import org.sonar.db.component.AnalysisPropertiesMapper;
+import org.sonar.db.component.BranchMapper;
 import org.sonar.db.component.ComponentDto;
 import org.sonar.db.component.ComponentDtoWithSnapshotId;
 import org.sonar.db.component.ComponentKeyUpdaterMapper;
@@ -40,8 +44,9 @@ import org.sonar.db.component.ComponentLinkDto;
 import org.sonar.db.component.ComponentLinkMapper;
 import org.sonar.db.component.ComponentMapper;
 import org.sonar.db.component.FilePathWithHashDto;
+import org.sonar.db.component.KeyWithUuidDto;
 import org.sonar.db.component.ResourceDto;
-import org.sonar.db.component.ResourceMapper;
+import org.sonar.db.component.ScrapAnalysisPropertyDto;
 import org.sonar.db.component.SnapshotDto;
 import org.sonar.db.component.SnapshotMapper;
 import org.sonar.db.component.UuidWithProjectUuidDto;
@@ -49,15 +54,15 @@ import org.sonar.db.component.ViewsSnapshotDto;
 import org.sonar.db.debt.RequirementMigrationDto;
 import org.sonar.db.duplication.DuplicationMapper;
 import org.sonar.db.duplication.DuplicationUnitDto;
+import org.sonar.db.es.EsQueueMapper;
 import org.sonar.db.event.EventDto;
 import org.sonar.db.event.EventMapper;
 import org.sonar.db.issue.IssueChangeDto;
 import org.sonar.db.issue.IssueChangeMapper;
 import org.sonar.db.issue.IssueDto;
 import org.sonar.db.issue.IssueMapper;
-import org.sonar.db.es.EsQueueMapper;
-import org.sonar.db.loadedtemplate.LoadedTemplateDto;
-import org.sonar.db.loadedtemplate.LoadedTemplateMapper;
+import org.sonar.db.issue.ShortBranchIssueDto;
+import org.sonar.db.measure.LiveMeasureMapper;
 import org.sonar.db.measure.MeasureDto;
 import org.sonar.db.measure.MeasureMapper;
 import org.sonar.db.measure.custom.CustomMeasureDto;
@@ -80,6 +85,8 @@ import org.sonar.db.permission.template.PermissionTemplateDto;
 import org.sonar.db.permission.template.PermissionTemplateGroupDto;
 import org.sonar.db.permission.template.PermissionTemplateMapper;
 import org.sonar.db.permission.template.PermissionTemplateUserDto;
+import org.sonar.db.plugin.PluginDto;
+import org.sonar.db.plugin.PluginMapper;
 import org.sonar.db.property.InternalPropertiesMapper;
 import org.sonar.db.property.InternalPropertyDto;
 import org.sonar.db.property.PropertiesMapper;
@@ -98,6 +105,8 @@ import org.sonar.db.qualityprofile.ActiveRuleMapper;
 import org.sonar.db.qualityprofile.ActiveRuleParamDto;
 import org.sonar.db.qualityprofile.DefaultQProfileMapper;
 import org.sonar.db.qualityprofile.QProfileChangeMapper;
+import org.sonar.db.qualityprofile.QProfileEditGroupsMapper;
+import org.sonar.db.qualityprofile.QProfileEditUsersMapper;
 import org.sonar.db.qualityprofile.QualityProfileMapper;
 import org.sonar.db.rule.RuleDto;
 import org.sonar.db.rule.RuleMapper;
@@ -138,6 +147,7 @@ public class MyBatis implements Startable {
     // DTO aliases, keep them sorted alphabetically
     confBuilder.loadAlias("ActiveRule", ActiveRuleDto.class);
     confBuilder.loadAlias("ActiveRuleParam", ActiveRuleParamDto.class);
+    confBuilder.loadAlias("CeTaskCharacteristic", CeTaskCharacteristicDto.class);
     confBuilder.loadAlias("Component", ComponentDto.class);
     confBuilder.loadAlias("ComponentLink", ComponentLinkDto.class);
     confBuilder.loadAlias("ComponentWithSnapshot", ComponentDtoWithSnapshotId.class);
@@ -145,6 +155,7 @@ public class MyBatis implements Startable {
     confBuilder.loadAlias("DuplicationUnit", DuplicationUnitDto.class);
     confBuilder.loadAlias("Event", EventDto.class);
     confBuilder.loadAlias("FilePathWithHash", FilePathWithHashDto.class);
+    confBuilder.loadAlias("KeyWithUuid", KeyWithUuidDto.class);
     confBuilder.loadAlias("Group", GroupDto.class);
     confBuilder.loadAlias("GroupMembership", GroupMembershipDto.class);
     confBuilder.loadAlias("GroupPermission", GroupPermissionDto.class);
@@ -153,7 +164,7 @@ public class MyBatis implements Startable {
     confBuilder.loadAlias("IssueChange", IssueChangeDto.class);
     confBuilder.loadAlias("KeyLongValue", KeyLongValue.class);
     confBuilder.loadAlias("Issue", IssueDto.class);
-    confBuilder.loadAlias("LoadedTemplate", LoadedTemplateDto.class);
+    confBuilder.loadAlias("ShortBranchIssue", ShortBranchIssueDto.class);
     confBuilder.loadAlias("Measure", MeasureDto.class);
     confBuilder.loadAlias("NotificationQueue", NotificationQueueDto.class);
     confBuilder.loadAlias("Organization", OrganizationDto.class);
@@ -162,6 +173,7 @@ public class MyBatis implements Startable {
     confBuilder.loadAlias("PermissionTemplateGroup", PermissionTemplateGroupDto.class);
     confBuilder.loadAlias("PermissionTemplate", PermissionTemplateDto.class);
     confBuilder.loadAlias("PermissionTemplateUser", PermissionTemplateUserDto.class);
+    confBuilder.loadAlias("Plugin", PluginDto.class);
     confBuilder.loadAlias("ProjectQgateAssociation", ProjectQgateAssociationDto.class);
     confBuilder.loadAlias("PurgeableAnalysis", PurgeableAnalysisDto.class);
     confBuilder.loadAlias("QualityGateCondition", QualityGateConditionDto.class);
@@ -172,6 +184,7 @@ public class MyBatis implements Startable {
     confBuilder.loadAlias("Rule", RuleDto.class);
     confBuilder.loadAlias("SchemaMigration", SchemaMigrationDto.class);
     confBuilder.loadAlias("ScrapProperty", ScrapPropertyDto.class);
+    confBuilder.loadAlias("ScrapAnalysisProperty", ScrapAnalysisPropertyDto.class);
     confBuilder.loadAlias("Snapshot", SnapshotDto.class);
     confBuilder.loadAlias("UserGroup", UserGroupDto.class);
     confBuilder.loadAlias("UserPermission", UserPermissionDto.class);
@@ -181,20 +194,21 @@ public class MyBatis implements Startable {
     confBuilder.loadAlias("UuidWithProjectUuid", UuidWithProjectUuidDto.class);
     confBuilder.loadAlias("ViewsSnapshot", ViewsSnapshotDto.class);
 
-    // ResourceMapper has to be loaded before IssueMapper because this last one used it
-    confBuilder.loadMapper(ResourceMapper.class);
-
     // keep them sorted alphabetically
     Class<?>[] mappers = {
       ActiveRuleMapper.class,
+      AnalysisPropertiesMapper.class,
       AuthorizationMapper.class,
+      BranchMapper.class,
       CeActivityMapper.class,
       CeQueueMapper.class,
       CeScannerContextMapper.class,
       CeTaskInputMapper.class,
+      CeTaskCharacteristicMapper.class,
       ComponentKeyUpdaterMapper.class,
       ComponentLinkMapper.class,
       ComponentMapper.class,
+      LiveMeasureMapper.class,
       CustomMeasureMapper.class,
       DefaultQProfileMapper.class,
       DuplicationMapper.class,
@@ -208,7 +222,6 @@ public class MyBatis implements Startable {
       IsAliveMapper.class,
       IssueChangeMapper.class,
       IssueMapper.class,
-      LoadedTemplateMapper.class,
       MeasureMapper.class,
       MetricMapper.class,
       NotificationQueueMapper.class,
@@ -216,10 +229,13 @@ public class MyBatis implements Startable {
       OrganizationMemberMapper.class,
       PermissionTemplateCharacteristicMapper.class,
       PermissionTemplateMapper.class,
+      PluginMapper.class,
       ProjectQgateAssociationMapper.class,
       PropertiesMapper.class,
       PurgeMapper.class,
       QProfileChangeMapper.class,
+      QProfileEditGroupsMapper.class,
+      QProfileEditUsersMapper.class,
       QualityGateConditionMapper.class,
       QualityGateMapper.class,
       QualityProfileMapper.class,

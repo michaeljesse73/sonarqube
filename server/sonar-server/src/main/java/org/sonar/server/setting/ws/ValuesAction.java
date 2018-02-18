@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,9 +20,9 @@
 package org.sonar.server.setting.ws;
 
 import com.google.common.base.Splitter;
+import com.google.common.collect.ImmutableSet;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -32,6 +32,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.sonar.api.config.PropertyDefinition;
 import org.sonar.api.config.PropertyDefinitions;
+import org.sonar.api.server.ws.Change;
 import org.sonar.api.server.ws.Request;
 import org.sonar.api.server.ws.Response;
 import org.sonar.api.server.ws.WebService;
@@ -42,23 +43,26 @@ import org.sonar.server.component.ComponentFinder;
 import org.sonar.server.user.UserSession;
 import org.sonarqube.ws.Settings;
 import org.sonarqube.ws.Settings.ValuesWsResponse;
-import org.sonarqube.ws.client.setting.ValuesRequest;
 
 import static java.lang.String.format;
 import static java.util.stream.Stream.concat;
 import static org.apache.commons.lang.StringUtils.isEmpty;
+import static org.sonar.api.CoreProperties.SERVER_ID;
+import static org.sonar.api.CoreProperties.SERVER_STARTTIME;
 import static org.sonar.api.PropertyType.PROPERTY_SET;
 import static org.sonar.api.web.UserRole.USER;
+import static org.sonar.server.setting.ws.SettingsWsParameters.PARAM_BRANCH;
+import static org.sonar.server.setting.ws.SettingsWsParameters.PARAM_COMPONENT;
+import static org.sonar.server.setting.ws.SettingsWsParameters.PARAM_KEYS;
+import static org.sonar.server.ws.KeyExamples.KEY_BRANCH_EXAMPLE_001;
 import static org.sonar.server.ws.KeyExamples.KEY_PROJECT_EXAMPLE_001;
 import static org.sonar.server.ws.WsUtils.writeProtobuf;
-import static org.sonarqube.ws.client.setting.SettingsWsParameters.ACTION_VALUES;
-import static org.sonarqube.ws.client.setting.SettingsWsParameters.PARAM_COMPONENT;
-import static org.sonarqube.ws.client.setting.SettingsWsParameters.PARAM_KEYS;
 
 public class ValuesAction implements SettingsWsAction {
 
   private static final Splitter COMMA_SPLITTER = Splitter.on(",");
   private static final String COMMA_ENCODED_VALUE = "%2C";
+  private static final Set<String> SERVER_SETTING_KEYS = ImmutableSet.of(SERVER_STARTTIME, SERVER_ID);
 
   private final DbClient dbClient;
   private final ComponentFinder componentFinder;
@@ -66,24 +70,23 @@ public class ValuesAction implements SettingsWsAction {
   private final PropertyDefinitions propertyDefinitions;
   private final SettingsFinder settingsFinder;
   private final SettingsWsSupport settingsWsSupport;
-  private final ScannerSettings scannerSettings;
 
   public ValuesAction(DbClient dbClient, ComponentFinder componentFinder, UserSession userSession, PropertyDefinitions propertyDefinitions, SettingsFinder settingsFinder,
-    SettingsWsSupport settingsWsSupport, ScannerSettings scannerSettings) {
+    SettingsWsSupport settingsWsSupport) {
     this.dbClient = dbClient;
     this.componentFinder = componentFinder;
     this.userSession = userSession;
     this.propertyDefinitions = propertyDefinitions;
     this.settingsFinder = settingsFinder;
     this.settingsWsSupport = settingsWsSupport;
-    this.scannerSettings = scannerSettings;
   }
 
   @Override
   public void define(WebService.NewController context) {
-    WebService.NewAction action = context.createAction(ACTION_VALUES)
+    WebService.NewAction action = context.createAction("values")
       .setDescription("List settings values.<br>" +
         "If no value has been set for a setting, then the default value is returned.<br>" +
+        "The settings from conf/sonar.properties are excluded from results.<br>" +
         "Requires 'Browse' permission when a component is specified<br/>",
         "To access licensed settings, authentication is required<br/>" +
           "To access secured settings, one of the following permissions is required: " +
@@ -94,13 +97,19 @@ public class ValuesAction implements SettingsWsAction {
           "</ul>")
       .setResponseExample(getClass().getResource("values-example.json"))
       .setSince("6.3")
+      .setChangelog(new Change("7.1", "The settings from conf/sonar.properties are excluded from results."))
       .setHandler(this);
-    action.createParam(PARAM_COMPONENT)
-      .setDescription("Component key")
-      .setExampleValue(KEY_PROJECT_EXAMPLE_001);
     action.createParam(PARAM_KEYS)
       .setDescription("List of setting keys")
       .setExampleValue("sonar.test.inclusions,sonar.dbcleaner.cleanDirectory");
+    action.createParam(PARAM_COMPONENT)
+      .setDescription("Component key")
+      .setExampleValue(KEY_PROJECT_EXAMPLE_001);
+    action.createParam(PARAM_BRANCH)
+      .setDescription("Branch key")
+      .setExampleValue(KEY_BRANCH_EXAMPLE_001)
+      .setInternal(true)
+      .setSince("6.6");
   }
 
   @Override
@@ -113,7 +122,8 @@ public class ValuesAction implements SettingsWsAction {
       ValuesRequest valuesRequest = toWsRequest(request);
       Optional<ComponentDto> component = loadComponent(dbSession, valuesRequest);
 
-      Set<String> keys = loadKeys(dbSession, valuesRequest);
+      Set<String> keys = loadKeys(valuesRequest);
+      keys.forEach(SettingsWsSupport::validateKey);
       Map<String, String> keysToDisplayMap = getKeysToDisplayMap(keys);
       List<Setting> settings = loadSettings(dbSession, component, keysToDisplayMap.keySet());
       return new ValuesResponseBuilder(settings, component, keysToDisplayMap).build();
@@ -121,20 +131,19 @@ public class ValuesAction implements SettingsWsAction {
   }
 
   private static ValuesRequest toWsRequest(Request request) {
-    ValuesRequest.Builder builder = ValuesRequest.builder()
-      .setComponent(request.param(PARAM_COMPONENT));
+    ValuesRequest result = new ValuesRequest()
+      .setComponent(request.param(PARAM_COMPONENT))
+      .setBranch(request.param(PARAM_BRANCH));
     if (request.hasParam(PARAM_KEYS)) {
-      builder.setKeys(request.paramAsStrings(PARAM_KEYS));
+      result.setKeys(request.paramAsStrings(PARAM_KEYS));
     }
-    return builder.build();
+    return result;
   }
 
-  private Set<String> loadKeys(DbSession dbSession, ValuesRequest valuesRequest) {
+  private Set<String> loadKeys(ValuesRequest valuesRequest) {
     List<String> keys = valuesRequest.getKeys();
-    if (keys.isEmpty()) {
-      return concat(propertyDefinitions.getAll().stream().map(PropertyDefinition::key), scannerSettings.getScannerSettingKeys(dbSession).stream()).collect(Collectors.toSet());
-    }
-    return new HashSet<>(keys);
+    return keys == null || keys.isEmpty() ? concat(propertyDefinitions.getAll().stream().map(PropertyDefinition::key), SERVER_SETTING_KEYS.stream()).collect(Collectors.toSet())
+      : ImmutableSet.copyOf(keys);
   }
 
   private Optional<ComponentDto> loadComponent(DbSession dbSession, ValuesRequest valuesRequest) {
@@ -142,16 +151,20 @@ public class ValuesAction implements SettingsWsAction {
     if (componentKey == null) {
       return Optional.empty();
     }
-    ComponentDto component = componentFinder.getByKey(dbSession, componentKey);
+    ComponentDto component = componentFinder.getByKeyAndOptionalBranch(dbSession, componentKey, valuesRequest.getBranch());
     userSession.checkComponentPermission(USER, component);
     return Optional.of(component);
   }
 
   private List<Setting> loadSettings(DbSession dbSession, Optional<ComponentDto> component, Set<String> keys) {
-    // List of settings must be kept in the following orders : default -> global -> component
+    // List of settings must be kept in the following orders : default -> global -> component -> branch
     List<Setting> settings = new ArrayList<>();
     settings.addAll(loadDefaultSettings(keys));
     settings.addAll(settingsFinder.loadGlobalSettings(dbSession, keys));
+    if (component.isPresent() && component.get().getBranch() != null && component.get().getMainBranchProjectUuid() != null) {
+      ComponentDto project = dbClient.componentDao().selectOrFailByUuid(dbSession, component.get().getMainBranchProjectUuid());
+      settings.addAll(settingsFinder.loadComponentSettings(dbSession, keys, project).values());
+    }
     component.ifPresent(componentDto -> settings.addAll(settingsFinder.loadComponentSettings(dbSession, keys, componentDto).values()));
     return settings.stream()
       .filter(settingsWsSupport.isSettingVisible(component))
@@ -280,4 +293,37 @@ public class ValuesAction implements SettingsWsAction {
     }
   }
 
+  private static class ValuesRequest {
+
+    private String branch;
+    private String component;
+    private List<String> keys;
+
+    public ValuesRequest setBranch(String branch) {
+      this.branch = branch;
+      return this;
+    }
+
+    public String getBranch() {
+      return branch;
+    }
+
+    public ValuesRequest setComponent(String component) {
+      this.component = component;
+      return this;
+    }
+
+    public String getComponent() {
+      return component;
+    }
+
+    public ValuesRequest setKeys(List<String> keys) {
+      this.keys = keys;
+      return this;
+    }
+
+    public List<String> getKeys() {
+      return keys;
+    }
+  }
 }

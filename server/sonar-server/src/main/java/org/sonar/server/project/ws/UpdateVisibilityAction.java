@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,19 +22,21 @@ package org.sonar.server.project.ws;
 import com.google.common.collect.ImmutableSet;
 import java.util.Set;
 import org.sonar.api.resources.Qualifiers;
-import org.sonar.api.resources.Scopes;
 import org.sonar.api.server.ws.Request;
 import org.sonar.api.server.ws.Response;
 import org.sonar.api.server.ws.WebService;
 import org.sonar.api.web.UserRole;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
+import org.sonar.db.component.BranchMapper;
 import org.sonar.db.component.ComponentDto;
+import org.sonar.db.component.ComponentMapper;
 import org.sonar.db.organization.OrganizationDto;
 import org.sonar.db.permission.GroupPermissionDto;
 import org.sonar.db.permission.UserPermissionDto;
 import org.sonar.server.component.ComponentFinder;
-import org.sonar.server.permission.index.PermissionIndexer;
+import org.sonar.server.es.ProjectIndexer;
+import org.sonar.server.es.ProjectIndexers;
 import org.sonar.server.project.Visibility;
 import org.sonar.server.user.UserSession;
 import org.sonarqube.ws.client.project.ProjectsWsParameters;
@@ -48,38 +50,38 @@ import static org.sonarqube.ws.client.project.ProjectsWsParameters.PARAM_PROJECT
 import static org.sonarqube.ws.client.project.ProjectsWsParameters.PARAM_VISIBILITY;
 
 public class UpdateVisibilityAction implements ProjectsWsAction {
-  private static final Set<String> ALLOWED_QUALIFIERS = ImmutableSet.of(Qualifiers.PROJECT, Qualifiers.VIEW);
+  private static final Set<String> AUTHORIZED_QUALIFIERS = ImmutableSet.of(Qualifiers.PROJECT, Qualifiers.VIEW, Qualifiers.APP);
 
   private final DbClient dbClient;
   private final ComponentFinder componentFinder;
   private final UserSession userSession;
-  private final PermissionIndexer permissionIndexer;
+  private final ProjectIndexers projectIndexers;
   private final ProjectsWsSupport projectsWsSupport;
 
   public UpdateVisibilityAction(DbClient dbClient, ComponentFinder componentFinder, UserSession userSession,
-    PermissionIndexer permissionIndexer, ProjectsWsSupport projectsWsSupport) {
+    ProjectIndexers projectIndexers, ProjectsWsSupport projectsWsSupport) {
     this.dbClient = dbClient;
     this.componentFinder = componentFinder;
     this.userSession = userSession;
-    this.permissionIndexer = permissionIndexer;
+    this.projectIndexers = projectIndexers;
     this.projectsWsSupport = projectsWsSupport;
   }
 
   public void define(WebService.NewController context) {
     WebService.NewAction action = context.createAction(ProjectsWsParameters.ACTION_UPDATE_VISIBILITY)
-      .setDescription("Updates visibility of a project or a view.<br/>" +
-        "Requires 'Project administer' permission on the specified project or view")
+      .setDescription("Updates visibility of a project.<br>" +
+        "Requires 'Project administer' permission on the specified project")
       .setSince("6.4")
       .setPost(true)
       .setHandler(this);
 
     action.createParam(PARAM_PROJECT)
-      .setDescription("Project or view key")
+      .setDescription("Project key")
       .setExampleValue(KEY_PROJECT_EXAMPLE_001)
       .setRequired(true);
 
     action.createParam(PARAM_VISIBILITY)
-      .setDescription("new visibility of the project or view")
+      .setDescription("New visibility")
       .setPossibleValues(Visibility.getLabels())
       .setRequired(true);
   }
@@ -93,8 +95,7 @@ public class UpdateVisibilityAction implements ProjectsWsAction {
 
     try (DbSession dbSession = dbClient.openSession(false)) {
       ComponentDto component = componentFinder.getByKey(dbSession, projectKey);
-      checkRequest(isRoot(component), "Component must either be a project or a view");
-      checkRequest(!changeToPrivate || !Qualifiers.VIEW.equals(component.qualifier()), "Views can't be made private");
+      checkRequest(component.isRootProject() && AUTHORIZED_QUALIFIERS.contains(component.qualifier()), "Component must be a project, a portfolio or an application");
       userSession.checkComponentPermission(UserRole.ADMIN, component);
       checkRequest(noPendingTask(dbSession, component), "Component visibility can't be changed as long as it has background task(s) pending or in progress");
 
@@ -102,20 +103,26 @@ public class UpdateVisibilityAction implements ProjectsWsAction {
         OrganizationDto organization = dbClient.organizationDao().selectByUuid(dbSession, component.getOrganizationUuid())
           .orElseThrow(() -> new IllegalStateException(format("Could not find organization with uuid '%s' of project '%s'", component.getOrganizationUuid(), projectKey)));
         projectsWsSupport.checkCanUpdateProjectsVisibility(organization, changeToPrivate);
-        dbClient.componentDao().setPrivateForRootComponentUuid(dbSession, component.uuid(), changeToPrivate);
+        setPrivateForRootComponentUuid(dbSession, component.uuid(), changeToPrivate);
         if (changeToPrivate) {
           updatePermissionsToPrivate(dbSession, component);
         } else {
           updatePermissionsToPublic(dbSession, component);
         }
-        dbSession.commit();
-        permissionIndexer.indexProjectsByUuids(dbSession, singletonList(component.uuid()));
+        projectIndexers.commitAndIndex(dbSession, singletonList(component), ProjectIndexer.Cause.PERMISSION_CHANGE);
       }
+
+      response.noContent();
     }
   }
 
-  private static boolean isRoot(ComponentDto component) {
-    return Scopes.PROJECT.equals(component.scope()) && ALLOWED_QUALIFIERS.contains(component.qualifier());
+  private void setPrivateForRootComponentUuid(DbSession dbSession, String uuid, boolean isPrivate) {
+    dbClient.componentDao().setPrivateForRootComponentUuid(dbSession, uuid, isPrivate);
+    ComponentMapper mapper = dbSession.getMapper(ComponentMapper.class);
+    dbSession.getMapper(BranchMapper.class).selectByProjectUuid(uuid)
+      .stream()
+      .filter(branch -> !uuid.equals(branch.getUuid()))
+      .forEach(branch -> mapper.setPrivateForRootComponentUuid(branch.getUuid(), isPrivate));
   }
 
   private boolean noPendingTask(DbSession dbSession, ComponentDto rootComponent) {

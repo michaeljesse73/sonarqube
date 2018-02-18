@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,30 +21,48 @@ package org.sonarqube.tests.rule;
 
 import com.sonar.orchestrator.Orchestrator;
 import java.util.concurrent.TimeUnit;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.DisableOnDebug;
 import org.junit.rules.TestRule;
 import org.junit.rules.Timeout;
+import org.sonarqube.qa.util.Tester;
 import org.sonarqube.tests.Byteman;
-import org.sonarqube.tests.Tester;
-import org.sonarqube.ws.client.rule.CreateWsRequest;
-import org.sonarqube.ws.client.rule.SearchWsRequest;
+import org.sonarqube.ws.client.rules.CreateRequest;
+import org.sonarqube.ws.client.rules.SearchRequest;
 import util.ItUtils;
 
 import static java.util.Collections.singletonList;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.sonarqube.tests.Byteman.Process.WEB;
 
 public class RuleEsResilienceTest {
 
   @ClassRule
   public static final Orchestrator orchestrator;
+  private static final Byteman byteman;
 
   static {
-    orchestrator = Byteman.enableScript(Orchestrator.builderEnv(), "resilience/rule_indexer.btm")
+    byteman = new Byteman(Orchestrator.builderEnv(), WEB);
+    orchestrator = byteman
+      .getOrchestratorBuilder()
+      .setServerProperty("sonar.search.recovery.delayInMs", "1000")
+      .setServerProperty("sonar.search.recovery.minAgeInMs", "3000")
       .addPlugin(ItUtils.xooPlugin())
       .build();
+  }
+
+  @Before
+  public void before() throws Exception {
+    byteman.activateScript("resilience/rule_indexer.btm");
+  }
+
+  @After
+  public void after() throws Exception {
+    byteman.deactivateAllRules();
   }
 
   @Rule
@@ -60,13 +78,12 @@ public class RuleEsResilienceTest {
 
   @Test
   public void creation_of_custom_rule_is_resilient_to_elasticsearch_errors() throws Exception {
-    CreateWsRequest request = new CreateWsRequest.Builder()
+    CreateRequest request = new CreateRequest()
       .setCustomKey("my_custom_rule")
       .setName("My custom rule")
       .setTemplateKey("xoo:xoo-template")
       .setMarkdownDescription("The *initial* rule")
-      .setSeverity("MAJOR")
-      .build();
+      .setSeverity("MAJOR");
     tester.wsClient().rules().create(request);
 
     // rule exists in db but is not indexed. Search returns no results.
@@ -82,8 +99,8 @@ public class RuleEsResilienceTest {
   }
 
   private boolean nameFoundInSearch(String query) {
-    SearchWsRequest request = new SearchWsRequest()
-      .setQuery(query)
+    SearchRequest request = new SearchRequest()
+      .setQ(query)
       .setRepositories(singletonList("xoo"));
     return tester.wsClient().rules().search(request).getRulesCount() > 0;
   }

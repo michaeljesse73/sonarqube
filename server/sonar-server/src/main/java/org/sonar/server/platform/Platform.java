@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -134,26 +134,6 @@ public class Platform {
 
   private boolean dbRequiresMigration() {
     return getDatabaseStatus() != DatabaseVersion.Status.UP_TO_DATE;
-  }
-
-  public void restart() {
-    restart(Startup.ALL);
-  }
-
-  protected void restart(Startup startup) {
-    // switch currentLevel on level1 now to avoid exposing a container in the process of stopping
-    currentLevel = level1;
-    autoStarter = null;
-
-    // stop containers
-    stopSafeModeContainer();
-    stopLevel234Containers();
-
-    // no need to initialize database connection, so level 1 is skipped
-    startLevel2Container();
-    startLevel34Containers();
-    currentLevel = level4;
-    executeStartupTasks(startup);
   }
 
   public boolean isStarted() {

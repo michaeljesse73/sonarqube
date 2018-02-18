@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,26 +19,31 @@
  */
 // @flow
 import React from 'react';
-import Modal from 'react-modal';
+import Modal from '../../../../components/controls/Modal';
+import { ActionsDropdownItem } from '../../../../components/controls/ActionsDropdown';
 import { translate } from '../../../../helpers/l10n';
-import type { Analysis } from '../../types';
+/*:: import type { Analysis } from '../../types'; */
 
+/*::
 type Props = {
   addEvent: (analysis: string, name: string, category?: string) => Promise<*>,
   analysis: Analysis,
   addEventButtonText: string
 };
+*/
 
+/*::
 type State = {
   open: boolean,
   processing: boolean,
   name: string
 };
+*/
 
 export default class AddEventForm extends React.PureComponent {
-  mounted: boolean;
-  props: Props;
-  state: State = {
+  /*:: mounted: boolean; */
+  /*:: props: Props; */
+  state /*: State */ = {
     open: false,
     processing: false,
     name: ''
@@ -52,11 +57,8 @@ export default class AddEventForm extends React.PureComponent {
     this.mounted = false;
   }
 
-  openForm = (e: Object) => {
-    e.preventDefault();
-    if (this.mounted) {
-      this.setState({ open: true });
-    }
+  openForm = () => {
+    this.setState({ open: true });
   };
 
   closeForm = () => {
@@ -65,7 +67,7 @@ export default class AddEventForm extends React.PureComponent {
     }
   };
 
-  changeInput = (e: Object) => {
+  changeInput = (e /*: Object */) => {
     if (this.mounted) {
       this.setState({ name: e.target.value });
     }
@@ -83,7 +85,7 @@ export default class AddEventForm extends React.PureComponent {
     }
   };
 
-  handleSubmit = (e: Object) => {
+  handleSubmit = (e /*: Object */) => {
     e.preventDefault();
     this.setState({ processing: true });
     this.props
@@ -92,16 +94,11 @@ export default class AddEventForm extends React.PureComponent {
   };
 
   renderModal() {
+    const header = translate(this.props.addEventButtonText);
     return (
-      <Modal
-        isOpen={true}
-        contentLabel="modal form"
-        className="modal"
-        overlayClassName="modal-overlay"
-        onRequestClose={this.closeForm}>
-
+      <Modal key="add-event-modal" contentLabel={header} onRequestClose={this.closeForm}>
         <header className="modal-head">
-          <h2>{translate(this.props.addEventButtonText)}</h2>
+          <h2>{header}</h2>
         </header>
 
         <form onSubmit={this.handleSubmit}>
@@ -112,7 +109,6 @@ export default class AddEventForm extends React.PureComponent {
                 value={this.state.name}
                 autoFocus={true}
                 disabled={this.state.processing}
-                className="input-medium"
                 type="text"
                 onChange={this.changeInput}
               />
@@ -120,14 +116,16 @@ export default class AddEventForm extends React.PureComponent {
           </div>
 
           <footer className="modal-foot">
-            {this.state.processing
-              ? <i className="spinner" />
-              : <div>
-                  <button type="submit">{translate('save')}</button>
-                  <button type="reset" className="button-link" onClick={this.closeForm}>
-                    {translate('cancel')}
-                  </button>
-                </div>}
+            {this.state.processing ? (
+              <i className="spinner" />
+            ) : (
+              <div>
+                <button type="submit">{translate('save')}</button>
+                <button type="reset" className="button-link" onClick={this.closeForm}>
+                  {translate('cancel')}
+                </button>
+              </div>
+            )}
           </footer>
         </form>
       </Modal>
@@ -135,11 +133,14 @@ export default class AddEventForm extends React.PureComponent {
   }
 
   render() {
-    return (
-      <a className="js-add-event" href="#" onClick={this.openForm}>
+    const linkComponent = (
+      <ActionsDropdownItem className="js-add-event" onClick={this.openForm}>
         {translate(this.props.addEventButtonText)}
-        {this.state.open && this.renderModal()}
-      </a>
+      </ActionsDropdownItem>
     );
+    if (this.state.open) {
+      return [linkComponent, this.renderModal()];
+    }
+    return linkComponent;
   }
 }

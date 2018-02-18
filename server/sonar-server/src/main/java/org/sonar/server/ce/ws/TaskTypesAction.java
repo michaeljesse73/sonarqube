@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,7 +25,7 @@ import org.sonar.api.server.ws.Request;
 import org.sonar.api.server.ws.Response;
 import org.sonar.api.server.ws.WebService;
 import org.sonar.ce.taskprocessor.CeTaskProcessor;
-import org.sonarqube.ws.WsCe;
+import org.sonarqube.ws.Ce;
 
 import static org.sonar.server.ws.WsUtils.writeProtobuf;
 
@@ -52,7 +52,7 @@ public class TaskTypesAction implements CeWsAction {
 
   @Override
   public void handle(Request request, Response response) throws Exception {
-    WsCe.TaskTypesWsResponse taskTypesWsResponse = WsCe.TaskTypesWsResponse.newBuilder()
+    Ce.TaskTypesWsResponse taskTypesWsResponse = Ce.TaskTypesWsResponse.newBuilder()
       .addAllTaskTypes(taskTypes)
       .build();
 

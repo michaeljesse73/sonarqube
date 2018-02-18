@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -126,7 +126,7 @@ public abstract class DatabaseCommands {
     }
 
     @Override
-    protected boolean shouldTruncate(Connection connection, String table) throws SQLException {
+    protected boolean shouldTruncate(Connection connection, String table) {
       // truncate all tables on mssql, else unexpected errors in some tests
       return true;
     }

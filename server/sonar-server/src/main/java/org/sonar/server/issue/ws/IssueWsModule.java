@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,23 +20,23 @@
 package org.sonar.server.issue.ws;
 
 import org.sonar.core.platform.Module;
-import org.sonar.server.issue.ActionFinder;
 import org.sonar.server.issue.IssueFieldsSetter;
 import org.sonar.server.issue.IssueFinder;
 import org.sonar.server.issue.IssueQueryFactory;
-import org.sonar.server.issue.IssueService;
 import org.sonar.server.issue.IssueUpdater;
 import org.sonar.server.issue.ServerIssueStorage;
 import org.sonar.server.issue.TransitionService;
 import org.sonar.server.issue.workflow.FunctionExecutor;
 import org.sonar.server.issue.workflow.IssueWorkflow;
+import org.sonar.server.qualitygate.changeevent.QGChangeEventListenersImpl;
+import org.sonar.server.settings.ProjectConfigurationLoaderImpl;
+import org.sonar.server.webhook.WebhookQGChangeEventListener;
 import org.sonar.server.ws.WsResponseCommonFormat;
 
 public class IssueWsModule extends Module {
   @Override
   protected void configureModule() {
     add(
-      ActionFinder.class,
       IssueUpdater.class,
       IssueFinder.class,
       TransitionService.class,
@@ -44,7 +44,6 @@ public class IssueWsModule extends Module {
       IssueFieldsSetter.class,
       FunctionExecutor.class,
       IssueWorkflow.class,
-      IssueService.class,
       IssueQueryFactory.class,
       IssuesWs.class,
       AvatarResolverImpl.class,
@@ -65,6 +64,9 @@ public class IssueWsModule extends Module {
       ComponentTagsAction.class,
       AuthorsAction.class,
       ChangelogAction.class,
-      BulkChangeAction.class);
+      BulkChangeAction.class,
+      ProjectConfigurationLoaderImpl.class,
+      WebhookQGChangeEventListener.class,
+      QGChangeEventListenersImpl.class);
   }
 }

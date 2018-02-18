@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -50,7 +50,7 @@ public class FavoriteDbTester {
     List<PropertyDto> result = dbClient.propertiesDao().selectByQuery(PropertyQuery.builder()
       .setKey(PROP_FAVORITE_KEY)
       .setComponentId(componentDto.getId())
-      .setUserId((int) userId)
+      .setUserId(userId)
       .build(), dbSession);
 
     return !result.isEmpty();

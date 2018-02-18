@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -57,7 +57,7 @@ public class CeTaskQueryTest {
    */
   @Test
   public void short_circuited_if_empty_component_uuid_filter() {
-    underTest.setComponentUuids(Collections.<String>emptyList());
+    underTest.setComponentUuids(Collections.emptyList());
     assertThat(underTest.getComponentUuids()).isEmpty();
     assertThat(underTest.isShortCircuitedByComponentUuids()).isTrue();
   }

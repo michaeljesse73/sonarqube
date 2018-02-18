@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -41,11 +41,10 @@ import org.sonar.db.qualityprofile.QProfileDto;
 import org.sonar.server.exceptions.NotFoundException;
 import org.sonar.server.user.UserSession;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Comparator.comparing;
 import static org.sonar.api.utils.Paging.forPageIndex;
 import static org.sonar.core.util.Uuids.UUID_EXAMPLE_01;
-import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.PARAM_PROFILE;
+import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.PARAM_KEY;
 
 public class ProjectsAction implements QProfileWsAction {
 
@@ -74,9 +73,8 @@ public class ProjectsAction implements QProfileWsAction {
       new Change("6.0", "'uuid' response field is deprecated and replaced by 'id'"),
       new Change("6.0", "'key' response field has been added to return the project key"));
 
-    action.createParam(PARAM_PROFILE)
-      .setDescription("Quality profile key.")
-      .setDeprecatedKey("key", "6.5")
+    action.createParam(PARAM_KEY)
+      .setDescription("Quality profile key")
       .setRequired(true)
       .setExampleValue(UUID_EXAMPLE_01);
     action.addSelectionModeParam();
@@ -92,7 +90,7 @@ public class ProjectsAction implements QProfileWsAction {
 
   @Override
   public void handle(Request request, Response response) throws Exception {
-    String profileKey = request.mandatoryParam(PARAM_PROFILE);
+    String profileKey = request.mandatoryParam(PARAM_KEY);
 
     try (DbSession session = dbClient.openSession(false)) {
       checkProfileExists(profileKey, session);
@@ -100,7 +98,6 @@ public class ProjectsAction implements QProfileWsAction {
       String query = request.param(Param.TEXT_QUERY);
       int page = request.mandatoryParamAsInt(Param.PAGE);
       int pageSize = request.mandatoryParamAsInt(Param.PAGE_SIZE);
-      checkArgument(pageSize <= MAX_PAGE_SIZE, "The '%s' parameter must be less than %s", Param.PAGE_SIZE, MAX_PAGE_SIZE);
 
       List<ProjectQprofileAssociationDto> projects = loadAllProjects(profileKey, session, selected, query).stream()
         .sorted(comparing(ProjectQprofileAssociationDto::getProjectName)

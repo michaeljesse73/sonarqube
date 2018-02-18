@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,6 +19,7 @@
  */
 package org.sonar.db.organization;
 
+import java.util.Objects;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 
@@ -35,6 +36,7 @@ public class OrganizationDto {
   private String url;
   /** avatar url can be null */
   private String avatarUrl;
+
   /**
    * Flag indicated whether being root is required to be able to delete this organization.
    */
@@ -42,6 +44,7 @@ public class OrganizationDto {
   /** If of the user for whom the organization was created, can be null. */
   private Integer userId;
   private Integer defaultGroupId;
+  private String defaultQualityGateUuid;
   private long createdAt;
   private long updatedAt;
 
@@ -146,6 +149,32 @@ public class OrganizationDto {
     return this;
   }
 
+  public String getDefaultQualityGateUuid() {
+    return defaultQualityGateUuid;
+  }
+
+  public OrganizationDto setDefaultQualityGateUuid(String defaultQualityGateUuid) {
+    this.defaultQualityGateUuid = defaultQualityGateUuid;
+    return this;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    OrganizationDto that = (OrganizationDto) o;
+    return Objects.equals(uuid, that.uuid);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(uuid);
+  }
+
   @Override
   public String toString() {
     return "OrganizationDto{" +
@@ -157,6 +186,7 @@ public class OrganizationDto {
       ", avatarUrl='" + avatarUrl + '\'' +
       ", guarded=" + guarded +
       ", userId=" + userId +
+      ", defaultQualityGateUuid=" + defaultQualityGateUuid +
       ", createdAt=" + createdAt +
       ", updatedAt=" + updatedAt +
       '}';

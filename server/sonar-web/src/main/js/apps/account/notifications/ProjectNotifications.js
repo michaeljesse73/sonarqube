@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,6 +21,7 @@ import React from 'react';
 import { connect } from 'react-redux';
 import { Link } from 'react-router';
 import NotificationsList from './NotificationsList';
+import { addNotification, removeNotification } from './actions';
 import Organization from '../../../components/shared/Organization';
 import { translate } from '../../../helpers/l10n';
 import {
@@ -28,17 +29,16 @@ import {
   getNotificationChannels,
   getNotificationPerProjectTypes
 } from '../../../store/rootReducer';
-import type {
+/*:: import type {
   Notification,
   NotificationsState,
   ChannelsState,
   TypesState
-} from '../../../store/notifications/duck';
-import { addNotification, removeNotification } from './actions';
+} from '../../../store/notifications/duck'; */
 import { getProjectUrl } from '../../../helpers/urls';
 
 class ProjectNotifications extends React.PureComponent {
-  props: {
+  /*:: props: {
     project: {
       key: string,
       name: string,
@@ -50,6 +50,7 @@ class ProjectNotifications extends React.PureComponent {
     addNotification: (n: Notification) => void,
     removeNotification: (n: Notification) => void
   };
+*/
 
   handleAddNotification({ channel, type }) {
     this.props.addNotification({
@@ -98,6 +99,7 @@ class ProjectNotifications extends React.PureComponent {
           checkboxId={(d, c) => `project-notification-${project.key}-${d}-${c}`}
           onAdd={n => this.handleAddNotification(n)}
           onRemove={n => this.handleRemoveNotification(n)}
+          project={true}
         />
       </table>
     );

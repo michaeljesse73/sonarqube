@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -67,7 +67,7 @@ public class IssueWorkflowTest {
   public void list_statuses() {
     workflow.start();
     // order is important for UI
-    assertThat(workflow.statusKeys()).containsSequence(STATUS_OPEN, STATUS_CONFIRMED, STATUS_REOPENED, STATUS_RESOLVED, STATUS_CLOSED);
+    assertThat(workflow.statusKeys()).containsSubsequence(STATUS_OPEN, STATUS_CONFIRMED, STATUS_REOPENED, STATUS_RESOLVED, STATUS_CLOSED);
   }
 
   @Test

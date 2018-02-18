@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -37,7 +37,7 @@ public class CeDatabaseMBeanImplTest {
   @Rule
   public DbTester dbTester = DbTester.create(System2.INSTANCE);
 
-  CeDatabaseMBeanImpl underTest = new CeDatabaseMBeanImpl(dbTester.getDbClient());
+  private CeDatabaseMBeanImpl underTest = new CeDatabaseMBeanImpl(dbTester.getDbClient());
 
   @Test
   public void register_and_unregister() throws Exception {

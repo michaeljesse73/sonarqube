@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,29 +19,33 @@
  */
 // @flow
 import React from 'react';
-import CloseIcon from '../../../components/icons-components/CloseIcon';
 import { createProject, deleteProject } from '../../../api/components';
+import { DeleteButton } from '../../../components/ui/buttons';
 import { translate } from '../../../helpers/l10n';
 
+/*::
 type Props = {|
   onDelete: () => void,
   onDone: (projectKey: string) => void,
   organization?: string,
   projectKey?: string
 |};
+*/
 
+/*::
 type State = {
   done: boolean,
   loading: boolean,
   projectKey: string
 };
+*/
 
 export default class NewProjectForm extends React.PureComponent {
-  mounted: boolean;
-  props: Props;
-  state: State;
+  /*:: mounted: boolean; */
+  /*:: props: Props; */
+  /*:: state: State; */
 
-  constructor(props: Props) {
+  constructor(props /*: Props */) {
     super(props);
     this.state = {
       done: props.projectKey != null,
@@ -64,16 +68,16 @@ export default class NewProjectForm extends React.PureComponent {
     }
   };
 
-  sanitizeProjectKey = (projectKey: string) => projectKey.replace(/[^a-zA-Z0-9-_\.:]/, '');
+  sanitizeProjectKey = (projectKey /*: string */) => projectKey.replace(/[^-_a-zA-Z0-9.:]/, '');
 
-  handleProjectKeyChange = (event: { target: HTMLInputElement }) => {
+  handleProjectKeyChange = (event /*: { target: HTMLInputElement } */) => {
     this.setState({ projectKey: this.sanitizeProjectKey(event.target.value) });
   };
 
-  handleProjectCreate = (event: Event) => {
+  handleProjectCreate = (event /*: Event */) => {
     event.preventDefault();
     const { projectKey } = this.state;
-    const data: { [string]: string } = {
+    const data /*: { [string]: string } */ = {
       name: projectKey,
       project: projectKey
     };
@@ -89,8 +93,7 @@ export default class NewProjectForm extends React.PureComponent {
     }, this.stopLoading);
   };
 
-  handleProjectDelete = (event: Event) => {
-    event.preventDefault();
+  handleProjectDelete = () => {
     const { projectKey } = this.state;
     this.setState({ loading: true });
     deleteProject(projectKey).then(() => {
@@ -106,39 +109,43 @@ export default class NewProjectForm extends React.PureComponent {
 
     const valid = projectKey.length > 0;
 
-    const form = done
-      ? <form onSubmit={this.handleProjectDelete}>
-          <span className="spacer-right text-middle">{projectKey}</span>
-          {loading
-            ? <i className="spinner text-middle" />
-            : <button className="button-clean text-middle">
-                <CloseIcon className="icon-red" />
-              </button>}
-        </form>
-      : <form onSubmit={this.handleProjectCreate}>
-          <input
-            autoFocus={true}
-            className="input-large spacer-right text-middle"
-            minLength={1}
-            maxLength={400}
-            onChange={this.handleProjectKeyChange}
-            required={true}
-            type="text"
-            value={projectKey}
-          />
-          {loading
-            ? <i className="spinner text-middle" />
-            : <button className="text-middle" disabled={!valid}>{translate('Done')}</button>}
-          <div className="note spacer-top abs-width-300">
-            {translate('onboarding.project_key_requirement')}
-          </div>
-        </form>;
+    const form = done ? (
+      <div>
+        <span className="spacer-right text-middle">{projectKey}</span>
+        {loading ? (
+          <i className="spinner text-middle" />
+        ) : (
+          <DeleteButton className="button-small text-middle" onClick={this.handleProjectDelete} />
+        )}
+      </div>
+    ) : (
+      <form onSubmit={this.handleProjectCreate}>
+        <input
+          autoFocus={true}
+          className="input-large spacer-right text-middle"
+          minLength={1}
+          maxLength={400}
+          onChange={this.handleProjectKeyChange}
+          required={true}
+          type="text"
+          value={projectKey}
+        />
+        {loading ? (
+          <i className="spinner text-middle" />
+        ) : (
+          <button className="text-middle" disabled={!valid}>
+            {translate('Done')}
+          </button>
+        )}
+        <div className="note spacer-top abs-width-300">
+          {translate('onboarding.project_key_requirement')}
+        </div>
+      </form>
+    );
 
     return (
       <div className="big-spacer-top">
-        <h4 className="spacer-bottom">
-          {translate('onboarding.language.project_key')}
-        </h4>
+        <h4 className="spacer-bottom">{translate('onboarding.language.project_key')}</h4>
         {form}
       </div>
     );

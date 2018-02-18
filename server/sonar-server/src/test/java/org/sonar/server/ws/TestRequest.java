@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -23,11 +23,12 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Maps;
-import com.google.protobuf.GeneratedMessage;
+import com.google.protobuf.GeneratedMessageV3;
 import java.io.InputStream;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.apache.commons.io.IOUtils;
 import org.sonar.api.server.ws.internal.PartImpl;
 import org.sonar.api.server.ws.internal.ValidatingRequest;
@@ -40,6 +41,7 @@ public class TestRequest extends ValidatingRequest {
 
   private final ListMultimap<String, String> multiParams = ArrayListMultimap.create();
   private final Map<String, String> params = new HashMap<>();
+  private final Map<String, String> headers = new HashMap<>();
   private final Map<String, Part> parts = Maps.newHashMap();
   private String method = "GET";
   private String mimeType = "application/octet-stream";
@@ -127,6 +129,16 @@ public class TestRequest extends ValidatingRequest {
     return this;
   }
 
+  @Override
+  public Optional<String> header(String name) {
+    return Optional.ofNullable(headers.get(name));
+  }
+
+  public TestRequest setHeader(String name, String value) {
+    this.headers.put(requireNonNull(name), requireNonNull(value));
+    return this;
+  }
+
   public TestResponse execute() {
     try {
       DumbResponse response = new DumbResponse();
@@ -137,7 +149,12 @@ public class TestRequest extends ValidatingRequest {
     }
   }
 
-  public <T extends GeneratedMessage> T executeProtobuf(Class<T> protobufClass) {
+  public <T extends GeneratedMessageV3> T executeProtobuf(Class<T> protobufClass) {
     return setMediaType(PROTOBUF).execute().getInputObject(protobufClass);
+  }
+
+  @Override
+  public String toString() {
+    return path;
   }
 }

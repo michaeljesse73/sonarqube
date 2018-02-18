@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,11 +19,16 @@
  */
 package org.sonar.db.qualitygate;
 
+import java.util.Arrays;
+import java.util.Date;
+import java.util.function.Consumer;
+import org.sonar.core.util.Uuids;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
 import org.sonar.db.DbTester;
 import org.sonar.db.component.ComponentDto;
 import org.sonar.db.metric.MetricDto;
+import org.sonar.db.organization.OrganizationDto;
 import org.sonar.db.property.PropertyDto;
 
 import static org.apache.commons.lang.RandomStringUtils.randomAlphanumeric;
@@ -41,14 +46,27 @@ public class QualityGateDbTester {
     this.dbSession = db.getSession();
   }
 
-  public QualityGateDto insertQualityGate() {
-    return insertQualityGate(randomAlphanumeric(30));
+  public QualityGateDto insertBuiltInQualityGate() {
+    QualityGateDto builtin = dbClient.qualityGateDao().insert(dbSession, new QualityGateDto()
+      .setName("Sonar way")
+      .setUuid(Uuids.createFast())
+      .setBuiltIn(true)
+      .setCreatedAt(new Date()));
+    dbSession.commit();
+    return builtin;
   }
 
-  public QualityGateDto insertQualityGate(String name) {
-    QualityGateDto updatedUser = dbClient.qualityGateDao().insert(dbSession, new QualityGateDto().setName(name));
+  @SafeVarargs
+  public final QGateWithOrgDto insertQualityGate(OrganizationDto organization, Consumer<QualityGateDto>... dtoPopulators) {
+    QualityGateDto qualityGate = new QualityGateDto()
+      .setName(randomAlphanumeric(30))
+      .setUuid(Uuids.createFast())
+      .setBuiltIn(false);
+    Arrays.stream(dtoPopulators).forEach(dtoPopulator -> dtoPopulator.accept(qualityGate));
+    dbClient.qualityGateDao().insert(dbSession, qualityGate);
+    dbClient.qualityGateDao().associate(dbSession, Uuids.createFast(), organization, qualityGate);
     db.commit();
-    return updatedUser;
+    return dbClient.qualityGateDao().selectByOrganizationAndUuid(dbSession, organization, qualityGate.getUuid());
   }
 
   public void associateProjectToQualityGate(ComponentDto component, QualityGateDto qualityGate) {
@@ -59,25 +77,31 @@ public class QualityGateDbTester {
     db.commit();
   }
 
-  public QualityGateDto createDefaultQualityGate(String qualityGateName) {
-    QualityGateDto defaultQGate = insertQualityGate(qualityGateName);
-    setDefaultQualityGate(defaultQGate);
-    return defaultQGate;
-  }
-
-  public void setDefaultQualityGate(QualityGateDto qualityGate) {
-    dbClient.propertiesDao().saveProperty(dbSession, new PropertyDto()
-      .setKey("sonar.qualitygate")
-      .setValue(String.valueOf(qualityGate.getId())));
+  public void associateQualityGateToOrganization(QualityGateDto qualityGate, OrganizationDto organization) {
+    dbClient.qualityGateDao().associate(dbSession, Uuids.createFast(), organization, qualityGate);
     db.commit();
   }
 
-  public QualityGateConditionDto addCondition(QualityGateDto qualityGate, MetricDto metric) {
+  @SafeVarargs
+  public final QualityGateDto createDefaultQualityGate(OrganizationDto organization, Consumer<QualityGateDto>... dtoPopulators) {
+    QualityGateDto defaultQGate = insertQualityGate(organization, dtoPopulators);
+    setDefaultQualityGate(organization, defaultQGate);
+    return defaultQGate;
+  }
+
+  public void setDefaultQualityGate(OrganizationDto organization, QualityGateDto qualityGate) {
+    dbClient.organizationDao().update(dbSession, organization.setDefaultQualityGateUuid(qualityGate.getUuid()));
+    dbSession.commit();
+  }
+
+  @SafeVarargs
+  public final QualityGateConditionDto addCondition(QualityGateDto qualityGate, MetricDto metric, Consumer<QualityGateConditionDto>... dtoPopulators) {
     QualityGateConditionDto condition = new QualityGateConditionDto().setQualityGateId(qualityGate.getId())
       .setMetricId(metric.getId())
       .setOperator("GT")
       .setWarningThreshold(randomNumeric(10))
       .setErrorThreshold(randomNumeric(10));
+    Arrays.stream(dtoPopulators).forEach(dtoPopulator -> dtoPopulator.accept(condition));
     dbClient.gateConditionDao().insert(condition, dbSession);
     db.commit();
     return condition;

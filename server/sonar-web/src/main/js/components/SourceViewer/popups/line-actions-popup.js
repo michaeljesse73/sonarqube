@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -17,16 +17,19 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import Popup from '../../common/popup';
 import Template from './templates/source-viewer-line-options-popup.hbs';
+import Popup from '../../common/popup';
 
 export default Popup.extend({
   template: Template,
 
   serializeData() {
-    const { component, line } = this.options;
-    return {
-      permalink: window.baseUrl + `/component?id=${encodeURIComponent(component.key)}&line=${line}`
-    };
+    const { component, line, branch } = this.options;
+    let permalink =
+      window.baseUrl + `/component?id=${encodeURIComponent(component.key)}&line=${line}`;
+    if (branch) {
+      permalink += `&branch=${encodeURIComponent(branch)}`;
+    }
+    return { permalink };
   }
 });

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,13 +19,12 @@
  */
 package org.sonar.server.computation.task.projectanalysis.step;
 
-import com.tngtech.java.junit.dataprovider.DataProvider;
 import com.tngtech.java.junit.dataprovider.DataProviderRunner;
-import com.tngtech.java.junit.dataprovider.UseDataProvider;
 import java.text.SimpleDateFormat;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.sonar.api.config.internal.MapSettings;
 import org.sonar.api.utils.System2;
@@ -33,12 +32,14 @@ import org.sonar.api.utils.log.LogTester;
 import org.sonar.api.utils.log.LoggerLevel;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbTester;
+import org.sonar.db.component.ComponentDto;
+import org.sonar.db.component.SnapshotDto;
+import org.sonar.db.organization.OrganizationDto;
 import org.sonar.server.computation.task.projectanalysis.analysis.AnalysisMetadataHolderRule;
 import org.sonar.server.computation.task.projectanalysis.component.Component;
 import org.sonar.server.computation.task.projectanalysis.component.ConfigurationRepository;
 import org.sonar.server.computation.task.projectanalysis.component.ReportComponent;
 import org.sonar.server.computation.task.projectanalysis.component.TreeRootHolderRule;
-import org.sonar.server.computation.task.projectanalysis.component.ViewsComponent;
 import org.sonar.server.computation.task.projectanalysis.period.Period;
 import org.sonar.server.computation.task.projectanalysis.period.PeriodHolderImpl;
 import org.sonar.server.computation.task.step.ComputationStep;
@@ -48,17 +49,16 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.sonar.core.config.CorePropertyDefinitions.LEAK_PERIOD_MODE_DATE;
 import static org.sonar.core.config.CorePropertyDefinitions.LEAK_PERIOD_MODE_DAYS;
-import static org.sonar.core.config.CorePropertyDefinitions.LEAK_PERIOD_MODE_PREVIOUS_ANALYSIS;
 import static org.sonar.core.config.CorePropertyDefinitions.LEAK_PERIOD_MODE_PREVIOUS_VERSION;
 import static org.sonar.core.config.CorePropertyDefinitions.LEAK_PERIOD_MODE_VERSION;
+import static org.sonar.db.component.SnapshotDto.STATUS_UNPROCESSED;
+import static org.sonar.db.event.EventDto.CATEGORY_VERSION;
+import static org.sonar.db.event.EventTesting.newEvent;
 
 @RunWith(DataProviderRunner.class)
 public class LoadPeriodsStepTest extends BaseStepTest {
 
   private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd");
-  private static final String ROOT_KEY = "ROOT_KEY";
-  private static final ReportComponent PROJECT_ROOT = ReportComponent.builder(Component.Type.PROJECT, 1).setUuid("ABCD").setKey(ROOT_KEY).setVersion("1.1").build();
-  private static final ViewsComponent VIEW_ROOT = ViewsComponent.builder(Component.Type.VIEW, ROOT_KEY).setUuid("ABCD").build();
 
   @Rule
   public DbTester dbTester = DbTester.create(System2.INSTANCE);
@@ -68,6 +68,8 @@ public class LoadPeriodsStepTest extends BaseStepTest {
   public AnalysisMetadataHolderRule analysisMetadataHolder = new AnalysisMetadataHolderRule();
   @Rule
   public LogTester logTester = new LogTester();
+  @Rule
+  public ExpectedException expectedException = ExpectedException.none();
 
   private PeriodHolderImpl periodsHolder = new PeriodHolderImpl();
   private DbClient dbClient = dbTester.getDbClient();
@@ -86,23 +88,9 @@ public class LoadPeriodsStepTest extends BaseStepTest {
     analysisMetadataHolder.setAnalysisDate(DATE_FORMAT.parse("2008-11-30").getTime());
   }
 
-  private void setupRoot(Component root) {
-    treeRootHolder.setRoot(root);
-    when(settingsRepository.getConfiguration(root)).thenReturn(settings.asConfig());
-  }
-
-  @DataProvider
-  public static Object[][] projectAndViewRoots() {
-    return new Object[][] {
-      {PROJECT_ROOT},
-      {VIEW_ROOT}
-    };
-  }
-
   @Test
-  @UseDataProvider("projectAndViewRoots")
-  public void no_period_on_first_analysis(Component root) {
-    setupRoot(root);
+  public void no_period_on_first_analysis() {
+    treeRootHolder.setRoot(ReportComponent.builder(Component.Type.PROJECT, 1).setKey("ROOT_KEY").setVersion("1.1").build());
 
     // No project, no snapshot
     underTest.execute();
@@ -111,67 +99,76 @@ public class LoadPeriodsStepTest extends BaseStepTest {
   }
 
   @Test
-  @UseDataProvider("projectAndViewRoots")
-  public void feed_one_period(Component root) {
-    setupRoot(root);
-    dbTester.prepareDbUnit(getClass(), "shared.xml");
+  public void feed_one_period() {
+    OrganizationDto organization = dbTester.organizations().insert();
+    ComponentDto project = dbTester.components().insertPrivateProject(organization);
+    SnapshotDto analysis = dbTester.components().insertSnapshot(project, snapshot -> snapshot.setCreatedAt(1227934800000L)); // 2008-11-29
+    setupRoot(project);
     String textDate = "2008-11-22";
-    settings.setProperty("sonar.leak.period", textDate);
 
+    settings.setProperty("sonar.leak.period", textDate);
     underTest.execute();
 
     Period period = periodsHolder.getPeriod();
     assertThat(period).isNotNull();
     assertThat(period.getMode()).isEqualTo(LEAK_PERIOD_MODE_DATE);
     assertThat(period.getModeParameter()).isEqualTo(textDate);
-    assertThat(period.getSnapshotDate()).isEqualTo(1227358680000L);
-    assertThat(period.getAnalysisUuid()).isEqualTo("u1003");
+    assertThat(period.getSnapshotDate()).isEqualTo(analysis.getCreatedAt());
+    assertThat(period.getAnalysisUuid()).isEqualTo(analysis.getUuid());
   }
 
   @Test
-  @UseDataProvider("projectAndViewRoots")
-  public void no_period_when_settings_match_no_analysis(Component root) {
-    setupRoot(root);
-    dbTester.prepareDbUnit(getClass(), "shared.xml");
+  public void no_period_when_settings_match_no_analysis() {
+    OrganizationDto organization = dbTester.organizations().insert();
+    ComponentDto project = dbTester.components().insertPrivateProject(organization);
+    dbTester.components().insertSnapshot(project, snapshot -> snapshot.setCreatedAt(1226379600000L)); // 2008-11-29
+    setupRoot(project);
+
     settings.setProperty("sonar.leak.period", "UNKNWOWN VERSION");
-
     underTest.execute();
 
     assertThat(periodsHolder.getPeriod()).isNull();
   }
 
   @Test
-  @UseDataProvider("projectAndViewRoots")
-  public void no_period_when_settings_is_empty(Component root) {
-    setupRoot(root);
-    dbTester.prepareDbUnit(getClass(), "shared.xml");
+  public void no_period_when_settings_is_empty() {
+    OrganizationDto organization = dbTester.organizations().insert();
+    ComponentDto project = dbTester.components().insertPrivateProject(organization);
+    dbTester.components().insertSnapshot(project, snapshot -> snapshot.setCreatedAt(1226379600000L)); // 2008-11-29
+    setupRoot(project);
+
     settings.setProperty("sonar.leak.period", "");
-
     underTest.execute();
 
     assertThat(periodsHolder.getPeriod()).isNull();
   }
 
   @Test
-  @UseDataProvider("projectAndViewRoots")
-  public void ignore_unprocessed_snapshots(Component root) {
-    setupRoot(root);
-    dbTester.prepareDbUnit(getClass(), "unprocessed_snapshots.xml");
+  public void ignore_unprocessed_snapshots() {
+    OrganizationDto organization = dbTester.organizations().insert();
+    ComponentDto project = dbTester.components().insertPrivateProject(organization);
+    dbTester.components().insertSnapshot(project, snapshot -> snapshot.setStatus(STATUS_UNPROCESSED).setCreatedAt(1226379600000L)); // 2008-11-29
+    setupRoot(project);
+
     settings.setProperty("sonar.leak.period", "100");
-
     underTest.execute();
 
     assertThat(periodsHolder.getPeriod()).isNull();
   }
 
   @Test
-  @UseDataProvider("projectAndViewRoots")
-  public void feed_period_by_date(Component root) {
-    setupRoot(root);
-    dbTester.prepareDbUnit(getClass(), "shared.xml");
+  public void feed_period_by_date() {
+    OrganizationDto organization = dbTester.organizations().insert();
+    ComponentDto project = dbTester.components().insertPrivateProject(organization);
+    SnapshotDto analysis1 = dbTester.components().insertSnapshot(project, snapshot -> snapshot.setCreatedAt(1226379600000L).setLast(false)); // 2008-11-11
+    SnapshotDto analysis2 = dbTester.components().insertSnapshot(project, snapshot -> snapshot.setCreatedAt(1226494680000L).setLast(false)); // 2008-11-12
+    SnapshotDto analysis3 = dbTester.components().insertSnapshot(project, snapshot -> snapshot.setCreatedAt(1227157200000L).setLast(false)); // 2008-11-20
+    SnapshotDto analysis4 = dbTester.components().insertSnapshot(project, snapshot -> snapshot.setCreatedAt(1227358680000L).setLast(false)); // 2008-11-22
+    SnapshotDto analysis5 = dbTester.components().insertSnapshot(project, snapshot -> snapshot.setCreatedAt(1227934800000L).setLast(true)); // 2008-11-29
+    setupRoot(project);
+
     String textDate = "2008-11-22";
     settings.setProperty("sonar.leak.period", textDate);
-
     underTest.execute();
 
     // Return analysis from given date 2008-11-22
@@ -179,52 +176,63 @@ public class LoadPeriodsStepTest extends BaseStepTest {
     assertThat(period).isNotNull();
     assertThat(period.getMode()).isEqualTo(LEAK_PERIOD_MODE_DATE);
     assertThat(period.getModeParameter()).isEqualTo(textDate);
-    assertThat(period.getSnapshotDate()).isEqualTo(1227358680000L);
-    assertThat(period.getAnalysisUuid()).isEqualTo("u1003");
+    assertThat(period.getSnapshotDate()).isEqualTo(analysis4.getCreatedAt());
+    assertThat(period.getAnalysisUuid()).isEqualTo(analysis4.getUuid());
 
     assertThat(logTester.logs()).hasSize(1);
     assertThat(logTester.logs().get(0)).startsWith("Compare to date 2008-11-22 (analysis of ");
   }
 
   @Test
-  @UseDataProvider("projectAndViewRoots")
-  public void search_by_date_return_nearest_later_analysis(Component root) {
-    setupRoot(root);
-    dbTester.prepareDbUnit(getClass(), "shared.xml");
-    String date = "2008-11-24";
-    settings.setProperty("sonar.leak.period", date);
+  public void search_by_date_return_nearest_later_analysis() {
+    OrganizationDto organization = dbTester.organizations().insert();
+    ComponentDto project = dbTester.components().insertPrivateProject(organization);
+    SnapshotDto analysis1 = dbTester.components().insertSnapshot(project, snapshot -> snapshot.setCreatedAt(1226379600000L).setLast(false)); // 2008-11-11
+    SnapshotDto analysis2 = dbTester.components().insertSnapshot(project, snapshot -> snapshot.setCreatedAt(1226494680000L).setLast(false)); // 2008-11-12
+    SnapshotDto analysis3 = dbTester.components().insertSnapshot(project, snapshot -> snapshot.setCreatedAt(1227157200000L).setLast(false)); // 2008-11-20
+    SnapshotDto analysis4 = dbTester.components().insertSnapshot(project, snapshot -> snapshot.setCreatedAt(1227358680000L).setLast(false)); // 2008-11-22
+    SnapshotDto analysis5 = dbTester.components().insertSnapshot(project, snapshot -> snapshot.setCreatedAt(1227934800000L).setLast(true)); // 2008-11-29
+    setupRoot(project);
 
+    String date = "2008-11-13";
+    settings.setProperty("sonar.leak.period", date);
     underTest.execute();
 
-    // Analysis form 2008-11-29
+    // Analysis form 2008-11-20
     Period period = periodsHolder.getPeriod();
     assertThat(period).isNotNull();
     assertThat(period.getMode()).isEqualTo(LEAK_PERIOD_MODE_DATE);
     assertThat(period.getModeParameter()).isEqualTo(date);
-    assertThat(period.getSnapshotDate()).isEqualTo(1227934800000L);
-    assertThat(period.getAnalysisUuid()).isEqualTo("u1004");
+    assertThat(period.getSnapshotDate()).isEqualTo(analysis3.getCreatedAt());
+    assertThat(period.getAnalysisUuid()).isEqualTo(analysis3.getUuid());
   }
 
   @Test
-  @UseDataProvider("projectAndViewRoots")
-  public void no_period_by_date(Component root) {
-    setupRoot(root);
-    dbTester.prepareDbUnit(getClass(), "shared.xml");
+  public void no_period_by_date() {
+    OrganizationDto organization = dbTester.organizations().insert();
+    ComponentDto project = dbTester.components().insertPrivateProject(organization);
+    dbTester.components().insertSnapshot(project, snapshot -> snapshot.setCreatedAt(1227934800000L)); // 2008-11-29
+    setupRoot(project);
+
     // No analysis at and after this date
     settings.setProperty("sonar.leak.period", "2008-11-30");
-
     underTest.execute();
 
     assertThat(periodsHolder.getPeriod()).isNull();
   }
 
   @Test
-  @UseDataProvider("projectAndViewRoots")
-  public void feed_period_by_days(Component root) {
-    setupRoot(root);
-    dbTester.prepareDbUnit(getClass(), "shared.xml");
-    settings.setProperty("sonar.leak.period", "10");
+  public void feed_period_by_days() {
+    OrganizationDto organization = dbTester.organizations().insert();
+    ComponentDto project = dbTester.components().insertPrivateProject(organization);
+    SnapshotDto analysis1 = dbTester.components().insertSnapshot(project, snapshot -> snapshot.setCreatedAt(1226379600000L).setLast(false)); // 2008-11-11
+    SnapshotDto analysis2 = dbTester.components().insertSnapshot(project, snapshot -> snapshot.setCreatedAt(1226494680000L).setLast(false)); // 2008-11-12
+    SnapshotDto analysis3 = dbTester.components().insertSnapshot(project, snapshot -> snapshot.setCreatedAt(1227157200000L).setLast(false)); // 2008-11-20
+    SnapshotDto analysis4 = dbTester.components().insertSnapshot(project, snapshot -> snapshot.setCreatedAt(1227358680000L).setLast(false)); // 2008-11-22
+    SnapshotDto analysis5 = dbTester.components().insertSnapshot(project, snapshot -> snapshot.setCreatedAt(1227934800000L).setLast(true)); // 2008-11-29
+    setupRoot(project);
 
+    settings.setProperty("sonar.leak.period", "10");
     underTest.execute();
 
     // return analysis from 2008-11-20
@@ -232,76 +240,40 @@ public class LoadPeriodsStepTest extends BaseStepTest {
     assertThat(period).isNotNull();
     assertThat(period.getMode()).isEqualTo(LEAK_PERIOD_MODE_DAYS);
     assertThat(period.getModeParameter()).isEqualTo("10");
-    assertThat(period.getSnapshotDate()).isEqualTo(1227157200000L);
-    assertThat(period.getAnalysisUuid()).isEqualTo("u1002");
+    assertThat(period.getSnapshotDate()).isEqualTo(analysis3.getCreatedAt());
+    assertThat(period.getAnalysisUuid()).isEqualTo(analysis3.getUuid());
 
     assertThat(logTester.logs()).hasSize(1);
     assertThat(logTester.logs().get(0)).startsWith("Compare over 10 days (2008-11-20, analysis of ");
   }
 
   @Test
-  @UseDataProvider("projectAndViewRoots")
-  public void no_period_by_days(Component root) {
-    setupRoot(root);
-    dbTester.prepareDbUnit(getClass(), "empty.xml");
+  public void no_period_by_days() {
+    OrganizationDto organization = dbTester.organizations().insert();
+    ComponentDto project = dbTester.components().insertPrivateProject(organization);
+    setupRoot(project);
+
     settings.setProperty("sonar.leak.period", "0");
-
     underTest.execute();
 
     assertThat(periodsHolder.getPeriod()).isNull();
-  }
-
-  @Test
-  @UseDataProvider("projectAndViewRoots")
-  public void feed_period_by_previous_analysis(Component root) {
-    setupRoot(root);
-    dbTester.prepareDbUnit(getClass(), "shared.xml");
-    settings.setProperty("sonar.leak.period", "previous_analysis");
-
-    underTest.execute();
-
-    // return analysis from 2008-11-29
-    Period period = periodsHolder.getPeriod();
-    assertThat(period).isNotNull();
-    assertThat(period.getMode()).isEqualTo(LEAK_PERIOD_MODE_PREVIOUS_ANALYSIS);
-    assertThat(period.getModeParameter()).isNotNull();
-    assertThat(period.getSnapshotDate()).isEqualTo(1227934800000L);
-    assertThat(period.getAnalysisUuid()).isEqualTo("u1004");
-
-    assertThat(logTester.logs(LoggerLevel.DEBUG)).hasSize(1);
-    assertThat(logTester.logs(LoggerLevel.DEBUG).get(0)).startsWith("Compare to previous analysis (");
-  }
-
-  @Test
-  @UseDataProvider("projectAndViewRoots")
-  public void no_period_by_previous_analysis(Component root) {
-    setupRoot(root);
-    dbTester.prepareDbUnit(getClass(), "empty.xml");
-    settings.setProperty("sonar.leak.period", "previous_analysis");
-
-    underTest.execute();
-
-    assertThat(periodsHolder.getPeriod()).isNull();
-  }
-
-  @Test
-  public void display_warning_log_when_using_previous_analysis() {
-    setupRoot(PROJECT_ROOT);
-    dbTester.prepareDbUnit(getClass(), "shared.xml");
-    settings.setProperty("sonar.leak.period", "previous_analysis");
-
-    underTest.execute();
-
-    assertThat(logTester.logs(LoggerLevel.WARN))
-      .containsOnly("Leak period is set to deprecated value 'previous_analysis'. This value will be removed in next SonarQube LTS, please use another one instead.");
   }
 
   @Test
   public void feed_period_by_previous_version() {
-    setupRoot(PROJECT_ROOT);
-    dbTester.prepareDbUnit(getClass(), "shared.xml");
-    settings.setProperty("sonar.leak.period", "previous_version");
+    OrganizationDto organization = dbTester.organizations().insert();
+    ComponentDto project = dbTester.components().insertPrivateProject(organization);
+    SnapshotDto analysis1 = dbTester.components().insertSnapshot(project, snapshot -> snapshot.setCreatedAt(1226379600000L).setVersion("0.9").setLast(false)); // 2008-11-11
+    SnapshotDto analysis2 = dbTester.components().insertSnapshot(project, snapshot -> snapshot.setCreatedAt(1226494680000L).setVersion("1.0").setLast(false)); // 2008-11-12
+    SnapshotDto analysis3 = dbTester.components().insertSnapshot(project, snapshot -> snapshot.setCreatedAt(1227157200000L).setVersion("1.1").setLast(false)); // 2008-11-20
+    SnapshotDto analysis4 = dbTester.components().insertSnapshot(project, snapshot -> snapshot.setCreatedAt(1227358680000L).setVersion("1.1").setLast(false)); // 2008-11-22
+    SnapshotDto analysis5 = dbTester.components().insertSnapshot(project, snapshot -> snapshot.setCreatedAt(1227934800000L).setVersion("1.1").setLast(true)); // 2008-11-29
+    dbTester.events().insertEvent(newEvent(analysis1).setName("0.9").setCategory(CATEGORY_VERSION).setDate(analysis1.getCreatedAt()));
+    dbTester.events().insertEvent(newEvent(analysis2).setName("1.0").setCategory(CATEGORY_VERSION).setDate(analysis2.getCreatedAt()));
+    dbTester.events().insertEvent(newEvent(analysis5).setName("1.1").setCategory(CATEGORY_VERSION).setDate(analysis4.getCreatedAt()));
+    setupRoot(project, "1.1");
 
+    settings.setProperty("sonar.leak.period", "previous_version");
     underTest.execute();
 
     // Analysis form 2008-11-12
@@ -309,30 +281,26 @@ public class LoadPeriodsStepTest extends BaseStepTest {
     assertThat(period).isNotNull();
     assertThat(period.getMode()).isEqualTo(LEAK_PERIOD_MODE_PREVIOUS_VERSION);
     assertThat(period.getModeParameter()).isEqualTo("1.0");
-    assertThat(period.getSnapshotDate()).isEqualTo(1226494680000L);
-    assertThat(period.getAnalysisUuid()).isEqualTo("u1001");
+    assertThat(period.getSnapshotDate()).isEqualTo(analysis2.getCreatedAt());
+    assertThat(period.getAnalysisUuid()).isEqualTo(analysis2.getUuid());
 
     assertThat(logTester.logs(LoggerLevel.DEBUG)).hasSize(1);
     assertThat(logTester.logs(LoggerLevel.DEBUG).get(0)).startsWith("Compare to previous version (");
   }
 
   @Test
-  public void feed_period_by_previous_version_is_not_supported_for_views() {
-    setupRoot(VIEW_ROOT);
-    dbTester.prepareDbUnit(getClass(), "shared.xml");
-    settings.setProperty("sonar.leak.period", "previous_version");
-
-    underTest.execute();
-
-    assertThat(periodsHolder.getPeriod()).isNull();
-  }
-
-  @Test
   public void feed_period_by_previous_version_with_previous_version_deleted() {
-    setupRoot(PROJECT_ROOT);
-    dbTester.prepareDbUnit(getClass(), "previous_version_deleted.xml");
-    settings.setProperty("sonar.leak.period", "previous_version");
+    OrganizationDto organization = dbTester.organizations().insert();
+    ComponentDto project = dbTester.components().insertPrivateProject(organization);
+    SnapshotDto analysis1 = dbTester.components().insertSnapshot(project, snapshot -> snapshot.setCreatedAt(1226379600000L).setVersion("0.9").setLast(false)); // 2008-11-11
+    SnapshotDto analysis2 = dbTester.components().insertSnapshot(project, snapshot -> snapshot.setCreatedAt(1226494680000L).setVersion("1.0").setLast(false)); // 2008-11-12
+    SnapshotDto analysis3 = dbTester.components().insertSnapshot(project, snapshot -> snapshot.setCreatedAt(1227157200000L).setVersion("1.1").setLast(false)); // 2008-11-20
+    dbTester.events().insertEvent(newEvent(analysis1).setName("0.9").setCategory(CATEGORY_VERSION));
+    // The "1.0" version was deleted from the history
+    dbTester.events().insertEvent(newEvent(analysis3).setName("1.1").setCategory(CATEGORY_VERSION));
+    setupRoot(project, "1.1");
 
+    settings.setProperty("sonar.leak.period", "previous_version");
     underTest.execute();
 
     // Analysis form 2008-11-11
@@ -340,17 +308,17 @@ public class LoadPeriodsStepTest extends BaseStepTest {
     assertThat(period).isNotNull();
     assertThat(period.getMode()).isEqualTo(LEAK_PERIOD_MODE_PREVIOUS_VERSION);
     assertThat(period.getModeParameter()).isEqualTo("0.9");
-    assertThat(period.getSnapshotDate()).isEqualTo(1226379600000L);
-    assertThat(period.getAnalysisUuid()).isEqualTo("u1000");
+    assertThat(period.getSnapshotDate()).isEqualTo(analysis1.getCreatedAt());
+    assertThat(period.getAnalysisUuid()).isEqualTo(analysis1.getUuid());
   }
 
   @Test
-  @UseDataProvider("projectAndViewRoots")
-  public void no_period_by_previous_version(Component root) {
-    setupRoot(root);
-    dbTester.prepareDbUnit(getClass(), "empty.xml");
-    settings.setProperty("sonar.leak.period", "previous_version");
+  public void no_period_by_previous_version() {
+    OrganizationDto organization = dbTester.organizations().insert();
+    ComponentDto project = dbTester.components().insertPrivateProject(organization);
+    setupRoot(project);
 
+    settings.setProperty("sonar.leak.period", "previous_version");
     underTest.execute();
 
     assertThat(periodsHolder.getPeriod()).isNull();
@@ -358,78 +326,90 @@ public class LoadPeriodsStepTest extends BaseStepTest {
 
   @Test
   public void feed_period_by_previous_version_with_first_analysis_when_no_previous_version_found() {
-    setupRoot(PROJECT_ROOT);
-    dbTester.prepareDbUnit(getClass(), "no_previous_version.xml");
-    settings.setProperty("sonar.leak.period", "previous_version");
+    OrganizationDto organization = dbTester.organizations().insert();
+    ComponentDto project = dbTester.components().insertPrivateProject(organization);
+    SnapshotDto analysis1 = dbTester.components().insertSnapshot(project, snapshot -> snapshot.setCreatedAt(1226379600000L).setVersion("0.9").setLast(false)); // 2008-11-11
+    SnapshotDto analysis5 = dbTester.components().insertSnapshot(project, snapshot -> snapshot.setCreatedAt(1227934800000L).setVersion("1.1").setLast(true)); // 2008-11-29
+    dbTester.events().insertEvent(newEvent(analysis5).setName("1.1").setCategory(CATEGORY_VERSION));
+    setupRoot(project, "1.1");
 
+    settings.setProperty("sonar.leak.period", "previous_version");
     underTest.execute();
 
     Period period = periodsHolder.getPeriod();
     assertThat(period).isNotNull();
     assertThat(period.getMode()).isEqualTo(LEAK_PERIOD_MODE_PREVIOUS_VERSION);
     assertThat(period.getModeParameter()).isNull();
-    assertThat(period.getSnapshotDate()).isEqualTo(1226379600000L);
-    assertThat(period.getAnalysisUuid()).isEqualTo("u1000");
+    assertThat(period.getSnapshotDate()).isEqualTo(analysis1.getCreatedAt());
+    assertThat(period.getAnalysisUuid()).isEqualTo(analysis1.getUuid());
   }
 
   @Test
   public void feed_period_by_previous_version_with_first_analysis_when_previous_snapshot_is_the_last_one() {
-    setupRoot(PROJECT_ROOT);
-    dbTester.prepareDbUnit(getClass(), "previous_version_is_last_one.xml");
-    settings.setProperty("sonar.leak.period", "previous_version");
+    OrganizationDto organization = dbTester.organizations().insert();
+    ComponentDto project = dbTester.components().insertPrivateProject(organization);
+    SnapshotDto analysis = dbTester.components().insertSnapshot(project, snapshot -> snapshot.setCreatedAt(1226379600000L).setVersion("0.9").setLast(true)); // 2008-11-11
+    setupRoot(project, "1.1");
 
+    settings.setProperty("sonar.leak.period", "previous_version");
     underTest.execute();
 
     Period period = periodsHolder.getPeriod();
     assertThat(period).isNotNull();
     assertThat(period.getMode()).isEqualTo(LEAK_PERIOD_MODE_PREVIOUS_VERSION);
     assertThat(period.getModeParameter()).isNull();
-    assertThat(period.getSnapshotDate()).isEqualTo(1226379600000L);
-    assertThat(period.getAnalysisUuid()).isEqualTo("u1000");
+    assertThat(period.getSnapshotDate()).isEqualTo(analysis.getCreatedAt());
+    assertThat(period.getAnalysisUuid()).isEqualTo(analysis.getUuid());
   }
 
   @Test
-  public void no_period_by_previous_version_when_no_event_version_for_views() {
-    setupRoot(VIEW_ROOT);
-    dbTester.prepareDbUnit(getClass(), "no_previous_version.xml");
-    settings.setProperty("sonar.leak.period", "previous_version");
+  public void feed_period_by_version() {
+    OrganizationDto organization = dbTester.organizations().insert();
+    ComponentDto project = dbTester.components().insertPrivateProject(organization);
+    SnapshotDto analysis1 = dbTester.components().insertSnapshot(project, snapshot -> snapshot.setCreatedAt(1226379600000L).setVersion("0.9").setLast(false)); // 2008-11-11
+    SnapshotDto analysis2 = dbTester.components().insertSnapshot(project, snapshot -> snapshot.setCreatedAt(1226494680000L).setVersion("1.0").setLast(false)); // 2008-11-12
+    SnapshotDto analysis3 = dbTester.components().insertSnapshot(project, snapshot -> snapshot.setCreatedAt(1227157200000L).setVersion("1.1").setLast(false)); // 2008-11-20
+    SnapshotDto analysis4 = dbTester.components().insertSnapshot(project, snapshot -> snapshot.setCreatedAt(1227358680000L).setVersion("1.1").setLast(false)); // 2008-11-22
+    SnapshotDto analysis5 = dbTester.components().insertSnapshot(project, snapshot -> snapshot.setCreatedAt(1227934800000L).setVersion("1.1").setLast(true)); // 2008-11-29
+    dbTester.events().insertEvent(newEvent(analysis1).setName("0.9").setCategory(CATEGORY_VERSION));
+    dbTester.events().insertEvent(newEvent(analysis2).setName("1.0").setCategory(CATEGORY_VERSION));
+    dbTester.events().insertEvent(newEvent(analysis5).setName("1.1").setCategory(CATEGORY_VERSION));
+    setupRoot(project, "1.1");
 
-    underTest.execute();
-
-    assertThat(periodsHolder.getPeriod()).isNull();
-  }
-
-  @Test
-  @UseDataProvider("projectAndViewRoots")
-  public void feed_period_by_version(Component root) {
-    setupRoot(root);
-    dbTester.prepareDbUnit(getClass(), "shared.xml");
-    settings.setProperty("sonar.leak.period", "0.9");
-
+    settings.setProperty("sonar.leak.period", "1.0");
     underTest.execute();
 
     // Analysis form 2008-11-11
     Period period = periodsHolder.getPeriod();
     assertThat(period).isNotNull();
     assertThat(period.getMode()).isEqualTo(LEAK_PERIOD_MODE_VERSION);
-    assertThat(period.getModeParameter()).isEqualTo("0.9");
-    assertThat(period.getSnapshotDate()).isEqualTo(1226379600000L);
-    assertThat(period.getAnalysisUuid()).isEqualTo("u1000");
+    assertThat(period.getModeParameter()).isEqualTo("1.0");
+    assertThat(period.getSnapshotDate()).isEqualTo(analysis2.getCreatedAt());
+    assertThat(period.getAnalysisUuid()).isEqualTo(analysis2.getUuid());
 
     assertThat(logTester.logs()).hasSize(1);
-    assertThat(logTester.logs().get(0)).startsWith("Compare to version (0.9) (");
+    assertThat(logTester.logs().get(0)).startsWith("Compare to version (1.0) (");
   }
 
   @Test
-  @UseDataProvider("projectAndViewRoots")
-  public void no_period_by_version(Component root) {
-    setupRoot(root);
-    dbTester.prepareDbUnit(getClass(), "empty.xml");
-    settings.setProperty("sonar.leak.period", "0.8");
+  public void no_period_by_version() {
+    OrganizationDto organization = dbTester.organizations().insert();
+    ComponentDto project = dbTester.components().insertPrivateProject(organization);
+    setupRoot(project);
 
+    settings.setProperty("sonar.leak.period", "0.8");
     underTest.execute();
 
     assertThat(periodsHolder.getPeriod()).isNull();
+  }
+
+  private void setupRoot(ComponentDto project) {
+    setupRoot(project, "1.1");
+  }
+
+  private void setupRoot(ComponentDto project, String version) {
+    treeRootHolder.setRoot(ReportComponent.builder(Component.Type.PROJECT, 1).setUuid(project.uuid()).setKey(project.getKey()).setVersion(version).build());
+    when(settingsRepository.getConfiguration()).thenReturn(settings.asConfig());
   }
 
 }

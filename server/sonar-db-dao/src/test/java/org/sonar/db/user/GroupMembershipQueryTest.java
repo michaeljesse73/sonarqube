@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -31,7 +31,7 @@ public class GroupMembershipQueryTest {
   public ExpectedException expectedException = ExpectedException.none();
 
   @Test
-  public void create_query() throws Exception {
+  public void create_query() {
     GroupMembershipQuery underTest = GroupMembershipQuery.builder()
       .groupSearch("sonar-users")
       .membership(GroupMembershipQuery.IN)

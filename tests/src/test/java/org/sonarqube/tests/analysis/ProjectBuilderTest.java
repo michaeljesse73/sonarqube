@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -48,8 +48,7 @@ public class ProjectBuilderTest {
   public void shouldDefineProjectFromPlugin() {
     MavenBuild build = MavenBuild.create(ItUtils.projectPom("analysis/project-builder"))
       .setCleanSonarGoals()
-      .setProperty("sonar.enableProjectBuilder", "true")
-      .setProperty("sonar.dynamicAnalysis", "false");
+      .setProperty("sonar.enableProjectBuilder", "true");
     orchestrator.executeBuild(build);
 
     checkProject();
@@ -65,7 +64,7 @@ public class ProjectBuilderTest {
     assertThat(getComponent(orchestrator, "com.sonarsource.it.projects.batch:project-builder").getName()).isEqualTo("Name changed by plugin");
 
     Map<String, Double> measures = getMeasures("com.sonarsource.it.projects.batch:project-builder");
-    assertThat(measures.get("files")).isEqualTo(2);
+    assertThat(measures.get("files")).isEqualTo(3);
     assertThat(measures.get("lines")).isGreaterThan(10);
   }
 

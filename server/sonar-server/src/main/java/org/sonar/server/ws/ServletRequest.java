@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,10 +25,12 @@ import com.google.common.net.HttpHeaders;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import javax.annotation.CheckForNull;
 import javax.servlet.http.HttpServletRequest;
 import org.sonar.api.server.ws.internal.PartImpl;
 import org.sonar.api.server.ws.internal.ValidatingRequest;
+import org.sonar.api.utils.log.Loggers;
 import org.sonarqube.ws.MediaTypes;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
@@ -99,7 +101,8 @@ public class ServletRequest extends ValidatingRequest {
       }
       return new PartImpl(part.getInputStream(), part.getSubmittedFileName());
     } catch (Exception e) {
-      throw new IllegalStateException("Can't read file part", e);
+      Loggers.get(ServletRequest.class).warn("Can't read file part for parameter " + key, e);
+      return null;
     }
   }
 
@@ -134,4 +137,8 @@ public class ServletRequest extends ValidatingRequest {
     return source.getRequestURI().replaceFirst(source.getContextPath(), "");
   }
 
+  @Override
+  public Optional<String> header(String name) {
+    return Optional.ofNullable(source.getHeader(name));
+  }
 }

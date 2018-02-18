@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -28,7 +28,7 @@ import org.sonar.db.component.ComponentDto;
 import org.sonar.db.component.SnapshotDto;
 import org.sonar.db.organization.OrganizationDto;
 import org.sonar.server.project.Visibility;
-import org.sonarqube.ws.WsComponents;
+import org.sonarqube.ws.Components;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Strings.emptyToNull;
@@ -40,13 +40,13 @@ class ComponentDtoToWsComponent {
   /**
    * The concept of "visibility" will only be configured for these qualifiers.
    */
-  private static final Set<String> QUALIFIERS_WITH_VISIBILITY = ImmutableSet.of(Qualifiers.PROJECT, Qualifiers.VIEW);
+  private static final Set<String> QUALIFIERS_WITH_VISIBILITY = ImmutableSet.of(Qualifiers.PROJECT, Qualifiers.VIEW, Qualifiers.APP);
 
   private ComponentDtoToWsComponent() {
     // prevent instantiation
   }
 
-  static WsComponents.Component.Builder componentDtoToWsComponent(ComponentDto dto, OrganizationDto organizationDto, Optional<SnapshotDto> lastAnalysis) {
+  static Components.Component.Builder componentDtoToWsComponent(ComponentDto dto, OrganizationDto organizationDto, Optional<SnapshotDto> lastAnalysis) {
     checkArgument(
       Objects.equals(dto.getOrganizationUuid(), organizationDto.getUuid()),
       "OrganizationUuid (%s) of ComponentDto to convert to Ws Component is not the same as the one (%s) of the specified OrganizationDto",
@@ -54,13 +54,14 @@ class ComponentDtoToWsComponent {
     return componentDtoToWsComponent(dto, organizationDto.getKey(), lastAnalysis);
   }
 
-  private static WsComponents.Component.Builder componentDtoToWsComponent(ComponentDto dto, String organizationDtoKey, Optional<SnapshotDto> lastAnalysis) {
-    WsComponents.Component.Builder wsComponent = WsComponents.Component.newBuilder()
+  private static Components.Component.Builder componentDtoToWsComponent(ComponentDto dto, String organizationDtoKey, Optional<SnapshotDto> lastAnalysis) {
+    Components.Component.Builder wsComponent = Components.Component.newBuilder()
       .setOrganization(organizationDtoKey)
       .setId(dto.uuid())
-      .setKey(dto.key())
+      .setKey(dto.getKey())
       .setName(dto.name())
       .setQualifier(dto.qualifier());
+    setNullable(emptyToNull(dto.getBranch()), wsComponent::setBranch);
     setNullable(emptyToNull(dto.path()), wsComponent::setPath);
     setNullable(emptyToNull(dto.description()), wsComponent::setDescription);
     setNullable(emptyToNull(dto.language()), wsComponent::setLanguage);
@@ -69,6 +70,7 @@ class ComponentDtoToWsComponent {
       analysis -> {
         wsComponent.setAnalysisDate(formatDateTime(analysis.getCreatedAt()));
         setNullable(analysis.getPeriodDate(), leak -> wsComponent.setLeakPeriodDate(formatDateTime(leak)));
+        setNullable(analysis.getVersion(), wsComponent::setVersion);
       });
     if (QUALIFIERS_WITH_VISIBILITY.contains(dto.qualifier())) {
       wsComponent.setVisibility(Visibility.getLabel(dto.isPrivate()));
@@ -76,7 +78,7 @@ class ComponentDtoToWsComponent {
     return wsComponent;
   }
 
-  private static void setTags(ComponentDto dto, WsComponents.Component.Builder wsComponent) {
+  private static void setTags(ComponentDto dto, Components.Component.Builder wsComponent) {
     if (Qualifiers.PROJECT.equals(dto.qualifier())) {
       wsComponent.getTagsBuilder().addAllTags(dto.getTags());
     }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -33,12 +33,12 @@ import AboutStandards from './AboutStandards';
 import AboutScanners from './AboutScanners';
 import { searchProjects } from '../../../api/components';
 import { getFacet } from '../../../api/issues';
-import { getAppState, getCurrentUser, getSettingValue } from '../../../store/rootReducer';
+import { getAppState, getCurrentUser, getGlobalSettingValue } from '../../../store/rootReducer';
 import { translate } from '../../../helpers/l10n';
 import { fetchAboutPageSettings } from '../actions';
-import AboutAppForSonarQubeDotComLazyLoader from './AboutAppForSonarQubeDotComLazyLoader';
 import '../styles.css';
 
+/*::
 type State = {
   loading: boolean,
   projectsCount: number,
@@ -48,11 +48,12 @@ type State = {
     }
   }
 };
+*/
 
 class AboutApp extends React.PureComponent {
-  mounted: boolean;
+  /*:: mounted: boolean; */
 
-  props: {
+  /*:: props: {
     appState: {
       defaultOrganization: string,
       organizationsEnabled: boolean
@@ -60,21 +61,30 @@ class AboutApp extends React.PureComponent {
     currentUser: { isLoggedIn: boolean },
     customText?: string,
     fetchAboutPageSettings: () => Promise<*>,
-    sonarqubeDotCom?: { value: string }
+    onSonarCloud?: { value: string }
   };
+*/
 
-  state: State = {
+  state /*: State */ = {
     loading: true,
     projectsCount: 0
   };
 
   componentDidMount() {
     this.mounted = true;
-    this.loadData();
+    if (this.props.onSonarCloud && this.props.onSonarCloud.value === 'true') {
+      window.location = 'https://about.sonarcloud.io';
+    } else {
+      this.loadData();
+      // $FlowFixMe
+      document.body.classList.add('white-page');
+    }
   }
 
   componentWillUnmount() {
     this.mounted = false;
+    // $FlowFixMe
+    document.body.classList.remove('white-page');
   }
 
   loadProjects() {
@@ -104,8 +114,12 @@ class AboutApp extends React.PureComponent {
   }
 
   render() {
-    const { customText, sonarqubeDotCom } = this.props;
+    const { customText, onSonarCloud } = this.props;
     const { loading, issueTypes, projectsCount } = this.state;
+
+    if (onSonarCloud && onSonarCloud.value === 'true') {
+      return null;
+    }
 
     let bugs;
     let vulnerabilities;
@@ -116,83 +130,66 @@ class AboutApp extends React.PureComponent {
       codeSmells = issueTypes['CODE_SMELL'] && issueTypes['CODE_SMELL'].count;
     }
 
-    if (sonarqubeDotCom && sonarqubeDotCom.value === 'true') {
-      return (
-        <AboutAppForSonarQubeDotComLazyLoader
-          appState={this.props.appState}
-          bugs={bugs}
-          codeSmells={codeSmells}
-          currentUser={this.props.currentUser}
-          customText={customText}
-          loading={loading}
-          projectsCount={projectsCount}
-          vulnerabilities={vulnerabilities}
-        />
-      );
-    }
-
     return (
-      <div id="about-page" className="about-page">
-        <div className="about-page-container">
-          <div className="about-page-entry">
-            <div className="about-page-intro">
-              <h1 className="big-spacer-bottom">
-                {translate('layout.sonar.slogan')}
-              </h1>
-              {!this.props.currentUser.isLoggedIn &&
-                <Link to="/sessions/new" className="button button-active big-spacer-right">
-                  {translate('layout.login')}
-                </Link>}
-              <a
-                className="button"
-                href="https://redirect.sonarsource.com/doc/home.html"
-                target="_blank">
-                {translate('about_page.read_documentation')}
-              </a>
-            </div>
-
-            <div className="about-page-instance">
-              <AboutProjects count={projectsCount} loading={loading} />
-              <EntryIssueTypes
-                bugs={bugs}
-                codeSmells={codeSmells}
-                loading={loading}
-                vulnerabilities={vulnerabilities}
-              />
-            </div>
+      <div id="about-page" className="page page-limited about-page">
+        <div className="about-page-entry">
+          <div className="about-page-intro">
+            <h1 className="big-spacer-bottom">{translate('layout.sonar.slogan')}</h1>
+            {!this.props.currentUser.isLoggedIn && (
+              <Link to="/sessions/new" className="button button-active big-spacer-right">
+                {translate('layout.login')}
+              </Link>
+            )}
+            <a
+              className="button"
+              href="https://redirect.sonarsource.com/doc/home.html"
+              target="_blank">
+              {translate('about_page.read_documentation')}
+            </a>
           </div>
 
-          {customText != null &&
-            customText.value &&
+          <div className="about-page-instance">
+            <AboutProjects count={projectsCount} loading={loading} />
+            <EntryIssueTypes
+              bugs={bugs}
+              codeSmells={codeSmells}
+              loading={loading}
+              vulnerabilities={vulnerabilities}
+            />
+          </div>
+        </div>
+
+        {customText != null &&
+          customText.value && (
             <div
               className="about-page-section"
               dangerouslySetInnerHTML={{ __html: customText.value }}
-            />}
+            />
+          )}
 
-          <AboutLanguages />
+        <AboutLanguages />
 
-          <AboutQualityModel />
+        <AboutQualityModel />
 
-          <div className="flex-columns">
-            <div className="flex-column flex-column-half about-page-group-boxes">
-              <AboutCleanCode />
-            </div>
-            <div className="flex-column flex-column-half about-page-group-boxes">
-              <AboutLeakPeriod />
-            </div>
+        <div className="flex-columns">
+          <div className="flex-column flex-column-half about-page-group-boxes">
+            <AboutCleanCode />
           </div>
-
-          <div className="flex-columns">
-            <div className="flex-column flex-column-half about-page-group-boxes">
-              <AboutQualityGates />
-            </div>
-            <div className="flex-column flex-column-half about-page-group-boxes">
-              <AboutStandards appState={this.props.appState} />
-            </div>
+          <div className="flex-column flex-column-half about-page-group-boxes">
+            <AboutLeakPeriod />
           </div>
-
-          <AboutScanners />
         </div>
+
+        <div className="flex-columns">
+          <div className="flex-column flex-column-half about-page-group-boxes">
+            <AboutQualityGates />
+          </div>
+          <div className="flex-column flex-column-half about-page-group-boxes">
+            <AboutStandards appState={this.props.appState} />
+          </div>
+        </div>
+
+        <AboutScanners />
       </div>
     );
   }
@@ -201,8 +198,8 @@ class AboutApp extends React.PureComponent {
 const mapStateToProps = state => ({
   appState: getAppState(state),
   currentUser: getCurrentUser(state),
-  customText: getSettingValue(state, 'sonar.lf.aboutText'),
-  sonarqubeDotCom: getSettingValue(state, 'sonar.lf.sonarqube.com.enabled')
+  customText: getGlobalSettingValue(state, 'sonar.lf.aboutText'),
+  onSonarCloud: getGlobalSettingValue(state, 'sonar.sonarcloud.enabled')
 });
 
 const mapDispatchToProps = { fetchAboutPageSettings };

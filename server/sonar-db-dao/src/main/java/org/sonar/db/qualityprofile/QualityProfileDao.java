@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -38,6 +38,7 @@ import org.sonar.db.component.ComponentDto;
 import org.sonar.db.organization.OrganizationDto;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static java.util.Collections.emptyList;
 import static org.sonar.db.DatabaseUtils.executeLargeInputs;
 import static org.sonar.db.DatabaseUtils.executeLargeUpdates;
 
@@ -127,7 +128,7 @@ public class QualityProfileDao implements Dao {
   }
 
   public List<QProfileDto> selectDefaultProfiles(DbSession dbSession, OrganizationDto organization, Collection<String> languages) {
-    return mapper(dbSession).selectDefaultProfiles(organization.getUuid(), languages);
+    return executeLargeInputs(languages, partition -> mapper(dbSession).selectDefaultProfiles(organization.getUuid(), partition));
   }
 
   @CheckForNull
@@ -141,26 +142,28 @@ public class QualityProfileDao implements Dao {
   }
 
   public List<QProfileDto> selectAssociatedToProjectUuidAndLanguages(DbSession dbSession, ComponentDto project, Collection<String> languages) {
-    return mapper(dbSession).selectAssociatedToProjectUuidAndLanguages(project.getOrganizationUuid(), project.uuid(), languages);
+    return executeLargeInputs(languages, partition -> mapper(dbSession).selectAssociatedToProjectUuidAndLanguages(project.getOrganizationUuid(), project.uuid(), partition));
   }
 
   public List<QProfileDto> selectByLanguage(DbSession dbSession, OrganizationDto organization, String language) {
     return mapper(dbSession).selectByLanguage(organization.getUuid(), language);
   }
 
-  public List<QProfileDto> selectChildren(DbSession dbSession, QProfileDto profile) {
-    return mapper(dbSession).selectChildren(profile.getKee());
+  public List<QProfileDto> selectChildren(DbSession dbSession, Collection<QProfileDto> profiles) {
+    List<String> uuids = profiles.stream().map(QProfileDto::getKee).collect(MoreCollectors.toArrayList(profiles.size()));
+    return DatabaseUtils.executeLargeInputs(uuids, chunk -> mapper(dbSession).selectChildren(chunk));
   }
 
   /**
-   * All descendants, in the top-down order.
+   * All descendants, in any order. The specified profiles are not included into results.
    */
-  public List<QProfileDto> selectDescendants(DbSession dbSession, QProfileDto profile) {
-    List<QProfileDto> descendants = new ArrayList<>();
-    for (QProfileDto child : selectChildren(dbSession, profile)) {
-      descendants.add(child);
-      descendants.addAll(selectDescendants(dbSession, child));
+  public Collection<QProfileDto> selectDescendants(DbSession dbSession, Collection<QProfileDto> profiles) {
+    if (profiles.isEmpty()) {
+      return emptyList();
     }
+    Collection<QProfileDto> children = selectChildren(dbSession, profiles);
+    List<QProfileDto> descendants = new ArrayList<>(children);
+    descendants.addAll(selectDescendants(dbSession, children));
     return descendants;
   }
 
@@ -233,8 +236,8 @@ public class QualityProfileDao implements Dao {
     DatabaseUtils.executeLargeUpdates(rulesProfileUuids, mapper::deleteRuleProfilesByUuids);
   }
 
-  public List<QProfileDto> selectChildrenOfBuiltInRulesProfile(DbSession dbSession, RulesProfileDto rulesProfile) {
-    return mapper(dbSession).selectChildrenOfBuiltInRulesProfile(rulesProfile.getKee());
+  public List<QProfileDto> selectQProfilesByRuleProfile(DbSession dbSession, RulesProfileDto rulesProfile) {
+    return mapper(dbSession).selectQProfilesByRuleProfileUuid(rulesProfile.getKee());
   }
 
   private static String sqlQueryString(@Nullable String query) {

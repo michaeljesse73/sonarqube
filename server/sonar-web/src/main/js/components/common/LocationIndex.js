@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,19 +22,25 @@ import React from 'react';
 import classNames from 'classnames';
 import './LocationIndex.css';
 
+/*::
 type Props = {
   children?: React.Element<*>,
+  leading?: boolean,
   onClick?: () => void,
   selected?: boolean
 };
+*/
 
-export default function LocationIndex(props: Props) {
-  const { children, onClick, selected, ...other } = props;
+export default function LocationIndex(props /*: Props */) {
+  const { children, leading, onClick, selected, ...other } = props;
   const clickAttributes = onClick ? { onClick, role: 'button', tabIndex: 0 } : {};
 
   // put {...others} because Tooltip sets some event handlers
   return (
-    <div className={classNames('location-index', { selected })} {...clickAttributes} {...other}>
+    <div
+      className={classNames('location-index', { 'is-leading': leading, selected })}
+      {...clickAttributes}
+      {...other}>
       {children}
     </div>
   );

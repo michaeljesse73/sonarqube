@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -30,10 +30,12 @@ const languages = [
   { name: 'HTML', url: 'https://redirect.sonarsource.com/plugins/web.html' },
   { name: 'RPG', url: 'https://redirect.sonarsource.com/plugins/rpg.html' },
   { name: 'JavaScript', url: 'https://redirect.sonarsource.com/plugins/javascript.html' },
+  { name: 'TypeScript', url: 'https://redirect.sonarsource.com/plugins/typescript.html' },
   { name: 'Objective C', url: 'https://redirect.sonarsource.com/plugins/objectivec.html' },
   { name: 'XML', url: 'https://redirect.sonarsource.com/plugins/xml.html' },
   { name: 'VB.NET', url: 'https://redirect.sonarsource.com/plugins/vbnet.html' },
   { name: 'PL/SQL', url: 'https://redirect.sonarsource.com/plugins/plsql.html' },
+  { name: 'T-SQL', url: 'https://redirect.sonarsource.com/plugins/tsql.html' },
   { name: 'Flex', url: 'https://redirect.sonarsource.com/plugins/flex.html' },
   { name: 'Python', url: 'https://redirect.sonarsource.com/plugins/python.html' },
   { name: 'Groovy', url: 'https://redirect.sonarsource.com/plugins/groovy.html' },
@@ -56,8 +58,9 @@ export default function AboutLanguages() {
             <li key={index}>
               <a href={languages[index].url}>{languages[index].name}</a>
               <br />
-              {index + half < languages.length &&
-                <a href={languages[index + half].url}>{languages[index + half].name}</a>}
+              {index + half < languages.length && (
+                <a href={languages[index + half].url}>{languages[index + half].name}</a>
+              )}
             </li>
           ))}
         </ul>

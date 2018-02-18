@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,9 +24,9 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import javax.annotation.CheckForNull;
 import javax.annotation.concurrent.Immutable;
-
 import org.apache.commons.io.FilenameUtils;
 import org.sonar.api.batch.ScannerSide;
 import org.sonar.api.utils.PathUtils;
@@ -91,6 +91,28 @@ public class PathResolver {
       return FilenameUtils.separatorsToUnix(relativized.toString());
     } catch (IllegalArgumentException e) {
       return null;
+    }
+  }
+
+  /**
+   * Similar to {@link Path#relativize(Path)} except that:
+   *   <ul>
+   *   <li>Empty is returned if file is not a child of dir
+   *   <li>the resulting path is converted to use Unix separators
+   *   </ul> 
+   * @since 6.6
+   */
+  public static Optional<String> relativize(Path dir, Path file) {
+    Path baseDir = dir.normalize();
+    Path path = file.normalize();
+    if (!path.startsWith(baseDir)) {
+      return Optional.empty();
+    }
+    try {
+      Path relativized = baseDir.relativize(path);
+      return Optional.of(FilenameUtils.separatorsToUnix(relativized.toString()));
+    } catch (IllegalArgumentException e) {
+      return Optional.empty();
     }
   }
 

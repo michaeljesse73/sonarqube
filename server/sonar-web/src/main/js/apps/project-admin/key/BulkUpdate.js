@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,26 +18,27 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import React from 'react';
+import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 import BulkUpdateForm from './BulkUpdateForm';
 import BulkUpdateResults from './BulkUpdateResults';
+import { reloadUpdateKeyPage } from './utils';
 import { translate, translateWithParameters } from '../../../helpers/l10n';
 import { bulkChangeKey } from '../../../api/components';
-import { parseError } from '../../code/utils';
+import { parseError } from '../../../helpers/request';
 import {
   addGlobalErrorMessage,
   addGlobalSuccessMessage,
   closeAllGlobalMessages
 } from '../../../store/globalMessages/duck';
-import { reloadUpdateKeyPage } from './utils';
 import RecentHistory from '../../../app/components/RecentHistory';
 
 class BulkUpdate extends React.PureComponent {
   static propTypes = {
-    component: React.PropTypes.object.isRequired,
-    addGlobalErrorMessage: React.PropTypes.func.isRequired,
-    addGlobalSuccessMessage: React.PropTypes.func.isRequired,
-    closeAllGlobalMessages: React.PropTypes.func.isRequired
+    component: PropTypes.object.isRequired,
+    addGlobalErrorMessage: PropTypes.func.isRequired,
+    addGlobalSuccessMessage: PropTypes.func.isRequired,
+    closeAllGlobalMessages: PropTypes.func.isRequired
   };
 
   state = {
@@ -112,9 +113,7 @@ class BulkUpdate extends React.PureComponent {
     return (
       <div id="project-key-bulk-update">
         <header className="big-spacer-bottom">
-          <div className="spacer-bottom">
-            {translate('update_key.bulk_change_description')}
-          </div>
+          <div className="spacer-bottom">{translate('update_key.bulk_change_description')}</div>
           <div>
             {translateWithParameters(
               'update_key.current_key_for_project_x_is_x',
@@ -126,13 +125,14 @@ class BulkUpdate extends React.PureComponent {
 
         <BulkUpdateForm onSubmit={this.handleSubmit.bind(this)} />
 
-        {results != null &&
+        {results != null && (
           <BulkUpdateResults
             results={results}
             replace={replace}
             by={by}
             onConfirm={this.handleConfirm.bind(this)}
-          />}
+          />
+        )}
       </div>
     );
   }

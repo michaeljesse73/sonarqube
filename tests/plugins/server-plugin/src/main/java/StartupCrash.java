@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -17,12 +17,12 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
+import org.sonar.api.Startable;
 import org.sonar.api.config.Settings;
 import org.sonar.api.server.ServerSide;
 
-
 @ServerSide
-public class StartupCrash {
+public class StartupCrash implements Startable {
 
   private final Settings settings;
 
@@ -30,13 +30,15 @@ public class StartupCrash {
     this.settings = settings;
   }
 
+  @Override
   public void start() {
     if (settings.getBoolean("failAtStartup")) {
       throw new IllegalStateException("Error in plugin [server]");
     }
   }
 
+  @Override
   public void stop() {
-
+    // do nothing
   }
 }

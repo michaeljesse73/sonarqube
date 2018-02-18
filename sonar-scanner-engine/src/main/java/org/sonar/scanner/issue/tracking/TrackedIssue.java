@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -180,6 +180,11 @@ public class TrackedIssue implements Trackable, Serializable {
     return ruleKey;
   }
 
+  @Override
+  public String getStatus() {
+    return status;
+  }
+
   public String severity() {
     return severity;
   }
@@ -227,9 +232,9 @@ public class TrackedIssue implements Trackable, Serializable {
 
   @Override
   public int hashCode() {
-    final int prime = 31;
+    final int PRIME = 31;
     int result = 1;
-    result = prime * result + ((key == null) ? 0 : key.hashCode());
+    result = PRIME * result + ((key == null) ? 0 : key.hashCode());
     return result;
   }
 

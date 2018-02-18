@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,9 +19,7 @@
  */
 package org.sonar.server.component;
 
-import java.util.Collection;
 import java.util.List;
-import org.sonar.api.ce.ComputeEngineSide;
 import org.sonar.api.resources.ResourceType;
 import org.sonar.api.resources.ResourceTypes;
 import org.sonar.api.resources.Scopes;
@@ -30,21 +28,22 @@ import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
 import org.sonar.db.component.ComponentDto;
 import org.sonar.server.es.ProjectIndexer;
+import org.sonar.server.es.ProjectIndexers;
 
-import static java.util.Arrays.asList;
+import static com.google.common.base.Preconditions.checkArgument;
+import static java.util.Collections.singletonList;
 
 @ServerSide
-@ComputeEngineSide
 public class ComponentCleanerService {
 
   private final DbClient dbClient;
   private final ResourceTypes resourceTypes;
-  private final Collection<ProjectIndexer> projectIndexers;
+  private final ProjectIndexers projectIndexers;
 
-  public ComponentCleanerService(DbClient dbClient, ResourceTypes resourceTypes, ProjectIndexer... projectIndexers) {
+  public ComponentCleanerService(DbClient dbClient, ResourceTypes resourceTypes, ProjectIndexers projectIndexers) {
     this.dbClient = dbClient;
     this.resourceTypes = resourceTypes;
-    this.projectIndexers = asList(projectIndexers);
+    this.projectIndexers = projectIndexers;
   }
 
   public void delete(DbSession dbSession, List<ComponentDto> projects) {
@@ -53,18 +52,17 @@ public class ComponentCleanerService {
     }
   }
 
-  public void delete(DbSession dbSession, ComponentDto project) {
-    if (hasNotProjectScope(project) || isNotDeletable(project)) {
-      throw new IllegalArgumentException("Only projects can be deleted");
-    }
-    dbClient.purgeDao().deleteRootComponent(dbSession, project.uuid());
-    dbSession.commit();
-
-    deleteFromIndices(project.uuid());
+  public void deleteBranch(DbSession dbSession, ComponentDto branch) {
+    // TODO: detect if other branches depend on it?
+    dbClient.purgeDao().deleteBranch(dbSession, branch.uuid());
+    projectIndexers.commitAndIndex(dbSession, singletonList(branch), ProjectIndexer.Cause.PROJECT_DELETION);
   }
 
-  private void deleteFromIndices(String projectUuid) {
-    projectIndexers.forEach(i -> i.deleteProject(projectUuid));
+  public void delete(DbSession dbSession, ComponentDto project) {
+    checkArgument(!hasNotProjectScope(project) && !isNotDeletable(project) && project.getMainBranchProjectUuid() == null, "Only projects can be deleted");
+    dbClient.purgeDao().deleteProject(dbSession, project.uuid());
+    dbClient.userDao().cleanHomepage(dbSession, project);
+    projectIndexers.commitAndIndex(dbSession, singletonList(project), ProjectIndexer.Cause.PROJECT_DELETION);
   }
 
   private static boolean hasNotProjectScope(ComponentDto project) {

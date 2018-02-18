@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -33,7 +33,7 @@ public class OrganizationsWsModuleTest {
     ComponentContainer container = new ComponentContainer();
     underTest.configure(container);
     assertThat(container.getPicoContainer().getComponentAdapters())
-      .hasSize(COMPONENTS_IN_EMPTY_COMPONENT_CONTAINER + 12);
+      .hasSize(COMPONENTS_IN_EMPTY_COMPONENT_CONTAINER + 11);
   }
 
 }

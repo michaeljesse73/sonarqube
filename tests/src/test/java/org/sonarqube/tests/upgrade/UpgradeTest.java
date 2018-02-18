@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -31,32 +31,33 @@ import java.io.File;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.util.Arrays;
-import java.util.Collections;
 import org.apache.commons.io.IOUtils;
 import org.junit.After;
 import org.junit.Test;
-import org.sonar.wsclient.services.ResourceQuery;
-import org.sonarqube.ws.WsMeasures.Measure;
+import org.sonarqube.qa.util.SelenideConfig;
+import org.sonarqube.ws.Measures;
+import org.sonarqube.ws.Measures.Measure;
+import org.sonarqube.ws.MediaTypes;
+import org.sonarqube.ws.client.BaseService;
 import org.sonarqube.ws.client.GetRequest;
 import org.sonarqube.ws.client.HttpConnector;
+import org.sonarqube.ws.client.PostRequest;
 import org.sonarqube.ws.client.WsClient;
 import org.sonarqube.ws.client.WsClientFactories;
 import org.sonarqube.ws.client.WsResponse;
-import org.sonarqube.ws.client.measure.ComponentWsRequest;
+import org.sonarqube.ws.client.measures.ComponentRequest;
 
 import static com.codeborne.selenide.Condition.hasText;
 import static com.codeborne.selenide.Selenide.$;
 import static java.lang.Integer.parseInt;
+import static java.util.Collections.singletonList;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class UpgradeTest {
 
   private static final String PROJECT_KEY = "org.apache.struts:struts-parent";
   private static final String LATEST_JAVA_RELEASE = "LATEST_RELEASE";
-  private static final Version VERSION_5_2 = Version.create("5.2");
-  private static final Version VERSION_5_6_1 = Version.create("5.6.1");
-  private static final Version VERSION_CURRENT = Version.create("DEV");
+  private static final Version DEV_VERSION = Version.create("DEV");
 
   private Orchestrator orchestrator;
 
@@ -70,52 +71,26 @@ public class UpgradeTest {
 
   @Test
   public void test_upgrade_from_5_6_1() {
-    testDatabaseUpgrade(VERSION_5_6_1);
+    testDatabaseUpgrade(Version.create("5.6.1"));
   }
 
-  @Test
-  public void test_upgrade_from_5_2_via_5_6_1() {
-    testDatabaseUpgrade(VERSION_5_2, VERSION_5_6_1);
-  }
-
-  private void testDatabaseUpgrade(Version fromVersion, Version... intermediaryVersions) {
+  private void testDatabaseUpgrade(Version fromVersion) {
     startOldVersionServer(fromVersion, false);
     scanProject();
-    int files = countFiles(PROJECT_KEY);
+    int files = countFilesOld(PROJECT_KEY);
     assertThat(files).isGreaterThan(0);
     stopServer();
 
-    Arrays.stream(intermediaryVersions).forEach((sqVersion) -> {
-      startOldVersionServer(sqVersion, true);
-      upgrade(sqVersion);
-      verifyAnalysis(files);
-      stopServer();
-    });
-
-    startDevServer();
-    upgrade(VERSION_CURRENT);
+    startAndUpgradeDevServer();
     verifyAnalysis(files);
     stopServer();
   }
 
   private void verifyAnalysis(int expectedNumberOfFiles) {
-    assertThat(countFiles(PROJECT_KEY)).isEqualTo(expectedNumberOfFiles);
+    assertThat(countFilesNew(PROJECT_KEY)).isEqualTo(expectedNumberOfFiles);
     scanProject();
-    assertThat(countFiles(PROJECT_KEY)).isEqualTo(expectedNumberOfFiles);
+    assertThat(countFilesNew(PROJECT_KEY)).isEqualTo(expectedNumberOfFiles);
     browseWebapp();
-  }
-
-  private void upgrade(Version sqVersion) {
-    checkSystemStatus(sqVersion, ServerStatusResponse.Status.DB_MIGRATION_NEEDED);
-    if (sqVersion.equals(VERSION_CURRENT)) {
-      checkUrlsBeforeUpgrade();
-    }
-    ServerMigrationResponse serverMigrationResponse = new ServerMigrationCall(orchestrator).callAndWait();
-    assertThat(serverMigrationResponse.getStatus())
-      .describedAs("Migration status of version " + sqVersion + " should be MIGRATION_SUCCEEDED")
-      .isEqualTo(ServerMigrationResponse.Status.MIGRATION_SUCCEEDED);
-    checkSystemStatus(sqVersion, ServerStatusResponse.Status.UP);
-    checkUrlsAfterUpgrade();
   }
 
   private void checkSystemStatus(Version sqVersion, ServerStatusResponse.Status serverStatus) {
@@ -185,7 +160,7 @@ public class UpgradeTest {
     initSelenide(orchestrator);
   }
 
-  private void startDevServer() {
+  private void startAndUpgradeDevServer() {
     OrchestratorBuilder builder = Orchestrator.builderEnv()
       .setZipFile(FileLocation.byWildcardMavenFilename(new File("../sonar-application/target"), "sonar*.zip").getFile())
       .setOrchestratorProperty("orchestrator.keepDatabase", "true")
@@ -195,6 +170,15 @@ public class UpgradeTest {
     orchestrator = builder.build();
     orchestrator.start();
     initSelenide(orchestrator);
+
+    checkSystemStatus(DEV_VERSION, ServerStatusResponse.Status.DB_MIGRATION_NEEDED);
+    checkUrlsBeforeUpgrade();
+    ServerMigrationResponse serverMigrationResponse = new ServerMigrationCall(orchestrator).callAndWait();
+    assertThat(serverMigrationResponse.getStatus())
+      .describedAs("Migration status should be MIGRATION_SUCCEEDED")
+      .isEqualTo(ServerMigrationResponse.Status.MIGRATION_SUCCEEDED);
+    checkSystemStatus(DEV_VERSION, ServerStatusResponse.Status.UP);
+    checkUrlsAfterUpgrade();
   }
 
   private void stopServer() {
@@ -205,22 +189,33 @@ public class UpgradeTest {
 
   private void scanProject() {
     MavenBuild build = MavenBuild.create(new File("projects/struts-1.3.9-diet/pom.xml"))
-      .setCleanSonarGoals()
-      // exclude pom.xml, otherwise it will be published in SQ 6.3+ and not in previous versions, resulting in a different number of components
+      // force version of Maven scanner because recent releases do not support SonarQube versions
+      // lower than 5.6.
+      .setGoals("clean package", "org.sonarsource.scanner.maven:sonar-maven-plugin:3.3.0.603:sonar")
+      // exclude pom.xml, otherwise it will be published in SQ 6.3+ and not in previous versions, resulting in a different number of
+      // components
       .setProperty("sonar.exclusions", "**/pom.xml")
-      .setProperty("sonar.dynamicAnalysis", "false")
       .setProperty("sonar.scm.disabled", "true")
       .setProperty("sonar.cpd.cross_project", "true");
     orchestrator.executeBuild(build);
   }
 
-  private int countFiles(String key) {
-    if (orchestrator.getConfiguration().getSonarVersion().isGreaterThanOrEquals("5.4")) {
-      Measure measure = newWsClient(orchestrator).measures().component(new ComponentWsRequest().setComponentKey(key).setMetricKeys(Collections.singletonList("files")))
-        .getComponent().getMeasures(0);
-      return parseInt(measure.getValue());
-    }
-    return orchestrator.getServer().getWsClient().find(ResourceQuery.createForMetrics(key, "files")).getMeasureIntValue("files");
+  private int countFilesOld(String key) {
+    PostRequest httpRequest = new PostRequest("api/measures/component")
+      .setParam("componentKey", key)
+      .setParam("metricKeys", singletonList("files"))
+      .setMediaType(MediaTypes.PROTOBUF);
+    WsResponse response = HttpConnector.newBuilder()
+      .url(orchestrator.getServer().getUrl())
+      .build().call(httpRequest);
+    Measure measure = BaseService.convert(response, Measures.ComponentWsResponse.parser()).getComponent().getMeasures(0);
+    return parseInt(measure.getValue());
+  }
+
+  private int countFilesNew(String key) {
+    Measure measure = newWsClient(orchestrator).measures().component(new ComponentRequest().setComponent(key).setMetricKeys(singletonList("files")))
+      .getComponent().getMeasures(0);
+    return parseInt(measure.getValue());
   }
 
   private void testUrl(String path) {
@@ -267,10 +262,7 @@ public class UpgradeTest {
   }
 
   private static void initSelenide(Orchestrator orchestrator) {
-    String browser = orchestrator.getConfiguration().getString("orchestrator.browser", "firefox");
-    SelenideConfig.INSTANCE
-      .setBrowser(browser)
-      .setBaseUrl(orchestrator.getServer().getUrl());
+    SelenideConfig.configure(orchestrator);
     WebDriverRunner.getWebDriver().manage().deleteAllCookies();
   }
 

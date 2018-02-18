@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -30,6 +30,6 @@ public class JavascriptCheck implements Check {
     validation.mustHaveComments(SRC_DIR);
     validation.mustHaveComplexity(SRC_DIR);
     validation.mustHaveIssues(SRC_DIR + "/HasIssues.js");
-    validation.mustHaveMeasuresGreaterThan(SRC_DIR + "/Person.js", 0, "coverage");
+    validation.mustHaveMeasuresGreaterThanOrEquals(SRC_DIR + "/Person.js", 0, "coverage");
   }
 }

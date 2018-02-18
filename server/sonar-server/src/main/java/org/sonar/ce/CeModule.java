@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,7 +19,7 @@
  */
 package org.sonar.ce;
 
-import org.sonar.ce.http.CeHttpClient;
+import org.sonar.ce.http.CeHttpClientImpl;
 import org.sonar.ce.log.CeLogging;
 import org.sonar.ce.queue.CeQueueImpl;
 import org.sonar.ce.taskprocessor.ReportTaskProcessorDeclaration;
@@ -30,7 +30,7 @@ public class CeModule extends Module {
   @Override
   protected void configureModule() {
     add(CeLogging.class,
-      CeHttpClient.class,
+      CeHttpClientImpl.class,
 
       // Queue
       CeQueueImpl.class,

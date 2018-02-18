@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,7 +19,6 @@
  */
 package org.sonar.server.computation.task.projectanalysis.batch;
 
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -27,6 +26,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 import org.junit.rules.TestRule;
@@ -204,7 +204,7 @@ public class BatchReportReaderRule implements TestRule, BatchReportReader {
   }
 
   private static <T> CloseableIterator<T> closeableIterator(@Nullable List<T> list) {
-    return list == null ? CloseableIterator.<T>emptyCloseableIterator() : CloseableIterator.from(list.iterator());
+    return list == null ? CloseableIterator.emptyCloseableIterator() : CloseableIterator.from(list.iterator());
   }
 
   public BatchReportReaderRule putSymbols(int componentRef, List<ScannerReport.Symbol> symbols) {
@@ -246,7 +246,7 @@ public class BatchReportReaderRule implements TestRule, BatchReportReader {
   public Optional<CloseableIterator<String>> readFileSource(int fileRef) {
     List<String> lines = fileSources.get(fileRef);
     if (lines == null) {
-      return Optional.absent();
+      return Optional.empty();
     }
 
     return Optional.of(CloseableIterator.from(lines.iterator()));

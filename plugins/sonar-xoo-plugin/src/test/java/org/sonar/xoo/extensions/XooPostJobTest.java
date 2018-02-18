@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -41,8 +41,8 @@ public class XooPostJobTest {
   public void increaseCoverage() {
     new XooPostJob().describe(new DefaultPostJobDescriptor());
     PostJobContext context = mock(PostJobContext.class);
-    when(context.issues()).thenReturn(Arrays.<PostJobIssue>asList());
-    when(context.resolvedIssues()).thenReturn(Arrays.<PostJobIssue>asList());
+    when(context.issues()).thenReturn(Arrays.asList());
+    when(context.resolvedIssues()).thenReturn(Arrays.asList());
     new XooPostJob().execute(context);
     assertThat(logTester.logs()).contains("Resolved issues: 0", "Open issues: 0");
   }

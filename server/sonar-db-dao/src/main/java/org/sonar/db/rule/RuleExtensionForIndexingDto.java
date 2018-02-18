@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -17,7 +17,6 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-
 package org.sonar.db.rule;
 
 import com.google.common.base.Splitter;
@@ -29,6 +28,7 @@ public class RuleExtensionForIndexingDto {
 
   private static final Splitter TAGS_SPLITTER = Splitter.on(',').trimResults().omitEmptyStrings();
 
+  private int ruleId;
   private String pluginName;
   private String pluginRuleKey;
   private String organizationUuid;
@@ -50,6 +50,14 @@ public class RuleExtensionForIndexingDto {
   public RuleExtensionForIndexingDto setPluginRuleKey(String pluginRuleKey) {
     this.pluginRuleKey = pluginRuleKey;
     return this;
+  }
+
+  public int getRuleId() {
+    return ruleId;
+  }
+
+  public void setRuleId(int ruleId) {
+    this.ruleId = ruleId;
   }
 
   public String getOrganizationUuid() {

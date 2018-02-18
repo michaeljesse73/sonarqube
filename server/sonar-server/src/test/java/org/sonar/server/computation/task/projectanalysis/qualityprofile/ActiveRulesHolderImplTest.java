@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -32,9 +32,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 public class ActiveRulesHolderImplTest {
 
+  private static final String PLUGIN_KEY = "java";
+
   private static final long SOME_DATE = 1_000L;
 
-  static final RuleKey RULE_KEY = RuleKey.of("java", "S001");
+  static final RuleKey RULE_KEY = RuleKey.of("squid", "S001");
 
   @Rule
   public ExpectedException thrown = ExpectedException.none();
@@ -42,15 +44,15 @@ public class ActiveRulesHolderImplTest {
   ActiveRulesHolderImpl underTest = new ActiveRulesHolderImpl();
 
   @Test
-  public void get_inactive_rule() throws Exception {
-    underTest.set(Collections.<ActiveRule>emptyList());
+  public void get_inactive_rule() {
+    underTest.set(Collections.emptyList());
     Optional<ActiveRule> activeRule = underTest.get(RULE_KEY);
     assertThat(activeRule.isPresent()).isFalse();
   }
 
   @Test
-  public void get_active_rule() throws Exception {
-    underTest.set(asList(new ActiveRule(RULE_KEY, Severity.BLOCKER, Collections.<String, String>emptyMap(), SOME_DATE)));
+  public void get_active_rule() {
+    underTest.set(asList(new ActiveRule(RULE_KEY, Severity.BLOCKER, Collections.emptyMap(), SOME_DATE, PLUGIN_KEY)));
 
     Optional<ActiveRule> activeRule = underTest.get(RULE_KEY);
     assertThat(activeRule.isPresent()).isTrue();
@@ -59,17 +61,17 @@ public class ActiveRulesHolderImplTest {
   }
 
   @Test
-  public void can_not_set_twice() throws Exception {
+  public void can_not_set_twice() {
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("Active rules have already been initialized");
 
-    underTest.set(asList(new ActiveRule(RULE_KEY, Severity.BLOCKER, Collections.<String, String>emptyMap(), 1_000L)));
-    underTest.set(Collections.<ActiveRule>emptyList());
+    underTest.set(asList(new ActiveRule(RULE_KEY, Severity.BLOCKER, Collections.emptyMap(), 1_000L, PLUGIN_KEY)));
+    underTest.set(Collections.emptyList());
 
   }
 
   @Test
-  public void can_not_get_if_not_initialized() throws Exception {
+  public void can_not_get_if_not_initialized() {
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("Active rules have not been initialized yet");
 
@@ -77,12 +79,12 @@ public class ActiveRulesHolderImplTest {
   }
 
   @Test
-  public void can_not_set_duplicated_rules() throws Exception {
+  public void can_not_set_duplicated_rules() {
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Active rule must not be declared multiple times: java:S001");
+    thrown.expectMessage("Active rule must not be declared multiple times: squid:S001");
 
     underTest.set(asList(
-      new ActiveRule(RULE_KEY, Severity.BLOCKER, Collections.<String, String>emptyMap(), 1_000L),
-      new ActiveRule(RULE_KEY, Severity.MAJOR, Collections.<String, String>emptyMap(), 1_000L)));
+      new ActiveRule(RULE_KEY, Severity.BLOCKER, Collections.emptyMap(), 1_000L, PLUGIN_KEY),
+      new ActiveRule(RULE_KEY, Severity.MAJOR, Collections.emptyMap(), 1_000L, PLUGIN_KEY)));
   }
 }

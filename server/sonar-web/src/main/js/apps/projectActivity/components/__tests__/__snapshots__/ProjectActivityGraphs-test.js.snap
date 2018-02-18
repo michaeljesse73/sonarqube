@@ -5,10 +5,21 @@ exports[`should render correctly the graph and legends 1`] = `
   className="project-activity-layout-page-main-inner boxed-group boxed-group-inner"
 >
   <ProjectActivityGraphsHeader
-    graph="overview"
-    updateQuery={[Function]}
+    addCustomMetric={[Function]}
+    graph="issues"
+    metrics={
+      Array [
+        Object {
+          "key": "code_smells",
+          "name": "Code Smells",
+          "type": "INT",
+        },
+      ]
+    }
+    metricsTypeFilter={null}
+    updateGraph={[Function]}
   />
-  <StaticGraphs
+  <GraphsHistory
     analyses={
       Array [
         Object {
@@ -46,41 +57,87 @@ exports[`should render correctly the graph and legends 1`] = `
       ]
     }
     eventFilter=""
-    graphEndDate={2016-10-27T14:33:50.000Z}
-    graphStartDate={2016-10-26T10:17:29.000Z}
+    graph="issues"
+    graphEndDate={null}
+    graphStartDate={null}
+    graphs={
+      Array [
+        Array [
+          Object {
+            "data": Array [
+              Object {
+                "x": 2016-10-26T10:17:29.000Z,
+                "y": 2286,
+              },
+              Object {
+                "x": 2016-10-27T10:21:15.000Z,
+                "y": 1749,
+              },
+              Object {
+                "x": 2016-10-27T14:33:50.000Z,
+                "y": 500,
+              },
+            ],
+            "name": "code_smells",
+            "translatedName": "Code Smells",
+            "type": "INT",
+          },
+        ],
+      ]
+    }
     leakPeriodDate="2017-05-16T13:50:02+0200"
     loading={false}
-    metricsType="INT"
-    project="org.sonarsource.sonarqube:sonarqube"
-    series={
+    measuresHistory={
       Array [
         Object {
-          "data": Array [
+          "history": Array [
             Object {
-              "x": 2016-10-26T10:17:29.000Z,
-              "y": 2286,
+              "date": 2016-10-26T10:17:29.000Z,
+              "value": "2286",
             },
             Object {
-              "x": 2016-10-27T10:21:15.000Z,
-              "y": 1749,
+              "date": 2016-10-27T10:21:15.000Z,
+              "value": "1749",
             },
             Object {
-              "x": 2016-10-27T14:33:50.000Z,
-              "y": 500,
+              "date": 2016-10-27T14:33:50.000Z,
+              "value": "500",
             },
           ],
-          "name": "code_smells",
-          "style": 1,
-          "translatedName": "metric.code_smells.name",
+          "metric": "code_smells",
         },
       ]
     }
-    showAreas={false}
+    removeCustomMetric={[Function]}
+    series={
+      Array [
+        Object {
+          "data": Array [
+            Object {
+              "x": 2016-10-26T10:17:29.000Z,
+              "y": 2286,
+            },
+            Object {
+              "x": 2016-10-27T10:21:15.000Z,
+              "y": 1749,
+            },
+            Object {
+              "x": 2016-10-27T14:33:50.000Z,
+              "y": 500,
+            },
+          ],
+          "name": "code_smells",
+          "translatedName": "Code Smells",
+          "type": "INT",
+        },
+      ]
+    }
     updateGraphZoom={[Function]}
+    updateSelectedDate={[Function]}
   />
   <GraphsZoom
-    graphEndDate={2016-10-27T14:33:50.000Z}
-    graphStartDate={2016-10-26T10:17:29.000Z}
+    graphEndDate={null}
+    graphStartDate={null}
     leakPeriodDate="2017-05-16T13:50:02+0200"
     loading={false}
     metricsType="INT"
@@ -102,8 +159,8 @@ exports[`should render correctly the graph and legends 1`] = `
             },
           ],
           "name": "code_smells",
-          "style": 1,
-          "translatedName": "metric.code_smells.name",
+          "translatedName": "Code Smells",
+          "type": "INT",
         },
       ]
     }
@@ -117,6 +174,29 @@ exports[`should render correctly with filter history on dates 1`] = `
 Object {
   "graphEndDate": null,
   "graphStartDate": "2016-10-27T12:21:15+0200",
+  "graphs": Array [
+    Array [
+      Object {
+        "data": Array [
+          Object {
+            "x": 2016-10-26T10:17:29.000Z,
+            "y": 2286,
+          },
+          Object {
+            "x": 2016-10-27T10:21:15.000Z,
+            "y": 1749,
+          },
+          Object {
+            "x": 2016-10-27T14:33:50.000Z,
+            "y": 500,
+          },
+        ],
+        "name": "code_smells",
+        "translatedName": "Code Smells",
+        "type": "INT",
+      },
+    ],
+  ],
   "series": Array [
     Object {
       "data": Array [
@@ -134,8 +214,8 @@ Object {
         },
       ],
       "name": "code_smells",
-      "style": 1,
-      "translatedName": "metric.code_smells.name",
+      "translatedName": "Code Smells",
+      "type": "INT",
     },
   ],
 }

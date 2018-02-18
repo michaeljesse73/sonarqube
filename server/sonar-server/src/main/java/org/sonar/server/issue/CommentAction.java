@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -49,6 +49,11 @@ public class CommentAction extends Action {
   public boolean execute(Map<String, Object> properties, Context context) {
     issueUpdater.addComment(context.issue(), comment(properties), context.issueChangeContext());
     return true;
+  }
+
+  @Override
+  public boolean shouldRefreshMeasures() {
+    return false;
   }
 
   private static String comment(Map<String, Object> properties) {

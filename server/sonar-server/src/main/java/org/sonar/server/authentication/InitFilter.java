@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,10 +19,8 @@
  */
 package org.sonar.server.authentication;
 
-import java.io.IOException;
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
-import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
@@ -38,6 +36,7 @@ import org.sonar.server.authentication.event.AuthenticationException;
 import static java.lang.String.format;
 import static org.sonar.server.authentication.AuthenticationError.handleAuthenticationError;
 import static org.sonar.server.authentication.AuthenticationError.handleError;
+import static org.sonar.server.authentication.AuthenticationRedirection.redirectTo;
 import static org.sonar.server.authentication.event.AuthenticationEvent.Source;
 
 public class InitFilter extends AuthenticationFilter {
@@ -47,13 +46,15 @@ public class InitFilter extends AuthenticationFilter {
   private final BaseContextFactory baseContextFactory;
   private final OAuth2ContextFactory oAuth2ContextFactory;
   private final AuthenticationEvent authenticationEvent;
+  private final OAuth2AuthenticationParameters oAuthOAuth2AuthenticationParameters;
 
   public InitFilter(IdentityProviderRepository identityProviderRepository, BaseContextFactory baseContextFactory,
-    OAuth2ContextFactory oAuth2ContextFactory, Server server, AuthenticationEvent authenticationEvent) {
+    OAuth2ContextFactory oAuth2ContextFactory, Server server, AuthenticationEvent authenticationEvent, OAuth2AuthenticationParameters oAuthOAuth2AuthenticationParameters) {
     super(server, identityProviderRepository);
     this.baseContextFactory = baseContextFactory;
     this.oAuth2ContextFactory = oAuth2ContextFactory;
     this.authenticationEvent = authenticationEvent;
+    this.oAuthOAuth2AuthenticationParameters = oAuthOAuth2AuthenticationParameters;
   }
 
   @Override
@@ -62,7 +63,7 @@ public class InitFilter extends AuthenticationFilter {
   }
 
   @Override
-  public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
+  public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) {
     HttpServletRequest httpRequest = (HttpServletRequest) request;
     HttpServletResponse httpResponse = (HttpServletResponse) response;
 
@@ -77,14 +78,20 @@ public class InitFilter extends AuthenticationFilter {
       if (provider instanceof BaseIdentityProvider) {
         handleBaseIdentityProvider(request, response, (BaseIdentityProvider) provider);
       } else if (provider instanceof OAuth2IdentityProvider) {
+        oAuthOAuth2AuthenticationParameters.init(request, response);
         handleOAuth2IdentityProvider(request, response, (OAuth2IdentityProvider) provider);
       } else {
         handleError(response, format("Unsupported IdentityProvider class: %s", provider.getClass()));
       }
     } catch (AuthenticationException e) {
+      oAuthOAuth2AuthenticationParameters.delete(request, response);
       authenticationEvent.loginFailure(request, e);
       handleAuthenticationError(e, response, getContextPath());
+    } catch (EmailAlreadyExistsException e) {
+      oAuthOAuth2AuthenticationParameters.delete(request, response);
+      redirectTo(response, e.getPath(getContextPath()));
     } catch (Exception e) {
+      oAuthOAuth2AuthenticationParameters.delete(request, response);
       handleError(e, response, format("Fail to initialize authentication with provider '%s'", provider.getKey()));
     }
   }
@@ -114,7 +121,7 @@ public class InitFilter extends AuthenticationFilter {
   }
 
   @Override
-  public void init(FilterConfig filterConfig) throws ServletException {
+  public void init(FilterConfig filterConfig) {
     // Nothing to do
   }
 

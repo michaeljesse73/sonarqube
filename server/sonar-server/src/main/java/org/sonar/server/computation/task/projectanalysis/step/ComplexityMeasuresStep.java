@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -50,7 +50,7 @@ import static org.sonar.server.computation.task.projectanalysis.formula.SumFormu
  */
 public class ComplexityMeasuresStep implements ComputationStep {
 
-  private static final ImmutableList<Formula> FORMULAS = ImmutableList.<Formula>of(
+  private static final ImmutableList<Formula> FORMULAS = ImmutableList.of(
     createIntSumFormula(COMPLEXITY_KEY),
     createIntSumFormula(COMPLEXITY_IN_CLASSES_KEY),
     createIntSumFormula(COMPLEXITY_IN_FUNCTIONS_KEY),

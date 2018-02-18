@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -72,7 +72,7 @@ public class CreateAction implements CustomMeasuresWsAction {
     WebService.NewAction action = context.createAction(ACTION)
       .setDescription("Create a custom measure.<br /> " +
         "The project id or the project key must be provided (only project and module custom measures can be created). The metric id or the metric key must be provided.<br/>" +
-        "Requires 'Administer System' permission or 'Administer' permission on the project.")
+        "Requires 'Administer' permission on the project.")
       .setSince("5.2")
       .setPost(true)
       .setHandler(this);
@@ -134,20 +134,20 @@ public class CreateAction implements CustomMeasuresWsAction {
   }
 
   private static void checkIsProjectOrModule(ComponentDto component) {
-    checkRequest(Scopes.PROJECT.equals(component.scope()), "Component '%s' (id: %s) must be a project or a module.", component.key(), component.uuid());
+    checkRequest(Scopes.PROJECT.equals(component.scope()), "Component '%s' (id: %s) must be a project or a module.", component.getDbKey(), component.uuid());
   }
 
   private void checkMeasureDoesNotExistAlready(DbSession dbSession, ComponentDto component, MetricDto metric) {
     int nbMeasuresOnSameMetricAndMeasure = dbClient.customMeasureDao().countByComponentIdAndMetricId(dbSession, component.uuid(), metric.getId());
     checkRequest(nbMeasuresOnSameMetricAndMeasure == 0,
       "A measure already exists for project '%s' (id: %s) and metric '%s' (id: '%d')",
-      component.key(), component.uuid(), metric.getKey(), metric.getId());
+      component.getDbKey(), component.uuid(), metric.getKey(), metric.getId());
   }
 
   private MetricDto searchMetric(DbSession dbSession, Request request) {
     Integer metricId = request.paramAsInt(PARAM_METRIC_ID);
     String metricKey = request.param(PARAM_METRIC_KEY);
-    checkArgument(metricId != null ^ metricKey != null, "The metric id or the metric key must be provided, not both.");
+    checkArgument(metricId != null ^ metricKey != null, "Either the metric id or the metric key must be provided");
 
     if (metricId != null) {
       return dbClient.metricDao().selectOrFailById(dbSession, metricId);

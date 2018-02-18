@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -43,16 +43,17 @@ import org.sonar.server.exceptions.NotFoundException;
 import org.sonar.server.tester.UserSessionRule;
 import org.sonar.server.ws.TestRequest;
 import org.sonar.server.ws.WsActionTester;
-import org.sonarqube.ws.WsProjectLinks;
+import org.sonarqube.ws.ProjectLinks;
 
+import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonar.core.util.Uuids.UUID_EXAMPLE_01;
 import static org.sonar.server.ws.KeyExamples.KEY_PROJECT_EXAMPLE_001;
 import static org.sonar.test.JsonAssert.assertJson;
-import static org.sonarqube.ws.client.projectlinks.ProjectLinksWsParameters.PARAM_NAME;
-import static org.sonarqube.ws.client.projectlinks.ProjectLinksWsParameters.PARAM_PROJECT_ID;
-import static org.sonarqube.ws.client.projectlinks.ProjectLinksWsParameters.PARAM_PROJECT_KEY;
-import static org.sonarqube.ws.client.projectlinks.ProjectLinksWsParameters.PARAM_URL;
+import static org.sonar.server.projectlink.ws.ProjectLinksWsParameters.PARAM_NAME;
+import static org.sonar.server.projectlink.ws.ProjectLinksWsParameters.PARAM_PROJECT_ID;
+import static org.sonar.server.projectlink.ws.ProjectLinksWsParameters.PARAM_PROJECT_KEY;
+import static org.sonar.server.projectlink.ws.ProjectLinksWsParameters.PARAM_URL;
 
 public class CreateActionTest {
 
@@ -87,7 +88,7 @@ public class CreateActionTest {
 
     String result = ws.newRequest()
       .setMethod("POST")
-      .setParam(PARAM_PROJECT_KEY, project.key())
+      .setParam(PARAM_PROJECT_KEY, project.getDbKey())
       .setParam(PARAM_NAME, "Custom")
       .setParam(PARAM_URL, "http://example.org")
       .execute().getInput();
@@ -230,15 +231,49 @@ public class CreateActionTest {
     failIfNotAProject(view, subview);
   }
 
+  @Test
+  public void fail_when_using_branch_db_key() throws Exception {
+    OrganizationDto organization = db.organizations().insert();
+    ComponentDto project = db.components().insertMainBranch(organization);
+    userSession.logIn().addProjectPermission(UserRole.USER, project);
+    ComponentDto branch = db.components().insertProjectBranch(project);
+
+    expectedException.expect(NotFoundException.class);
+    expectedException.expectMessage(format("Project key '%s' not found", branch.getDbKey()));
+
+    ws.newRequest()
+      .setParam(PARAM_PROJECT_KEY, branch.getDbKey())
+      .setParam(PARAM_NAME, "Custom")
+      .setParam(PARAM_URL, "http://example.org")
+      .execute();
+  }
+
+  @Test
+  public void fail_when_using_branch_db_uuid() {
+    OrganizationDto organization = db.organizations().insert();
+    ComponentDto project = db.components().insertMainBranch(organization);
+    userSession.logIn().addProjectPermission(UserRole.USER, project);
+    ComponentDto branch = db.components().insertProjectBranch(project);
+
+    expectedException.expect(NotFoundException.class);
+    expectedException.expectMessage(format("Project id '%s' not found", branch.uuid()));
+
+    ws.newRequest()
+      .setParam(PARAM_PROJECT_ID, branch.uuid())
+      .setParam(PARAM_NAME, "Custom")
+      .setParam(PARAM_URL, "http://example.org")
+      .execute();
+  }
+
   private void failIfNotAProject(ComponentDto root, ComponentDto component) {
     userSession.logIn().addProjectPermission(UserRole.ADMIN, root);
 
     expectedException.expect(BadRequestException.class);
-    expectedException.expectMessage("Component '" + component.key() + "' (id: " + component.uuid() + ") must be a project");
+    expectedException.expectMessage("Component '" + component.getDbKey() + "' (id: " + component.uuid() + ") must be a project");
 
     TestRequest testRequest = ws.newRequest();
     if (new Random().nextBoolean()) {
-      testRequest.setParam(PARAM_PROJECT_KEY, component.key());
+      testRequest.setParam(PARAM_PROJECT_KEY, component.getDbKey());
     } else {
       testRequest.setParam(PARAM_PROJECT_ID, component.uuid());
     }
@@ -251,16 +286,16 @@ public class CreateActionTest {
   private ComponentDto insertProject() {
     OrganizationDto org = db.organizations().insert();
     return db.components().insertComponent(
-      ComponentTesting.newPrivateProjectDto(org, PROJECT_UUID).setKey(PROJECT_KEY));
+      ComponentTesting.newPrivateProjectDto(org, PROJECT_UUID).setDbKey(PROJECT_KEY));
   }
 
-  private void createAndTest(ComponentDto project, String name, String url, String type) throws IOException {
-    WsProjectLinks.CreateWsResponse response = ws.newRequest()
+  private void createAndTest(ComponentDto project, String name, String url, String type) {
+    ProjectLinks.CreateWsResponse response = ws.newRequest()
       .setMethod("POST")
-      .setParam(PARAM_PROJECT_KEY, project.key())
+      .setParam(PARAM_PROJECT_KEY, project.getDbKey())
       .setParam(PARAM_NAME, name)
       .setParam(PARAM_URL, url)
-      .executeProtobuf(WsProjectLinks.CreateWsResponse.class);
+      .executeProtobuf(ProjectLinks.CreateWsResponse.class);
 
     long newId = Long.valueOf(response.getLink().getId());
 

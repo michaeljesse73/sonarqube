@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -36,7 +36,8 @@ it('should render an open popup on the right', () => {
         </BubblePopup>
       }>
       <button onClick={toggle}>open</button>
-    </BubblePopupHelper>
+    </BubblePopupHelper>,
+    { disableLifecycleMethods: true }
   );
   expect(popup).toMatchSnapshot();
 });
@@ -54,7 +55,8 @@ it('should render the popup helper with a closed popup', () => {
         </BubblePopup>
       }>
       <button onClick={toggle}>open</button>
-    </BubblePopupHelper>
+    </BubblePopupHelper>,
+    { disableLifecycleMethods: true }
   );
   expect(popup).toMatchSnapshot();
 });
@@ -73,7 +75,8 @@ it('should render with custom classes', () => {
         </BubblePopup>
       }>
       <button onClick={toggle}>open</button>
-    </BubblePopupHelper>
+    </BubblePopupHelper>,
+    { disableLifecycleMethods: true }
   );
   expect(popup).toMatchSnapshot();
 });
@@ -130,7 +133,8 @@ it('should correctly handle clicks on the button', () => {
         </BubblePopup>
       }>
       <button onClick={toggle}>open</button>
-    </BubblePopupHelper>
+    </BubblePopupHelper>,
+    { disableLifecycleMethods: true }
   );
   expect(popup).toMatchSnapshot();
   click(popup.find('button'));

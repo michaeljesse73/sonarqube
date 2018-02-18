@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -161,6 +161,7 @@ public class DefaultIssueBuilder implements Issuable.IssueBuilder {
     issue.setStatus(Issue.STATUS_OPEN);
     issue.setCloseDate(null);
     issue.setNew(true);
+    issue.setCopied(false);
     issue.setBeingClosed(false);
     issue.setOnDisabledRule(false);
     return issue;

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -50,6 +50,8 @@ import static org.mockito.AdditionalAnswers.returnsFirstArg;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.sonar.api.rules.RuleType.BUG;
+import static org.sonar.api.rules.RuleType.CODE_SMELL;
 import static org.sonar.db.permission.OrganizationPermission.ADMINISTER_QUALITY_PROFILES;
 import static org.sonar.db.rule.RuleTesting.newCustomRule;
 import static org.sonar.db.rule.RuleTesting.newTemplateRule;
@@ -84,7 +86,7 @@ public class CreateActionTest {
   public void create_custom_rule() {
     logInAsQProfileAdministrator();
     // Template rule
-    RuleDto templateRule = newTemplateRule(RuleKey.of("java", "S001"), db.getDefaultOrganization());
+    RuleDto templateRule = newTemplateRule(RuleKey.of("java", "S001"), db.getDefaultOrganization()).setType(CODE_SMELL);
     db.rules().insert(templateRule.getDefinition());
     db.rules().insertOrUpdateMetadata(templateRule.getMetadata().setRuleId(templateRule.getId()));
     db.rules().insertRuleParam(templateRule.getDefinition(), param -> param.setName("regex").setType("STRING").setDescription("Reg ex").setDefaultValue(".*"));
@@ -96,6 +98,7 @@ public class CreateActionTest {
       .setParam("markdown_description", "Description")
       .setParam("severity", "MAJOR")
       .setParam("status", "BETA")
+      .setParam("type", BUG.name())
       .setParam("params", "regex=a.*")
       .execute().getInput();
 
@@ -107,6 +110,7 @@ public class CreateActionTest {
       "    \"htmlDesc\": \"Description\",\n" +
       "    \"severity\": \"MAJOR\",\n" +
       "    \"status\": \"BETA\",\n" +
+      "    \"type\": \"BUG\",\n" +
       "    \"internalKey\": \"InternalKeyS001\",\n" +
       "    \"isTemplate\": false,\n" +
       "    \"templateKey\": \"java:S001\",\n" +
@@ -201,7 +205,7 @@ public class CreateActionTest {
   }
 
   @Test
-  public void throw_ForbiddenException_if_not_profile_administrator() throws Exception {
+  public void throw_ForbiddenException_if_not_profile_administrator() {
     userSession.logIn();
 
     expectedException.expect(ForbiddenException.class);
@@ -210,7 +214,7 @@ public class CreateActionTest {
   }
 
   @Test
-  public void throw_UnauthorizedException_if_not_logged_in() throws Exception {
+  public void throw_UnauthorizedException_if_not_logged_in() {
     expectedException.expect(UnauthorizedException.class);
 
     ws.newRequest().execute();

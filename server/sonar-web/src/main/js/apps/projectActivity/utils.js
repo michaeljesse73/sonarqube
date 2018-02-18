@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,43 +18,71 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 // @flow
-import moment from 'moment';
-import { sortBy } from 'lodash';
+import { chunk, flatMap, groupBy, isEqual, sortBy } from 'lodash';
 import {
   cleanQuery,
+  parseAsArray,
   parseAsDate,
   parseAsString,
+  serializeStringArray,
   serializeDate,
   serializeString
 } from '../../helpers/query';
-import { translate } from '../../helpers/l10n';
-import type { Analysis, MeasureHistory, Query } from './types';
-import type { RawQuery } from '../../helpers/query';
-import type { Serie } from '../../components/charts/AdvancedTimeline';
+import { parseDate, startOfDay } from '../../helpers/dates';
+import { getLocalizedMetricName, translate } from '../../helpers/l10n';
+/*:: import type { Analysis, MeasureHistory, Metric, Query } from './types'; */
+/*:: import type { RawQuery } from '../../helpers/query'; */
+/*:: import type { Serie } from '../../components/charts/AdvancedTimeline'; */
 
 export const EVENT_TYPES = ['VERSION', 'QUALITY_GATE', 'QUALITY_PROFILE', 'OTHER'];
-export const GRAPH_TYPES = ['overview', 'coverage', 'duplications'];
+export const APPLICATION_EVENT_TYPES = ['QUALITY_GATE', 'OTHER'];
+export const DEFAULT_GRAPH = 'issues';
+export const GRAPH_TYPES = ['issues', 'coverage', 'duplications', 'custom'];
+export const GRAPHS_METRICS_DISPLAYED = {
+  issues: ['bugs', 'code_smells', 'vulnerabilities'],
+  coverage: ['lines_to_cover', 'uncovered_lines'],
+  duplications: ['ncloc', 'duplicated_lines']
+};
 export const GRAPHS_METRICS = {
-  overview: ['bugs', 'code_smells', 'vulnerabilities'],
-  coverage: ['uncovered_lines', 'lines_to_cover'],
-  duplications: ['duplicated_lines', 'ncloc']
+  issues: GRAPHS_METRICS_DISPLAYED['issues'].concat([
+    'reliability_rating',
+    'security_rating',
+    'sqale_rating'
+  ]),
+  coverage: GRAPHS_METRICS_DISPLAYED['coverage'].concat(['coverage']),
+  duplications: GRAPHS_METRICS_DISPLAYED['duplications'].concat(['duplicated_lines_density'])
 };
 
-export const activityQueryChanged = (prevQuery: Query, nextQuery: Query): boolean =>
-  prevQuery.category !== nextQuery.category ||
-  prevQuery.from !== nextQuery.from ||
-  prevQuery.to !== nextQuery.to;
+export const datesQueryChanged = (prevQuery /*: Query */, nextQuery /*: Query */) =>
+  !isEqual(prevQuery.from, nextQuery.from) || !isEqual(prevQuery.to, nextQuery.to);
 
-export const datesQueryChanged = (prevQuery: Query, nextQuery: Query): boolean =>
-  prevQuery.from !== nextQuery.from || prevQuery.to !== nextQuery.to;
+export const activityQueryChanged = (prevQuery /*: Query */, nextQuery /*: Query */) =>
+  prevQuery.category !== nextQuery.category || datesQueryChanged(prevQuery, nextQuery);
 
-export const historyQueryChanged = (prevQuery: Query, nextQuery: Query): boolean =>
-  prevQuery.graph !== nextQuery.graph;
+export const customMetricsChanged = (prevQuery /*: Query */, nextQuery /*: Query */) =>
+  !isEqual(prevQuery.customMetrics, nextQuery.customMetrics);
+
+export const hasDataValues = (serie /*: Serie */) =>
+  serie.data.some(point => point.y || point.y === 0);
+
+export const hasHistoryData = (series /*: Array<Serie> */) =>
+  series.some(serie => serie.data && serie.data.length > 1);
+
+export const hasHistoryDataValue = (series /*: Array<Serie> */) =>
+  series.some(serie => serie.data && serie.data.length > 1 && hasDataValues(serie));
+
+export function historyQueryChanged(prevQuery /*: Query */, nextQuery /*: Query */) /*: boolean */ {
+  return prevQuery.graph !== nextQuery.graph;
+}
+
+export const isCustomGraph = (graph /*: string */) => graph === 'custom';
+
+export const selectedDateQueryChanged = (prevQuery /*: Query */, nextQuery /*: Query */) =>
+  !isEqual(prevQuery.selectedDate, nextQuery.selectedDate);
 
 export const generateCoveredLinesMetric = (
-  uncoveredLines: MeasureHistory,
-  measuresHistory: Array<MeasureHistory>,
-  style: string
+  uncoveredLines /*: MeasureHistory */,
+  measuresHistory /*: Array<MeasureHistory> */
 ) => {
   const linesToCover = measuresHistory.find(measure => measure.metric === 'lines_to_cover');
   return {
@@ -65,98 +93,145 @@ export const generateCoveredLinesMetric = (
         }))
       : [],
     name: 'covered_lines',
-    style,
-    translatedName: translate('project_activity.custom_metric.covered_lines')
+    translatedName: translate('project_activity.custom_metric.covered_lines'),
+    type: 'INT'
   };
 };
 
-export const generateSeries = (
-  measuresHistory: Array<MeasureHistory>,
-  graph: string,
-  dataType: string
-): Array<Serie> =>
-  measuresHistory.map(measure => {
-    if (measure.metric === 'uncovered_lines') {
-      return generateCoveredLinesMetric(
-        measure,
-        measuresHistory,
-        GRAPHS_METRICS[graph].indexOf(measure.metric)
-      );
-    }
-    return {
-      name: measure.metric,
-      translatedName: translate('metric', measure.metric, 'name'),
-      style: GRAPHS_METRICS[graph].indexOf(measure.metric),
-      data: measure.history.map(analysis => ({
-        x: analysis.date,
-        y: dataType === 'LEVEL' ? analysis.value : Number(analysis.value)
-      }))
-    };
-  });
+function findMetric(key /*: string */, metrics /*:  Array<Metric> | { [string]: Metric } */) {
+  if (Array.isArray(metrics)) {
+    return metrics.find(metric => metric.key === key);
+  }
+  return metrics[key];
+}
 
-export const getAnalysesByVersionByDay = (
-  analyses: Array<Analysis>
-): Array<{
-  version: ?string,
-  key: ?string,
-  byDay: { [string]: Array<Analysis> }
-}> =>
-  analyses.reduce((acc, analysis) => {
-    if (acc.length === 0) {
-      acc.push({ version: undefined, key: undefined, byDay: {} });
-    }
-    const currentVersion = acc[acc.length - 1];
-    const day = moment(analysis.date).startOf('day').valueOf().toString();
-    if (!currentVersion.byDay[day]) {
-      currentVersion.byDay[day] = [];
-    }
-    const sortedEvents = sortBy(
-      analysis.events,
-      // versions last
-      event => (event.category === 'VERSION' ? 1 : 0),
-      // then the rest sorted by category
-      'category'
-    );
-    currentVersion.byDay[day].push({ ...analysis, events: sortedEvents });
+export function generateSeries(
+  measuresHistory /*: Array<MeasureHistory> */,
+  graph /*: string */,
+  metrics /*:  Array<Metric> | { [string]: Metric } */,
+  displayedMetrics /*: Array<string> */
+) /*: Array<Serie> */ {
+  if (displayedMetrics.length <= 0) {
+    return [];
+  }
+  return sortBy(
+    measuresHistory
+      .filter(measure => displayedMetrics.indexOf(measure.metric) >= 0)
+      .map(measure => {
+        if (measure.metric === 'uncovered_lines' && !isCustomGraph(graph)) {
+          return generateCoveredLinesMetric(measure, measuresHistory);
+        }
+        const metric = findMetric(measure.metric, metrics);
+        return {
+          data: measure.history.map(analysis => ({
+            x: analysis.date,
+            y: metric && metric.type === 'LEVEL' ? analysis.value : Number(analysis.value)
+          })),
+          name: measure.metric,
+          translatedName: metric ? getLocalizedMetricName(metric) : measure.metric,
+          type: metric ? metric.type : 'INT'
+        };
+      }),
+    serie =>
+      displayedMetrics.indexOf(serie.name === 'covered_lines' ? 'uncovered_lines' : serie.name)
+  );
+}
 
-    const lastEvent = sortedEvents[sortedEvents.length - 1];
-    if (lastEvent && lastEvent.category === 'VERSION') {
-      currentVersion.version = lastEvent.name;
-      currentVersion.key = lastEvent.key;
-      acc.push({ version: undefined, key: undefined, byDay: {} });
+export const splitSeriesInGraphs = (
+  series /*: Array<Serie> */,
+  maxGraph /*: number */,
+  maxSeries /*: number */
+) =>
+  flatMap(groupBy(series, serie => serie.type), type => chunk(type, maxSeries)).slice(0, maxGraph);
+
+export const getSeriesMetricType = (series /*: Array<Serie> */) =>
+  series.length > 0 ? series[0].type : 'INT';
+
+export function getAnalysesByVersionByDay(analyses /*: Array<Analysis> */, query /*: Query */) {
+  return analyses.reduce((acc, analysis) => {
+    let currentVersion = acc[acc.length - 1];
+    const versionEvent = analysis.events.find(event => event.category === 'VERSION');
+    if (versionEvent) {
+      const newVersion = { version: versionEvent.name, key: versionEvent.key, byDay: {} };
+      if (!currentVersion || Object.keys(currentVersion.byDay).length > 0) {
+        acc.push(newVersion);
+      } else {
+        acc[acc.length - 1] = newVersion;
+      }
+      currentVersion = newVersion;
+    } else if (!currentVersion) {
+      // APPs don't have version events, so let's create a fake one
+      currentVersion = { version: null, key: null, byDay: {} };
+      acc.push(currentVersion);
+    }
+
+    const day = startOfDay(parseDate(analysis.date))
+      .getTime()
+      .toString();
+
+    let matchFilters = true;
+    if (query.category || query.from || query.to) {
+      const isAfterFrom = !query.from || analysis.date >= query.from;
+      const isBeforeTo = !query.to || analysis.date <= query.to;
+      const hasSelectedCategoryEvents =
+        !query.category || analysis.events.find(event => event.category === query.category) != null;
+      matchFilters = isAfterFrom && isBeforeTo && hasSelectedCategoryEvents;
+    }
+
+    if (matchFilters) {
+      if (!currentVersion.byDay[day]) {
+        currentVersion.byDay[day] = [];
+      }
+      currentVersion.byDay[day].push(analysis);
     }
     return acc;
   }, []);
+}
 
-const parseGraph = (value?: string): string => {
+export const getDisplayedHistoryMetrics = (
+  graph /*: string */,
+  customMetrics /*: Array<string> */
+) => (isCustomGraph(graph) ? customMetrics : GRAPHS_METRICS_DISPLAYED[graph]);
+
+export const getHistoryMetrics = (graph /*: string */, customMetrics /*: Array<string> */) =>
+  isCustomGraph(graph) ? customMetrics : GRAPHS_METRICS[graph];
+
+const parseGraph = (value /*: ?string */) => {
   const graph = parseAsString(value);
-  return GRAPH_TYPES.includes(graph) ? graph : 'overview';
+  return GRAPH_TYPES.includes(graph) ? graph : DEFAULT_GRAPH;
 };
 
-const serializeGraph = (value: string): ?string => (value === 'overview' ? undefined : value);
+const serializeGraph = (value /*: string */) => (value === DEFAULT_GRAPH ? undefined : value);
 
-export const parseQuery = (urlQuery: RawQuery): Query => ({
-  category: parseAsString(urlQuery['category']),
-  from: parseAsDate(urlQuery['from']),
-  graph: parseGraph(urlQuery['graph']),
-  project: parseAsString(urlQuery['id']),
-  to: parseAsDate(urlQuery['to'])
-});
+export function parseQuery(urlQuery /*: RawQuery */) /*: Query */ {
+  return {
+    category: parseAsString(urlQuery['category']),
+    customMetrics: parseAsArray(urlQuery['custom_metrics'], parseAsString),
+    from: parseAsDate(urlQuery['from']),
+    graph: parseGraph(urlQuery['graph']),
+    project: parseAsString(urlQuery['id']),
+    to: parseAsDate(urlQuery['to']),
+    selectedDate: parseAsDate(urlQuery['selected_date'])
+  };
+}
 
-export const serializeQuery = (query: Query): RawQuery =>
-  cleanQuery({
+export function serializeQuery(query /*: Query */) /*: RawQuery */ {
+  return cleanQuery({
     category: serializeString(query.category),
     from: serializeDate(query.from),
     project: serializeString(query.project),
     to: serializeDate(query.to)
   });
+}
 
-export const serializeUrlQuery = (query: Query): RawQuery => {
+export function serializeUrlQuery(query /*: Query */) /*: RawQuery */ {
   return cleanQuery({
     category: serializeString(query.category),
+    custom_metrics: serializeStringArray(query.customMetrics),
     from: serializeDate(query.from),
     graph: serializeGraph(query.graph),
     id: serializeString(query.project),
-    to: serializeDate(query.to)
+    to: serializeDate(query.to),
+    selected_date: serializeDate(query.selectedDate)
   });
-};
+}

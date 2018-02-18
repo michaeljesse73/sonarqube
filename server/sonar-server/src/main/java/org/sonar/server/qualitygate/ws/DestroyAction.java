@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,21 +22,32 @@ package org.sonar.server.qualitygate.ws;
 import org.sonar.api.server.ws.Request;
 import org.sonar.api.server.ws.Response;
 import org.sonar.api.server.ws.WebService;
-import org.sonar.server.qualitygate.QualityGates;
-import org.sonarqube.ws.client.qualitygate.QualityGatesWsParameters;
+import org.sonar.db.DbClient;
+import org.sonar.db.DbSession;
+import org.sonar.db.organization.OrganizationDto;
+import org.sonar.db.qualitygate.QGateWithOrgDto;
+import org.sonar.db.qualitygate.QualityGateDto;
+import org.sonar.server.qualitygate.QualityGateFinder;
+
+import static com.google.common.base.Preconditions.checkArgument;
 
 public class DestroyAction implements QualityGatesWsAction {
 
-  private final QualityGates qualityGates;
+  private final DbClient dbClient;
+  private final QualityGatesWsSupport wsSupport;
+  private final QualityGateFinder finder;
 
-  public DestroyAction(QualityGates qualityGates) {
-    this.qualityGates = qualityGates;
+  public DestroyAction(DbClient dbClient, QualityGatesWsSupport wsSupport, QualityGateFinder finder) {
+    this.dbClient = dbClient;
+    this.wsSupport = wsSupport;
+    this.finder = finder;
   }
 
   @Override
   public void define(WebService.NewController controller) {
     WebService.NewAction action = controller.createAction("destroy")
-      .setDescription("Delete a Quality Gate. Require Administer Quality Gates permission")
+      .setDescription("Delete a Quality Gate.<br>" +
+        "Requires the 'Administer Quality Gates' permission.")
       .setSince("4.3")
       .setPost(true)
       .setHandler(this);
@@ -45,12 +56,24 @@ public class DestroyAction implements QualityGatesWsAction {
       .setDescription("ID of the quality gate to delete")
       .setRequired(true)
       .setExampleValue("1");
+
+    wsSupport.createOrganizationParam(action);
   }
 
   @Override
   public void handle(Request request, Response response) {
-    qualityGates.delete(QualityGatesWs.parseId(request, QualityGatesWsParameters.PARAM_ID));
-    response.noContent();
+    long qualityGateId = request.mandatoryParamAsLong(QualityGatesWsParameters.PARAM_ID);
+    try (DbSession dbSession = dbClient.openSession(false)) {
+      OrganizationDto organization = wsSupport.getOrganization(dbSession, request);
+      QGateWithOrgDto qualityGate = finder.getByOrganizationAndId(dbSession, organization, qualityGateId);
+      QualityGateDto defaultQualityGate = finder.getDefault(dbSession, organization);
+      checkArgument(!defaultQualityGate.getId().equals(qualityGate.getId()), "The default quality gate cannot be removed");
+      wsSupport.checkCanEdit(qualityGate);
+
+      dbClient.qualityGateDao().delete(qualityGate, dbSession);
+      dbSession.commit();
+      response.noContent();
+    }
   }
 
 }

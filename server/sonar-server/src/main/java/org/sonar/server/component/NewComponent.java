@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -79,8 +79,8 @@ public class NewComponent {
   public static class Builder {
     private String organizationUuid;
     private String key;
-    private String branch;
     private String qualifier = PROJECT;
+    private String branch;
     private String name;
     private boolean isPrivate = false;
 

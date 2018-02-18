@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -54,6 +54,10 @@ public interface ActiveRuleMapper {
   List<OrgActiveRuleDto> selectByProfileUuid(String uuid);
 
   List<ActiveRuleDto> selectByRuleProfileUuid(@Param("ruleProfileUuid") String uuid);
+
+  List<ActiveRuleDto> selectByRuleIdsAndRuleProfileUuids(
+    @Param("ruleIds") Collection<Integer> ruleIds,
+    @Param("ruleProfileUuids") Collection<String> ruleProfileUuids);
 
   void insertParameter(ActiveRuleParamDto dto);
 

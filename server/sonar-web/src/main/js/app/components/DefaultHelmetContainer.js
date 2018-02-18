@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,15 +20,13 @@
 import React from 'react';
 import { connect } from 'react-redux';
 import Helmet from 'react-helmet';
-import { getSettingValue } from '../../store/rootReducer';
+import { getGlobalSettingValue } from '../../store/rootReducer';
 
-function DefaultHelmetContainer({ children, sonarqubeDotCom }) {
+function DefaultHelmetContainer({ children, onSonarCloud }) {
   return (
     <div>
       <Helmet
-        defaultTitle={
-          sonarqubeDotCom && sonarqubeDotCom.value === 'true' ? 'SonarCloud' : 'SonarQube'
-        }
+        defaultTitle={onSonarCloud && onSonarCloud.value === 'true' ? 'SonarCloud' : 'SonarQube'}
       />
       {children}
     </div>
@@ -36,7 +34,7 @@ function DefaultHelmetContainer({ children, sonarqubeDotCom }) {
 }
 
 const mapStateToProps = state => ({
-  sonarqubeDotCom: getSettingValue(state, 'sonar.lf.sonarqube.com.enabled')
+  onSonarCloud: getGlobalSettingValue(state, 'sonar.sonarcloud.enabled')
 });
 
 export default connect(mapStateToProps)(DefaultHelmetContainer);

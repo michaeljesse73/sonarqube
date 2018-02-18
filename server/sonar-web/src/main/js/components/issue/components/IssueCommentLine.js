@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,30 +19,42 @@
  */
 // @flow
 import React from 'react';
-import moment from 'moment';
 import Avatar from '../../../components/ui/Avatar';
 import BubblePopupHelper from '../../../components/common/BubblePopupHelper';
+import EditIcon from '../../../components/icons-components/EditIcon';
+import { EditButton, DeleteButton } from '../../../components/ui/buttons';
 import CommentDeletePopup from '../popups/CommentDeletePopup';
 import CommentPopup from '../popups/CommentPopup';
-import type { IssueComment } from '../types';
+import DateFromNow from '../../../components/intl/DateFromNow';
+/*:: import type { IssueComment } from '../types'; */
 
+/*::
 type Props = {
   comment: IssueComment,
   onDelete: string => void,
   onEdit: (string, string) => void
 };
+*/
 
+/*::
 type State = {
   openPopup: string
 };
+*/
 
 export default class IssueCommentLine extends React.PureComponent {
-  props: Props;
-  state: State = {
+  /*:: props: Props; */
+  state /*: State */ = {
     openPopup: ''
   };
 
-  handleEdit = (text: string) => {
+  handleCommentClick = (event /*: Event & {target: HTMLElement}*/) => {
+    if (event.target.tagName === 'A') {
+      event.stopPropagation();
+    }
+  };
+
+  handleEdit = (text /*: string */) => {
     this.props.onEdit(this.props.comment.key, text);
     this.toggleEditPopup(false);
   };
@@ -52,8 +64,8 @@ export default class IssueCommentLine extends React.PureComponent {
     this.toggleDeletePopup(false);
   };
 
-  togglePopup = (popupName: string, force?: boolean) => {
-    this.setState((prevState: State) => {
+  togglePopup = (popupName /*: string */, force /*: ?boolean */) => {
+    this.setState((prevState /*: State */) => {
       if (prevState.openPopup !== popupName && force !== false) {
         return { openPopup: popupName };
       } else if (prevState.openPopup === popupName && force !== true) {
@@ -63,9 +75,9 @@ export default class IssueCommentLine extends React.PureComponent {
     });
   };
 
-  toggleDeletePopup = (force?: boolean) => this.togglePopup('delete', force);
+  toggleDeletePopup = (force /*: ?boolean */) => this.togglePopup('delete', force);
 
-  toggleEditPopup = (force?: boolean) => this.togglePopup('edit', force);
+  toggleEditPopup = (force /*: ?boolean */) => this.togglePopup('edit', force);
 
   render() {
     const { comment } = this.props;
@@ -83,10 +95,15 @@ export default class IssueCommentLine extends React.PureComponent {
         <div
           className="issue-comment-text markdown"
           dangerouslySetInnerHTML={{ __html: comment.htmlText }}
+          onClick={this.handleCommentClick}
+          role="Listitem"
+          tabIndex={0}
         />
-        <div className="issue-comment-age">({moment(comment.createdAt).fromNow()})</div>
+        <div className="issue-comment-age">
+          <DateFromNow date={comment.createdAt} />
+        </div>
         <div className="issue-comment-actions">
-          {comment.updatable &&
+          {comment.updatable && (
             <BubblePopupHelper
               className="bubble-popup-helper-inline"
               isOpen={this.state.openPopup === 'edit'}
@@ -102,12 +119,13 @@ export default class IssueCommentLine extends React.PureComponent {
                   toggleComment={this.toggleEditPopup}
                 />
               }>
-              <button
-                className="js-issue-comment-edit button-link icon-edit icon-half-transparent"
+              <EditButton
+                className="js-issue-comment-edit button-small"
                 onClick={this.toggleEditPopup}
               />
-            </BubblePopupHelper>}
-          {comment.updatable &&
+            </BubblePopupHelper>
+          )}
+          {comment.updatable && (
             <BubblePopupHelper
               className="bubble-popup-helper-inline"
               isOpen={this.state.openPopup === 'delete'}
@@ -115,11 +133,12 @@ export default class IssueCommentLine extends React.PureComponent {
               position="bottomright"
               togglePopup={this.toggleDeletePopup}
               popup={<CommentDeletePopup onDelete={this.handleDelete} />}>
-              <button
-                className="js-issue-comment-delete button-link icon-delete icon-half-transparent"
+              <DeleteButton
+                className="js-issue-comment-delete button-small"
                 onClick={this.toggleDeletePopup}
               />
-            </BubblePopupHelper>}
+            </BubblePopupHelper>
+          )}
         </div>
       </div>
     );

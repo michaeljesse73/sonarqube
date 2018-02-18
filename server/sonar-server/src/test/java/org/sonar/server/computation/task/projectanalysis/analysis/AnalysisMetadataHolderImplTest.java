@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,9 +22,13 @@ package org.sonar.server.computation.task.projectanalysis.analysis;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.sonar.db.component.BranchType;
 import org.sonar.db.organization.OrganizationDto;
+import org.sonar.server.computation.task.projectanalysis.component.DefaultBranchImpl;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class AnalysisMetadataHolderImplTest {
 
@@ -58,7 +62,7 @@ public class AnalysisMetadataHolderImplTest {
 
   @Test
   public void setOrganization_throws_ISE_if_called_twice() {
-    Organization organization = Organization.from(new OrganizationDto().setUuid("uuid").setKey("key").setName("name"));
+    Organization organization = Organization.from(new OrganizationDto().setUuid("uuid").setKey("key").setName("name").setDefaultQualityGateUuid("anyuuidr"));
     underTest.setOrganization(organization);
 
     expectedException.expect(IllegalStateException.class);
@@ -94,7 +98,7 @@ public class AnalysisMetadataHolderImplTest {
   }
 
   @Test
-  public void getAnalysisDate_returns_date_with_same_time_as_the_one_set_with_setAnalysisDate() throws InterruptedException {
+  public void getAnalysisDate_returns_date_with_same_time_as_the_one_set_with_setAnalysisDate() {
 
     underTest.setAnalysisDate(SOME_DATE);
 
@@ -133,7 +137,7 @@ public class AnalysisMetadataHolderImplTest {
   }
 
   @Test
-  public void isFirstAnalysis_return_true() throws Exception {
+  public void isFirstAnalysis_return_true() {
     AnalysisMetadataHolderImpl underTest = new AnalysisMetadataHolderImpl();
 
     underTest.setBaseAnalysis(null);
@@ -141,7 +145,7 @@ public class AnalysisMetadataHolderImplTest {
   }
 
   @Test
-  public void isFirstAnalysis_return_false() throws Exception {
+  public void isFirstAnalysis_return_false() {
     AnalysisMetadataHolderImpl underTest = new AnalysisMetadataHolderImpl();
 
     underTest.setBaseAnalysis(baseProjectAnalysis);
@@ -214,18 +218,9 @@ public class AnalysisMetadataHolderImplTest {
   public void set_branch() {
     AnalysisMetadataHolderImpl underTest = new AnalysisMetadataHolderImpl();
 
-    underTest.setBranch("origin/master");
+    underTest.setBranch(new DefaultBranchImpl("master"));
 
-    assertThat(underTest.getBranch()).isEqualTo("origin/master");
-  }
-
-  @Test
-  public void set_no_branch() {
-    AnalysisMetadataHolderImpl underTest = new AnalysisMetadataHolderImpl();
-
-    underTest.setBranch(null);
-
-    assertThat(underTest.getBranch()).isNull();
+    assertThat(underTest.getBranch().getName()).isEqualTo("master");
   }
 
   @Test
@@ -239,15 +234,43 @@ public class AnalysisMetadataHolderImplTest {
   @Test
   public void setBranch_throws_ISE_when_called_twice() {
     AnalysisMetadataHolderImpl underTest = new AnalysisMetadataHolderImpl();
-    underTest.setBranch("origin/master");
+    underTest.setBranch(new DefaultBranchImpl("master"));
 
     expectedException.expect(IllegalStateException.class);
     expectedException.expectMessage("Branch has already been set");
-    underTest.setBranch("origin/master");
+    underTest.setBranch(new DefaultBranchImpl("master"));
   }
 
   @Test
-  public void getRootComponentRef() throws InterruptedException {
+  public void set_and_get_project() {
+    AnalysisMetadataHolderImpl underTest = new AnalysisMetadataHolderImpl();
+
+    Project project = new Project("U", "K", "N");
+    underTest.setProject(project);
+
+    assertThat(underTest.getProject()).isSameAs(project);
+  }
+
+  @Test
+  public void getProject_throws_ISE_when_holder_is_not_initialized() {
+    expectedException.expect(IllegalStateException.class);
+    expectedException.expectMessage("Project has not been set");
+
+    new AnalysisMetadataHolderImpl().getProject();
+  }
+
+  @Test
+  public void setProject_throws_ISE_when_called_twice() {
+    AnalysisMetadataHolderImpl underTest = new AnalysisMetadataHolderImpl();
+    underTest.setProject(new Project("U", "K", "N"));
+
+    expectedException.expect(IllegalStateException.class);
+    expectedException.expectMessage("Project has already been set");
+    underTest.setProject(new Project("U", "K", "N"));
+  }
+
+  @Test
+  public void getRootComponentRef() {
     AnalysisMetadataHolderImpl underTest = new AnalysisMetadataHolderImpl();
 
     underTest.setRootComponentRef(10);
@@ -271,5 +294,25 @@ public class AnalysisMetadataHolderImplTest {
     expectedException.expect(IllegalStateException.class);
     expectedException.expectMessage("Root component ref has already been set");
     underTest.setRootComponentRef(9);
+  }
+
+  @Test
+  public void getIsShortLivingBranch_throws_ISE_when_holder_is_not_initialized() {
+    expectedException.expect(IllegalStateException.class);
+    expectedException.expectMessage("Branch has not been set");
+
+    AnalysisMetadataHolderImpl underTest = new AnalysisMetadataHolderImpl();
+    underTest.isShortLivingBranch();
+  }
+
+  @Test
+  public void getIsShortLivingBranch_returns_true() {
+    Branch branch = mock(Branch.class);
+    when(branch.getType()).thenReturn(BranchType.SHORT);
+
+    AnalysisMetadataHolderImpl underTest = new AnalysisMetadataHolderImpl();
+    underTest.setBranch(branch);
+
+    assertThat(underTest.isShortLivingBranch()).isTrue();
   }
 }

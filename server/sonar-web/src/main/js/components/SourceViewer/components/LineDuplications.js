@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,17 +22,19 @@ import React from 'react';
 import classNames from 'classnames';
 import Tooltip from '../../controls/Tooltip';
 import { translate } from '../../../helpers/l10n';
-import type { SourceLine } from '../types';
+/*:: import type { SourceLine } from '../types'; */
 
+/*::
 type Props = {
   line: SourceLine,
   onClick: SourceLine => void
 };
+*/
 
 export default class LineDuplications extends React.PureComponent {
-  props: Props;
+  /*:: props: Props; */
 
-  handleClick = (e: SyntheticInputEvent) => {
+  handleClick = (e /*: SyntheticInputEvent */) => {
     e.preventDefault();
     this.props.onClick(this.props.line);
   };
@@ -53,10 +55,12 @@ export default class LineDuplications extends React.PureComponent {
       </td>
     );
 
-    return line.duplicated
-      ? <Tooltip overlay={translate('source_viewer.tooltip.duplicated_line')} placement="right">
-          {cell}
-        </Tooltip>
-      : cell;
+    return line.duplicated ? (
+      <Tooltip overlay={translate('source_viewer.tooltip.duplicated_line')} placement="right">
+        {cell}
+      </Tooltip>
+    ) : (
+      cell
+    );
   }
 }

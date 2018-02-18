@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,6 +25,11 @@ import java.io.IOException;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang.StringUtils;
 
+/**
+ * @deprecated since 6.6 Used for deprecated deploy/plugin/index.txt
+ *
+ */
+@Deprecated
 public class RemotePlugin {
   private String pluginKey;
   private boolean sonarLintSupported;

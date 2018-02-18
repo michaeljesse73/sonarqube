@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -71,7 +71,7 @@ public class AddGroupToTemplateActionTest extends BasePermissionWsTest<AddGroupT
   }
 
   @Test
-  public void add_group_to_template_by_name() throws Exception {
+  public void add_group_to_template_by_name() {
     loginAsAdmin(db.getDefaultOrganization());
 
     newRequest()
@@ -84,7 +84,7 @@ public class AddGroupToTemplateActionTest extends BasePermissionWsTest<AddGroupT
   }
 
   @Test
-  public void add_with_group_id() throws Exception {
+  public void add_with_group_id() {
     loginAsAdmin(db.getDefaultOrganization());
 
     newRequest()
@@ -190,7 +190,7 @@ public class AddGroupToTemplateActionTest extends BasePermissionWsTest<AddGroupT
     newRequest(group.getName(), "unknown-key", CODEVIEWER);
   }
 
-  private void newRequest(@Nullable String groupName, @Nullable String templateKey, @Nullable String permission) throws Exception {
+  private void newRequest(@Nullable String groupName, @Nullable String templateKey, @Nullable String permission) {
     TestRequest request = newRequest();
     if (groupName != null) {
       request.setParam(PARAM_GROUP_NAME, groupName);

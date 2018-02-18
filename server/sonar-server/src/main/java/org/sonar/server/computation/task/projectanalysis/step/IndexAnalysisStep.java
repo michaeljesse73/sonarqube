@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -39,10 +39,10 @@ public class IndexAnalysisStep implements ComputationStep {
 
   @Override
   public void execute() {
-    String projectUuid = treeRootHolder.getRoot().getUuid();
+    String branchUuid = treeRootHolder.getRoot().getUuid();
     for (ProjectIndexer indexer : indexers) {
       LOGGER.debug("Call {}", indexer);
-      indexer.indexProject(projectUuid, ProjectIndexer.Cause.NEW_ANALYSIS);
+      indexer.indexOnAnalysis(branchUuid);
     }
   }
 

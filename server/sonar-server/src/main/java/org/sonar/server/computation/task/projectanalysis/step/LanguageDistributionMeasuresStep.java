@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -53,7 +53,7 @@ public class LanguageDistributionMeasuresStep implements ComputationStep {
 
   private static final String UNKNOWN_LANGUAGE_KEY = "<null>";
 
-  private static final ImmutableList<Formula> FORMULAS = ImmutableList.<Formula>of(new LanguageDistributionFormula());
+  private static final ImmutableList<Formula> FORMULAS = ImmutableList.of(new LanguageDistributionFormula());
 
   private static final String[] LANGUAGE_DISTRIBUTION_FORMULA_METRICS = new String[] {NCLOC_LANGUAGE_DISTRIBUTION_KEY};
 

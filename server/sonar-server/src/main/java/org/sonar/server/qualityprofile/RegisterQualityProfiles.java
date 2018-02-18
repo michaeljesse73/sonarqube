@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -35,7 +35,7 @@ import org.sonar.db.DbSession;
 import org.sonar.db.qualityprofile.RulesProfileDto;
 
 import static java.lang.String.format;
-import static org.sonar.server.qualityprofile.ActiveRule.Inheritance.NONE;
+import static org.sonar.server.qualityprofile.ActiveRuleInheritance.NONE;
 
 /**
  * Synchronize Quality profiles during server startup
@@ -80,7 +80,7 @@ public class RegisterQualityProfiles {
       builtInQProfiles.forEach(builtIn -> {
         RulesProfileDto ruleProfile = persistedRuleProfiles.get(builtIn.getQProfileName());
         if (ruleProfile == null) {
-          register(dbSession, batchDbSession, builtIn);
+          create(dbSession, batchDbSession, builtIn);
         } else {
           List<ActiveRuleChange> changes = update(dbSession, builtIn, ruleProfile);
           changedProfiles.putAll(builtIn.getQProfileName(), changes.stream()
@@ -104,7 +104,7 @@ public class RegisterQualityProfiles {
       .collect(MoreCollectors.uniqueIndex(rp -> new QProfileName(rp.getLanguage(), rp.getName())));
   }
 
-  private void register(DbSession dbSession, DbSession batchDbSession, BuiltInQProfile builtIn) {
+  private void create(DbSession dbSession, DbSession batchDbSession, BuiltInQProfile builtIn) {
     LOGGER.info("Register profile {}", builtIn.getQProfileName());
 
     renameOutdatedProfiles(dbSession, builtIn);
@@ -112,10 +112,10 @@ public class RegisterQualityProfiles {
     builtInQProfileInsert.create(dbSession, batchDbSession, builtIn);
   }
 
-  private List<ActiveRuleChange> update(DbSession dbSession, BuiltInQProfile builtIn, RulesProfileDto ruleProfile) {
-    LOGGER.info("Update profile {}", builtIn.getQProfileName());
+  private List<ActiveRuleChange> update(DbSession dbSession, BuiltInQProfile definition, RulesProfileDto dbProfile) {
+    LOGGER.info("Update profile {}", definition.getQProfileName());
 
-    return builtInQProfileUpdate.update(dbSession, builtIn, ruleProfile);
+    return builtInQProfileUpdate.update(dbSession, definition, dbProfile);
   }
 
   /**

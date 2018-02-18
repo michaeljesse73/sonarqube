@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,16 +24,17 @@ import com.google.common.base.Strings;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Random;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.sonar.api.config.Configuration;
 import org.sonar.api.platform.NewUserHandler;
 import org.sonar.api.server.ServerSide;
-import org.sonar.core.util.stream.MoreCollectors;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
 import org.sonar.db.organization.OrganizationMemberDto;
@@ -51,7 +52,10 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.google.common.collect.Lists.newArrayList;
 import static java.lang.String.format;
+import static java.util.Arrays.stream;
+import static java.util.stream.Stream.concat;
 import static org.sonar.core.config.CorePropertyDefinitions.ONBOARDING_TUTORIAL_SHOW_TO_NEW_USERS;
+import static org.sonar.core.util.stream.MoreCollectors.toList;
 import static org.sonar.db.user.UserDto.encryptPassword;
 import static org.sonar.server.ws.WsUtils.checkFound;
 import static org.sonar.server.ws.WsUtils.checkRequest;
@@ -67,9 +71,9 @@ public class UserUpdater {
   private static final String EMAIL_PARAM = "Email";
 
   private static final int LOGIN_MIN_LENGTH = 2;
-  private static final int LOGIN_MAX_LENGTH = 255;
-  private static final int EMAIL_MAX_LENGTH = 100;
-  private static final int NAME_MAX_LENGTH = 200;
+  public static final int LOGIN_MAX_LENGTH = 255;
+  public static final int EMAIL_MAX_LENGTH = 100;
+  public static final int NAME_MAX_LENGTH = 200;
 
   private final NewUserNotifier newUserNotifier;
   private final DbClient dbClient;
@@ -92,7 +96,7 @@ public class UserUpdater {
     this.config = config;
   }
 
-  public UserDto createAndCommit(DbSession dbSession, NewUser newUser, Consumer<UserDto> beforeCommit) {
+  public UserDto createAndCommit(DbSession dbSession, NewUser newUser, Consumer<UserDto> beforeCommit, UserDto... otherUsersToIndex) {
     String login = newUser.login();
     UserDto userDto = dbClient.userDao().selectByLogin(dbSession, newUser.login());
     if (userDto == null) {
@@ -101,7 +105,7 @@ public class UserUpdater {
       reactivateUser(dbSession, userDto, login, newUser);
     }
     beforeCommit.accept(userDto);
-    userIndexer.commitAndIndex(dbSession, userDto);
+    userIndexer.commitAndIndex(dbSession, concat(Stream.of(userDto), stream(otherUsersToIndex)).collect(toList()));
 
     notifyNewUser(userDto.getLogin(), userDto.getName(), newUser.email());
     return userDto;
@@ -112,22 +116,18 @@ public class UserUpdater {
     UpdateUser updateUser = UpdateUser.create(login)
       .setName(newUser.name())
       .setEmail(newUser.email())
-      .setScmAccounts(newUser.scmAccounts());
+      .setScmAccounts(newUser.scmAccounts())
+      .setExternalIdentity(newUser.externalIdentity());
     if (newUser.password() != null) {
       updateUser.setPassword(newUser.password());
     }
-    if (newUser.externalIdentity() != null) {
-      updateUser.setExternalIdentity(newUser.externalIdentity());
-    }
-    // Hack to allow to change the password of the user
-    existingUser.setLocal(true);
     setOnboarded(existingUser);
     updateDto(dbSession, updateUser, existingUser);
     updateUser(dbSession, existingUser);
     addUserToDefaultOrganizationAndDefaultGroup(dbSession, existingUser);
   }
 
-  public void updateAndCommit(DbSession dbSession, UpdateUser updateUser, Consumer<UserDto> beforeCommit) {
+  public void updateAndCommit(DbSession dbSession, UpdateUser updateUser, Consumer<UserDto> beforeCommit, UserDto... otherUsersToIndex) {
     UserDto dto = dbClient.userDao().selectByLogin(dbSession, updateUser.login());
     checkFound(dto, "User with login '%s' has not been found", updateUser.login());
     boolean isUserUpdated = updateDto(dbSession, updateUser, dto);
@@ -135,7 +135,7 @@ public class UserUpdater {
       // at least one change. Database must be updated and Elasticsearch re-indexed
       updateUser(dbSession, dto);
       beforeCommit.accept(dto);
-      userIndexer.commitAndIndex(dbSession, dto);
+      userIndexer.commitAndIndex(dbSession, concat(Stream.of(dto), stream(otherUsersToIndex)).collect(toList()));
       notifyNewUser(dto.getLogin(), dto.getName(), dto.getEmail());
     } else {
       // no changes but still execute the consumer
@@ -213,8 +213,6 @@ public class UserUpdater {
     ExternalIdentity externalIdentity = updateUser.externalIdentity();
     if (updateUser.isExternalIdentityChanged() && !isSameExternalIdentity(userDto, externalIdentity)) {
       setExternalIdentity(userDto, externalIdentity);
-      userDto.setSalt(null);
-      userDto.setCryptedPassword(null);
       return true;
     }
     return false;
@@ -222,7 +220,7 @@ public class UserUpdater {
 
   private static boolean updatePassword(UpdateUser updateUser, UserDto userDto, List<String> messages) {
     String password = updateUser.password();
-    if (!updateUser.isExternalIdentityChanged() && updateUser.isPasswordChanged() && validatePasswords(password, messages) && checkPasswordChangeAllowed(userDto, messages)) {
+    if (updateUser.isPasswordChanged() && validatePasswords(password, messages) && checkPasswordChangeAllowed(userDto, messages)) {
       setEncryptedPassword(password, userDto);
       return true;
     }
@@ -248,10 +246,9 @@ public class UserUpdater {
   }
 
   private static boolean isSameExternalIdentity(UserDto dto, @Nullable ExternalIdentity externalIdentity) {
-    return (externalIdentity == null && dto.getExternalIdentity() == null) ||
-      (externalIdentity != null
-        && Objects.equals(dto.getExternalIdentity(), externalIdentity.getId())
-        && Objects.equals(dto.getExternalIdentityProvider(), externalIdentity.getProvider()));
+    return externalIdentity != null
+      && Objects.equals(dto.getExternalIdentity(), externalIdentity.getId())
+      && Objects.equals(dto.getExternalIdentityProvider(), externalIdentity.getProvider());
   }
 
   private static void setExternalIdentity(UserDto dto, @Nullable ExternalIdentity externalIdentity) {
@@ -263,6 +260,8 @@ public class UserUpdater {
       dto.setExternalIdentity(externalIdentity.getId());
       dto.setExternalIdentityProvider(externalIdentity.getProvider());
       dto.setLocal(false);
+      dto.setSalt(null);
+      dto.setCryptedPassword(null);
     }
   }
 
@@ -356,7 +355,11 @@ public class UserUpdater {
 
   private static List<String> sanitizeScmAccounts(@Nullable List<String> scmAccounts) {
     if (scmAccounts != null) {
-      return scmAccounts.stream().filter(s -> !Strings.isNullOrEmpty(s)).collect(MoreCollectors.toList());
+      return new HashSet<>(scmAccounts).stream()
+        .map(Strings::emptyToNull)
+        .filter(Objects::nonNull)
+        .sorted(String::compareToIgnoreCase)
+        .collect(toList(scmAccounts.size()));
     }
     return Collections.emptyList();
   }

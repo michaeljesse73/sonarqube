@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,25 +21,35 @@ package org.sonar.server.setting.ws;
 
 import java.util.Optional;
 import java.util.function.Predicate;
+import java.util.stream.Collector;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.sonar.api.config.PropertyDefinition;
 import org.sonar.api.server.ServerSide;
+import org.sonar.api.server.ws.WebService;
 import org.sonar.db.component.ComponentDto;
-import org.sonar.server.organization.DefaultOrganizationProvider;
 import org.sonar.db.permission.OrganizationPermission;
+import org.sonar.process.ProcessProperties;
+import org.sonar.server.organization.DefaultOrganizationProvider;
 import org.sonar.server.user.UserSession;
 
+import static java.lang.String.format;
+import static java.util.Arrays.stream;
 import static org.sonar.api.PropertyType.LICENSE;
 import static org.sonar.api.web.UserRole.ADMIN;
 import static org.sonar.core.permission.GlobalPermissions.SCAN_EXECUTION;
+import static org.sonar.server.setting.ws.SettingsWsParameters.PARAM_BRANCH;
+import static org.sonar.server.ws.KeyExamples.KEY_BRANCH_EXAMPLE_001;
 
 @ServerSide
 public class SettingsWsSupport {
 
+  private static final Collector<CharSequence, ?, String> COMMA_JOINER = Collectors.joining(",");
+
   public static final String DOT_SECURED = ".secured";
   public static final String DOT_LICENSE = ".license";
   private static final String LICENSE_SUFFIX = DOT_LICENSE + DOT_SECURED;
-  static final String LICENSE_HASH_SUFFIX = ".licenseHash" + DOT_SECURED;
+  private static final String LICENSE_HASH_SUFFIX = ".licenseHash" + DOT_SECURED;
 
   private final DefaultOrganizationProvider defaultOrganizationProvider;
   private final UserSession userSession;
@@ -47,6 +57,15 @@ public class SettingsWsSupport {
   public SettingsWsSupport(DefaultOrganizationProvider defaultOrganizationProvider, UserSession userSession) {
     this.defaultOrganizationProvider = defaultOrganizationProvider;
     this.userSession = userSession;
+  }
+
+  static void validateKey(String key) {
+    stream(ProcessProperties.Property.values())
+      .filter(property -> property.getKey().equalsIgnoreCase(key))
+      .findFirst()
+      .ifPresent(property -> {
+        throw new IllegalArgumentException(format("Setting '%s' can only be used in sonar.properties", key));
+      });
   }
 
   Predicate<Setting> isSettingVisible(Optional<ComponentDto> component) {
@@ -80,5 +99,13 @@ public class SettingsWsSupport {
     return component
       .map(c -> userSession.hasComponentPermission(projectPermission, c))
       .orElse(false);
+  }
+
+  WebService.NewParam addBranchParam(WebService.NewAction action) {
+    return action.createParam(PARAM_BRANCH)
+      .setDescription("Branch key. Only available on following settings : %s", SettingsWs.SETTING_ON_BRANCHES.stream().collect(COMMA_JOINER))
+      .setExampleValue(KEY_BRANCH_EXAMPLE_001)
+      .setInternal(true)
+      .setSince("6.6");
   }
 }

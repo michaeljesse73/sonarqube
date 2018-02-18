@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,35 +19,39 @@
  */
 // @flow
 import React from 'react';
-import Modal from 'react-modal';
 import classNames from 'classnames';
 import LinksHelp from './LinksHelp';
 import LinksHelpSonarCloud from './LinksHelpSonarCloud';
 import ShortcutsHelp from './ShortcutsHelp';
 import TutorialsHelp from './TutorialsHelp';
+import Modal from '../../../components/controls/Modal';
 import { translate } from '../../../helpers/l10n';
 
+/*::
 type Props = {
   currentUser: { isLoggedIn: boolean },
   onClose: () => void,
   onTutorialSelect: () => void,
-  sonarCloud?: boolean
+  onSonarCloud?: boolean
 };
+*/
 
+/*::
 type State = {
   section: string
 };
+*/
 
 export default class GlobalHelp extends React.PureComponent {
-  props: Props;
-  state: State = { section: 'shortcuts' };
+  /*:: props: Props; */
+  state /*: State */ = { section: 'shortcuts' };
 
-  handleCloseClick = (event: Event) => {
+  handleCloseClick = (event /*: Event */) => {
     event.preventDefault();
     this.props.onClose();
   };
 
-  handleSectionClick = (event: Event & { currentTarget: HTMLElement }) => {
+  handleSectionClick = (event /*: Event & { currentTarget: HTMLElement } */) => {
     event.preventDefault();
     const { section } = event.currentTarget.dataset;
     this.setState({ section });
@@ -58,9 +62,11 @@ export default class GlobalHelp extends React.PureComponent {
       case 'shortcuts':
         return <ShortcutsHelp />;
       case 'links':
-        return this.props.sonarCloud
-          ? <LinksHelpSonarCloud onClose={this.props.onClose} />
-          : <LinksHelp onClose={this.props.onClose} />;
+        return this.props.onSonarCloud ? (
+          <LinksHelpSonarCloud onClose={this.props.onClose} />
+        ) : (
+          <LinksHelp onClose={this.props.onClose} />
+        );
       case 'tutorials':
         return <TutorialsHelp onTutorialSelect={this.props.onTutorialSelect} />;
       default:
@@ -68,7 +74,7 @@ export default class GlobalHelp extends React.PureComponent {
     }
   };
 
-  renderMenuItem = (section: string) => (
+  renderMenuItem = (section /*: string */) => (
     <li key={section}>
       <a
         className={classNames({ active: section === this.state.section })}
@@ -82,32 +88,23 @@ export default class GlobalHelp extends React.PureComponent {
 
   renderMenu = () => (
     <ul className="side-tabs-menu">
-      {(this.props.currentUser.isLoggedIn
+      {(this.props.currentUser.isLoggedIn && !this.props.onSonarCloud
         ? ['shortcuts', 'tutorials', 'links']
-        : ['shortcuts', 'links']).map(this.renderMenuItem)}
+        : ['shortcuts', 'links']
+      ).map(this.renderMenuItem)}
     </ul>
   );
 
   render() {
     return (
-      <Modal
-        isOpen={true}
-        contentLabel={translate('help')}
-        className="modal modal-medium"
-        overlayClassName="modal-overlay"
-        onRequestClose={this.props.onClose}>
-
+      <Modal contentLabel={translate('help')} medium={true} onRequestClose={this.props.onClose}>
         <div className="modal-head">
           <h2>{translate('help')}</h2>
         </div>
 
         <div className="side-tabs-layout">
-          <div className="side-tabs-side">
-            {this.renderMenu()}
-          </div>
-          <div className="side-tabs-main">
-            {this.renderSection()}
-          </div>
+          <div className="side-tabs-side">{this.renderMenu()}</div>
+          <div className="side-tabs-main">{this.renderSection()}</div>
         </div>
 
         <div className="modal-foot">
@@ -115,7 +112,6 @@ export default class GlobalHelp extends React.PureComponent {
             {translate('close')}
           </a>
         </div>
-
       </Modal>
     );
   }

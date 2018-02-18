@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,19 +21,17 @@ package org.sonarqube.tests.user;
 
 import com.google.common.base.Joiner;
 import com.sonar.orchestrator.Orchestrator;
-import org.sonarqube.tests.Category6Suite;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
-import org.sonarqube.tests.Tester;
-import org.sonarqube.ws.WsUserGroups.Group;
-import org.sonarqube.ws.WsUsers.CreateWsResponse.User;
+import org.sonarqube.qa.util.Tester;
+import org.sonarqube.tests.Category6Suite;
+import org.sonarqube.ws.UserGroups.Group;
+import org.sonarqube.ws.Users.CreateWsResponse.User;
 import org.sonarqube.ws.client.GetRequest;
-
-import static util.ItUtils.resetSettings;
-import static util.ItUtils.setServerProperty;
+import org.sonarqube.ws.client.organizations.AddMemberRequest;
 
 public class OrganizationIdentityProviderTest {
 
@@ -43,22 +41,21 @@ public class OrganizationIdentityProviderTest {
   @Rule
   public Tester tester = new Tester(orchestrator);
 
-
   @Before
   public void setUp() {
     // enable the fake authentication plugin
-    setServerProperty(orchestrator, "sonar.auth.fake-base-id-provider.enabled", "true");
+    tester.settings().setGlobalSettings("sonar.auth.fake-base-id-provider.enabled", "true");
   }
 
   @After
   public void tearDown() {
-    resetSettings(orchestrator, null, "sonar.auth.fake-base-id-provider.enabled", "sonar.auth.fake-base-id-provider.user",
+    tester.settings().resetSettings("sonar.auth.fake-base-id-provider.enabled", "sonar.auth.fake-base-id-provider.user",
       "sonar.auth.fake-base-id-provider.throwUnauthorizedMessage", "sonar.auth.fake-base-id-provider.enabledGroupsSync", "sonar.auth.fake-base-id-provider.groups",
       "sonar.auth.fake-base-id-provider.allowsUsersToSignUp");
   }
 
   @Test
-  public void default_group_is_not_added_for_new_user_when_organizations_are_enabled()  {
+  public void default_group_is_not_added_for_new_user_when_organizations_are_enabled() {
     Group group = tester.groups().generate(null);
     enableUserCreationByAuthPlugin("aLogin");
     setGroupsReturnedByAuthPlugin(group.getName());
@@ -87,7 +84,7 @@ public class OrganizationIdentityProviderTest {
     Group group = tester.groups().generate(null);
     User user = tester.users().generate();
     // Add user as member of default organization
-    tester.wsClient().organizations().addMember("default-organization", user.getLogin());
+    tester.wsClient().organizations().addMember(new AddMemberRequest().setOrganization("default-organization").setLogin(user.getLogin()));
     tester.groups().assertThatUserIsMemberOf(null, user.getLogin(), "Members");
     enableUserCreationByAuthPlugin(user.getLogin());
     // No group is returned by the plugin
@@ -99,14 +96,14 @@ public class OrganizationIdentityProviderTest {
     tester.groups().assertThatUserIsOnlyMemberOf(null, user.getLogin());
   }
 
-  private static void enableUserCreationByAuthPlugin(String login) {
-    setServerProperty(orchestrator, "sonar.auth.fake-base-id-provider.user", login + ",fake-john,John,john@email.com");
+  private void enableUserCreationByAuthPlugin(String login) {
+    tester.settings().setGlobalSettings("sonar.auth.fake-base-id-provider.user", login + ",fake-john,John,john@email.com");
   }
 
-  private static void setGroupsReturnedByAuthPlugin(String... groups) {
-    setServerProperty(orchestrator, "sonar.auth.fake-base-id-provider.enabledGroupsSync", "true");
+  private void setGroupsReturnedByAuthPlugin(String... groups) {
+    tester.settings().setGlobalSettings("sonar.auth.fake-base-id-provider.enabledGroupsSync", "true");
     if (groups.length > 0) {
-      setServerProperty(orchestrator, "sonar.auth.fake-base-id-provider.groups", Joiner.on(",").join(groups));
+      tester.settings().setGlobalSettings("sonar.auth.fake-base-id-provider.groups", Joiner.on(",").join(groups));
     }
   }
 

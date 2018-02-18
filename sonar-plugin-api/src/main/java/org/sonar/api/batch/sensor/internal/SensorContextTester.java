@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,6 +21,7 @@ package org.sonar.api.batch.sensor.internal;
 
 import java.io.File;
 import java.io.Serializable;
+import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -34,6 +35,7 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 import org.sonar.api.SonarQubeSide;
 import org.sonar.api.SonarRuntime;
+import org.sonar.api.batch.bootstrap.ProjectDefinition;
 import org.sonar.api.batch.fs.InputFile;
 import org.sonar.api.batch.fs.InputModule;
 import org.sonar.api.batch.fs.TextRange;
@@ -104,10 +106,10 @@ public class SensorContextTester implements SensorContext {
 
   private SensorContextTester(Path moduleBaseDir) {
     this.settings = new MapSettings();
-    this.fs = new DefaultFileSystem(moduleBaseDir);
+    this.fs = new DefaultFileSystem(moduleBaseDir).setEncoding(Charset.defaultCharset());
     this.activeRules = new ActiveRulesBuilder().build();
     this.sensorStorage = new InMemorySensorStorage();
-    this.module = new DefaultInputModule("projectKey");
+    this.module = new DefaultInputModule(ProjectDefinition.create().setKey("projectKey").setBaseDir(moduleBaseDir.toFile()).setWorkDir(moduleBaseDir.resolve(".sonar").toFile()));
     this.runtime = SonarRuntimeImpl.forSonarQube(ApiVersion.load(System2.INSTANCE), SonarQubeSide.SCANNER);
   }
 
@@ -350,6 +352,6 @@ public class SensorContextTester implements SensorContext {
   @Override
   public void markForPublishing(InputFile inputFile) {
     DefaultInputFile file = (DefaultInputFile) inputFile;
-    file.setPublish(true);
+    file.setPublished(true);
   }
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,105 +20,75 @@
 package org.sonarqube.tests.qualityGate;
 
 import com.sonar.orchestrator.Orchestrator;
-import org.sonarqube.tests.Category1Suite;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
-import org.sonar.wsclient.qualitygate.QualityGateClient;
-import org.sonarqube.ws.WsMeasures;
-import org.sonarqube.ws.client.WsClient;
-import org.sonarqube.ws.client.qualitygate.CreateConditionRequest;
-import org.sonarqube.ws.client.qualitygate.QualityGatesService;
-import org.sonarqube.ws.client.qualitygate.SelectWsRequest;
+import org.sonarqube.qa.util.Tester;
+import org.sonarqube.ws.Measures;
+import org.sonarqube.ws.Projects.CreateWsResponse.Project;
+import org.sonarqube.ws.Qualitygates;
+import org.sonarqube.ws.client.qualitygates.CreateConditionRequest;
 import util.ItUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static util.ItUtils.getMeasure;
-import static util.ItUtils.newAdminWsClient;
-import static util.ItUtils.resetSettings;
 import static util.ItUtils.runProjectAnalysis;
-import static util.ItUtils.setServerProperty;
 
 public class QualityGateOnRatingMeasuresTest {
 
   @ClassRule
-  public static Orchestrator orchestrator = Category1Suite.ORCHESTRATOR;
+  public static Orchestrator orchestrator = QualityGateSuite.ORCHESTRATOR;
 
-  private static final String PROJECT_KEY = "sample";
-
-  static WsClient wsClient;
-
-  static QualityGatesService QUALITY_GATES;
-
-  Long qualityGateId;
-
-  @BeforeClass
-  public static void init() {
-    wsClient = newAdminWsClient(orchestrator);
-    QUALITY_GATES = wsClient.qualityGates();
-  }
-
-  @Before
-  public void prepareData() {
-    orchestrator.resetData();
-    qualityGateId = QUALITY_GATES.create("QualityGate").getId();
-    orchestrator.getServer().provisionProject(PROJECT_KEY, PROJECT_KEY);
-    QUALITY_GATES.associateProject(new SelectWsRequest().setGateId(qualityGateId).setProjectKey(PROJECT_KEY));
-  }
-
-  @After
-  public void resetData() throws Exception {
-    qgClient().destroy(qualityGateId);
-    resetSettings(orchestrator, null, "sonar.leak.period");
-  }
+  @Rule
+  public Tester tester = new Tester(orchestrator)
+    // all the tests of QualityGateSuite must disable organizations
+    .disableOrganizations();
 
   @Test
-  public void generate_warning_qgate_on_rating_metric() throws Exception {
-    QUALITY_GATES.createCondition(CreateConditionRequest.builder()
-      .setQualityGateId(qualityGateId.intValue())
-      .setMetricKey("security_rating")
-      .setOperator("GT")
-      .setWarning("3")
-      .build());
+  public void generate_warning_qgate_on_rating_metric() {
+    Project project = tester.projects().provision();
+    Qualitygates.CreateResponse qualityGate = tester.qGates().generate();
+    tester.qGates().associateProject(qualityGate, project);
+    tester.qGates().service().createCondition(new CreateConditionRequest()
+      .setGateId(String.valueOf(qualityGate.getId()))
+      .setMetric("security_rating")
+      .setOp("GT")
+      .setWarning("3"));
     ItUtils.restoreProfile(orchestrator, getClass().getResource("/qualityGate/QualityGateOnRatingMeasuresTest/with-many-rules.xml"));
-    orchestrator.getServer().associateProjectToQualityProfile(PROJECT_KEY, "xoo", "with-many-rules");
+    orchestrator.getServer().associateProjectToQualityProfile(project.getKey(), "xoo", "with-many-rules");
 
-    runProjectAnalysis(orchestrator, "qualitygate/xoo-sample");
+    runProjectAnalysis(orchestrator, "qualitygate/xoo-sample", "sonar.projectKey", project.getKey());
 
-    assertThat(getGateStatusMeasure().getValue()).isEqualTo("WARN");
+    assertThat(getGateStatusMeasure(project).getValue()).isEqualTo("WARN");
   }
 
   @Test
-  public void generate_error_qgate_on_rating_metric_on_leak_period() throws Exception {
-    setServerProperty(orchestrator, "sonar.leak.period", "previous_analysis");
-    QUALITY_GATES.createCondition(CreateConditionRequest.builder()
-      .setQualityGateId(qualityGateId.intValue())
-      .setMetricKey("new_security_rating")
-      .setOperator("GT")
+  public void generate_error_qgate_on_rating_metric_on_leak_period() {
+    Project project = tester.projects().provision();
+    Qualitygates.CreateResponse qualityGate = tester.qGates().generate();
+    tester.qGates().associateProject(qualityGate, project);
+    tester.settings().setGlobalSetting("sonar.leak.period", "previous_version");
+    tester.wsClient().qualitygates().createCondition(new CreateConditionRequest()
+      .setGateId(String.valueOf(qualityGate.getId()))
+      .setMetric("new_security_rating")
+      .setOp("GT")
       .setError("3")
-      .setPeriod(1)
-      .build());
+      .setPeriod("1"));
 
     // Run first analysis with empty quality gate -> quality gate is green
-    orchestrator.getServer().associateProjectToQualityProfile(PROJECT_KEY, "xoo", "empty");
-    runProjectAnalysis(orchestrator, "qualitygate/xoo-sample");
-    assertThat(getGateStatusMeasure().getValue()).isEqualTo("OK");
+    orchestrator.getServer().associateProjectToQualityProfile(project.getKey(), "xoo", "empty");
+    runProjectAnalysis(orchestrator, "qualitygate/xoo-sample", "sonar.projectKey", project.getKey());
+    assertThat(getGateStatusMeasure(project).getValue()).isEqualTo("OK");
 
     // Run second analysis with some rules that makes Security Rating to E -> quality gate is red
     ItUtils.restoreProfile(orchestrator, getClass().getResource("/qualityGate/QualityGateOnRatingMeasuresTest/with-many-rules.xml"));
-    orchestrator.getServer().associateProjectToQualityProfile(PROJECT_KEY, "xoo", "with-many-rules");
-    runProjectAnalysis(orchestrator, "qualitygate/xoo-sample");
-    assertThat(getGateStatusMeasure().getValue()).isEqualTo("ERROR");
+    orchestrator.getServer().associateProjectToQualityProfile(project.getKey(), "xoo", "with-many-rules");
+    runProjectAnalysis(orchestrator, "qualitygate/xoo-sample", "sonar.projectKey", project.getKey());
+    assertThat(getGateStatusMeasure(project).getValue()).isEqualTo("ERROR");
   }
 
-  private WsMeasures.Measure getGateStatusMeasure() {
-    return getMeasure(orchestrator, PROJECT_KEY, "alert_status");
-  }
-
-  private static QualityGateClient qgClient() {
-    return orchestrator.getServer().adminWsClient().qualityGateClient();
+  private Measures.Measure getGateStatusMeasure(Project project) {
+    return getMeasure(orchestrator, project.getKey(), "alert_status");
   }
 
 }

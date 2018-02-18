@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,6 +20,8 @@
 import React from 'react';
 import { shallow } from 'enzyme';
 import ProjectActivityGraphs from '../ProjectActivityGraphs';
+import { DEFAULT_GRAPH } from '../../utils';
+import { parseDate } from '../../../../helpers/dates';
 
 const ANALYSES = [
   {
@@ -56,6 +58,8 @@ const ANALYSES = [
   }
 ];
 
+const METRICS = [{ key: 'code_smells', name: 'Code Smells', type: 'INT' }];
+
 const DEFAULT_PROPS = {
   analyses: ANALYSES,
   leakPeriodDate: '2017-05-16T13:50:02+0200',
@@ -64,15 +68,14 @@ const DEFAULT_PROPS = {
     {
       metric: 'code_smells',
       history: [
-        { date: new Date('2016-10-26T12:17:29+0200'), value: '2286' },
-        { date: new Date('2016-10-27T12:21:15+0200'), value: '1749' },
-        { date: new Date('2016-10-27T16:33:50+0200'), value: '500' }
+        { date: parseDate('2016-10-26T12:17:29+0200'), value: '2286' },
+        { date: parseDate('2016-10-27T12:21:15+0200'), value: '1749' },
+        { date: parseDate('2016-10-27T16:33:50+0200'), value: '500' }
       ]
     }
   ],
-  metricsType: 'INT',
-  project: 'org.sonarsource.sonarqube:sonarqube',
-  query: { category: '', graph: 'overview', project: 'org.sonarsource.sonarqube:sonarqube' },
+  metrics: METRICS,
+  query: { category: '', graph: DEFAULT_GRAPH, project: 'org.sonarsource.sonarqube:sonarqube' },
   updateQuery: () => {}
 };
 

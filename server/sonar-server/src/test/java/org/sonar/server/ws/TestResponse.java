@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,12 +19,14 @@
  */
 package org.sonar.server.ws;
 
-import com.google.protobuf.GeneratedMessage;
+import com.google.protobuf.GeneratedMessageV3;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.lang.reflect.Method;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import javax.annotation.CheckForNull;
+import org.sonar.test.JsonAssert;
 
 public class TestResponse {
 
@@ -38,7 +40,7 @@ public class TestResponse {
     return new ByteArrayInputStream(dumbResponse.getFlushedOutput());
   }
 
-  public <T extends GeneratedMessage> T getInputObject(Class<T> protobufClass) {
+  public <T extends GeneratedMessageV3> T getInputObject(Class<T> protobufClass) {
     try (InputStream input = getInputStream()) {
       Method parseFromMethod = protobufClass.getMethod("parseFrom", InputStream.class);
       @SuppressWarnings("unchecked")
@@ -64,5 +66,26 @@ public class TestResponse {
   @CheckForNull
   public String getHeader(String headerKey) {
     return dumbResponse.getHeader(headerKey);
+  }
+
+  public void assertJson(String expectedJson) {
+    JsonAssert.assertJson(getInput()).isSimilarTo(expectedJson);
+  }
+
+  /**
+   * Compares JSON response with JSON file available in classpath. For example if class
+   * is org.foo.BarTest and filename is index.json, then file must be located
+   * at src/test/resources/org/foo/BarTest/index.json.
+   *
+   * @param clazz                the test class
+   * @param expectedJsonFilename name of the file containing the expected JSON
+   */
+  public void assertJson(Class clazz, String expectedJsonFilename) {
+    String path = clazz.getSimpleName() + "/" + expectedJsonFilename;
+    URL url = clazz.getResource(path);
+    if (url == null) {
+      throw new IllegalStateException("Cannot find " + path);
+    }
+    JsonAssert.assertJson(getInput()).isSimilarTo(url);
   }
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,7 +20,7 @@
 package org.sonar.server.ce.ws;
 
 import com.google.common.base.Optional;
-import org.sonar.api.server.ws.Request;
+import org.sonar.api.server.ws.Change;
 import org.sonar.api.server.ws.Response;
 import org.sonar.api.server.ws.WebService;
 import org.sonar.api.web.UserRole;
@@ -33,13 +33,12 @@ import org.sonar.db.component.ComponentDto;
 import org.sonar.server.component.ComponentFinder;
 import org.sonar.server.user.UserSession;
 import org.sonar.server.ws.KeyExamples;
-import org.sonarqube.ws.WsCe.ActivityStatusWsResponse;
-import org.sonarqube.ws.client.ce.ActivityStatusWsRequest;
+import org.sonarqube.ws.Ce.ActivityStatusWsResponse;
 
 import static org.sonar.server.component.ComponentFinder.ParamNames.COMPONENT_ID_AND_KEY;
 import static org.sonar.server.ws.WsUtils.writeProtobuf;
-import static org.sonarqube.ws.client.ce.CeWsParameters.PARAM_COMPONENT_ID;
-import static org.sonarqube.ws.client.ce.CeWsParameters.PARAM_COMPONENT_KEY;
+import static org.sonar.server.ce.ws.CeWsParameters.DEPRECATED_PARAM_COMPONENT_KEY;
+import static org.sonar.server.ce.ws.CeWsParameters.PARAM_COMPONENT_ID;
 
 public class ActivityStatusAction implements CeWsAction {
   private final UserSession userSession;
@@ -66,33 +65,37 @@ public class ActivityStatusAction implements CeWsAction {
     action.createParam(PARAM_COMPONENT_ID)
       .setDescription("Id of the component (project) to filter on")
       .setExampleValue(Uuids.UUID_EXAMPLE_03);
-    action.createParam(PARAM_COMPONENT_KEY)
+    action.createParam(DEPRECATED_PARAM_COMPONENT_KEY)
       .setDescription("Key of the component (project) to filter on")
       .setExampleValue(KeyExamples.KEY_PROJECT_EXAMPLE_001);
+
+    action.setChangelog(new Change("6.6", "New field 'inProgress' in response"));
   }
 
   @Override
-  public void handle(Request request, Response response) throws Exception {
+  public void handle(org.sonar.api.server.ws.Request request, Response response) throws Exception {
     ActivityStatusWsResponse activityStatusResponse = doHandle(toWsRequest(request));
     writeProtobuf(activityStatusResponse, request, response);
   }
 
-  private ActivityStatusWsResponse doHandle(ActivityStatusWsRequest request) {
+  private ActivityStatusWsResponse doHandle(Request request) {
     try (DbSession dbSession = dbClient.openSession(false)) {
       Optional<ComponentDto> component = searchComponent(dbSession, request);
       String componentUuid = component.isPresent() ? component.get().uuid() : null;
       checkPermissions(component);
       int pendingCount = dbClient.ceQueueDao().countByStatusAndComponentUuid(dbSession, CeQueueDto.Status.PENDING, componentUuid);
+      int inProgressCount = dbClient.ceQueueDao().countByStatusAndComponentUuid(dbSession, CeQueueDto.Status.IN_PROGRESS, componentUuid);
       int failingCount = dbClient.ceActivityDao().countLastByStatusAndComponentUuid(dbSession, CeActivityDto.Status.FAILED, componentUuid);
 
       return ActivityStatusWsResponse.newBuilder()
         .setPending(pendingCount)
+        .setInProgress(inProgressCount)
         .setFailing(failingCount)
         .build();
     }
   }
 
-  private Optional<ComponentDto> searchComponent(DbSession dbSession, ActivityStatusWsRequest request) {
+  private Optional<ComponentDto> searchComponent(DbSession dbSession, Request request) {
     ComponentDto component = null;
     if (hasComponentInRequest(request)) {
       component = componentFinder.getByUuidOrKey(dbSession, request.getComponentId(), request.getComponentKey(), COMPONENT_ID_AND_KEY);
@@ -108,14 +111,37 @@ public class ActivityStatusAction implements CeWsAction {
     }
   }
 
-  private static boolean hasComponentInRequest(ActivityStatusWsRequest request) {
+  private static boolean hasComponentInRequest(Request request) {
     return request.getComponentId() != null || request.getComponentKey() != null;
   }
 
-  private static ActivityStatusWsRequest toWsRequest(Request request) {
-    return ActivityStatusWsRequest.newBuilder()
+  private static Request toWsRequest(org.sonar.api.server.ws.Request request) {
+    return new Request()
       .setComponentId(request.param(PARAM_COMPONENT_ID))
-      .setComponentKey(request.param(PARAM_COMPONENT_KEY))
-      .build();
+      .setComponentKey(request.param(DEPRECATED_PARAM_COMPONENT_KEY));
+  }
+
+  private static class Request {
+
+    private String componentId;
+    private String componentKey;
+
+    public Request setComponentId(String componentId) {
+      this.componentId = componentId;
+      return this;
+    }
+
+    public String getComponentId() {
+      return componentId;
+    }
+
+    public Request setComponentKey(String componentKey) {
+      this.componentKey = componentKey;
+      return this;
+    }
+
+    public String getComponentKey() {
+      return componentKey;
+    }
   }
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,7 +20,7 @@
 package org.sonar.server.computation.task.projectanalysis.formula.counter;
 
 import javax.annotation.Nullable;
-import org.sonar.server.computation.task.projectanalysis.qualitymodel.RatingGrid.Rating;
+import org.sonar.server.computation.task.projectanalysis.qualitymodel.Rating;
 
 /**
  * Convenience class wrapping a rating to compute the value and know it is has ever been set.

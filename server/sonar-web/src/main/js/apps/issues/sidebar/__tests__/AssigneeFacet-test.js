@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -23,7 +23,7 @@ import AssigneeFacet from '../AssigneeFacet';
 
 jest.mock('../../../../store/rootReducer', () => ({}));
 
-const renderAssigneeFacet = (props?: {}) =>
+const renderAssigneeFacet = (props /*: ?{} */) =>
   shallow(
     <AssigneeFacet
       assigned={true}
@@ -64,7 +64,10 @@ it('should render footer select option', () => {
 it('should call onChange', () => {
   const onChange = jest.fn();
   const wrapper = renderAssigneeFacet({ assignees: ['foo'], onChange });
-  const itemOnClick = wrapper.find('FacetItem').first().prop('onClick');
+  const itemOnClick = wrapper
+    .find('FacetItem')
+    .first()
+    .prop('onClick');
 
   itemOnClick('');
   expect(onChange).lastCalledWith({ assigned: false, assignees: [] });

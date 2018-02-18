@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -37,24 +37,22 @@ public class MeasureTreeQueryTest {
   public ExpectedException expectedException = ExpectedException.none();
 
   @Test
-  public void create_query() throws Exception {
+  public void create_query() {
     MeasureTreeQuery query = MeasureTreeQuery.builder()
       .setStrategy(CHILDREN)
       .setQualifiers(asList("FIL", "DIR"))
       .setNameOrKeyQuery("teSt")
       .setMetricIds(asList(10, 11))
-      .setPersonId(100L)
       .build();
 
     assertThat(query.getStrategy()).isEqualTo(CHILDREN);
     assertThat(query.getQualifiers()).containsOnly("FIL", "DIR");
     assertThat(query.getNameOrKeyQuery()).isEqualTo("teSt");
     assertThat(query.getMetricIds()).containsOnly(10, 11);
-    assertThat(query.getPersonId()).isEqualTo(100L);
   }
 
   @Test
-  public void create_minimal_query() throws Exception {
+  public void create_minimal_query() {
     MeasureTreeQuery query = MeasureTreeQuery.builder()
       .setStrategy(CHILDREN)
       .build();
@@ -63,11 +61,10 @@ public class MeasureTreeQueryTest {
     assertThat(query.getQualifiers()).isNull();
     assertThat(query.getNameOrKeyQuery()).isNull();
     assertThat(query.getMetricIds()).isNull();
-    assertThat(query.getPersonId()).isNull();
   }
 
   @Test
-  public void test_getNameOrKeyUpperLikeQuery() throws Exception {
+  public void test_getNameOrKeyUpperLikeQuery() {
     assertThat(MeasureTreeQuery.builder()
       .setNameOrKeyQuery("like-\\_%/-value")
       .setStrategy(CHILDREN)
@@ -79,7 +76,7 @@ public class MeasureTreeQueryTest {
   }
 
   @Test
-  public void test_getUuidPath() throws Exception {
+  public void test_getUuidPath() {
     assertThat(MeasureTreeQuery.builder().setStrategy(CHILDREN)
       .build().getUuidPath(ComponentTesting.newPrivateProjectDto(OrganizationTesting.newOrganizationDto(), "PROJECT_UUID"))).isEqualTo(".PROJECT_UUID.");
 
@@ -88,7 +85,7 @@ public class MeasureTreeQueryTest {
   }
 
   @Test
-  public void return_empty_when_metrics_is_empty() throws Exception {
+  public void return_empty_when_metrics_is_empty() {
     assertThat(MeasureTreeQuery.builder()
       .setStrategy(CHILDREN)
       .setMetricIds(Collections.emptyList())
@@ -101,7 +98,7 @@ public class MeasureTreeQueryTest {
   }
 
   @Test
-  public void return_empty_when_qualifiers_is_empty() throws Exception {
+  public void return_empty_when_qualifiers_is_empty() {
     assertThat(MeasureTreeQuery.builder()
       .setStrategy(CHILDREN)
       .setQualifiers(Collections.emptyList())
@@ -114,7 +111,7 @@ public class MeasureTreeQueryTest {
   }
 
   @Test
-  public void fail_when_no_strategy() throws Exception {
+  public void fail_when_no_strategy() {
     expectedException.expect(NullPointerException.class);
     MeasureTreeQuery.builder()
       .build();

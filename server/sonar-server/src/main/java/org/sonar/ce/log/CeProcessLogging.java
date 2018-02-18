@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -41,7 +41,7 @@ public class CeProcessLogging extends ServerProcessLogging {
     logLevelConfigBuilder.levelByDomain("sql", ProcessId.COMPUTE_ENGINE, LogDomain.SQL);
     logLevelConfigBuilder.levelByDomain("es", ProcessId.COMPUTE_ENGINE, LogDomain.ES);
     JMX_RMI_LOGGER_NAMES.forEach(loggerName -> logLevelConfigBuilder.levelByDomain(loggerName, ProcessId.COMPUTE_ENGINE, LogDomain.JMX));
-    MSQDRIVER_LOGGER_NAMES_TO_TURN_OFF.forEach(loggerName -> logLevelConfigBuilder.immutableLevel(loggerName, Level.OFF));
+    LOGGER_NAMES_TO_TURN_OFF.forEach(loggerName -> logLevelConfigBuilder.immutableLevel(loggerName, Level.OFF));
   }
 
   @Override

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,8 +19,8 @@
  */
 import $ from 'jquery';
 import { groupBy, sortBy } from 'lodash';
-import Popup from '../../common/popup';
 import Template from './templates/source-viewer-duplication-popup.hbs';
+import Popup from '../../common/popup';
 
 export default Popup.extend({
   template: Template,
@@ -34,7 +34,7 @@ export default Popup.extend({
     const key = $(e.currentTarget).data('key');
     const line = $(e.currentTarget).data('line');
     const Workspace = require('../../workspace/main').default;
-    Workspace.openComponent({ key, line });
+    Workspace.openComponent({ key, line, branch: this.options.branch });
   },
 
   serializeData() {

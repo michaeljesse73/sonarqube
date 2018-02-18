@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -44,24 +44,30 @@ import org.sonar.db.metric.MetricDto;
 import org.sonar.server.component.ComponentFinder;
 import org.sonar.server.user.UserSession;
 import org.sonar.server.ws.KeyExamples;
-import org.sonarqube.ws.WsMeasures.SearchHistoryResponse;
-import org.sonarqube.ws.client.measure.SearchHistoryRequest;
+import org.sonarqube.ws.Measures.SearchHistoryResponse;
+
+import javax.annotation.CheckForNull;
+import javax.annotation.Nullable;
 
 import static java.lang.String.format;
 import static org.sonar.api.utils.DateUtils.parseEndingDateOrDateTime;
 import static org.sonar.api.utils.DateUtils.parseStartingDateOrDateTime;
 import static org.sonar.core.util.Protobuf.setNullable;
 import static org.sonar.db.component.SnapshotDto.STATUS_PROCESSED;
+import static org.sonar.server.ws.KeyExamples.KEY_BRANCH_EXAMPLE_001;
 import static org.sonar.server.ws.WsUtils.writeProtobuf;
-import static org.sonarqube.ws.client.measure.MeasuresWsParameters.ACTION_SEARCH_HISTORY;
-import static org.sonarqube.ws.client.measure.MeasuresWsParameters.PARAM_COMPONENT;
-import static org.sonarqube.ws.client.measure.MeasuresWsParameters.PARAM_FROM;
-import static org.sonarqube.ws.client.measure.MeasuresWsParameters.PARAM_METRICS;
-import static org.sonarqube.ws.client.measure.MeasuresWsParameters.PARAM_TO;
-import static org.sonarqube.ws.client.measure.SearchHistoryRequest.DEFAULT_PAGE_SIZE;
-import static org.sonarqube.ws.client.measure.SearchHistoryRequest.MAX_PAGE_SIZE;
+import static org.sonar.server.component.ws.MeasuresWsParameters.ACTION_SEARCH_HISTORY;
+import static org.sonar.server.component.ws.MeasuresWsParameters.PARAM_BRANCH;
+import static org.sonar.server.component.ws.MeasuresWsParameters.PARAM_COMPONENT;
+import static org.sonar.server.component.ws.MeasuresWsParameters.PARAM_FROM;
+import static org.sonar.server.component.ws.MeasuresWsParameters.PARAM_METRICS;
+import static org.sonar.server.component.ws.MeasuresWsParameters.PARAM_TO;
 
 public class SearchHistoryAction implements MeasuresWsAction {
+
+  private static final int MAX_PAGE_SIZE = 1_000;
+  private static final int DEFAULT_PAGE_SIZE = 100;
+
   private final DbClient dbClient;
   private final ComponentFinder componentFinder;
   private final UserSession userSession;
@@ -75,6 +81,7 @@ public class SearchHistoryAction implements MeasuresWsAction {
   private static SearchHistoryRequest toWsRequest(Request request) {
     return SearchHistoryRequest.builder()
       .setComponent(request.mandatoryParam(PARAM_COMPONENT))
+      .setBranch(request.param(PARAM_BRANCH))
       .setMetrics(request.mandatoryParamAsStrings(PARAM_METRICS))
       .setFrom(request.param(PARAM_FROM))
       .setTo(request.param(PARAM_TO))
@@ -99,18 +106,26 @@ public class SearchHistoryAction implements MeasuresWsAction {
       .setRequired(true)
       .setExampleValue(KeyExamples.KEY_PROJECT_EXAMPLE_001);
 
+    action.createParam(PARAM_BRANCH)
+      .setDescription("Branch key")
+      .setSince("6.6")
+      .setInternal(true)
+      .setExampleValue(KEY_BRANCH_EXAMPLE_001);
+
     action.createParam(PARAM_METRICS)
       .setDescription("Comma-separated list of metric keys")
       .setRequired(true)
       .setExampleValue("ncloc,coverage,new_violations");
 
     action.createParam(PARAM_FROM)
-      .setDescription("Filter measures created after the given date (inclusive). Format: date or datetime ISO formats")
-      .setExampleValue("2013-05-01 (or 2013-05-01T13:00:00+0100)");
+      .setDescription("Filter measures created after the given date (inclusive). <br>" +
+        "Either a date (server timezone) or datetime can be provided")
+      .setExampleValue("2017-10-19 or 2017-10-19T13:00:00+0200");
 
     action.createParam(PARAM_TO)
-      .setDescription("Filter issues created before the given date (inclusive). Format: date or datetime ISO formats")
-      .setExampleValue("2013-05-01 (or 2013-05-01T13:00:00+0100)");
+      .setDescription("Filter measures created before the given date (inclusive). <br>" +
+        "Either a date (server timezone) or datetime can be provided")
+      .setExampleValue("2017-10-19 or 2017-10-19T13:00:00+0200");
 
     action.addPagingParams(DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE);
   }
@@ -131,7 +146,7 @@ public class SearchHistoryAction implements MeasuresWsAction {
       try (DbSession dbSession = dbClient.openSession(false)) {
         ComponentDto component = searchComponent(request, dbSession);
 
-        SearchHistoryResult result = new SearchHistoryResult(request)
+        SearchHistoryResult result = new SearchHistoryResult(request.page, request.pageSize)
           .setComponent(component)
           .setAnalyses(searchAnalyses(dbSession, request, component))
           .setMetrics(searchMetrics(dbSession, request));
@@ -141,7 +156,7 @@ public class SearchHistoryAction implements MeasuresWsAction {
   }
 
   private ComponentDto searchComponent(SearchHistoryRequest request, DbSession dbSession) {
-    ComponentDto component = componentFinder.getByKey(dbSession, request.getComponent());
+    ComponentDto component = loadComponent(dbSession, request);
     userSession.checkComponentPermission(UserRole.USER, component);
     return component;
   }
@@ -181,4 +196,130 @@ public class SearchHistoryAction implements MeasuresWsAction {
     return metrics;
   }
 
+  private ComponentDto loadComponent(DbSession dbSession, SearchHistoryRequest request) {
+    String componentKey = request.getComponent();
+    String branch = request.getBranch();
+    if (branch != null) {
+      return componentFinder.getByKeyAndBranch(dbSession, componentKey, branch);
+    }
+    return componentFinder.getByKey(dbSession, componentKey);
+  }
+
+  static class SearchHistoryRequest {
+    private final String component;
+    private final String branch;
+    private final List<String> metrics;
+    private final String from;
+    private final String to;
+    private final int page;
+    private final int pageSize;
+
+    public SearchHistoryRequest(Builder builder) {
+      this.component = builder.component;
+      this.branch = builder.branch;
+      this.metrics = builder.metrics;
+      this.from = builder.from;
+      this.to = builder.to;
+      this.page = builder.page;
+      this.pageSize = builder.pageSize;
+    }
+
+    public String getComponent() {
+      return component;
+    }
+
+    @CheckForNull
+    public String getBranch() {
+      return branch;
+    }
+
+    public List<String> getMetrics() {
+      return metrics;
+    }
+
+    @CheckForNull
+    public String getFrom() {
+      return from;
+    }
+
+    @CheckForNull
+    public String getTo() {
+      return to;
+    }
+
+    public int getPage() {
+      return page;
+    }
+
+    public int getPageSize() {
+      return pageSize;
+    }
+
+    public static Builder builder() {
+      return new Builder();
+    }
+  }
+
+  static class Builder {
+    private String component;
+    private String branch;
+    private List<String> metrics;
+    private String from;
+    private String to;
+    private int page = 1;
+    private int pageSize = DEFAULT_PAGE_SIZE;
+
+    private Builder() {
+      // enforce build factory method
+    }
+
+    public Builder setComponent(String component) {
+      this.component = component;
+      return this;
+    }
+
+    public Builder setBranch(@Nullable String branch) {
+      this.branch = branch;
+      return this;
+    }
+
+    public Builder setMetrics(List<String> metrics) {
+      this.metrics = metrics;
+      return this;
+    }
+
+    public Builder setFrom(@Nullable String from) {
+      this.from = from;
+      return this;
+    }
+
+    public Builder setTo(@Nullable String to) {
+      this.to = to;
+      return this;
+    }
+
+    public Builder setPage(int page) {
+      this.page = page;
+      return this;
+    }
+
+    public Builder setPageSize(int pageSize) {
+      this.pageSize = pageSize;
+      return this;
+    }
+
+    public SearchHistoryRequest build() {
+      checkArgument(component != null && !component.isEmpty(), "Component key is required");
+      checkArgument(metrics != null && !metrics.isEmpty(), "Metric keys are required");
+      checkArgument(pageSize <= MAX_PAGE_SIZE, "Page size (%d) must be lower than or equal to %d", pageSize, MAX_PAGE_SIZE);
+
+      return new SearchHistoryRequest(this);
+    }
+
+    private static void checkArgument(boolean condition, String message, Object... args) {
+      if (!condition) {
+        throw new IllegalArgumentException(format(message, args));
+      }
+    }
+  }
 }

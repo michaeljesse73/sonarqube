@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,11 +19,14 @@
  */
 package org.sonar.api.batch;
 
+import org.sonarsource.api.sonarlint.SonarLintSide;
+
 /**
  * Use this component to find the current running mode.
  * @since 5.1
  */
 @ScannerSide
+@SonarLintSide
 public interface AnalysisMode {
   boolean isPreview();
 
@@ -33,4 +36,5 @@ public interface AnalysisMode {
   boolean isIssues();
 
   boolean isPublish();
+
 }

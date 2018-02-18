@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,7 +25,6 @@ import {
   RENAME,
   COPY,
   SET_AS_DEFAULT,
-  UNSET_AS_DEFAULT,
   ADD_CONDITION,
   DELETE_CONDITION,
   SAVE_CONDITION
@@ -71,19 +70,9 @@ export default function rootReducer(state = initialState, action = {}) {
           return { ...candidate, isDefault: candidate.id === action.qualityGate.id };
         }),
         qualityGate: {
-          ...state.qualityGate,
+          ...action.qualityGate,
           isDefault: state.qualityGate.id === action.qualityGate.id
         }
-      };
-    case UNSET_AS_DEFAULT:
-      return {
-        ...state,
-        qualityGates: state.qualityGates.map(candidate => {
-          return candidate.id === action.qualityGate.id
-            ? { ...candidate, isDefault: false }
-            : candidate;
-        }),
-        qualityGate: { ...state.qualityGate, isDefault: false }
       };
     case ADD_CONDITION:
       return {

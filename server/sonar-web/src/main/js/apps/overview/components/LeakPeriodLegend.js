@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,47 +19,59 @@
  */
 // @flow
 import React from 'react';
-import moment from 'moment';
+import DateFromNow from '../../../components/intl/DateFromNow';
+import DateFormatter from '../../../components/intl/DateFormatter';
 import Tooltip from '../../../components/controls/Tooltip';
 import { getPeriodDate, getPeriodLabel } from '../../../helpers/periods';
 import { translateWithParameters } from '../../../helpers/l10n';
 
+/*::
 type DaysPeriod = {
   date: string,
   mode: 'days',
   parameter: string
 };
+*/
 
+/*::
 type DatePeriod = {
   date: string,
   mode: 'date',
   parameter: string
 };
+*/
 
+/*::
 type VersionPeriod = {
   date: string,
   mode: 'version',
   parameter: string
 };
+*/
 
+/*::
 type PreviousAnalysisPeriod = {
   date: string,
   mode: 'previous_analysis'
 };
+*/
 
+/*::
 type PreviousVersionPeriod = {
   date: string,
   mode: 'previous_version'
 };
+*/
 
+/*::
 type Period =
   | DaysPeriod
   | DatePeriod
   | VersionPeriod
   | PreviousAnalysisPeriod
-  | PreviousVersionPeriod;
+  | PreviousVersionPeriod; */
 
-export default function LeakPeriodLegend({ period }: { period: Period }) {
+export default function LeakPeriodLegend({ period } /*: { period: Period } */) {
   const leakPeriodLabel = getPeriodLabel(period);
 
   if (period.mode === 'days') {
@@ -71,21 +83,35 @@ export default function LeakPeriodLegend({ period }: { period: Period }) {
   }
 
   const leakPeriodDate = getPeriodDate(period);
-  const momentDate = moment(leakPeriodDate);
-  const fromNow = momentDate.fromNow();
-  const note = ['date'].includes(period.mode)
-    ? translateWithParameters('overview.last_analysis_x', fromNow)
-    : translateWithParameters('overview.started_x', fromNow);
-  const tooltip = ['date'].includes(period.mode)
-    ? translateWithParameters('overview.last_analysis_on_x', momentDate.format('LL'))
-    : translateWithParameters('overview.started_on_x', momentDate.format('LL'));
-
+  const tooltip = (
+    <DateFormatter date={leakPeriodDate} long={true}>
+      {formattedLeakPeriodDate => (
+        <span>
+          {translateWithParameters(
+            ['date'].includes(period.mode)
+              ? 'overview.last_analysis_on_x'
+              : 'overview.started_on_x',
+            formattedLeakPeriodDate
+          )}
+        </span>
+      )}
+    </DateFormatter>
+  );
   return (
-    <Tooltip overlay={tooltip} placement="bottom">
+    <Tooltip overlay={tooltip} placement="top">
       <div className="overview-legend">
         {translateWithParameters('overview.leak_period_x', leakPeriodLabel)}
         <br />
-        <span className="note">{note}</span>
+        <DateFromNow date={leakPeriodDate}>
+          {fromNow => (
+            <span className="note">
+              {translateWithParameters(
+                ['date'].includes(period.mode) ? 'overview.last_analysis_x' : 'overview.started_x',
+                fromNow
+              )}
+            </span>
+          )}
+        </DateFromNow>
       </div>
     </Tooltip>
   );

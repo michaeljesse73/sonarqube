@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,13 +20,15 @@
 // @flow
 import React from 'react';
 import { orderBy, without } from 'lodash';
-import FacetBox from './components/FacetBox';
-import FacetHeader from './components/FacetHeader';
-import FacetItem from './components/FacetItem';
-import FacetItemsList from './components/FacetItemsList';
+import FacetBox from '../../../components/facet/FacetBox';
+import FacetHeader from '../../../components/facet/FacetHeader';
+import FacetItem from '../../../components/facet/FacetItem';
+import FacetItemsList from '../../../components/facet/FacetItemsList';
 import IssueTypeIcon from '../../../components/ui/IssueTypeIcon';
 import { translate } from '../../../helpers/l10n';
+import { formatFacetStat } from '../utils';
 
+/*::
 type Props = {|
   facetMode: string,
   onChange: (changes: { [string]: Array<string> }) => void,
@@ -35,17 +37,18 @@ type Props = {|
   stats?: { [string]: number },
   types: Array<string>
 |};
+*/
 
 export default class TypeFacet extends React.PureComponent {
-  props: Props;
+  /*:: props: Props; */
+
+  property = 'types';
 
   static defaultProps = {
     open: true
   };
 
-  property = 'types';
-
-  handleItemClick = (itemValue: string) => {
+  handleItemClick = (itemValue /*: string */) => {
     const { types } = this.props;
     const newValue = orderBy(
       types.includes(itemValue) ? without(types, itemValue) : [...types, itemValue]
@@ -61,12 +64,12 @@ export default class TypeFacet extends React.PureComponent {
     this.props.onChange({ [this.property]: [] });
   };
 
-  getStat(type: string): ?number {
+  getStat(type /*: string */) /*: ?number */ {
     const { stats } = this.props;
     return stats ? stats[type] : null;
   }
 
-  renderItem = (type: string) => {
+  renderItem = (type /*: string */) => {
     const active = this.props.types.includes(type);
     const stat = this.getStat(type);
 
@@ -74,11 +77,14 @@ export default class TypeFacet extends React.PureComponent {
       <FacetItem
         active={active}
         disabled={stat === 0 && !active}
-        facetMode={this.props.facetMode}
         key={type}
-        name={<span><IssueTypeIcon query={type} /> {translate('issue.type', type)}</span>}
+        name={
+          <span>
+            <IssueTypeIcon query={type} /> {translate('issue.type', type)}
+          </span>
+        }
         onClick={this.handleItemClick}
-        stat={stat}
+        stat={formatFacetStat(stat, this.props.facetMode)}
         value={type}
       />
     );
@@ -86,6 +92,7 @@ export default class TypeFacet extends React.PureComponent {
 
   render() {
     const types = ['BUG', 'VULNERABILITY', 'CODE_SMELL'];
+    const values = this.props.types.map(type => translate('issue.type', type));
 
     return (
       <FacetBox property={this.property}>
@@ -94,13 +101,10 @@ export default class TypeFacet extends React.PureComponent {
           onClear={this.handleClear}
           onClick={this.handleHeaderClick}
           open={this.props.open}
-          values={this.props.types.length}
+          values={values}
         />
 
-        {this.props.open &&
-          <FacetItemsList>
-            {types.map(this.renderItem)}
-          </FacetItemsList>}
+        {this.props.open && <FacetItemsList>{types.map(this.renderItem)}</FacetItemsList>}
       </FacetBox>
     );
   }

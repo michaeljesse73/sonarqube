@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -29,6 +29,7 @@ import org.sonar.api.config.PropertyDefinition;
 import org.sonar.api.config.PropertyDefinitions;
 import org.sonar.api.config.PropertyFieldDefinition;
 import org.sonar.api.server.ws.WebService;
+import org.sonar.api.server.ws.WebService.Param;
 import org.sonar.api.utils.System2;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbTester;
@@ -38,6 +39,7 @@ import org.sonar.db.component.ComponentTesting;
 import org.sonar.db.organization.OrganizationDto;
 import org.sonar.server.component.TestComponentFinder;
 import org.sonar.server.exceptions.ForbiddenException;
+import org.sonar.server.exceptions.NotFoundException;
 import org.sonar.server.organization.DefaultOrganizationProvider;
 import org.sonar.server.organization.TestDefaultOrganizationProvider;
 import org.sonar.server.tester.UserSessionRule;
@@ -45,8 +47,10 @@ import org.sonar.server.ws.TestRequest;
 import org.sonar.server.ws.WsActionTester;
 import org.sonar.test.JsonAssert;
 import org.sonarqube.ws.Settings;
+import org.sonarqube.ws.Settings.Definition;
 import org.sonarqube.ws.Settings.ListDefinitionsWsResponse;
 
+import static java.lang.String.format;
 import static java.util.Arrays.asList;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.groups.Tuple.tuple;
@@ -110,7 +114,7 @@ public class ListDefinitionsActionTest {
     ListDefinitionsWsResponse result = executeRequest();
 
     assertThat(result.getDefinitionsList()).hasSize(1);
-    Settings.Definition definition = result.getDefinitions(0);
+    Definition definition = result.getDefinitions(0);
     assertThat(definition.getKey()).isEqualTo("foo");
     assertThat(definition.getName()).isEqualTo("Foo");
     assertThat(definition.getDescription()).isEqualTo("desc");
@@ -131,7 +135,7 @@ public class ListDefinitionsActionTest {
     ListDefinitionsWsResponse result = executeRequest();
 
     assertThat(result.getDefinitionsList()).hasSize(1);
-    Settings.Definition definition = result.getDefinitions(0);
+    Definition definition = result.getDefinitions(0);
     assertThat(definition.getKey()).isEqualTo("foo");
     assertThat(definition.getType()).isEqualTo(STRING);
     assertThat(definition.getNameOneOfCase()).isEqualTo(NAMEONEOF_NOT_SET);
@@ -156,14 +160,14 @@ public class ListDefinitionsActionTest {
     ListDefinitionsWsResponse result = executeRequest();
 
     assertThat(result.getDefinitionsList()).hasSize(1);
-    Settings.Definition definition = result.getDefinitions(0);
+    Definition definition = result.getDefinitions(0);
     assertThat(definition.getKey()).isEqualTo("foo");
     assertThat(definition.getName()).isEqualTo("Foo");
     assertThat(definition.getDeprecatedKey()).isEqualTo("deprecated");
   }
 
   @Test
-  public void return_default_category() throws Exception {
+  public void return_default_category() {
     logIn();
     propertyDefinitions.addComponent(PropertyDefinition.builder("foo").build(), "default");
     propertyDefinitions.addComponent(PropertyDefinition.builder("foo").category("").build(), "default");
@@ -176,7 +180,7 @@ public class ListDefinitionsActionTest {
   }
 
   @Test
-  public void return_single_select_list_property() throws Exception {
+  public void return_single_select_list_property() {
     logIn();
     propertyDefinitions.addComponent(PropertyDefinition
       .builder("foo")
@@ -187,13 +191,13 @@ public class ListDefinitionsActionTest {
     ListDefinitionsWsResponse result = executeRequest();
 
     assertThat(result.getDefinitionsList()).hasSize(1);
-    Settings.Definition definition = result.getDefinitions(0);
+    Definition definition = result.getDefinitions(0);
     assertThat(definition.getType()).isEqualTo(SINGLE_SELECT_LIST);
     assertThat(definition.getOptionsList()).containsExactly("one", "two");
   }
 
   @Test
-  public void return_property_set() throws Exception {
+  public void return_property_set() {
     logIn();
     propertyDefinitions.addComponent(PropertyDefinition
       .builder("foo")
@@ -206,7 +210,7 @@ public class ListDefinitionsActionTest {
     ListDefinitionsWsResponse result = executeRequest();
 
     assertThat(result.getDefinitionsList()).hasSize(1);
-    Settings.Definition definition = result.getDefinitions(0);
+    Definition definition = result.getDefinitions(0);
     assertThat(definition.getType()).isEqualTo(PROPERTY_SET);
     assertThat(definition.getFieldsList()).hasSize(2);
 
@@ -224,7 +228,7 @@ public class ListDefinitionsActionTest {
   }
 
   @Test
-  public void return_license_type_in_property_set() throws Exception {
+  public void return_license_type_in_property_set() {
     logIn();
     propertyDefinitions.addComponent(PropertyDefinition
       .builder("foo")
@@ -249,6 +253,20 @@ public class ListDefinitionsActionTest {
   }
 
   @Test
+  public void definitions_are_ordered_by_category_then_index_then_name_case_insensitive() {
+    logIn();
+    propertyDefinitions.addComponent(PropertyDefinition.builder("sonar.prop.11").category("cat-1").index(1).name("prop 1").build());
+    propertyDefinitions.addComponent(PropertyDefinition.builder("sonar.prop.12").category("cat-1").index(2).name("prop 2").build());
+    propertyDefinitions.addComponent(PropertyDefinition.builder("sonar.prop.13").category("CAT-1").index(1).name("prop 3").build());
+    propertyDefinitions.addComponent(PropertyDefinition.builder("sonar.prop.41").category("cat-0").index(25).name("prop 1").build());
+
+    ListDefinitionsWsResponse result = executeRequest();
+
+    assertThat(result.getDefinitionsList()).extracting(Definition::getKey)
+      .containsExactly("sonar.prop.41", "sonar.prop.11", "sonar.prop.13", "sonar.prop.12");
+  }
+
+  @Test
   public void return_project_settings_def_by_project_key() {
     logInAsProjectUser();
     propertyDefinitions.addComponent(PropertyDefinition
@@ -256,13 +274,13 @@ public class ListDefinitionsActionTest {
       .onQualifiers(PROJECT)
       .build());
 
-    ListDefinitionsWsResponse result = executeRequest(project.key());
+    ListDefinitionsWsResponse result = executeRequest(project.getDbKey());
 
     assertThat(result.getDefinitionsList()).hasSize(1);
   }
 
   @Test
-  public void return_only_global_properties_when_no_component_parameter() throws Exception {
+  public void return_only_global_properties_when_no_component_parameter() {
     logInAsProjectUser();
     propertyDefinitions.addComponents(asList(
       PropertyDefinition.builder("global").build(),
@@ -276,7 +294,7 @@ public class ListDefinitionsActionTest {
   }
 
   @Test
-  public void return_only_properties_available_for_component_qualifier() throws Exception {
+  public void return_only_properties_available_for_component_qualifier() {
     logInAsProjectUser();
     propertyDefinitions.addComponents(asList(
       PropertyDefinition.builder("global").build(),
@@ -284,13 +302,13 @@ public class ListDefinitionsActionTest {
       PropertyDefinition.builder("only-on-project").onlyOnQualifiers(PROJECT).build(),
       PropertyDefinition.builder("only-on-module").onlyOnQualifiers(MODULE).build()));
 
-    ListDefinitionsWsResponse result = executeRequest(project.key());
+    ListDefinitionsWsResponse result = executeRequest(project.getDbKey());
 
     assertThat(result.getDefinitionsList()).extracting("key").containsOnly("global-and-project", "only-on-project");
   }
 
   @Test
-  public void does_not_return_hidden_properties() throws Exception {
+  public void does_not_return_hidden_properties() {
     logInAsAdmin(db.getDefaultOrganization());
     propertyDefinitions.addComponent(PropertyDefinition.builder("foo").hidden().build());
 
@@ -300,7 +318,7 @@ public class ListDefinitionsActionTest {
   }
 
   @Test
-  public void return_license_type() throws Exception {
+  public void return_license_type() {
     logInAsAdmin(db.getDefaultOrganization());
     propertyDefinitions.addComponents(asList(
       PropertyDefinition.builder("plugin.license.secured").type(PropertyType.LICENSE).build(),
@@ -308,12 +326,12 @@ public class ListDefinitionsActionTest {
 
     ListDefinitionsWsResponse result = executeRequest();
 
-    assertThat(result.getDefinitionsList()).extracting(Settings.Definition::getKey, Settings.Definition::getType)
+    assertThat(result.getDefinitionsList()).extracting(Definition::getKey, Definition::getType)
       .containsOnly(tuple("plugin.license.secured", LICENSE), tuple("commercial.plugin", LICENSE));
   }
 
   @Test
-  public void does_not_returned_secured_and_license_settings_when_not_authenticated() throws Exception {
+  public void does_not_returned_secured_and_license_settings_when_not_authenticated() {
     propertyDefinitions.addComponents(asList(
       PropertyDefinition.builder("foo").build(),
       PropertyDefinition.builder("secret.secured").build(),
@@ -322,11 +340,11 @@ public class ListDefinitionsActionTest {
 
     ListDefinitionsWsResponse result = executeRequest();
 
-    assertThat(result.getDefinitionsList()).extracting(Settings.Definition::getKey).containsOnly("foo");
+    assertThat(result.getDefinitionsList()).extracting(Definition::getKey).containsOnly("foo");
   }
 
   @Test
-  public void return_license_settings_when_authenticated_but_not_admin() throws Exception {
+  public void return_license_settings_when_authenticated_but_not_admin() {
     logInAsProjectUser();
     propertyDefinitions.addComponents(asList(
       PropertyDefinition.builder("foo").build(),
@@ -336,11 +354,11 @@ public class ListDefinitionsActionTest {
 
     ListDefinitionsWsResponse result = executeRequest();
 
-    assertThat(result.getDefinitionsList()).extracting(Settings.Definition::getKey).containsOnly("foo", "plugin.license.secured", "commercial.plugin");
+    assertThat(result.getDefinitionsList()).extracting(Definition::getKey).containsOnly("foo", "plugin.license.secured", "commercial.plugin");
   }
 
   @Test
-  public void return_secured_settings_when_not_authenticated_but_with_scan_permission() throws Exception {
+  public void return_secured_settings_when_not_authenticated_but_with_scan_permission() {
     userSession.anonymous().addPermission(SCAN, db.getDefaultOrganization());
     propertyDefinitions.addComponents(asList(
       PropertyDefinition.builder("foo").build(),
@@ -350,11 +368,11 @@ public class ListDefinitionsActionTest {
 
     ListDefinitionsWsResponse result = executeRequest();
 
-    assertThat(result.getDefinitionsList()).extracting(Settings.Definition::getKey).containsOnly("foo", "secret.secured", "plugin.license.secured", "commercial.plugin");
+    assertThat(result.getDefinitionsList()).extracting(Definition::getKey).containsOnly("foo", "secret.secured", "plugin.license.secured", "commercial.plugin");
   }
 
   @Test
-  public void return_secured_and_license_settings_when_system_admin() throws Exception {
+  public void return_secured_and_license_settings_when_system_admin() {
     logInAsAdmin(db.getDefaultOrganization());
     propertyDefinitions.addComponents(asList(
       PropertyDefinition.builder("foo").build(),
@@ -363,30 +381,72 @@ public class ListDefinitionsActionTest {
 
     ListDefinitionsWsResponse result = executeRequest();
 
-    assertThat(result.getDefinitionsList()).extracting(Settings.Definition::getKey).containsOnly("foo", "secret.secured", "plugin.license.secured");
+    assertThat(result.getDefinitionsList()).extracting(Definition::getKey).containsOnly("foo", "secret.secured", "plugin.license.secured");
   }
 
   @Test
-  public void return_secured_and_license_settings_when_project_admin() throws Exception {
+  public void return_secured_and_license_settings_when_project_admin() {
     logInAsProjectAdmin();
     propertyDefinitions.addComponents(asList(
       PropertyDefinition.builder("foo").onQualifiers(PROJECT).build(),
       PropertyDefinition.builder("secret.secured").onQualifiers(PROJECT).build(),
       PropertyDefinition.builder("plugin.license.secured").onQualifiers(PROJECT).type(PropertyType.LICENSE).build()));
 
-    ListDefinitionsWsResponse result = executeRequest(project.key());
+    ListDefinitionsWsResponse result = executeRequest(project.getDbKey());
 
-    assertThat(result.getDefinitionsList()).extracting(Settings.Definition::getKey).containsOnly("foo", "secret.secured", "plugin.license.secured");
+    assertThat(result.getDefinitionsList()).extracting(Definition::getKey).containsOnly("foo", "secret.secured", "plugin.license.secured");
   }
 
   @Test
-  public void fail_when_user_has_not_project_browse_permission() throws Exception {
+  public void definitions_on_branch() {
+    ComponentDto project = db.components().insertMainBranch();
+    userSession.logIn().addProjectPermission(USER, project);
+    ComponentDto branch = db.components().insertProjectBranch(project);
+    propertyDefinitions.addComponents(asList(
+      PropertyDefinition.builder("sonar.leak.period").onQualifiers(PROJECT).build(),
+      PropertyDefinition.builder("other").onQualifiers(PROJECT).build()));
+
+    ListDefinitionsWsResponse result = ws.newRequest()
+      .setParam("component", branch.getKey())
+      .setParam("branch", branch.getBranch())
+      .executeProtobuf(Settings.ListDefinitionsWsResponse.class);
+
+    assertThat(result.getDefinitionsList()).extracting(Definition::getKey).containsExactlyInAnyOrder("sonar.leak.period");
+  }
+
+  @Test
+  public void fail_when_user_has_not_project_browse_permission() {
     userSession.logIn("project-admin").addProjectPermission(CODEVIEWER, project);
     propertyDefinitions.addComponent(PropertyDefinition.builder("foo").build());
 
     expectedException.expect(ForbiddenException.class);
 
-    executeRequest(project.key());
+    executeRequest(project.getDbKey());
+  }
+
+  @Test
+  public void fail_when_component_not_found() {
+    expectedException.expect(NotFoundException.class);
+    expectedException.expectMessage("Component key 'unknown' not found");
+
+    ws.newRequest()
+      .setParam("component", "unknown")
+      .execute();
+  }
+
+  @Test
+  public void fail_when_branch_not_found() {
+    ComponentDto project = db.components().insertMainBranch();
+    ComponentDto branch = db.components().insertProjectBranch(project);
+    userSession.logIn().addProjectPermission(USER, project);
+
+    expectedException.expect(NotFoundException.class);
+    expectedException.expectMessage(format("Component '%s' on branch 'unknown' not found", branch.getKey()));
+
+    ws.newRequest()
+      .setParam("component", branch.getKey())
+      .setParam("branch", "unknown")
+      .execute();
   }
 
   @Test
@@ -396,7 +456,7 @@ public class ListDefinitionsActionTest {
     assertThat(action.isInternal()).isFalse();
     assertThat(action.isPost()).isFalse();
     assertThat(action.responseExampleAsString()).isNotEmpty();
-    assertThat(action.params()).hasSize(1);
+    assertThat(action.params()).extracting(Param::key).containsExactlyInAnyOrder("component", "branch");
   }
 
   @Test

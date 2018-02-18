@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -34,11 +34,12 @@ import static org.apache.commons.io.FileUtils.forceMkdir;
 @ServerSide
 @ComputeEngineSide
 public class ServerPluginJarExploder extends PluginJarExploder {
-
   private final ServerFileSystem fs;
+  private final PluginCompression pluginCompression;
 
-  public ServerPluginJarExploder(ServerFileSystem fs) {
+  public ServerPluginJarExploder(ServerFileSystem fs, PluginCompression pluginCompression) {
     this.fs = fs;
+    this.pluginCompression = pluginCompression;
   }
 
   /**
@@ -55,7 +56,9 @@ public class ServerPluginJarExploder extends PluginJarExploder {
 
       File jarSource = pluginInfo.getNonNullJarFile();
       File jarTarget = new File(toDir, jarSource.getName());
+
       FileUtils.copyFile(jarSource, jarTarget);
+      pluginCompression.compressJar(pluginInfo.getKey(), jarSource.toPath().getParent(), jarTarget.toPath());
       ZipUtils.unzip(jarSource, toDir, newLibFilter());
       return explodeFromUnzippedDir(pluginInfo.getKey(), jarTarget, toDir);
     } catch (Exception e) {

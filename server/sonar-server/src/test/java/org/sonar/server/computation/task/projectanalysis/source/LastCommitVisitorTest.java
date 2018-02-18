@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,7 +25,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.sonar.api.measures.CoreMetrics;
 import org.sonar.server.computation.task.projectanalysis.component.Component;
-import org.sonar.server.computation.task.projectanalysis.component.ComponentVisitor;
 import org.sonar.server.computation.task.projectanalysis.component.FileAttributes;
 import org.sonar.server.computation.task.projectanalysis.component.ReportComponent;
 import org.sonar.server.computation.task.projectanalysis.component.TreeRootHolderRule;
@@ -51,13 +50,13 @@ import static org.sonar.server.computation.task.projectanalysis.measure.Measure.
 
 public class LastCommitVisitorTest {
 
-  public static final int PROJECT_REF = 1;
-  public static final int MODULE_REF = 2;
-  public static final int FILE_1_REF = 1_111;
-  public static final int FILE_2_REF = 1_112;
-  public static final int FILE_3_REF = 1_121;
-  public static final int DIR_1_REF = 3;
-  public static final int DIR_2_REF = 4;
+  private static final int PROJECT_REF = 1;
+  private static final int MODULE_REF = 2;
+  private static final int FILE_1_REF = 1_111;
+  private static final int FILE_2_REF = 1_112;
+  private static final int FILE_3_REF = 1_121;
+  private static final int DIR_1_REF = 3;
+  private static final int DIR_2_REF = 4;
 
   @Rule
   public TreeRootHolderRule treeRootHolder = new TreeRootHolderRule();
@@ -120,7 +119,7 @@ public class LastCommitVisitorTest {
       .build();
     treeRootHolder.setRoot(project);
 
-    VisitorsCrawler underTest = new VisitorsCrawler(Lists.<ComponentVisitor>newArrayList(visitor));
+    VisitorsCrawler underTest = new VisitorsCrawler(Lists.newArrayList(visitor));
     underTest.visit(project);
 
     assertDate(DIR_1_REF, FILE_2_DATE);
@@ -168,7 +167,7 @@ public class LastCommitVisitorTest {
     measureRepository.addRawMeasure(PROJECT_2_REF, LAST_COMMIT_DATE_KEY, newMeasureBuilder().create(PROJECT_2_DATE));
     measureRepository.addRawMeasure(PROJECT_3_REF, LAST_COMMIT_DATE_KEY, newMeasureBuilder().create(PROJECT_3_DATE));
 
-    VisitorsCrawler underTest = new VisitorsCrawler(Lists.<ComponentVisitor>newArrayList(new LastCommitVisitor(metricRepository, measureRepository, scmInfoRepository)));
+    VisitorsCrawler underTest = new VisitorsCrawler(Lists.newArrayList(new LastCommitVisitor(metricRepository, measureRepository, scmInfoRepository)));
     underTest.visit(view);
 
     // second level of sub-views
@@ -183,8 +182,8 @@ public class LastCommitVisitorTest {
   }
 
   @Test
-  public void compute_date_of_file_from_scm_repo() throws Exception {
-    VisitorsCrawler underTest = new VisitorsCrawler(Lists.<ComponentVisitor>newArrayList(new LastCommitVisitor(metricRepository, measureRepository, scmInfoRepository)));
+  public void compute_date_of_file_from_scm_repo() {
+    VisitorsCrawler underTest = new VisitorsCrawler(Lists.newArrayList(new LastCommitVisitor(metricRepository, measureRepository, scmInfoRepository)));
 
     scmInfoRepository.setScmInfo(FILE_1_REF,
       Changeset.newChangesetBuilder()
@@ -202,8 +201,7 @@ public class LastCommitVisitorTest {
         .setAuthor("john")
         .setDate(1_500_000_000_000L)
         .setRevision("rev-1")
-        .build()
-      );
+        .build());
 
     ReportComponent file = createFileComponent(FILE_1_REF);
     treeRootHolder.setRoot(file);
@@ -214,8 +212,8 @@ public class LastCommitVisitorTest {
   }
 
   @Test
-  public void date_is_not_computed_on_file_if_blame_is_not_in_scm_repo() throws Exception {
-    VisitorsCrawler underTest = new VisitorsCrawler(Lists.<ComponentVisitor>newArrayList(new LastCommitVisitor(metricRepository, measureRepository, scmInfoRepository)));
+  public void date_is_not_computed_on_file_if_blame_is_not_in_scm_repo() {
+    VisitorsCrawler underTest = new VisitorsCrawler(Lists.newArrayList(new LastCommitVisitor(metricRepository, measureRepository, scmInfoRepository)));
     ReportComponent file = createFileComponent(FILE_1_REF);
     treeRootHolder.setRoot(file);
 

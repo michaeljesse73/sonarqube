@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,8 +19,8 @@
  */
 package org.sonar.scanner.report;
 
-import static org.sonar.core.util.FileUtils.deleteQuietly;
-
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Throwables;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -31,12 +31,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.Map;
-
 import javax.annotation.Nullable;
-
+import okhttp3.HttpUrl;
 import org.apache.commons.io.FileUtils;
 import org.picocontainer.Startable;
-import org.sonar.api.CoreProperties;
 import org.sonar.api.batch.ScannerSide;
 import org.sonar.api.batch.fs.internal.InputModuleHierarchy;
 import org.sonar.api.config.Configuration;
@@ -46,43 +44,45 @@ import org.sonar.api.utils.TempFolder;
 import org.sonar.api.utils.ZipUtils;
 import org.sonar.api.utils.log.Logger;
 import org.sonar.api.utils.log.Loggers;
-import org.sonar.scanner.analysis.DefaultAnalysisMode;
+import org.sonar.scanner.bootstrap.GlobalAnalysisMode;
 import org.sonar.scanner.bootstrap.ScannerWsClient;
 import org.sonar.scanner.protocol.output.ScannerReportWriter;
+import org.sonar.scanner.scan.branch.BranchConfiguration;
+import org.sonarqube.ws.Ce;
 import org.sonarqube.ws.MediaTypes;
-import org.sonarqube.ws.WsCe;
 import org.sonarqube.ws.client.HttpException;
 import org.sonarqube.ws.client.PostRequest;
 import org.sonarqube.ws.client.WsResponse;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Throwables;
-
-import okhttp3.HttpUrl;
+import static org.sonar.core.config.ScannerProperties.BRANCH_NAME;
+import static org.sonar.core.config.ScannerProperties.ORGANIZATION;
+import static org.sonar.core.util.FileUtils.deleteQuietly;
 
 @ScannerSide
 public class ReportPublisher implements Startable {
 
   private static final Logger LOG = Loggers.get(ReportPublisher.class);
 
-  public static final String KEEP_REPORT_PROP_KEY = "sonar.batch.keepReport";
+  public static final String KEEP_REPORT_PROP_KEY = "sonar.scanner.keepReport";
   public static final String VERBOSE_KEY = "sonar.verbose";
   public static final String METADATA_DUMP_FILENAME = "report-task.txt";
+  private static final String CHARACTERISTIC = "characteristic";
 
   private final Configuration settings;
   private final ScannerWsClient wsClient;
   private final AnalysisContextReportPublisher contextPublisher;
   private final InputModuleHierarchy moduleHierarchy;
-  private final DefaultAnalysisMode analysisMode;
+  private final GlobalAnalysisMode analysisMode;
   private final TempFolder temp;
   private final ReportPublisherStep[] publishers;
   private final Server server;
+  private final BranchConfiguration branchConfiguration;
 
-  private File reportDir;
+  private Path reportDir;
   private ScannerReportWriter writer;
 
   public ReportPublisher(Configuration settings, ScannerWsClient wsClient, Server server, AnalysisContextReportPublisher contextPublisher,
-    InputModuleHierarchy moduleHierarchy, DefaultAnalysisMode analysisMode, TempFolder temp, ReportPublisherStep[] publishers) {
+    InputModuleHierarchy moduleHierarchy, GlobalAnalysisMode analysisMode, TempFolder temp, ReportPublisherStep[] publishers, BranchConfiguration branchConfiguration) {
     this.settings = settings;
     this.wsClient = wsClient;
     this.server = server;
@@ -91,12 +91,13 @@ public class ReportPublisher implements Startable {
     this.analysisMode = analysisMode;
     this.temp = temp;
     this.publishers = publishers;
+    this.branchConfiguration = branchConfiguration;
   }
 
   @Override
   public void start() {
-    reportDir = new File(moduleHierarchy.root().getWorkDir(), "batch-report");
-    writer = new ScannerReportWriter(reportDir);
+    reportDir = moduleHierarchy.root().getWorkDir().resolve("scanner-report");
+    writer = new ScannerReportWriter(reportDir.toFile());
     contextPublisher.init(writer);
 
     if (!analysisMode.isIssues() && !analysisMode.isMediumTest()) {
@@ -114,7 +115,7 @@ public class ReportPublisher implements Startable {
     }
   }
 
-  public File getReportDir() {
+  public Path getReportDir() {
     return reportDir;
   }
 
@@ -148,11 +149,11 @@ public class ReportPublisher implements Startable {
         publisher.publish(writer);
       }
       long stopTime = System.currentTimeMillis();
-      LOG.info("Analysis report generated in {}ms, dir size={}", stopTime - startTime, FileUtils.byteCountToDisplaySize(FileUtils.sizeOfDirectory(reportDir)));
+      LOG.info("Analysis report generated in {}ms, dir size={}", stopTime - startTime, FileUtils.byteCountToDisplaySize(FileUtils.sizeOfDirectory(reportDir.toFile())));
 
       startTime = System.currentTimeMillis();
-      File reportZip = temp.newFile("batch-report", ".zip");
-      ZipUtils.zipDir(reportDir, reportZip);
+      File reportZip = temp.newFile("scanner-report", ".zip");
+      ZipUtils.zipDir(reportDir.toFile(), reportZip);
       stopTime = System.currentTimeMillis();
       LOG.info("Analysis reports compressed in {}ms, zip size={}", stopTime - startTime, FileUtils.byteCountToDisplaySize(FileUtils.sizeOf(reportZip)));
       return reportZip;
@@ -171,11 +172,17 @@ public class ReportPublisher implements Startable {
     PostRequest.Part filePart = new PostRequest.Part(MediaTypes.ZIP, report);
     PostRequest post = new PostRequest("api/ce/submit")
       .setMediaType(MediaTypes.PROTOBUF)
-      .setParam("organization", settings.get(CoreProperties.PROJECT_ORGANIZATION_PROPERTY).orElse(null))
+      .setParam("organization", settings.get(ORGANIZATION).orElse(null))
       .setParam("projectKey", moduleHierarchy.root().key())
       .setParam("projectName", moduleHierarchy.root().getOriginalName())
       .setParam("projectBranch", moduleHierarchy.root().getBranch())
       .setPart("report", filePart);
+
+    String branchName = branchConfiguration.branchName();
+    if (branchName != null) {
+      post.setParam(CHARACTERISTIC, "branch=" + branchName);
+      post.setParam(CHARACTERISTIC, "branchType=" + branchConfiguration.branchType().name());
+    }
 
     WsResponse response;
     try {
@@ -185,7 +192,7 @@ public class ReportPublisher implements Startable {
     }
 
     try (InputStream protobuf = response.contentStream()) {
-      return WsCe.SubmitResponse.parser().parseFrom(protobuf).getTaskId();
+      return Ce.SubmitResponse.parser().parseFrom(protobuf).getTaskId();
     } catch (Exception e) {
       throw Throwables.propagate(e);
     } finally {
@@ -204,10 +211,11 @@ public class ReportPublisher implements Startable {
 
       Map<String, String> metadata = new LinkedHashMap<>();
       String effectiveKey = moduleHierarchy.root().getKeyWithBranch();
-      settings.get(CoreProperties.PROJECT_ORGANIZATION_PROPERTY).ifPresent(org -> metadata.put("organization", org));
+      settings.get(ORGANIZATION).ifPresent(org -> metadata.put("organization", org));
       metadata.put("projectKey", effectiveKey);
       metadata.put("serverUrl", publicUrl);
       metadata.put("serverVersion", server.getVersion());
+      settings.get(BRANCH_NAME).ifPresent(branch -> metadata.put("branch", branch));
 
       URL dashboardUrl = httpUrl.newBuilder()
         .addPathSegment("dashboard").addPathSegment("index").addPathSegment(effectiveKey)
@@ -232,7 +240,7 @@ public class ReportPublisher implements Startable {
   }
 
   private void dumpMetadata(Map<String, String> metadata) {
-    Path file = moduleHierarchy.root().getWorkDir().toPath().resolve(METADATA_DUMP_FILENAME);
+    Path file = moduleHierarchy.root().getWorkDir().resolve(METADATA_DUMP_FILENAME);
     try (Writer output = Files.newBufferedWriter(file, StandardCharsets.UTF_8)) {
       for (Map.Entry<String, String> entry : metadata.entrySet()) {
         output.write(entry.getKey());

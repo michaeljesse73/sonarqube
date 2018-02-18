@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -23,7 +23,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
-import org.assertj.core.api.AbstractListAssert;
+import org.assertj.core.api.ListAssert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.sonar.api.config.internal.MapSettings;
@@ -60,7 +60,7 @@ public abstract class ComponentIndexTest {
   public ComponentTextSearchFeatureRule features = new ComponentTextSearchFeatureRule();
 
   protected ComponentIndexer indexer = new ComponentIndexer(db.getDbClient(), es.client());
-  protected ComponentIndex index = new ComponentIndex(es.client(), new AuthorizationTypeSupport(userSession));
+  protected ComponentIndex index = new ComponentIndex(es.client(), new AuthorizationTypeSupport(userSession), System2.INSTANCE);
   protected PermissionIndexerTester authorizationIndexerTester = new PermissionIndexerTester(es, indexer);
   private OrganizationDto organization;
 
@@ -97,21 +97,21 @@ public abstract class ComponentIndexTest {
     assertExactResults(query, files.toArray(new ComponentDto[0]));
   }
 
-  protected AbstractListAssert<?, ? extends List<? extends String>, String> assertSearch(String query) {
-    return assertSearch(ComponentIndexQuery.builder().setQuery(query).setQualifiers(asList(PROJECT, MODULE, FILE)).build());
+  protected ListAssert<String> assertSearch(String query) {
+    return assertSearch(SuggestionQuery.builder().setQuery(query).setQualifiers(asList(PROJECT, MODULE, FILE)).build());
   }
 
-  protected AbstractListAssert<?, ? extends List<? extends String>, String> assertSearch(ComponentIndexQuery query) {
-    return assertThat(index.search(query, features.get()).getQualifiers())
+  protected ListAssert<String> assertSearch(SuggestionQuery query) {
+    return (ListAssert<String>)assertThat(index.searchSuggestions(query, features.get()).getQualifiers())
       .flatExtracting(ComponentHitsPerQualifier::getHits)
       .extracting(ComponentHit::getUuid);
   }
 
   protected void assertSearchResults(String query, ComponentDto... expectedComponents) {
-    assertSearchResults(ComponentIndexQuery.builder().setQuery(query).setQualifiers(asList(PROJECT, MODULE, FILE)).build(), expectedComponents);
+    assertSearchResults(SuggestionQuery.builder().setQuery(query).setQualifiers(asList(PROJECT, MODULE, FILE)).build(), expectedComponents);
   }
 
-  protected void assertSearchResults(ComponentIndexQuery query, ComponentDto... expectedComponents) {
+  protected void assertSearchResults(SuggestionQuery query, ComponentDto... expectedComponents) {
     assertSearch(query).containsOnly(uuids(expectedComponents));
   }
 
@@ -126,13 +126,13 @@ public abstract class ComponentIndexTest {
   protected ComponentDto indexProject(String key, String name) {
     return index(
       ComponentTesting.newPrivateProjectDto(organization, "UUID_" + key)
-        .setKey(key)
+        .setDbKey(key)
         .setName(name));
   }
 
   protected ComponentDto newProject(String key, String name) {
     return ComponentTesting.newPrivateProjectDto(organization, "UUID_" + key)
-      .setKey(key)
+      .setDbKey(key)
       .setName(name);
   }
 
@@ -144,7 +144,7 @@ public abstract class ComponentIndexTest {
   protected ComponentDto indexFile(ComponentDto project, String fileKey, String fileName) {
     return index(
       ComponentTesting.newFileDto(project)
-        .setKey(fileKey)
+        .setDbKey(fileKey)
         .setName(fileName));
   }
 

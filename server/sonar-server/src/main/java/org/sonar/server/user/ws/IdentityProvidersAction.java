@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,18 +19,18 @@
  */
 package org.sonar.server.user.ws;
 
-import com.google.common.base.Function;
-import com.google.common.collect.Lists;
-import javax.annotation.Nonnull;
+import java.util.function.Function;
 import org.sonar.api.server.authentication.Display;
 import org.sonar.api.server.authentication.IdentityProvider;
 import org.sonar.api.server.ws.Request;
 import org.sonar.api.server.ws.Response;
 import org.sonar.api.server.ws.WebService;
+import org.sonar.core.util.stream.MoreCollectors;
 import org.sonar.server.authentication.IdentityProviderRepository;
-import org.sonarqube.ws.WsUsers;
-import org.sonarqube.ws.WsUsers.IdentityProvidersWsResponse;
+import org.sonarqube.ws.Users;
+import org.sonarqube.ws.Users.IdentityProvidersWsResponse;
 
+import static org.sonar.core.util.Protobuf.setNullable;
 import static org.sonar.server.ws.WsUtils.writeProtobuf;
 
 public class IdentityProvidersAction implements UsersWsAction {
@@ -57,24 +57,23 @@ public class IdentityProvidersAction implements UsersWsAction {
 
   private IdentityProvidersWsResponse buildResponse() {
     IdentityProvidersWsResponse.Builder response = IdentityProvidersWsResponse.newBuilder();
-    response.addAllIdentityProviders(Lists.transform(identityProviderRepository.getAllEnabledAndSorted(), IdentityProviderToWsResponse.INSTANCE));
+    response.addAllIdentityProviders(identityProviderRepository.getAllEnabledAndSorted()
+      .stream()
+      .map(toWsIdentityProvider())
+      .collect(MoreCollectors.toList()));
     return response.build();
   }
 
-  private enum IdentityProviderToWsResponse implements Function<IdentityProvider, WsUsers.IdentityProvider> {
-    INSTANCE;
-
-    @Override
-    public WsUsers.IdentityProvider apply(@Nonnull IdentityProvider input) {
-      WsUsers.IdentityProvider.Builder builder = WsUsers.IdentityProvider.newBuilder()
-        .setKey(input.getKey())
-        .setName(input.getName());
+  private static Function<IdentityProvider, Users.IdentityProvider> toWsIdentityProvider() {
+    return input -> {
       Display display = input.getDisplay();
-      builder
+      Users.IdentityProvider.Builder builder = Users.IdentityProvider.newBuilder()
+        .setKey(input.getKey())
+        .setName(input.getName())
         .setIconPath(display.getIconPath())
         .setBackgroundColor(display.getBackgroundColor());
-
+      setNullable(display.getHelpMessage(), builder::setHelpMessage);
       return builder.build();
-    }
+    };
   }
 }

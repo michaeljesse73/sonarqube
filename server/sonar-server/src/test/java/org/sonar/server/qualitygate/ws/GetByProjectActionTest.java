@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,35 +19,34 @@
  */
 package org.sonar.server.qualitygate.ws;
 
-import javax.annotation.Nullable;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.sonar.api.server.ws.Change;
+import org.sonar.api.server.ws.WebService;
 import org.sonar.api.utils.System2;
 import org.sonar.api.web.UserRole;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
 import org.sonar.db.DbTester;
-import org.sonar.db.component.ComponentDbTester;
 import org.sonar.db.component.ComponentDto;
-import org.sonar.db.component.ComponentTesting;
 import org.sonar.db.organization.OrganizationDto;
-import org.sonar.db.property.PropertyDto;
+import org.sonar.db.qualitygate.QGateWithOrgDto;
 import org.sonar.db.qualitygate.QualityGateDto;
 import org.sonar.server.component.TestComponentFinder;
 import org.sonar.server.exceptions.ForbiddenException;
 import org.sonar.server.exceptions.NotFoundException;
+import org.sonar.server.organization.TestDefaultOrganizationProvider;
 import org.sonar.server.qualitygate.QualityGateFinder;
 import org.sonar.server.tester.UserSessionRule;
-import org.sonar.server.ws.TestRequest;
 import org.sonar.server.ws.WsActionTester;
-import org.sonarqube.ws.WsQualityGates;
-import org.sonarqube.ws.WsQualityGates.GetByProjectWsResponse;
+import org.sonarqube.ws.Qualitygates;
+import org.sonarqube.ws.Qualitygates.GetByProjectResponse;
 
+import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.sonar.test.JsonAssert.assertJson;
-import static org.sonarqube.ws.client.qualitygate.QualityGatesWsParameters.PARAM_PROJECT_ID;
-import static org.sonarqube.ws.client.qualitygate.QualityGatesWsParameters.PARAM_PROJECT_KEY;
 
 public class GetByProjectActionTest {
   @Rule
@@ -57,22 +56,43 @@ public class GetByProjectActionTest {
   @Rule
   public DbTester db = DbTester.create(System2.INSTANCE);
 
-  private ComponentDbTester componentDb = new ComponentDbTester(db);
   private DbClient dbClient = db.getDbClient();
   private DbSession dbSession = db.getSession();
 
   private WsActionTester ws = new WsActionTester(
-    new GetByProjectAction(userSession, dbClient, TestComponentFinder.from(db), new QualityGateFinder(dbClient)));
+    new GetByProjectAction(userSession, dbClient, TestComponentFinder.from(db), new QualityGateFinder(dbClient),
+      new QualityGatesWsSupport(db.getDbClient(), userSession, TestDefaultOrganizationProvider.from(db))));
+
+  @Test
+  public void definition() {
+    WebService.Action action = ws.getDef();
+    assertThat(action.description()).isNotEmpty();
+    assertThat(action.isInternal()).isFalse();
+    assertThat(action.since()).isEqualTo("6.1");
+    assertThat(action.changelog()).extracting(Change::getVersion, Change::getDescription).containsExactlyInAnyOrder(
+      tuple("6.6", "The parameter 'projectId' has been removed"),
+      tuple("6.6", "The parameter 'projectKey' has been renamed to 'project'"),
+      tuple("6.6", "This webservice is now part of the public API"));
+    assertThat(action.params())
+      .extracting(WebService.Param::key, WebService.Param::isRequired)
+      .containsExactlyInAnyOrder(
+        tuple("project", true),
+        tuple("organization", false));
+  }
 
   @Test
   public void json_example() {
-    OrganizationDto organizationDto = db.organizations().insert();
-    ComponentDto project = componentDb.insertComponent(ComponentTesting.newPrivateProjectDto(organizationDto));
-    QualityGateDto qualityGate = insertQualityGate("My team QG");
-    associateProjectToQualityGate(project.getId(), qualityGate.getId());
+    OrganizationDto organization = db.organizations().insert();
+    ComponentDto project = db.components().insertPrivateProject(organization);
+    QGateWithOrgDto qualityGate = db.qualityGates().insertQualityGate(organization, qg -> qg.setName("My team QG"));
+    db.qualityGates().associateProjectToQualityGate(project, qualityGate);
     logInAsProjectUser(project);
 
-    String result = ws.newRequest().setParam(PARAM_PROJECT_ID, project.uuid()).execute().getInput();
+    String result = ws.newRequest()
+      .setParam("project", project.getKey())
+      .setParam("organization", organization.getKey())
+      .execute()
+      .getInput();
 
     assertJson(result)
       .ignoreFields("id")
@@ -80,26 +100,19 @@ public class GetByProjectActionTest {
   }
 
   @Test
-  public void empty_response() {
-    ComponentDto project = componentDb.insertPrivateProject();
-    insertQualityGate("Another QG");
-    logInAsProjectUser(project);
-
-    String result = ws.newRequest().setParam(PARAM_PROJECT_ID, project.uuid()).execute().getInput();
-
-    assertThat(result).isEqualToIgnoringWhitespace("{}");
-  }
-
-  @Test
   public void default_quality_gate() {
-    ComponentDto project = componentDb.insertComponent(ComponentTesting.newPrivateProjectDto(db.organizations().insert()));
-    QualityGateDto dbQualityGate = insertQualityGate("Sonar way");
-    setDefaultQualityGate(dbQualityGate.getId());
+    OrganizationDto organization = db.organizations().insert();
+    ComponentDto project = db.components().insertPrivateProject(organization);
+    QualityGateDto dbQualityGate = db.qualityGates().insertQualityGate(organization);
+    db.qualityGates().setDefaultQualityGate(organization, dbQualityGate);
     logInAsProjectUser(project);
 
-    GetByProjectWsResponse result = callByUuid(project.uuid());
+    GetByProjectResponse result = ws.newRequest()
+      .setParam("project", project.getKey())
+      .setParam("organization", organization.getKey())
+      .executeProtobuf(GetByProjectResponse.class);
 
-    WsQualityGates.QualityGate qualityGate = result.getQualityGate();
+    Qualitygates.QualityGate qualityGate = result.getQualityGate();
     assertThat(Long.valueOf(qualityGate.getId())).isEqualTo(dbQualityGate.getId());
     assertThat(qualityGate.getName()).isEqualTo(dbQualityGate.getName());
     assertThat(qualityGate.getDefault()).isTrue();
@@ -107,130 +120,142 @@ public class GetByProjectActionTest {
 
   @Test
   public void project_quality_gate_over_default() {
-    ComponentDto project = componentDb.insertComponent(ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization()));
-    QualityGateDto defaultDbQualityGate = insertQualityGate("Sonar way");
-    QualityGateDto dbQualityGate = insertQualityGate("My team QG");
-    setDefaultQualityGate(defaultDbQualityGate.getId());
-    associateProjectToQualityGate(project.getId(), dbQualityGate.getId());
+    OrganizationDto organization = db.organizations().insert();
+    ComponentDto project = db.components().insertPrivateProject(organization);
+    QGateWithOrgDto defaultDbQualityGate = db.qualityGates().insertQualityGate(organization);
+    db.qualityGates().setDefaultQualityGate(organization, defaultDbQualityGate);
+    QualityGateDto qualityGate = db.qualityGates().insertQualityGate(organization);
+    db.qualityGates().associateProjectToQualityGate(project, qualityGate);
     logInAsProjectUser(project);
 
-    GetByProjectWsResponse result = callByUuid(project.uuid());
+    GetByProjectResponse result = ws.newRequest()
+      .setParam("project", project.getKey())
+      .setParam("organization", organization.getKey())
+      .executeProtobuf(GetByProjectResponse.class);
 
-    WsQualityGates.QualityGate qualityGate = result.getQualityGate();
-    assertThat(qualityGate.getName()).isEqualTo(dbQualityGate.getName());
-    assertThat(qualityGate.getDefault()).isFalse();
+    Qualitygates.QualityGate reloaded = result.getQualityGate();
+    assertThat(reloaded.getName()).isEqualTo(reloaded.getName());
+    assertThat(reloaded.getDefault()).isFalse();
   }
 
   @Test
   public void get_by_project_key() {
-    ComponentDto project = componentDb.insertComponent(ComponentTesting.newPrivateProjectDto(db.organizations().insert()));
-    QualityGateDto dbQualityGate = insertQualityGate("My team QG");
-    associateProjectToQualityGate(project.getId(), dbQualityGate.getId());
+    OrganizationDto organization = db.organizations().insert();
+    ComponentDto project = db.components().insertPrivateProject(organization);
+
+    QualityGateDto qualityGate = db.qualityGates().insertQualityGate(db.getDefaultOrganization(), qg -> qg.setName("My team QG"));
+    db.qualityGates().associateProjectToQualityGate(project, qualityGate);
     logInAsProjectUser(project);
 
-    GetByProjectWsResponse result = callByKey(project.key());
+    GetByProjectResponse result = ws.newRequest()
+      .setParam("project", project.getKey())
+      .setParam("organization", organization.getKey())
+      .executeProtobuf(GetByProjectResponse.class);
 
-    assertThat(result.getQualityGate().getName()).isEqualTo(dbQualityGate.getName());
+    assertThat(result.getQualityGate().getName()).isEqualTo(qualityGate.getName());
   }
 
   @Test
   public void get_with_project_admin_permission() {
-    ComponentDto project = componentDb.insertPrivateProject();
+    OrganizationDto organization = db.organizations().insert();
+    ComponentDto project = db.components().insertPrivateProject(organization);
+    QualityGateDto qualityGate = db.qualityGates().insertQualityGate(organization);
+    db.qualityGates().setDefaultQualityGate(organization, qualityGate);
     userSession.logIn().addProjectPermission(UserRole.ADMIN, project);
-    QualityGateDto dbQualityGate = insertQualityGate("Sonar way");
-    setDefaultQualityGate(dbQualityGate.getId());
 
-    GetByProjectWsResponse result = callByUuid(project.uuid());
+    GetByProjectResponse result = ws.newRequest()
+      .setParam("project", project.getKey())
+      .setParam("organization", organization.getKey())
+      .executeProtobuf(GetByProjectResponse.class);
 
-    assertThat(result.getQualityGate().getName()).isEqualTo(dbQualityGate.getName());
+    assertThat(result.getQualityGate().getName()).isEqualTo(qualityGate.getName());
   }
 
   @Test
   public void get_with_project_user_permission() {
-    ComponentDto project = componentDb.insertPrivateProject();
+    OrganizationDto organization = db.organizations().insert();
+    ComponentDto project = db.components().insertPrivateProject(organization);
+    QualityGateDto qualityGate = db.qualityGates().insertQualityGate(organization);
+    db.qualityGates().setDefaultQualityGate(organization, qualityGate);
     userSession.logIn().addProjectPermission(UserRole.USER, project);
-    QualityGateDto dbQualityGate = insertQualityGate("Sonar way");
-    setDefaultQualityGate(dbQualityGate.getId());
 
-    GetByProjectWsResponse result = callByUuid(project.uuid());
+    GetByProjectResponse result = ws.newRequest()
+      .setParam("project", project.getKey())
+      .setParam("organization", organization.getKey())
+      .executeProtobuf(GetByProjectResponse.class);
 
-    assertThat(result.getQualityGate().getName()).isEqualTo(dbQualityGate.getName());
+    assertThat(result.getQualityGate().getName()).isEqualTo(qualityGate.getName());
+  }
+
+  @Test
+  public void default_organization_is_used_when_no_organization_parameter() {
+    OrganizationDto organization = db.getDefaultOrganization();
+    QGateWithOrgDto qualityGate = db.qualityGates().insertQualityGate(organization);
+    ComponentDto project = db.components().insertPrivateProject(organization);
+    db.qualityGates().setDefaultQualityGate(organization, qualityGate);
+    userSession.logIn().addProjectPermission(UserRole.USER, project);
+
+    GetByProjectResponse result = ws.newRequest()
+      .setParam("project", project.getKey())
+      .executeProtobuf(GetByProjectResponse.class);
+
+    assertThat(result.getQualityGate().getName()).isEqualTo(qualityGate.getName());
   }
 
   @Test
   public void fail_when_insufficient_permission() {
-    ComponentDto project = componentDb.insertComponent(ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization()));
+    OrganizationDto organization = db.organizations().insert();
+    QualityGateDto dbQualityGate = db.qualityGates().insertQualityGate(db.getDefaultOrganization());
+    db.qualityGates().setDefaultQualityGate(db.getDefaultOrganization(), dbQualityGate);
+    ComponentDto project = db.components().insertPrivateProject(organization);
     userSession.logIn();
-    QualityGateDto dbQualityGate = insertQualityGate("Sonar way");
-    setDefaultQualityGate(dbQualityGate.getId());
 
     expectedException.expect(ForbiddenException.class);
 
-    callByUuid(project.uuid());
+    ws.newRequest()
+      .setParam("project", project.getKey())
+      .setParam("organization", organization.getKey())
+      .execute();
   }
 
   @Test
   public void fail_when_project_does_not_exist() {
+    OrganizationDto organization = db.organizations().insert();
+
     expectedException.expect(NotFoundException.class);
 
-    callByUuid("Unknown");
+    ws.newRequest()
+      .setParam("project", "Unknown")
+      .setParam("organization", organization.getKey())
+      .execute();
   }
 
   @Test
-  public void fail_when_no_parameter() {
-    expectedException.expect(IllegalArgumentException.class);
+  public void fail_when_missing_project_parameter() {
+    OrganizationDto organization = db.organizations().insert();
 
-    call(null, null);
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("The 'project' parameter is missing");
+
+    ws.newRequest()
+      .setParam("organization", organization.getKey())
+      .execute();
   }
 
   @Test
-  public void fail_when_project_uuid_and_key_provided() {
-    expectedException.expect(IllegalArgumentException.class);
+  public void fail_when_using_branch_db_key() throws Exception {
+    OrganizationDto organization = db.organizations().insert();
+    ComponentDto project = db.components().insertMainBranch(organization);
+    userSession.logIn().addProjectPermission(UserRole.ADMIN, project);
+    ComponentDto branch = db.components().insertProjectBranch(project);
 
-    call("uuid", "key");
-  }
+    expectedException.expect(NotFoundException.class);
+    expectedException.expectMessage(format("Component key '%s' not found", branch.getDbKey()));
 
-  private GetByProjectWsResponse callByUuid(String projectUuid) {
-    return call(projectUuid, null);
-  }
-
-  private GetByProjectWsResponse callByKey(String projectKey) {
-    return call(null, projectKey);
-  }
-
-  private GetByProjectWsResponse call(@Nullable String projectUuid, @Nullable String projectKey) {
-    TestRequest request = ws.newRequest();
-
-    if (projectUuid != null) {
-      request.setParam(PARAM_PROJECT_ID, projectUuid);
-    }
-
-    if (projectKey != null) {
-      request.setParam(PARAM_PROJECT_KEY, projectKey);
-    }
-
-    return request.executeProtobuf(GetByProjectWsResponse.class);
-  }
-
-  private QualityGateDto insertQualityGate(String name) {
-    QualityGateDto qualityGate = dbClient.qualityGateDao().insert(dbSession, new QualityGateDto().setName(name));
-    db.commit();
-    return qualityGate;
-  }
-
-  private void associateProjectToQualityGate(long componentId, long qualityGateId) {
-    dbClient.propertiesDao().saveProperty(dbSession, new PropertyDto()
-      .setKey("sonar.qualitygate")
-      .setResourceId(componentId)
-      .setValue(String.valueOf(qualityGateId)));
-    db.commit();
-  }
-
-  private void setDefaultQualityGate(long qualityGateId) {
-    dbClient.propertiesDao().saveProperty(dbSession, new PropertyDto()
-      .setKey("sonar.qualitygate")
-      .setValue(String.valueOf(qualityGateId)));
-    db.commit();
+    ws.newRequest()
+      .setParam("project", branch.getDbKey())
+      .setParam("organization", organization.getKey())
+      .execute();
   }
 
   private void logInAsProjectUser(ComponentDto project) {

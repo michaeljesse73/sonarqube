@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -23,9 +23,7 @@ import { translate } from '../../../helpers/l10n';
 const EmptyQualityGate = () => {
   return (
     <div className="overview-quality-gate">
-      <h2 className="overview-title">
-        {translate('overview.quality_gate')}
-      </h2>
+      <h2 className="overview-title">{translate('overview.quality_gate')}</h2>
       <p className="overview-quality-gate-warning">
         {translate('overview.you_should_define_quality_gate')}
       </p>

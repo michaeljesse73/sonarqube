@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -47,6 +47,7 @@ import org.sonar.server.issue.IssueFieldsSetter;
 import org.sonar.server.issue.IssueFinder;
 import org.sonar.server.issue.IssueUpdater;
 import org.sonar.server.issue.ServerIssueStorage;
+import org.sonar.server.issue.TestIssueChangePostProcessor;
 import org.sonar.server.issue.index.IssueIndexDefinition;
 import org.sonar.server.issue.index.IssueIndexer;
 import org.sonar.server.issue.index.IssueIteratorFactory;
@@ -85,12 +86,13 @@ public class SetTagsActionTest {
   private DbClient dbClient = db.getDbClient();
   private DefaultOrganizationProvider defaultOrganizationProvider = TestDefaultOrganizationProvider.from(db);
   private OperationResponseWriter responseWriter = mock(OperationResponseWriter.class);
-  private IssueIndexer issueIndexer = new IssueIndexer(esTester.client(), new IssueIteratorFactory(dbClient));
+  private IssueIndexer issueIndexer = new IssueIndexer(esTester.client(), dbClient, new IssueIteratorFactory(dbClient));
   private ArgumentCaptor<SearchResponseData> preloadedSearchResponseDataCaptor = ArgumentCaptor.forClass(SearchResponseData.class);
+  private TestIssueChangePostProcessor issueChangePostProcessor = new TestIssueChangePostProcessor();
 
   private WsActionTester ws = new WsActionTester(new SetTagsAction(userSession, dbClient, new IssueFinder(dbClient, userSession), new IssueFieldsSetter(),
     new IssueUpdater(dbClient,
-      new ServerIssueStorage(system2, new DefaultRuleFinder(dbClient, defaultOrganizationProvider), dbClient, issueIndexer), mock(NotificationManager.class)),
+      new ServerIssueStorage(system2, new DefaultRuleFinder(dbClient, defaultOrganizationProvider), dbClient, issueIndexer), mock(NotificationManager.class), issueChangePostProcessor),
     responseWriter));
 
   @Test
@@ -104,6 +106,7 @@ public class SetTagsActionTest {
     verifyContentOfPreloadedSearchResponseData(issueDto);
     IssueDto issueReloaded = dbClient.issueDao().selectByKey(db.getSession(), issueDto.getKey()).get();
     assertThat(issueReloaded.getTags()).containsOnly("bug", "todo");
+    assertThat(issueChangePostProcessor.wasCalled()).isFalse();
   }
 
   @Test
@@ -115,6 +118,7 @@ public class SetTagsActionTest {
 
     IssueDto issueReloaded = dbClient.issueDao().selectByKey(db.getSession(), issueDto.getKey()).get();
     assertThat(issueReloaded.getTags()).isEmpty();
+    assertThat(issueChangePostProcessor.wasCalled()).isFalse();
   }
 
   @Test
@@ -162,7 +166,7 @@ public class SetTagsActionTest {
   }
 
   @Test
-  public void insert_entry_in_changelog_when_setting_tags() throws Exception {
+  public void insert_entry_in_changelog_when_setting_tags() {
     IssueDto issueDto = db.issues().insertIssue(newIssue().setTags(singletonList("old-tag")));
     logIn(issueDto);
 
@@ -187,14 +191,14 @@ public class SetTagsActionTest {
   }
 
   @Test
-  public void fail_when_not_authenticated() throws Exception {
+  public void fail_when_not_authenticated() {
     expectedException.expect(UnauthorizedException.class);
 
     call("ABCD", "bug");
   }
 
   @Test
-  public void fail_when_missing_browse_permission() throws Exception {
+  public void fail_when_missing_browse_permission() {
     IssueDto issueDto = db.issues().insertIssue();
     logInAndAddProjectPermission(issueDto, ISSUE_ADMIN);
 
@@ -236,7 +240,7 @@ public class SetTagsActionTest {
     RuleDefinitionDto rule = db.rules().insert();
     ComponentDto project = db.components().insertPublicProject();
     ComponentDto file = db.components().insertComponent(newFileDto(project));
-    return IssueTesting.newIssue(rule, file, project);
+    return IssueTesting.newIssue(rule, project, file);
   }
 
   private void logIn(IssueDto issueDto) {

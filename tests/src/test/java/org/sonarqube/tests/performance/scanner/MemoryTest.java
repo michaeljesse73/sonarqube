@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -89,7 +89,7 @@ public class MemoryTest extends AbstractPerfTest {
       .setProjectDir(baseDir);
 
     BuildResult result = orchestrator.executeBuild(scanner);
-    perfRule.assertDurationAround(MavenLogs.extractTotalTime(result.getLogs()), 6740L);
+    perfRule.assertDurationAround(MavenLogs.extractTotalTime(result.getLogs()), 8890);
 
     // Second execution with a property on server side
     orchestrator.getServer().newHttpCall("/api/settings/set")
@@ -100,7 +100,7 @@ public class MemoryTest extends AbstractPerfTest {
       .setParam("component", "big-module-tree")
       .execute();
     result = orchestrator.executeBuild(scanner);
-    perfRule.assertDurationAround(MavenLogs.extractTotalTime(result.getLogs()), 6720L);
+    perfRule.assertDurationAround(MavenLogs.extractTotalTime(result.getLogs()), 8900);
   }
 
   private void prepareModule(File parentDir, String moduleName, int depth) throws IOException {

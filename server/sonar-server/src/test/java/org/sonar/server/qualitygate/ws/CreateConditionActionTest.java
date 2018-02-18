@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,41 +20,39 @@
 package org.sonar.server.qualitygate.ws;
 
 import java.util.ArrayList;
-import java.util.List;
 import javax.annotation.Nullable;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.sonar.api.server.ws.WebService;
-import org.sonar.api.utils.System2;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
 import org.sonar.db.DbTester;
 import org.sonar.db.metric.MetricDto;
 import org.sonar.db.organization.OrganizationDto;
+import org.sonar.db.qualitygate.QGateWithOrgDto;
 import org.sonar.db.qualitygate.QualityGateConditionDto;
-import org.sonar.db.qualitygate.QualityGateDbTester;
 import org.sonar.db.qualitygate.QualityGateDto;
 import org.sonar.server.exceptions.ForbiddenException;
 import org.sonar.server.organization.TestDefaultOrganizationProvider;
 import org.sonar.server.qualitygate.QualityGateConditionsUpdater;
+import org.sonar.server.qualitygate.QualityGateFinder;
 import org.sonar.server.tester.UserSessionRule;
-import org.sonar.server.ws.TestRequest;
 import org.sonar.server.ws.WsActionTester;
-import org.sonarqube.ws.MediaTypes;
-import org.sonarqube.ws.WsQualityGates.CreateConditionWsResponse;
+import org.sonarqube.ws.Qualitygates.CreateConditionResponse;
 
+import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.sonar.db.metric.MetricTesting.newMetricDto;
+import static org.assertj.core.api.Assertions.tuple;
+import static org.sonar.api.measures.Metric.ValueType.INT;
 import static org.sonar.db.permission.OrganizationPermission.ADMINISTER_QUALITY_GATES;
-import static org.sonar.server.computation.task.projectanalysis.metric.Metric.MetricType.PERCENT;
-import static org.sonarqube.ws.client.qualitygate.QualityGatesWsParameters.PARAM_ERROR;
-import static org.sonarqube.ws.client.qualitygate.QualityGatesWsParameters.PARAM_GATE_ID;
-import static org.sonarqube.ws.client.qualitygate.QualityGatesWsParameters.PARAM_METRIC;
-import static org.sonarqube.ws.client.qualitygate.QualityGatesWsParameters.PARAM_OPERATOR;
-import static org.sonarqube.ws.client.qualitygate.QualityGatesWsParameters.PARAM_PERIOD;
-import static org.sonarqube.ws.client.qualitygate.QualityGatesWsParameters.PARAM_WARNING;
+import static org.sonar.server.qualitygate.ws.QualityGatesWsParameters.PARAM_ERROR;
+import static org.sonar.server.qualitygate.ws.QualityGatesWsParameters.PARAM_GATE_ID;
+import static org.sonar.server.qualitygate.ws.QualityGatesWsParameters.PARAM_METRIC;
+import static org.sonar.server.qualitygate.ws.QualityGatesWsParameters.PARAM_OPERATOR;
+import static org.sonar.server.qualitygate.ws.QualityGatesWsParameters.PARAM_ORGANIZATION;
+import static org.sonar.server.qualitygate.ws.QualityGatesWsParameters.PARAM_PERIOD;
+import static org.sonar.server.qualitygate.ws.QualityGatesWsParameters.PARAM_WARNING;
 
 public class CreateConditionActionTest {
 
@@ -65,77 +63,152 @@ public class CreateConditionActionTest {
   public UserSessionRule userSession = UserSessionRule.standalone();
 
   @Rule
-  public DbTester db = DbTester.create(System2.INSTANCE);
+  public DbTester db = DbTester.create();
 
   private TestDefaultOrganizationProvider defaultOrganizationProvider = TestDefaultOrganizationProvider.from(db);
   private DbClient dbClient = db.getDbClient();
   private DbSession dbSession = db.getSession();
-  private QualityGateDbTester qualityGateDbTester = new QualityGateDbTester(db);
-  private CreateConditionAction underTest = new CreateConditionAction(userSession, dbClient, new QualityGateConditionsUpdater(dbClient), defaultOrganizationProvider);
-  private QualityGateDto qualityGateDto;
-  private MetricDto coverageMetricDto = newMetricDto()
-    .setKey("coverage")
-    .setShortName("Coverage")
-    .setValueType(PERCENT.name())
-    .setHidden(false);
+  private CreateConditionAction underTest = new CreateConditionAction(dbClient, new QualityGateConditionsUpdater(dbClient),
+    new QualityGateFinder(dbClient), new QualityGatesWsSupport(dbClient, userSession, defaultOrganizationProvider));
 
   private WsActionTester ws = new WsActionTester(underTest);
 
-  @Before
-  public void setUp() throws Exception {
-    qualityGateDto = qualityGateDbTester.insertQualityGate();
-    dbClient.metricDao().insert(dbSession, coverageMetricDto);
-    dbSession.commit();
+  @Test
+  public void create_warning_condition() {
+    OrganizationDto organization = db.organizations().insert();
+    logInAsQualityGateAdmin(organization);
+    QGateWithOrgDto qualityGate = db.qualityGates().insertQualityGate(organization);
+    MetricDto metric = insertMetric();
+
+    ws.newRequest()
+      .setParam(PARAM_GATE_ID, qualityGate.getId().toString())
+      .setParam(PARAM_METRIC, metric.getKey())
+      .setParam(PARAM_OPERATOR, "LT")
+      .setParam(PARAM_WARNING, "90")
+      .setParam(PARAM_ORGANIZATION, organization.getKey())
+      .execute();
+
+    assertCondition(qualityGate, metric, "LT", "90", null, null);
   }
 
   @Test
-  public void create_warning_condition() throws Exception {
-    logInAsQualityGateAdmin();
+  public void create_error_condition() {
+    OrganizationDto organization = db.organizations().insert();
+    logInAsQualityGateAdmin(organization);
+    QGateWithOrgDto qualityGate = db.qualityGates().insertQualityGate(organization);
+    MetricDto metric = insertMetric();
 
-    CreateConditionWsResponse response = executeRequest(qualityGateDto.getId(), coverageMetricDto.getKey(), "LT", "90", null, null);
+    ws.newRequest()
+      .setParam(PARAM_GATE_ID, qualityGate.getId().toString())
+      .setParam(PARAM_METRIC, metric.getKey())
+      .setParam(PARAM_OPERATOR, "LT")
+      .setParam(PARAM_ERROR, "90")
+      .setParam(PARAM_ORGANIZATION, organization.getKey())
+      .execute();
 
-    assertCondition(response, "LT", "90", null, null);
+    assertCondition(qualityGate, metric, "LT", null, "90", null);
   }
 
   @Test
-  public void create_error_condition() throws Exception {
-    logInAsQualityGateAdmin();
+  public void create_condition_over_leak_period() {
+    OrganizationDto organization = db.organizations().insert();
+    logInAsQualityGateAdmin(organization);
+    QGateWithOrgDto qualityGate = db.qualityGates().insertQualityGate(organization);
+    MetricDto metric = insertMetric();
 
-    CreateConditionWsResponse response = executeRequest(qualityGateDto.getId(), coverageMetricDto.getKey(), "LT", null, "90", null);
+    ws.newRequest()
+      .setParam(PARAM_GATE_ID, qualityGate.getId().toString())
+      .setParam(PARAM_METRIC, metric.getKey())
+      .setParam(PARAM_OPERATOR, "LT")
+      .setParam(PARAM_ERROR, "90")
+      .setParam(PARAM_PERIOD, "1")
+      .setParam(PARAM_ORGANIZATION, organization.getKey())
+      .execute();
 
-    assertCondition(response, "LT", null, "90", null);
+    assertCondition(qualityGate, metric, "LT", null, "90", 1);
   }
 
   @Test
-  public void create_condition_over_leak_period() throws Exception {
-    logInAsQualityGateAdmin();
+  public void default_organization_is_used_when_no_organization_parameter() {
+    logInAsQualityGateAdmin(db.getDefaultOrganization());
+    QGateWithOrgDto qualityGate = db.qualityGates().insertQualityGate(db.getDefaultOrganization());
+    OrganizationDto otherOrganization = db.organizations().insert();
+    QGateWithOrgDto otherQualityGate = db.qualityGates().insertQualityGate(otherOrganization);
 
-    CreateConditionWsResponse response = executeRequest(qualityGateDto.getId(), coverageMetricDto.getKey(), "LT", null, "90", 1);
+    MetricDto metric = insertMetric();
 
-    assertCondition(response, "LT", null, "90", 1);
+    ws.newRequest()
+      .setParam(PARAM_GATE_ID, qualityGate.getId().toString())
+      .setParam(PARAM_METRIC, metric.getKey())
+      .setParam(PARAM_OPERATOR, "LT")
+      .setParam(PARAM_WARNING, "90")
+      .execute();
+
+    assertCondition(qualityGate, metric, "LT", "90", null, null);
   }
 
   @Test
-  public void throw_ForbiddenException_if_not_gate_administrator() throws Exception {
+  public void fail_to_update_built_in_quality_gate() {
+    OrganizationDto organization = db.organizations().insert();
+    logInAsQualityGateAdmin(organization);
+    QGateWithOrgDto qualityGate = db.qualityGates().insertQualityGate(organization, qg -> qg.setBuiltIn(true));
+    MetricDto metric = insertMetric();
+
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage(format("Operation forbidden for built-in Quality Gate '%s'", qualityGate.getName()));
+
+    ws.newRequest()
+      .setParam(PARAM_GATE_ID, qualityGate.getId().toString())
+      .setParam(PARAM_METRIC, metric.getKey())
+      .setParam(PARAM_OPERATOR, "LT")
+      .setParam(PARAM_ERROR, "90")
+      .setParam(PARAM_ORGANIZATION, organization.getKey())
+      .execute();
+  }
+
+  @Test
+  public void test_response() {
+    OrganizationDto organization = db.organizations().insert();
+    logInAsQualityGateAdmin(organization);
+    QGateWithOrgDto qualityGate = db.qualityGates().insertQualityGate(organization);
+    MetricDto metric = insertMetric();
+
+    CreateConditionResponse response = ws.newRequest()
+      .setParam(PARAM_GATE_ID, qualityGate.getId().toString())
+      .setParam(PARAM_METRIC, metric.getKey())
+      .setParam(PARAM_OPERATOR, "LT")
+      .setParam(PARAM_ERROR, "45")
+      .setParam(PARAM_WARNING, "90")
+      .setParam(PARAM_PERIOD, "1")
+      .setParam(PARAM_ORGANIZATION, organization.getKey())
+      .executeProtobuf(CreateConditionResponse.class);
+
+    QualityGateConditionDto condition = new ArrayList<>(dbClient.gateConditionDao().selectForQualityGate(dbSession, qualityGate.getId())).get(0);
+    assertThat(response.getId()).isEqualTo(condition.getId());
+    assertThat(response.getMetric()).isEqualTo(metric.getKey());
+    assertThat(response.getOp()).isEqualTo("LT");
+    assertThat(response.getWarning()).isEqualTo("90");
+    assertThat(response.getError()).isEqualTo("45");
+    assertThat(response.getPeriod()).isEqualTo(1);
+  }
+
+  @Test
+  public void throw_ForbiddenException_if_not_gate_administrator() {
+    OrganizationDto organization = db.organizations().insert();
+    QGateWithOrgDto qualityGate = db.qualityGates().insertQualityGate(organization);
+    MetricDto metric = insertMetric();
     userSession.logIn();
 
     expectedException.expect(ForbiddenException.class);
     expectedException.expectMessage("Insufficient privileges");
 
-    executeRequest(qualityGateDto.getId(), coverageMetricDto.getKey(), "LT", "90", null, null);
-  }
-
-  @Test
-  public void throw_ForbiddenException_if_not_gate_administrator_of_default_organization() throws Exception {
-    // as long as organizations don't support Quality gates, the global permission
-    // is defined on the default organization
-    OrganizationDto org = db.organizations().insert();
-    userSession.logIn().addPermission(ADMINISTER_QUALITY_GATES, org);
-
-    expectedException.expect(ForbiddenException.class);
-    expectedException.expectMessage("Insufficient privileges");
-
-    executeRequest(qualityGateDto.getId(), coverageMetricDto.getKey(), "LT", "90", null, null);
+    ws.newRequest()
+      .setParam(PARAM_GATE_ID, qualityGate.getId().toString())
+      .setParam(PARAM_METRIC, metric.getKey())
+      .setParam(PARAM_OPERATOR, "LT")
+      .setParam(PARAM_ERROR, "90")
+      .setParam(PARAM_ORGANIZATION, organization.getKey())
+      .execute();
   }
 
   @Test
@@ -144,60 +217,31 @@ public class CreateConditionActionTest {
     assertThat(action).isNotNull();
     assertThat(action.isInternal()).isFalse();
     assertThat(action.isPost()).isTrue();
-    assertThat(action.responseExampleAsString()).isNull();
-    assertThat(action.params()).hasSize(6);
+    assertThat(action.responseExampleAsString()).isNotEmpty();
+    assertThat(action.params())
+      .extracting(WebService.Param::key, WebService.Param::isRequired)
+      .containsExactlyInAnyOrder(
+        tuple("gateId", true),
+        tuple("metric", true),
+        tuple("period", false),
+        tuple("op", false),
+        tuple("warning", false),
+        tuple("error", false),
+        tuple("organization", false));
   }
 
-  private void assertCondition(CreateConditionWsResponse response, String operator, @Nullable String warning, @Nullable String error, @Nullable Integer period) {
-    List<QualityGateConditionDto> conditionDtoList = new ArrayList<>(dbClient.gateConditionDao().selectForQualityGate(dbSession, qualityGateDto.getId()));
-    assertThat(conditionDtoList).hasSize(1);
-    QualityGateConditionDto qualityGateConditionDto = conditionDtoList.get(0);
-    assertThat(qualityGateConditionDto.getQualityGateId()).isEqualTo(qualityGateDto.getId());
-    assertThat(qualityGateConditionDto.getMetricId()).isEqualTo(coverageMetricDto.getId().longValue());
-    assertThat(qualityGateConditionDto.getOperator()).isEqualTo(operator);
-    assertThat(qualityGateConditionDto.getWarningThreshold()).isEqualTo(warning);
-    assertThat(qualityGateConditionDto.getErrorThreshold()).isEqualTo(error);
-    assertThat(qualityGateConditionDto.getPeriod()).isEqualTo(period);
-
-    assertThat(response.getId()).isEqualTo(qualityGateConditionDto.getId());
-    assertThat(response.getMetric()).isEqualTo(coverageMetricDto.getKey());
-    assertThat(response.getOp()).isEqualTo(operator);
-    if (warning != null) {
-      assertThat(response.getWarning()).isEqualTo(warning);
-    } else {
-      assertThat(response.hasWarning()).isFalse();
-    }
-    if (error != null) {
-      assertThat(response.getError()).isEqualTo(error);
-    } else {
-      assertThat(response.hasError()).isFalse();
-    }
-    if (period != null) {
-      assertThat(response.getPeriod()).isEqualTo(period);
-    } else {
-      assertThat(response.hasPeriod()).isFalse();
-    }
+  private void assertCondition(QualityGateDto qualityGate, MetricDto metric, String operator, @Nullable String warning, @Nullable String error, @Nullable Integer period) {
+    assertThat(dbClient.gateConditionDao().selectForQualityGate(dbSession, qualityGate.getId()))
+      .extracting(QualityGateConditionDto::getQualityGateId, QualityGateConditionDto::getMetricId, QualityGateConditionDto::getOperator,
+        QualityGateConditionDto::getWarningThreshold, QualityGateConditionDto::getErrorThreshold, QualityGateConditionDto::getPeriod)
+      .containsExactlyInAnyOrder(tuple(qualityGate.getId(), metric.getId().longValue(), operator, warning, error, period));
   }
 
-  private CreateConditionWsResponse executeRequest(long qualityProfileId, String metricKey, String operator, @Nullable String warning, @Nullable String error,
-    @Nullable Integer period) {
-    TestRequest request = ws.newRequest()
-      .setParam(PARAM_GATE_ID, Long.toString(qualityProfileId))
-      .setParam(PARAM_METRIC, metricKey)
-      .setParam(PARAM_OPERATOR, operator);
-    if (warning != null) {
-      request.setParam(PARAM_WARNING, warning);
-    }
-    if (error != null) {
-      request.setParam(PARAM_ERROR, error);
-    }
-    if (period != null) {
-      request.setParam(PARAM_PERIOD, Integer.toString(period));
-    }
-    return request.executeProtobuf(CreateConditionWsResponse.class);
+  private void logInAsQualityGateAdmin(OrganizationDto organization) {
+    userSession.logIn().addPermission(ADMINISTER_QUALITY_GATES, organization);
   }
 
-  private void logInAsQualityGateAdmin() {
-    userSession.logIn().addPermission(ADMINISTER_QUALITY_GATES, db.getDefaultOrganization());
+  private MetricDto insertMetric() {
+    return db.measures().insertMetric(m -> m.setValueType(INT.name()).setHidden(false));
   }
 }

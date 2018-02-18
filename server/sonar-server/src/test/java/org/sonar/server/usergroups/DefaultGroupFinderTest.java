@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -17,7 +17,6 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-
 package org.sonar.server.usergroups;
 
 import org.junit.Rule;
@@ -41,7 +40,7 @@ public class DefaultGroupFinderTest {
   private DefaultGroupFinder underTest = new DefaultGroupFinder(db.getDbClient());
 
   @Test
-  public void find_default_group() throws Exception {
+  public void find_default_group() {
     OrganizationDto organization = db.organizations().insert();
     GroupDto defaultGroup = db.users().insertDefaultGroup(organization, "default");
 
@@ -52,7 +51,7 @@ public class DefaultGroupFinderTest {
   }
 
   @Test
-  public void fail_with_ISE_when_no_default_group_on_org() throws Exception {
+  public void fail_with_ISE_when_no_default_group_on_org() {
     OrganizationDto organization = db.organizations().insert();
     db.users().insertGroup(organization);
 
@@ -63,7 +62,7 @@ public class DefaultGroupFinderTest {
   }
 
   @Test
-  public void fail_with_NPE_when_default_group_does_not_exist() throws Exception {
+  public void fail_with_NPE_when_default_group_does_not_exist() {
     OrganizationDto organization = db.organizations().insert();
     GroupDto defaultGroup = db.users().insertDefaultGroup(organization, "default");
     db.getDbClient().groupDao().deleteById(db.getSession(), defaultGroup.getId());

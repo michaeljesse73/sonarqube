@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -42,6 +42,8 @@ import static org.sonar.server.computation.task.projectanalysis.component.Report
 
 public class DuplicatedBlockRuleTest {
 
+  private static final String PLUGIN_KEY = "java";
+
   static RuleKey RULE_KEY = RuleKey.of(CommonRuleKeys.commonRepositoryForLang("java"), CommonRuleKeys.DUPLICATED_BLOCKS);
 
   static ReportComponent FILE = ReportComponent.builder(Component.Type.FILE, 1)
@@ -64,8 +66,8 @@ public class DuplicatedBlockRuleTest {
   DuplicatedBlockRule underTest = new DuplicatedBlockRule(activeRuleHolder, measureRepository, metricRepository);
 
   @Test
-  public void no_issue_if_no_duplicated_blocks() throws Exception {
-    activeRuleHolder.put(new ActiveRule(RULE_KEY, Severity.CRITICAL, Collections.<String, String>emptyMap(), 1_000L));
+  public void no_issue_if_no_duplicated_blocks() {
+    activeRuleHolder.put(new ActiveRule(RULE_KEY, Severity.CRITICAL, Collections.emptyMap(), 1_000L, PLUGIN_KEY));
     measureRepository.addRawMeasure(FILE.getReportAttributes().getRef(), CoreMetrics.DUPLICATED_BLOCKS_KEY, Measure.newMeasureBuilder().create(0));
 
     DefaultIssue issue = underTest.processFile(FILE, "java");
@@ -74,8 +76,8 @@ public class DuplicatedBlockRuleTest {
   }
 
   @Test
-  public void issue_if_duplicated_blocks() throws Exception {
-    activeRuleHolder.put(new ActiveRule(RULE_KEY, Severity.CRITICAL, Collections.<String, String>emptyMap(), 1_000L));
+  public void issue_if_duplicated_blocks() {
+    activeRuleHolder.put(new ActiveRule(RULE_KEY, Severity.CRITICAL, Collections.emptyMap(), 1_000L, PLUGIN_KEY));
     measureRepository.addRawMeasure(FILE.getReportAttributes().getRef(), CoreMetrics.DUPLICATED_BLOCKS_KEY, Measure.newMeasureBuilder().create(3));
 
     DefaultIssue issue = underTest.processFile(FILE, "java");

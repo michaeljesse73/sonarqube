@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -39,6 +39,7 @@ import org.sonar.server.es.EsTester;
 import org.sonar.server.qualityprofile.ActiveRuleChange;
 import org.sonar.server.rule.index.RuleIndexDefinition;
 
+import static java.lang.String.valueOf;
 import static java.util.Arrays.asList;
 import static java.util.Arrays.stream;
 import static java.util.Collections.emptySet;
@@ -91,7 +92,7 @@ public class ActiveRuleIndexerTest {
 
     List<ActiveRuleDoc> docs = es.getDocuments(INDEX_TYPE_ACTIVE_RULE, ActiveRuleDoc.class);
     assertThat(docs).hasSize(1);
-    verify(docs.get(0), rule1, profile1, activeRule);
+    verify(docs.get(0), profile1, activeRule);
     assertThatEsQueueTableIsEmpty();
   }
 
@@ -101,7 +102,7 @@ public class ActiveRuleIndexerTest {
     ActiveRuleDto ar2 = db.qualityProfiles().activateRule(profile2, rule1);
     ActiveRuleDto ar3 = db.qualityProfiles().activateRule(profile2, rule2);
 
-    commitAndIndex(ar1, ar2);
+    commitAndIndex(rule1, ar1, ar2);
 
     verifyOnlyIndexed(ar1, ar2);
     assertThatEsQueueTableIsEmpty();
@@ -120,12 +121,11 @@ public class ActiveRuleIndexerTest {
   @Test
   public void commitAndIndex_keeps_elements_to_recover_in_ES_QUEUE_on_errors() {
     ActiveRuleDto ar = db.qualityProfiles().activateRule(profile1, rule1);
-    // force error by deleting the index
-    deleteRulesIndex();
+    es.lockWrites(INDEX_TYPE_ACTIVE_RULE);
 
-    commitAndIndex(ar);
+    commitAndIndex(rule1, ar);
 
-    EsQueueDto expectedItem = EsQueueDto.create(EsQueueDto.Type.ACTIVE_RULE, "" + ar.getId(), "activeRuleId", ar.getRuleKey().toString());
+    EsQueueDto expectedItem = EsQueueDto.create(INDEX_TYPE_ACTIVE_RULE.format(), "" + ar.getId(), "activeRuleId", valueOf(ar.getRuleId()));
     assertThatEsQueueContainsExactly(expectedItem);
   }
 
@@ -136,7 +136,7 @@ public class ActiveRuleIndexerTest {
     assertThat(es.countDocuments(INDEX_TYPE_ACTIVE_RULE)).isEqualTo(1);
 
     db.getDbClient().activeRuleDao().delete(db.getSession(), ar.getKey());
-    commitAndIndex(ar);
+    commitAndIndex(rule1, ar);
 
     assertThat(es.countDocuments(INDEX_TYPE_ACTIVE_RULE)).isEqualTo(0);
     assertThatEsQueueTableIsEmpty();
@@ -144,7 +144,7 @@ public class ActiveRuleIndexerTest {
 
   @Test
   public void index_fails_and_deletes_doc_if_docIdType_is_unsupported() {
-    EsQueueDto item = EsQueueDto.create(EsQueueDto.Type.ACTIVE_RULE, "the_id", "unsupported", "the_routing");
+    EsQueueDto item = EsQueueDto.create(INDEX_TYPE_ACTIVE_RULE.format(), "the_id", "unsupported", "the_routing");
     db.getDbClient().esQueueDao().insert(db.getSession(), item);
 
     underTest.index(db.getSession(), asList(item));
@@ -177,11 +177,6 @@ public class ActiveRuleIndexerTest {
     assertThat(es.countDocuments(INDEX_TYPE_ACTIVE_RULE)).isEqualTo(1);
   }
 
-
-  private void deleteRulesIndex() {
-    es.deleteIndex(RuleIndexDefinition.INDEX_TYPE_RULE.getIndex());
-  }
-
   private void assertThatEsQueueTableIsEmpty() {
     assertThat(db.countRowsOfTable(db.getSession(), "es_queue")).isEqualTo(0);
   }
@@ -193,9 +188,9 @@ public class ActiveRuleIndexerTest {
       .containsExactlyInAnyOrder(Tuple.tuple(expected.getDocId(), expected.getDocIdType(), expected.getDocRouting()));
   }
 
-  private void commitAndIndex(ActiveRuleDto... ar) {
+  private void commitAndIndex(RuleDefinitionDto rule, ActiveRuleDto... ar) {
     underTest.commitAndIndex(db.getSession(), stream(ar)
-      .map(a -> new ActiveRuleChange(ActiveRuleChange.Type.ACTIVATED, a))
+      .map(a -> new ActiveRuleChange(ActiveRuleChange.Type.ACTIVATED, a, rule))
       .collect(Collectors.toList()));
   }
 
@@ -207,12 +202,10 @@ public class ActiveRuleIndexerTest {
     }
   }
 
-  private void verify(ActiveRuleDoc doc1, RuleDefinitionDto rule, QProfileDto profile, ActiveRuleDto activeRule) {
+  private void verify(ActiveRuleDoc doc1, QProfileDto profile, ActiveRuleDto activeRule) {
     assertThat(doc1)
-      .matches(doc -> doc.getRuleKey().equals(rule.getKey()))
       .matches(doc -> doc.getId().equals("" + activeRule.getId()))
       .matches(doc -> doc.getRuleProfileUuid().equals(profile.getRulesProfileUuid()))
-      .matches(doc -> doc.getRuleRepository().equals(rule.getRepositoryKey()))
       .matches(doc -> doc.getSeverity().equals(activeRule.getSeverityString()));
   }
 

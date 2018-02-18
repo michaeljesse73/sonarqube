@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,34 +19,16 @@
  */
 import React from 'react';
 import Helmet from 'react-helmet';
-import { connect } from 'react-redux';
 import Header from './Header';
 import Form from './Form';
-import { getComponent } from '../../../store/rootReducer';
 import { translate } from '../../../helpers/l10n';
 
-class Deletion extends React.PureComponent {
-  static propTypes = {
-    component: React.PropTypes.object
-  };
-
-  render() {
-    if (!this.props.component) {
-      return null;
-    }
-
-    return (
-      <div className="page page-limited">
-        <Helmet title={translate('deletion.page')} />
-        <Header component={this.props.component} />
-        <Form component={this.props.component} />
-      </div>
-    );
-  }
+export default function Deletion(props) {
+  return (
+    <div className="page page-limited">
+      <Helmet title={translate('deletion.page')} />
+      <Header component={props.component} />
+      <Form component={props.component} />
+    </div>
+  );
 }
-
-const mapStateToProps = (state, ownProps) => ({
-  component: getComponent(state, ownProps.location.query.id)
-});
-
-export default connect(mapStateToProps)(Deletion);

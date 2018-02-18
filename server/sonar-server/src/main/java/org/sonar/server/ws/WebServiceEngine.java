@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Locale;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
+import org.apache.catalina.connector.ClientAbortException;
 import org.picocontainer.Startable;
 import org.sonar.api.server.ServerSide;
 import org.sonar.api.server.ws.LocalConnector;
@@ -43,6 +44,7 @@ import org.sonarqube.ws.MediaTypes;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static java.util.Collections.singletonList;
+import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang.StringUtils.substring;
 import static org.apache.commons.lang.StringUtils.substringAfterLast;
 import static org.apache.commons.lang.StringUtils.substringBeforeLast;
@@ -58,9 +60,16 @@ public class WebServiceEngine implements LocalConnector, Startable {
 
   private static final Logger LOGGER = Loggers.get(WebServiceEngine.class);
 
-  private final WebService.Context context;
+  private final WebService[] webServices;
+
+  private WebService.Context context;
 
   public WebServiceEngine(WebService[] webServices) {
+    this.webServices = webServices;
+  }
+
+  @Override
+  public void start() {
     context = new WebService.Context();
     for (WebService webService : webServices) {
       webService.define(context);
@@ -68,18 +77,16 @@ public class WebServiceEngine implements LocalConnector, Startable {
   }
 
   @Override
-  public void start() {
-    // Force execution of constructor to be sure that web services
-    // are validated and initialized at server startup.
-  }
-
-  @Override
   public void stop() {
     // nothing
   }
 
+  private WebService.Context getContext() {
+    return requireNonNull(context, "Web services has not yet been initialized");
+  }
+
   List<WebService.Controller> controllers() {
-    return context.controllers();
+    return getContext().controllers();
   }
 
   @Override
@@ -102,22 +109,13 @@ public class WebServiceEngine implements LocalConnector, Startable {
       verifyRequest(action, request);
       action.handler().handle(request, response);
     } catch (IllegalArgumentException e) {
-      sendErrors(response, 400, singletonList(e.getMessage()));
+      sendErrors(request, response, e, 400, singletonList(e.getMessage()));
     } catch (BadRequestException e) {
-      sendErrors(response, 400, e.errors());
+      sendErrors(request, response, e, 400, e.errors());
     } catch (ServerException e) {
-      sendErrors(response, e.httpCode(), singletonList(e.getMessage()));
+      sendErrors(request, response, e, e.httpCode(), singletonList(e.getMessage()));
     } catch (Exception e) {
-      Response.Stream stream = response.stream();
-      if (stream instanceof ServletResponse.ServletStream && ((ServletResponse.ServletStream) stream).response().isCommitted()) {
-        // Request has been aborted by the client, nothing can been done as Tomcat has committed the response
-        LOGGER.debug("Request {} has been aborted by client, error is '{}'", request, e.getMessage());
-        return;
-      }
-      LOGGER.error("Fail to process request " + request, e);
-      // Sending exception message into response is a vulnerability. Error must be
-      // displayed only in logs.
-      sendErrors(response, 500, singletonList("An error has occurred. Please contact your administrator"));
+      sendErrors(request, response, e, 500, singletonList("An error has occurred. Please contact your administrator"));
     }
   }
 
@@ -125,18 +123,41 @@ public class WebServiceEngine implements LocalConnector, Startable {
   private WebService.Action getAction(ActionExtractor actionExtractor) {
     String controllerPath = actionExtractor.getController();
     String actionKey = actionExtractor.getAction();
-    WebService.Controller controller = context.controller(controllerPath);
+    WebService.Controller controller = getContext().controller(controllerPath);
     return controller == null ? null : controller.action(actionKey);
   }
 
-  private static void sendErrors(Response response, int status, List<String> errors) {
+  private static void sendErrors(Request request, Response response, Exception exception, int status, List<String> errors) {
+    if (isRequestAbortedByClient(exception)) {
+      // do not pollute logs. We can't do anything -> use DEBUG level
+      // see org.sonar.server.ws.ServletResponse#output()
+      LOGGER.debug(String.format("Request %s has been aborted by client", request), exception);
+      if (!isResponseCommitted(response)) {
+        // can be useful for access.log
+        response.stream().setStatus(299);
+      }
+      return;
+    }
+
+    if (status == 500) {
+      // Sending exception message into response is a vulnerability. Error must be
+      // displayed only in logs.
+      LOGGER.error("Fail to process request " + request, exception);
+    }
+
     Response.Stream stream = response.stream();
+    if (isResponseCommitted(response)) {
+      // status can't be changed
+      LOGGER.debug(String.format("Request %s failed during response streaming", request), exception);
+      return;
+    }
+
+    // response is not committed, status and content can be changed to return the error
     if (stream instanceof ServletResponse.ServletStream) {
       ((ServletResponse.ServletStream) stream).reset();
     }
     stream.setStatus(status);
     stream.setMediaType(MediaTypes.JSON);
-
     try (JsonWriter json = JsonWriter.of(new OutputStreamWriter(stream.output(), StandardCharsets.UTF_8))) {
       json.beginObject();
       writeErrors(json, errors);
@@ -145,6 +166,16 @@ public class WebServiceEngine implements LocalConnector, Startable {
       // Do not hide the potential exception raised in the try block.
       throw Throwables.propagate(e);
     }
+  }
+
+  private static boolean isRequestAbortedByClient(Exception exception) {
+    return Throwables.getCausalChain(exception).stream().anyMatch(t -> t instanceof ClientAbortException);
+  }
+
+  private static boolean isResponseCommitted(Response response) {
+    Response.Stream stream = response.stream();
+    // Request has been aborted by the client or the response was partially streamed, nothing can been done as Tomcat has committed the response
+    return stream instanceof ServletResponse.ServletStream && ((ServletResponse.ServletStream) stream).response().isCommitted();
   }
 
   public static void writeErrors(JsonWriter json, List<String> errorMessages) {

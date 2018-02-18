@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -54,17 +54,19 @@ public class InstalledPluginsAction implements UpdateCenterWsAction {
 
   @Override
   public void handle(Request request, Response response) throws Exception {
-    JsonWriter json = response.newJsonWriter().beginArray();
-    for (PluginInfo pluginInfo : pluginRepository.getPluginInfos()) {
-      Version version = pluginInfo.getVersion();
-      json.beginObject()
-        .prop("key", pluginInfo.getKey())
-        .prop("name", pluginInfo.getName());
-      if (version != null) {
-        json.prop("version", version.getName());
+    try (JsonWriter json = response.newJsonWriter()) {
+      json.beginArray();
+      for (PluginInfo pluginInfo : pluginRepository.getPluginInfos()) {
+        Version version = pluginInfo.getVersion();
+        json.beginObject()
+          .prop("key", pluginInfo.getKey())
+          .prop("name", pluginInfo.getName());
+        if (version != null) {
+          json.prop("version", version.getName());
+        }
+        json.endObject();
       }
-      json.endObject();
+      json.endArray().close();
     }
-    json.endArray().close();
   }
 }

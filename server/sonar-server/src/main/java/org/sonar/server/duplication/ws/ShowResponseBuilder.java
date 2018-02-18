@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -28,13 +28,14 @@ import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
 import org.sonar.db.component.ComponentDao;
 import org.sonar.db.component.ComponentDto;
-import org.sonarqube.ws.WsDuplications;
-import org.sonarqube.ws.WsDuplications.Block;
-import org.sonarqube.ws.WsDuplications.ShowResponse;
+import org.sonarqube.ws.Duplications;
+import org.sonarqube.ws.Duplications.Block;
+import org.sonarqube.ws.Duplications.ShowResponse;
 
 import static com.google.common.collect.Maps.newHashMap;
 import static org.sonar.core.util.Protobuf.setNullable;
 
+// TODO Add UT on branch
 public class ShowResponseBuilder {
 
   private final ComponentDao componentDao;
@@ -48,20 +49,20 @@ public class ShowResponseBuilder {
     this.componentDao = componentDao;
   }
 
-  ShowResponse build(List<DuplicationsParser.Block> blocks, DbSession session) {
+  ShowResponse build(DbSession session, List<DuplicationsParser.Block> blocks, @Nullable String branch) {
     ShowResponse.Builder response = ShowResponse.newBuilder();
     Map<String, String> refByComponentKey = newHashMap();
     blocks.stream()
       .map(block -> toWsDuplication(block, refByComponentKey))
       .forEach(response::addDuplications);
 
-    writeFiles(response, refByComponentKey, session);
+    writeFiles(session, response, refByComponentKey, branch);
 
     return response.build();
   }
 
-  private static WsDuplications.Duplication.Builder toWsDuplication(DuplicationsParser.Block block, Map<String, String> refByComponentKey) {
-    WsDuplications.Duplication.Builder wsDuplication = WsDuplications.Duplication.newBuilder();
+  private static Duplications.Duplication.Builder toWsDuplication(DuplicationsParser.Block block, Map<String, String> refByComponentKey) {
+    Duplications.Duplication.Builder wsDuplication = Duplications.Duplication.newBuilder();
     block.getDuplications().stream()
       .map(d -> toWsBlock(refByComponentKey, d))
       .forEach(wsDuplication::addBlocks);
@@ -73,12 +74,8 @@ public class ShowResponseBuilder {
     String ref = null;
     ComponentDto componentDto = duplication.file();
     if (componentDto != null) {
-      String componentKey = componentDto.key();
-      ref = refByComponentKey.get(componentKey);
-      if (ref == null) {
-        ref = Integer.toString(refByComponentKey.size() + 1);
-        refByComponentKey.put(componentKey, ref);
-      }
+      String componentKey = componentDto.getDbKey();
+      ref = refByComponentKey.computeIfAbsent(componentKey, k -> Integer.toString(refByComponentKey.size() + 1));
     }
 
     Block.Builder block = Block.newBuilder();
@@ -89,33 +86,34 @@ public class ShowResponseBuilder {
     return block;
   }
 
-  private static WsDuplications.File toWsFile(ComponentDto file, @Nullable ComponentDto project, @Nullable ComponentDto subProject) {
-    WsDuplications.File.Builder wsFile = WsDuplications.File.newBuilder();
-    wsFile.setKey(file.key());
+  private static Duplications.File toWsFile(ComponentDto file, @Nullable ComponentDto project, @Nullable ComponentDto subProject, @Nullable String branch) {
+    Duplications.File.Builder wsFile = Duplications.File.newBuilder();
+    wsFile.setKey(file.getKey());
     wsFile.setUuid(file.uuid());
     wsFile.setName(file.longName());
-
-    if (project != null) {
-      wsFile.setProject(project.key());
-      wsFile.setProjectUuid(project.uuid());
-      wsFile.setProjectName(project.longName());
-
+    setNullable(project, p -> {
+      wsFile.setProject(p.getKey());
+      wsFile.setProjectUuid(p.uuid());
+      wsFile.setProjectName(p.longName());
       // Do not return sub project if sub project and project are the same
       boolean displaySubProject = subProject != null && !subProject.uuid().equals(project.uuid());
       if (displaySubProject) {
-        wsFile.setSubProject(subProject.key());
+        wsFile.setSubProject(subProject.getKey());
         wsFile.setSubProjectUuid(subProject.uuid());
         wsFile.setSubProjectName(subProject.longName());
       }
-    }
-
+      if (branch != null) {
+        wsFile.setBranch(branch);
+      }
+      return wsFile;
+    });
     return wsFile.build();
   }
 
-  private void writeFiles(ShowResponse.Builder response, Map<String, String> refByComponentKey, DbSession session) {
+  private void writeFiles(DbSession session, ShowResponse.Builder response, Map<String, String> refByComponentKey, @Nullable String branch) {
     Map<String, ComponentDto> projectsByUuid = newHashMap();
     Map<String, ComponentDto> parentModulesByUuid = newHashMap();
-    Map<String, WsDuplications.File> filesByRef = response.getMutableFiles();
+    Map<String, Duplications.File> filesByRef = response.getMutableFiles();
 
     for (Map.Entry<String, String> entry : refByComponentKey.entrySet()) {
       String componentKey = entry.getKey();
@@ -126,7 +124,7 @@ public class ShowResponseBuilder {
 
         ComponentDto project = getProject(file.projectUuid(), projectsByUuid, session);
         ComponentDto parentModule = getParentProject(file.getRootUuid(), parentModulesByUuid, session);
-        filesByRef.put(ref, toWsFile(file, project, parentModule));
+        filesByRef.put(ref, toWsFile(file, project, parentModule, branch));
       }
     }
   }

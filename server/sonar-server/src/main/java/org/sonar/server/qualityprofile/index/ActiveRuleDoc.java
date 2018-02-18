@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,53 +22,49 @@ package org.sonar.server.qualityprofile.index;
 import com.google.common.collect.Maps;
 import java.util.Map;
 import javax.annotation.Nullable;
-import org.sonar.api.rule.RuleKey;
 import org.sonar.server.es.BaseDoc;
-import org.sonar.server.qualityprofile.ActiveRule;
+import org.sonar.server.qualityprofile.ActiveRuleInheritance;
 
 import static org.apache.commons.lang.StringUtils.containsIgnoreCase;
+import static org.sonar.server.rule.index.RuleIndexDefinition.FIELD_ACTIVE_RULE_ID;
 import static org.sonar.server.rule.index.RuleIndexDefinition.FIELD_ACTIVE_RULE_INHERITANCE;
 import static org.sonar.server.rule.index.RuleIndexDefinition.FIELD_ACTIVE_RULE_PROFILE_UUID;
-import static org.sonar.server.rule.index.RuleIndexDefinition.FIELD_ACTIVE_RULE_REPOSITORY;
-import static org.sonar.server.rule.index.RuleIndexDefinition.FIELD_ACTIVE_RULE_RULE_KEY;
+import static org.sonar.server.rule.index.RuleIndexDefinition.FIELD_ACTIVE_RULE_RULE_ID;
 import static org.sonar.server.rule.index.RuleIndexDefinition.FIELD_ACTIVE_RULE_SEVERITY;
 
 public class ActiveRuleDoc extends BaseDoc {
 
-  public ActiveRuleDoc(String id) {
-    super(Maps.newHashMapWithExpectedSize(9));
-    setField("_id", id);
+  public ActiveRuleDoc(long id) {
+    super(Maps.newHashMapWithExpectedSize(10));
+    setField(FIELD_ACTIVE_RULE_ID, String.valueOf(id));
   }
 
-  public ActiveRuleDoc(Map<String,Object> source) {
+  public ActiveRuleDoc(Map<String, Object> source) {
     super(source);
   }
 
   @Override
   public String getId() {
-    return getField("_id");
+    return getField(FIELD_ACTIVE_RULE_ID);
   }
 
   @Override
   public String getRouting() {
-    return getRuleKeyAsString();
+    return getRuleIdAsString();
   }
 
   @Override
   public String getParent() {
-    return getRuleKey().toString();
+    return getRuleIdAsString();
   }
 
-  RuleKey getRuleKey() {
-    return RuleKey.parse(getRuleKeyAsString());
+  private String getRuleIdAsString() {
+    return getField(FIELD_ACTIVE_RULE_RULE_ID);
   }
 
-  private String getRuleKeyAsString() {
-    return getField(FIELD_ACTIVE_RULE_RULE_KEY);
-  }
-
-  String getRuleRepository() {
-    return getField(FIELD_ACTIVE_RULE_REPOSITORY);
+  ActiveRuleDoc setRuleId(int ruleId) {
+    setField(FIELD_ACTIVE_RULE_RULE_ID, String.valueOf(ruleId));
+    return this;
   }
 
   String getSeverity() {
@@ -77,12 +73,6 @@ public class ActiveRuleDoc extends BaseDoc {
 
   ActiveRuleDoc setSeverity(@Nullable String s) {
     setField(FIELD_ACTIVE_RULE_SEVERITY, s);
-    return this;
-  }
-
-  ActiveRuleDoc setRuleKey(RuleKey ruleKey) {
-    setField(FIELD_ACTIVE_RULE_RULE_KEY, ruleKey.toString());
-    setField(FIELD_ACTIVE_RULE_REPOSITORY, ruleKey.repository());
     return this;
   }
 
@@ -95,15 +85,15 @@ public class ActiveRuleDoc extends BaseDoc {
     return this;
   }
 
-  ActiveRule.Inheritance getInheritance() {
+  ActiveRuleInheritance getInheritance() {
     String inheritance = getNullableField(FIELD_ACTIVE_RULE_INHERITANCE);
     if (inheritance == null || inheritance.isEmpty() ||
       containsIgnoreCase(inheritance, "none")) {
-      return ActiveRule.Inheritance.NONE;
+      return ActiveRuleInheritance.NONE;
     } else if (containsIgnoreCase(inheritance, "herit")) {
-      return ActiveRule.Inheritance.INHERITED;
+      return ActiveRuleInheritance.INHERITED;
     } else if (containsIgnoreCase(inheritance, "over")) {
-      return ActiveRule.Inheritance.OVERRIDES;
+      return ActiveRuleInheritance.OVERRIDES;
     } else {
       throw new IllegalStateException("Value \"" + inheritance + "\" is not valid for rule's inheritance");
     }

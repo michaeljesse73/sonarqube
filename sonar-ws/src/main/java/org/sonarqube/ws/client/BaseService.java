@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,11 +19,10 @@
  */
 package org.sonarqube.ws.client;
 
-import com.google.common.base.Joiner;
 import com.google.protobuf.Message;
 import com.google.protobuf.Parser;
 import java.io.InputStream;
-import java.util.List;
+import java.util.Collection;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 import org.apache.commons.io.IOUtils;
@@ -33,8 +32,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Strings.isNullOrEmpty;
 
 public abstract class BaseService {
-
-  private static final Joiner MULTI_VALUES_JOINER = Joiner.on(",");
 
   private final WsConnector wsConnector;
   protected final String controller;
@@ -55,7 +52,7 @@ public abstract class BaseService {
     return wsConnector.call(request).failIfNotSuccessful();
   }
 
-  public <T extends Message> T convert(WsResponse response, Parser<T> parser) {
+  public static <T extends Message> T convert(WsResponse response, Parser<T> parser) {
     try (InputStream byteStream = response.contentStream()) {
       byte[] bytes = IOUtils.toByteArray(byteStream);
       // HTTP header "Content-Type" is not verified. It may be different than protobuf.
@@ -70,7 +67,7 @@ public abstract class BaseService {
   }
 
   @CheckForNull
-  protected static String inlineMultipleParamValue(@Nullable List<String> values) {
-    return values == null ? null : MULTI_VALUES_JOINER.join(values);
+  protected static String inlineMultipleParamValue(@Nullable Collection<String> values) {
+    return values == null ? null : String.join(",", values);
   }
 }

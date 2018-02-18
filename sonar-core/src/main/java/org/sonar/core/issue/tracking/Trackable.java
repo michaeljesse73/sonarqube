@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,8 +19,10 @@
  */
 package org.sonar.core.issue.tracking;
 
+import java.util.Date;
 import javax.annotation.CheckForNull;
 import org.sonar.api.rule.RuleKey;
+import org.sonar.core.issue.DefaultIssue;
 
 public interface Trackable {
 
@@ -40,4 +42,11 @@ public interface Trackable {
   String getLineHash();
 
   RuleKey getRuleKey();
+
+  String getStatus();
+
+  /**
+   * Functional creation date for the issue. See {@link DefaultIssue#creationDate()}
+   */
+  Date getCreationDate();
 }

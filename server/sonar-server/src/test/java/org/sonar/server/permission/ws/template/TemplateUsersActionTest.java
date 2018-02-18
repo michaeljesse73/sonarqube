@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -30,9 +30,10 @@ import org.sonar.server.exceptions.BadRequestException;
 import org.sonar.server.exceptions.ForbiddenException;
 import org.sonar.server.exceptions.NotFoundException;
 import org.sonar.server.exceptions.UnauthorizedException;
+import org.sonar.server.issue.ws.AvatarResolverImpl;
 import org.sonar.server.permission.ws.BasePermissionWsTest;
 import org.sonar.server.ws.TestRequest;
-import org.sonarqube.ws.WsPermissions;
+import org.sonarqube.ws.Permissions;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonar.api.web.UserRole.ADMIN;
@@ -51,11 +52,11 @@ public class TemplateUsersActionTest extends BasePermissionWsTest<TemplateUsersA
 
   @Override
   protected TemplateUsersAction buildWsAction() {
-    return new TemplateUsersAction(db.getDbClient(), userSession, newPermissionWsSupport());
+    return new TemplateUsersAction(db.getDbClient(), userSession, newPermissionWsSupport(), new AvatarResolverImpl());
   }
 
   @Test
-  public void search_for_users_with_response_example() throws Exception {
+  public void search_for_users_with_response_example() {
     UserDto user1 = insertUser(newUserDto().setLogin("admin").setName("Administrator").setEmail("admin@admin.com"));
     UserDto user2 = insertUser(newUserDto().setLogin("george.orwell").setName("George Orwell").setEmail("george.orwell@1984.net"));
 
@@ -70,7 +71,7 @@ public class TemplateUsersActionTest extends BasePermissionWsTest<TemplateUsersA
   }
 
   @Test
-  public void search_for_users_by_template_name() throws Exception {
+  public void search_for_users_by_template_name() {
     loginAsAdmin(db.getDefaultOrganization());
 
     UserDto user1 = insertUser(newUserDto().setLogin("login-1").setName("name-1").setEmail("email-1"));
@@ -86,9 +87,9 @@ public class TemplateUsersActionTest extends BasePermissionWsTest<TemplateUsersA
     PermissionTemplateDto anotherTemplate = addTemplateToDefaultOrganization();
     addUserToTemplate(newPermissionTemplateUser(USER, anotherTemplate, user1));
 
-    WsPermissions.UsersWsResponse response = newRequest(null, null)
+    Permissions.UsersWsResponse response = newRequest(null, null)
       .setParam(PARAM_TEMPLATE_NAME, template.getName())
-      .executeProtobuf(WsPermissions.UsersWsResponse.class);
+      .executeProtobuf(Permissions.UsersWsResponse.class);
 
     assertThat(response.getUsersList()).extracting("login").containsExactly("login-1", "login-2", "login-3");
     assertThat(response.getUsers(0).getPermissionsList()).containsOnly("issueadmin", "user");
@@ -97,7 +98,7 @@ public class TemplateUsersActionTest extends BasePermissionWsTest<TemplateUsersA
   }
 
   @Test
-  public void search_using_text_query() throws Exception {
+  public void search_using_text_query() {
     loginAsAdmin(db.getDefaultOrganization());
 
     UserDto user1 = insertUser(newUserDto().setLogin("login-1").setName("name-1").setEmail("email-1"));
@@ -113,16 +114,16 @@ public class TemplateUsersActionTest extends BasePermissionWsTest<TemplateUsersA
     PermissionTemplateDto anotherTemplate = addTemplateToDefaultOrganization();
     addUserToTemplate(newPermissionTemplateUser(USER, anotherTemplate, user1));
 
-    WsPermissions.UsersWsResponse response = newRequest(null, null)
+    Permissions.UsersWsResponse response = newRequest(null, null)
       .setParam(PARAM_TEMPLATE_NAME, template.getName())
       .setParam(WebService.Param.TEXT_QUERY, "ame-1")
-      .executeProtobuf(WsPermissions.UsersWsResponse.class);
+      .executeProtobuf(Permissions.UsersWsResponse.class);
 
     assertThat(response.getUsersList()).extracting("login").containsOnly("login-1");
   }
 
   @Test
-  public void search_using_permission() throws Exception {
+  public void search_using_permission() {
     UserDto user1 = insertUser(newUserDto().setLogin("login-1").setName("name-1").setEmail("email-1"));
     UserDto user2 = insertUser(newUserDto().setLogin("login-2").setName("name-2").setEmail("email-2"));
     UserDto user3 = insertUser(newUserDto().setLogin("login-3").setName("name-3").setEmail("email-3"));
@@ -137,15 +138,15 @@ public class TemplateUsersActionTest extends BasePermissionWsTest<TemplateUsersA
     addUserToTemplate(newPermissionTemplateUser(USER, anotherTemplate, user1));
 
     loginAsAdmin(db.getDefaultOrganization());
-    WsPermissions.UsersWsResponse response = newRequest(USER, template.getUuid())
-      .executeProtobuf(WsPermissions.UsersWsResponse.class);
+    Permissions.UsersWsResponse response = newRequest(USER, template.getUuid())
+      .executeProtobuf(Permissions.UsersWsResponse.class);
     assertThat(response.getUsersList()).extracting("login").containsExactly("login-1", "login-2");
     assertThat(response.getUsers(0).getPermissionsList()).containsOnly("issueadmin", "user");
     assertThat(response.getUsers(1).getPermissionsList()).containsOnly("user");
   }
 
   @Test
-  public void search_with_pagination() throws Exception {
+  public void search_with_pagination() {
     UserDto user1 = insertUser(newUserDto().setLogin("login-1").setName("name-1").setEmail("email-1"));
     UserDto user2 = insertUser(newUserDto().setLogin("login-2").setName("name-2").setEmail("email-2"));
     UserDto user3 = insertUser(newUserDto().setLogin("login-3").setName("name-3").setEmail("email-3"));
@@ -160,18 +161,18 @@ public class TemplateUsersActionTest extends BasePermissionWsTest<TemplateUsersA
     addUserToTemplate(newPermissionTemplateUser(USER, anotherTemplate, user1));
 
     loginAsAdmin(db.getDefaultOrganization());
-    WsPermissions.UsersWsResponse response = newRequest(USER, null)
+    Permissions.UsersWsResponse response = newRequest(USER, null)
       .setParam(PARAM_TEMPLATE_NAME, template.getName())
       .setParam(WebService.Param.SELECTED, "all")
       .setParam(WebService.Param.PAGE, "2")
       .setParam(WebService.Param.PAGE_SIZE, "1")
-      .executeProtobuf(WsPermissions.UsersWsResponse.class);
+      .executeProtobuf(Permissions.UsersWsResponse.class);
 
     assertThat(response.getUsersList()).extracting("login").containsOnly("login-2");
   }
 
   @Test
-  public void users_are_sorted_by_name() throws Exception {
+  public void users_are_sorted_by_name() {
     UserDto user1 = insertUser(newUserDto().setLogin("login-2").setName("name-2"));
     UserDto user2 = insertUser(newUserDto().setLogin("login-3").setName("name-3"));
     UserDto user3 = insertUser(newUserDto().setLogin("login-1").setName("name-1"));
@@ -182,30 +183,30 @@ public class TemplateUsersActionTest extends BasePermissionWsTest<TemplateUsersA
     addUserToTemplate(newPermissionTemplateUser(ISSUE_ADMIN, template, user3));
 
     loginAsAdmin(db.getDefaultOrganization());
-    WsPermissions.UsersWsResponse response = newRequest(null, null)
+    Permissions.UsersWsResponse response = newRequest(null, null)
       .setParam(PARAM_TEMPLATE_NAME, template.getName())
-      .executeProtobuf(WsPermissions.UsersWsResponse.class);
+      .executeProtobuf(Permissions.UsersWsResponse.class);
 
     assertThat(response.getUsersList()).extracting("login").containsExactly("login-1", "login-2", "login-3");
   }
 
   @Test
-  public void empty_result_when_no_user_on_template() throws Exception {
+  public void empty_result_when_no_user_on_template() {
     UserDto user = insertUser(newUserDto().setLogin("login-1").setName("name-1").setEmail("email-1"));
     PermissionTemplateDto template = addTemplateToDefaultOrganization();
     PermissionTemplateDto anotherTemplate = addTemplateToDefaultOrganization();
     addUserToTemplate(newPermissionTemplateUser(USER, anotherTemplate, user));
 
     loginAsAdmin(db.getDefaultOrganization());
-    WsPermissions.UsersWsResponse response = newRequest(null, null)
+    Permissions.UsersWsResponse response = newRequest(null, null)
       .setParam(PARAM_TEMPLATE_NAME, template.getName())
-      .executeProtobuf(WsPermissions.UsersWsResponse.class);
+      .executeProtobuf(Permissions.UsersWsResponse.class);
 
     assertThat(response.getUsersList()).isEmpty();
   }
 
   @Test
-  public void fail_if_not_a_project_permission() throws Exception {
+  public void fail_if_not_a_project_permission() {
     PermissionTemplateDto template = addTemplateToDefaultOrganization();
     loginAsAdmin(db.getDefaultOrganization());
 
@@ -216,7 +217,7 @@ public class TemplateUsersActionTest extends BasePermissionWsTest<TemplateUsersA
   }
 
   @Test
-  public void fail_if_no_template_param() throws Exception {
+  public void fail_if_no_template_param() {
     loginAsAdmin(db.getDefaultOrganization());
 
     expectedException.expect(BadRequestException.class);
@@ -226,7 +227,7 @@ public class TemplateUsersActionTest extends BasePermissionWsTest<TemplateUsersA
   }
 
   @Test
-  public void fail_if_template_does_not_exist() throws Exception {
+  public void fail_if_template_does_not_exist() {
     loginAsAdmin(db.getDefaultOrganization());
 
     expectedException.expect(NotFoundException.class);
@@ -236,7 +237,7 @@ public class TemplateUsersActionTest extends BasePermissionWsTest<TemplateUsersA
   }
 
   @Test
-  public void fail_if_template_uuid_and_name_provided() throws Exception {
+  public void fail_if_template_uuid_and_name_provided() {
     PermissionTemplateDto template = addTemplateToDefaultOrganization();
     loginAsAdmin(db.getDefaultOrganization());
 
@@ -248,7 +249,7 @@ public class TemplateUsersActionTest extends BasePermissionWsTest<TemplateUsersA
   }
 
   @Test
-  public void fail_if_not_logged_in() throws Exception {
+  public void fail_if_not_logged_in() {
     PermissionTemplateDto template = addTemplateToDefaultOrganization();
     userSession.anonymous();
 
@@ -258,7 +259,7 @@ public class TemplateUsersActionTest extends BasePermissionWsTest<TemplateUsersA
   }
 
   @Test
-  public void fail_if_insufficient_privileges() throws Exception {
+  public void fail_if_insufficient_privileges() {
     PermissionTemplateDto template = addTemplateToDefaultOrganization();
     userSession.logIn().addPermission(SCAN, db.getDefaultOrganization());
 

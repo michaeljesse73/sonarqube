@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -53,6 +53,14 @@ public interface PostProjectAnalysisTask {
    */
   interface ProjectAnalysis {
     /**
+     * When organizations are enabled in SonarQube, the organization the project belongs to.
+     *
+     * @since 7.0
+     * @return a non empty value when organizations are enabled, otherwise empty
+     */
+    Optional<Organization> getOrganization();
+
+    /**
      * Details of the Compute Engine task in which the project analysis was run.
      */
     CeTask getCeTask();
@@ -61,6 +69,13 @@ public interface PostProjectAnalysisTask {
      * Details of the analyzed project.
      */
     Project getProject();
+
+    /**
+     * The branch that is being analyzed.
+     *
+     * @since 6.6
+     */
+    Optional<Branch> getBranch();
 
     /**
      * Status and details of the Quality Gate of the project (if any was configured on the project).
@@ -73,7 +88,7 @@ public interface PostProjectAnalysisTask {
      * <p>
      * This date is the same as the date of the project analysis report and the snapshot.
      *
-     * @deprecated use {@link #getAnalysisDate()} instead. When {@link #getAnalysisDate()} returns
+     * @deprecated use {@link #getAnalysis().getDate()} instead. When {@link #getAnalysis()} returns
      *             {@link Optional#empty() empty}, the current date will be returned.
      */
     @Deprecated
@@ -85,8 +100,20 @@ public interface PostProjectAnalysisTask {
      * This date is the same as the date of the project analysis report and therefore as the analysis in DB. It can be
      * missing when the status of the task is {@link org.sonar.api.ce.posttask.CeTask.Status#FAILED FAILED}.
      * </p>
+     * @deprecated use {@link #getAnalysis().getDate()} instead
      */
+    @Deprecated
     Optional<Date> getAnalysisDate();
+
+    /**
+     * Analysis containing the UUID of the analysis and the date
+     *
+     * <p>
+     * This Analysis can be missing when the status of the task is
+     * {@link org.sonar.api.ce.posttask.CeTask.Status#FAILED FAILED}.
+     * </p>
+     */
+    Optional<Analysis> getAnalysis();
 
     /**
      * Context as defined by scanner through {@link org.sonar.api.batch.sensor.SensorContext#addContextProperty(String, String)}.

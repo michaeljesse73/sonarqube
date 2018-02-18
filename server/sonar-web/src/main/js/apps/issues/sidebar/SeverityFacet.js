@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,13 +20,15 @@
 // @flow
 import React from 'react';
 import { orderBy, without } from 'lodash';
-import FacetBox from './components/FacetBox';
-import FacetHeader from './components/FacetHeader';
-import FacetItem from './components/FacetItem';
-import FacetItemsList from './components/FacetItemsList';
+import FacetBox from '../../../components/facet/FacetBox';
+import FacetHeader from '../../../components/facet/FacetHeader';
+import FacetItem from '../../../components/facet/FacetItem';
+import FacetItemsList from '../../../components/facet/FacetItemsList';
 import SeverityHelper from '../../../components/shared/SeverityHelper';
 import { translate } from '../../../helpers/l10n';
+import { formatFacetStat } from '../utils';
 
+/*::
 type Props = {|
   facetMode: string,
   onChange: (changes: { [string]: Array<string> }) => void,
@@ -35,17 +37,18 @@ type Props = {|
   severities: Array<string>,
   stats?: { [string]: number }
 |};
+*/
 
 export default class SeverityFacet extends React.PureComponent {
-  props: Props;
+  /*:: props: Props; */
+
+  property = 'severities';
 
   static defaultProps = {
     open: true
   };
 
-  property = 'severities';
-
-  handleItemClick = (itemValue: string) => {
+  handleItemClick = (itemValue /*: string */) => {
     const { severities } = this.props;
     const newValue = orderBy(
       severities.includes(itemValue) ? without(severities, itemValue) : [...severities, itemValue]
@@ -61,12 +64,12 @@ export default class SeverityFacet extends React.PureComponent {
     this.props.onChange({ [this.property]: [] });
   };
 
-  getStat(severity: string): ?number {
+  getStat(severity /*: string */) /*: ?number */ {
     const { stats } = this.props;
     return stats ? stats[severity] : null;
   }
 
-  renderItem = (severity: string) => {
+  renderItem = (severity /*: string */) => {
     const active = this.props.severities.includes(severity);
     const stat = this.getStat(severity);
 
@@ -74,12 +77,11 @@ export default class SeverityFacet extends React.PureComponent {
       <FacetItem
         active={active}
         disabled={stat === 0 && !active}
-        facetMode={this.props.facetMode}
         halfWidth={true}
         key={severity}
         name={<SeverityHelper severity={severity} />}
         onClick={this.handleItemClick}
-        stat={stat}
+        stat={formatFacetStat(stat, this.props.facetMode)}
         value={severity}
       />
     );
@@ -87,6 +89,7 @@ export default class SeverityFacet extends React.PureComponent {
 
   render() {
     const severities = ['BLOCKER', 'MINOR', 'CRITICAL', 'INFO', 'MAJOR'];
+    const values = this.props.severities.map(severity => translate('severity', severity));
 
     return (
       <FacetBox property={this.property}>
@@ -95,13 +98,10 @@ export default class SeverityFacet extends React.PureComponent {
           onClear={this.handleClear}
           onClick={this.handleHeaderClick}
           open={this.props.open}
-          values={this.props.severities.length}
+          values={values}
         />
 
-        {this.props.open &&
-          <FacetItemsList>
-            {severities.map(this.renderItem)}
-          </FacetItemsList>}
+        {this.props.open && <FacetItemsList>{severities.map(this.renderItem)}</FacetItemsList>}
       </FacetBox>
     );
   }

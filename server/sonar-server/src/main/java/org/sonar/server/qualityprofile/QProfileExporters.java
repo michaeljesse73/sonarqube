@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -30,12 +30,15 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import javax.annotation.CheckForNull;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 import org.sonar.api.profiles.ProfileExporter;
 import org.sonar.api.profiles.ProfileImporter;
 import org.sonar.api.profiles.RulesProfile;
 import org.sonar.api.rule.RuleKey;
+import org.sonar.api.rules.ActiveRule;
 import org.sonar.api.rules.ActiveRuleParam;
 import org.sonar.api.rules.Rule;
 import org.sonar.api.rules.RuleFinder;
@@ -49,6 +52,7 @@ import org.sonar.db.qualityprofile.ActiveRuleDto;
 import org.sonar.db.qualityprofile.ActiveRuleParamDto;
 import org.sonar.db.qualityprofile.OrgActiveRuleDto;
 import org.sonar.db.qualityprofile.QProfileDto;
+import org.sonar.db.rule.RuleDefinitionDto;
 import org.sonar.server.exceptions.BadRequestException;
 import org.sonar.server.exceptions.NotFoundException;
 
@@ -59,14 +63,14 @@ public class QProfileExporters {
 
   private final DbClient dbClient;
   private final RuleFinder ruleFinder;
-  private final RuleActivator ruleActivator;
+  private final QProfileRules qProfileRules;
   private final ProfileExporter[] exporters;
   private final ProfileImporter[] importers;
 
-  public QProfileExporters(DbClient dbClient, RuleFinder ruleFinder, RuleActivator ruleActivator, ProfileExporter[] exporters, ProfileImporter[] importers) {
+  public QProfileExporters(DbClient dbClient, RuleFinder ruleFinder, QProfileRules qProfileRules, ProfileExporter[] exporters, ProfileImporter[] importers) {
     this.dbClient = dbClient;
     this.ruleFinder = ruleFinder;
-    this.ruleActivator = ruleActivator;
+    this.qProfileRules = qProfileRules;
     this.exporters = exporters;
     this.importers = importers;
   }
@@ -74,22 +78,22 @@ public class QProfileExporters {
   /**
    * Used by Pico if no {@link ProfileImporter} is found
    */
-  public QProfileExporters(DbClient dbClient, RuleFinder ruleFinder, RuleActivator ruleActivator, ProfileExporter[] exporters) {
-    this(dbClient, ruleFinder, ruleActivator, exporters, new ProfileImporter[0]);
+  public QProfileExporters(DbClient dbClient, RuleFinder ruleFinder, QProfileRules qProfileRules, ProfileExporter[] exporters) {
+    this(dbClient, ruleFinder, qProfileRules, exporters, new ProfileImporter[0]);
   }
 
   /**
    * Used by Pico if no {@link ProfileExporter} is found
    */
-  public QProfileExporters(DbClient dbClient, RuleFinder ruleFinder, RuleActivator ruleActivator, ProfileImporter[] importers) {
-    this(dbClient, ruleFinder, ruleActivator, new ProfileExporter[0], importers);
+  public QProfileExporters(DbClient dbClient, RuleFinder ruleFinder, QProfileRules qProfileRules, ProfileImporter[] importers) {
+    this(dbClient, ruleFinder, qProfileRules, new ProfileExporter[0], importers);
   }
 
   /**
    * Used by Pico if no {@link ProfileImporter} nor {@link ProfileExporter} is found
    */
-  public QProfileExporters(DbClient dbClient, RuleFinder ruleFinder, RuleActivator ruleActivator) {
-    this(dbClient, ruleFinder, ruleActivator, new ProfileExporter[0], new ProfileImporter[0]);
+  public QProfileExporters(DbClient dbClient, RuleFinder ruleFinder, QProfileRules qProfileRules) {
+    this(dbClient, ruleFinder, qProfileRules, new ProfileExporter[0], new ProfileImporter[0]);
   }
 
   public List<ProfileExporter> exportersForLanguage(String language) {
@@ -139,27 +143,31 @@ public class QProfileExporters {
     throw new NotFoundException("Unknown quality profile exporter: " + exporterKey);
   }
 
-  public QProfileResult importXml(QProfileDto profileDto, String importerKey, InputStream xml, DbSession dbSession) {
-    return importXml(profileDto, importerKey, new InputStreamReader(xml, StandardCharsets.UTF_8), dbSession);
+  public QProfileResult importXml(QProfileDto profile, String importerKey, InputStream xml, DbSession dbSession) {
+    return importXml(profile, importerKey, new InputStreamReader(xml, StandardCharsets.UTF_8), dbSession);
   }
 
-  private QProfileResult importXml(QProfileDto profileDto, String importerKey, Reader xml, DbSession dbSession) {
+  private QProfileResult importXml(QProfileDto profile, String importerKey, Reader xml, DbSession dbSession) {
     QProfileResult result = new QProfileResult();
     ValidationMessages messages = ValidationMessages.create();
     ProfileImporter importer = getProfileImporter(importerKey);
-    RulesProfile rulesProfile = importer.importProfile(xml, messages);
-    List<ActiveRuleChange> changes = importProfile(profileDto, rulesProfile, dbSession);
+    RulesProfile definition = importer.importProfile(xml, messages);
+    List<ActiveRuleChange> changes = importProfile(profile, definition, dbSession);
     result.addChanges(changes);
     processValidationMessages(messages, result);
     return result;
   }
 
-  private List<ActiveRuleChange> importProfile(QProfileDto profileDto, RulesProfile rulesProfile, DbSession dbSession) {
-    List<ActiveRuleChange> changes = new ArrayList<>();
-    for (org.sonar.api.rules.ActiveRule activeRule : rulesProfile.getActiveRules()) {
-      changes.addAll(ruleActivator.activate(dbSession, toRuleActivation(activeRule), profileDto));
-    }
-    return changes;
+  private List<ActiveRuleChange> importProfile(QProfileDto profile, RulesProfile definition, DbSession dbSession) {
+    Map<RuleKey, RuleDefinitionDto> rulesByRuleKey = dbClient.ruleDao().selectAllDefinitions(dbSession)
+      .stream()
+      .collect(MoreCollectors.uniqueIndex(RuleDefinitionDto::getKey));
+    List<ActiveRule> activeRules = definition.getActiveRules();
+    List<RuleActivation> activations = activeRules.stream()
+      .map(activeRule -> toRuleActivation(activeRule, rulesByRuleKey))
+      .filter(Objects::nonNull)
+      .collect(MoreCollectors.toArrayList(activeRules.size()));
+    return qProfileRules.activateAndCommit(dbSession, profile, activations);
   }
 
   private ProfileImporter getProfileImporter(String importerKey) {
@@ -177,12 +185,17 @@ public class QProfileExporters {
     result.addInfos(messages.getInfos());
   }
 
-  private static RuleActivation toRuleActivation(org.sonar.api.rules.ActiveRule activeRule) {
+  @CheckForNull
+  private static RuleActivation toRuleActivation(ActiveRule activeRule, Map<RuleKey, RuleDefinitionDto> rulesByRuleKey) {
     RuleKey ruleKey = activeRule.getRule().ruleKey();
+    RuleDefinitionDto ruleDefinition = rulesByRuleKey.get(ruleKey);
+    if (ruleDefinition == null) {
+      return null;
+    }
     String severity = activeRule.getSeverity().name();
     Map<String, String> params = activeRule.getActiveRuleParams().stream()
       .collect(MoreCollectors.uniqueIndex(ActiveRuleParam::getKey, ActiveRuleParam::getValue));
-    return RuleActivation.create(ruleKey, severity, params);
+    return RuleActivation.create(ruleDefinition.getId(), severity, params);
   }
 
 }

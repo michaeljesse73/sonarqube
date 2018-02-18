@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -36,7 +36,7 @@ public class ProgressLoggerTest {
   public LogTester logTester = new LogTester();
 
   @Test(timeout = 5_000L)
-  public void log_at_fixed_intervals() throws Exception {
+  public void log_at_fixed_intervals() {
     AtomicLong counter = new AtomicLong(42L);
     ProgressLogger progress = new ProgressLogger("ProgressLoggerTest", counter, Loggers.get(getClass()));
     progress.setPeriodMs(1L);

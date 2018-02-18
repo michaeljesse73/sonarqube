@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -39,37 +39,33 @@ import org.sonar.server.notification.NotificationUpdater;
 import org.sonar.server.notification.email.EmailNotificationChannel;
 import org.sonar.server.user.UserSession;
 import org.sonar.server.ws.KeyExamples;
-import org.sonarqube.ws.client.notification.RemoveRequest;
 
 import static java.util.Optional.empty;
 import static org.sonar.core.util.Protobuf.setNullable;
-import static org.sonar.server.notification.NotificationDispatcherMetadata.GLOBAL_NOTIFICATION;
-import static org.sonar.server.notification.NotificationDispatcherMetadata.PER_PROJECT_NOTIFICATION;
+import static org.sonar.server.notification.ws.NotificationsWsParameters.ACTION_REMOVE;
+import static org.sonar.server.notification.ws.NotificationsWsParameters.PARAM_CHANNEL;
+import static org.sonar.server.notification.ws.NotificationsWsParameters.PARAM_LOGIN;
+import static org.sonar.server.notification.ws.NotificationsWsParameters.PARAM_PROJECT;
+import static org.sonar.server.notification.ws.NotificationsWsParameters.PARAM_TYPE;
 import static org.sonar.server.ws.WsUtils.checkFound;
 import static org.sonar.server.ws.WsUtils.checkRequest;
-import static org.sonarqube.ws.client.notification.NotificationsWsParameters.ACTION_REMOVE;
-import static org.sonarqube.ws.client.notification.NotificationsWsParameters.PARAM_CHANNEL;
-import static org.sonarqube.ws.client.notification.NotificationsWsParameters.PARAM_LOGIN;
-import static org.sonarqube.ws.client.notification.NotificationsWsParameters.PARAM_PROJECT;
-import static org.sonarqube.ws.client.notification.NotificationsWsParameters.PARAM_TYPE;
 
 public class RemoveAction implements NotificationsWsAction {
   private final NotificationCenter notificationCenter;
   private final NotificationUpdater notificationUpdater;
+  private final Dispatchers dispatchers;
   private final DbClient dbClient;
   private final ComponentFinder componentFinder;
   private final UserSession userSession;
-  private final List<String> globalDispatchers;
-  private final List<String> projectDispatchers;
 
-  public RemoveAction(NotificationCenter notificationCenter, NotificationUpdater notificationUpdater, DbClient dbClient, ComponentFinder componentFinder, UserSession userSession) {
+  public RemoveAction(NotificationCenter notificationCenter, NotificationUpdater notificationUpdater, Dispatchers dispatchers, DbClient dbClient, ComponentFinder componentFinder,
+    UserSession userSession) {
     this.notificationCenter = notificationCenter;
     this.notificationUpdater = notificationUpdater;
+    this.dispatchers = dispatchers;
     this.dbClient = dbClient;
     this.componentFinder = componentFinder;
     this.userSession = userSession;
-    this.globalDispatchers = notificationCenter.getDispatcherKeysForProperty(GLOBAL_NOTIFICATION, "true");
-    this.projectDispatchers = notificationCenter.getDispatcherKeysForProperty(PER_PROJECT_NOTIFICATION, "true");
   }
 
   @Override
@@ -101,8 +97,8 @@ public class RemoveAction implements NotificationsWsAction {
         "  <li>Global notifications: %s</li>" +
         "  <li>Per project notifications: %s</li>" +
         "</ul>",
-        globalDispatchers.stream().sorted().collect(Collectors.joining(", ")),
-        projectDispatchers.stream().sorted().collect(Collectors.joining(", ")))
+        dispatchers.getGlobalDispatchers().stream().sorted().collect(Collectors.joining(", ")),
+        dispatchers.getProjectDispatchers().stream().sorted().collect(Collectors.joining(", ")))
       .setRequired(true)
       .setExampleValue(MyNewIssuesNotificationDispatcher.KEY);
 
@@ -150,25 +146,68 @@ public class RemoveAction implements NotificationsWsAction {
   }
 
   private RemoveRequest toWsRequest(Request request) {
-    RemoveRequest.Builder requestBuilder = RemoveRequest.builder()
+    RemoveRequest remove = new RemoveRequest()
       .setType(request.mandatoryParam(PARAM_TYPE))
       .setChannel(request.mandatoryParam(PARAM_CHANNEL));
-    setNullable(request.param(PARAM_PROJECT), requestBuilder::setProject);
-    setNullable(request.param(PARAM_LOGIN), requestBuilder::setLogin);
-    RemoveRequest wsRequest = requestBuilder.build();
+    setNullable(request.param(PARAM_PROJECT), remove::setProject);
+    setNullable(request.param(PARAM_LOGIN), remove::setLogin);
 
-    if (wsRequest.getProject() == null) {
-      checkRequest(globalDispatchers.contains(wsRequest.getType()), "Value of parameter '%s' (%s) must be one of: %s",
+    if (remove.getProject() == null) {
+      checkRequest(dispatchers.getGlobalDispatchers().contains(remove.getType()), "Value of parameter '%s' (%s) must be one of: %s",
         PARAM_TYPE,
-        wsRequest.getType(),
-        globalDispatchers);
+        remove.getType(),
+        dispatchers.getGlobalDispatchers());
     } else {
-      checkRequest(projectDispatchers.contains(wsRequest.getType()), "Value of parameter '%s' (%s) must be one of: %s",
+      checkRequest(dispatchers.getProjectDispatchers().contains(remove.getType()), "Value of parameter '%s' (%s) must be one of: %s",
         PARAM_TYPE,
-        wsRequest.getType(),
-        projectDispatchers);
+        remove.getType(),
+        dispatchers.getProjectDispatchers());
     }
 
-    return wsRequest;
+    return remove;
+  }
+
+  static class RemoveRequest {
+
+    private String channel;
+    private String login;
+    private String project;
+    private String type;
+
+    public RemoveRequest setChannel(String channel) {
+      this.channel = channel;
+      return this;
+    }
+
+    public String getChannel() {
+      return channel;
+    }
+
+    public RemoveRequest setLogin(String login) {
+      this.login = login;
+      return this;
+    }
+
+    public String getLogin() {
+      return login;
+    }
+
+    public RemoveRequest setProject(String project) {
+      this.project = project;
+      return this;
+    }
+
+    public String getProject() {
+      return project;
+    }
+
+    public RemoveRequest setType(String type) {
+      this.type = type;
+      return this;
+    }
+
+    public String getType() {
+      return type;
+    }
   }
 }

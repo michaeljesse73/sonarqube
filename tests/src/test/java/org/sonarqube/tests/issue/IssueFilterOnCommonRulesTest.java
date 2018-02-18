@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,7 +25,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.sonarqube.ws.Issues;
 import org.sonarqube.ws.client.WsClient;
-import org.sonarqube.ws.client.issue.SearchWsRequest;
+import org.sonarqube.ws.client.issues.SearchRequest;
 import util.ItUtils;
 
 import static java.util.Collections.singletonList;
@@ -113,14 +113,14 @@ public class IssueFilterOnCommonRulesTest extends AbstractIssueTest {
 
   private List<Issues.Issue> findIssuesByRuleKey(String ruleKey) {
     return adminWsClient.issues().search(
-      new SearchWsRequest()
-        .setComponents(singletonList(FILE_KEY))
+      new SearchRequest()
+        .setComponentKeys(singletonList(FILE_KEY))
         .setRules(singletonList(ruleKey)))
       .getIssuesList();
   }
 
   private List<Issues.Issue> findAllIssues() {
-    return adminWsClient.issues().search(new SearchWsRequest()).getIssuesList();
+    return adminWsClient.issues().search(new SearchRequest()).getIssuesList();
   }
 
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -23,24 +23,30 @@ import { Link } from 'react-router';
 import IssueChangelog from './IssueChangelog';
 import IssueMessage from './IssueMessage';
 import SimilarIssuesFilter from './SimilarIssuesFilter';
+import LinkIcon from '../../../components/icons-components/LinkIcon';
 import LocationIndex from '../../common/LocationIndex';
 import Tooltip from '../../controls/Tooltip';
 import { getComponentIssuesUrl } from '../../../helpers/urls';
 import { formatMeasure } from '../../../helpers/measures';
 import { translate, translateWithParameters } from '../../../helpers/l10n';
-import type { Issue } from '../types';
+/*:: import type { Issue } from '../types'; */
 
+/*::
 type Props = {|
+  branch?: string,
+  currentPopup: ?string,
+  displayLocationsCount?: boolean;
+  displayLocationsLink?: boolean;
   issue: Issue,
-  currentPopup: string,
   onFail: Error => void,
   onFilter?: (property: string, issue: Issue) => void,
   togglePopup: (string, boolean | void) => void
 |};
+*/
 
-const stopPropagation = (event: Event) => event.stopPropagation();
+const stopPropagation = (event /*: Event */) => event.stopPropagation();
 
-export default function IssueTitleBar(props: Props) {
+export default function IssueTitleBar(props /*: Props */) {
   const { issue } = props;
   const hasSimilarIssuesFilter = props.onFilter != null;
 
@@ -59,69 +65,69 @@ export default function IssueTitleBar(props: Props) {
     </Tooltip>
   );
 
-  // dirty trick :(
-  const onIssuesPage = document.getElementById('issues-page') != null;
+  const displayLocations = props.displayLocationsCount && locationsCount > 0;
 
-  const issueUrl = getComponentIssuesUrl(issue.project, { issues: issue.key, open: issue.key });
+  const issueUrl = getComponentIssuesUrl(issue.project, {
+    branch: props.branch,
+    issues: issue.key,
+    open: issue.key
+  });
 
   return (
-    <table className="issue-table">
-      <tbody>
-        <tr>
-          <td>
-            <IssueMessage
-              message={issue.message}
-              rule={issue.rule}
-              organization={issue.organization}
+    <div className="issue-row">
+      <IssueMessage message={issue.message} rule={issue.rule} organization={issue.organization} />
+
+      <div className="issue-row-meta">
+        <ul className="list-inline issue-meta-list">
+          <li className="issue-meta">
+            <IssueChangelog
+              creationDate={issue.creationDate}
+              isOpen={props.currentPopup === 'changelog'}
+              issue={issue}
+              togglePopup={props.togglePopup}
+              onFail={props.onFail}
             />
-          </td>
-          <td className="issue-table-meta-cell issue-table-meta-cell-first">
-            <ul className="list-inline issue-meta-list">
-              <li className="issue-meta">
-                <IssueChangelog
-                  creationDate={issue.creationDate}
-                  isOpen={props.currentPopup === 'changelog'}
-                  issue={issue}
-                  togglePopup={props.togglePopup}
-                  onFail={props.onFail}
-                />
-              </li>
-              {issue.textRange != null &&
-                <li className="issue-meta">
-                  <span className="issue-meta-label" title={translate('line_number')}>
-                    L{issue.textRange.endLine}
-                  </span>
-                </li>}
-              {locationsCount > 0 &&
-                <li className="issue-meta">
-                  {onIssuesPage
-                    ? locationsBadge
-                    : <Link onClick={stopPropagation} target="_blank" to={issueUrl}>
-                        {locationsBadge}
-                      </Link>}
-                </li>}
-              <li className="issue-meta">
-                <Link
-                  className="js-issue-permalink icon-link"
-                  onClick={stopPropagation}
-                  target="_blank"
-                  to={issueUrl}
-                />
-              </li>
-              {hasSimilarIssuesFilter &&
-                <li className="issue-meta">
-                  <SimilarIssuesFilter
-                    isOpen={props.currentPopup === 'similarIssues'}
-                    issue={issue}
-                    togglePopup={props.togglePopup}
-                    onFail={props.onFail}
-                    onFilter={props.onFilter}
-                  />
-                </li>}
-            </ul>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+          </li>
+          {issue.textRange != null && (
+            <li className="issue-meta">
+              <span className="issue-meta-label" title={translate('line_number')}>
+                L{issue.textRange.endLine}
+              </span>
+            </li>
+          )}
+          {displayLocations && (
+            <li className="issue-meta">
+              {props.displayLocationsLink ? (
+                <Link onClick={stopPropagation} target="_blank" to={issueUrl}>
+                  {locationsBadge}
+                </Link>
+              ) : (
+                locationsBadge
+              )}
+            </li>
+          )}
+          <li className="issue-meta">
+            <Link
+              className="js-issue-permalink link-no-underline"
+              onClick={stopPropagation}
+              target="_blank"
+              to={issueUrl}>
+              <LinkIcon />
+            </Link>
+          </li>
+          {hasSimilarIssuesFilter && (
+            <li className="issue-meta">
+              <SimilarIssuesFilter
+                isOpen={props.currentPopup === 'similarIssues'}
+                issue={issue}
+                togglePopup={props.togglePopup}
+                onFail={props.onFail}
+                onFilter={props.onFilter}
+              />
+            </li>
+          )}
+        </ul>
+      </div>
+    </div>
   );
 }

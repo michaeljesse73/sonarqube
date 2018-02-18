@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,14 +21,10 @@ package org.sonar.core.issue;
 
 import java.io.Serializable;
 import java.util.Date;
+import java.util.Objects;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 
-/**
- * PLUGINS MUST NOT BE USED THIS CLASS, EXCEPT FOR UNIT TESTING.
- *
- * @since 3.6
- */
 public class IssueChangeContext implements Serializable {
 
   private final String login;
@@ -60,5 +56,33 @@ public class IssueChangeContext implements Serializable {
 
   public static IssueChangeContext createUser(Date date, @Nullable String login) {
     return new IssueChangeContext(login, date, false);
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    IssueChangeContext that = (IssueChangeContext) o;
+    return scan == that.scan &&
+      Objects.equals(login, that.login) &&
+      Objects.equals(date, that.date);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(login, date, scan);
+  }
+
+  @Override
+  public String toString() {
+    return "IssueChangeContext{" +
+      "login='" + login + '\'' +
+      ", date=" + date +
+      ", scan=" + scan +
+      '}';
   }
 }

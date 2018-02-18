@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -26,6 +26,7 @@ import com.google.common.io.Resources;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nonnull;
+import org.sonar.api.server.ws.Change;
 import org.sonar.api.server.ws.Request;
 import org.sonar.api.server.ws.Response;
 import org.sonar.api.server.ws.WebService;
@@ -38,8 +39,9 @@ import org.sonar.server.test.index.CoveredFileDoc;
 import org.sonar.server.test.index.TestDoc;
 import org.sonar.server.test.index.TestIndex;
 import org.sonar.server.user.UserSession;
-import org.sonarqube.ws.WsTests;
+import org.sonarqube.ws.Tests;
 
+import static org.sonar.core.util.Protobuf.setNullable;
 import static org.sonar.server.ws.WsUtils.checkFoundWithOptional;
 import static org.sonar.server.ws.WsUtils.writeProtobuf;
 
@@ -65,6 +67,7 @@ public class CoveredFilesAction implements TestsWsAction {
       .setResponseExample(Resources.getResource(getClass(), "tests-example-covered-files.json"))
       .setDeprecatedSince("5.6")
       .setHandler(this)
+      .setChangelog(new Change("6.6", "\"branch\" field is now returned"))
       .addPagingParams(100);
 
     action
@@ -83,16 +86,17 @@ public class CoveredFilesAction implements TestsWsAction {
     List<CoveredFileDoc> coveredFiles = index.coveredFiles(testId);
     Map<String, ComponentDto> componentsByUuid = buildComponentsByUuid(coveredFiles);
 
-    WsTests.CoveredFilesResponse.Builder responseBuilder = WsTests.CoveredFilesResponse.newBuilder();
+    Tests.CoveredFilesResponse.Builder responseBuilder = Tests.CoveredFilesResponse.newBuilder();
     if (!coveredFiles.isEmpty()) {
       for (CoveredFileDoc doc : coveredFiles) {
-        WsTests.CoveredFilesResponse.CoveredFile.Builder fileBuilder = WsTests.CoveredFilesResponse.CoveredFile.newBuilder();
+        Tests.CoveredFilesResponse.CoveredFile.Builder fileBuilder = Tests.CoveredFilesResponse.CoveredFile.newBuilder();
         fileBuilder.setId(doc.fileUuid());
         fileBuilder.setCoveredLines(doc.coveredLines().size());
         ComponentDto component = componentsByUuid.get(doc.fileUuid());
         if (component != null) {
-          fileBuilder.setKey(component.key());
+          fileBuilder.setKey(component.getKey());
           fileBuilder.setLongName(component.longName());
+          setNullable(component.getBranch(), fileBuilder::setBranch);
         }
 
         responseBuilder.addFiles(fileBuilder);

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -82,7 +82,7 @@ public class DiskCache<O extends Serializable> {
       try {
         this.output = new ObjectOutputStream(new FileOutputStream(file, true)) {
           @Override
-          protected void writeStreamHeader() throws IOException {
+          protected void writeStreamHeader() {
             // do not write stream headers as it's already done in constructor of DiskCache
           }
         };

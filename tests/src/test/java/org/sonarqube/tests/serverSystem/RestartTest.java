@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -29,11 +29,11 @@ import org.junit.rules.DisableOnDebug;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TestRule;
 import org.junit.rules.Timeout;
-import org.sonarqube.ws.client.GetRequest;
+import org.sonarqube.qa.util.Tester;
+import org.sonarqube.ws.System;
 import org.sonarqube.ws.client.PostRequest;
 import org.sonarqube.ws.client.WsClient;
-import org.sonarqube.ws.client.WsResponse;
-import org.sonarqube.ws.client.permission.AddUserWsRequest;
+import org.sonarqube.ws.client.permissions.AddUserRequest;
 import util.ItUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -76,33 +76,13 @@ public class RestartTest {
 
       createSystemAdministrator("big", "boss");
       ItUtils.newUserWsClient(orchestrator, "big", "boss").system().restart();
-      WsResponse wsResponse = newAdminWsClient(orchestrator).wsConnector().call(new GetRequest("/api/system/status")).failIfNotSuccessful();
-      assertThat(wsResponse.content()).contains("RESTARTING");
+      assertThat(newAdminWsClient(orchestrator).system().status().getStatus()).isEqualTo(System.Status.RESTARTING);
 
       // we just wait five seconds, for a lack of a better approach to waiting for the restart process to start in SQ
       Thread.sleep(5000);
 
       assertThat(FileUtils.readFileToString(orchestrator.getServer().getWebLogs()))
         .contains("SonarQube restart requested by big");
-    }
-  }
-
-  /**
-   * SONAR-4843
-   */
-  @Test
-  public void restart_on_dev_mode() throws Exception {
-    // server classloader locks Jar files on Windows
-    if (!SystemUtils.IS_OS_WINDOWS) {
-      orchestrator = Orchestrator.builderEnv()
-        .setServerProperty("sonar.web.dev", "true")
-        .build();
-      orchestrator.start();
-
-      newAdminWsClient(orchestrator).system().restart();
-      assertThat(FileUtils.readFileToString(orchestrator.getServer().getWebLogs()))
-        .contains("Fast restarting WebServer...")
-        .contains("WebServer restarted");
     }
   }
 
@@ -118,7 +98,7 @@ public class RestartTest {
   private void createSystemAdministrator(String login, String password) {
     WsClient wsClient = newAdminWsClient(orchestrator);
     createNonSystemAdministrator(wsClient, login, password);
-    wsClient.permissions().addUser(new AddUserWsRequest().setLogin(login).setPermission("admin"));
+    wsClient.permissions().addUser(new AddUserRequest().setLogin(login).setPermission("admin"));
   }
 
   private void createNonSystemAdministrator(String login, String password) {

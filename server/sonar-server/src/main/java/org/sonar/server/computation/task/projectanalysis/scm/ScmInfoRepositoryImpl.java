@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,19 +19,21 @@
  */
 package org.sonar.server.computation.task.projectanalysis.scm;
 
-import com.google.common.base.Optional;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import org.sonar.api.utils.log.Logger;
 import org.sonar.api.utils.log.Loggers;
-import org.sonar.db.DbClient;
-import org.sonar.db.DbSession;
-import org.sonar.db.source.FileSourceDto;
 import org.sonar.scanner.protocol.output.ScannerReport;
 import org.sonar.server.computation.task.projectanalysis.analysis.AnalysisMetadataHolder;
 import org.sonar.server.computation.task.projectanalysis.batch.BatchReportReader;
 import org.sonar.server.computation.task.projectanalysis.component.Component;
+import org.sonar.server.computation.task.projectanalysis.component.Component.Status;
 import org.sonar.server.computation.task.projectanalysis.source.SourceHashRepository;
+import org.sonar.server.computation.task.projectanalysis.source.SourceLinesDiff;
 
 import static java.util.Objects.requireNonNull;
 
@@ -39,107 +41,93 @@ public class ScmInfoRepositoryImpl implements ScmInfoRepository {
 
   private static final Logger LOGGER = Loggers.get(ScmInfoRepositoryImpl.class);
 
-  private final BatchReportReader batchReportReader;
-  private final AnalysisMetadataHolder analysisMetadataHolder;
-  private final DbClient dbClient;
+  private final BatchReportReader scannerReportReader;
+  private final Map<Component, Optional<ScmInfo>> scmInfoCache = new HashMap<>();
+  private final ScmInfoDbLoader scmInfoDbLoader;
+  private final AnalysisMetadataHolder analysisMetadata;
+  private final SourceLinesDiff sourceLinesDiff;
   private final SourceHashRepository sourceHashRepository;
 
-  private final Map<Component, ScmInfo> scmInfoCache = new HashMap<>();
-
-  public ScmInfoRepositoryImpl(BatchReportReader batchReportReader, AnalysisMetadataHolder analysisMetadataHolder, DbClient dbClient, SourceHashRepository sourceHashRepository) {
-    this.batchReportReader = batchReportReader;
-    this.analysisMetadataHolder = analysisMetadataHolder;
-    this.dbClient = dbClient;
+  public ScmInfoRepositoryImpl(BatchReportReader scannerReportReader, AnalysisMetadataHolder analysisMetadata, ScmInfoDbLoader scmInfoDbLoader,
+    SourceLinesDiff sourceLinesDiff, SourceHashRepository sourceHashRepository) {
+    this.scannerReportReader = scannerReportReader;
+    this.analysisMetadata = analysisMetadata;
+    this.scmInfoDbLoader = scmInfoDbLoader;
+    this.sourceLinesDiff = sourceLinesDiff;
     this.sourceHashRepository = sourceHashRepository;
   }
 
   @Override
-  public Optional<ScmInfo> getScmInfo(Component component) {
-    requireNonNull(component, "Component cannot be bull");
-    return initializeScmInfoForComponent(component);
-  }
+  public com.google.common.base.Optional<ScmInfo> getScmInfo(Component component) {
+    requireNonNull(component, "Component cannot be null");
 
-  private Optional<ScmInfo> initializeScmInfoForComponent(Component component) {
     if (component.getType() != Component.Type.FILE) {
-      return Optional.absent();
-    }
-    ScmInfo scmInfo = scmInfoCache.get(component);
-    if (scmInfo != null) {
-      return optionalOf(scmInfo);
+      return com.google.common.base.Optional.absent();
     }
 
-    scmInfo = getScmInfoForComponent(component);
-    scmInfoCache.put(component, scmInfo);
-    return optionalOf(scmInfo);
+    return toGuavaOptional(scmInfoCache.computeIfAbsent(component, this::getScmInfoForComponent));
   }
 
-  private static Optional<ScmInfo> optionalOf(ScmInfo scmInfo) {
-    if (scmInfo == NoScmInfo.INSTANCE) {
-      return Optional.absent();
-    }
-    return Optional.of(scmInfo);
+  private static com.google.common.base.Optional<ScmInfo> toGuavaOptional(Optional<ScmInfo> scmInfo) {
+    return com.google.common.base.Optional.fromNullable(scmInfo.orElse(null));
   }
 
-  private ScmInfo getScmInfoForComponent(Component component) {
-    ScannerReport.Changesets changesets = batchReportReader.readChangesets(component.getReportAttributes().getRef());
+  private Optional<ScmInfo> getScmInfoForComponent(Component component) {
+    ScannerReport.Changesets changesets = scannerReportReader.readChangesets(component.getReportAttributes().getRef());
+
     if (changesets == null) {
       LOGGER.trace("No SCM info for file '{}'", component.getKey());
-      return NoScmInfo.INSTANCE;
+      // SCM not available. It might have been available before - don't keep author and revision.
+      return generateAndMergeDb(component, false);
     }
-    if (changesets.getCopyFromPrevious()) {
-      return getScmInfoFromDb(component);
+
+    // will be empty if the flag "copy from previous" is set, or if the file is empty.
+    if (changesets.getChangesetCount() == 0) {
+      return generateAndMergeDb(component, changesets.getCopyFromPrevious());
     }
     return getScmInfoFromReport(component, changesets);
   }
 
-  private ScmInfo getScmInfoFromDb(Component file) {
-    if (analysisMetadataHolder.isFirstAnalysis()) {
-      return NoScmInfo.INSTANCE;
-    }
-
-    LOGGER.trace("Reading SCM info from db for file '{}'", file.getKey());
-    try (DbSession dbSession = dbClient.openSession(false)) {
-      FileSourceDto dto = dbClient.fileSourceDao().selectSourceByFileUuid(dbSession, file.getUuid());
-      if (dto == null || !sourceHashRepository.getRawSourceHash(file).equals(dto.getSrcHash())) {
-        return NoScmInfo.INSTANCE;
-      }
-      return DbScmInfo.create(file, dto.getSourceData().getLinesList()).or(NoScmInfo.INSTANCE);
-    }
-  }
-
-  private static ScmInfo getScmInfoFromReport(Component file, ScannerReport.Changesets changesets) {
+  private static Optional<ScmInfo> getScmInfoFromReport(Component file, ScannerReport.Changesets changesets) {
     LOGGER.trace("Reading SCM info from report for file '{}'", file.getKey());
-    return new ReportScmInfo(changesets);
+    return Optional.of(new ReportScmInfo(changesets));
   }
 
-  /**
-   * Internally used to populate cache when no ScmInfo exist.
-   */
-  private enum NoScmInfo implements ScmInfo {
-    INSTANCE {
-      @Override
-      public Changeset getLatestChangeset() {
-        return notImplemented();
-      }
-
-      @Override
-      public Changeset getChangesetForLine(int lineNumber) {
-        return notImplemented();
-      }
-
-      @Override
-      public boolean hasChangesetForLine(int lineNumber) {
-        return notImplemented();
-      }
-
-      @Override
-      public Iterable<Changeset> getAllChangesets() {
-        return notImplemented();
-      }
-
-      private <T> T notImplemented() {
-        throw new UnsupportedOperationException("NoScmInfo does not implement any method");
-      }
+  private Optional<ScmInfo> generateScmInfoForAllFile(Component file) {
+    if (file.getFileAttributes().getLines() == 0) {
+      return Optional.empty();
     }
+    Set<Integer> newOrChangedLines = IntStream.rangeClosed(1, file.getFileAttributes().getLines()).boxed().collect(Collectors.toSet());
+    return Optional.of(GeneratedScmInfo.create(analysisMetadata.getAnalysisDate(), newOrChangedLines));
   }
+
+  private static ScmInfo removeAuthorAndRevision(ScmInfo info) {
+    Map<Integer, Changeset> cleanedScmInfo = info.getAllChangesets().entrySet().stream()
+      .collect(Collectors.toMap(Map.Entry::getKey, e -> removeAuthorAndRevision(e.getValue())));
+    return new ScmInfoImpl(cleanedScmInfo);
+  }
+
+  private static Changeset removeAuthorAndRevision(Changeset changeset) {
+    return Changeset.newChangesetBuilder().setDate(changeset.getDate()).build();
+  }
+
+  private Optional<ScmInfo> generateAndMergeDb(Component file, boolean keepAuthorAndRevision) {
+    Optional<DbScmInfo> dbInfoOpt = scmInfoDbLoader.getScmInfo(file);
+    if (!dbInfoOpt.isPresent()) {
+      return generateScmInfoForAllFile(file);
+    }
+
+    ScmInfo scmInfo = keepAuthorAndRevision ? dbInfoOpt.get() : removeAuthorAndRevision(dbInfoOpt.get());
+    boolean fileUnchanged = file.getStatus() == Status.SAME && sourceHashRepository.getRawSourceHash(file).equals(dbInfoOpt.get().fileHash());
+
+    if (fileUnchanged) {
+      return Optional.of(scmInfo);
+    }
+
+    // generate date for new/changed lines
+    int[] matchingLines = sourceLinesDiff.getMatchingLines(file);
+
+    return Optional.of(GeneratedScmInfo.create(analysisMetadata.getAnalysisDate(), matchingLines, scmInfo));
+  }
+
 }

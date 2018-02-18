@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,6 +25,7 @@ import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -35,6 +36,7 @@ import java.util.function.BinaryOperator;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collector;
+import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 
@@ -108,6 +110,13 @@ public final class MoreCollectors {
         return left;
       },
       ImmutableSet::copyOf);
+  }
+
+  /**
+   * A Collector into an {@link EnumSet} of specified enumeration.
+   */
+  public static <E extends Enum<E>> Collector<E, ?, EnumSet<E>> toEnumSet(Class<E> enumClass) {
+    return Collectors.toCollection(() -> EnumSet.noneOf(enumClass));
   }
 
   /**
@@ -356,7 +365,7 @@ public final class MoreCollectors {
       joiner::join);
   }
 
-  private static <R> BinaryOperator<R> mergeNotSupportedMerger() {
+  public static <R> BinaryOperator<R> mergeNotSupportedMerger() {
     return (m1, m2) -> {
       throw new IllegalStateException("Parallel processing is not supported");
     };

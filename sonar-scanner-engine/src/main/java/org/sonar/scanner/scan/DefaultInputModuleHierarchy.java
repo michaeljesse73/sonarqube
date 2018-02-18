@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,25 +19,21 @@
  */
 package org.sonar.scanner.scan;
 
+import com.google.common.collect.ImmutableMultimap;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-
 import javax.annotation.CheckForNull;
 import javax.annotation.concurrent.Immutable;
-
 import org.sonar.api.batch.fs.InputModule;
 import org.sonar.api.batch.fs.internal.DefaultInputModule;
 import org.sonar.api.batch.fs.internal.InputModuleHierarchy;
 import org.sonar.api.scan.filesystem.PathResolver;
 
-import com.google.common.collect.ImmutableMultimap;
-
 @Immutable
 public class DefaultInputModuleHierarchy implements InputModuleHierarchy {
-  private final PathResolver pathResolver = new PathResolver();
   private final DefaultInputModule root;
   private final Map<DefaultInputModule, DefaultInputModule> parents;
   private final ImmutableMultimap<DefaultInputModule, DefaultInputModule> children;
@@ -111,9 +107,9 @@ public class DefaultInputModuleHierarchy implements InputModuleHierarchy {
       return null;
     }
     DefaultInputModule inputModule = (DefaultInputModule) module;
-    Path parentBaseDir = parent.getBaseDir().toPath();
-    Path moduleBaseDir = inputModule.getBaseDir().toPath();
+    Path parentBaseDir = parent.getBaseDir();
+    Path moduleBaseDir = inputModule.getBaseDir();
 
-    return pathResolver.relativePath(parentBaseDir, moduleBaseDir);
+    return PathResolver.relativize(parentBaseDir, moduleBaseDir).orElse(null);
   }
 }

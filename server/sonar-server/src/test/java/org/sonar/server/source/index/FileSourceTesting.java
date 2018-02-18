@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -50,7 +50,7 @@ public class FileSourceTesting {
   /**
    * Generate predefined fake data. Result is mutable.
    */
-  public static DbFileSources.Data.Builder newFakeData(int numberOfLines) throws IOException {
+  public static DbFileSources.Data.Builder newFakeData(int numberOfLines) {
     DbFileSources.Data.Builder dataBuilder = DbFileSources.Data.newBuilder();
     for (int i = 1; i <= numberOfLines; i++) {
       dataBuilder.addLinesBuilder()
@@ -73,7 +73,7 @@ public class FileSourceTesting {
   /**
    * Generate random data. Result is mutable.
    */
-  public static DbFileSources.Data.Builder newRandomData(int numberOfLines) throws IOException {
+  public static DbFileSources.Data.Builder newRandomData(int numberOfLines) {
     DbFileSources.Data.Builder dataBuilder = DbFileSources.Data.newBuilder();
     for (int i = 1; i <= numberOfLines; i++) {
       dataBuilder.addLinesBuilder()

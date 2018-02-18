@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,12 +22,14 @@ import React from 'react';
 import classNames from 'classnames';
 import './LocationMessage.css';
 
+/*::
 type Props = {
   children?: React.Element<*>,
   selected: boolean
 };
+*/
 
-export default function LocationMessage(props: Props) {
+export default function LocationMessage(props /*: Props */) {
   return (
     <div className={classNames('location-message', { selected: props.selected })}>
       {props.children}

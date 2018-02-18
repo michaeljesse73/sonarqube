@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -43,15 +43,5 @@ public class TreeRootHolderRule extends ExternalResource implements TreeRootHold
   @Override
   public Component getComponentByRef(int ref) {
     return delegate.getComponentByRef(ref);
-  }
-
-  @Override
-  public Component getComponentByKey(String key) {
-    return delegate.getComponentByKey(key);
-  }
-
-  @Override
-  public boolean hasComponentWithKey(String key) {
-    return delegate.hasComponentWithKey(key);
   }
 }

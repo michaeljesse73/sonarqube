@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -30,15 +30,11 @@ import org.sonar.api.utils.DateUtils;
 public class UtcDateUtils {
 
   private static final ThreadLocal<DateFormat> format =
-    new ThreadLocal<DateFormat>() {
-      @Override
-      protected DateFormat initialValue() {
-        DateFormat f = new SimpleDateFormat(DateUtils.DATETIME_FORMAT);
-        f.setTimeZone(TimeZone.getTimeZone("UTC"));
-        return f;
-
-      }
-    };
+    ThreadLocal.withInitial(() -> {
+      DateFormat f = new SimpleDateFormat(DateUtils.DATETIME_FORMAT);
+      f.setTimeZone(TimeZone.getTimeZone("UTC"));
+      return f;
+    });
 
   private UtcDateUtils() {
     // only static stuff

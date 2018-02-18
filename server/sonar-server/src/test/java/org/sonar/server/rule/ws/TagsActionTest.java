@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -17,7 +17,6 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-
 package org.sonar.server.rule.ws;
 
 import org.junit.Before;
@@ -25,6 +24,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.sonar.api.config.internal.MapSettings;
 import org.sonar.api.server.ws.WebService;
+import org.sonar.api.utils.System2;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbTester;
 import org.sonar.db.organization.OrganizationDto;
@@ -48,26 +48,27 @@ public class TagsActionTest {
   @Rule
   public UserSessionRule userSession = UserSessionRule.standalone();
   @Rule
-  public DbTester dbTester = DbTester.create();
+  public DbTester db = DbTester.create();
   @Rule
-  public EsTester esTester = new EsTester(new RuleIndexDefinition(new MapSettings().asConfig()));
+  public EsTester es = new EsTester(new RuleIndexDefinition(new MapSettings().asConfig()));
 
-  private DbClient dbClient = dbTester.getDbClient();
-  private EsClient esClient = esTester.client();
-  private RuleIndex ruleIndex = new RuleIndex(esClient);
+  private DbClient dbClient = db.getDbClient();
+  private EsClient esClient = es.client();
+  private RuleIndex ruleIndex = new RuleIndex(esClient, System2.INSTANCE);
   private RuleIndexer ruleIndexer = new RuleIndexer(esClient, dbClient);
 
-  private WsActionTester tester = new WsActionTester(new org.sonar.server.rule.ws.TagsAction(ruleIndex, dbClient, TestDefaultOrganizationProvider.from(dbTester)));
+  private WsActionTester ws = new WsActionTester(new org.sonar.server.rule.ws.TagsAction(ruleIndex, dbClient, TestDefaultOrganizationProvider.from(db)));
+
   private OrganizationDto organization;
 
   @Before
   public void before() {
-    organization = dbTester.organizations().insert();
+    organization = db.organizations().insert();
   }
 
   @Test
-  public void test_definition() {
-    WebService.Action action = tester.getDef();
+  public void definition() {
+    WebService.Action action = ws.getDef();
     assertThat(action.description()).isNotEmpty();
     assertThat(action.responseExampleAsString()).isNotEmpty();
     assertThat(action.isPost()).isFalse();
@@ -83,7 +84,7 @@ public class TagsActionTest {
     WebService.Param pageSize = action.param("ps");
     assertThat(pageSize).isNotNull();
     assertThat(pageSize.isRequired()).isFalse();
-    assertThat(pageSize.defaultValue()).isEqualTo("0");
+    assertThat(pageSize.defaultValue()).isEqualTo("10");
     assertThat(pageSize.description()).isNotEmpty();
     assertThat(pageSize.exampleValue()).isNotEmpty();
 
@@ -97,22 +98,22 @@ public class TagsActionTest {
   }
 
   @Test
-  public void return_system_tag() throws Exception {
-    RuleDefinitionDto r = dbTester.rules().insert(setSystemTags("tag"));
-    ruleIndexer.commitAndIndex(dbTester.getSession(), r.getKey());
+  public void system_tag() {
+    RuleDefinitionDto r = db.rules().insert(setSystemTags("tag"));
+    ruleIndexer.commitAndIndex(db.getSession(), r.getId());
 
-    String result = tester.newRequest().execute().getInput();
+    String result = ws.newRequest().execute().getInput();
     assertJson(result).isSimilarTo("{\"tags\":[\"tag\"]}");
   }
 
   @Test
-  public void return_tag() throws Exception {
-    RuleDefinitionDto r = dbTester.rules().insert(setSystemTags());
-    ruleIndexer.commitAndIndex(dbTester.getSession(), r.getKey());
-    dbTester.rules().insertOrUpdateMetadata(r, organization, setTags("tag"));
-    ruleIndexer.commitAndIndex(dbTester.getSession(), r.getKey(), organization);
+  public void tag() {
+    RuleDefinitionDto r = db.rules().insert(setSystemTags());
+    ruleIndexer.commitAndIndex(db.getSession(), r.getId());
+    db.rules().insertOrUpdateMetadata(r, organization, setTags("tag"));
+    ruleIndexer.commitAndIndex(db.getSession(), r.getId(), organization);
 
-    String result = tester.newRequest().setParam("organization", organization.getKey()).execute().getInput();
+    String result = ws.newRequest().setParam("organization", organization.getKey()).execute().getInput();
     assertJson(result).isSimilarTo("{\"tags\":[\"tag\"]}");
   }
 }

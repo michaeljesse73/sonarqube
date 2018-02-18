@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -45,7 +45,7 @@ public class FileExtensionPredicate extends AbstractFilePredicate {
   }
 
   public static String getExtension(InputFile inputFile) {
-    return getExtension(FilenamePredicate.getFilename(inputFile));
+    return getExtension(inputFile.filename());
   }
 
   static String getExtension(String name) {

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -98,7 +98,7 @@ public class CreateActionTest {
   private UuidFactory uuidFactory = mock(UuidFactory.class);
   private OrganizationValidation organizationValidation = new OrganizationValidationImpl();
   private UserIndexer userIndexer = new UserIndexer(dbClient, es.client());
-  private UserIndex userIndex = new UserIndex(es.client());
+  private UserIndex userIndex = new UserIndex(es.client(), System2.INSTANCE);
   private OrganizationCreation organizationCreation = new OrganizationCreationImpl(dbClient, system2, uuidFactory, organizationValidation, settings.asConfig(), userIndexer,
     mock(BuiltInQProfileRepository.class), new DefaultGroupCreatorImpl(dbClient));
   private TestOrganizationFlags organizationFlags = TestOrganizationFlags.standalone().setEnabled(true);
@@ -152,9 +152,10 @@ public class CreateActionTest {
   }
 
   @Test
-  public void verify_response_example() throws URISyntaxException, IOException {
+  public void verify_response_example() {
     logInAsSystemAdministrator();
     mockForSuccessfulInsert(Uuids.UUID_EXAMPLE_01, SOME_DATE);
+    dbTester.qualityGates().insertBuiltInQualityGate();
 
     String response = executeJsonRequest("Foo Company", "foo-company", "The Foo company produces quality software for Bar.", "https://www.foo.com", "https://www.foo.com/foo.png");
 
@@ -196,6 +197,7 @@ public class CreateActionTest {
   public void request_succeeds_if_user_is_system_administrator_and_logged_in_users_cannot_create_organizations() {
     logInAsSystemAdministrator();
     mockForSuccessfulInsert(SOME_UUID, SOME_DATE);
+    dbTester.qualityGates().insertBuiltInQualityGate();
 
     verifyResponseAndDb(executeRequest("foo"), SOME_UUID, "foo", "foo", SOME_DATE);
   }
@@ -205,6 +207,7 @@ public class CreateActionTest {
     logInAsSystemAdministrator();
     settings.setProperty(ORGANIZATIONS_ANYONE_CAN_CREATE, true);
     mockForSuccessfulInsert(SOME_UUID, SOME_DATE);
+    dbTester.qualityGates().insertBuiltInQualityGate();
 
     verifyResponseAndDb(executeRequest("foo"), SOME_UUID, "foo", "foo", SOME_DATE);
   }
@@ -214,6 +217,7 @@ public class CreateActionTest {
     userSession.logIn(user);
     settings.setProperty(ORGANIZATIONS_ANYONE_CAN_CREATE, true);
     mockForSuccessfulInsert(SOME_UUID, SOME_DATE);
+    dbTester.qualityGates().insertBuiltInQualityGate();
 
     verifyResponseAndDb(executeRequest("foo"), SOME_UUID, "foo", "foo", SOME_DATE);
   }
@@ -242,6 +246,7 @@ public class CreateActionTest {
   public void request_succeeds_if_name_is_two_chars_long() {
     logInAsSystemAdministrator();
     mockForSuccessfulInsert(SOME_UUID, SOME_DATE);
+    dbTester.qualityGates().insertBuiltInQualityGate();
 
     verifyResponseAndDb(executeRequest("ab"), SOME_UUID, "ab", "ab", SOME_DATE);
   }
@@ -251,7 +256,7 @@ public class CreateActionTest {
     logInAsSystemAdministrator();
 
     expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("Name '" + STRING_65_CHARS_LONG + "' must be at most 64 chars long");
+    expectedException.expectMessage("'name' length (65) is longer than the maximum authorized (64)");
 
     executeRequest(STRING_65_CHARS_LONG);
   }
@@ -260,6 +265,7 @@ public class CreateActionTest {
   public void request_succeeds_if_name_is_64_char_long() {
     logInAsSystemAdministrator();
     mockForSuccessfulInsert(SOME_UUID, SOME_DATE);
+    dbTester.qualityGates().insertBuiltInQualityGate();
 
     String name = STRING_65_CHARS_LONG.substring(0, 64);
 
@@ -283,7 +289,7 @@ public class CreateActionTest {
     String key = STRING_65_CHARS_LONG.substring(0, 33);
 
     expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("Key '" + key + "' must be at most 32 chars long");
+    expectedException.expectMessage("'key' length (33) is longer than the maximum authorized (32)");
 
     executeRequest("foo", key);
   }
@@ -292,6 +298,7 @@ public class CreateActionTest {
   public void request_succeeds_if_key_is_2_chars_long() {
     logInAsSystemAdministrator();
     mockForSuccessfulInsert(SOME_UUID, SOME_DATE);
+    dbTester.qualityGates().insertBuiltInQualityGate();
 
     verifyResponseAndDb(executeRequest("foo", "ab"), SOME_UUID, "foo", "ab", SOME_DATE);
   }
@@ -300,6 +307,7 @@ public class CreateActionTest {
   public void requests_succeeds_if_key_is_32_chars_long() {
     logInAsSystemAdministrator();
     mockForSuccessfulInsert(SOME_UUID, SOME_DATE);
+    dbTester.qualityGates().insertBuiltInQualityGate();
 
     String key = STRING_65_CHARS_LONG.substring(0, 32);
 
@@ -344,7 +352,7 @@ public class CreateActionTest {
   @Test
   public void request_fails_if_key_is_specified_and_already_exists_in_DB() {
     logInAsSystemAdministrator();
-    OrganizationDto org = insertOrganization("the-key");
+    OrganizationDto org = dbTester.organizations().insert(o -> o.setKey("the-key"));
 
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("Key '" + org.getKey() + "' is already used. Specify another one.");
@@ -356,7 +364,7 @@ public class CreateActionTest {
   public void request_fails_if_key_computed_from_name_already_exists_in_DB() {
     logInAsSystemAdministrator();
     String key = STRING_65_CHARS_LONG.substring(0, 32);
-    insertOrganization(key);
+    dbTester.organizations().insert(o -> o.setKey(key));
 
     String name = STRING_65_CHARS_LONG.substring(0, 64);
 
@@ -370,6 +378,7 @@ public class CreateActionTest {
   public void request_succeeds_if_description_url_and_avatar_are_not_specified() {
     logInAsSystemAdministrator();
     mockForSuccessfulInsert(SOME_UUID, SOME_DATE);
+    dbTester.qualityGates().insertBuiltInQualityGate();
 
     CreateWsResponse response = executeRequest("foo", "bar", null, null, null);
     verifyResponseAndDb(response, SOME_UUID, "foo", "bar", null, null, null, SOME_DATE);
@@ -379,6 +388,7 @@ public class CreateActionTest {
   public void request_succeeds_if_description_url_and_avatar_are_specified() {
     logInAsSystemAdministrator();
     mockForSuccessfulInsert(SOME_UUID, SOME_DATE);
+    dbTester.qualityGates().insertBuiltInQualityGate();
 
     CreateWsResponse response = executeRequest("foo", "bar", "moo", "doo", "boo");
     verifyResponseAndDb(response, SOME_UUID, "foo", "bar", "moo", "doo", "boo", SOME_DATE);
@@ -388,6 +398,7 @@ public class CreateActionTest {
   public void request_succeeds_to_generate_key_from_name_more_then_32_chars_long() {
     logInAsSystemAdministrator();
     mockForSuccessfulInsert(SOME_UUID, SOME_DATE);
+    dbTester.qualityGates().insertBuiltInQualityGate();
 
     String name = STRING_65_CHARS_LONG.substring(0, 33);
 
@@ -399,6 +410,7 @@ public class CreateActionTest {
   public void request_generates_key_ignoring_multiple_following_spaces() {
     logInAsSystemAdministrator();
     mockForSuccessfulInsert(SOME_UUID, SOME_DATE);
+    dbTester.qualityGates().insertBuiltInQualityGate();
 
     String name = "ab   cd";
 
@@ -411,7 +423,7 @@ public class CreateActionTest {
     logInAsSystemAdministrator();
 
     expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("Description '" + STRING_257_CHARS_LONG + "' must be at most 256 chars long");
+    expectedException.expectMessage("'description' length (257) is longer than the maximum authorized (256)");
 
     executeRequest("foo", "bar", STRING_257_CHARS_LONG, null, null);
   }
@@ -421,6 +433,7 @@ public class CreateActionTest {
     logInAsSystemAdministrator();
     mockForSuccessfulInsert(SOME_UUID, SOME_DATE);
     String description = STRING_257_CHARS_LONG.substring(0, 256);
+    dbTester.qualityGates().insertBuiltInQualityGate();
 
     CreateWsResponse response = executeRequest("foo", "bar", description, null, null);
     verifyResponseAndDb(response, SOME_UUID, "foo", "bar", description, null, null, SOME_DATE);
@@ -431,7 +444,7 @@ public class CreateActionTest {
     logInAsSystemAdministrator();
 
     expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("Url '" + STRING_257_CHARS_LONG + "' must be at most 256 chars long");
+    expectedException.expectMessage("'url' length (257) is longer than the maximum authorized (256)");
 
     executeRequest("foo", "bar", null, STRING_257_CHARS_LONG, null);
   }
@@ -441,6 +454,7 @@ public class CreateActionTest {
     logInAsSystemAdministrator();
     mockForSuccessfulInsert(SOME_UUID, SOME_DATE);
     String url = STRING_257_CHARS_LONG.substring(0, 256);
+    dbTester.qualityGates().insertBuiltInQualityGate();
 
     CreateWsResponse response = executeRequest("foo", "bar", null, url, null);
     verifyResponseAndDb(response, SOME_UUID, "foo", "bar", null, url, null, SOME_DATE);
@@ -451,7 +465,7 @@ public class CreateActionTest {
     logInAsSystemAdministrator();
 
     expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("Avatar '" + STRING_257_CHARS_LONG + "' must be at most 256 chars long");
+    expectedException.expectMessage("'avatar' length (257) is longer than the maximum authorized (256)");
 
     executeRequest("foo", "bar", null, null, STRING_257_CHARS_LONG);
   }
@@ -461,6 +475,7 @@ public class CreateActionTest {
     logInAsSystemAdministrator();
     mockForSuccessfulInsert(SOME_UUID, SOME_DATE);
     String avatar = STRING_257_CHARS_LONG.substring(0, 256);
+    dbTester.qualityGates().insertBuiltInQualityGate();
 
     CreateWsResponse response = executeRequest("foo", "bar", null, null, avatar);
     verifyResponseAndDb(response, SOME_UUID, "foo", "bar", null, null, avatar, SOME_DATE);
@@ -471,6 +486,7 @@ public class CreateActionTest {
     mockForSuccessfulInsert(SOME_UUID, SOME_DATE);
     UserDto user = dbTester.users().insertUser();
     userSession.logIn(user).setSystemAdministrator();
+    dbTester.qualityGates().insertBuiltInQualityGate();
 
     executeRequest("orgFoo");
 
@@ -499,6 +515,7 @@ public class CreateActionTest {
     mockForSuccessfulInsert(SOME_UUID, SOME_DATE);
     UserDto user = dbTester.users().insertUser();
     userSession.logIn(user).setSystemAdministrator();
+    dbTester.qualityGates().insertBuiltInQualityGate();
 
     executeRequest("orgFoo");
 
@@ -526,6 +543,7 @@ public class CreateActionTest {
     mockForSuccessfulInsert(SOME_UUID, SOME_DATE);
     UserDto user = dbTester.users().insertUser();
     userSession.logIn(user).setSystemAdministrator();
+    dbTester.qualityGates().insertBuiltInQualityGate();
 
     executeRequest("orgFoo");
 
@@ -550,6 +568,7 @@ public class CreateActionTest {
     mockForSuccessfulInsert(SOME_UUID, SOME_DATE);
     UserDto user = dbTester.users().insertUser();
     userSession.logIn(user).setSystemAdministrator();
+    dbTester.qualityGates().insertBuiltInQualityGate();
 
     executeRequest("orgFoo");
 
@@ -641,18 +660,6 @@ public class CreateActionTest {
     assertThat(dto.getAvatarUrl()).isEqualTo(avatar);
     assertThat(dto.getCreatedAt()).isEqualTo(createdAt);
     assertThat(dto.getUpdatedAt()).isEqualTo(createdAt);
-  }
-
-  private OrganizationDto insertOrganization(String key) {
-    OrganizationDto dto = new OrganizationDto()
-      .setUuid(key + "_uuid")
-      .setKey(key)
-      .setName(key + "_name")
-      .setCreatedAt((long) key.hashCode())
-      .setUpdatedAt((long) key.hashCode());
-    dbClient.organizationDao().insert(dbTester.getSession(), dto, false);
-    dbTester.commit();
-    return dto;
   }
 
   private void logInAsSystemAdministrator() {

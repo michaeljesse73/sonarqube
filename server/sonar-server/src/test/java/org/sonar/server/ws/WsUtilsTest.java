@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -27,7 +27,7 @@ import org.sonar.api.utils.log.LogTester;
 import org.sonar.server.exceptions.BadRequestException;
 import org.sonarqube.ws.Issues;
 import org.sonarqube.ws.MediaTypes;
-import org.sonarqube.ws.WsPermissions;
+import org.sonarqube.ws.Permissions;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonar.test.ExceptionCauseMatcher.hasType;
@@ -41,7 +41,7 @@ public class WsUtilsTest {
   public LogTester logger = new LogTester();
 
   @Test
-  public void write_json_by_default() throws Exception {
+  public void write_json_by_default() {
     TestRequest request = new TestRequest();
     DumbResponse response = new DumbResponse();
 
@@ -69,11 +69,11 @@ public class WsUtilsTest {
   }
 
   @Test
-  public void rethrow_error_as_ISE_when_error_writing_message() throws IOException {
+  public void rethrow_error_as_ISE_when_error_writing_message() {
     TestRequest request = new TestRequest();
     request.setMediaType(MediaTypes.PROTOBUF);
 
-    WsPermissions.Permission message = WsPermissions.Permission.newBuilder().setName("permission-name").build();
+    Permissions.Permission message = Permissions.Permission.newBuilder().setName("permission-name").build();
 
     expectedException.expect(IllegalStateException.class);
     expectedException.expectCause(hasType(NullPointerException.class));

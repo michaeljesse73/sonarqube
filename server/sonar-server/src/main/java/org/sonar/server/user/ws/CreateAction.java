@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,6 +21,8 @@ package org.sonar.server.user.ws;
 
 import java.util.Collections;
 import java.util.List;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nullable;
 import org.sonar.api.server.ws.Change;
 import org.sonar.api.server.ws.Request;
 import org.sonar.api.server.ws.Response;
@@ -32,12 +34,18 @@ import org.sonar.server.user.ExternalIdentity;
 import org.sonar.server.user.NewUser;
 import org.sonar.server.user.UserSession;
 import org.sonar.server.user.UserUpdater;
-import org.sonarqube.ws.WsUsers.CreateWsResponse;
-import org.sonarqube.ws.client.user.CreateRequest;
+import org.sonarqube.ws.Users.CreateWsResponse;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Strings.emptyToNull;
+import static com.google.common.base.Strings.isNullOrEmpty;
+import static java.util.Collections.emptyList;
 import static org.sonar.core.util.Protobuf.setNullable;
 import static org.sonar.server.user.ExternalIdentity.SQ_AUTHORITY;
+import static org.sonar.server.user.UserUpdater.EMAIL_MAX_LENGTH;
+import static org.sonar.server.user.UserUpdater.LOGIN_MAX_LENGTH;
+import static org.sonar.server.user.UserUpdater.NAME_MAX_LENGTH;
+import static org.sonar.server.user.ws.EmailValidator.isValidIfPresent;
 import static org.sonar.server.ws.WsUtils.writeProtobuf;
 import static org.sonarqube.ws.client.user.UsersWsParameters.ACTION_CREATE;
 import static org.sonarqube.ws.client.user.UsersWsParameters.PARAM_EMAIL;
@@ -75,8 +83,9 @@ public class CreateAction implements UsersWsAction {
       .setHandler(this);
 
     action.createParam(PARAM_LOGIN)
-      .setDescription("User login")
       .setRequired(true)
+      .setMaximumLength(LOGIN_MAX_LENGTH)
+      .setDescription("User login")
       .setExampleValue("myuser");
 
     action.createParam(PARAM_PASSWORD)
@@ -84,11 +93,13 @@ public class CreateAction implements UsersWsAction {
       .setExampleValue("mypassword");
 
     action.createParam(PARAM_NAME)
-      .setDescription("User name")
       .setRequired(true)
+      .setMaximumLength(NAME_MAX_LENGTH)
+      .setDescription("User name")
       .setExampleValue("My Name");
 
     action.createParam(PARAM_EMAIL)
+      .setMaximumLength(EMAIL_MAX_LENGTH)
       .setDescription("User email")
       .setExampleValue("myname@email.com");
 
@@ -113,7 +124,9 @@ public class CreateAction implements UsersWsAction {
   @Override
   public void handle(Request request, Response response) throws Exception {
     userSession.checkLoggedIn().checkIsSystemAdministrator();
-    writeProtobuf(doHandle(toWsRequest(request)), request, response);
+    CreateRequest createRequest = toWsRequest(request);
+    checkArgument(isValidIfPresent(createRequest.getEmail()), "Email '%s' is not valid", createRequest.getEmail());
+    writeProtobuf(doHandle(createRequest), request, response);
   }
 
   private CreateWsResponse doHandle(CreateRequest request) {
@@ -160,5 +173,105 @@ public class CreateAction implements UsersWsAction {
     }
     List<String> oldScmAccounts = request.paramAsStrings(PARAM_SCM_ACCOUNTS);
     return oldScmAccounts != null ? oldScmAccounts : Collections.emptyList();
+  }
+
+  static class CreateRequest {
+
+    private final String login;
+    private final String password;
+    private final String name;
+    private final String email;
+    private final List<String> scmAccounts;
+    private final boolean local;
+
+    private CreateRequest(Builder builder) {
+      this.login = builder.login;
+      this.password = builder.password;
+      this.name = builder.name;
+      this.email = builder.email;
+      this.scmAccounts = builder.scmAccounts;
+      this.local = builder.local;
+    }
+
+    public String getLogin() {
+      return login;
+    }
+
+    @CheckForNull
+    public String getPassword() {
+      return password;
+    }
+
+    public String getName() {
+      return name;
+    }
+
+    @CheckForNull
+    public String getEmail() {
+      return email;
+    }
+
+    public List<String> getScmAccounts() {
+      return scmAccounts;
+    }
+
+    public boolean isLocal() {
+      return local;
+    }
+
+    public static Builder builder() {
+      return new Builder();
+    }
+  }
+
+  static class Builder {
+    private String login;
+    private String password;
+    private String name;
+    private String email;
+    private List<String> scmAccounts = emptyList();
+    private boolean local = true;
+
+    private Builder() {
+      // enforce factory method use
+    }
+
+    public Builder setLogin(String login) {
+      this.login = login;
+      return this;
+    }
+
+    public Builder setPassword(@Nullable String password) {
+      this.password = password;
+      return this;
+    }
+
+    public Builder setName(String name) {
+      this.name = name;
+      return this;
+    }
+
+    public Builder setEmail(@Nullable String email) {
+      this.email = email;
+      return this;
+    }
+
+    public Builder setScmAccounts(List<String> scmAccounts) {
+      this.scmAccounts = scmAccounts;
+      return this;
+    }
+
+    public Builder setLocal(boolean local) {
+      this.local = local;
+      return this;
+    }
+
+    public CreateRequest build() {
+      checkArgument(!isNullOrEmpty(login), "Login is mandatory and must not be empty");
+      checkArgument(!isNullOrEmpty(name), "Name is mandatory and must not be empty");
+      checkArgument(!local || !isNullOrEmpty(password), "Password is mandatory and must not be empty");
+      checkArgument(local || isNullOrEmpty(password), "Password should only be set on local user");
+      return new CreateRequest(this);
+    }
   }
 }

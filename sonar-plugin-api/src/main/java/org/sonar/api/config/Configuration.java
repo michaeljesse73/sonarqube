@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -106,13 +106,15 @@ public interface Configuration {
    * <p>
    * See {@link PropertyDefinition.Builder#multiValues(boolean)}
    * Multi-valued properties coming from scanner are parsed as CSV lines (ie comma separator and optional double quotes to escape values).
-   * Non quoted values are trimmed.
+   * Non quoted values are trimmed and empty fields are ignored.
    * <br>
    * Examples :
    * <ul>
    * <li>"one,two,three " -&gt; ["one", "two", "three"]</li>
    * <li>"  one, two, three " -&gt; ["one", "two", "three"]</li>
-   * <li>"one, , three" -&gt; ["one", "", "three"]</li>
+   * <li>"one, three" -&gt; ["one", "three"]</li>
+   * <li>"one,"", three" -&gt; ["one", "", "three"]</li>
+   * <li>"one,  "  " , three" -&gt; ["one", "  ", "three"]</li>
    * <li>"one,\"two,three\",\" four \"" -&gt; ["one", "two,three", " four "]</li>
    * </ul>
    */
@@ -125,7 +127,7 @@ public interface Configuration {
    * If the property does not have value nor default value, then {@code empty} is returned.
    */
   default Optional<Boolean> getBoolean(String key) {
-    return get(key).map(Boolean::parseBoolean);
+    return get(key).map(String::trim).map(Boolean::parseBoolean);
   }
 
   /**
@@ -135,7 +137,7 @@ public interface Configuration {
    */
   default Optional<Integer> getInt(String key) {
     try {
-      return get(key).map(Integer::parseInt);
+      return get(key).map(String::trim).map(Integer::parseInt);
     } catch (NumberFormatException e) {
       throw new IllegalStateException(String.format("The property '%s' is not an int value: %s", key, e.getMessage()));
     }
@@ -148,7 +150,7 @@ public interface Configuration {
    */
   default Optional<Long> getLong(String key) {
     try {
-      return get(key).map(Long::parseLong);
+      return get(key).map(String::trim).map(Long::parseLong);
     } catch (NumberFormatException e) {
       throw new IllegalStateException(String.format("The property '%s' is not an long value: %s", key, e.getMessage()));
     }
@@ -161,7 +163,7 @@ public interface Configuration {
    */
   default Optional<Float> getFloat(String key) {
     try {
-      return get(key).map(Float::valueOf);
+      return get(key).map(String::trim).map(Float::valueOf);
     } catch (NumberFormatException e) {
       throw new IllegalStateException(String.format("The property '%s' is not an float value: %s", key, e.getMessage()));
     }
@@ -174,7 +176,7 @@ public interface Configuration {
    */
   default Optional<Double> getDouble(String key) {
     try {
-      return get(key).map(Double::valueOf);
+      return get(key).map(String::trim).map(Double::valueOf);
     } catch (NumberFormatException e) {
       throw new IllegalStateException(String.format("The property '%s' is not an double value: %s", key, e.getMessage()));
     }

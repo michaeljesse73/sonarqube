@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,6 +22,7 @@ package org.sonar.ce;
 import org.sonar.ce.httpd.CeHttpServer;
 import org.sonar.ce.logging.ChangeLogLevelHttpAction;
 import org.sonar.ce.systeminfo.SystemInfoHttpAction;
+import org.sonar.ce.taskprocessor.RefreshWorkerCountAction;
 import org.sonar.core.platform.Module;
 
 public class CeHttpModule extends Module {
@@ -30,6 +31,7 @@ public class CeHttpModule extends Module {
     add(
       CeHttpServer.class,
       SystemInfoHttpAction.class,
-      ChangeLogLevelHttpAction.class);
+      ChangeLogLevelHttpAction.class,
+      RefreshWorkerCountAction.class);
   }
 }

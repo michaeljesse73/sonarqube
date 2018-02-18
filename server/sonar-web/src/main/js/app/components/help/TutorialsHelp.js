@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,10 +21,12 @@
 import React from 'react';
 import { translate } from '../../../helpers/l10n';
 
+/*::
 type Props = { onTutorialSelect: () => void };
+*/
 
-export default function TutorialsHelp({ onTutorialSelect }: Props) {
-  const handleClick = (event: Event) => {
+export default function TutorialsHelp({ onTutorialSelect } /*: Props */) {
+  const handleClick = (event /*: Event */) => {
     event.preventDefault();
     onTutorialSelect();
   };
@@ -32,7 +34,9 @@ export default function TutorialsHelp({ onTutorialSelect }: Props) {
   return (
     <div>
       <h2 className="spacer-top spacer-bottom">{translate('help.section.tutorials')}</h2>
-      <a href="#" onClick={handleClick}>{translate('tutorials.onboarding')}</a>
+      <a href="#" onClick={handleClick}>
+        {translate('tutorials.onboarding')}
+      </a>
     </div>
   );
 }

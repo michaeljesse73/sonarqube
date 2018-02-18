@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -29,7 +29,7 @@ import org.sonar.api.resources.Project;
  * it is an asynchronous processing on server side.
  *
  * @since 1.10
- * @deprecated since 5.6 use org.sonar.api.batch.postjob.PostJob
+ * @deprecated since 5.6 use {@link org.sonar.api.batch.postjob.PostJob}
  */
 @Deprecated
 @ScannerSide

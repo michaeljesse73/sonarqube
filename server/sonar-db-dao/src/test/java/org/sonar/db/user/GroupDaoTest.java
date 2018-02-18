@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -44,6 +44,7 @@ public class GroupDaoTest {
   private static final OrganizationDto AN_ORGANIZATION = new OrganizationDto()
     .setKey("an-org")
     .setName("An Org")
+    .setDefaultQualityGateUuid("1")
     .setUuid("abcde");
 
   private System2 system2 = mock(System2.class);

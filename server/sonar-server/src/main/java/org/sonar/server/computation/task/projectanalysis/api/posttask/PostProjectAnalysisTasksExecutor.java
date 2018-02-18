@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,14 +19,17 @@
  */
 package org.sonar.server.computation.task.projectanalysis.api.posttask;
 
-import com.google.common.base.Optional;
 import java.util.Collection;
 import java.util.Date;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
+import org.sonar.api.ce.posttask.Analysis;
+import org.sonar.api.ce.posttask.Branch;
 import org.sonar.api.ce.posttask.CeTask;
+import org.sonar.api.ce.posttask.Organization;
 import org.sonar.api.ce.posttask.PostProjectAnalysisTask;
 import org.sonar.api.ce.posttask.Project;
 import org.sonar.api.ce.posttask.QualityGate;
@@ -34,6 +37,7 @@ import org.sonar.api.ce.posttask.ScannerContext;
 import org.sonar.api.utils.System2;
 import org.sonar.api.utils.log.Logger;
 import org.sonar.api.utils.log.Loggers;
+import org.sonar.core.util.stream.MoreCollectors;
 import org.sonar.server.computation.task.projectanalysis.analysis.AnalysisMetadataHolder;
 import org.sonar.server.computation.task.projectanalysis.batch.BatchReportReader;
 import org.sonar.server.computation.task.projectanalysis.qualitygate.Condition;
@@ -43,9 +47,11 @@ import org.sonar.server.computation.task.projectanalysis.qualitygate.QualityGate
 import org.sonar.server.computation.task.projectanalysis.qualitygate.QualityGateStatusHolder;
 import org.sonar.server.computation.task.step.ComputationStepExecutor;
 
-import static com.google.common.collect.FluentIterable.from;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
+import static java.util.Optional.empty;
+import static java.util.Optional.of;
+import static java.util.Optional.ofNullable;
 import static org.sonar.api.ce.posttask.CeTask.Status.FAILED;
 import static org.sonar.api.ce.posttask.CeTask.Status.SUCCESS;
 
@@ -95,13 +101,13 @@ public class PostProjectAnalysisTasksExecutor implements ComputationStepExecutor
       return;
     }
 
-    ProjectAnalysis projectAnalysis = createProjectAnalysis(allStepsExecuted ? SUCCESS : FAILED);
+    ProjectAnalysisImpl projectAnalysis = createProjectAnalysis(allStepsExecuted ? SUCCESS : FAILED);
     for (PostProjectAnalysisTask postProjectAnalysisTask : postProjectAnalysisTasks) {
       executeTask(projectAnalysis, postProjectAnalysisTask);
     }
   }
 
-  private static void executeTask(ProjectAnalysis projectAnalysis, PostProjectAnalysisTask postProjectAnalysisTask) {
+  private static void executeTask(ProjectAnalysisImpl projectAnalysis, PostProjectAnalysisTask postProjectAnalysisTask) {
     try {
       postProjectAnalysisTask.finished(projectAnalysis);
     } catch (Exception e) {
@@ -109,15 +115,35 @@ public class PostProjectAnalysisTasksExecutor implements ComputationStepExecutor
     }
   }
 
-  private ProjectAnalysis createProjectAnalysis(CeTask.Status status) {
-    Long analysisDate = getAnalysisDate();
-    return new ProjectAnalysis(
+  private ProjectAnalysisImpl createProjectAnalysis(CeTask.Status status) {
+    return new ProjectAnalysisImpl(
+      createOrganization(),
       new CeTaskImpl(this.ceTask.getUuid(), status),
       createProject(this.ceTask),
-      analysisDate,
-      analysisDate == null ? system2.now() : analysisDate,
+      getAnalysis().orElse(null),
+      getAnalysis().map(a -> a.getDate().getTime()).orElse(system2.now()),
       ScannerContextImpl.from(reportReader.readContextProperties()),
-      status == SUCCESS ? createQualityGate(this.qualityGateHolder) : null);
+      status == SUCCESS ? createQualityGate() : null,
+      createBranch());
+  }
+
+  @CheckForNull
+  private Organization createOrganization() {
+    if (!analysisMetadataHolder.isOrganizationsEnabled()) {
+      return null;
+    }
+    org.sonar.server.computation.task.projectanalysis.analysis.Organization organization = analysisMetadataHolder.getOrganization();
+    return new OrganizationImpl(organization.getName(), organization.getKey());
+  }
+
+  private Optional<Analysis> getAnalysis() {
+    Long analysisDate = getAnalysisDate();
+
+    if (analysisDate != null) {
+      return of(new AnalysisImpl(analysisMetadataHolder.getUuid(), analysisDate));
+    } else {
+      return empty();
+    }
   }
 
   private static Project createProject(org.sonar.ce.queue.CeTask ceTask) {
@@ -136,8 +162,8 @@ public class PostProjectAnalysisTasksExecutor implements ComputationStepExecutor
   }
 
   @CheckForNull
-  private QualityGateImpl createQualityGate(QualityGateHolder qualityGateHolder) {
-    Optional<org.sonar.server.computation.task.projectanalysis.qualitygate.QualityGate> qualityGateOptional = qualityGateHolder.getQualityGate();
+  private QualityGateImpl createQualityGate() {
+    Optional<org.sonar.server.computation.task.projectanalysis.qualitygate.QualityGate> qualityGateOptional = this.qualityGateHolder.getQualityGate();
     if (qualityGateOptional.isPresent()) {
       org.sonar.server.computation.task.projectanalysis.qualitygate.QualityGate qualityGate = qualityGateOptional.get();
 
@@ -146,6 +172,15 @@ public class PostProjectAnalysisTasksExecutor implements ComputationStepExecutor
         qualityGate.getName(),
         convert(qualityGateStatusHolder.getStatus()),
         convert(qualityGate.getConditions(), qualityGateStatusHolder.getStatusPerConditions()));
+    }
+    return null;
+  }
+
+  @CheckForNull
+  private BranchImpl createBranch() {
+    org.sonar.server.computation.task.projectanalysis.analysis.Branch analysisBranch = analysisMetadataHolder.getBranch();
+    if (!analysisBranch.isLegacyFeature()) {
+      return new BranchImpl(analysisBranch.isMain(), analysisBranch.getName(), Branch.Type.valueOf(analysisBranch.getType().name()));
     }
     return null;
   }
@@ -166,30 +201,41 @@ public class PostProjectAnalysisTasksExecutor implements ComputationStepExecutor
   }
 
   private static Collection<QualityGate.Condition> convert(Set<Condition> conditions, Map<Condition, ConditionStatus> statusPerConditions) {
-    return from(conditions)
-      .transform(new ConditionToCondition(statusPerConditions))
-      .toList();
+    return conditions.stream()
+      .map(new ConditionToCondition(statusPerConditions)::apply)
+      .collect(MoreCollectors.toList(statusPerConditions.size()));
   }
 
-  private static class ProjectAnalysis implements PostProjectAnalysisTask.ProjectAnalysis {
+  private static class ProjectAnalysisImpl implements PostProjectAnalysisTask.ProjectAnalysis {
+    @Nullable
+    private final Organization organization;
     private final CeTask ceTask;
     private final Project project;
-    @CheckForNull
-    private final Long analysisDate;
     private final long date;
     private final ScannerContext scannerContext;
-    @CheckForNull
+    @Nullable
     private final QualityGate qualityGate;
+    @Nullable
+    private final Branch branch;
+    @Nullable
+    private final Analysis analysis;
 
-    private ProjectAnalysis(CeTask ceTask, Project project,
-      @Nullable Long analysisDate, long date,
-      ScannerContext scannerContext, @Nullable QualityGate qualityGate) {
+    private ProjectAnalysisImpl(@Nullable Organization organization, CeTask ceTask, Project project,
+      @Nullable Analysis analysis, long date,
+      ScannerContext scannerContext, @Nullable QualityGate qualityGate, @Nullable Branch branch) {
+      this.organization = organization;
       this.ceTask = requireNonNull(ceTask, "ceTask can not be null");
       this.project = requireNonNull(project, "project can not be null");
-      this.analysisDate = analysisDate;
+      this.analysis = analysis;
       this.date = date;
       this.scannerContext = requireNonNull(scannerContext, "scannerContext can not be null");
       this.qualityGate = qualityGate;
+      this.branch = branch;
+    }
+
+    @Override
+    public Optional<Organization> getOrganization() {
+      return Optional.ofNullable(organization);
     }
 
     @Override
@@ -200,6 +246,11 @@ public class PostProjectAnalysisTasksExecutor implements ComputationStepExecutor
     @Override
     public Project getProject() {
       return project;
+    }
+
+    @Override
+    public Optional<Branch> getBranch() {
+      return ofNullable(branch);
     }
 
     @Override
@@ -214,11 +265,13 @@ public class PostProjectAnalysisTasksExecutor implements ComputationStepExecutor
     }
 
     @Override
-    public java.util.Optional<Date> getAnalysisDate() {
-      if (analysisDate == null) {
-        return java.util.Optional.empty();
-      }
-      return java.util.Optional.of(new Date(analysisDate));
+    public Optional<Date> getAnalysisDate() {
+      return analysis == null ? empty() : ofNullable(analysis.getDate());
+    }
+
+    @Override
+    public Optional<Analysis> getAnalysis() {
+      return ofNullable(analysis);
     }
 
     @Override
@@ -231,12 +284,52 @@ public class PostProjectAnalysisTasksExecutor implements ComputationStepExecutor
       return "ProjectAnalysis{" +
         "ceTask=" + ceTask +
         ", project=" + project +
-        ", analysisDate=" + analysisDate +
         ", date=" + date +
         ", scannerContext=" + scannerContext +
         ", qualityGate=" + qualityGate +
+        ", analysis=" + analysis +
         '}';
     }
   }
 
+  private static class AnalysisImpl implements Analysis {
+
+    private final String analysisUuid;
+    private final long date;
+
+    private AnalysisImpl(String analysisUuid, long date) {
+      this.analysisUuid = analysisUuid;
+      this.date = date;
+    }
+
+    @Override
+    public String getAnalysisUuid() {
+      return analysisUuid;
+    }
+
+    @Override
+    public Date getDate() {
+      return new Date(date);
+    }
+  }
+
+  private static class OrganizationImpl implements Organization {
+    private final String name;
+    private final String key;
+
+    private OrganizationImpl(String name, String key) {
+      this.name = requireNonNull(name, "name can't be null");
+      this.key = requireNonNull(key, "key can't be null");
+    }
+
+    @Override
+    public String getName() {
+      return name;
+    }
+
+    @Override
+    public String getKey() {
+      return key;
+    }
+  }
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -35,8 +35,10 @@ import org.elasticsearch.search.aggregations.AggregationBuilders;
 import org.elasticsearch.search.aggregations.bucket.filter.FilterAggregationBuilder;
 import org.elasticsearch.search.aggregations.bucket.terms.Terms;
 import org.elasticsearch.search.aggregations.bucket.terms.Terms.Order;
-import org.elasticsearch.search.aggregations.bucket.terms.TermsBuilder;
+import org.elasticsearch.search.aggregations.bucket.terms.TermsAggregationBuilder;
+import org.elasticsearch.search.aggregations.bucket.terms.support.IncludeExclude;
 
+import static java.lang.Math.max;
 import static org.elasticsearch.index.query.QueryBuilders.boolQuery;
 
 public class StickyFacetBuilder {
@@ -44,6 +46,9 @@ public class StickyFacetBuilder {
   private static final int FACET_DEFAULT_MIN_DOC_COUNT = 1;
   private static final int FACET_DEFAULT_SIZE = 10;
   private static final Order FACET_DEFAULT_ORDER = Terms.Order.count(false);
+  /** In some cases the user selects >15 items for one facet. In that case, we want to calculate the doc count for all of them (not just the first 15 items, which would be the
+   * default for the TermsAggregation). */
+  private static final int MAXIMUM_NUMBER_OF_SELECTED_ITEMS_WHOSE_DOC_COUNT_WILL_BE_CALCULATED = 50;
   private static final Collector<CharSequence, ?, String> PIPE_JOINER = Collectors.joining("|");
 
   private final QueryBuilder query;
@@ -80,7 +85,8 @@ public class StickyFacetBuilder {
    * @param selected the terms, that the user already has selected
    * @return the (global) aggregation, that can be added on top level of the elasticsearch request
    */
-  public AggregationBuilder buildStickyFacet(String fieldName, String facetName, Function<TermsBuilder, AggregationBuilder<?>> additionalAggregationFilter, Object... selected) {
+  public AggregationBuilder buildStickyFacet(String fieldName, String facetName, Function<TermsAggregationBuilder, AggregationBuilder> additionalAggregationFilter,
+    Object... selected) {
     return buildStickyFacet(fieldName, facetName, FACET_DEFAULT_SIZE, additionalAggregationFilter, selected);
   }
 
@@ -88,7 +94,7 @@ public class StickyFacetBuilder {
     return buildStickyFacet(fieldName, facetName, size, t -> t, selected);
   }
 
-  private AggregationBuilder buildStickyFacet(String fieldName, String facetName, int size, Function<TermsBuilder, AggregationBuilder<?>> additionalAggregationFilter,
+  private AggregationBuilder buildStickyFacet(String fieldName, String facetName, int size, Function<TermsAggregationBuilder, AggregationBuilder> additionalAggregationFilter,
     Object... selected) {
     BoolQueryBuilder facetFilter = getStickyFacetFilter(fieldName);
     FilterAggregationBuilder facetTopAggregation = buildTopFacetAggregation(fieldName, facetName, facetFilter, size, additionalAggregationFilter);
@@ -114,17 +120,16 @@ public class StickyFacetBuilder {
   }
 
   private FilterAggregationBuilder buildTopFacetAggregation(String fieldName, String facetName, BoolQueryBuilder facetFilter, int size,
-    Function<TermsBuilder, AggregationBuilder<?>> additionalAggregationFilter) {
-    TermsBuilder termsAggregation = buildTermsFacetAggregation(fieldName, facetName, size);
-    AggregationBuilder<?> improvedAggregation = additionalAggregationFilter.apply(termsAggregation);
+    Function<TermsAggregationBuilder, AggregationBuilder> additionalAggregationFilter) {
+    TermsAggregationBuilder termsAggregation = buildTermsFacetAggregation(fieldName, facetName, size);
+    AggregationBuilder improvedAggregation = additionalAggregationFilter.apply(termsAggregation);
     return AggregationBuilders
-      .filter(facetName + "_filter")
-      .filter(facetFilter)
+      .filter(facetName + "_filter", facetFilter)
       .subAggregation(improvedAggregation);
   }
 
-  private TermsBuilder buildTermsFacetAggregation(String fieldName, String facetName, int size) {
-    TermsBuilder termsAggregation = AggregationBuilders.terms(facetName)
+  private TermsAggregationBuilder buildTermsFacetAggregation(String fieldName, String facetName, int size) {
+    TermsAggregationBuilder termsAggregation = AggregationBuilders.terms(facetName)
       .field(fieldName)
       .order(order)
       .size(size)
@@ -136,7 +141,7 @@ public class StickyFacetBuilder {
   }
 
   public FilterAggregationBuilder addSelectedItemsToFacet(String fieldName, String facetName, FilterAggregationBuilder facetTopAggregation,
-    Function<TermsBuilder, AggregationBuilder<?>> additionalAggregationFilter, Object... selected) {
+    Function<TermsAggregationBuilder, AggregationBuilder> additionalAggregationFilter, Object... selected) {
     if (selected.length <= 0) {
       return facetTopAggregation;
     }
@@ -145,14 +150,15 @@ public class StickyFacetBuilder {
       .map(s -> EsUtils.escapeSpecialRegexChars(s.toString()))
       .collect(PIPE_JOINER);
 
-    TermsBuilder selectedTerms = AggregationBuilders.terms(facetName + "_selected")
+    TermsAggregationBuilder selectedTerms = AggregationBuilders.terms(facetName + "_selected")
+      .size(max(MAXIMUM_NUMBER_OF_SELECTED_ITEMS_WHOSE_DOC_COUNT_WILL_BE_CALCULATED, includes.length()))
       .field(fieldName)
-      .include(includes);
+      .includeExclude(new IncludeExclude(includes, null));
     if (subAggregation != null) {
       selectedTerms = selectedTerms.subAggregation(subAggregation);
     }
 
-    AggregationBuilder<?> improvedAggregation = additionalAggregationFilter.apply(selectedTerms);
+    AggregationBuilder improvedAggregation = additionalAggregationFilter.apply(selectedTerms);
     facetTopAggregation.subAggregation(improvedAggregation);
     return facetTopAggregation;
   }

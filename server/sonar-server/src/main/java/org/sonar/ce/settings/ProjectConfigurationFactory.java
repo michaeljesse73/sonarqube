@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,6 +24,10 @@ import org.sonar.api.config.Configuration;
 import org.sonar.api.config.Settings;
 import org.sonar.api.config.internal.ConfigurationBridge;
 import org.sonar.db.DbClient;
+import org.sonar.server.computation.task.projectanalysis.analysis.Branch;
+import org.sonar.server.settings.ChildSettings;
+
+import static org.sonar.db.component.ComponentDto.generateBranchKey;
 
 @ComputeEngineSide
 public class ProjectConfigurationFactory {
@@ -36,11 +40,16 @@ public class ProjectConfigurationFactory {
     this.dbClient = dbClient;
   }
 
-  public Configuration newProjectConfiguration(String projectKey) {
-    Settings projectSettings = new ProjectSettings(globalSettings);
-    dbClient.propertiesDao()
-      .selectProjectProperties(projectKey)
-      .forEach(property -> projectSettings.setProperty(property.getKey(), property.getValue()));
+  public Configuration newProjectConfiguration(String projectKey, Branch branch) {
+    Settings projectSettings = new ChildSettings(globalSettings);
+    addSettings(projectSettings, projectKey);
+    addSettings(projectSettings, generateBranchKey(projectKey, branch.getName()));
     return new ConfigurationBridge(projectSettings);
+  }
+
+  private void addSettings(Settings settings, String componentDbKey) {
+    dbClient.propertiesDao()
+      .selectProjectProperties(componentDbKey)
+      .forEach(property -> settings.setProperty(property.getKey(), property.getValue()));
   }
 }

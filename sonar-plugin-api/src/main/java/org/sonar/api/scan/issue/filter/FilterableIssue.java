@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,10 +20,8 @@
 package org.sonar.api.scan.issue.filter;
 
 import java.util.Date;
-
 import javax.annotation.CheckForNull;
 import javax.annotation.concurrent.ThreadSafe;
-
 import org.sonar.api.rule.RuleKey;
 
 /**
@@ -55,6 +53,10 @@ public interface FilterableIssue {
   @CheckForNull
   Double gap();
 
+  /**
+   * @deprecated since 6.6 useless
+   */
+  @Deprecated
   Date creationDate();
 
   String projectKey();

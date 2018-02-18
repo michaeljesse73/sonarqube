@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -283,10 +283,7 @@ class DefaultProfiler extends Profiler {
     if (level == LoggerLevel.TRACE && !logger.isTraceEnabled()) {
       return false;
     }
-    if (level == LoggerLevel.DEBUG && !logger.isDebugEnabled()) {
-      return false;
-    }
-    return true;
+    return level != LoggerLevel.DEBUG || logger.isDebugEnabled();
   }
 
   @Override

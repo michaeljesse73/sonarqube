@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -101,6 +101,12 @@ public class PropertyDbTester {
 
   public PropertyDbTester insertInternal(String key, String value) {
     dbClient.internalPropertiesDao().save(dbSession, key, value);
+    dbSession.commit();
+    return this;
+  }
+
+  public PropertyDbTester insertEmptyInternal(String key) {
+    dbClient.internalPropertiesDao().saveAsEmpty(dbSession, key);
     dbSession.commit();
     return this;
   }

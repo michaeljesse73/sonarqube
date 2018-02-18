@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,11 +18,12 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import React from 'react';
+import PropTypes from 'prop-types';
 import Avatar from '../../../components/ui/Avatar';
 
 export default class UserCard extends React.PureComponent {
   static propTypes = {
-    user: React.PropTypes.object.isRequired
+    user: PropTypes.object.isRequired
   };
 
   render() {
@@ -31,9 +32,11 @@ export default class UserCard extends React.PureComponent {
     return (
       <div className="account-user">
         <div id="avatar" className="pull-left account-user-avatar">
-          <Avatar email={user.email} name={user.name} size={60} />
+          <Avatar hash={user.avatar} name={user.name} size={60} />
         </div>
-        <h1 id="name" className="pull-left">{user.name}</h1>
+        <h1 id="name" className="pull-left">
+          {user.name}
+        </h1>
       </div>
     );
   }

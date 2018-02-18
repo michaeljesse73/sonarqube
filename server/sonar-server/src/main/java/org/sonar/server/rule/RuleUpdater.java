@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -81,7 +81,7 @@ public class RuleUpdater {
     apply(update, rule, userSession);
     update(dbSession, rule);
     updateParameters(dbSession, organization, update, rule);
-    ruleIndexer.commitAndIndex(dbSession, rule.getKey(), organization);
+    ruleIndexer.commitAndIndex(dbSession, rule.getId(), organization);
 
     return true;
   }

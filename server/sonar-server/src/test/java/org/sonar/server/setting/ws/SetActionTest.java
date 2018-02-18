@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -43,15 +43,20 @@ import org.sonar.db.DbSession;
 import org.sonar.db.DbTester;
 import org.sonar.db.component.ComponentDto;
 import org.sonar.db.component.ComponentTesting;
+import org.sonar.db.organization.OrganizationDto;
 import org.sonar.db.property.PropertyDbTester;
 import org.sonar.db.property.PropertyDto;
 import org.sonar.db.property.PropertyQuery;
+import org.sonar.process.ProcessProperties;
 import org.sonar.scanner.protocol.GsonHelper;
 import org.sonar.server.component.ComponentFinder;
 import org.sonar.server.component.TestComponentFinder;
 import org.sonar.server.exceptions.BadRequestException;
 import org.sonar.server.exceptions.ForbiddenException;
+import org.sonar.server.exceptions.NotFoundException;
 import org.sonar.server.i18n.I18nRule;
+import org.sonar.server.organization.DefaultOrganizationProvider;
+import org.sonar.server.organization.TestDefaultOrganizationProvider;
 import org.sonar.server.platform.SettingsChangeNotifier;
 import org.sonar.server.tester.UserSessionRule;
 import org.sonar.server.ws.TestRequest;
@@ -59,6 +64,7 @@ import org.sonar.server.ws.TestResponse;
 import org.sonar.server.ws.WsActionTester;
 
 import static com.google.common.collect.Lists.newArrayList;
+import static java.lang.String.format;
 import static java.util.Collections.singletonList;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.groups.Tuple.tuple;
@@ -89,7 +95,9 @@ public class SetActionTest {
   private FakeSettingsNotifier settingsChangeNotifier = new FakeSettingsNotifier(dbClient);
   private SettingsUpdater settingsUpdater = new SettingsUpdater(dbClient, definitions);
   private SettingValidations validations = new SettingValidations(definitions, dbClient, i18n);
-  private SetAction underTest = new SetAction(definitions, dbClient, componentFinder, userSession, settingsUpdater, settingsChangeNotifier, validations);
+  private DefaultOrganizationProvider defaultOrganizationProvider = TestDefaultOrganizationProvider.from(db);
+  private SetAction underTest = new SetAction(definitions, dbClient, componentFinder, userSession, settingsUpdater, settingsChangeNotifier, validations,
+    new SettingsWsSupport(defaultOrganizationProvider, userSession));
 
   private WsActionTester ws = new WsActionTester(underTest);
 
@@ -135,7 +143,7 @@ public class SetActionTest {
     ComponentDto project = db.components().insertPrivateProject();
     logInAsProjectAdministrator(project);
 
-    callForProjectSettingByKey("my.key", "my project value", project.key());
+    callForProjectSettingByKey("my.key", "my project value", project.getDbKey());
 
     assertGlobalSetting("my.key", "my global value");
     assertComponentSetting("my.key", "my project value", project.getId());
@@ -147,7 +155,7 @@ public class SetActionTest {
     ComponentDto project = db.components().insertPrivateProject();
     logInAsProjectAdministrator(project);
 
-    callForProjectSettingByKey("my.key", "my value", project.key());
+    callForProjectSettingByKey("my.key", "my value", project.getDbKey());
 
     assertComponentSetting("my.key", "my value", project.getId());
   }
@@ -160,7 +168,7 @@ public class SetActionTest {
     assertComponentSetting("my.key", "my project value", project.getId());
     logInAsProjectAdministrator(project);
 
-    callForProjectSettingByKey("my.key", "my new project value", project.key());
+    callForProjectSettingByKey("my.key", "my new project value", project.getDbKey());
 
     assertComponentSetting("my.key", "my new project value", project.getId());
   }
@@ -299,10 +307,10 @@ public class SetActionTest {
     callForComponentPropertySet("my.key", newArrayList(
       GSON.toJson(ImmutableMap.of("firstField", "firstValue", "secondField", "secondValue")),
       GSON.toJson(ImmutableMap.of("firstField", "anotherFirstValue", "secondField", "anotherSecondValue"))),
-      project.key());
+      project.getDbKey());
 
     assertThat(dbClient.propertiesDao().selectGlobalProperties(dbSession)).hasSize(3);
-    assertThat(dbClient.propertiesDao().selectProjectProperties(dbSession, project.key())).hasSize(5);
+    assertThat(dbClient.propertiesDao().selectProjectProperties(dbSession, project.getDbKey())).hasSize(5);
     assertGlobalSetting("my.key", "1");
     assertGlobalSetting("my.key.1.firstField", "oldFirstValue");
     assertGlobalSetting("my.key.1.secondField", "oldSecondValue");
@@ -318,7 +326,7 @@ public class SetActionTest {
   @Test
   public void persist_multi_value_with_type_metric() {
     definitions.addComponent(PropertyDefinition
-      .builder("my.key")
+      .builder("my_key")
       .name("foo")
       .description("desc")
       .category("cat")
@@ -327,13 +335,13 @@ public class SetActionTest {
       .defaultValue("default")
       .multiValues(true)
       .build());
-    dbClient.metricDao().insert(dbSession, newMetricDto().setKey("metric.key.1"));
-    dbClient.metricDao().insert(dbSession, newMetricDto().setKey("metric.key.2"));
+    dbClient.metricDao().insert(dbSession, newMetricDto().setKey("metric_key_1"));
+    dbClient.metricDao().insert(dbSession, newMetricDto().setKey("metric_key_2"));
     dbSession.commit();
 
-    callForMultiValueGlobalSetting("my.key", newArrayList("metric.key.1", "metric.key.2"));
+    callForMultiValueGlobalSetting("my_key", newArrayList("metric_key_1", "metric_key_2"));
 
-    assertGlobalSetting("my.key", "metric.key.1,metric.key.2");
+    assertGlobalSetting("my_key", "metric_key_1,metric_key_2");
   }
 
   @Test
@@ -394,6 +402,29 @@ public class SetActionTest {
   }
 
   @Test
+  public void set_leak_on_branch() {
+    ComponentDto project = db.components().insertMainBranch();
+    logInAsProjectAdministrator(project);
+    ComponentDto branch = db.components().insertProjectBranch(project);
+    String leakKey = "sonar.leak.period";
+    definitions.addComponent(PropertyDefinition.builder(leakKey)
+      .name("Leak")
+      .description("desc")
+      .onQualifiers(Qualifiers.PROJECT)
+      .build());
+    propertyDb.insertProperties(newComponentPropertyDto(leakKey, "1", branch));
+
+    ws.newRequest()
+      .setParam("key", leakKey)
+      .setParam("value", "2")
+      .setParam("component", branch.getKey())
+      .setParam("branch", branch.getBranch())
+      .execute();
+
+    assertComponentSetting(leakKey, "2", branch.getId());
+  }
+
+  @Test
   public void fail_when_no_key() {
     expectedException.expect(IllegalArgumentException.class);
 
@@ -411,7 +442,7 @@ public class SetActionTest {
   @Test
   public void fail_when_no_value() {
     expectedException.expect(BadRequestException.class);
-    expectedException.expectMessage("One and only one of 'value', 'values', 'fieldValues' must be provided");
+    expectedException.expectMessage("Either 'value', 'values' or 'fieldValues' must be provided");
 
     callForGlobalSetting("my.key", null);
   }
@@ -464,7 +495,7 @@ public class SetActionTest {
   @Test
   public void fail_when_data_and_metric_type_with_invalid_key() {
     definitions.addComponent(PropertyDefinition
-      .builder("my.key")
+      .builder("my_key")
       .name("foo")
       .description("desc")
       .category("cat")
@@ -473,14 +504,14 @@ public class SetActionTest {
       .defaultValue("default")
       .multiValues(true)
       .build());
-    dbClient.metricDao().insert(dbSession, newMetricDto().setKey("metric.key"));
-    dbClient.metricDao().insert(dbSession, newMetricDto().setKey("metric.disabled.key").setEnabled(false));
+    dbClient.metricDao().insert(dbSession, newMetricDto().setKey("metric_key"));
+    dbClient.metricDao().insert(dbSession, newMetricDto().setKey("metric_disabled_key").setEnabled(false));
     dbSession.commit();
 
     expectedException.expect(BadRequestException.class);
-    expectedException.expectMessage("Error when validating metric setting with key 'my.key' and values [metric.key, metric.disabled.key]. A value is not a valid metric key.");
+    expectedException.expectMessage("Error when validating metric setting with key 'my_key' and values [metric_key, metric_disabled_key]. A value is not a valid metric key.");
 
-    callForMultiValueGlobalSetting("my.key", newArrayList("metric.key", "metric.disabled.key"));
+    callForMultiValueGlobalSetting("my_key", newArrayList("metric_key", "metric_disabled_key"));
   }
 
   @Test
@@ -557,7 +588,7 @@ public class SetActionTest {
     expectedException.expectMessage("Setting 'my.key' cannot be set on a View");
     logInAsProjectAdministrator(view);
 
-    callForProjectSettingByKey("my.key", "My Value", view.key());
+    callForProjectSettingByKey("my.key", "My Value", view.getDbKey());
   }
 
   @Test
@@ -580,7 +611,7 @@ public class SetActionTest {
     expectedException.expect(BadRequestException.class);
     expectedException.expectMessage("Setting 'my.key' cannot be set on a CptLabel");
 
-    callForProjectSettingByKey("my.key", "My Value", file.key());
+    callForProjectSettingByKey("my.key", "My Value", file.getDbKey());
   }
 
   @Test
@@ -634,7 +665,7 @@ public class SetActionTest {
   private void succeedForPropertyWithoutDefinitionAndValidComponent(ComponentDto project, ComponentDto module) {
     logInAsProjectAdministrator(project);
 
-    callForProjectSettingByKey("my.key", "My Value", module.key());
+    callForProjectSettingByKey("my.key", "My Value", module.getDbKey());
 
     assertComponentSetting("my.key", "My Value", module.getId());
   }
@@ -646,13 +677,13 @@ public class SetActionTest {
     expectedException.expect(BadRequestException.class);
     expectedException.expectMessage("Setting 'my.key' cannot be set on a QualifierLabel");
 
-    callForProjectSettingByKey("my.key", "My Value", component.key());
+    callForProjectSettingByKey("my.key", "My Value", component.getDbKey());
   }
 
   @Test
   public void fail_when_single_and_multi_value_provided() {
     expectedException.expect(BadRequestException.class);
-    expectedException.expectMessage("One and only one of 'value', 'values', 'fieldValues' must be provided");
+    expectedException.expectMessage("Either 'value', 'values' or 'fieldValues' must be provided");
 
     call("my.key", "My Value", newArrayList("Another Value"), null, null);
   }
@@ -895,7 +926,84 @@ public class SetActionTest {
     expectedException.expectMessage("Setting 'my.key' cannot be set on a Project");
 
     callForComponentPropertySet("my.key", newArrayList(
-      GSON.toJson(ImmutableMap.of("firstField", "firstValue"))), project.key());
+      GSON.toJson(ImmutableMap.of("firstField", "firstValue"))), project.getDbKey());
+  }
+
+  @Test
+  public void fail_when_using_branch_db_key() throws Exception {
+    OrganizationDto organization = db.organizations().insert();
+    ComponentDto project = db.components().insertMainBranch(organization);
+    userSession.logIn().addProjectPermission(UserRole.ADMIN, project);
+    ComponentDto branch = db.components().insertProjectBranch(project);
+
+    expectedException.expect(NotFoundException.class);
+    expectedException.expectMessage(format("Component key '%s' not found", branch.getDbKey()));
+
+    callForProjectSettingByKey("my.key", "My Value", branch.getDbKey());
+  }
+
+  @Test
+  public void fail_when_component_not_found() {
+    expectedException.expect(NotFoundException.class);
+    expectedException.expectMessage("Component key 'unknown' not found");
+
+    ws.newRequest()
+      .setParam("key", "foo")
+      .setParam("value", "2")
+      .setParam("component", "unknown")
+      .execute();
+  }
+
+  @Test
+  public void fail_when_branch_not_found() {
+    ComponentDto project = db.components().insertMainBranch();
+    logInAsProjectAdministrator(project);
+    ComponentDto branch = db.components().insertProjectBranch(project);
+    String settingKey = "not_allowed_on_branch";
+
+    expectedException.expect(NotFoundException.class);
+    expectedException.expectMessage(format("Component '%s' on branch 'unknown' not found", branch.getKey()));
+
+    ws.newRequest()
+      .setParam("key", settingKey)
+      .setParam("value", "2")
+      .setParam("component", branch.getKey())
+      .setParam("branch", "unknown")
+      .execute();
+  }
+
+  @Test
+  public void fail_when_setting_not_allowed_setting_on_branch() {
+    ComponentDto project = db.components().insertMainBranch();
+    logInAsProjectAdministrator(project);
+    ComponentDto branch = db.components().insertProjectBranch(project);
+    String settingKey = "not_allowed_on_branch";
+
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage(format("Setting '%s' cannot be set on a branch", settingKey));
+
+    ws.newRequest()
+      .setParam("key", settingKey)
+      .setParam("value", "2")
+      .setParam("component", branch.getKey())
+      .setParam("branch", branch.getBranch())
+      .execute();
+  }
+
+  @Test
+  public void fail_when_setting_key_is_defined_in_sonar_properties() {
+    ComponentDto project = db.components().insertPrivateProject();
+    logInAsProjectAdministrator(project);
+    String settingKey = ProcessProperties.Property.JDBC_URL.getKey();
+
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage(format("Setting '%s' can only be used in sonar.properties", settingKey));
+
+    ws.newRequest()
+      .setParam("key", settingKey)
+      .setParam("value", "any value")
+      .setParam("component", project.getKey())
+      .execute();
   }
 
   @Test
@@ -907,7 +1015,12 @@ public class SetActionTest {
     assertThat(definition.isInternal()).isFalse();
     assertThat(definition.since()).isEqualTo("6.1");
     assertThat(definition.params()).extracting(Param::key)
-      .containsOnly("key", "value", "values", "fieldValues", "component");
+      .containsOnly("key", "value", "values", "fieldValues", "component", "branch");
+
+    Param branch = definition.param("branch");
+    assertThat(branch.isInternal()).isTrue();
+    assertThat(branch.since()).isEqualTo("6.6");
+    assertThat(branch.description()).isEqualTo("Branch key. Only available on following settings : sonar.leak.period");
   }
 
   private void assertGlobalSetting(String key, String value) {
@@ -930,6 +1043,7 @@ public class SetActionTest {
     PropertyDto result = dbClient.propertiesDao().selectProjectProperty(componentId, key);
 
     assertThat(result)
+      .isNotNull()
       .extracting(PropertyDto::getKey, PropertyDto::getValue, PropertyDto::getResourceId)
       .containsExactly(key, value, componentId);
   }

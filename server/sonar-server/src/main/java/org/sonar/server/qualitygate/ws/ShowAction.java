@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,23 +21,44 @@ package org.sonar.server.qualitygate.ws;
 
 import com.google.common.io.Resources;
 import java.util.Collection;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
 import javax.annotation.Nullable;
+import org.sonar.api.server.ws.Change;
 import org.sonar.api.server.ws.Request;
 import org.sonar.api.server.ws.Response;
 import org.sonar.api.server.ws.WebService;
-import org.sonar.api.utils.text.JsonWriter;
+import org.sonar.db.DbClient;
+import org.sonar.db.DbSession;
+import org.sonar.db.metric.MetricDto;
+import org.sonar.db.organization.OrganizationDto;
 import org.sonar.db.qualitygate.QualityGateConditionDto;
 import org.sonar.db.qualitygate.QualityGateDto;
-import org.sonar.server.exceptions.BadRequestException;
-import org.sonar.server.qualitygate.QualityGates;
-import org.sonarqube.ws.client.qualitygate.QualityGatesWsParameters;
+import org.sonar.server.qualitygate.QualityGateFinder;
+import org.sonarqube.ws.Qualitygates.ShowWsResponse;
+
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
+import static org.sonar.core.util.Protobuf.setNullable;
+import static org.sonar.core.util.stream.MoreCollectors.toList;
+import static org.sonar.core.util.stream.MoreCollectors.toSet;
+import static org.sonar.core.util.stream.MoreCollectors.uniqueIndex;
+import static org.sonar.server.qualitygate.ws.QualityGatesWsParameters.PARAM_ID;
+import static org.sonar.server.qualitygate.ws.QualityGatesWsParameters.PARAM_NAME;
+import static org.sonar.server.ws.WsUtils.checkFound;
+import static org.sonar.server.ws.WsUtils.writeProtobuf;
 
 public class ShowAction implements QualityGatesWsAction {
 
-  private final QualityGates qualityGates;
+  private final DbClient dbClient;
+  private final QualityGateFinder qualityGateFinder;
+  private final QualityGatesWsSupport wsSupport;
 
-  public ShowAction(QualityGates qualityGates) {
-    this.qualityGates = qualityGates;
+  public ShowAction(DbClient dbClient, QualityGateFinder qualityGateFinder, QualityGatesWsSupport wsSupport) {
+    this.dbClient = dbClient;
+    this.qualityGateFinder = qualityGateFinder;
+    this.wsSupport = wsSupport;
   }
 
   @Override
@@ -45,47 +66,90 @@ public class ShowAction implements QualityGatesWsAction {
     WebService.NewAction action = controller.createAction("show")
       .setDescription("Display the details of a quality gate")
       .setSince("4.3")
-      .setResponseExample(Resources.getResource(this.getClass(), "example-show.json"))
+      .setResponseExample(Resources.getResource(this.getClass(), "show-example.json"))
+      .setChangelog(
+        new Change("7.0", "'isBuiltIn' field is added to the response"),
+        new Change("7.0", "'actions' field is added in the response"))
       .setHandler(this);
 
-    action.createParam(QualityGatesWsParameters.PARAM_ID)
+    action.createParam(PARAM_ID)
       .setDescription("ID of the quality gate. Either id or name must be set")
       .setExampleValue("1");
 
-    action.createParam(QualityGatesWsParameters.PARAM_NAME)
+    action.createParam(PARAM_NAME)
       .setDescription("Name of the quality gate. Either id or name must be set")
       .setExampleValue("My Quality Gate");
+
+    wsSupport.createOrganizationParam(action);
   }
 
   @Override
   public void handle(Request request, Response response) {
-    Long qGateId = request.paramAsLong(QualityGatesWsParameters.PARAM_ID);
-    String qGateName = request.param(QualityGatesWsParameters.PARAM_NAME);
-    checkOneOfIdOrNamePresent(qGateId, qGateName);
+    Long id = request.paramAsLong(PARAM_ID);
+    String name = request.param(PARAM_NAME);
+    checkOneOfIdOrNamePresent(id, name);
 
-    QualityGateDto qGate = qGateId == null ? qualityGates.get(qGateName) : qualityGates.get(qGateId);
-    qGateId = qGate.getId();
-
-    JsonWriter writer = response.newJsonWriter().beginObject()
-      .prop(QualityGatesWsParameters.PARAM_ID, qGate.getId())
-      .prop(QualityGatesWsParameters.PARAM_NAME, qGate.getName());
-    Collection<QualityGateConditionDto> conditions = qualityGates.listConditions(qGateId);
-    if (!conditions.isEmpty()) {
-      writer.name("conditions").beginArray();
-      for (QualityGateConditionDto condition : conditions) {
-        QualityGatesWs.writeQualityGateCondition(condition, writer);
-      }
-      writer.endArray();
+    try (DbSession dbSession = dbClient.openSession(false)) {
+      OrganizationDto organization = wsSupport.getOrganization(dbSession, request);
+      QualityGateDto qualityGate = getByNameOrId(dbSession, organization, name, id);
+      Collection<QualityGateConditionDto> conditions = getConditions(dbSession, qualityGate);
+      Map<Integer, MetricDto> metricsById = getMetricsById(dbSession, conditions);
+      QualityGateDto defaultQualityGate = qualityGateFinder.getDefault(dbSession, organization);
+      writeProtobuf(buildResponse(organization, qualityGate, defaultQualityGate, conditions, metricsById), request, response);
     }
-    writer.endObject().close();
+  }
+
+  private QualityGateDto getByNameOrId(DbSession dbSession, OrganizationDto organization, @Nullable String name, @Nullable Long id) {
+    if (name != null) {
+      return checkFound(dbClient.qualityGateDao().selectByOrganizationAndName(dbSession, organization, name), "No quality gate has been found for name %s", name);
+    }
+    if (id != null) {
+      return qualityGateFinder.getByOrganizationAndId(dbSession, organization, id);
+    }
+    throw new IllegalArgumentException("No parameter has been set to identify a quality gate");
+  }
+
+  public Collection<QualityGateConditionDto> getConditions(DbSession dbSession, QualityGateDto qualityGate) {
+    return dbClient.gateConditionDao().selectForQualityGate(dbSession, qualityGate.getId());
+  }
+
+  private Map<Integer, MetricDto> getMetricsById(DbSession dbSession, Collection<QualityGateConditionDto> conditions) {
+    Set<Integer> metricIds = conditions.stream().map(c -> (int) c.getMetricId()).collect(toSet());
+    return dbClient.metricDao().selectByIds(dbSession, metricIds).stream()
+      .filter(MetricDto::isEnabled)
+      .collect(uniqueIndex(MetricDto::getId));
+  }
+
+  private ShowWsResponse buildResponse(OrganizationDto organization, QualityGateDto qualityGate, QualityGateDto defaultQualityGate,
+    Collection<QualityGateConditionDto> conditions, Map<Integer, MetricDto> metricsById) {
+    return ShowWsResponse.newBuilder()
+      .setId(qualityGate.getId())
+      .setName(qualityGate.getName())
+      .setIsBuiltIn(qualityGate.isBuiltIn())
+      .addAllConditions(conditions.stream()
+        .map(toWsCondition(metricsById))
+        .collect(toList()))
+      .setActions(wsSupport.getActions(organization, qualityGate, defaultQualityGate))
+      .build();
+  }
+
+  private static Function<QualityGateConditionDto, ShowWsResponse.Condition> toWsCondition(Map<Integer, MetricDto> metricsById) {
+    return condition -> {
+      int metricId = (int) condition.getMetricId();
+      MetricDto metric = metricsById.get(metricId);
+      checkState(metric != null, "Could not find metric with id %s", metricId);
+      ShowWsResponse.Condition.Builder builder = ShowWsResponse.Condition.newBuilder()
+        .setId(condition.getId())
+        .setMetric(metric.getKey())
+        .setOp(condition.getOperator());
+      setNullable(condition.getPeriod(), builder::setPeriod);
+      setNullable(condition.getErrorThreshold(), builder::setError);
+      setNullable(condition.getWarningThreshold(), builder::setWarning);
+      return builder.build();
+    };
   }
 
   private static void checkOneOfIdOrNamePresent(@Nullable Long qGateId, @Nullable String qGateName) {
-    if (qGateId == null && qGateName == null) {
-      throw BadRequestException.create("Either one of 'id' or 'name' is required.");
-    } else if (qGateId != null && qGateName != null) {
-      throw BadRequestException.create("Only one of 'id' or 'name' must be provided.");
-    }
+    checkArgument(qGateId == null ^ qGateName == null, "Either '%s' or '%s' must be provided", PARAM_ID, PARAM_NAME);
   }
-
 }

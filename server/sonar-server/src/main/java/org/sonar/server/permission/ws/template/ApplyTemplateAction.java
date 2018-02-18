@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -31,13 +31,16 @@ import org.sonar.server.permission.PermissionTemplateService;
 import org.sonar.server.permission.ws.PermissionWsSupport;
 import org.sonar.server.permission.ws.PermissionsWsAction;
 import org.sonar.server.user.UserSession;
-import org.sonarqube.ws.client.permission.ApplyTemplateWsRequest;
+
+import javax.annotation.CheckForNull;
+import javax.annotation.Nullable;
 
 import static org.sonar.server.permission.PermissionPrivilegeChecker.checkGlobalAdmin;
 import static org.sonar.server.permission.ws.PermissionsWsParametersBuilder.createProjectParameters;
 import static org.sonar.server.permission.ws.PermissionsWsParametersBuilder.createTemplateParameters;
 import static org.sonar.server.permission.ws.ProjectWsRef.newWsProjectRef;
 import static org.sonar.server.permission.ws.template.WsTemplateRef.newTemplateRef;
+import static org.sonarqube.ws.client.permission.PermissionsWsParameters.PARAM_ORGANIZATION;
 import static org.sonarqube.ws.client.permission.PermissionsWsParameters.PARAM_PROJECT_ID;
 import static org.sonarqube.ws.client.permission.PermissionsWsParameters.PARAM_PROJECT_KEY;
 import static org.sonarqube.ws.client.permission.PermissionsWsParameters.PARAM_TEMPLATE_ID;
@@ -57,12 +60,13 @@ public class ApplyTemplateAction implements PermissionsWsAction {
     this.wsSupport = wsSupport;
   }
 
-  private static ApplyTemplateWsRequest toApplyTemplateWsRequest(Request request) {
-    return new ApplyTemplateWsRequest()
+  private static ApplyTemplateRequest toApplyTemplateWsRequest(Request request) {
+    return new ApplyTemplateRequest()
       .setProjectId(request.param(PARAM_PROJECT_ID))
       .setProjectKey(request.param(PARAM_PROJECT_KEY))
       .setTemplateId(request.param(PARAM_TEMPLATE_ID))
-      .setTemplateName(request.param(PARAM_TEMPLATE_NAME));
+      .setTemplateName(request.param(PARAM_TEMPLATE_NAME))
+      .setOrganization(request.param(PARAM_ORGANIZATION));
   }
 
   @Override
@@ -86,7 +90,7 @@ public class ApplyTemplateAction implements PermissionsWsAction {
     response.noContent();
   }
 
-  private void doHandle(ApplyTemplateWsRequest request) {
+  private void doHandle(ApplyTemplateRequest request) {
     try (DbSession dbSession = dbClient.openSession(false)) {
       PermissionTemplateDto template = wsSupport.findTemplate(dbSession, newTemplateRef(
         request.getTemplateId(), request.getOrganization(), request.getTemplateName()));
@@ -94,7 +98,64 @@ public class ApplyTemplateAction implements PermissionsWsAction {
       ComponentDto project = wsSupport.getRootComponentOrModule(dbSession, newWsProjectRef(request.getProjectId(), request.getProjectKey()));
       checkGlobalAdmin(userSession, template.getOrganizationUuid());
 
-      permissionTemplateService.apply(dbSession, template, Collections.singletonList(project));
+      permissionTemplateService.applyAndCommit(dbSession, template, Collections.singletonList(project));
+    }
+  }
+
+  private static class ApplyTemplateRequest {
+    private String projectId;
+    private String projectKey;
+    private String templateId;
+    private String organization;
+    private String templateName;
+
+    @CheckForNull
+    public String getProjectId() {
+      return projectId;
+    }
+
+    public ApplyTemplateRequest setProjectId(@Nullable String projectId) {
+      this.projectId = projectId;
+      return this;
+    }
+
+    @CheckForNull
+    public String getProjectKey() {
+      return projectKey;
+    }
+
+    public ApplyTemplateRequest setProjectKey(@Nullable String projectKey) {
+      this.projectKey = projectKey;
+      return this;
+    }
+
+    @CheckForNull
+    public String getTemplateId() {
+      return templateId;
+    }
+
+    public ApplyTemplateRequest setTemplateId(@Nullable String templateId) {
+      this.templateId = templateId;
+      return this;
+    }
+
+    @CheckForNull
+    public String getOrganization() {
+      return organization;
+    }
+
+    public ApplyTemplateRequest setOrganization(@Nullable String s) {
+      this.organization = s;
+      return this;
+    }
+    @CheckForNull
+    public String getTemplateName() {
+      return templateName;
+    }
+
+    public ApplyTemplateRequest setTemplateName(@Nullable String templateName) {
+      this.templateName = templateName;
+      return this;
     }
   }
 }

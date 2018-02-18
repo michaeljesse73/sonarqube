@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -54,8 +54,6 @@ public class QProfileFactoryImpl implements QProfileFactory {
     this.system2 = system2;
     this.activeRuleIndexer = activeRuleIndexer;
   }
-
-  // ------------- CREATION
 
   private static OrganizationDto requireNonNull(@Nullable OrganizationDto organization) {
     Objects.requireNonNull(organization, "Organization is required, when creating a quality profile.");
@@ -126,6 +124,10 @@ public class QProfileFactoryImpl implements QProfileFactory {
     db.qualityProfileDao().deleteProjectAssociationsByProfileUuids(dbSession, uuids);
     db.defaultQProfileDao().deleteByQProfileUuids(dbSession, uuids);
     db.qualityProfileDao().deleteOrgQProfilesByUuids(dbSession, uuids);
+
+    // Permissions are only available on custom profiles
+    db.qProfileEditUsersDao().deleteByQProfiles(dbSession, customProfiles);
+    db.qProfileEditGroupsDao().deleteByQProfiles(dbSession, customProfiles);
 
     // tables related to rules_profiles and active_rules are deleted
     // only for custom profiles. Built-in profiles are never

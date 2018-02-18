@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -28,7 +28,7 @@ import org.sonar.scanner.issue.ignore.scanner.IssueExclusionsLoader;
 import org.sonar.scanner.report.ReportPublisher;
 import org.sonar.scanner.rule.QProfileVerifier;
 import org.sonar.scanner.scan.filesystem.DefaultModuleFileSystem;
-import org.sonar.scanner.scan.filesystem.FileSystemLogger;
+import org.sonar.scanner.scan.filesystem.FileIndexer;
 import org.sonar.scanner.scm.ScmPublisher;
 
 public final class PublishPhaseExecutor extends AbstractPhaseExecutor {
@@ -39,9 +39,10 @@ public final class PublishPhaseExecutor extends AbstractPhaseExecutor {
   private final ScmPublisher scm;
 
   public PublishPhaseExecutor(InitializersExecutor initializersExecutor, PostJobsExecutor postJobsExecutor, SensorsExecutor sensorsExecutor, SensorContext sensorContext,
-    EventBus eventBus, ReportPublisher reportPublisher, FileSystemLogger fsLogger, DefaultModuleFileSystem fs, QProfileVerifier profileVerifier, 
-    IssueExclusionsLoader issueExclusionsLoader, CpdExecutor cpdExecutor, ScmPublisher scm, InputModuleHierarchy hierarchy) {
-    super(initializersExecutor, postJobsExecutor, sensorsExecutor, sensorContext, hierarchy, eventBus, fsLogger, fs, profileVerifier, issueExclusionsLoader);
+    EventBus eventBus, ReportPublisher reportPublisher, DefaultModuleFileSystem fs, QProfileVerifier profileVerifier,
+    IssueExclusionsLoader issueExclusionsLoader, CpdExecutor cpdExecutor, ScmPublisher scm, InputModuleHierarchy hierarchy, FileIndexer fileIndexer,
+    CoverageExclusions coverageExclusions) {
+    super(initializersExecutor, postJobsExecutor, sensorsExecutor, sensorContext, hierarchy, eventBus, fs, profileVerifier, issueExclusionsLoader, fileIndexer, coverageExclusions);
     this.eventBus = eventBus;
     this.reportPublisher = reportPublisher;
     this.cpdExecutor = cpdExecutor;

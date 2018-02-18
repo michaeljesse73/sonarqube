@@ -29,6 +29,19 @@
           ],
           "params": [
             {
+              "key": "constrained_numeric_param",
+              "required": false,
+              "internal": false,
+              "maximumValue": 12
+            },
+            {
+              "key": "constrained_string_param",
+              "required": false,
+              "internal": false,
+              "maximumLength": 64,
+              "minimumLength": 3
+            },
+            {
               "key": "name",
               "required": false,
               "internal": false

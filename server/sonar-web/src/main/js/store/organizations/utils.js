@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,14 +24,14 @@ import {
   areThereCustomOrganizations as customOrganizations
 } from '../rootReducer';
 
-export const getOrganization = (key: string) => {
+export function getOrganization(key /*: string */) {
   const store = getStore();
   const state = store.getState();
   return getOrganizationByKey(state, key);
-};
+}
 
-export const areThereCustomOrganizations = () => {
+export function areThereCustomOrganizations() {
   const store = getStore();
   const state = store.getState();
   return customOrganizations(state);
-};
+}

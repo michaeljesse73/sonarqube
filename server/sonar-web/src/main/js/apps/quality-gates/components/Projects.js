@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -17,10 +17,10 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import React, { Component } from 'react';
+import React from 'react';
 import ProjectsView from '../views/gate-projects-view';
 
-export default class Projects extends Component {
+export default class Projects extends React.PureComponent {
   componentDidMount() {
     this.renderView();
   }
@@ -44,12 +44,13 @@ export default class Projects extends Component {
   }
 
   renderView() {
-    const { qualityGate, edit } = this.props;
+    const { qualityGate, edit, organization } = this.props;
 
     this.projectsView = new ProjectsView({
       qualityGate,
       edit,
-      container: this.refs.container
+      container: this.refs.container,
+      organization
     });
     this.projectsView.render();
   }

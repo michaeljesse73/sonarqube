@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -46,7 +46,7 @@ import org.sonar.api.utils.DateUtils;
  *       .endObject()
  *   }
  * </pre>
- * 
+ *
  * <p>
  * By default, null objects are not serialized. To enable {@code null} serialization,
  * use {@link #setSerializeNulls(boolean)}.

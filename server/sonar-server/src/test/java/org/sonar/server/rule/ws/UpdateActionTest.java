@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -17,7 +17,6 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-
 package org.sonar.server.rule.ws;
 
 import java.io.IOException;
@@ -103,7 +102,7 @@ public class UpdateActionTest {
   private WsActionTester ws = new WsActionTester(underTest);
 
   @Test
-  public void update_custom_rule() throws Exception {
+  public void update_custom_rule() {
     logInAsQProfileAdministrator();
     RuleDefinitionDto templateRule = db.rules().insert(
       r -> r.setRuleKey(RuleKey.of("java", "S001")),
@@ -154,7 +153,7 @@ public class UpdateActionTest {
   }
 
   @Test
-  public void update_tags_for_default_organization() throws IOException {
+  public void update_tags_for_default_organization() {
     logInAsQProfileAdministrator();
 
     RuleDefinitionDto rule = db.rules().insert(setSystemTags("stag1", "stag2"));
@@ -174,7 +173,7 @@ public class UpdateActionTest {
   }
 
   @Test
-  public void update_tags_for_specific_organization() throws IOException {
+  public void update_tags_for_specific_organization() {
     OrganizationDto organization = db.organizations().insert();
     logInAsQProfileAdministrator(organization.getUuid());
 
@@ -202,7 +201,7 @@ public class UpdateActionTest {
   }
 
   @Test
-  public void update_rule_remediation_function() throws IOException {
+  public void update_rule_remediation_function() {
     OrganizationDto organization = db.organizations().insert();
     logInAsQProfileAdministrator(organization.getUuid());
 
@@ -245,7 +244,7 @@ public class UpdateActionTest {
   }
 
   @Test
-  public void update_custom_rule_with_deprecated_remediation_function_parameters() throws Exception {
+  public void update_custom_rule_with_deprecated_remediation_function_parameters() {
     logInAsQProfileAdministrator();
 
     RuleDefinitionDto rule = RuleTesting.newRule()
@@ -311,7 +310,23 @@ public class UpdateActionTest {
   }
 
   @Test
-  public void throw_ForbiddenException_if_not_profile_administrator() throws Exception {
+  public void throw_IllegalArgumentException_if_trying_to_update_builtin_rule_description() {
+    logInAsQProfileAdministrator();
+    RuleDefinitionDto rule = db.rules().insert();
+
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("Not a custom rule");
+
+    ws.newRequest().setMethod("POST")
+      .setParam("key", rule.getKey().toString())
+      .setParam("name", rule.getName())
+      .setParam("markdown_description", "New description")
+      .execute();
+
+  }
+
+  @Test
+  public void throw_ForbiddenException_if_not_profile_administrator() {
     userSession.logIn();
 
     expectedException.expect(ForbiddenException.class);
@@ -320,14 +335,14 @@ public class UpdateActionTest {
   }
 
   @Test
-  public void throw_UnauthorizedException_if_not_logged_in() throws Exception {
+  public void throw_UnauthorizedException_if_not_logged_in() {
     expectedException.expect(UnauthorizedException.class);
 
     ws.newRequest().setMethod("POST").execute();
   }
 
   @Test
-  public void throw_NotFoundException_if_organization_cannot_be_found() throws Exception {
+  public void throw_NotFoundException_if_organization_cannot_be_found() {
     logInAsQProfileAdministrator();
     RuleDefinitionDto rule = db.rules().insert();
 

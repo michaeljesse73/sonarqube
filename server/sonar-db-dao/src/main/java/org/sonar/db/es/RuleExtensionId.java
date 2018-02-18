@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2017 SonarSource SA
+ * Copyright (C) 2009-2018 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -17,7 +17,6 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-
 package org.sonar.db.es;
 
 import com.google.common.base.CharMatcher;
@@ -28,39 +27,32 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static java.lang.String.format;
 
 public class RuleExtensionId {
+  private final int ruleId;
   private final String organizationUuid;
-  private final String repositoryName;
-  private final String ruleKey;
   private final String id;
 
-  private static final Splitter ID_SPLITTER = Splitter.on(CharMatcher.anyOf(":|"));
+  private static final Splitter ID_SPLITTER = Splitter.on(CharMatcher.anyOf("|"));
 
-  public RuleExtensionId(String organizationUuid, String repositoryName, String ruleKey) {
+  public RuleExtensionId(String organizationUuid, int ruleId) {
     this.organizationUuid = organizationUuid;
-    this.repositoryName = repositoryName;
-    this.ruleKey = ruleKey;
-    this.id = format("%s:%s|%s",repositoryName,ruleKey,organizationUuid);
+    this.ruleId = ruleId;
+    this.id = format("%s|%s", ruleId, organizationUuid);
   }
 
   public RuleExtensionId(String ruleExtensionId) {
     List<String> splittedId = ID_SPLITTER.splitToList(ruleExtensionId);
-    checkArgument(splittedId.size() == 3, "Incorrect Id %s", ruleExtensionId);
+    checkArgument(splittedId.size() == 2, "Incorrect Id %s", ruleExtensionId);
     this.id = ruleExtensionId;
-    this.repositoryName = splittedId.get(0);
-    this.ruleKey = splittedId.get(1);
-    this.organizationUuid = splittedId.get(2);
+    this.ruleId = Integer.parseInt(splittedId.get(0));
+    this.organizationUuid = splittedId.get(1);
+  }
+
+  public int getRuleId() {
+    return ruleId;
   }
 
   public String getOrganizationUuid() {
     return organizationUuid;
-  }
-
-  public String getRepositoryName() {
-    return repositoryName;
-  }
-
-  public String getRuleKey() {
-    return ruleKey;
   }
 
   public String getId() {
