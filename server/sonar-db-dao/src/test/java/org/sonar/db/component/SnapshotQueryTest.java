@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -33,7 +33,7 @@ public class SnapshotQueryTest {
       .setComponentUuid("abcd")
       .setIsLast(true)
       .setStatus("P")
-      .setVersion("1.0")
+      .setProjectVersion("1.0")
       .setCreatedAfter(10L)
       .setCreatedBefore(20L)
       .setSort(BY_DATE, ASC);
@@ -41,7 +41,7 @@ public class SnapshotQueryTest {
     assertThat(query.getComponentUuid()).isEqualTo("abcd");
     assertThat(query.getIsLast()).isTrue();
     assertThat(query.getStatus()).isEqualTo("P");
-    assertThat(query.getVersion()).isEqualTo("1.0");
+    assertThat(query.getProjectVersion()).isEqualTo("1.0");
     assertThat(query.getCreatedAfter()).isEqualTo(10L);
     assertThat(query.getCreatedBefore()).isEqualTo(20L);
     assertThat(query.getSortField()).isEqualTo("created_at");

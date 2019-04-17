@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -33,7 +33,6 @@ import {
 import { Profile } from '../types';
 
 interface Props {
-  onRequestFail: (reasong: any) => void;
   profile: Profile;
   organization: string | null;
   updateProfiles: () => Promise<void>;
@@ -44,7 +43,7 @@ export default class ProfileHeader extends React.PureComponent<Props> {
     const { profile } = this.props;
     let inner = (
       <span>
-        {translate('quality_profiles.updated_')} <ProfileDate date={profile.userUpdatedAt} />
+        {translate('quality_profiles.updated_')} <ProfileDate date={profile.rulesUpdatedAt} />
       </span>
     );
     if (isStagnant(profile)) {
@@ -73,13 +72,13 @@ export default class ProfileHeader extends React.PureComponent<Props> {
     return (
       <header className="page-header quality-profile-header">
         <div className="note spacer-bottom">
-          <IndexLink to={getProfilesPath(organization)} className="text-muted">
+          <IndexLink className="text-muted" to={getProfilesPath(organization)}>
             {translate('quality_profiles.page')}
           </IndexLink>
           {' / '}
           <Link
-            to={getProfilesForLanguagePath(profile.language, organization)}
-            className="text-muted">
+            className="text-muted"
+            to={getProfilesForLanguagePath(profile.language, organization)}>
             {profile.languageName}
           </Link>
         </div>
@@ -103,15 +102,14 @@ export default class ProfileHeader extends React.PureComponent<Props> {
             {this.renderUsageDate()}
             <li>
               <Link
-                to={getProfileChangelogPath(profile.name, profile.language, organization)}
-                className="button">
+                className="button"
+                to={getProfileChangelogPath(profile.name, profile.language, organization)}>
                 {translate('changelog')}
               </Link>
             </li>
             <li>
               <ProfileActions
                 className="pull-left"
-                onRequestFail={this.props.onRequestFail}
                 organization={organization}
                 profile={profile}
                 updateProfiles={this.props.updateProfiles}

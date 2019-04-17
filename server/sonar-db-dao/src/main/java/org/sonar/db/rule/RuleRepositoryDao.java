@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,10 +21,12 @@ package org.sonar.db.rule;
 
 import java.util.Collection;
 import java.util.List;
-import java.util.Optional;
 import org.sonar.api.utils.System2;
 import org.sonar.db.Dao;
+import org.sonar.db.DatabaseUtils;
 import org.sonar.db.DbSession;
+
+import static com.google.common.base.Preconditions.checkArgument;
 
 public class RuleRepositoryDao implements Dao {
 
@@ -50,19 +52,19 @@ public class RuleRepositoryDao implements Dao {
     return dbSession.getMapper(RuleRepositoryMapper.class).selectByLanguage(language);
   }
 
-  public Optional<RuleRepositoryDto> selectByKey(DbSession dbSession, String key) {
-    return Optional.ofNullable(dbSession.getMapper(RuleRepositoryMapper.class).selectByKey(key));
-  }
-
-  public void truncate(DbSession dbSession) {
-    dbSession.getMapper(RuleRepositoryMapper.class).truncate();
-  }
-
-  public void insert(DbSession dbSession, Collection<RuleRepositoryDto> dtos) {
+  public void insertOrUpdate(DbSession dbSession, Collection<RuleRepositoryDto> dtos) {
     RuleRepositoryMapper mapper = dbSession.getMapper(RuleRepositoryMapper.class);
     long now = system2.now();
     for (RuleRepositoryDto dto : dtos) {
-      mapper.insert(dto, now);
+      int updated = mapper.update(dto);
+      if (updated == 0) {
+        mapper.insert(dto, now);
+      }
     }
+  }
+
+  public void deleteIfKeyNotIn(DbSession dbSession, Collection<String> keys) {
+    checkArgument(keys.size() < DatabaseUtils.PARTITION_SIZE_FOR_ORACLE, "too many rule repositories: %s", keys.size());
+    dbSession.getMapper(RuleRepositoryMapper.class).deleteIfKeyNotIn(keys);
   }
 }

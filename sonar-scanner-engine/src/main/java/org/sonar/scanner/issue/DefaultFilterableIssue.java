@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,35 +20,36 @@
 package org.sonar.scanner.issue;
 
 import java.util.Date;
-
 import javax.annotation.concurrent.ThreadSafe;
-
 import org.apache.commons.lang.builder.ToStringBuilder;
 import org.apache.commons.lang.builder.ToStringStyle;
-import org.sonar.api.batch.fs.InputModule;
-import org.sonar.api.batch.fs.internal.DefaultInputModule;
+import org.sonar.api.batch.fs.InputComponent;
+import org.sonar.api.batch.fs.TextRange;
+import org.sonar.api.batch.fs.internal.DefaultInputProject;
+import org.sonar.api.batch.fs.internal.DefaultTextPointer;
+import org.sonar.api.batch.fs.internal.DefaultTextRange;
 import org.sonar.api.rule.RuleKey;
 import org.sonar.api.scan.issue.filter.FilterableIssue;
-import org.sonar.scanner.ProjectAnalysisInfo;
+import org.sonar.scanner.ProjectInfo;
 import org.sonar.scanner.protocol.output.ScannerReport.Issue;
 
 @ThreadSafe
 public class DefaultFilterableIssue implements FilterableIssue {
   private final Issue rawIssue;
-  private final ProjectAnalysisInfo projectAnalysisInfo;
-  private final String componentKey;
-  private DefaultInputModule module;
+  private final InputComponent component;
+  private final ProjectInfo projectInfo;
+  private DefaultInputProject project;
 
-  public DefaultFilterableIssue(InputModule module, ProjectAnalysisInfo projectAnalysisInfo, Issue rawIssue, String componentKey) {
-    this.module = (DefaultInputModule) module;
-    this.projectAnalysisInfo = projectAnalysisInfo;
+  public DefaultFilterableIssue(DefaultInputProject project, ProjectInfo projectInfo, Issue rawIssue, InputComponent component) {
+    this.project = project;
+    this.projectInfo = projectInfo;
     this.rawIssue = rawIssue;
-    this.componentKey = componentKey;
+    this.component = component;
   }
 
   @Override
   public String componentKey() {
-    return componentKey;
+    return component.key();
   }
 
   @Override
@@ -66,9 +67,21 @@ public class DefaultFilterableIssue implements FilterableIssue {
     return rawIssue.getMsg();
   }
 
+  @Deprecated
   @Override
   public Integer line() {
     return rawIssue.hasTextRange() ? rawIssue.getTextRange().getStartLine() : null;
+  }
+
+  @Override
+  public TextRange textRange() {
+    if (!rawIssue.hasTextRange()) {
+      return null;
+    }
+
+    return new DefaultTextRange(
+      new DefaultTextPointer(rawIssue.getTextRange().getStartLine(), rawIssue.getTextRange().getStartOffset()),
+      new DefaultTextPointer(rawIssue.getTextRange().getEndLine(), rawIssue.getTextRange().getEndOffset()));
   }
 
   @Override
@@ -77,18 +90,17 @@ public class DefaultFilterableIssue implements FilterableIssue {
   }
 
   @Override
-  public Double effortToFix() {
-    return gap();
-  }
-
-  @Override
   public Date creationDate() {
-    return projectAnalysisInfo.analysisDate();
+    return projectInfo.getAnalysisDate();
   }
 
   @Override
   public String projectKey() {
-    return module.key();
+    return project.key();
+  }
+
+  public InputComponent getComponent() {
+    return component;
   }
 
   @Override

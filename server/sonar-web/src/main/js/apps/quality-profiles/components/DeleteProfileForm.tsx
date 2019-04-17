@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,15 +18,16 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
+import { Profile } from '../types';
 import { deleteProfile } from '../../../api/quality-profiles';
 import Modal from '../../../components/controls/Modal';
+import { SubmitButton, ResetButtonLink } from '../../../components/ui/buttons';
 import { translate, translateWithParameters } from '../../../helpers/l10n';
-import { Profile } from '../types';
+import { Alert } from '../../../components/ui/Alert';
 
 interface Props {
   onClose: () => void;
   onDelete: () => void;
-  onRequestFail: (reason: any) => void;
   profile: Profile;
 }
 
@@ -47,19 +48,13 @@ export default class DeleteProfileForm extends React.PureComponent<Props, State>
     this.mounted = false;
   }
 
-  handleCancelClick = (event: React.SyntheticEvent<HTMLElement>) => {
-    event.preventDefault();
-    this.props.onClose();
-  };
-
   handleFormSubmit = (event: React.SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
     this.setState({ loading: true });
-    deleteProfile(this.props.profile.key).then(this.props.onDelete, (error: any) => {
+    deleteProfile(this.props.profile.key).then(this.props.onDelete, () => {
       if (this.mounted) {
         this.setState({ loading: false });
       }
-      this.props.onRequestFail(error);
     });
   };
 
@@ -77,9 +72,9 @@ export default class DeleteProfileForm extends React.PureComponent<Props, State>
             <div className="js-modal-messages" />
             {profile.childrenCount > 0 ? (
               <div>
-                <div className="alert alert-warning">
+                <Alert variant="warning">
                   {translate('quality_profiles.this_profile_has_descendants')}
-                </div>
+                </Alert>
                 <p>
                   {translateWithParameters(
                     'quality_profiles.are_you_sure_want_delete_profile_x_and_descendants',
@@ -100,12 +95,15 @@ export default class DeleteProfileForm extends React.PureComponent<Props, State>
           </div>
           <div className="modal-foot">
             {this.state.loading && <i className="spinner spacer-right" />}
-            <button className="button-red" disabled={this.state.loading} id="delete-profile-submit">
+            <SubmitButton
+              className="button-red"
+              disabled={this.state.loading}
+              id="delete-profile-submit">
               {translate('delete')}
-            </button>
-            <a href="#" id="delete-profile-cancel" onClick={this.handleCancelClick}>
+            </SubmitButton>
+            <ResetButtonLink id="delete-profile-cancel" onClick={this.props.onClose}>
               {translate('cancel')}
-            </a>
+            </ResetButtonLink>
           </div>
         </form>
       </Modal>

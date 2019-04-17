@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -27,9 +27,10 @@
   border-radius: 2px;
   background-color: #d18582;
   color: #fff;
-  font-family: 'Helvetica Neue', 'Segoe UI', Helvetica, Arial, sans-serif;
+  font-family: var(--baseFontFamily);
   font-size: var(--smallFontSize);
   transition: background-color 0.3s ease;
+  user-select: none;
 }
 
 .location-index.selected {

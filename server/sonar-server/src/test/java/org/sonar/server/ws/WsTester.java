@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -31,6 +31,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 import org.apache.commons.io.IOUtils;
@@ -132,6 +133,11 @@ public class WsTester {
     protected List<String> readMultiParam(String key) {
       String value = params.get(key);
       return value == null ? emptyList() : singletonList(value);
+    }
+
+    @Override
+    public Map<String, String[]> getParams() {
+      return params.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, e -> new String[] {e.getValue()}));
     }
 
     @Override

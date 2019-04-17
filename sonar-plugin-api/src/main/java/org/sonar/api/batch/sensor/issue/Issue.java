@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -23,34 +23,19 @@ import java.util.List;
 import javax.annotation.CheckForNull;
 import org.sonar.api.batch.rule.Severity;
 import org.sonar.api.batch.sensor.Sensor;
-import org.sonar.api.rule.RuleKey;
 
 /**
  * Represents an issue detected by a {@link Sensor}.
  *
  * @since 5.1
  */
-public interface Issue {
-
+public interface Issue extends IIssue {
   interface Flow {
     /**
      * @return Ordered list of locations for the execution flow
      */
     List<IssueLocation> locations();
   }
-
-  /**
-   * The {@link RuleKey} of this issue.
-   */
-  RuleKey ruleKey();
-
-  /**
-   * Effort to fix the issue. Used by technical debt model.
-   * @deprecated since 5.5 use {@link #gap()}
-   */
-  @CheckForNull
-  @Deprecated
-  Double effortToFix();
 
   /**
    * Gap used to compute the effort for fixing the issue.
@@ -69,12 +54,13 @@ public interface Issue {
    * Primary locations for this issue.
    * @since 5.2
    */
+  @Override
   IssueLocation primaryLocation();
 
   /**
    * List of flows for this issue. Can be empty.
    * @since 5.2
    */
+  @Override
   List<Flow> flows();
-
 }

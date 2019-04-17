@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -33,6 +33,7 @@ import org.sonar.db.user.GroupDto;
 import org.sonar.db.user.UserDto;
 import org.sonar.server.es.EsTester;
 import org.sonar.server.es.IndexType;
+import org.sonar.server.es.IndexType.IndexMainType;
 import org.sonar.server.es.IndexingResult;
 import org.sonar.server.es.ProjectIndexer;
 import org.sonar.server.tester.UserSessionRule;
@@ -43,22 +44,23 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonar.api.web.UserRole.ADMIN;
 import static org.sonar.api.web.UserRole.USER;
 import static org.sonar.server.es.ProjectIndexer.Cause.PERMISSION_CHANGE;
+import static org.sonar.server.permission.index.IndexAuthorizationConstants.TYPE_AUTHORIZATION;
 
 public class PermissionIndexerTest {
 
-  private static final IndexType INDEX_TYPE_FOO_AUTH = AuthorizationTypeSupport.getAuthorizationIndexType(FooIndexDefinition.INDEX_TYPE_FOO);
+  private static final IndexMainType INDEX_TYPE_FOO_AUTH = IndexType.main(FooIndexDefinition.DESCRIPTOR, TYPE_AUTHORIZATION);
 
   @Rule
   public ExpectedException expectedException = ExpectedException.none();
   @Rule
   public DbTester db = DbTester.create(System2.INSTANCE);
   @Rule
-  public EsTester es = new EsTester(new FooIndexDefinition());
+  public EsTester es = EsTester.createCustom(new FooIndexDefinition());
   @Rule
   public UserSessionRule userSession = UserSessionRule.standalone();
 
-  private FooIndex fooIndex = new FooIndex(es.client(), new AuthorizationTypeSupport(userSession));
-  private FooIndexer fooIndexer = new FooIndexer(db.getDbClient(), es.client());
+  private FooIndex fooIndex = new FooIndex(es.client(), new WebAuthorizationTypeSupport(userSession));
+  private FooIndexer fooIndexer = new FooIndexer(es.client());
   private PermissionIndexer underTest = new PermissionIndexer(db.getDbClient(), es.client(), fooIndexer);
 
   @Test
@@ -78,7 +80,7 @@ public class PermissionIndexerTest {
   public void deletion_resilience_will_deindex_projects() {
     ComponentDto project1 = createUnindexedPublicProject();
     ComponentDto project2 = createUnindexedPublicProject();
-    //UserDto user1 = db.users().insertUser();
+    // UserDto user1 = db.users().insertUser();
     indexOnStartup();
     assertThat(es.countDocuments(INDEX_TYPE_FOO_AUTH)).isEqualTo(2);
 
@@ -335,8 +337,7 @@ public class PermissionIndexerTest {
   }
 
   private void assertThatAuthIndexHasSize(int expectedSize) {
-    IndexType authIndexType = underTest.getIndexTypes().iterator().next();
-    assertThat(es.countDocuments(authIndexType)).isEqualTo(expectedSize);
+    assertThat(es.countDocuments(FooIndexDefinition.TYPE_AUTHORIZATION)).isEqualTo(expectedSize);
   }
 
   private void indexOnStartup() {

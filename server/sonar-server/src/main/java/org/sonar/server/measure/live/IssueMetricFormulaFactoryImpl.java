@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -27,10 +27,10 @@ import org.sonar.api.measures.CoreMetrics;
 import org.sonar.api.measures.Metric;
 import org.sonar.api.rule.Severity;
 import org.sonar.api.rules.RuleType;
-import org.sonar.server.computation.task.projectanalysis.qualitymodel.Rating;
+import org.sonar.server.measure.Rating;
 
 import static java.util.Arrays.asList;
-import static org.sonar.server.computation.task.projectanalysis.qualitymodel.Rating.RATING_BY_SEVERITY;
+import static org.sonar.server.measure.Rating.RATING_BY_SEVERITY;
 
 public class IssueMetricFormulaFactoryImpl implements IssueMetricFormulaFactory {
 

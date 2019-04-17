@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -92,9 +92,9 @@ export default class Report extends React.PureComponent<Props, State> {
             <div className="spacer-top">
               <a
                 className="button js-report-download"
+                download={component.name + ' - Executive Report.pdf'}
                 href={getReportUrl(component.key)}
-                target="_blank"
-                download={component.name + ' - Executive Report.pdf'}>
+                target="_blank">
                 {translate('report.print')}
               </a>
             </div>

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,14 +24,14 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.sonar.process.systeminfo.protobuf.ProtobufSystemInfo;
 import org.sonar.server.es.EsTester;
-import org.sonar.server.es.FakeIndexDefinition;
+import org.sonar.server.es.newindex.FakeIndexDefinition;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class SearchNodesInfoLoaderImplTest {
 
   @Rule
-  public EsTester es = new EsTester(new FakeIndexDefinition());
+  public EsTester es = EsTester.createCustom(new FakeIndexDefinition());
 
   private SearchNodesInfoLoaderImpl underTest = new SearchNodesInfoLoaderImpl(es.client());
 

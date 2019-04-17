@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -155,7 +155,7 @@ public class DeleteUselessPropertiesTest {
 
   private void verifyPropertyKeys(String... propertyKeys) {
     List<Map<String, Object>> rows = db.select("select prop_key from " + TABLE_PROPERTIES);
-    Set<Object> result = rows.stream().map(cols -> cols.get("PROP_KEY")).collect(Collectors.toSet());
+    Set<String> result = rows.stream().map(cols -> (String)cols.get("PROP_KEY")).collect(Collectors.toSet());
     assertThat(result).containsOnly(propertyKeys);
   }
 

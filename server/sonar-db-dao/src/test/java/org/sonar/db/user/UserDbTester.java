@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,13 +19,15 @@
  */
 package org.sonar.db.user;
 
+import com.google.common.collect.ImmutableSet;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Consumer;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
-import org.sonar.core.permission.ProjectPermissions;
+import org.sonar.api.web.UserRole;
 import org.sonar.core.util.stream.MoreCollectors;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbTester;
@@ -37,11 +39,17 @@ import org.sonar.db.permission.UserPermissionDto;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.lang.String.format;
+import static java.util.Arrays.stream;
 import static org.sonar.db.permission.OrganizationPermission.ADMINISTER;
 import static org.sonar.db.user.GroupTesting.newGroupDto;
+import static org.sonar.db.user.UserTesting.newDisabledUser;
 import static org.sonar.db.user.UserTesting.newUserDto;
+import static org.sonar.db.user.UserTesting.newUserSettingDto;
+import static org.sonar.db.user.UserTokenTesting.newUserToken;
 
 public class UserDbTester {
+  private static final Set<String> PUBLIC_PERMISSIONS = ImmutableSet.of(UserRole.USER, UserRole.CODEVIEWER); // FIXME to check with Simon
+
   private final DbTester db;
   private final DbClient dbClient;
 
@@ -61,9 +69,17 @@ public class UserDbTester {
     return insertUser(dto);
   }
 
-  public UserDto insertUser(Consumer<UserDto> populateUserDto) {
+  @SafeVarargs
+  public final UserDto insertUser(Consumer<UserDto>... populators) {
     UserDto dto = newUserDto().setActive(true);
-    populateUserDto.accept(dto);
+    stream(populators).forEach(p -> p.accept(dto));
+    return insertUser(dto);
+  }
+
+  @SafeVarargs
+  public final UserDto insertDisabledUser(Consumer<UserDto>... populators) {
+    UserDto dto = newDisabledUser();
+    stream(populators).forEach(p -> p.accept(dto));
     return insertUser(dto);
   }
 
@@ -91,8 +107,25 @@ public class UserDbTester {
     return user;
   }
 
+  public UserDto updateLastConnectionDate(UserDto user, long lastConnectionDate) {
+    db.getDbClient().userDao().update(db.getSession(), user.setLastConnectionDate(lastConnectionDate));
+    db.getSession().commit();
+    return user;
+  }
+
   public Optional<UserDto> selectUserByLogin(String login) {
     return Optional.ofNullable(dbClient.userDao().selectByLogin(db.getSession(), login));
+  }
+
+  // USER SETTINGS
+
+  @SafeVarargs
+  public final UserPropertyDto insertUserSetting(UserDto user, Consumer<UserPropertyDto>... populators) {
+    UserPropertyDto dto = newUserSettingDto(user);
+    stream(populators).forEach(p -> p.accept(dto));
+    dbClient.userPropertiesDao().insertOrUpdate(db.getSession(), dto);
+    db.commit();
+    return dto;
   }
 
   // GROUPS
@@ -215,9 +248,9 @@ public class UserDbTester {
 
   public GroupPermissionDto insertProjectPermissionOnAnyone(String permission, ComponentDto project) {
     checkArgument(!project.isPrivate(), "No permission to group AnyOne can be granted on a private project");
-    checkArgument(!ProjectPermissions.PUBLIC_PERMISSIONS.contains(permission),
+    checkArgument(!PUBLIC_PERMISSIONS.contains(permission),
       "permission %s can't be granted on a public project", permission);
-    checkArgument(project.getMainBranchProjectUuid()==null, "Permissions can't be granted on branches");
+    checkArgument(project.getMainBranchProjectUuid() == null, "Permissions can't be granted on branches");
     GroupPermissionDto dto = new GroupPermissionDto()
       .setOrganizationUuid(project.getOrganizationUuid())
       .setGroupId(null)
@@ -235,9 +268,9 @@ public class UserDbTester {
 
   public GroupPermissionDto insertProjectPermissionOnGroup(GroupDto group, String permission, ComponentDto project) {
     checkArgument(group.getOrganizationUuid().equals(project.getOrganizationUuid()), "Different organizations");
-    checkArgument(project.isPrivate() || !ProjectPermissions.PUBLIC_PERMISSIONS.contains(permission),
+    checkArgument(project.isPrivate() || !PUBLIC_PERMISSIONS.contains(permission),
       "%s can't be granted on a public project", permission);
-    checkArgument(project.getMainBranchProjectUuid()==null, "Permissions can't be granted on branches");
+    checkArgument(project.getMainBranchProjectUuid() == null, "Permissions can't be granted on branches");
     GroupPermissionDto dto = new GroupPermissionDto()
       .setOrganizationUuid(group.getOrganizationUuid())
       .setGroupId(group.getId())
@@ -308,9 +341,9 @@ public class UserDbTester {
    * Grant permission on given project
    */
   public UserPermissionDto insertProjectPermissionOnUser(UserDto user, String permission, ComponentDto project) {
-    checkArgument(project.isPrivate() || !ProjectPermissions.PUBLIC_PERMISSIONS.contains(permission),
+    checkArgument(project.isPrivate() || !PUBLIC_PERMISSIONS.contains(permission),
       "%s can't be granted on a public project", permission);
-    checkArgument(project.getMainBranchProjectUuid()==null, "Permissions can't be granted on branches");
+    checkArgument(project.getMainBranchProjectUuid() == null, "Permissions can't be granted on branches");
     UserPermissionDto dto = new UserPermissionDto(project.getOrganizationUuid(), permission, user.getId(), project.getId());
     db.getDbClient().userPermissionDao().insert(db.getSession(), dto);
     db.commit();
@@ -332,4 +365,14 @@ public class UserDbTester {
       .map(OrganizationPermission::fromKey)
       .collect(MoreCollectors.toList());
   }
+
+  @SafeVarargs
+  public final UserTokenDto insertToken(UserDto user, Consumer<UserTokenDto>... populators) {
+    UserTokenDto dto = newUserToken().setUserUuid(user.getUuid());
+    stream(populators).forEach(p -> p.accept(dto));
+    db.getDbClient().userTokenDao().insert(db.getSession(), dto);
+    db.commit();
+    return dto;
+  }
+
 }

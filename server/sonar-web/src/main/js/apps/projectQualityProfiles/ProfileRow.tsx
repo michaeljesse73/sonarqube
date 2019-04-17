@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -90,8 +90,8 @@ export default class ProfileRow extends React.PureComponent<Props, State> {
         optionRenderer={this.renderProfileName}
         options={options}
         style={{ width: 300 }}
-        valueRenderer={this.renderProfileName}
         value={profile.key}
+        valueRenderer={this.renderProfileName}
       />
     );
   }

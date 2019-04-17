@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,20 +19,10 @@
  */
 import { connect } from 'react-redux';
 import DefaultPageSelector from './DefaultPageSelector';
-import { CurrentUser } from '../../../app/types';
-import { getCurrentUser, getGlobalSettingValue } from '../../../store/rootReducer';
+import { getCurrentUser, Store } from '../../../store/rootReducer';
 
-interface StateProps {
-  currentUser: CurrentUser;
-  onSonarCloud: boolean;
-}
+const stateToProps = (state: Store) => ({
+  currentUser: getCurrentUser(state)
+});
 
-const stateToProps = (state: any) => {
-  const onSonarCloudSetting = getGlobalSettingValue(state, 'sonar.sonarcloud.enabled');
-  return {
-    currentUser: getCurrentUser(state),
-    onSonarCloud: Boolean(onSonarCloudSetting && onSonarCloudSetting.value === 'true')
-  };
-};
-
-export default connect<StateProps>(stateToProps)(DefaultPageSelector);
+export default connect(stateToProps)(DefaultPageSelector);

@@ -12,7 +12,6 @@
     p.module_uuid_path as moduleUuidPath,
     p.main_branch_project_uuid as mainBranchProjectUuid,
     p.kee as kee,
-    p.deprecated_kee as deprecatedKey,
     p.name as name,
     p.long_name as longName,
     p.description as description,
@@ -36,15 +35,26 @@
       p.kee=#{key,jdbcType=VARCHAR}
   </select>
 
-  <select id="selectByKeyAndBranch" parameterType="String" resultType="Component">
-    SELECT
-    <include refid="componentColumns"/>
-    FROM projects p
-    INNER JOIN project_branches pb on pb.uuid = p.project_uuid
-    <where>
+  <select id="selectBranchByKeyAndBranchKey" parameterType="String" resultType="Component">
+    select
+      <include refid="componentColumns"/>
+    from projects p
+    inner join project_branches pb on pb.uuid = p.project_uuid
+    where
       (p.kee=#{dbKey,jdbcType=VARCHAR} OR p.kee=#{key,jdbcType=VARCHAR})
-      AND pb.kee=#{branch,jdbcType=VARCHAR}
-    </where>
+      and pb.kee=#{branch,jdbcType=VARCHAR}
+      and (pb.branch_type='LONG' or pb.branch_type='SHORT')
+  </select>
+
+  <select id="selectPrByKeyAndBranchKey" parameterType="String" resultType="Component">
+    select
+      <include refid="componentColumns"/>
+    from projects p
+    inner join project_branches pb on pb.uuid = p.project_uuid
+    where
+      (p.kee=#{dbKey,jdbcType=VARCHAR} OR p.kee=#{key,jdbcType=VARCHAR})
+      and pb.kee=#{branch,jdbcType=VARCHAR}
+      and pb.branch_type='PULL_REQUEST'
   </select>
 
   <select id="selectComponentsHavingSameKeyOrderedById" parameterType="String" resultType="Component">
@@ -70,6 +80,17 @@
       p.uuid=#{uuid,jdbcType=VARCHAR}
   </select>
 
+  <select id="selectByAlmIdAndAlmRepositoryId" resultType="Component">
+    select
+    <include refid="componentColumns"/>
+    from
+    projects p
+    inner join
+    project_alm_bindings pab on pab.project_uuid = p.uuid
+    where
+    pab.alm_id = #{almId,jdbcType=VARCHAR} and pab.repo_id = #{almRepositoryId,jdbcType=VARCHAR}
+  </select>
+
   <select id="selectByProjectUuid" parameterType="string" resultType="Component">
     select
     <include refid="componentColumns"/>
@@ -90,6 +111,18 @@
       <foreach collection="keys" open="(" close=")" item="key" separator=",">
         #{key,jdbcType=VARCHAR}
       </foreach>
+  </select>
+
+  <select id="selectByDbKeys" parameterType="String" resultType="Component">
+    select
+    <include refid="componentColumns"/>
+    from projects p
+    where
+    p.enabled=${_true}
+    and p.kee in
+    <foreach collection="dbKeys" open="(" close=")" item="key" separator=",">
+      #{key,jdbcType=VARCHAR}
+    </foreach>
   </select>
 
   <select id="selectByKeysAndBranch" parameterType="String" resultType="Component">
@@ -204,7 +237,6 @@
       and p.scope='FIL'
     INNER JOIN file_sources fs ON
       fs.file_uuid=p.uuid
-      and fs.data_type='SOURCE'
     where
       root.uuid=#{projectUuid,jdbcType=VARCHAR}
   </select>
@@ -219,7 +251,6 @@
     FROM projects p
     INNER JOIN file_sources fs ON
       fs.file_uuid=p.uuid
-      and fs.data_type='SOURCE'
     <include refid="modulesTreeQuery"/>
   </select>
 
@@ -234,13 +265,14 @@
       AND p.main_branch_project_uuid IS NULL
   </select>
 
-  <select id="selectAllRootsByOrganization" resultType="Component">
+  <select id="selectProjectsByOrganization" resultType="Component">
     select
       <include refid="componentColumns"/>
     from projects p
     where
-      p.scope='PRJ'
-    and (p.qualifier='TRK' or p.qualifier='VW' or p.qualifier='APP')
+      p.enabled=${_true}
+      and p.scope='PRJ'
+      and p.qualifier='TRK'
       and p.organization_uuid = #{organizationUuid,jdbcType=VARCHAR}
       and p.main_branch_project_uuid IS NULL
   </select>
@@ -253,6 +285,16 @@
       <foreach collection="qualifiers" open="(" close=")" item="qualifier" separator="OR ">
         p.qualifier=#{qualifier,jdbcType=VARCHAR}
       </foreach>
+  </select>
+
+  <select id="countEnabledModulesByProjectUuid" resultType="int">
+    select
+      count(1)
+    from projects p
+    where
+      p.enabled=${_true}
+      and p.project_uuid = #{projectUuid,jdbcType=VARCHAR}
+      and p.qualifier = 'BRC'
   </select>
 
   <select id="countComponentByOrganizationAndId" resultType="int">
@@ -294,9 +336,6 @@
           <foreach collection="query.qualifiers" item="qualifier" open="(" close=")" separator=",">
             #{qualifier,jdbcType=VARCHAR}
           </foreach>
-      </if>
-      <if test="query.language!=null">
-        and p.language = #{query.language,jdbcType=VARCHAR}
       </if>
       <if test="query.componentIds!=null">
         and p.id in
@@ -340,7 +379,57 @@
       </if>
       <if test="query.isOnProvisionedOnly()">
         and not exists(select 1 from snapshots sp where sp.component_uuid=p.uuid)
+        and not exists(
+          select 1 from snapshots sp
+          inner join project_branches pb on sp.component_uuid = pb.uuid
+          where pb.project_uuid = p.uuid
+        )
       </if>
+      <if test="query.anyBranchAnalyzedAfter != null">
+        and (
+          exists(
+            -- branches of projects
+            select 1 from snapshots s
+            inner join project_branches pb on s.component_uuid = pb.uuid
+            where pb.project_uuid = p.uuid
+            and s.status='P'
+            and s.islast = ${_true}
+            and s.created_at &gt;= #{query.anyBranchAnalyzedAfter,jdbcType=BIGINT}
+          )
+          or exists (
+            -- applications, portfolios
+            select 1 from snapshots s
+            where s.component_uuid = p.uuid
+            and s.status='P'
+            and s.islast = ${_true}
+            and s.created_at &gt;= #{query.anyBranchAnalyzedAfter,jdbcType=BIGINT}
+          )
+        )
+      </if>
+      <if test="query.anyBranchAnalyzedBefore != null">
+        and (
+          exists(
+          -- branches of projects
+          select 1 from snapshots s
+          inner join project_branches pb on s.component_uuid = pb.uuid
+          where pb.project_uuid = p.uuid
+          and s.status='P'
+          and s.islast = ${_true}
+          and s.created_at &lt; #{query.anyBranchAnalyzedBefore,jdbcType=BIGINT}
+          )
+          or exists (
+          -- applications, portfolios
+          select 1 from snapshots s
+          where s.component_uuid = p.uuid
+          and s.status='P'
+          and s.islast = ${_true}
+          and s.created_at &lt; #{query.anyBranchAnalyzedBefore,jdbcType=BIGINT}
+          )
+        )
+      </if>
+    <if test="query.createdAfter != null">
+      and p.created_at &gt;= #{query.createdAfter,jdbcType=TIMESTAMP}
+    </if>
   </sql>
 
   <select id="selectDescendants" resultType="Component">
@@ -396,6 +485,23 @@
       </foreach>
   </select>
 
+  <select id="selectViewKeysWithEnabledCopyOfProject" resultType="String">
+    select
+      distinct p.kee
+    from projects p
+    inner join projects leaf on
+      leaf.qualifier = 'TRK'
+      and leaf.scope = 'FIL'
+      and leaf.enabled = ${_true}
+      and leaf.copy_component_uuid in
+        <foreach collection="projectUuids" open="(" close=")" item="uuid" separator=",">#{uuid,jdbcType=VARCHAR}</foreach>
+    where
+      p.enabled = ${_true}
+      and p.uuid = leaf.project_uuid
+      and p.scope = 'PRJ'
+      and p.qualifier in ('VW', 'APP')
+  </select>
+
   <select id="selectProjectsFromView" resultType="String">
     select p.copy_component_uuid
     from projects p
@@ -421,13 +527,22 @@
       </if>
     </where>
   </select>
-  
+
+  <select id="selectEnabledComponentsWithModuleUuidFromProjectKey" resultType="ComponentWithModuleUuid">
+    SELECT
+      p.uuid as uuid, p.module_uuid as moduleUuid, p.path as path, p.scope as scope
+    FROM
+      projects p
+    INNER JOIN
+      projects root ON root.uuid=p.project_uuid AND p.enabled = ${_true} AND root.kee=#{projectKey,jdbcType=VARCHAR}
+  </select>
+
   <select id="selectUuidsByKeyFromProjectKey" parameterType="string" resultType="KeyWithUuid">
     SELECT
      p.kee, p.uuid
-    FROM 
+    FROM
       projects p
-    INNER JOIN 
+    INNER JOIN
       projects root ON root.uuid=p.project_uuid AND root.kee=#{projectKey,jdbcType=VARCHAR}
   </select>
 
@@ -474,6 +589,24 @@
       </if>
   </select>
 
+  <select id="scrollAllFilesForFileMove" parameterType="map" resultType="org.sonar.db.component.FileMoveRowDto" fetchSize="${_scrollFetchSize}" resultSetType="FORWARD_ONLY">
+    select
+      p.id,
+      p.uuid as uuid,
+      p.kee as kee,
+      p.path as path,
+      fs.line_count as lineCount
+    from projects p
+    inner join file_sources fs on
+      fs.file_uuid = p.uuid
+    where
+      p.project_uuid = #{projectUuid,jdbcType=VARCHAR}
+      and p.enabled = ${_true}
+      and p.scope = 'FIL'
+      and p.qualifier in ('FIL', 'UTS')
+      and p.path is not null
+  </select>
+
   <select id="selectProjectsByNameQuery" resultType="Component">
     select
     <include refid="componentColumns"/>
@@ -499,7 +632,6 @@
     INSERT INTO projects (
       organization_uuid,
       kee,
-      deprecated_kee,
       uuid,
       uuid_path,
       project_uuid,
@@ -520,6 +652,7 @@
       enabled,
       created_at,
       b_changed,
+      deprecated_kee,
       b_copy_component_uuid,
       b_description,
       b_enabled,
@@ -534,7 +667,6 @@
     VALUES (
     #{organizationUuid,jdbcType=VARCHAR},
     #{kee,jdbcType=VARCHAR},
-    #{deprecatedKey,jdbcType=VARCHAR},
     #{uuid,jdbcType=VARCHAR},
     #{uuidPath,jdbcType=VARCHAR},
     #{projectUuid,jdbcType=VARCHAR},
@@ -555,6 +687,7 @@
     #{enabled,jdbcType=BOOLEAN},
     #{createdAt,jdbcType=TIMESTAMP},
     ${_false},
+    null,
     null,
     null,
     ${_false},
@@ -578,6 +711,8 @@
   <update id="update" parameterType="org.sonar.db.component.ComponentUpdateDto" useGeneratedKeys="false">
     update projects set
     b_changed = #{bChanged,jdbcType=BOOLEAN},
+    <!-- Component key is normally immutable, but since 7.6 deprecated_kee is used as a b_kee to migrate component keys after the drop of modules -->
+    deprecated_kee = #{bKey,jdbcType=VARCHAR},
     b_copy_component_uuid = #{bCopyComponentUuid,jdbcType=VARCHAR},
     b_description = #{bDescription,jdbcType=VARCHAR},
     b_enabled = #{bEnabled,jdbcType=BOOLEAN},
@@ -596,6 +731,8 @@
   <update id="updateBEnabledToFalse" parameterType="org.sonar.db.component.ComponentUpdateDto" useGeneratedKeys="false">
     update projects set
     b_changed = ${_true},
+    <!-- Component key is normally immutable, but since 7.6 deprecated_kee is used as a b_kee to migrate component keys after the drop of modules -->
+    deprecated_kee = kee,
     b_copy_component_uuid = copy_component_uuid,
     b_description = description,
     b_enabled = ${_false},
@@ -613,6 +750,8 @@
 
   <update id="applyBChangesForRootComponentUuid" parameterType="string" useGeneratedKeys="false">
     update projects set
+    <!-- Component key is normally immutable, but since 7.6 deprecated_kee is used as a b_kee to migrate component keys after the drop of modules -->
+    kee = deprecated_kee,
     copy_component_uuid = b_copy_component_uuid,
     description = b_description,
     enabled = b_enabled,
@@ -624,7 +763,22 @@
     name = b_name,
     path = b_path,
     qualifier = b_qualifier,
+    <!-- Try to fix the scope as best as we can -->
+    scope = (
+      case
+        when b_qualifier = 'VW' THEN 'PRJ'
+        when b_qualifier = 'SVW' THEN 'PRJ'
+        when b_qualifier = 'APP' THEN 'PRJ'
+        when b_qualifier = 'DIR' THEN 'DIR'
+        when b_qualifier = 'FIL' THEN 'FIL'
+        when b_qualifier = 'UTS' THEN 'FIL'
+        <!-- For the few cases where qualifier is not enough to guess the scope (like TRK), just assume the scope remains unchanged -->
+        else scope
+      end
+    ),
     b_changed = ${_false},
+    <!-- Component key is normally immutable, but since 7.6 deprecated_kee is used as a b_kee to migrate component keys after the drop of modules -->
+    deprecated_kee = null,
     b_copy_component_uuid = null,
     b_description = null,
     b_enabled = ${_false},
@@ -642,7 +796,9 @@
 
   <update id="resetBChangedForRootComponentUuid" parameterType="map" >
     update projects
-    set b_changed = ${_false}
+    set b_changed = ${_false},
+    <!-- Component key is normally immutable, but since 7.6 deprecated_kee is used as a b_kee to migrate component keys after the drop of modules -->
+    deprecated_kee = kee
     where
     project_uuid = #{projectUuid,jdbcType=VARCHAR} and
     b_changed = ${_true}
@@ -666,9 +822,28 @@
       ON p.uuid = i.component_uuid
     JOIN project_branches b
       ON i.project_uuid = b.uuid
-      AND b.branch_type = 'SHORT'
+      AND (b.branch_type = 'SHORT' OR b.branch_type = 'PULL_REQUEST')
       AND b.merge_branch_uuid = #{mergeBranchUuid,jdbcType=VARCHAR}
       AND i.status != 'CLOSED'
   </select>
 
+  <select id="selectPrivateProjectsWithNcloc" resultType="org.sonar.db.component.ProjectNclocDistributionDto">
+    select p.kee as kee, p.name as name, max(lm.value) as ncloc
+    from live_measures lm
+    inner join metrics m on m.id = lm.metric_id
+    inner join project_branches b on b.uuid = lm.component_uuid
+    inner join projects p on b.project_uuid = p.uuid
+    where
+      m.name = 'ncloc'
+      and b.key_type = 'BRANCH'
+      and b.branch_type = 'LONG'
+      and p.enabled = ${_true}
+      and p.private = ${_true}
+      and p.scope = 'PRJ'
+      and p.qualifier = 'TRK'
+      and p.copy_component_uuid is null
+      and p.organization_uuid = #{organizationUuid, jdbcType=VARCHAR}
+    group by p.kee, p.name
+    order by ncloc desc
+  </select>
 </mapper>

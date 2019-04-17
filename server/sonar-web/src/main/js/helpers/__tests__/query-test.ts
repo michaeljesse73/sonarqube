@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -44,15 +44,6 @@ describe('parseAsBoolean', () => {
   it('should return a default value', () => {
     expect(query.parseAsBoolean('1')).toBeTruthy();
     expect(query.parseAsBoolean('foo')).toBeTruthy();
-  });
-});
-
-describe('parseAsFacetMode', () => {
-  it('should facets modes correctly', () => {
-    expect(query.parseAsFacetMode('debt')).toBe('effort');
-    expect(query.parseAsFacetMode('effort')).toBe('effort');
-    expect(query.parseAsFacetMode('count')).toBe('count');
-    expect(query.parseAsFacetMode('random')).toBe('count');
   });
 });
 

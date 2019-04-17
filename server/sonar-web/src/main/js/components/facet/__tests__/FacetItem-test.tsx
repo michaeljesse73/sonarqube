@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -45,12 +45,20 @@ it('should render half width', () => {
 it('should call onClick', () => {
   const onClick = jest.fn();
   const wrapper = renderFacetItem({ onClick });
-  click(wrapper, { currentTarget: { blur() {}, dataset: { value: 'bar' } } });
+  click(wrapper.find('a'), { currentTarget: { blur() {}, dataset: { value: 'bar' } } });
   expect(onClick).toHaveBeenCalled();
 });
 
 function renderFacetItem(props?: Partial<Props>) {
   return shallow(
-    <FacetItem active={false} name="foo" onClick={jest.fn()} stat={null} value="bar" {...props} />
+    <FacetItem
+      active={false}
+      name="foo"
+      onClick={jest.fn()}
+      stat={null}
+      tooltip="foo"
+      value="bar"
+      {...props}
+    />
   );
 }

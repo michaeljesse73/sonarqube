@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,9 +21,11 @@ import * as React from 'react';
 import ChangeLogLevelForm from './ChangeLogLevelForm';
 import RestartForm from '../../../components/common/RestartForm';
 import { getFileNameSuffix } from '../utils';
-import { EditButton } from '../../../components/ui/buttons';
+import Dropdown from '../../../components/controls/Dropdown';
+import { EditButton, Button } from '../../../components/ui/buttons';
 import { getBaseUrl } from '../../../helpers/urls';
 import { translate } from '../../../helpers/l10n';
+import DropdownIcon from '../../../components/icons-components/DropdownIcon';
 
 interface Props {
   canDownloadLogs: boolean;
@@ -66,12 +68,21 @@ export default class PageActions extends React.PureComponent<Props, State> {
     this.handleLogsLevelClose();
   };
 
-  handleLogsLevelClose = () => this.setState({ openLogsLevelForm: false });
+  handleLogsLevelClose = () => {
+    this.setState({ openLogsLevelForm: false });
+  };
 
-  handleServerRestartOpen = () => this.setState({ openRestartForm: true });
-  handleServerRestartClose = () => this.setState({ openRestartForm: false });
+  handleServerRestartOpen = () => {
+    this.setState({ openRestartForm: true });
+  };
 
-  removeElementFocus = (event: React.SyntheticEvent<HTMLElement>) => event.currentTarget.blur();
+  handleServerRestartClose = () => {
+    this.setState({ openRestartForm: false });
+  };
+
+  removeElementFocus = (event: React.SyntheticEvent<HTMLElement>) => {
+    event.currentTarget.blur();
+  };
 
   render() {
     const infoUrl = getBaseUrl() + '/api/system/info';
@@ -85,76 +96,80 @@ export default class PageActions extends React.PureComponent<Props, State> {
             <strong className="little-spacer-left">{this.state.logLevel}</strong>
           </span>
           <EditButton
-            id="edit-logs-level-button"
             className="spacer-left button-small"
+            id="edit-logs-level-button"
             onClick={this.handleLogsLevelOpen}
           />
         </span>
         {this.props.canDownloadLogs && (
-          <div className="display-inline-block dropdown spacer-left">
-            <button data-toggle="dropdown">
+          <Dropdown
+            className="display-inline-block spacer-left"
+            overlay={
+              <ul className="menu">
+                <li>
+                  <a
+                    download="sonarqube_app.log"
+                    href={logsUrl + '?process=app'}
+                    id="logs-link"
+                    target="_blank">
+                    Main Process
+                  </a>
+                </li>
+                <li>
+                  <a
+                    download="sonarqube_ce.log"
+                    href={logsUrl + '?process=ce'}
+                    id="ce-logs-link"
+                    target="_blank">
+                    Compute Engine
+                  </a>
+                </li>
+                <li>
+                  <a
+                    download="sonarqube_es.log"
+                    href={logsUrl + '?process=es'}
+                    id="es-logs-link"
+                    target="_blank">
+                    Search Engine
+                  </a>
+                </li>
+                <li>
+                  <a
+                    download="sonarqube_web.log"
+                    href={logsUrl + '?process=web'}
+                    id="web-logs-link"
+                    target="_blank">
+                    Web Server
+                  </a>
+                </li>
+              </ul>
+            }>
+            <Button>
               {translate('system.download_logs')}
-              <i className="icon-dropdown little-spacer-left" />
-            </button>
-            <ul className="dropdown-menu">
-              <li>
-                <a
-                  href={logsUrl + '?process=app'}
-                  id="logs-link"
-                  download="sonarqube_app.log"
-                  target="_blank">
-                  Main Process
-                </a>
-              </li>
-              <li>
-                <a
-                  href={logsUrl + '?process=ce'}
-                  id="ce-logs-link"
-                  download="sonarqube_ce.log"
-                  target="_blank">
-                  Compute Engine
-                </a>
-              </li>
-              <li>
-                <a
-                  href={logsUrl + '?process=es'}
-                  id="es-logs-link"
-                  download="sonarqube_es.log"
-                  target="_blank">
-                  Search Engine
-                </a>
-              </li>
-              <li>
-                <a
-                  href={logsUrl + '?process=web'}
-                  id="web-logs-link"
-                  download="sonarqube_web.log"
-                  target="_blank">
-                  Web Server
-                </a>
-              </li>
-            </ul>
-          </div>
+              <DropdownIcon className="little-spacer-left" />
+            </Button>
+          </Dropdown>
         )}
         <a
+          className="button spacer-left"
+          download={`sonarqube-support-info-${getFileNameSuffix(this.props.serverId)}.json`}
           href={infoUrl}
           id="download-link"
-          className="button spacer-left"
           onClick={this.removeElementFocus}
-          download={`sonarqube-support-info-${getFileNameSuffix(this.props.serverId)}.json`}
           target="_blank">
           {translate('system.download_system_info')}
         </a>
         {this.props.canRestart && (
-          <button
-            id="restart-server-button"
+          <Button
             className="spacer-left"
+            id="restart-server-button"
             onClick={this.handleServerRestartOpen}>
             {translate('system.restart_server')}
-          </button>
+          </Button>
         )}
-        {this.props.canRestart &&
-          this.state.openRestartForm && <RestartForm onClose={this.handleServerRestartClose} />}
+        {this.props.canRestart && this.state.openRestartForm && (
+          <RestartForm onClose={this.handleServerRestartClose} />
+        )}
         {this.state.openLogsLevelForm && (
           <ChangeLogLevelForm
             infoMsg={translate(

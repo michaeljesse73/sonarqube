@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -23,10 +23,10 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.sonar.api.utils.log.LoggerLevel;
-import org.sonar.ce.http.CeHttpClient;
-import org.sonar.ce.http.CeHttpClientImpl;
+import org.sonar.server.ce.http.CeHttpClient;
+import org.sonar.server.ce.http.CeHttpClientImpl;
 import org.sonar.server.exceptions.ForbiddenException;
-import org.sonar.server.platform.ServerLogging;
+import org.sonar.server.log.ServerLogging;
 import org.sonar.server.tester.UserSessionRule;
 import org.sonar.server.ws.WsActionTester;
 

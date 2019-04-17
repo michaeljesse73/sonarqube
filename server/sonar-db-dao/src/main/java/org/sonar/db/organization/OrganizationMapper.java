@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -23,6 +23,8 @@ import java.util.List;
 import javax.annotation.CheckForNull;
 import org.apache.ibatis.annotations.Param;
 import org.sonar.db.Pagination;
+import org.sonar.db.component.BranchType;
+import org.sonar.db.component.KeyType;
 
 public interface OrganizationMapper {
   void insert(@Param("organization") OrganizationDto organization, @Param("newProjectPrivate") boolean newProjectPrivate);
@@ -37,6 +39,9 @@ public interface OrganizationMapper {
 
   @CheckForNull
   OrganizationDto selectByUuid(@Param("uuid") String uuid);
+
+  @CheckForNull
+  OrganizationDto selectByOrganizationAlmId(@Param("alm") String alm, @Param("organizationAlmId") String organizationAlmId);
 
   List<OrganizationDto> selectByUuids(@Param("uuids") List<String> uuids);
 
@@ -71,4 +76,11 @@ public interface OrganizationMapper {
   void updateNewProjectPrivate(@Param("organizationUuid") String organizationUuid, @Param("newProjectPrivate") boolean newProjectPrivate, @Param("now") long now);
 
   int deleteByUuid(@Param("uuid") String uuid);
+
+  List<OrganizationWithNclocDto> selectOrganizationsWithNcloc(
+    @Param("ncloc") String ncloc,
+    @Param("organizationUuids") List<String> organizationUuids,
+    @Param("branch") KeyType branchOrPullRequest,
+    @Param("branchType") BranchType branchType);
+
 }

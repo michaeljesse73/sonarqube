@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,16 +20,19 @@
 import * as React from 'react';
 import DeferredSpinner from '../../../components/common/DeferredSpinner';
 import SimpleModal from '../../../components/controls/SimpleModal';
+import { SubmitButton, ResetButtonLink } from '../../../components/ui/buttons';
 import { translate } from '../../../helpers/l10n';
 
 interface Props {
   confirmButtonText: string;
   header: string;
-  permissionTemplate?: { description?: string; name: string; projectKeyPattern?: string };
   onClose: () => void;
-  onSubmit: (
-    data: { description: string; name: string; projectKeyPattern: string }
-  ) => Promise<void>;
+  onSubmit: (data: {
+    description: string;
+    name: string;
+    projectKeyPattern: string;
+  }) => Promise<void>;
+  permissionTemplate?: { description?: string; name: string; projectKeyPattern?: string };
 }
 
 interface State {
@@ -78,7 +81,8 @@ export default class Form extends React.PureComponent<Props, State> {
       <SimpleModal
         header={this.props.header}
         onClose={this.props.onClose}
-        onSubmit={this.handleSubmit}>
+        onSubmit={this.handleSubmit}
+        size="small">
         {({ onCloseClick, onFormSubmit, submitting }) => (
           <form id="permission-template-form" onSubmit={onFormSubmit}>
             <header className="modal-head">
@@ -134,17 +138,15 @@ export default class Form extends React.PureComponent<Props, State> {
 
             <footer className="modal-foot">
               <DeferredSpinner className="spacer-right" loading={submitting} />
-              <button disabled={submitting} id="permission-template-submit" type="submit">
+              <SubmitButton disabled={submitting} id="permission-template-submit">
                 {this.props.confirmButtonText}
-              </button>
-              <button
-                className="button-link"
+              </SubmitButton>
+              <ResetButtonLink
                 disabled={submitting}
                 id="permission-template-cancel"
-                onClick={onCloseClick}
-                type="reset">
+                onClick={onCloseClick}>
                 {translate('cancel')}
-              </button>
+              </ResetButtonLink>
             </footer>
           </form>
         )}

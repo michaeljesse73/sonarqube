@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,17 +21,19 @@ import * as React from 'react';
 import { keyBy } from 'lodash';
 import ApplicationQualityGateProject from './ApplicationQualityGateProject';
 import Level from '../../../components/ui/Level';
+import DocTooltip from '../../../components/docs/DocTooltip';
+import HelpTooltip from '../../../components/controls/HelpTooltip';
 import { getApplicationQualityGate, ApplicationProject } from '../../../api/quality-gates';
 import { translate } from '../../../helpers/l10n';
-import { LightComponent, Metric } from '../../../app/types';
 
 interface Props {
-  component: LightComponent;
+  branch?: T.LongLivingBranch;
+  component: T.LightComponent;
 }
 
 type State = {
   loading: boolean;
-  metrics?: { [key: string]: Metric };
+  metrics?: T.Dict<T.Metric>;
   projects?: ApplicationProject[];
   status?: string;
 };
@@ -56,10 +58,11 @@ export default class ApplicationQualityGate extends React.PureComponent<Props, S
   }
 
   fetchDetails = () => {
-    const { component } = this.props;
+    const { branch, component } = this.props;
     this.setState({ loading: true });
     getApplicationQualityGate({
       application: component.key,
+      branch: branch ? branch.name : undefined,
       organization: component.organization
     }).then(
       ({ status, projects, metrics }) => {
@@ -88,25 +91,34 @@ export default class ApplicationQualityGate extends React.PureComponent<Props, S
         <h2 className="overview-title">
           {translate('overview.quality_gate')}
           {this.state.loading && <i className="spinner spacer-left" />}
-          {status != null && <Level level={status} />}
+          <DocTooltip
+            className="spacer-left"
+            doc={import(/* webpackMode: "eager" */ 'Docs/tooltips/quality-gates/project-homepage-quality-gate.md')}
+          />
+          {status != null && <Level className="big-spacer-left" level={status} />}
+          {status === 'WARN' && (
+            <HelpTooltip
+              className="little-spacer-left"
+              overlay={translate('quality_gates.conditions.warning.tootlip')}
+            />
+          )}
         </h2>
 
-        {projects &&
-          metrics && (
-            <div
-              id="overview-quality-gate-conditions-list"
-              className="overview-quality-gate-conditions-list clearfix">
-              {projects
-                .filter(project => project.status !== 'OK')
-                .map(project => (
-                  <ApplicationQualityGateProject
-                    key={project.key}
-                    metrics={metrics}
-                    project={project}
-                  />
-                ))}
-            </div>
-          )}
+        {projects && metrics && (
+          <div
+            className="overview-quality-gate-conditions-list clearfix"
+            id="overview-quality-gate-conditions-list">
+            {projects
+              .filter(project => project.status !== 'OK')
+              .map(project => (
+                <ApplicationQualityGateProject
+                  key={project.key}
+                  metrics={metrics}
+                  project={project}
+                />
+              ))}
+          </div>
+        )}
       </div>
     );
   }

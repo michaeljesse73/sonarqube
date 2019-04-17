@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -246,7 +246,7 @@ public class ProjectMeasuresQueryValidatorTest {
 
   private static void validateFilterKeys(String... metricKeys) {
     ProjectMeasuresQuery query = new ProjectMeasuresQuery();
-    Arrays.stream(metricKeys).forEachOrdered(metricKey -> query.addMetricCriterion(create(metricKey, FilterParser.Operator.LT, 80d)));
+    Arrays.stream(metricKeys).forEachOrdered(metricKey -> query.addMetricCriterion(create(metricKey, ProjectMeasuresQuery.Operator.LT, 80d)));
     ProjectMeasuresQueryValidator.validate(query);
   }
 }

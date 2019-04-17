@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -34,13 +34,11 @@ import org.sonar.server.rule.index.RuleQuery;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.lang.String.format;
-import static org.sonar.server.util.EnumUtils.toEnums;
-import static org.sonar.server.ws.WsUtils.checkFound;
-import static org.sonar.server.ws.WsUtils.checkFoundWithOptional;
 import static org.sonar.server.rule.ws.RulesWsParameters.PARAM_ACTIVATION;
 import static org.sonar.server.rule.ws.RulesWsParameters.PARAM_ACTIVE_SEVERITIES;
 import static org.sonar.server.rule.ws.RulesWsParameters.PARAM_AVAILABLE_SINCE;
 import static org.sonar.server.rule.ws.RulesWsParameters.PARAM_COMPARE_TO_PROFILE;
+import static org.sonar.server.rule.ws.RulesWsParameters.PARAM_INCLUDE_EXTERNAL;
 import static org.sonar.server.rule.ws.RulesWsParameters.PARAM_INHERITANCE;
 import static org.sonar.server.rule.ws.RulesWsParameters.PARAM_IS_TEMPLATE;
 import static org.sonar.server.rule.ws.RulesWsParameters.PARAM_LANGUAGES;
@@ -53,6 +51,9 @@ import static org.sonar.server.rule.ws.RulesWsParameters.PARAM_STATUSES;
 import static org.sonar.server.rule.ws.RulesWsParameters.PARAM_TAGS;
 import static org.sonar.server.rule.ws.RulesWsParameters.PARAM_TEMPLATE_KEY;
 import static org.sonar.server.rule.ws.RulesWsParameters.PARAM_TYPES;
+import static org.sonar.server.util.EnumUtils.toEnums;
+import static org.sonar.server.ws.WsUtils.checkFound;
+import static org.sonar.server.ws.WsUtils.checkFoundWithOptional;
 
 @ServerSide
 public class RuleQueryFactory {
@@ -63,6 +64,16 @@ public class RuleQueryFactory {
   public RuleQueryFactory(DbClient dbClient, RuleWsSupport wsSupport) {
     this.dbClient = dbClient;
     this.wsSupport = wsSupport;
+  }
+
+  /**
+   * Similar to {@link #createRuleQuery(DbSession, Request)} but sets additional fields which are only used
+   * for the rule search WS. 
+   */
+  public RuleQuery createRuleSearchQuery(DbSession dbSession, Request request) {
+    RuleQuery query = createRuleQuery(dbSession, request);
+    query.setIncludeExternal(request.mandatoryParamAsBoolean(PARAM_INCLUDE_EXTERNAL));
+    return query;
   }
 
   /**
@@ -77,8 +88,6 @@ public class RuleQueryFactory {
     Date availableSince = request.paramAsDate(PARAM_AVAILABLE_SINCE);
     query.setAvailableSince(availableSince != null ? availableSince.getTime() : null);
     query.setStatuses(toEnums(request.paramAsStrings(PARAM_STATUSES), RuleStatus.class));
-    Boolean activation = request.paramAsBoolean(PARAM_ACTIVATION);
-    query.setActivation(activation);
 
     // Order is important : 1. Load profile, 2. Load organization either from parameter or from profile, 3. Load compare to profile
     setProfile(dbSession, query, request);
@@ -86,7 +95,9 @@ public class RuleQueryFactory {
     setCompareToProfile(dbSession, query, request);
     QProfileDto profile = query.getQProfile();
     query.setLanguages(profile == null ? request.paramAsStrings(PARAM_LANGUAGES) : ImmutableList.of(profile.getLanguage()));
-
+    if (wsSupport.areActiveRulesVisible(query.getOrganization())) {
+      query.setActivation(request.paramAsBoolean(PARAM_ACTIVATION));
+    }
     query.setTags(request.paramAsStrings(PARAM_TAGS));
     query.setInheritance(request.paramAsStrings(PARAM_INHERITANCE));
     query.setActiveSeverities(request.paramAsStrings(PARAM_ACTIVE_SEVERITIES));
@@ -120,7 +131,7 @@ public class RuleQueryFactory {
       query.setOrganization(wsSupport.getOrganizationByKey(dbSession, organizationKey));
       return;
     }
-    OrganizationDto organization = checkFoundWithOptional(dbClient.organizationDao().selectByUuid(dbSession, profile.getOrganizationUuid()), "No organization with UUID ",
+    OrganizationDto organization = checkFoundWithOptional(dbClient.organizationDao().selectByUuid(dbSession, profile.getOrganizationUuid()), "No organization with UUID %s",
       profile.getOrganizationUuid());
     if (organizationKey != null) {
       OrganizationDto inputOrganization = checkFoundWithOptional(dbClient.organizationDao().selectByKey(dbSession, organizationKey), "No organization with key '%s'",

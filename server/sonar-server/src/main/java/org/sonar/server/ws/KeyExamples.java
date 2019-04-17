@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -30,6 +30,10 @@ public class KeyExamples {
   public static final String KEY_ORG_EXAMPLE_002 = "foo-company";
 
   public static final String KEY_BRANCH_EXAMPLE_001 = "feature/my_branch";
+  public static final String KEY_PULL_REQUEST_EXAMPLE_001 = "5461";
+
+  public static final String NAME_WEBHOOK_EXAMPLE_001 = "My Webhook";
+  public static final String URL_WEBHOOK_EXAMPLE_001 = "https://www.my-webhook-listener.com/sonar";
 
   private KeyExamples() {
     // prevent instantiation

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,7 +19,6 @@
  */
 package org.sonar.server.qualityprofile.ws;
 
-import org.apache.commons.lang.StringUtils;
 import org.sonar.api.server.ws.Request;
 import org.sonar.api.server.ws.Response;
 import org.sonar.api.server.ws.WebService;
@@ -88,7 +87,6 @@ public class RenameAction implements QProfileWsAction {
   }
 
   private void doHandle(String newName, String profileKey) {
-    checkRequest(StringUtils.isNotBlank(newName), "Name must be set");
     checkRequest(newName.length() <= MAXIMUM_NAME_LENGTH, "Name is too long (>%d characters)", MAXIMUM_NAME_LENGTH);
     userSession.checkLoggedIn();
 

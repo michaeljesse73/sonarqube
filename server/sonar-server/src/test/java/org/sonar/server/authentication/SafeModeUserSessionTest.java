@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,6 +24,7 @@ import org.sonar.api.web.UserRole;
 import org.sonar.db.permission.OrganizationPermission;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.sonar.db.organization.OrganizationTesting.newOrganizationDto;
 
 public class SafeModeUserSessionTest {
 
@@ -32,6 +33,7 @@ public class SafeModeUserSessionTest {
   @Test
   public void session_is_anonymous() {
     assertThat(underTest.getLogin()).isNull();
+    assertThat(underTest.getUuid()).isNull();
     assertThat(underTest.isLoggedIn()).isFalse();
     assertThat(underTest.getName()).isNull();
     assertThat(underTest.getUserId()).isNull();
@@ -44,5 +46,6 @@ public class SafeModeUserSessionTest {
     assertThat(underTest.isSystemAdministrator()).isFalse();
     assertThat(underTest.hasPermissionImpl(OrganizationPermission.ADMINISTER, "foo")).isFalse();
     assertThat(underTest.hasProjectUuidPermission(UserRole.USER, "foo")).isFalse();
+    assertThat(underTest.hasMembership(newOrganizationDto())).isFalse();
   }
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,108 +19,116 @@
  */
 import * as React from 'react';
 import { connect } from 'react-redux';
-import * as PropTypes from 'prop-types';
-import GlobalLoading from './GlobalLoading';
-import { fetchCurrentUser } from '../../store/users/actions';
-import { fetchLanguages, fetchAppState } from '../../store/rootActions';
+import Helmet from 'react-helmet';
+import { fetchLanguages } from '../../store/rootActions';
 import { fetchMyOrganizations } from '../../apps/account/organizations/actions';
+import { getInstance, isSonarCloud } from '../../helpers/system';
+import { lazyLoad } from '../../components/lazyLoad';
+import { getCurrentUser, getAppState, getGlobalSettingValue, Store } from '../../store/rootReducer';
+import { isLoggedIn } from '../../helpers/users';
 
-interface Props {
-  children: JSX.Element;
-  fetchAppState: () => Promise<any>;
-  fetchCurrentUser: () => Promise<void>;
+const PageTracker = lazyLoad(() => import('./PageTracker'));
+
+interface StateProps {
+  appState: T.AppState | undefined;
+  currentUser: T.CurrentUser | undefined;
+  enableGravatar: boolean;
+  gravatarServerUrl: string;
+}
+
+interface DispatchProps {
   fetchLanguages: () => Promise<void>;
   fetchMyOrganizations: () => Promise<void>;
 }
 
-interface State {
-  branchesEnabled: boolean;
-  canAdmin: boolean;
-  loading: boolean;
-  onSonarCloud: boolean;
-  organizationsEnabled: boolean;
+interface OwnProps {
+  children: JSX.Element;
 }
 
-class App extends React.PureComponent<Props, State> {
+type Props = StateProps & DispatchProps & OwnProps;
+
+class App extends React.PureComponent<Props> {
   mounted = false;
-
-  static childContextTypes = {
-    branchesEnabled: PropTypes.bool.isRequired,
-    canAdmin: PropTypes.bool.isRequired,
-    onSonarCloud: PropTypes.bool,
-    organizationsEnabled: PropTypes.bool
-  };
-
-  constructor(props: Props) {
-    super(props);
-    this.state = {
-      branchesEnabled: false,
-      canAdmin: false,
-      loading: true,
-      onSonarCloud: false,
-      organizationsEnabled: false
-    };
-  }
-
-  getChildContext() {
-    return {
-      branchesEnabled: this.state.branchesEnabled,
-      canAdmin: this.state.canAdmin,
-      onSonarCloud: this.state.onSonarCloud,
-      organizationsEnabled: this.state.organizationsEnabled
-    };
-  }
 
   componentDidMount() {
     this.mounted = true;
-
-    this.props
-      .fetchCurrentUser()
-      .then(() => Promise.all([this.fetchAppState(), this.props.fetchLanguages()]))
-      .then(
-        ([appState]) => {
-          if (this.mounted) {
-            if (appState.organizationsEnabled) {
-              this.props.fetchMyOrganizations();
-            }
-            this.setState({ loading: false });
-          }
-        },
-        () => {}
-      );
+    this.props.fetchLanguages();
+    this.setScrollbarWidth();
+    const { appState, currentUser } = this.props;
+    if (appState && isSonarCloud() && currentUser && isLoggedIn(currentUser)) {
+      this.props.fetchMyOrganizations();
+    }
   }
 
   componentWillUnmount() {
     this.mounted = false;
   }
 
-  fetchAppState = () => {
-    return this.props.fetchAppState().then(appState => {
-      if (this.mounted) {
-        this.setState({
-          branchesEnabled: appState.branchesEnabled,
-          canAdmin: appState.canAdmin,
-          onSonarCloud: Boolean(
-            appState.settings && appState.settings['sonar.sonarcloud.enabled'] === 'true'
-          ),
-          organizationsEnabled: appState.organizationsEnabled
-        });
-      }
-      return appState;
-    });
+  setScrollbarWidth = () => {
+    // See https://stackoverflow.com/questions/13382516/getting-scroll-bar-width-using-javascript
+    const outer = document.createElement('div');
+    outer.style.visibility = 'hidden';
+    outer.style.width = '100px';
+    outer.style.msOverflowStyle = 'scrollbar';
+
+    document.body.appendChild(outer);
+
+    const widthNoScroll = outer.offsetWidth;
+    outer.style.overflow = 'scroll';
+
+    const inner = document.createElement('div');
+    inner.style.width = '100%';
+    outer.appendChild(inner);
+
+    const widthWithScroll = inner.offsetWidth;
+
+    if (outer.parentNode) {
+      outer.parentNode.removeChild(outer);
+    }
+
+    document.body.style.setProperty('--sbw', `${widthNoScroll - widthWithScroll}px`);
+  };
+
+  renderPreconnectLink = () => {
+    const parser = document.createElement('a');
+    parser.href = this.props.gravatarServerUrl;
+    if (parser.hostname !== window.location.hostname) {
+      return <link href={parser.origin} rel="preconnect" />;
+    } else {
+      return null;
+    }
   };
 
   render() {
-    if (this.state.loading) {
-      return <GlobalLoading />;
-    }
-    return this.props.children;
+    return (
+      <>
+        <Helmet defaultTitle={getInstance()}>
+          {this.props.enableGravatar && this.renderPreconnectLink()}
+        </Helmet>
+        <PageTracker />
+        {this.props.children}
+      </>
+    );
   }
 }
 
-export default connect(null, {
-  fetchAppState,
-  fetchCurrentUser,
+const mapStateToProps = (state: Store): StateProps => {
+  const enableGravatar = getGlobalSettingValue(state, 'sonar.lf.enableGravatar');
+  const gravatarServerUrl = getGlobalSettingValue(state, 'sonar.lf.gravatarServerUrl');
+  return {
+    appState: getAppState(state),
+    currentUser: getCurrentUser(state),
+    enableGravatar: Boolean(enableGravatar && enableGravatar.value === 'true'),
+    gravatarServerUrl: (gravatarServerUrl && gravatarServerUrl.value) || ''
+  };
+};
+
+const mapDispatchToProps = ({
   fetchLanguages,
   fetchMyOrganizations
-})(App as any);
+} as any) as DispatchProps;
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(App);

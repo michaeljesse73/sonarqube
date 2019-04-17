@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -84,8 +84,8 @@ public class ProcessProperties {
     CLUSTER_ENABLED("sonar.cluster.enabled", "false"),
     CLUSTER_NODE_TYPE("sonar.cluster.node.type"),
     CLUSTER_SEARCH_HOSTS("sonar.cluster.search.hosts"),
-    CLUSTER_HOSTS("sonar.cluster.hosts"),
-    CLUSTER_NODE_PORT("sonar.cluster.node.port", "9003"),
+    CLUSTER_HZ_HOSTS("sonar.cluster.hosts"),
+    CLUSTER_NODE_HZ_PORT("sonar.cluster.node.port", "9003"),
     CLUSTER_NODE_HOST("sonar.cluster.node.host"),
     CLUSTER_NODE_NAME("sonar.cluster.node.name", "sonarqube-" + UUID.randomUUID().toString()),
     CLUSTER_NAME("sonar.cluster.name", "sonarqube"),
@@ -108,11 +108,21 @@ public class ProcessProperties {
     SONAR_UPDATECENTER_ACTIVATE("sonar.updatecenter.activate", "true"),
 
     SONARCLOUD_ENABLED("sonar.sonarcloud.enabled", "false"),
+    SONARCLOUD_HOMEPAGE_URL("sonar.homepage.url", ""),
+    SONAR_PRISMIC_ACCESS_TOKEN("sonar.prismic.accessToken", ""),
+    SONAR_ANALYTICS_TRACKING_ID("sonar.analytics.trackingId", ""),
+    ONBOARDING_TUTORIAL_SHOW_TO_NEW_USERS("sonar.onboardingTutorial.showToNewUsers", "true"),
+
+    BITBUCKETCLOUD_APP_KEY("sonar.bitbucketcloud.appKey", "sonarcloud"),
+    BITBUCKETCLOUD_ENDPOINT("sonar.bitbucketcloud.endpoint", "https://api.bitbucket.org"),
 
     /**
      * Used by Orchestrator to ask for shutdown of monitor process
      */
-    ENABLE_STOP_COMMAND("sonar.enableStopCommand");
+    ENABLE_STOP_COMMAND("sonar.enableStopCommand"),
+
+    // whether the blue/green deployment of server is enabled
+    BLUE_GREEN_ENABLED("sonar.blueGreenEnabled", "false");
 
     private final String key;
     private final String defaultValue;

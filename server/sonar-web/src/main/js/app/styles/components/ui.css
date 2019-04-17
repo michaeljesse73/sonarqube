@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -17,71 +17,6 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-.processes-container {
-  position: fixed;
-  z-index: var(--processContainerZIndex);
-  top: 0;
-  left: 50%;
-  width: 350px;
-  margin-left: -175px;
-}
-
-.process-spinner {
-  position: relative;
-  padding: 0 10px;
-  line-height: var(--controlHeight);
-  border-radius: 0 0 3px 3px;
-  box-sizing: border-box;
-  background-color: #f0e8ac;
-  text-align: center;
-  opacity: 0;
-  transition: all 0.2s ease;
-}
-
-.process-spinner.shown {
-  opacity: 1;
-}
-
-.process-spinner + .process-spinner {
-  margin-top: 5px;
-  border-radius: 3px;
-}
-
-.process-spinner-failed {
-  padding-right: 30px;
-  background-color: var(--red);
-  color: #ffffff;
-}
-
-.process-spinner-success {
-  padding-right: 30px;
-  background-color: var(--green);
-  color: #ffffff;
-}
-
-.process-spinner-close {
-  position: absolute;
-  top: 0;
-  right: 0;
-  padding: 3px;
-  background: none !important;
-  border: none !important;
-  line-height: 1;
-  color: #fff;
-}
-
-.shortcuts-section + .shortcuts-section {
-  margin-top: 20px;
-}
-
-.shortcuts-section-title {
-  margin-bottom: 5px;
-}
-
-.shortcuts-list > li + li {
-  margin-top: 5px;
-}
-
 .shortcut-button {
   display: inline-block;
   min-width: 24px;

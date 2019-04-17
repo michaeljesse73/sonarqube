@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -54,7 +54,7 @@ import org.sonar.server.component.TestComponentFinder;
 import org.sonar.server.exceptions.BadRequestException;
 import org.sonar.server.exceptions.ForbiddenException;
 import org.sonar.server.exceptions.NotFoundException;
-import org.sonar.server.i18n.I18nRule;
+import org.sonar.server.l18n.I18nRule;
 import org.sonar.server.organization.DefaultOrganizationProvider;
 import org.sonar.server.organization.TestDefaultOrganizationProvider;
 import org.sonar.server.platform.SettingsChangeNotifier;
@@ -434,7 +434,7 @@ public class SetActionTest {
   @Test
   public void fail_when_empty_key_value() {
     expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("Setting key is mandatory and must not be empty");
+    expectedException.expectMessage("The 'key' parameter is missing");
 
     callForGlobalSetting("  ", "my value");
   }
@@ -1015,7 +1015,7 @@ public class SetActionTest {
     assertThat(definition.isInternal()).isFalse();
     assertThat(definition.since()).isEqualTo("6.1");
     assertThat(definition.params()).extracting(Param::key)
-      .containsOnly("key", "value", "values", "fieldValues", "component", "branch");
+      .containsOnly("key", "value", "values", "fieldValues", "component", "branch", "pullRequest");
 
     Param branch = definition.param("branch");
     assertThat(branch.isInternal()).isTrue();

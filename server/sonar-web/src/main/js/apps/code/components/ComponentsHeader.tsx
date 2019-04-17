@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,46 +18,55 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
+import * as classNames from 'classnames';
 import { translate } from '../../../helpers/l10n';
-import { Component } from '../types';
 
 interface Props {
-  baseComponent?: Component;
-  rootComponent: Component;
+  baseComponent?: T.ComponentMeasure;
+  metrics: string[];
+  rootComponent: T.ComponentMeasure;
 }
 
-export default function ComponentsHeader({ baseComponent, rootComponent }: Props) {
-  const isPortfolio = rootComponent.qualifier === 'VW' || rootComponent.qualifier === 'SVW';
-  const isApplication = rootComponent.qualifier === 'APP';
+const SHORT_NAME_METRICS = [
+  'duplicated_lines_density',
+  'new_lines',
+  'new_coverage',
+  'new_duplicated_lines_density'
+];
 
-  const columns = isPortfolio
-    ? [
-        translate('metric_domain.Releasability'),
-        translate('metric_domain.Reliability'),
-        translate('metric_domain.Security'),
-        translate('metric_domain.Maintainability'),
-        translate('metric', 'ncloc', 'name')
-      ]
-    : ([
-        isApplication && translate('metric.alert_status.name'),
-        translate('metric', 'ncloc', 'name'),
-        translate('metric', 'bugs', 'name'),
-        translate('metric', 'vulnerabilities', 'name'),
-        translate('metric', 'code_smells', 'name'),
-        translate('metric', 'coverage', 'name'),
-        translate('metric', 'duplicated_lines_density', 'short_name')
-      ].filter(Boolean) as string[]);
+export default function ComponentsHeader({ baseComponent, metrics, rootComponent }: Props) {
+  const isPortfolio = ['VW', 'SVW'].includes(rootComponent.qualifier);
+  let columns: string[] = [];
+  if (isPortfolio) {
+    columns = [
+      translate('metric_domain.Releasability'),
+      translate('metric_domain.Reliability'),
+      translate('metric_domain.Security'),
+      translate('metric_domain.Maintainability'),
+      translate('metric', 'ncloc', 'name')
+    ];
+  } else {
+    columns = metrics.map(metric =>
+      translate('metric', metric, SHORT_NAME_METRICS.includes(metric) ? 'short_name' : 'name')
+    );
+  }
 
   return (
     <thead>
       <tr className="code-components-header">
-        <th className="thin nowrap">&nbsp;</th>
-        <th>&nbsp;</th>
-        {columns.map(column => (
-          <th key={column} className="thin nowrap text-right code-components-cell">
-            {baseComponent && column}
-          </th>
-        ))}
+        <th className="thin nowrap" colSpan={2} />
+        <th />
+        {baseComponent &&
+          columns.map((column, index) => (
+            <th
+              className={classNames('thin', 'nowrap', 'text-right', {
+                'code-components-cell': index > 0
+              })}
+              key={column}>
+              {column}
+            </th>
+          ))}
+        <th />
       </tr>
     </thead>
   );

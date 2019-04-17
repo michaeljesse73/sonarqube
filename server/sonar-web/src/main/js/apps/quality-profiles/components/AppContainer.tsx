@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,19 +19,13 @@
  */
 import { connect } from 'react-redux';
 import App from './App';
-import { getLanguages, getCurrentUser, getOrganizationByKey } from '../../../store/rootReducer';
-import { onFail } from '../../../store/rootActions';
+import { getLanguages, getOrganizationByKey, Store } from '../../../store/rootReducer';
 
-const mapStateToProps = (state: any, ownProps: any) => ({
-  currentUser: getCurrentUser(state),
+const mapStateToProps = (state: Store, ownProps: any) => ({
   languages: getLanguages(state),
   organization: ownProps.params.organizationKey
     ? getOrganizationByKey(state, ownProps.params.organizationKey)
-    : null
+    : undefined
 });
 
-const mapDispatchToProps = (dispatch: any) => ({
-  onRequestFail: (error: any) => onFail(dispatch)(error)
-});
-
-export default connect(mapStateToProps, mapDispatchToProps)(App as any);
+export default connect(mapStateToProps)(App);

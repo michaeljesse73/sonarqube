@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -30,7 +30,7 @@ import CodeSmellIcon from '../../../components/icons-components/CodeSmellIcon';
 import VulnerabilityIcon from '../../../components/icons-components/VulnerabilityIcon';
 
 interface Props {
-  measures: { [key: string]: string | undefined };
+  measures: T.Dict<string | undefined>;
 }
 
 export default function ProjectCardOverallMeasures({ measures }: Props) {
@@ -38,9 +38,14 @@ export default function ProjectCardOverallMeasures({ measures }: Props) {
     return null;
   }
 
+  const { ncloc } = measures;
+  if (!ncloc) {
+    return <div className="note">{translate('overview.project.empty')}</div>;
+  }
+
   return (
     <div className="project-card-measures">
-      <div className="project-card-measure smaller-card" data-key="reliability_rating">
+      <div className="project-card-measure" data-key="reliability_rating">
         <div className="project-card-measure-inner">
           <div className="project-card-measure-number">
             <Measure
@@ -139,6 +144,7 @@ export default function ProjectCardOverallMeasures({ measures }: Props) {
             </div>
             <div className="project-card-measure-label">
               <ProjectCardLanguagesContainer
+                className="project-card-languages"
                 distribution={measures['ncloc_language_distribution']}
               />
             </div>

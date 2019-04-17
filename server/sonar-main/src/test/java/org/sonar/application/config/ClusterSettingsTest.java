@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -36,7 +36,7 @@ import static org.sonar.process.ProcessId.COMPUTE_ENGINE;
 import static org.sonar.process.ProcessId.ELASTICSEARCH;
 import static org.sonar.process.ProcessId.WEB_SERVER;
 import static org.sonar.process.ProcessProperties.Property.CLUSTER_ENABLED;
-import static org.sonar.process.ProcessProperties.Property.CLUSTER_HOSTS;
+import static org.sonar.process.ProcessProperties.Property.CLUSTER_HZ_HOSTS;
 import static org.sonar.process.ProcessProperties.Property.CLUSTER_NODE_HOST;
 import static org.sonar.process.ProcessProperties.Property.CLUSTER_NODE_TYPE;
 import static org.sonar.process.ProcessProperties.Property.CLUSTER_SEARCH_HOSTS;
@@ -175,6 +175,31 @@ public class ClusterSettingsTest {
   }
 
   @Test
+  public void shouldStartHazelcast_must_be_true_on_AppNode() {
+    TestAppSettings settings = newSettingsForAppNode();
+
+    assertThat(ClusterSettings.shouldStartHazelcast(settings)).isTrue();
+  }
+
+  @Test
+  public void shouldStartHazelcast_must_be_false_on_SearchNode() {
+    TestAppSettings settings = newSettingsForSearchNode();
+
+    assertThat(ClusterSettings.shouldStartHazelcast(settings)).isFalse();
+  }
+
+  @Test
+  public void shouldStartHazelcast_must_be_false_when_cluster_not_activated() {
+    TestAppSettings settings = newSettingsForSearchNode();
+    settings.set(CLUSTER_ENABLED.getKey(), "false");
+    assertThat(ClusterSettings.shouldStartHazelcast(settings)).isFalse();
+
+    settings = newSettingsForAppNode();
+    settings.set(CLUSTER_ENABLED.getKey(), "false");
+    assertThat(ClusterSettings.shouldStartHazelcast(settings)).isFalse();
+  }
+
+  @Test
   public void isLocalElasticsearchEnabled_returns_true_for_a_application_node() {
     TestAppSettings settings = newSettingsForAppNode();
 
@@ -196,10 +221,10 @@ public class ClusterSettingsTest {
   }
 
   @Test
-  public void accept_throws_MessageException_if_clusterHosts_is_missing() {
-    TestAppSettings settings = newSettingsForSearchNode();
-    settings.clearProperty(CLUSTER_HOSTS.getKey());
-    assertThatPropertyIsMandatory(settings, CLUSTER_HOSTS.getKey());
+  public void accept_throws_MessageException_on_app_node_if_clusterHosts_is_missing() {
+    TestAppSettings settings = newSettingsForAppNode();
+    settings.clearProperty(CLUSTER_HZ_HOSTS.getKey());
+    assertThatPropertyIsMandatory(settings, CLUSTER_HZ_HOSTS.getKey());
   }
 
   @Test
@@ -223,6 +248,23 @@ public class ClusterSettingsTest {
     assertThatPropertyIsMandatory(settings, "sonar.auth.jwtBase64Hs256Secret");
   }
 
+  @Test
+  public void shouldStartHazelcast_should_return_false_when_cluster_not_enabled() {
+    TestAppSettings settings = new TestAppSettings();
+    assertThat(ClusterSettings.shouldStartHazelcast(settings)).isFalse();
+  }
+
+  @Test
+  public void shouldStartHazelcast_should_return_false_on_SearchNode() {
+    assertThat(ClusterSettings.shouldStartHazelcast(newSettingsForSearchNode())).isFalse();
+  }
+
+
+  @Test
+  public void shouldStartHazelcast_should_return_true_on_AppNode() {
+    assertThat(ClusterSettings.shouldStartHazelcast(newSettingsForAppNode())).isTrue();
+  }
+
   private void assertThatPropertyIsMandatory(TestAppSettings settings, String key) {
     expectedException.expect(MessageException.class);
     expectedException.expectMessage(format("Property %s is mandatory", key));
@@ -235,7 +277,7 @@ public class ClusterSettingsTest {
       .set(CLUSTER_ENABLED.getKey(), "true")
       .set(CLUSTER_NODE_TYPE.getKey(), "application")
       .set(CLUSTER_NODE_HOST.getKey(), nonLoopbackLocal.getHostAddress())
-      .set(CLUSTER_HOSTS.getKey(), nonLoopbackLocal.getHostAddress())
+      .set(CLUSTER_HZ_HOSTS.getKey(), nonLoopbackLocal.getHostAddress())
       .set(CLUSTER_SEARCH_HOSTS.getKey(), nonLoopbackLocal.getHostAddress())
       .set("sonar.auth.jwtBase64Hs256Secret", "abcde")
       .set(JDBC_URL.getKey(), "jdbc:mysql://localhost:3306/sonar");
@@ -246,7 +288,7 @@ public class ClusterSettingsTest {
       .set(CLUSTER_ENABLED.getKey(), "true")
       .set(CLUSTER_NODE_TYPE.getKey(), "search")
       .set(CLUSTER_NODE_HOST.getKey(), nonLoopbackLocal.getHostAddress())
-      .set(CLUSTER_HOSTS.getKey(), nonLoopbackLocal.getHostAddress())
+      .set(CLUSTER_HZ_HOSTS.getKey(), nonLoopbackLocal.getHostAddress())
       .set(CLUSTER_SEARCH_HOSTS.getKey(), nonLoopbackLocal.getHostAddress())
       .set(SEARCH_HOST.getKey(), nonLoopbackLocal.getHostAddress());
   }

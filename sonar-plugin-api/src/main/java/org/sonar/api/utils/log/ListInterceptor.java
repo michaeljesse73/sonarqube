@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,57 +19,80 @@
  */
 package org.sonar.api.utils.log;
 
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.ListMultimap;
-
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
-import java.util.ArrayList;
-import java.util.List;
+public class ListInterceptor implements LogInterceptor {
 
-class ListInterceptor implements LogInterceptor {
-
-  private final List<String> logs = new ArrayList<>();
-  private final ListMultimap<LoggerLevel, String> logsByLevel = ArrayListMultimap.create();
+  private final List<LogAndArguments> logs = new CopyOnWriteArrayList<>();
+  private final Map<LoggerLevel, List<LogAndArguments>> logsByLevel = new ConcurrentHashMap<>();
 
   @Override
   public void log(LoggerLevel level, String msg) {
-    logs.add(msg);
-    logsByLevel.put(level, msg);
+    LogAndArguments l = new LogAndArguments(msg, msg);
+    add(level, l);
   }
 
   @Override
   public void log(LoggerLevel level, String msg, @Nullable Object arg) {
     String s = ConsoleFormatter.format(msg, arg);
-    logs.add(s);
-    logsByLevel.put(level, s);
+    LogAndArguments l = new LogAndArguments(s, msg, arg);
+    add(level, l);
   }
 
   @Override
   public void log(LoggerLevel level, String msg, @Nullable Object arg1, @Nullable Object arg2) {
     String s = ConsoleFormatter.format(msg, arg1, arg2);
-    logs.add(s);
-    logsByLevel.put(level, s);
+    LogAndArguments l = new LogAndArguments(s, msg, arg1, arg2);
+    add(level, l);
   }
 
   @Override
   public void log(LoggerLevel level, String msg, Object... args) {
     String s = ConsoleFormatter.format(msg, args);
-    logs.add(s);
-    logsByLevel.put(level, s);
+    LogAndArguments l = new LogAndArguments(s, msg, args);
+    add(level, l);
   }
 
   @Override
   public void log(LoggerLevel level, String msg, Throwable thrown) {
-    logs.add(msg);
-    logsByLevel.put(level, msg);
+    LogAndArguments l = new LogAndArguments(msg, msg, thrown);
+    add(level, l);
+  }
+
+  private void add(LoggerLevel level, LogAndArguments l) {
+    logs.add(l);
+    logsByLevel.compute(level, (key, existingList) -> {
+      if (existingList == null) {
+        return new CopyOnWriteArrayList<>(new LogAndArguments[] {l});
+      }
+      existingList.add(l);
+      return existingList;
+    });
   }
 
   public List<String> logs() {
-    return logs;
+    return logs.stream().map(LogAndArguments::getFormattedMsg).collect(Collectors.toList());
   }
 
   public List<String> logs(LoggerLevel level) {
+    List<LogAndArguments> res = logsByLevel.get(level);
+    if (res == null) {
+      return Collections.emptyList();
+    }
+    return res.stream().map(LogAndArguments::getFormattedMsg).collect(Collectors.toList());
+  }
+
+  public List<LogAndArguments> getLogs() {
+    return logs;
+  }
+
+  public List<LogAndArguments> getLogs(LoggerLevel level) {
     return logsByLevel.get(level);
   }
 
@@ -77,4 +100,5 @@ class ListInterceptor implements LogInterceptor {
     logs.clear();
     logsByLevel.clear();
   }
+
 }

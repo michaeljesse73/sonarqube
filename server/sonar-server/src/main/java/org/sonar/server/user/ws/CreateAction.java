@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -40,10 +40,11 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Strings.emptyToNull;
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static java.util.Collections.emptyList;
-import static org.sonar.core.util.Protobuf.setNullable;
+import static java.util.Optional.ofNullable;
 import static org.sonar.server.user.ExternalIdentity.SQ_AUTHORITY;
 import static org.sonar.server.user.UserUpdater.EMAIL_MAX_LENGTH;
 import static org.sonar.server.user.UserUpdater.LOGIN_MAX_LENGTH;
+import static org.sonar.server.user.UserUpdater.LOGIN_MIN_LENGTH;
 import static org.sonar.server.user.UserUpdater.NAME_MAX_LENGTH;
 import static org.sonar.server.user.ws.EmailValidator.isValidIfPresent;
 import static org.sonar.server.ws.WsUtils.writeProtobuf;
@@ -80,10 +81,12 @@ public class CreateAction implements UsersWsAction {
         new Change("6.3", "The password is only mandatory when creating local users, and should not be set on non local users"),
         new Change("6.3", "The 'infos' message is no more returned when a user is reactivated"))
       .setPost(true)
+      .setResponseExample(getClass().getResource("create-example.json"))
       .setHandler(this);
 
     action.createParam(PARAM_LOGIN)
       .setRequired(true)
+      .setMinimumLength(LOGIN_MIN_LENGTH)
       .setMaximumLength(LOGIN_MAX_LENGTH)
       .setDescription("User login")
       .setExampleValue("myuser");
@@ -104,13 +107,13 @@ public class CreateAction implements UsersWsAction {
       .setExampleValue("myname@email.com");
 
     action.createParam(PARAM_SCM_ACCOUNTS)
-      .setDescription("This parameter is deprecated, please use '%s' instead", PARAM_SCM_ACCOUNT)
+      .setDescription("Comma-separated list of SCM accounts. This parameter is deprecated, please use '%s' instead", PARAM_SCM_ACCOUNT)
       .setDeprecatedKey(PARAM_SCM_ACCOUNTS_DEPRECATED, "6.0")
       .setDeprecatedSince("6.1")
       .setExampleValue("myscmaccount1,myscmaccount2");
 
     action.createParam(PARAM_SCM_ACCOUNT)
-      .setDescription("SCM accounts. To set several values, the parameter must be called once for each value.")
+      .setDescription("List of SCM accounts. To set several values, the parameter must be called once for each value.")
       .setExampleValue("scmAccount=firstValue&scmAccount=secondValue&scmAccount=thirdValue");
 
     action.createParam(PARAM_LOCAL)
@@ -131,17 +134,24 @@ public class CreateAction implements UsersWsAction {
 
   private CreateWsResponse doHandle(CreateRequest request) {
     try (DbSession dbSession = dbClient.openSession(false)) {
+      String login = request.getLogin();
       NewUser.Builder newUser = NewUser.builder()
-        .setLogin(request.getLogin())
+        .setLogin(login)
         .setName(request.getName())
         .setEmail(request.getEmail())
         .setScmAccounts(request.getScmAccounts())
         .setPassword(request.getPassword());
       if (!request.isLocal()) {
-        newUser.setExternalIdentity(new ExternalIdentity(SQ_AUTHORITY, request.getLogin()));
+        newUser.setExternalIdentity(new ExternalIdentity(SQ_AUTHORITY, login, login));
       }
-      UserDto createdUser = userUpdater.createAndCommit(dbSession, newUser.build(), u -> {});
-      return buildResponse(createdUser);
+      UserDto existingUser = dbClient.userDao().selectByLogin(dbSession, login);
+      if (existingUser == null) {
+        return buildResponse(userUpdater.createAndCommit(dbSession, newUser.build(), u -> {
+        }));
+      }
+      checkArgument(!existingUser.isActive(), "An active user with login '%s' already exists", login);
+      return buildResponse(userUpdater.reactivateAndCommit(dbSession, existingUser, newUser.build(), u -> {
+      }));
     }
   }
 
@@ -152,7 +162,7 @@ public class CreateAction implements UsersWsAction {
       .setActive(userDto.isActive())
       .setLocal(userDto.isLocal())
       .addAllScmAccounts(userDto.getScmAccountsAsList());
-    setNullable(emptyToNull(userDto.getEmail()), userBuilder::setEmail);
+    ofNullable(emptyToNull(userDto.getEmail())).ifPresent(userBuilder::setEmail);
     return CreateWsResponse.newBuilder().setUser(userBuilder).build();
   }
 

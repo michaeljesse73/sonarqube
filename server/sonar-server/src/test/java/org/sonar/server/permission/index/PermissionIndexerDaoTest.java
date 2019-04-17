@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,6 +24,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import org.assertj.core.api.Assertions;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -92,31 +93,31 @@ public class PermissionIndexerDaoTest {
   public void select_all() {
     insertTestDataForProjectsAndViews();
 
-    Collection<PermissionIndexerDao.Dto> dtos = underTest.selectAll(dbClient, dbSession);
-    assertThat(dtos).hasSize(6);
+    Collection<IndexPermissions> dtos = underTest.selectAll(dbClient, dbSession);
+    Assertions.assertThat(dtos).hasSize(6);
 
-    PermissionIndexerDao.Dto publicProjectAuthorization = getByProjectUuid(publicProject.uuid(), dtos);
+    IndexPermissions publicProjectAuthorization = getByProjectUuid(publicProject.uuid(), dtos);
     isPublic(publicProjectAuthorization, PROJECT);
 
-    PermissionIndexerDao.Dto view1Authorization = getByProjectUuid(view1.uuid(), dtos);
+    IndexPermissions view1Authorization = getByProjectUuid(view1.uuid(), dtos);
     isPublic(view1Authorization, VIEW);
 
-    PermissionIndexerDao.Dto applicationAuthorization = getByProjectUuid(application.uuid(), dtos);
+    IndexPermissions applicationAuthorization = getByProjectUuid(application.uuid(), dtos);
     isPublic(applicationAuthorization, APP);
 
-    PermissionIndexerDao.Dto privateProject1Authorization = getByProjectUuid(privateProject1.uuid(), dtos);
+    IndexPermissions privateProject1Authorization = getByProjectUuid(privateProject1.uuid(), dtos);
     assertThat(privateProject1Authorization.getGroupIds()).containsOnly(group.getId());
     assertThat(privateProject1Authorization.isAllowAnyone()).isFalse();
     assertThat(privateProject1Authorization.getUserIds()).containsOnly(user1.getId(), user2.getId());
     assertThat(privateProject1Authorization.getQualifier()).isEqualTo(PROJECT);
 
-    PermissionIndexerDao.Dto privateProject2Authorization = getByProjectUuid(privateProject2.uuid(), dtos);
+    IndexPermissions privateProject2Authorization = getByProjectUuid(privateProject2.uuid(), dtos);
     assertThat(privateProject2Authorization.getGroupIds()).isEmpty();
     assertThat(privateProject2Authorization.isAllowAnyone()).isFalse();
     assertThat(privateProject2Authorization.getUserIds()).containsOnly(user1.getId());
     assertThat(privateProject2Authorization.getQualifier()).isEqualTo(PROJECT);
 
-    PermissionIndexerDao.Dto view2Authorization = getByProjectUuid(view2.uuid(), dtos);
+    IndexPermissions view2Authorization = getByProjectUuid(view2.uuid(), dtos);
     isPublic(view2Authorization, VIEW);
   }
 
@@ -124,34 +125,34 @@ public class PermissionIndexerDaoTest {
   public void selectByUuids() {
     insertTestDataForProjectsAndViews();
 
-    Map<String, PermissionIndexerDao.Dto> dtos = underTest
+    Map<String, IndexPermissions> dtos = underTest
       .selectByUuids(dbClient, dbSession, asList(publicProject.uuid(), privateProject1.uuid(), privateProject2.uuid(), view1.uuid(), view2.uuid(), application.uuid()))
       .stream()
-      .collect(MoreCollectors.uniqueIndex(PermissionIndexerDao.Dto::getProjectUuid, Function.identity()));
-    assertThat(dtos).hasSize(6);
+      .collect(MoreCollectors.uniqueIndex(IndexPermissions::getProjectUuid, Function.identity()));
+    Assertions.assertThat(dtos).hasSize(6);
 
-    PermissionIndexerDao.Dto publicProjectAuthorization = dtos.get(publicProject.uuid());
+    IndexPermissions publicProjectAuthorization = dtos.get(publicProject.uuid());
     isPublic(publicProjectAuthorization, PROJECT);
 
-    PermissionIndexerDao.Dto view1Authorization = dtos.get(view1.uuid());
+    IndexPermissions view1Authorization = dtos.get(view1.uuid());
     isPublic(view1Authorization, VIEW);
 
-    PermissionIndexerDao.Dto applicationAuthorization = dtos.get(application.uuid());
+    IndexPermissions applicationAuthorization = dtos.get(application.uuid());
     isPublic(applicationAuthorization, APP);
 
-    PermissionIndexerDao.Dto privateProject1Authorization = dtos.get(privateProject1.uuid());
+    IndexPermissions privateProject1Authorization = dtos.get(privateProject1.uuid());
     assertThat(privateProject1Authorization.getGroupIds()).containsOnly(group.getId());
     assertThat(privateProject1Authorization.isAllowAnyone()).isFalse();
     assertThat(privateProject1Authorization.getUserIds()).containsOnly(user1.getId(), user2.getId());
     assertThat(privateProject1Authorization.getQualifier()).isEqualTo(PROJECT);
 
-    PermissionIndexerDao.Dto privateProject2Authorization = dtos.get(privateProject2.uuid());
+    IndexPermissions privateProject2Authorization = dtos.get(privateProject2.uuid());
     assertThat(privateProject2Authorization.getGroupIds()).isEmpty();
     assertThat(privateProject2Authorization.isAllowAnyone()).isFalse();
     assertThat(privateProject2Authorization.getUserIds()).containsOnly(user1.getId());
     assertThat(privateProject2Authorization.getQualifier()).isEqualTo(PROJECT);
 
-    PermissionIndexerDao.Dto view2Authorization = dtos.get(view2.uuid());
+    IndexPermissions view2Authorization = dtos.get(view2.uuid());
     isPublic(view2Authorization, VIEW);
   }
 
@@ -159,8 +160,8 @@ public class PermissionIndexerDaoTest {
   public void selectByUuids_returns_empty_list_when_project_does_not_exist() {
     insertTestDataForProjectsAndViews();
 
-    List<PermissionIndexerDao.Dto> dtos = underTest.selectByUuids(dbClient, dbSession, asList("missing"));
-    assertThat(dtos).isEmpty();
+    List<IndexPermissions> dtos = underTest.selectByUuids(dbClient, dbSession, asList("missing"));
+    Assertions.assertThat(dtos).isEmpty();
   }
 
   @Test
@@ -181,17 +182,17 @@ public class PermissionIndexerDaoTest {
 
     assertThat(underTest.selectByUuids(dbClient, dbSession, projectUuids))
       .hasSize(350)
-      .extracting(PermissionIndexerDao.Dto::getProjectUuid)
+      .extracting(IndexPermissions::getProjectUuid)
       .containsAll(projectUuids);
   }
 
   @Test
   public void return_private_project_without_any_permission_when_no_permission_in_DB() {
-    List<PermissionIndexerDao.Dto> dtos = underTest.selectByUuids(dbClient, dbSession, singletonList(privateProject1.uuid()));
+    List<IndexPermissions> dtos = underTest.selectByUuids(dbClient, dbSession, singletonList(privateProject1.uuid()));
 
     // no permissions
-    assertThat(dtos).hasSize(1);
-    PermissionIndexerDao.Dto dto = dtos.get(0);
+    Assertions.assertThat(dtos).hasSize(1);
+    IndexPermissions dto = dtos.get(0);
     assertThat(dto.getGroupIds()).isEmpty();
     assertThat(dto.getUserIds()).isEmpty();
     assertThat(dto.isAllowAnyone()).isFalse();
@@ -201,10 +202,10 @@ public class PermissionIndexerDaoTest {
 
   @Test
   public void return_public_project_with_only_AllowAnyone_true_when_no_permission_in_DB() {
-    List<PermissionIndexerDao.Dto> dtos = underTest.selectByUuids(dbClient, dbSession, singletonList(publicProject.uuid()));
+    List<IndexPermissions> dtos = underTest.selectByUuids(dbClient, dbSession, singletonList(publicProject.uuid()));
 
-    assertThat(dtos).hasSize(1);
-    PermissionIndexerDao.Dto dto = dtos.get(0);
+    Assertions.assertThat(dtos).hasSize(1);
+    IndexPermissions dto = dtos.get(0);
     assertThat(dto.getGroupIds()).isEmpty();
     assertThat(dto.getUserIds()).isEmpty();
     assertThat(dto.isAllowAnyone()).isTrue();
@@ -215,10 +216,10 @@ public class PermissionIndexerDaoTest {
   @Test
   public void return_private_project_with_AllowAnyone_false_and_user_id_when_user_is_granted_USER_permission_directly() {
     dbTester.users().insertProjectPermissionOnUser(user1, USER, privateProject1);
-    List<PermissionIndexerDao.Dto> dtos = underTest.selectByUuids(dbClient, dbSession, singletonList(privateProject1.uuid()));
+    List<IndexPermissions> dtos = underTest.selectByUuids(dbClient, dbSession, singletonList(privateProject1.uuid()));
 
-    assertThat(dtos).hasSize(1);
-    PermissionIndexerDao.Dto dto = dtos.get(0);
+    Assertions.assertThat(dtos).hasSize(1);
+    IndexPermissions dto = dtos.get(0);
     assertThat(dto.getGroupIds()).isEmpty();
     assertThat(dto.getUserIds()).containsOnly(user1.getId());
     assertThat(dto.isAllowAnyone()).isFalse();
@@ -230,10 +231,10 @@ public class PermissionIndexerDaoTest {
   public void return_private_project_with_AllowAnyone_false_and_group_id_but_not_user_id_when_user_is_granted_USER_permission_through_group() {
     dbTester.users().insertMember(group, user1);
     dbTester.users().insertProjectPermissionOnGroup(group, USER, privateProject1);
-    List<PermissionIndexerDao.Dto> dtos = underTest.selectByUuids(dbClient, dbSession, singletonList(privateProject1.uuid()));
+    List<IndexPermissions> dtos = underTest.selectByUuids(dbClient, dbSession, singletonList(privateProject1.uuid()));
 
-    assertThat(dtos).hasSize(1);
-    PermissionIndexerDao.Dto dto = dtos.get(0);
+    Assertions.assertThat(dtos).hasSize(1);
+    IndexPermissions dto = dtos.get(0);
     assertThat(dto.getGroupIds()).containsOnly(group.getId());
     assertThat(dto.getUserIds()).isEmpty();
     assertThat(dto.isAllowAnyone()).isFalse();
@@ -241,14 +242,14 @@ public class PermissionIndexerDaoTest {
     assertThat(dto.getQualifier()).isEqualTo(privateProject1.qualifier());
   }
 
-  private void isPublic(PermissionIndexerDao.Dto view1Authorization, String qualifier) {
+  private void isPublic(IndexPermissions view1Authorization, String qualifier) {
     assertThat(view1Authorization.getGroupIds()).isEmpty();
     assertThat(view1Authorization.isAllowAnyone()).isTrue();
     assertThat(view1Authorization.getUserIds()).isEmpty();
     assertThat(view1Authorization.getQualifier()).isEqualTo(qualifier);
   }
 
-  private static PermissionIndexerDao.Dto getByProjectUuid(String projectUuid, Collection<PermissionIndexerDao.Dto> dtos) {
+  private static IndexPermissions getByProjectUuid(String projectUuid, Collection<IndexPermissions> dtos) {
     return dtos.stream().filter(dto -> dto.getProjectUuid().equals(projectUuid)).findFirst().orElseThrow(IllegalArgumentException::new);
   }
 

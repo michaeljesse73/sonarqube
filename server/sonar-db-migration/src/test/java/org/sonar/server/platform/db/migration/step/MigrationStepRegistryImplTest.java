@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,7 +22,6 @@ package org.sonar.server.platform.db.migration.step;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Random;
-import java.util.stream.Collectors;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -94,7 +93,7 @@ public class MigrationStepRegistryImplTest {
 
     MigrationSteps migrationSteps = underTest.build();
     assertThat(migrationSteps).isInstanceOf(MigrationStepsImpl.class);
-    List<RegisteredMigrationStep> registeredMigrationSteps = migrationSteps.readAll().collect(Collectors.toList());
+    List<RegisteredMigrationStep> registeredMigrationSteps = migrationSteps.readAll();
     assertThat(registeredMigrationSteps).hasSize(4);
     verify(registeredMigrationSteps.get(0), 2, "aaaa", MigrationStep4.class);
     verify(registeredMigrationSteps.get(1), 5, "aazsa", MigrationStep1.class);

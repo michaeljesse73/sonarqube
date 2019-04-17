@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,40 +19,17 @@
  */
 import * as React from 'react';
 import { shallow } from 'enzyme';
-import BranchStatus from '../BranchStatus';
-import { BranchType, LongLivingBranch, ShortLivingBranch } from '../../../app/types';
+import { BranchStatus } from '../BranchStatus';
+import { mockLongLivingBranch } from '../../../helpers/testMocks';
 
-it('renders status of short-living branches', () => {
-  checkShort(0, 0, 0);
-  checkShort(0, 1, 0);
-  checkShort(7, 3, 6);
-
-  function checkShort(bugs: number, codeSmells: number, vulnerabilities: number) {
-    const branch: ShortLivingBranch = {
-      isMain: false,
-      mergeBranch: 'master',
-      name: 'foo',
-      status: { bugs, codeSmells, vulnerabilities },
-      type: BranchType.SHORT
-    };
-    expect(shallow(<BranchStatus branch={branch} />)).toMatchSnapshot();
-  }
+it('should render correctly', () => {
+  expect(shallowRender().type()).toBeNull();
+  expect(shallowRender('OK')).toMatchSnapshot();
+  expect(shallowRender('ERROR')).toMatchSnapshot();
 });
 
-it('renders status of long-living branches', () => {
-  expect(getWrapper().type()).toBeNull();
-  expect(getWrapper('OK')).toMatchSnapshot();
-  expect(getWrapper('ERROR')).toMatchSnapshot();
-
-  function getWrapper(qualityGateStatus?: string) {
-    const branch: LongLivingBranch = {
-      isMain: false,
-      name: 'foo',
-      type: BranchType.LONG
-    };
-    if (qualityGateStatus) {
-      branch.status = { qualityGateStatus };
-    }
-    return shallow(<BranchStatus branch={branch} />);
-  }
-});
+function shallowRender(status?: string) {
+  return shallow(
+    <BranchStatus branchLike={mockLongLivingBranch()} component="foo" status={status} />
+  );
+}

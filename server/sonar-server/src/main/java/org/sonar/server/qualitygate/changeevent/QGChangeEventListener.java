@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,9 +19,12 @@
  */
 package org.sonar.server.qualitygate.changeevent;
 
+import java.util.EnumSet;
 import java.util.Set;
 import org.sonar.api.rules.RuleType;
+import org.sonar.api.server.ServerSide;
 
+@ServerSide
 public interface QGChangeEventListener {
   /**
    * Called consequently to a change done on one or more issue of a given project.
@@ -32,14 +35,29 @@ public interface QGChangeEventListener {
   void onIssueChanges(QGChangeEvent qualityGateEvent, Set<ChangedIssue> changedIssues);
 
   interface ChangedIssue {
+
     String getKey();
 
     Status getStatus();
 
     RuleType getType();
+
+    String getSeverity();
+
+    default boolean isNotClosed() {
+      return !Status.CLOSED_STATUSES.contains(getStatus());
+    }
   }
 
   enum Status {
-    OPEN, CONFIRMED, REOPENED, RESOLVED, CLOSED
+    OPEN,
+    CONFIRMED,
+    REOPENED,
+    RESOLVED_FP,
+    RESOLVED_WF,
+    RESOLVED_FIXED;
+
+    protected static final Set<Status> CLOSED_STATUSES = EnumSet.of(CONFIRMED, RESOLVED_FIXED, RESOLVED_FP, RESOLVED_WF);
   }
+
 }

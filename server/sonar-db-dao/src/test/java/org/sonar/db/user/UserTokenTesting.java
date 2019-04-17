@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,9 +25,9 @@ import static org.apache.commons.lang.math.RandomUtils.nextLong;
 public class UserTokenTesting {
   public static UserTokenDto newUserToken() {
     return new UserTokenDto()
-      .setLogin(randomAlphanumeric(255))
-      .setName(randomAlphanumeric(100))
-      .setTokenHash(randomAlphanumeric(40))
+      .setUserUuid("userUuid_" + randomAlphanumeric(40))
+      .setName("name_" + randomAlphanumeric(20))
+      .setTokenHash("hash_" + randomAlphanumeric(30))
       .setCreatedAt(nextLong());
   }
 }

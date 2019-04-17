@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,13 +20,77 @@
 import * as React from 'react';
 import * as classNames from 'classnames';
 import * as theme from '../../app/theme';
+import ChevronRightIcon from '../icons-components/ChevronRightcon';
 import ClearIcon from '../icons-components/ClearIcon';
 import EditIcon from '../icons-components/EditIcon';
 import Tooltip from '../controls/Tooltip';
 import './buttons.css';
 
+type AllowedButtonAttributes = Pick<
+  React.ButtonHTMLAttributes<HTMLButtonElement>,
+  'className' | 'disabled' | 'id' | 'style' | 'title'
+>;
+
+interface ButtonProps extends AllowedButtonAttributes {
+  autoFocus?: boolean;
+  children?: React.ReactNode;
+  innerRef?: (node: HTMLElement | null) => void;
+  name?: string;
+  onClick?: () => void;
+  preventDefault?: boolean;
+  stopPropagation?: boolean;
+  type?: string;
+}
+
+export class Button extends React.PureComponent<ButtonProps> {
+  handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    const { onClick, preventDefault = true, stopPropagation = false } = this.props;
+
+    event.currentTarget.blur();
+    if (preventDefault) event.preventDefault();
+    if (stopPropagation) event.stopPropagation();
+    if (onClick) onClick();
+  };
+
+  render() {
+    const {
+      className,
+      innerRef,
+      onClick,
+      preventDefault,
+      stopPropagation,
+      type = 'button',
+      ...props
+    } = this.props;
+    return (
+      // eslint-disable-next-line react/button-has-type
+      <button
+        {...props}
+        className={classNames('button', className)}
+        disabled={this.props.disabled}
+        id={this.props.id}
+        onClick={this.handleClick}
+        ref={this.props.innerRef}
+        type={type}
+      />
+    );
+  }
+}
+
+export function ButtonLink({ className, ...props }: ButtonProps) {
+  return <Button {...props} className={classNames('button-link', className)} />;
+}
+
+export function SubmitButton(props: T.Omit<ButtonProps, 'type'>) {
+  // do not prevent default to actually submit a form
+  return <Button {...props} preventDefault={false} type="submit" />;
+}
+
+export function ResetButtonLink(props: T.Omit<ButtonProps, 'type'>) {
+  return <ButtonLink {...props} type="reset" />;
+}
+
 interface ButtonIconProps {
-  children: React.ReactNode;
   className?: string;
   color?: string;
   onClick?: () => void;
@@ -34,36 +98,24 @@ interface ButtonIconProps {
   [x: string]: any;
 }
 
-export class ButtonIcon extends React.PureComponent<ButtonIconProps> {
-  handleClick = (event: React.SyntheticEvent<HTMLButtonElement>) => {
-    event.preventDefault();
-    event.currentTarget.blur();
-    event.stopPropagation();
-    if (this.props.onClick) {
-      this.props.onClick();
-    }
-  };
-
-  render() {
-    const { children, className, color = theme.darkBlue, onClick, tooltip, ...props } = this.props;
-    const buttonComponent = (
-      <button
-        className={classNames(className, 'button-icon')}
-        onClick={this.handleClick}
-        style={{ color }}
-        {...props}>
-        {children}
-      </button>
+export function ButtonIcon(props: ButtonIconProps) {
+  const { className, color = theme.darkBlue, tooltip, ...other } = props;
+  const buttonComponent = (
+    <Button
+      className={classNames(className, 'button-icon')}
+      stopPropagation={true}
+      style={{ color }}
+      {...other}
+    />
+  );
+  if (tooltip) {
+    return (
+      <Tooltip mouseEnterDelay={0.4} overlay={tooltip}>
+        {buttonComponent}
+      </Tooltip>
     );
-    if (tooltip) {
-      return (
-        <Tooltip overlay={tooltip} mouseEnterDelay={0.4}>
-          {buttonComponent}
-        </Tooltip>
-      );
-    }
-    return buttonComponent;
   }
+  return buttonComponent;
 }
 
 interface ActionButtonProps {
@@ -85,5 +137,14 @@ export function EditButton(props: ActionButtonProps) {
     <ButtonIcon {...props}>
       <EditIcon />
     </ButtonIcon>
+  );
+}
+
+export function ListButton({ className, children, ...props }: ButtonProps) {
+  return (
+    <Button className={classNames('button-list', className)} {...props}>
+      {children}
+      <ChevronRightIcon />
+    </Button>
   );
 }

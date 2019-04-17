@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,7 +21,7 @@ package org.sonar.api.platform;
 
 import java.io.File;
 import java.util.Date;
-import org.sonar.api.batch.ScannerSide;
+import org.sonar.api.scanner.ScannerSide;
 import org.sonar.api.ce.ComputeEngineSide;
 import org.sonar.api.server.ServerSide;
 
@@ -86,7 +86,7 @@ public abstract class Server {
   public abstract String getContextPath();
 
   /**
-   * Return the public root url, for instance : https://nemo.sonarqube.org.
+   * Return the public root url, without trailing slash, for instance : https://nemo.sonarqube.org.
    * Default value is {@link org.sonar.api.CoreProperties#SERVER_BASE_URL_DEFAULT_VALUE}
    *
    * @since 5.4

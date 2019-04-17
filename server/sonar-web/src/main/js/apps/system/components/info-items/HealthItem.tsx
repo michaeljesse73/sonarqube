@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -42,12 +42,10 @@ export default function HealthItem({ biggerHealth, className, name, health, heal
     <div className={classNames('system-info-health-info', className)}>
       {hasHealthCauses &&
         healthCauses!.map((cause, idx) => (
-          <HealthCauseItem key={idx} className="spacer-right" health={health} healthCause={cause} />
+          <HealthCauseItem className="spacer-right" health={health} healthCause={cause} key={idx} />
         ))}
       {name ? (
-        <Tooltip
-          overlay={translateWithParameters('system.current_health_of_x', name)}
-          placement="left">
+        <Tooltip overlay={translateWithParameters('system.current_health_of_x', name)}>
           <span>{statusIndicator}</span>
         </Tooltip>
       ) : (

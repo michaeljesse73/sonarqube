@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,19 +20,22 @@
 package org.sonar.scanner.cpd;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Function;
-import com.google.common.base.Predicate;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import org.sonar.api.batch.fs.InputComponent;
-import org.sonar.api.batch.fs.InputFile;
 import org.sonar.api.batch.fs.internal.DefaultInputComponent;
+import org.sonar.api.batch.fs.internal.DefaultInputFile;
 import org.sonar.api.utils.log.Logger;
 import org.sonar.api.utils.log.Loggers;
 import org.sonar.duplications.block.Block;
@@ -45,16 +48,13 @@ import org.sonar.scanner.protocol.output.ScannerReport;
 import org.sonar.scanner.protocol.output.ScannerReport.Duplicate;
 import org.sonar.scanner.protocol.output.ScannerReport.Duplication;
 import org.sonar.scanner.report.ReportPublisher;
-import org.sonar.scanner.scan.branch.BranchConfiguration;
 import org.sonar.scanner.scan.filesystem.InputComponentStore;
 import org.sonar.scanner.util.ProgressReport;
 
-import static com.google.common.collect.FluentIterable.from;
-
 /**
  * Runs on the root module, at the end of the project analysis.
- * It executes copy paste detection involving all files of all modules, which were indexed during sensors execution for each module
- * by {@link CpdSensor). The sensor is responsible for handling exclusions and block sizes.
+ * It executes copy paste detection involving all files of all modules, which were indexed during sensors execution for each module.
+ * The sensors are responsible for handling exclusions and block sizes.
  */
 public class CpdExecutor {
   private static final Logger LOG = Loggers.get(CpdExecutor.class);
@@ -68,43 +68,52 @@ public class CpdExecutor {
   private final InputComponentStore componentStore;
   private final ProgressReport progressReport;
   private final CpdSettings settings;
-  private final BranchConfiguration branchConfiguration;
-  private int count;
+  private final ExecutorService executorService;
+  private int count = 0;
   private int total;
 
+  public CpdExecutor(CpdSettings settings, SonarCpdBlockIndex index, ReportPublisher publisher, InputComponentStore inputComponentCache) {
+    this(settings, index, publisher, inputComponentCache, Executors.newSingleThreadExecutor());
+  }
+
   public CpdExecutor(CpdSettings settings, SonarCpdBlockIndex index, ReportPublisher publisher, InputComponentStore inputComponentCache,
-    BranchConfiguration branchConfiguration) {
+    ExecutorService executorService) {
     this.settings = settings;
     this.index = index;
     this.publisher = publisher;
     this.componentStore = inputComponentCache;
-    this.branchConfiguration = branchConfiguration;
     this.progressReport = new ProgressReport("CPD computation", TimeUnit.SECONDS.toMillis(10));
+    this.executorService = executorService;
   }
 
   public void execute() {
-    if (branchConfiguration.isShortLivingBranch()) {
-      LOG.info("Skipping CPD calculation for short living branch");
-      return;
-    }
     execute(TIMEOUT);
   }
 
   @VisibleForTesting
   void execute(long timeout) {
-    total = index.noResources();
-    int filesWithoutBlocks = index.noIndexedFiles() - total;
+    List<FileBlocks> components = new ArrayList<>(index.noResources());
+    Iterator<ResourceBlocks> it = index.iterator();
+
+    while (it.hasNext()) {
+      ResourceBlocks resourceBlocks = it.next();
+      Optional<FileBlocks> fileBlocks = toFileBlocks(resourceBlocks.resourceId(), resourceBlocks.blocks());
+      if (!fileBlocks.isPresent()) {
+        continue;
+      }
+      components.add(fileBlocks.get());
+    }
+
+    int filesWithoutBlocks = index.noIndexedFiles() - index.noResources();
     if (filesWithoutBlocks > 0) {
       LOG.info("{} {} had no CPD blocks", filesWithoutBlocks, pluralize(filesWithoutBlocks));
     }
-    progressReport.start(String.format("Calculating CPD for %d %s", total, pluralize(total)));
-    ExecutorService executorService = Executors.newSingleThreadExecutor();
-    try {
-      Iterator<ResourceBlocks> it = index.iterator();
 
-      while (it.hasNext()) {
-        ResourceBlocks resourceBlocks = it.next();
-        runCpdAnalysis(executorService, resourceBlocks.resourceId(), resourceBlocks.blocks(), timeout);
+    total = components.size();
+    progressReport.start(String.format("Calculating CPD for %d %s", total, pluralize(total)));
+    try {
+      for (FileBlocks fileBlocks : components) {
+        runCpdAnalysis(executorService, fileBlocks.getInputFile(), fileBlocks.getBlocks(), timeout);
         count++;
       }
       progressReport.stop("CPD calculation finished");
@@ -121,14 +130,7 @@ public class CpdExecutor {
   }
 
   @VisibleForTesting
-  void runCpdAnalysis(ExecutorService executorService, String componentKey, final Collection<Block> fileBlocks, long timeout) {
-    DefaultInputComponent component = (DefaultInputComponent) componentStore.getByKey(componentKey);
-    if (component == null) {
-      LOG.error("Resource not found in component store: {}. Skipping CPD computation for it", componentKey);
-      return;
-    }
-
-    InputFile inputFile = (InputFile) component;
+  void runCpdAnalysis(ExecutorService executorService, DefaultInputFile inputFile, Collection<Block> fileBlocks, long timeout) {
     LOG.debug("Detection of duplications for {}", inputFile.absolutePath());
     progressReport.message(String.format("%d/%d - current file: %s", count, total, inputFile.absolutePath()));
 
@@ -137,7 +139,7 @@ public class CpdExecutor {
     try {
       duplications = futureResult.get(timeout, TimeUnit.MILLISECONDS);
     } catch (TimeoutException e) {
-      LOG.warn("Timeout during detection of duplications for " + inputFile.absolutePath());
+      LOG.warn("Timeout during detection of duplications for {}", inputFile.absolutePath());
       futureResult.cancel(true);
       return;
     } catch (Exception e) {
@@ -148,24 +150,24 @@ public class CpdExecutor {
     if (!"java".equalsIgnoreCase(inputFile.language())) {
       int minTokens = settings.getMinimumTokens(inputFile.language());
       Predicate<CloneGroup> minimumTokensPredicate = DuplicationPredicates.numberOfUnitsNotLessThan(minTokens);
-      filtered = from(duplications).filter(minimumTokensPredicate).toList();
+      filtered = duplications.stream()
+        .filter(minimumTokensPredicate)
+        .collect(Collectors.toList());
     } else {
       filtered = duplications;
     }
 
-    saveDuplications(component, filtered);
+    saveDuplications(inputFile, filtered);
   }
 
-  @VisibleForTesting
-  final void saveDuplications(final DefaultInputComponent component, List<CloneGroup> duplications) {
+  @VisibleForTesting final void saveDuplications(final DefaultInputComponent component, List<CloneGroup> duplications) {
     if (duplications.size() > MAX_CLONE_GROUP_PER_FILE) {
-      LOG.warn("Too many duplication groups on file " + component + ". Keep only the first " + MAX_CLONE_GROUP_PER_FILE +
-        " groups.");
+      LOG.warn("Too many duplication groups on file {}. Keep only the first {} groups.", component, MAX_CLONE_GROUP_PER_FILE);
     }
-    Iterable<ScannerReport.Duplication> reportDuplications = from(duplications)
+    Iterable<ScannerReport.Duplication> reportDuplications = duplications.stream()
       .limit(MAX_CLONE_GROUP_PER_FILE)
-      .transform(
-        new Function<CloneGroup, ScannerReport.Duplication>() {
+      .map(
+        new Function<CloneGroup, Duplication>() {
           private final ScannerReport.Duplication.Builder dupBuilder = ScannerReport.Duplication.newBuilder();
           private final ScannerReport.Duplicate.Builder blockBuilder = ScannerReport.Duplicate.newBuilder();
 
@@ -174,8 +176,17 @@ public class CpdExecutor {
             return toReportDuplication(component, dupBuilder, blockBuilder, input);
           }
 
-        });
-    publisher.getWriter().writeComponentDuplications(component.batchId(), reportDuplications);
+        })::iterator;
+    publisher.getWriter().writeComponentDuplications(component.scannerId(), reportDuplications);
+  }
+
+  private Optional<FileBlocks> toFileBlocks(String componentKey, Collection<Block> fileBlocks) {
+    DefaultInputFile component = (DefaultInputFile) componentStore.getByKey(componentKey);
+    if (component == null) {
+      LOG.error("Resource not found in component store: {}. Skipping CPD computation for it", componentKey);
+      return Optional.empty();
+    }
+    return Optional.of(new FileBlocks(component, fileBlocks));
   }
 
   private Duplication toReportDuplication(InputComponent component, Duplication.Builder dupBuilder, Duplicate.Builder blockBuilder, CloneGroup input) {
@@ -200,7 +211,7 @@ public class CpdExecutor {
         String componentKey = duplicate.getResourceId();
         if (!component.key().equals(componentKey)) {
           DefaultInputComponent sameProjectComponent = (DefaultInputComponent) componentStore.getByKey(componentKey);
-          blockBuilder.setOtherFileRef(sameProjectComponent.batchId());
+          blockBuilder.setOtherFileRef(sameProjectComponent.scannerId());
         }
         dupBuilder.addDuplicate(blockBuilder
           .setRange(ScannerReport.TextRange.newBuilder()
@@ -211,5 +222,23 @@ public class CpdExecutor {
       }
     }
     return dupBuilder.build();
+  }
+
+  private static class FileBlocks {
+    private final DefaultInputFile inputFile;
+    private final Collection<Block> blocks;
+
+    public FileBlocks(DefaultInputFile inputFile, Collection<Block> blocks) {
+      this.inputFile = inputFile;
+      this.blocks = blocks;
+    }
+
+    public DefaultInputFile getInputFile() {
+      return inputFile;
+    }
+
+    public Collection<Block> getBlocks() {
+      return blocks;
+    }
   }
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -76,6 +76,6 @@ export default class DeferredSpinner extends React.PureComponent<Props, State> {
         this.props.customSpinner || <i className={classNames('spinner', this.props.className)} />
       );
     }
-    return (this.props.children as JSX.Element) || null;
+    return this.props.children || null;
   }
 }

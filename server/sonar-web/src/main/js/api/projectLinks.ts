@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -17,30 +17,21 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import { getJSON, post, postJSON } from '../helpers/request';
 import throwGlobalError from '../app/utils/throwGlobalError';
+import { getJSON, post, postJSON } from '../helpers/request';
 
-export interface ProjectLink {
-  id: string;
+export function getProjectLinks(projectKey: string): Promise<T.ProjectLink[]> {
+  return getJSON('/api/project_links/search', { projectKey }).then(r => r.links, throwGlobalError);
+}
+
+export function deleteLink(linkId: string) {
+  return post('/api/project_links/delete', { id: linkId }).catch(throwGlobalError);
+}
+
+export function createLink(data: {
   name: string;
-  type: string;
+  projectKey: string;
   url: string;
-}
-
-export function getProjectLinks(projectKey: string): Promise<ProjectLink[]> {
-  const url = '/api/project_links/search';
-  const data = { projectKey };
-  return getJSON(url, data).then(r => r.links, throwGlobalError);
-}
-
-export function deleteLink(linkId: string): Promise<void> {
-  const url = '/api/project_links/delete';
-  const data = { id: linkId };
-  return post(url, data);
-}
-
-export function createLink(projectKey: string, name: string, url: string): Promise<any> {
-  const apiURL = '/api/project_links/create';
-  const data = { projectKey, name, url };
-  return postJSON(apiURL, data).then(r => r.link);
+}): Promise<T.ProjectLink> {
+  return postJSON('/api/project_links/create', data).then(r => r.link, throwGlobalError);
 }

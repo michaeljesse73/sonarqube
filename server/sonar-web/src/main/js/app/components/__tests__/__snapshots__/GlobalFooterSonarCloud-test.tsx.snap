@@ -6,10 +6,11 @@ exports[`should render correctly 1`] = `
   id="footer"
 >
   <div>
-    © 2008-2018, SonarCloud by
-     
+    © 2008-20XX, SonarCloud by 
     <a
       href="http://www.sonarsource.com"
+      rel="noopener noreferrer"
+      target="_blank"
       title="SonarSource SA"
     >
       SonarSource SA
@@ -23,7 +24,9 @@ exports[`should render correctly 1`] = `
       className="page-footer-menu-item"
     >
       <a
-        href="https://about.sonarcloud.io/news/"
+        href="https://blog.sonarsource.com/product/SonarCloud"
+        rel="noopener noreferrer"
+        target="_blank"
       >
         footer.news
       </a>
@@ -32,16 +35,9 @@ exports[`should render correctly 1`] = `
       className="page-footer-menu-item"
     >
       <a
-        href="https://about.sonarcloud.io/terms.pdf"
-      >
-        footer.terms
-      </a>
-    </li>
-    <li
-      className="page-footer-menu-item"
-    >
-      <a
         href="https://twitter.com/sonarcloud"
+        rel="noopener noreferrer"
+        target="_blank"
       >
         footer.twitter
       </a>
@@ -49,17 +45,56 @@ exports[`should render correctly 1`] = `
     <li
       className="page-footer-menu-item"
     >
-      <a
-        href="https://about.sonarcloud.io/get-started/"
+      <Link
+        onlyActiveOnIndex={false}
+        rel="noopener noreferrer"
+        style={Object {}}
+        target="_blank"
+        to="/terms.pdf"
       >
-        footer.get_started
-      </a>
+        footer.terms
+      </Link>
+    </li>
+    <li
+      className="page-footer-menu-item"
+    >
+      <Link
+        onlyActiveOnIndex={false}
+        style={Object {}}
+        to="/about/pricing/"
+      >
+        footer.pricing
+      </Link>
+    </li>
+    <li
+      className="page-footer-menu-item"
+    >
+      <Link
+        onlyActiveOnIndex={false}
+        style={Object {}}
+        to="/documentation/privacy/"
+      >
+        footer.privacy
+      </Link>
+    </li>
+    <li
+      className="page-footer-menu-item"
+    >
+      <Link
+        onlyActiveOnIndex={false}
+        style={Object {}}
+        to="/documentation/security/"
+      >
+        footer.security
+      </Link>
     </li>
     <li
       className="page-footer-menu-item"
     >
       <a
-        href="https://about.sonarcloud.io/contact/"
+        href="https://community.sonarsource.com/c/help/sc"
+        rel="noopener noreferrer"
+        target="_blank"
       >
         footer.help
       </a>
@@ -67,11 +102,35 @@ exports[`should render correctly 1`] = `
     <li
       className="page-footer-menu-item"
     >
+      <Link
+        onlyActiveOnIndex={false}
+        style={Object {}}
+        to="/about/contact"
+      >
+        footer.contact_us
+      </Link>
+    </li>
+    <li
+      className="page-footer-menu-item"
+    >
       <a
-        href="https://about.sonarcloud.io/"
+        href="https://sonarcloud.statuspage.io/"
+        rel="noopener noreferrer"
+        target="_blank"
+      >
+        footer.status
+      </a>
+    </li>
+    <li
+      className="page-footer-menu-item"
+    >
+      <Link
+        onlyActiveOnIndex={false}
+        style={Object {}}
+        to="/about"
       >
         footer.about
-      </a>
+      </Link>
     </li>
   </ul>
 </div>

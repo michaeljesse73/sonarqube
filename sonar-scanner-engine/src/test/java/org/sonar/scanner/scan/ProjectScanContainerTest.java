@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,10 +20,11 @@
 package org.sonar.scanner.scan;
 
 import org.junit.Test;
-import org.sonar.api.BatchExtension;
-import org.sonar.api.ServerExtension;
 import org.sonar.api.batch.InstantiationStrategy;
+import org.sonar.api.batch.ScannerSide;
+import org.sonar.api.server.ServerSide;
 import org.sonar.api.task.TaskExtension;
+import org.sonar.scanner.bootstrap.ExtensionMatcher;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -31,7 +32,7 @@ public class ProjectScanContainerTest {
 
   @Test
   public void should_add_only_batch_extensions() {
-    ProjectScanContainer.BatchExtensionFilter filter = new ProjectScanContainer.BatchExtensionFilter();
+    ExtensionMatcher filter = ProjectScanContainer.getScannerProjectExtensionsFilter();
 
     assertThat(filter.accept(new MyBatchExtension())).isTrue();
     assertThat(filter.accept(MyBatchExtension.class)).isTrue();
@@ -44,16 +45,20 @@ public class ProjectScanContainerTest {
     assertThat(filter.accept(MyTaskExtension.class)).isFalse();
   }
 
+  @ScannerSide
   @InstantiationStrategy(InstantiationStrategy.PER_BATCH)
-  static class MyBatchExtension implements BatchExtension {
+  static class MyBatchExtension  {
 
   }
 
-  static class MyProjectExtension implements BatchExtension {
+  @ScannerSide
+  @InstantiationStrategy(InstantiationStrategy.PER_PROJECT)
+  static class MyProjectExtension {
 
   }
 
-  static class MyServerExtension implements ServerExtension {
+  @ServerSide
+  static class MyServerExtension  {
 
   }
 

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,7 +19,9 @@
  */
 import * as React from 'react';
 import PluginChangeLog from './PluginChangeLog';
-import BubblePopupHelper from '../../../components/common/BubblePopupHelper';
+import Dropdown from '../../../components/controls/Dropdown';
+import EllipsisIcon from '../../../components/icons-components/EllipsisIcon';
+import { ButtonLink } from '../../../components/ui/buttons';
 import { Release, Update } from '../../../api/plugins';
 
 interface Props {
@@ -27,41 +29,14 @@ interface Props {
   update: Update;
 }
 
-interface State {
-  changelogOpen: boolean;
-}
-
-export default class PluginChangeLogButton extends React.PureComponent<Props, State> {
-  state: State = { changelogOpen: false };
-
-  handleChangelogClick = (event: React.SyntheticEvent<HTMLButtonElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-    this.toggleChangelog();
-  };
-
-  toggleChangelog = (show?: boolean) => {
-    if (show !== undefined) {
-      this.setState({ changelogOpen: show });
-    } else {
-      this.setState(state => ({ changelogOpen: !state.changelogOpen }));
-    }
-  };
-
-  render() {
-    return (
-      <div className="display-inline-block little-spacer-left">
-        <button
-          className="button-link js-changelog issue-rule icon-ellipsis-h"
-          onClick={this.handleChangelogClick}
-        />
-        <BubblePopupHelper
-          isOpen={this.state.changelogOpen}
-          position="bottomright"
-          popup={<PluginChangeLog release={this.props.release} update={this.props.update} />}
-          togglePopup={this.toggleChangelog}
-        />
-      </div>
-    );
-  }
+export default function PluginChangeLogButton({ release, update }: Props) {
+  return (
+    <Dropdown
+      className="display-inline-block little-spacer-left"
+      overlay={<PluginChangeLog release={release} update={update} />}>
+      <ButtonLink className="js-changelog issue-rule">
+        <EllipsisIcon />
+      </ButtonLink>
+    </Dropdown>
+  );
 }

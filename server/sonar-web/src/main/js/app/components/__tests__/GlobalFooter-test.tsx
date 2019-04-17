@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,6 +20,10 @@
 import * as React from 'react';
 import { shallow } from 'enzyme';
 import GlobalFooter from '../GlobalFooter';
+import { EditionKey } from '../../../apps/marketplace/utils';
+import { isSonarCloud } from '../../../helpers/system';
+
+jest.mock('../../../helpers/system', () => ({ isSonarCloud: jest.fn() }));
 
 it('should render the only logged in information', () => {
   expect(getWrapper()).toMatchSnapshot();
@@ -32,11 +36,13 @@ it('should not render the only logged in information', () => {
 });
 
 it('should show the db warning message', () => {
-  expect(getWrapper({ productionDatabase: false }).find('.alert')).toMatchSnapshot();
+  expect(getWrapper({ productionDatabase: false }).find('Alert')).toMatchSnapshot();
 });
 
 it('should display the sq version', () => {
-  expect(getWrapper({ sonarqubeVersion: '6.4-SNAPSHOT' })).toMatchSnapshot();
+  expect(
+    getWrapper({ sonarqubeEdition: EditionKey.enterprise, sonarqubeVersion: '6.4-SNAPSHOT' })
+  ).toMatchSnapshot();
 });
 
 it('should render SonarCloud footer', () => {
@@ -44,7 +50,8 @@ it('should render SonarCloud footer', () => {
 });
 
 function getWrapper(props = {}, onSonarCloud = false) {
-  return shallow(<GlobalFooter productionDatabase={true} {...props} />, {
-    context: { onSonarCloud }
-  });
+  (isSonarCloud as jest.Mock).mockImplementation(() => onSonarCloud);
+  return shallow(
+    <GlobalFooter productionDatabase={true} sonarqubeEdition={EditionKey.community} {...props} />
+  );
 }

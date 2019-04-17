@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,8 +24,9 @@ import { translate } from '../../helpers/l10n';
 interface Props {
   canTurnToPrivate?: boolean;
   className?: string;
-  onChange: (x: string) => void;
-  visibility: string;
+  onChange: (visibility: T.Visibility) => void;
+  showDetails?: boolean;
+  visibility?: T.Visibility;
 }
 
 export default class VisibilitySelector extends React.PureComponent<Props> {
@@ -43,11 +44,11 @@ export default class VisibilitySelector extends React.PureComponent<Props> {
 
   render() {
     return (
-      <div className={this.props.className}>
+      <div className={classNames('visibility-select', this.props.className)}>
         <a
-          className="link-base-color link-no-underline"
-          id="visibility-public"
+          className="link-base-color link-no-underline visibility-select-option"
           href="#"
+          id="visibility-public"
           onClick={this.handlePublicClick}>
           <i
             className={classNames('icon-radio', {
@@ -56,29 +57,50 @@ export default class VisibilitySelector extends React.PureComponent<Props> {
           />
           <span className="spacer-left">{translate('visibility.public')}</span>
         </a>
+        {this.props.showDetails && (
+          <span className="visibility-details note">
+            {translate('visibility.public.description.long')}
+          </span>
+        )}
 
         {this.props.canTurnToPrivate ? (
-          <a
-            className="link-base-color link-no-underline huge-spacer-left"
-            id="visibility-private"
-            href="#"
-            onClick={this.handlePrivateClick}>
-            <i
-              className={classNames('icon-radio', {
-                'is-checked': this.props.visibility === 'private'
-              })}
-            />
-            <span className="spacer-left">{translate('visibility.private')}</span>
-          </a>
+          <>
+            <a
+              className="link-base-color link-no-underline huge-spacer-left visibility-select-option"
+              href="#"
+              id="visibility-private"
+              onClick={this.handlePrivateClick}>
+              <i
+                className={classNames('icon-radio', {
+                  'is-checked': this.props.visibility === 'private'
+                })}
+              />
+              <span className="spacer-left">{translate('visibility.private')}</span>
+            </a>
+            {this.props.showDetails && (
+              <span className="visibility-details note">
+                {translate('visibility.private.description.long')}
+              </span>
+            )}
+          </>
         ) : (
-          <span className="huge-spacer-left text-muted cursor-not-allowed" id="visibility-private">
-            <i
-              className={classNames('icon-radio', {
-                'is-checked': this.props.visibility === 'private'
-              })}
-            />
-            <span className="spacer-left">{translate('visibility.private')}</span>
-          </span>
+          <>
+            <span
+              className="huge-spacer-left text-muted cursor-not-allowed visibility-select-option"
+              id="visibility-private">
+              <i
+                className={classNames('icon-radio', {
+                  'is-checked': this.props.visibility === 'private'
+                })}
+              />
+              <span className="spacer-left">{translate('visibility.private')}</span>
+            </span>
+            {this.props.showDetails && (
+              <span className="visibility-details note">
+                {translate('visibility.private.description.long')}
+              </span>
+            )}
+          </>
         )}
       </div>
     );

@@ -43,6 +43,7 @@ message SearchWsResponse {
     optional string externalIdentity = 9;
     optional string externalProvider = 10;
     optional string avatar = 11;
+    optional string lastConnectionDate = 12;
   }
 
   message Groups {
@@ -109,6 +110,8 @@ message CurrentWsResponse {
   optional bool showOnboardingTutorial = 11;
   optional string avatar = 12;
   optional Homepage homepage = 13;
+  optional string personalOrganization = 14;
+  repeated Setting settings = 15;
 
   message Permissions {
     repeated string global = 1;
@@ -119,10 +122,22 @@ message CurrentWsResponse {
     ORGANIZATION = 2;
     MY_PROJECTS = 3;
     MY_ISSUES = 4;
+    PROJECTS = 5;
+    ISSUES = 6;
+    PORTFOLIO = 7;
+    PORTFOLIOS = 8;
+    APPLICATION = 9;
   }
 
   message Homepage {
     optional HomepageType type = 1;
-    optional string parameter = 2;
+    optional string component = 2;
+    optional string organization = 3;
+    optional string branch = 4;
+  }
+
+  message Setting {
+    optional string key = 1;
+    optional string value = 2;
   }
 }

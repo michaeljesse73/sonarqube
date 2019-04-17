@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,8 +20,8 @@
 package org.sonar.ce.taskprocessor;
 
 import java.util.Optional;
-import org.sonar.ce.queue.CeTask;
-import org.sonar.ce.taskprocessor.CeTaskProcessor;
+import org.sonar.ce.task.CeTask;
+import org.sonar.ce.task.taskprocessor.CeTaskProcessor;
 
 public interface CeTaskProcessorRepository {
 

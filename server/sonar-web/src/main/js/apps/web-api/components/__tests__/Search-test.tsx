@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,8 +22,7 @@ import { shallow } from 'enzyme';
 import Search from '../Search';
 
 const PROPS = {
-  showDeprecated: false,
-  showInternal: false,
+  query: { search: '', deprecated: false, internal: false },
   onSearch: () => {},
   onToggleInternal: () => {},
   onToggleDeprecated: () => {}

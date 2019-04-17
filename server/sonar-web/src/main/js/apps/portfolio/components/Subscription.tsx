@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,12 +18,15 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
+import AlertSuccessIcon from '../../../components/icons-components/AlertSuccessIcon';
 import { ReportStatus, subscribe, unsubscribe } from '../../../api/report';
 import { translate, translateWithParameters } from '../../../helpers/l10n';
+import { Button } from '../../../components/ui/buttons';
+import { isLoggedIn } from '../../../helpers/users';
 
 interface Props {
   component: string;
-  currentUser: { email?: string };
+  currentUser: T.CurrentUser;
   status: ReportStatus;
 }
 
@@ -66,18 +69,14 @@ export default class Subscription extends React.PureComponent<Props, State> {
     }
   };
 
-  handleSubscribe = (e: React.SyntheticEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-    e.currentTarget.blur();
+  handleSubscribe = () => {
     this.setState({ loading: true });
     subscribe(this.props.component)
       .then(() => this.handleSubscription(true))
       .catch(this.stopLoading);
   };
 
-  handleUnsubscribe = (e: React.SyntheticEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-    e.currentTarget.blur();
+  handleUnsubscribe = () => {
     this.setState({ loading: true });
     unsubscribe(this.props.component)
       .then(() => this.handleSubscription(false))
@@ -95,12 +94,12 @@ export default class Subscription extends React.PureComponent<Props, State> {
   renderWhenSubscribed = () => (
     <div className="js-subscribed">
       <div className="spacer-bottom">
-        <i className="icon-check pull-left spacer-right" />
+        <AlertSuccessIcon className="pull-left spacer-right" />
         <div className="overflow-hidden">
           {translateWithParameters('report.subscribed', this.getEffectiveFrequencyText())}
         </div>
       </div>
-      <button onClick={this.handleUnsubscribe}>{translate('report.unsubscribe')}</button>
+      <Button onClick={this.handleUnsubscribe}>{translate('report.unsubscribe')}</Button>
       {this.renderLoading()}
     </div>
   );
@@ -110,15 +109,15 @@ export default class Subscription extends React.PureComponent<Props, State> {
       <p className="spacer-bottom">
         {translateWithParameters('report.unsubscribed', this.getEffectiveFrequencyText())}
       </p>
-      <button className="js-report-subscribe" onClick={this.handleSubscribe}>
+      <Button className="js-report-subscribe" onClick={this.handleSubscribe}>
         {translate('report.subscribe')}
-      </button>
+      </Button>
       {this.renderLoading()}
     </div>
   );
 
   render() {
-    const hasEmail = !!this.props.currentUser.email;
+    const hasEmail = isLoggedIn(this.props.currentUser) && !!this.props.currentUser.email;
     const { subscribed } = this.state;
 
     let inner;

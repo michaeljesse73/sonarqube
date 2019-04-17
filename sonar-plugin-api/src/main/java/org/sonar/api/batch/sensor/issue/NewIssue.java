@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -35,13 +35,6 @@ public interface NewIssue {
    * The {@link RuleKey} of the issue.
    */
   NewIssue forRule(RuleKey ruleKey);
-
-  /**
-   * Effort to fix the issue.
-   * @deprecated since 5.5 use {@link #gap(Double)}
-   */
-  @Deprecated
-  NewIssue effortToFix(@Nullable Double effortToFix);
 
   /**
    * Gap used for the computation of the effort. 

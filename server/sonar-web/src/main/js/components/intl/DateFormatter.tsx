@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -27,7 +27,7 @@ interface Props {
   long?: boolean;
 }
 
-export const formatterOption = { year: 'numeric', month: '2-digit', day: '2-digit' };
+export const formatterOption = { year: 'numeric', month: 'short', day: '2-digit' };
 
 export const longFormatterOption = { year: 'numeric', month: 'long', day: 'numeric' };
 

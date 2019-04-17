@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,12 +19,12 @@
  */
 package org.sonarqube.ws.client;
 
-import okhttp3.Response;
-import okhttp3.ResponseBody;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
+import java.util.Optional;
+import okhttp3.Response;
+import okhttp3.ResponseBody;
 
 class OkHttpResponse extends BaseResponse {
 
@@ -47,6 +47,11 @@ class OkHttpResponse extends BaseResponse {
   @Override
   public String contentType() {
     return okResponse.header("Content-Type");
+  }
+
+  @Override
+  public Optional<String> header(String name) {
+    return Optional.ofNullable(okResponse.header(name));
   }
 
   /**
@@ -72,13 +77,10 @@ class OkHttpResponse extends BaseResponse {
    */
   @Override
   public String content() {
-    ResponseBody body = okResponse.body();
-    try {
+    try (ResponseBody body = okResponse.body()) {
       return body.string();
     } catch (IOException e) {
       throw fail(e);
-    } finally {
-      body.close();
     }
   }
 

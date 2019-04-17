@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,7 +19,6 @@
  */
 package org.sonar.db.ce;
 
-import java.util.Random;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -48,9 +47,27 @@ public class CeQueueDtoTest {
     String str_41_chars = STR_40_CHARS + "a";
 
     expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("Value of component UUID is too long: " + str_41_chars);
+    expectedException.expectMessage("Value is too long for column CE_QUEUE.COMPONENT_UUID: " + str_41_chars);
 
     underTest.setComponentUuid(str_41_chars);
+  }
+
+  @Test
+  public void setMainComponentUuid_accepts_null_empty_and_string_40_chars_or_less() {
+    underTest.setMainComponentUuid(null);
+    underTest.setMainComponentUuid("");
+    underTest.setMainComponentUuid("bar");
+    underTest.setMainComponentUuid(STR_40_CHARS);
+  }
+
+  @Test
+  public void setMainComponentUuid_throws_IAE_if_value_is_41_chars() {
+    String str_41_chars = STR_40_CHARS + "a";
+
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("Value is too long for column CE_QUEUE.MAIN_COMPONENT_UUID: " + str_41_chars);
+
+    underTest.setMainComponentUuid(str_41_chars);
   }
 
   @Test
@@ -79,10 +96,10 @@ public class CeQueueDtoTest {
 
   @Test
   public void setSubmitterLogin_accepts_null_empty_and_string_255_chars_or_less() {
-    underTest.setSubmitterLogin(null);
-    underTest.setSubmitterLogin("");
-    underTest.setSubmitterLogin("bar");
-    underTest.setSubmitterLogin(STR_255_CHARS);
+    underTest.setSubmitterUuid(null);
+    underTest.setSubmitterUuid("");
+    underTest.setSubmitterUuid("bar");
+    underTest.setSubmitterUuid(STR_255_CHARS);
   }
 
   @Test
@@ -90,36 +107,8 @@ public class CeQueueDtoTest {
     String str_256_chars = STR_255_CHARS + "a";
 
     expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("Value of submitter login is too long: " + str_256_chars);
+    expectedException.expectMessage("Value of submitter uuid is too long: " + str_256_chars);
 
-    underTest.setSubmitterLogin(str_256_chars);
-  }
-
-  @Test
-  public void setWorkerUuid_accepts_null_empty_and_string_40_chars_or_less() {
-    underTest.setWorkerUuid(null);
-    underTest.setWorkerUuid("");
-    underTest.setWorkerUuid("bar");
-    underTest.setWorkerUuid(STR_40_CHARS);
-  }
-
-  @Test
-  public void setWorkerUuid_throws_IAE_if_value_is_41_chars() {
-    String str_41_chars = STR_40_CHARS + "a";
-
-    expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("worker uuid is too long: " + str_41_chars);
-
-    underTest.setWorkerUuid(str_41_chars);
-  }
-
-  @Test
-  public void setExecutionCount_throws_IAE_if_value_is_less_than_0() {
-    int lessThanZero = -1-(Math.abs(new Random().nextInt()));
-
-    expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("execution count can't be < 0");
-
-    underTest.setExecutionCount(lessThanZero);
+    underTest.setSubmitterUuid(str_256_chars);
   }
 }

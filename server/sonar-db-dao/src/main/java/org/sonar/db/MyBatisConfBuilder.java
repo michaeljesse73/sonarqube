@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -46,6 +46,7 @@ class MyBatisConfBuilder {
     this.conf.setDatabaseId(dialect.getId());
     this.conf.getVariables().setProperty("_true", dialect.getTrueSqlValue());
     this.conf.getVariables().setProperty("_false", dialect.getFalseSqlValue());
+    this.conf.getVariables().setProperty("_from_dual", dialect.getSqlFromDual());
     this.conf.getVariables().setProperty("_scrollFetchSize", String.valueOf(dialect.getScrollDefaultFetchSize()));
     this.conf.setLocalCacheScope(LocalCacheScope.STATEMENT);
   }

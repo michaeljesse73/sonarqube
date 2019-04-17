@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -34,11 +34,12 @@ import org.sonar.api.server.ws.Response;
 import org.sonar.api.server.ws.WebService;
 import org.sonar.api.server.ws.WebService.Param;
 import org.sonar.api.web.UserRole;
+import org.sonar.db.DatabaseUtils;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
 import org.sonar.db.component.ComponentDto;
-import org.sonar.db.component.ComponentLinkDto;
 import org.sonar.db.component.ComponentQuery;
+import org.sonar.db.component.ProjectLinkDto;
 import org.sonar.db.component.SnapshotDto;
 import org.sonar.db.measure.LiveMeasureDto;
 import org.sonar.server.user.UserSession;
@@ -50,8 +51,8 @@ import static com.google.common.base.Strings.emptyToNull;
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static java.util.Collections.singletonList;
 import static java.util.Objects.requireNonNull;
+import static java.util.Optional.ofNullable;
 import static org.sonar.api.utils.Paging.offset;
-import static org.sonar.core.util.Protobuf.setNullable;
 import static org.sonar.server.project.ws.SearchMyProjectsData.builder;
 import static org.sonar.server.ws.WsUtils.writeProtobuf;
 
@@ -69,7 +70,7 @@ public class SearchMyProjectsAction implements ProjectsWsAction {
   @Override
   public void define(WebService.NewController context) {
     WebService.NewAction action = context.createAction("search_my_projects")
-      .setDescription("Return list of projects for which the current user has 'Administer' permission.")
+      .setDescription("Return list of projects for which the current user has 'Administer' permission. Maximum 1'000 projects are returned.")
       .setResponseExample(getClass().getResource("search_my_projects-example.json"))
       .addPagingParams(100, MAX_SIZE)
       .setSince("6.0")
@@ -138,7 +139,7 @@ public class SearchMyProjectsAction implements ProjectsWsAction {
         .setName(dto.name());
       data.lastAnalysisDateFor(dto.uuid()).ifPresent(project::setLastAnalysisDate);
       data.qualityGateStatusFor(dto.uuid()).ifPresent(project::setQualityGate);
-      setNullable(emptyToNull(dto.description()), project::setDescription);
+      ofNullable(emptyToNull(dto.description())).ifPresent(project::setDescription);
 
       data.projectLinksFor(dto.uuid()).stream()
         .map(ProjectLinkDtoToWs.INSTANCE)
@@ -148,11 +149,11 @@ public class SearchMyProjectsAction implements ProjectsWsAction {
     }
   }
 
-  private enum ProjectLinkDtoToWs implements Function<ComponentLinkDto, Link> {
+  private enum ProjectLinkDtoToWs implements Function<ProjectLinkDto, Link> {
     INSTANCE;
 
     @Override
-    public Link apply(ComponentLinkDto dto) {
+    public Link apply(ProjectLinkDto dto) {
       Link.Builder link = Link.newBuilder();
       link.setHref(dto.getHref());
 
@@ -172,7 +173,7 @@ public class SearchMyProjectsAction implements ProjectsWsAction {
     ProjectsResult searchResult = searchProjects(dbSession, request);
     List<ComponentDto> projects = searchResult.projects;
     List<String> projectUuids = Lists.transform(projects, ComponentDto::projectUuid);
-    List<ComponentLinkDto> projectLinks = dbClient.componentLinkDao().selectByComponentUuids(dbSession, projectUuids);
+    List<ProjectLinkDto> projectLinks = dbClient.projectLinkDao().selectByProjectUuids(dbSession, projectUuids);
     List<SnapshotDto> snapshots = dbClient.snapshotDao().selectLastAnalysesByRootComponentUuids(dbSession, projectUuids);
     List<LiveMeasureDto> qualityGates = dbClient.liveMeasureDao()
       .selectByComponentUuidsAndMetricKeys(dbSession, projectUuids, singletonList(CoreMetrics.ALERT_STATUS_KEY));
@@ -193,7 +194,7 @@ public class SearchMyProjectsAction implements ProjectsWsAction {
     List<Long> componentIds = dbClient.roleDao().selectComponentIdsByPermissionAndUserId(dbSession, UserRole.ADMIN, userId);
     ComponentQuery dbQuery = ComponentQuery.builder()
             .setQualifiers(Qualifiers.PROJECT)
-            .setComponentIds(ImmutableSet.copyOf(componentIds))
+            .setComponentIds(ImmutableSet.copyOf(componentIds.subList(0, Math.min(componentIds.size(), DatabaseUtils.PARTITION_SIZE_FOR_ORACLE))))
             .build();
 
     return new ProjectsResult(

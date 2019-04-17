@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -192,14 +192,17 @@ export function groupSections(sysInfoData: SysValueObject) {
   return { mainSection, sections };
 }
 
-export const parseQuery = memoize((urlQuery: RawQuery): Query => ({
-  expandedCards: parseAsArray(urlQuery.expand, parseAsString)
-}));
-
-export const serializeQuery = memoize((query: Query): RawQuery =>
-  cleanQuery({
-    expand: serializeStringArray(query.expandedCards)
+export const parseQuery = memoize(
+  (urlQuery: RawQuery): Query => ({
+    expandedCards: parseAsArray(urlQuery.expand, parseAsString)
   })
+);
+
+export const serializeQuery = memoize(
+  (query: Query): RawQuery =>
+    cleanQuery({
+      expand: serializeStringArray(query.expandedCards)
+    })
 );
 
 export function sortUpgrades(upgrades: SystemUpgrade[]): SystemUpgrade[] {

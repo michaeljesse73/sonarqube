@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -64,7 +64,7 @@ public class NewComponent {
   }
 
   @CheckForNull
-  public String branch() {
+  public String deprecatedBranch() {
     return branch;
   }
 
@@ -98,8 +98,8 @@ public class NewComponent {
       return this;
     }
 
-    public Builder setBranch(@Nullable String branch) {
-      this.branch = branch;
+    public Builder setDeprecatedBranch(@Nullable String s) {
+      this.branch = s;
       return this;
     }
 

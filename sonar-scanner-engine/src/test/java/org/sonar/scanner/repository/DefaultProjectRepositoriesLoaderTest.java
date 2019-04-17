@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,10 +24,12 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.HttpURLConnection;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.sonar.api.batch.fs.internal.DefaultInputFile;
 import org.sonar.api.utils.MessageException;
 import org.sonar.scanner.WsTestUtil;
 import org.sonar.scanner.bootstrap.ScannerWsClient;
@@ -36,7 +38,8 @@ import org.sonarqube.ws.client.HttpException;
 import org.sonarqube.ws.client.WsRequest;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -57,18 +60,25 @@ public class DefaultProjectRepositoriesLoaderTest {
   }
 
   @Test
-  public void continueOnError() {
-    when(wsClient.call(any(WsRequest.class))).thenThrow(IllegalStateException.class);
-    ProjectRepositories proj = loader.load(PROJECT_KEY, false, null);
+  public void continueOnHttp404Exception() {
+    when(wsClient.call(any(WsRequest.class))).thenThrow(new HttpException("/batch/project.protobuf?key=foo%3F", HttpURLConnection.HTTP_NOT_FOUND, ""));
+    ProjectRepositories proj = loader.load(PROJECT_KEY, null);
     assertThat(proj.exists()).isEqualTo(false);
   }
 
-  @Test
+  @Test(expected = IllegalStateException.class)
+  public void failOnNonHttp404Exception() {
+    when(wsClient.call(any(WsRequest.class))).thenThrow(IllegalStateException.class);
+    ProjectRepositories proj = loader.load(PROJECT_KEY, null);
+    assertThat(proj.exists()).isEqualTo(false);
+  }
+
+  @Test(expected = IllegalStateException.class)
   public void parsingError() throws IOException {
     InputStream is = mock(InputStream.class);
-    when(is.read()).thenThrow(IOException.class);
+    when(is.read(any(byte[].class), anyInt(), anyInt())).thenThrow(IOException.class);
     WsTestUtil.mockStream(wsClient, "/batch/project.protobuf?key=foo%3F", is);
-    loader.load(PROJECT_KEY, false, null);
+    loader.load(PROJECT_KEY, null);
   }
 
   @Test(expected = IllegalStateException.class)
@@ -76,7 +86,7 @@ public class DefaultProjectRepositoriesLoaderTest {
     HttpException http = new HttpException("url", 403, null);
     IllegalStateException e = new IllegalStateException("http error", http);
     WsTestUtil.mockException(wsClient, e);
-    loader.load(PROJECT_KEY, false, null);
+    loader.load(PROJECT_KEY, null);
   }
 
   @Test
@@ -87,26 +97,17 @@ public class DefaultProjectRepositoriesLoaderTest {
     HttpException http = new HttpException("uri", 403, null);
     MessageException e = MessageException.of("http error", http);
     WsTestUtil.mockException(wsClient, e);
-    loader.load(PROJECT_KEY, false, null);
-  }
-
-  @Test
-  public void passIssuesModeParameter() {
-    loader.load(PROJECT_KEY, false, null);
-    WsTestUtil.verifyCall(wsClient, "/batch/project.protobuf?key=foo%3F");
-
-    loader.load(PROJECT_KEY, true, null);
-    WsTestUtil.verifyCall(wsClient, "/batch/project.protobuf?key=foo%3F&issues_mode=true");
+    loader.load(PROJECT_KEY, null);
   }
 
   @Test
   public void deserializeResponse() throws IOException {
-    loader.load(PROJECT_KEY, false, null);
+    loader.load(PROJECT_KEY, null);
   }
 
   @Test
   public void passAndEncodeProjectKeyParameter() {
-    loader.load(PROJECT_KEY, false, null);
+    loader.load(PROJECT_KEY, null);
     WsTestUtil.verifyCall(wsClient, "/batch/project.protobuf?key=foo%3F");
   }
 
@@ -122,11 +123,13 @@ public class DefaultProjectRepositoriesLoaderTest {
   @Test
   public void readRealResponse() throws IOException {
     InputStream is = getTestResource("project.protobuf");
-    WsTestUtil.mockStream(wsClient, "/batch/project.protobuf?key=org.sonarsource.github%3Asonar-github-plugin&issues_mode=true", is);
+    WsTestUtil.mockStream(wsClient, "/batch/project.protobuf?key=org.sonarsource.github%3Asonar-github-plugin", is);
 
-    ProjectRepositories proj = loader.load("org.sonarsource.github:sonar-github-plugin", true, null);
-    FileData fd = proj.fileData("org.sonarsource.github:sonar-github-plugin",
-      "src/test/java/org/sonar/plugins/github/PullRequestIssuePostJobTest.java");
+    DefaultInputFile file = mock(DefaultInputFile.class);
+    when(file.getModuleRelativePath()).thenReturn("src/test/java/org/sonar/plugins/github/PullRequestIssuePostJobTest.java");
+
+    ProjectRepositories proj = loader.load("org.sonarsource.github:sonar-github-plugin", null);
+    FileData fd = proj.fileData("org.sonarsource.github:sonar-github-plugin", file);
 
     assertThat(fd.revision()).isEqualTo("27bf2c54633d05c5df402bbe09471fe43bd9e2e5");
     assertThat(fd.hash()).isEqualTo("edb6b3b9ab92d8dc53ba90ab86cd422e");

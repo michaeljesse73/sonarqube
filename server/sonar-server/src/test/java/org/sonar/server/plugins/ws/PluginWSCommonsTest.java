@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,11 +20,15 @@
 package org.sonar.server.plugins.ws;
 
 import java.io.File;
+import java.io.IOException;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.sonar.api.utils.text.JsonWriter;
 import org.sonar.core.platform.PluginInfo;
-import org.sonar.core.platform.RemotePluginFile;
 import org.sonar.db.plugin.PluginDto;
+import org.sonar.server.plugins.InstalledPlugin;
+import org.sonar.server.plugins.InstalledPlugin.FileAndMd5;
 import org.sonar.server.ws.WsTester;
 import org.sonar.updatecenter.common.Plugin;
 import org.sonar.updatecenter.common.PluginUpdate;
@@ -42,13 +46,15 @@ import static org.sonar.updatecenter.common.PluginUpdate.Status.REQUIRE_SONAR_UP
 
 public class PluginWSCommonsTest {
 
-  WsTester.TestResponse response = new WsTester.TestResponse();
-  JsonWriter jsonWriter = response.newJsonWriter();
-  PluginWSCommons underTest = new PluginWSCommons();
+  @Rule
+  public TemporaryFolder temp = new TemporaryFolder();
+
+  private WsTester.TestResponse response = new WsTester.TestResponse();
+  private JsonWriter jsonWriter = response.newJsonWriter();
 
   @Test
   public void verify_properties_written_by_writePluginMetadata() {
-    underTest.writePluginInfo(jsonWriter, gitPluginInfo(), null, null, null);
+    PluginWSCommons.writePluginInfo(jsonWriter, gitPluginInfo(), null, null, null);
 
     jsonWriter.close();
     assertJson(response.outputAsString()).withStrictArrayOrder().isSimilarTo("{" +
@@ -66,8 +72,8 @@ public class PluginWSCommonsTest {
 
   @Test
   public void verify_properties_written_by_writePluginMetadata_with_dto() {
-    PluginDto pluginDto = new PluginDto().setFileHash("abcdef123456").setUpdatedAt(123456L);
-    underTest.writePluginInfo(jsonWriter, gitPluginInfo(), null, pluginDto, null);
+    PluginDto pluginDto = new PluginDto().setUpdatedAt(123456L);
+    PluginWSCommons.writePluginInfo(jsonWriter, gitPluginInfo(), null, pluginDto, null);
 
     jsonWriter.close();
     assertJson(response.outputAsString()).withStrictArrayOrder().isSimilarTo("{" +
@@ -80,42 +86,40 @@ public class PluginWSCommonsTest {
       "  \"organizationUrl\": \"http://www.sonarsource.com\"," +
       "  \"homepageUrl\": \"https://redirect.sonarsource.com/plugins/scmgit.html\"," +
       "  \"issueTrackerUrl\": \"http://jira.sonarsource.com/browse/SONARSCGIT\"," +
-      "  \"filename\": \"sonar-scm-git-plugin-1.0.jar\"," +
-      "  \"hash\": \"abcdef123456\"," +
-      "  \"sonarLintSupported\": true," +
       "  \"updatedAt\": 123456" +
       "}");
   }
 
   @Test
-  public void verify_properties_written_by_writeMetadata_with_compressed_plugin() {
-    PluginDto pluginDto = new PluginDto().setFileHash("abcdef123456").setUpdatedAt(123456L);
-    RemotePluginFile compressedPlugin = new RemotePluginFile("compressed.pack.gz", "hash");
-    underTest.writePluginInfo(jsonWriter, gitPluginInfo(), null, pluginDto, compressedPlugin);
+  public void verify_properties_written_by_writeMetadata_with_compressed_plugin() throws IOException {
+    PluginDto dto = new PluginDto().setUpdatedAt(100L);
+    FileAndMd5 loadedJar = new FileAndMd5(temp.newFile());
+    FileAndMd5 compressedJar = new FileAndMd5(temp.newFile());
+    InstalledPlugin installedFile = new InstalledPlugin(gitPluginInfo(), loadedJar, compressedJar);
+
+    PluginWSCommons.writePluginInfo(jsonWriter, gitPluginInfo(), null, dto, installedFile);
 
     jsonWriter.close();
     assertJson(response.outputAsString()).withStrictArrayOrder().isSimilarTo("{" +
-      "  \"key\": \"scmgit\"," +
-      "  \"name\": \"Git\"," +
-      "  \"description\": \"Git SCM Provider.\"," +
-      "  \"version\": \"1.0\"," +
-      "  \"license\": \"GNU LGPL 3\"," +
-      "  \"organizationName\": \"SonarSource\"," +
-      "  \"compressedFilename\": \"compressed.pack.gz\"," +
-      "  \"compressedHash\": \"hash\"," +
-      "  \"organizationUrl\": \"http://www.sonarsource.com\"," +
-      "  \"homepageUrl\": \"https://redirect.sonarsource.com/plugins/scmgit.html\"," +
-      "  \"issueTrackerUrl\": \"http://jira.sonarsource.com/browse/SONARSCGIT\"," +
-      "  \"filename\": \"sonar-scm-git-plugin-1.0.jar\"," +
-      "  \"hash\": \"abcdef123456\"," +
-      "  \"sonarLintSupported\": true," +
-      "  \"updatedAt\": 123456" +
+        "  \"key\": \"scmgit\"," +
+        "  \"name\": \"Git\"," +
+        "  \"description\": \"Git SCM Provider.\"," +
+        "  \"version\": \"1.0\"," +
+        "  \"license\": \"GNU LGPL 3\"," +
+        "  \"organizationName\": \"SonarSource\"," +
+        "  \"organizationUrl\": \"http://www.sonarsource.com\"," +
+        "  \"homepageUrl\": \"https://redirect.sonarsource.com/plugins/scmgit.html\"," +
+        "  \"issueTrackerUrl\": \"http://jira.sonarsource.com/browse/SONARSCGIT\"," +
+        "  \"sonarLintSupported\": true," +
+        "  \"updatedAt\": 100," +
+        "  \"filename\": \"" + loadedJar.getFile().getName() + "\"," +
+        "  \"hash\": \"" + loadedJar.getMd5() + "\"" +
       "}");
   }
 
   @Test
   public void verify_properties_written_by_writeMetadata() {
-    underTest.writePluginInfo(jsonWriter, gitPluginInfo(), "cat_1", null, null);
+    PluginWSCommons.writePluginInfo(jsonWriter, gitPluginInfo(), "cat_1", null, null);
 
     jsonWriter.close();
     assertJson(response.outputAsString()).withStrictArrayOrder().isSimilarTo("{" +
@@ -134,7 +138,7 @@ public class PluginWSCommonsTest {
 
   @Test
   public void verify_properties_written_by_writePluginUpdate() {
-    underTest.writePluginUpdate(jsonWriter, PluginUpdate.createForPluginRelease(newRelease(), version("1.0")));
+    PluginWSCommons.writePluginUpdate(jsonWriter, PluginUpdate.createForPluginRelease(newRelease(), version("1.0")));
 
     jsonWriter.close();
     assertJson(response.outputAsString()).isSimilarTo("{" +
@@ -156,7 +160,7 @@ public class PluginWSCommonsTest {
   @Test
   public void verify_properties_written_by_writeMetadata_from_plugin() {
     jsonWriter.beginObject();
-    underTest.writePlugin(jsonWriter, newPlugin());
+    PluginWSCommons.writePlugin(jsonWriter, newPlugin());
     jsonWriter.endObject();
 
     jsonWriter.close();
@@ -175,7 +179,7 @@ public class PluginWSCommonsTest {
   @Test
   public void writeRelease() {
     jsonWriter.beginObject();
-    underTest.writeRelease(jsonWriter, newRelease().setDisplayVersion("1.0 (build 42)"));
+    PluginWSCommons.writeRelease(jsonWriter, newRelease().setDisplayVersion("1.0 (build 42)"));
     jsonWriter.endObject();
 
     jsonWriter.close();
@@ -188,22 +192,6 @@ public class PluginWSCommonsTest {
       "  }" +
       "}");
   }
-
-  @Test
-  public void writeArtifact_from_release_writes_artifact_object_and_file_name() {
-    jsonWriter.beginObject();
-    underTest.writeArtifact(jsonWriter, release("pkey").setDownloadUrl("http://toto.com/file.jar"));
-    jsonWriter.endObject();
-
-    jsonWriter.close();
-    assertJson(response.outputAsString()).withStrictArrayOrder().isSimilarTo("{" +
-      "  \"artifact\": {" +
-      "     \"name\": \"file.jar\"," +
-      "     \"url\": \"http://toto.com/file.jar\"" +
-      "  }" +
-      "}");
-  }
-
   @Test
   public void status_COMPATIBLE_is_displayed_COMPATIBLE_in_JSON() {
     assertThat(toJSon(COMPATIBLE)).isEqualTo("COMPATIBLE");
@@ -231,7 +219,7 @@ public class PluginWSCommonsTest {
       new Release(newPlugin(), version("1.0")).addOutgoingDependency(newRelease()));
 
     jsonWriter.beginObject();
-    underTest.writeUpdate(jsonWriter, pluginUpdate);
+    PluginWSCommons.writeUpdate(jsonWriter, pluginUpdate);
     jsonWriter.endObject();
 
     jsonWriter.close();

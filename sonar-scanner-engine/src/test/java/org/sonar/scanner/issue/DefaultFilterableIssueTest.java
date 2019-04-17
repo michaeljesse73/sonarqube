@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,8 +22,9 @@ package org.sonar.scanner.issue;
 import java.util.Date;
 import org.junit.Before;
 import org.junit.Test;
-import org.sonar.api.batch.fs.internal.DefaultInputModule;
-import org.sonar.scanner.ProjectAnalysisInfo;
+import org.sonar.api.batch.fs.InputComponent;
+import org.sonar.api.batch.fs.internal.DefaultInputProject;
+import org.sonar.scanner.ProjectInfo;
 import org.sonar.scanner.protocol.Constants.Severity;
 import org.sonar.scanner.protocol.output.ScannerReport.Issue;
 import org.sonar.scanner.protocol.output.ScannerReport.TextRange;
@@ -34,23 +35,28 @@ import static org.mockito.Mockito.when;
 
 public class DefaultFilterableIssueTest {
   private DefaultFilterableIssue issue;
-  private DefaultInputModule mockedProject;
-  private ProjectAnalysisInfo projectAnalysisInfo;
-  private String componentKey;
+  private DefaultInputProject mockedProject;
+  private ProjectInfo projectInfo;
+  private InputComponent component;
   private Issue rawIssue;
 
   @Before
   public void setUp() {
-    mockedProject = mock(DefaultInputModule.class);
-    projectAnalysisInfo = mock(ProjectAnalysisInfo.class);
-    componentKey = "component";
+    mockedProject = mock(DefaultInputProject.class);
+    projectInfo = mock(ProjectInfo.class);
+    component = mock(InputComponent.class);
+    when(component.key()).thenReturn("foo");
   }
 
   private Issue createIssue() {
     Issue.Builder builder = Issue.newBuilder();
 
     builder.setGap(3.0);
-    builder.setTextRange(TextRange.newBuilder().setStartLine(30));
+    builder.setTextRange(TextRange.newBuilder()
+      .setStartLine(30)
+      .setStartOffset(10)
+      .setEndLine(31)
+      .setEndOffset(3));
     builder.setSeverity(Severity.MAJOR);
     return builder.build();
   }
@@ -64,25 +70,29 @@ public class DefaultFilterableIssueTest {
   @Test
   public void testRoundTrip() {
     rawIssue = createIssue();
-    issue = new DefaultFilterableIssue(mockedProject, projectAnalysisInfo, rawIssue, componentKey);
+    issue = new DefaultFilterableIssue(mockedProject, projectInfo, rawIssue, component);
 
-    when(projectAnalysisInfo.analysisDate()).thenReturn(new Date(10_000));
+    when(projectInfo.getAnalysisDate()).thenReturn(new Date(10_000));
     when(mockedProject.key()).thenReturn("projectKey");
 
-    assertThat(issue.componentKey()).isEqualTo(componentKey);
+    assertThat(issue.componentKey()).isEqualTo(component.key());
     assertThat(issue.creationDate()).isEqualTo(new Date(10_000));
     assertThat(issue.line()).isEqualTo(30);
+    assertThat(issue.textRange().start().line()).isEqualTo(30);
+    assertThat(issue.textRange().start().lineOffset()).isEqualTo(10);
+    assertThat(issue.textRange().end().line()).isEqualTo(31);
+    assertThat(issue.textRange().end().lineOffset()).isEqualTo(3);
     assertThat(issue.projectKey()).isEqualTo("projectKey");
-    assertThat(issue.effortToFix()).isEqualTo(3.0);
+    assertThat(issue.gap()).isEqualTo(3.0);
     assertThat(issue.severity()).isEqualTo("MAJOR");
   }
 
   @Test
   public void nullValues() {
     rawIssue = createIssueWithoutFields();
-    issue = new DefaultFilterableIssue(mockedProject, projectAnalysisInfo, rawIssue, componentKey);
+    issue = new DefaultFilterableIssue(mockedProject, projectInfo, rawIssue, component);
 
     assertThat(issue.line()).isNull();
-    assertThat(issue.effortToFix()).isNull();
+    assertThat(issue.gap()).isNull();
   }
 }

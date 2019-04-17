@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -32,7 +32,7 @@ public class CustomMeasureTesting {
     return new CustomMeasureDto()
       .setDescription(RandomStringUtils.randomAlphanumeric(255))
       .setTextValue(RandomStringUtils.randomAlphanumeric(255))
-      .setUserLogin(RandomStringUtils.randomAlphanumeric(255))
+      .setUserUuid("userUuid" + RandomStringUtils.randomAlphanumeric(100))
       .setValue(RandomUtils.nextDouble())
       .setMetricId(RandomUtils.nextInt())
       .setComponentUuid(RandomStringUtils.randomAlphanumeric(50))

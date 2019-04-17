@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,21 +18,23 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import * as classNames from 'classnames';
 import { Query, serializeQuery } from '../query';
-import { Profile, bulkActivateRules, bulkDeactivateRules } from '../../../api/quality-profiles';
 import Modal from '../../../components/controls/Modal';
 import Select from '../../../components/controls/Select';
+import { Alert } from '../../../components/ui/Alert';
+import { SubmitButton, ResetButtonLink } from '../../../components/ui/buttons';
+import { Profile, bulkActivateRules, bulkDeactivateRules } from '../../../api/quality-profiles';
 import { translate, translateWithParameters } from '../../../helpers/l10n';
 import { formatMeasure } from '../../../helpers/measures';
 
 interface Props {
   action: string;
+  languages: T.Languages;
   onClose: () => void;
   organization: string | undefined;
-  referencedProfiles: { [profile: string]: Profile };
   profile?: Profile;
   query: Query;
+  referencedProfiles: T.Dict<Profile>;
   total: number;
 }
 
@@ -72,12 +74,6 @@ export default class BulkChangeModal extends React.PureComponent<Props, State> {
   componentWillUnmount() {
     this.mounted = false;
   }
-
-  handleCloseClick = (event: React.SyntheticEvent<HTMLButtonElement>) => {
-    event.preventDefault();
-    event.currentTarget.blur();
-    this.props.onClose();
-  };
 
   handleProfileSelect = (options: { value: string }[]) => {
     const selectedProfiles = options.map(option => option.value);
@@ -153,28 +149,27 @@ export default class BulkChangeModal extends React.PureComponent<Props, State> {
     if (!profile) {
       return null;
     }
+    const { languages } = this.props;
+    const language = languages[profile.language]
+      ? languages[profile.language].name
+      : profile.language;
     return (
-      <div
-        className={classNames('alert', {
-          'alert-warning': result.failed > 0,
-          'alert-success': result.failed === 0
-        })}
-        key={result.profile}>
+      <Alert key={result.profile} variant={result.failed === 0 ? 'success' : 'warning'}>
         {result.failed
           ? translateWithParameters(
               'coding_rules.bulk_change.warning',
               profile.name,
-              profile.language,
+              language,
               result.succeeded,
               result.failed
             )
           : translateWithParameters(
               'coding_rules.bulk_change.success',
               profile.name,
-              profile.language,
+              language,
               result.succeeded
             )}
-      </div>
+      </Alert>
     );
   };
 
@@ -203,7 +198,7 @@ export default class BulkChangeModal extends React.PureComponent<Props, State> {
         : `${translate('coding_rules.deactivate_in_quality_profile')} (${formatMeasure(total, 'INT')} ${translate('coding_rules._rules')})`;
 
     return (
-      <Modal contentLabel={header} onRequestClose={this.props.onClose}>
+      <Modal contentLabel={header} onRequestClose={this.props.onClose} size="small">
         <form onSubmit={this.handleFormSubmit}>
           <header className="modal-head">
             <h2>{header}</h2>
@@ -212,42 +207,38 @@ export default class BulkChangeModal extends React.PureComponent<Props, State> {
           <div className="modal-body">
             {this.state.results.map(this.renderResult)}
 
-            {!this.state.finished &&
-              !this.state.submitting && (
-                <div className="modal-field">
-                  <h3>
-                    <label htmlFor="coding-rules-bulk-change-profile">
-                      {action === 'activate'
-                        ? translate('coding_rules.activate_in')
-                        : translate('coding_rules.deactivate_in')}
-                    </label>
-                  </h3>
-                  {profile ? (
-                    <h3 className="readonly-field">
-                      {profile.name}
-                      {' — '}
-                      {translate('are_you_sure')}
-                    </h3>
-                  ) : (
-                    this.renderProfileSelect()
-                  )}
-                </div>
-              )}
+            {!this.state.finished && !this.state.submitting && (
+              <div className="modal-field">
+                <h3>
+                  <label htmlFor="coding-rules-bulk-change-profile">
+                    {action === 'activate'
+                      ? translate('coding_rules.activate_in')
+                      : translate('coding_rules.deactivate_in')}
+                  </label>
+                </h3>
+                {profile ? (
+                  <span>
+                    {profile.name}
+                    {' — '}
+                    {translate('are_you_sure')}
+                  </span>
+                ) : (
+                  this.renderProfileSelect()
+                )}
+              </div>
+            )}
           </div>
 
           <footer className="modal-foot">
             {this.state.submitting && <i className="spinner spacer-right" />}
             {!this.state.finished && (
-              <button
-                disabled={this.state.submitting}
-                id="coding-rules-submit-bulk-change"
-                type="submit">
+              <SubmitButton disabled={this.state.submitting} id="coding-rules-submit-bulk-change">
                 {translate('apply')}
-              </button>
+              </SubmitButton>
             )}
-            <button className="button-link" onClick={this.handleCloseClick} type="reset">
+            <ResetButtonLink onClick={this.props.onClose}>
               {this.state.finished ? translate('close') : translate('cancel')}
-            </button>
+            </ResetButtonLink>
           </footer>
         </form>
       </Modal>

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -17,7 +17,6 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import { without } from 'lodash';
 import {
   addComponent,
   getComponent as getComponentFromBucket,
@@ -26,79 +25,43 @@ import {
   addComponentBreadcrumbs,
   getComponentBreadcrumbs
 } from './bucket';
-import { Breadcrumb, Component } from './types';
 import { getChildren, getComponent, getBreadcrumbs } from '../../api/components';
+import { getBranchLikeQuery, isShortLivingBranch, isPullRequest } from '../../helpers/branches';
 
 const METRICS = [
   'ncloc',
-  'code_smells',
   'bugs',
   'vulnerabilities',
+  'code_smells',
   'coverage',
-  'duplicated_lines_density',
-  'alert_status'
+  'duplicated_lines_density'
 ];
+
+const APPLICATION_METRICS = ['alert_status', ...METRICS];
 
 const PORTFOLIO_METRICS = [
   'releasability_rating',
-  'alert_status',
   'reliability_rating',
   'security_rating',
   'sqale_rating',
   'ncloc'
 ];
 
+const LEAK_METRICS = [
+  'new_lines',
+  'bugs',
+  'vulnerabilities',
+  'code_smells',
+  'new_coverage',
+  'new_duplicated_lines_density'
+];
+
 const PAGE_SIZE = 100;
 
-function requestChildren(
-  componentKey: string,
-  metrics: string[],
-  page: number,
-  branch?: string
-): Promise<Component[]> {
-  return getChildren(componentKey, metrics, { branch, p: page, ps: PAGE_SIZE }).then(r => {
-    if (r.paging.total > r.paging.pageSize * r.paging.pageIndex) {
-      return requestChildren(componentKey, metrics, page + 1, branch).then(moreComponents => {
-        return [...r.components, ...moreComponents];
-      });
-    }
-    return r.components;
-  });
-}
-
-function requestAllChildren(
-  componentKey: string,
-  metrics: string[],
-  branch?: string
-): Promise<Component[]> {
-  return requestChildren(componentKey, metrics, 1, branch);
-}
-
 interface Children {
-  components: Component[];
+  components: T.ComponentMeasure[];
   page: number;
   total: number;
-}
-
-interface ExpandRootDirFunc {
-  (children: Children): Promise<Children>;
-}
-
-function expandRootDir(metrics: string[], branch?: string): ExpandRootDirFunc {
-  return function({ components, total, ...other }) {
-    const rootDir = components.find(
-      (component: Component) => component.qualifier === 'DIR' && component.name === '/'
-    );
-    if (rootDir) {
-      return requestAllChildren(rootDir.key, metrics, branch).then(rootDirComponents => {
-        const nextComponents = without([...rootDirComponents, ...components], rootDir);
-        const nextTotal = total + rootDirComponents.length - /* root dir */ 1;
-        return { components: nextComponents, total: nextTotal, ...other };
-      });
-    } else {
-      return Promise.resolve({ components, total, ...other });
-    }
-  };
 }
 
 function prepareChildren(r: any): Children {
@@ -109,17 +72,21 @@ function prepareChildren(r: any): Children {
   };
 }
 
-function skipRootDir(breadcrumbs: Component[]) {
+export function showLeakMeasure(branchLike?: T.BranchLike) {
+  return isShortLivingBranch(branchLike) || isPullRequest(branchLike);
+}
+
+function skipRootDir(breadcrumbs: T.ComponentMeasure[]) {
   return breadcrumbs.filter(component => {
     return !(component.qualifier === 'DIR' && component.name === '/');
   });
 }
 
-function storeChildrenBase(children: Component[]) {
+function storeChildrenBase(children: T.ComponentMeasure[]) {
   children.forEach(addComponent);
 }
 
-function storeChildrenBreadcrumbs(parentComponentKey: string, children: Breadcrumb[]) {
+function storeChildrenBreadcrumbs(parentComponentKey: string, children: T.Breadcrumb[]) {
   const parentBreadcrumbs = getComponentBreadcrumbs(parentComponentKey);
   if (parentBreadcrumbs) {
     children.forEach(child => {
@@ -129,19 +96,32 @@ function storeChildrenBreadcrumbs(parentComponentKey: string, children: Breadcru
   }
 }
 
-function getMetrics(isPortfolio: boolean) {
-  return isPortfolio ? PORTFOLIO_METRICS : METRICS;
+export function getCodeMetrics(qualifier: string, branchLike?: T.BranchLike) {
+  if (['VW', 'SVW'].includes(qualifier)) {
+    return [...PORTFOLIO_METRICS];
+  }
+  if (qualifier === 'APP') {
+    return [...APPLICATION_METRICS];
+  }
+  if (showLeakMeasure(branchLike)) {
+    return [...LEAK_METRICS];
+  }
+  return [...METRICS];
 }
 
-function retrieveComponentBase(componentKey: string, isPortfolio: boolean, branch?: string) {
+function retrieveComponentBase(componentKey: string, qualifier: string, branchLike?: T.BranchLike) {
   const existing = getComponentFromBucket(componentKey);
   if (existing) {
     return Promise.resolve(existing);
   }
 
-  const metrics = getMetrics(isPortfolio);
+  const metrics = getCodeMetrics(qualifier, branchLike);
 
-  return getComponent(componentKey, metrics, branch).then(component => {
+  return getComponent({
+    component: componentKey,
+    metricKeys: metrics.join(),
+    ...getBranchLikeQuery(branchLike)
+  }).then(component => {
     addComponent(component);
     return component;
   });
@@ -149,9 +129,9 @@ function retrieveComponentBase(componentKey: string, isPortfolio: boolean, branc
 
 export function retrieveComponentChildren(
   componentKey: string,
-  isPortfolio: boolean,
-  branch?: string
-): Promise<{ components: Component[]; page: number; total: number }> {
+  qualifier: string,
+  branchLike?: T.BranchLike
+): Promise<{ components: T.ComponentMeasure[]; page: number; total: number }> {
   const existing = getComponentChildren(componentKey);
   if (existing) {
     return Promise.resolve({
@@ -161,11 +141,17 @@ export function retrieveComponentChildren(
     });
   }
 
-  const metrics = getMetrics(isPortfolio);
+  const metrics = getCodeMetrics(qualifier, branchLike);
+  if (['VW', 'SVW'].includes(qualifier)) {
+    metrics.push('alert_status');
+  }
 
-  return getChildren(componentKey, metrics, { branch, ps: PAGE_SIZE, s: 'qualifier,name' })
+  return getChildren(componentKey, metrics, {
+    ps: PAGE_SIZE,
+    s: 'qualifier,name',
+    ...getBranchLikeQuery(branchLike)
+  })
     .then(prepareChildren)
-    .then(expandRootDir(metrics, branch))
     .then(r => {
       addComponentChildren(componentKey, r.components, r.total, r.page);
       storeChildrenBase(r.components);
@@ -175,44 +161,44 @@ export function retrieveComponentChildren(
 }
 
 function retrieveComponentBreadcrumbs(
-  componentKey: string,
-  branch?: string
-): Promise<Breadcrumb[]> {
-  const existing = getComponentBreadcrumbs(componentKey);
+  component: string,
+  branchLike?: T.BranchLike
+): Promise<T.Breadcrumb[]> {
+  const existing = getComponentBreadcrumbs(component);
   if (existing) {
     return Promise.resolve(existing);
   }
 
-  return getBreadcrumbs(componentKey, branch)
+  return getBreadcrumbs({ component, ...getBranchLikeQuery(branchLike) })
     .then(skipRootDir)
     .then(breadcrumbs => {
-      addComponentBreadcrumbs(componentKey, breadcrumbs);
+      addComponentBreadcrumbs(component, breadcrumbs);
       return breadcrumbs;
     });
 }
 
 export function retrieveComponent(
   componentKey: string,
-  isPortfolio: boolean,
-  branch?: string
+  qualifier: string,
+  branchLike?: T.BranchLike
 ): Promise<{
-  breadcrumbs: Component[];
-  component: Component;
-  components: Component[];
+  breadcrumbs: T.Breadcrumb[];
+  component: T.ComponentMeasure;
+  components: T.ComponentMeasure[];
   page: number;
   total: number;
 }> {
   return Promise.all([
-    retrieveComponentBase(componentKey, isPortfolio, branch),
-    retrieveComponentChildren(componentKey, isPortfolio, branch),
-    retrieveComponentBreadcrumbs(componentKey, branch)
+    retrieveComponentBase(componentKey, qualifier, branchLike),
+    retrieveComponentChildren(componentKey, qualifier, branchLike),
+    retrieveComponentBreadcrumbs(componentKey, branchLike)
   ]).then(r => {
     return {
+      breadcrumbs: r[2],
       component: r[0],
       components: r[1].components,
-      total: r[1].total,
       page: r[1].page,
-      breadcrumbs: r[2]
+      total: r[1].total
     };
   });
 }
@@ -220,14 +206,18 @@ export function retrieveComponent(
 export function loadMoreChildren(
   componentKey: string,
   page: number,
-  isPortfolio: boolean,
-  branch?: string
+  qualifier: string,
+  branchLike?: T.BranchLike
 ): Promise<Children> {
-  const metrics = getMetrics(isPortfolio);
+  const metrics = getCodeMetrics(qualifier, branchLike);
 
-  return getChildren(componentKey, metrics, { branch, ps: PAGE_SIZE, p: page })
+  return getChildren(componentKey, metrics, {
+    ps: PAGE_SIZE,
+    p: page,
+    s: 'qualifier,name',
+    ...getBranchLikeQuery(branchLike)
+  })
     .then(prepareChildren)
-    .then(expandRootDir(metrics, branch))
     .then(r => {
       addComponentChildren(componentKey, r.components, r.total, r.page);
       storeChildrenBase(r.components);

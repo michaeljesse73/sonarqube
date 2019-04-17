@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,52 +22,44 @@ import { Link } from 'react-router';
 import * as classNames from 'classnames';
 import DeprecatedBadge from './DeprecatedBadge';
 import InternalBadge from './InternalBadge';
-import { isDomainPathActive, actionsFilter } from '../utils';
-import { Domain } from '../../../api/web-api';
+import { isDomainPathActive, actionsFilter, Query, serializeQuery } from '../utils';
 
 interface Props {
-  domains: Domain[];
-  showDeprecated: boolean;
-  showInternal: boolean;
-  searchQuery: string;
+  domains: T.WebApi.Domain[];
+  query: Query;
   splat: string;
 }
 
 export default function Menu(props: Props) {
-  const { domains, showInternal, showDeprecated, searchQuery, splat } = props;
+  const { domains, query, splat } = props;
   const filteredDomains = (domains || [])
     .map(domain => {
-      const filteredActions = domain.actions.filter(action =>
-        actionsFilter(showDeprecated, showInternal, searchQuery, domain, action)
-      );
+      const filteredActions = domain.actions.filter(action => actionsFilter(query, domain, action));
       return { ...domain, filteredActions };
     })
     .filter(domain => domain.filteredActions.length);
 
+  const renderDomain = (domain: T.WebApi.Domain) => {
+    const internal = !domain.actions.find(action => !action.internal);
+    return (
+      <Link
+        className={classNames('list-group-item', {
+          active: isDomainPathActive(domain.path, splat)
+        })}
+        key={domain.path}
+        to={{ pathname: '/web_api/' + domain.path, query: serializeQuery(query) }}>
+        <h3 className="list-group-item-heading">
+          {domain.path}
+          {domain.deprecatedSince && <DeprecatedBadge since={domain.deprecatedSince} />}
+          {internal && <InternalBadge />}
+        </h3>
+      </Link>
+    );
+  };
+
   return (
     <div className="api-documentation-results panel">
-      <div className="list-group">
-        {filteredDomains.map(domain => (
-          <Link
-            key={domain.path}
-            className={classNames('list-group-item', {
-              active: isDomainPathActive(domain.path, splat)
-            })}
-            to={'/web_api/' + domain.path}>
-            <h3 className="list-group-item-heading">
-              {domain.path}
-              {domain.deprecated && <DeprecatedBadge />}
-              {domain.internal && <InternalBadge />}
-            </h3>
-            {domain.description && (
-              <div
-                className="list-group-item-text markdown"
-                dangerouslySetInnerHTML={{ __html: domain.description }}
-              />
-            )}
-          </Link>
-        ))}
-      </div>
+      <div className="list-group">{filteredDomains.map(renderDomain)}</div>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,30 +22,38 @@ import * as classNames from 'classnames';
 import DrilldownLink from '../../../components/shared/DrilldownLink';
 import LanguageDistributionContainer from '../../../components/charts/LanguageDistributionContainer';
 import SizeRating from '../../../components/ui/SizeRating';
-import { formatMeasure, MeasureEnhanced } from '../../../helpers/measures';
-import { getMetricName } from '../helpers/metrics';
+import { formatMeasure } from '../../../helpers/measures';
+import { getMetricName } from '../utils';
 import { translate } from '../../../helpers/l10n';
-import { LightComponent } from '../../../app/types';
 
 interface Props {
-  branch?: string;
-  component: LightComponent;
-  measures: MeasureEnhanced[];
+  branchLike?: T.BranchLike;
+  component: T.LightComponent;
+  measures: T.MeasureEnhanced[];
 }
 
 export default class MetaSize extends React.PureComponent<Props> {
-  renderLoC = (ncloc: MeasureEnhanced) => (
+  renderLoC = (ncloc?: T.MeasureEnhanced) => (
     <div
-      id="overview-ncloc"
       className={classNames('overview-meta-size-ncloc', {
         'is-half-width': this.props.component.qualifier === 'APP'
-      })}>
-      <span className="spacer-right">
-        <SizeRating value={Number(ncloc.value)} />
-      </span>
-      <DrilldownLink branch={this.props.branch} component={this.props.component.key} metric="ncloc">
-        {formatMeasure(ncloc.value, 'SHORT_INT')}
-      </DrilldownLink>
+      })}
+      id="overview-ncloc">
+      {ncloc && (
+        <span className="spacer-right">
+          <SizeRating value={Number(ncloc.value)} />
+        </span>
+      )}
+      {ncloc ? (
+        <DrilldownLink
+          branchLike={this.props.branchLike}
+          component={this.props.component.key}
+          metric="ncloc">
+          {formatMeasure(ncloc.value, 'SHORT_INT')}
+        </DrilldownLink>
+      ) : (
+        <span>0</span>
+      )}
       <div className="spacer-top text-muted">{getMetricName('ncloc')}</div>
     </div>
   );
@@ -58,8 +66,8 @@ export default class MetaSize extends React.PureComponent<Props> {
     const className =
       this.props.component.qualifier === 'TRK' ? 'overview-meta-size-lang-dist' : 'big-spacer-top';
 
-    return languageDistribution ? (
-      <div id="overview-language-distribution" className={className}>
+    return languageDistribution && languageDistribution.value !== undefined ? (
+      <div className={className} id="overview-language-distribution">
         <LanguageDistributionContainer distribution={languageDistribution.value} width={160} />
       </div>
     ) : null;
@@ -67,24 +75,27 @@ export default class MetaSize extends React.PureComponent<Props> {
 
   renderProjects = () => {
     const projects = this.props.measures.find(measure => measure.metric.key === 'projects');
-
-    return projects ? (
-      <div id="overview-projects" className="overview-meta-size-ncloc is-half-width">
-        <DrilldownLink
-          branch={this.props.branch}
-          component={this.props.component.key}
-          metric="projects">
-          {formatMeasure(projects.value, 'SHORT_INT')}
-        </DrilldownLink>
+    return (
+      <div className="overview-meta-size-ncloc is-half-width" id="overview-projects">
+        {projects ? (
+          <DrilldownLink
+            branchLike={this.props.branchLike}
+            component={this.props.component.key}
+            metric="projects">
+            {formatMeasure(projects.value, 'SHORT_INT')}
+          </DrilldownLink>
+        ) : (
+          <span>0</span>
+        )}
         <div className="spacer-top text-muted">{translate('metric.projects.name')}</div>
       </div>
-    ) : null;
+    );
   };
 
   render() {
     const ncloc = this.props.measures.find(measure => measure.metric.key === 'ncloc');
 
-    if (ncloc == null) {
+    if (ncloc == null && this.props.component.qualifier !== 'APP') {
       return null;
     }
 

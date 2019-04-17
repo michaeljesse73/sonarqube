@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -83,6 +83,6 @@ public class MessageTest {
   public void to_string() {
     assertThat(Message.of("key1 %s", "param1").toString()).isEqualTo("key1 param1");
     assertThat(Message.of("key1").toString()).isEqualTo("key1");
-    assertThat(Message.of("key1", null).toString()).isEqualTo("key1");
+    assertThat(Message.of("key1", (Object[])null).toString()).isEqualTo("key1");
   }
 }

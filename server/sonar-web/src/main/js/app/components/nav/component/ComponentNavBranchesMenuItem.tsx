@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,50 +21,57 @@ import * as React from 'react';
 import { Link } from 'react-router';
 import * as classNames from 'classnames';
 import BranchStatus from '../../../../components/common/BranchStatus';
-import { Branch, Component } from '../../../types';
 import BranchIcon from '../../../../components/icons-components/BranchIcon';
-import { isShortLivingBranch } from '../../../../helpers/branches';
+import {
+  isShortLivingBranch,
+  getBranchLikeDisplayName,
+  getBranchLikeKey,
+  isMainBranch,
+  isPullRequest
+} from '../../../../helpers/branches';
 import { translate } from '../../../../helpers/l10n';
-import { getProjectBranchUrl } from '../../../../helpers/urls';
-import Tooltip from '../../../../components/controls/Tooltip';
+import { getBranchLikeUrl } from '../../../../helpers/urls';
 
 export interface Props {
-  branch: Branch;
-  component: Component;
-  onSelect: (branch: Branch) => void;
+  branchLike: T.BranchLike;
+  component: T.Component;
+  onSelect: (branchLike: T.BranchLike) => void;
   selected: boolean;
+  innerRef?: (node: HTMLLIElement) => void;
 }
 
-export default function ComponentNavBranchesMenuItem({ branch, ...props }: Props) {
+export default function ComponentNavBranchesMenuItem({ branchLike, ...props }: Props) {
   const handleMouseEnter = () => {
-    props.onSelect(branch);
+    props.onSelect(branchLike);
   };
 
+  const displayName = getBranchLikeDisplayName(branchLike);
+  const shouldBeIndented =
+    (isShortLivingBranch(branchLike) && !branchLike.isOrphan) || isPullRequest(branchLike);
+
   return (
-    <li key={branch.name} onMouseEnter={handleMouseEnter}>
-      <Tooltip mouseEnterDelay={0.5} overlay={branch.name} placement="right">
-        <Link
-          className={classNames('navbar-context-meta-branch-menu-item', {
-            active: props.selected
-          })}
-          to={getProjectBranchUrl(props.component.key, branch)}>
-          <div className="navbar-context-meta-branch-menu-item-name text-ellipsis">
-            <BranchIcon
-              branch={branch}
-              className={classNames('little-spacer-right', {
-                'big-spacer-left': isShortLivingBranch(branch) && !branch.isOrphan
-              })}
-            />
-            {branch.name}
-            {branch.isMain && (
-              <div className="outline-badge spacer-left">{translate('branches.main_branch')}</div>
-            )}
-          </div>
-          <div className="big-spacer-left note">
-            <BranchStatus branch={branch} concise={true} />
-          </div>
-        </Link>
-      </Tooltip>
+    <li key={getBranchLikeKey(branchLike)} onMouseEnter={handleMouseEnter} ref={props.innerRef}>
+      <Link
+        className={classNames('navbar-context-meta-branch-menu-item', {
+          active: props.selected
+        })}
+        to={getBranchLikeUrl(props.component.key, branchLike)}>
+        <div
+          className="navbar-context-meta-branch-menu-item-name text-ellipsis"
+          title={displayName}>
+          <BranchIcon
+            branchLike={branchLike}
+            className={classNames('little-spacer-right', { 'big-spacer-left': shouldBeIndented })}
+          />
+          {displayName}
+          {isMainBranch(branchLike) && (
+            <div className="outline-badge spacer-left">{translate('branches.main_branch')}</div>
+          )}
+        </div>
+        <div className="big-spacer-left note">
+          <BranchStatus branchLike={branchLike} component={props.component.key} />
+        </div>
+      </Link>
     </li>
   );
 }

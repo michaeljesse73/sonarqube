@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,6 +22,7 @@ package org.sonar.db.organization;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -29,18 +30,29 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import javax.annotation.Nullable;
 import org.apache.ibatis.exceptions.PersistenceException;
+import org.assertj.core.groups.Tuple;
 import org.assertj.core.util.Lists;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.sonar.api.measures.CoreMetrics;
 import org.sonar.api.utils.System2;
+import org.sonar.core.util.Uuids;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
 import org.sonar.db.DbTester;
+import org.sonar.db.Pagination;
+import org.sonar.db.alm.ALM;
+import org.sonar.db.alm.AlmAppInstallDto;
+import org.sonar.db.component.ComponentDto;
 import org.sonar.db.dialect.Dialect;
 import org.sonar.db.dialect.Oracle;
+import org.sonar.db.metric.MetricDto;
 import org.sonar.db.qualitygate.QGateWithOrgDto;
 import org.sonar.db.user.GroupDto;
 import org.sonar.db.user.GroupTesting;
@@ -48,11 +60,16 @@ import org.sonar.db.user.UserDto;
 
 import static com.google.common.collect.ImmutableSet.of;
 import static java.util.Collections.singleton;
+import static org.apache.commons.lang.RandomStringUtils.randomAlphabetic;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.sonar.db.Pagination.forPage;
+import static org.sonar.db.alm.ALM.GITHUB;
+import static org.sonar.db.organization.OrganizationDto.Subscription.FREE;
+import static org.sonar.db.organization.OrganizationDto.Subscription.PAID;
+import static org.sonar.db.organization.OrganizationQuery.Builder;
 import static org.sonar.db.organization.OrganizationQuery.newOrganizationQueryBuilder;
 import static org.sonar.db.organization.OrganizationQuery.returnAll;
 import static org.sonar.db.organization.OrganizationTesting.newOrganizationDto;
@@ -70,8 +87,8 @@ public class OrganizationDaoTest {
     .setUrl("the url 1")
     .setAvatarUrl("the avatar url 1")
     .setGuarded(false)
-    .setDefaultQualityGateUuid("1")
-    .setUserId(1_000);
+    .setSubscription(FREE)
+    .setDefaultQualityGateUuid("1");
   private static final OrganizationDto ORGANIZATION_DTO_2 = new OrganizationDto()
     .setUuid("uuid 2")
     .setKey("the_key 2")
@@ -80,20 +97,21 @@ public class OrganizationDaoTest {
     .setUrl("the url 2")
     .setAvatarUrl("the avatar url 2")
     .setGuarded(true)
-    .setDefaultQualityGateUuid("1")
-    .setUserId(2_000);
+    .setSubscription(FREE)
+    .setDefaultQualityGateUuid("1");
   private static final String PERMISSION_1 = "foo";
   private static final String PERMISSION_2 = "bar";
+  private static final Random RANDOM = new Random();
 
   private System2 system2 = mock(System2.class);
 
   @Rule
-  public final DbTester dbTester = DbTester.create(system2).setDisableDefaultOrganization(true);
+  public final DbTester db = DbTester.create(system2).setDisableDefaultOrganization(true);
   @Rule
   public ExpectedException expectedException = ExpectedException.none();
 
-  private DbClient dbClient = dbTester.getDbClient();
-  private DbSession dbSession = dbTester.getSession();
+  private DbClient dbClient = db.getDbClient();
+  private DbSession dbSession = db.getSession();
 
   private OrganizationDao underTest = dbClient.organizationDao();
 
@@ -118,18 +136,20 @@ public class OrganizationDaoTest {
 
   @Test
   public void insert_persists_properties_of_OrganizationDto() {
-    insertOrganization(ORGANIZATION_DTO_1);
+    OrganizationDto organization = newOrganizationDto();
+    insertOrganization(organization);
 
     Map<String, Object> row = selectSingleRow();
-    assertThat(row.get("uuid")).isEqualTo(ORGANIZATION_DTO_1.getUuid());
-    assertThat(row.get("key")).isEqualTo(ORGANIZATION_DTO_1.getKey());
-    assertThat(row.get("name")).isEqualTo(ORGANIZATION_DTO_1.getName());
-    assertThat(row.get("description")).isEqualTo(ORGANIZATION_DTO_1.getDescription());
-    assertThat(row.get("url")).isEqualTo(ORGANIZATION_DTO_1.getUrl());
-    assertThat(row.get("avatarUrl")).isEqualTo(ORGANIZATION_DTO_1.getAvatarUrl());
-    assertThat(row.get("createdAt")).isEqualTo(ORGANIZATION_DTO_1.getCreatedAt());
-    assertThat(row.get("updatedAt")).isEqualTo(ORGANIZATION_DTO_1.getUpdatedAt());
-    assertThat(row.get("guarded")).isEqualTo(toBool(ORGANIZATION_DTO_1.isGuarded()));
+    assertThat(row.get("uuid")).isEqualTo(organization.getUuid());
+    assertThat(row.get("key")).isEqualTo(organization.getKey());
+    assertThat(row.get("name")).isEqualTo(organization.getName());
+    assertThat(row.get("description")).isEqualTo(organization.getDescription());
+    assertThat(row.get("url")).isEqualTo(organization.getUrl());
+    assertThat(row.get("avatarUrl")).isEqualTo(organization.getAvatarUrl());
+    assertThat(row.get("createdAt")).isEqualTo(organization.getCreatedAt());
+    assertThat(row.get("updatedAt")).isEqualTo(organization.getUpdatedAt());
+    assertThat(row.get("guarded")).isEqualTo(toBool(organization.isGuarded()));
+    assertThat(row.get("subscription")).isEqualTo(organization.getSubscription().name());
     assertThat(row.get("defaultTemplate")).isNull();
     assertThat(row.get("projectDefaultTemplate")).isNull();
     assertThat(row.get("viewDefaultTemplate")).isNull();
@@ -146,7 +166,7 @@ public class OrganizationDaoTest {
   @Test
   public void description_url_avatarUrl_and_userId_are_optional() {
     when(system2.now()).thenReturn(SOME_DATE);
-    insertOrganization(copyOf(ORGANIZATION_DTO_1).setDescription(null).setUrl(null).setAvatarUrl(null).setUserId(null));
+    insertOrganization(copyOf(ORGANIZATION_DTO_1).setDescription(null).setUrl(null).setAvatarUrl(null));
 
     Map<String, Object> row = selectSingleRow();
     assertThat(row.get("uuid")).isEqualTo(ORGANIZATION_DTO_1.getUuid());
@@ -165,7 +185,7 @@ public class OrganizationDaoTest {
   }
 
   private Object toBool(boolean guarded) {
-    Dialect dialect = dbTester.database().getDialect();
+    Dialect dialect = db.database().getDialect();
     if (dialect.getId().equals(Oracle.ID)) {
       return guarded ? 1L : 0L;
     }
@@ -195,10 +215,11 @@ public class OrganizationDaoTest {
 
   @Test
   public void selectByKey_returns_row_data_when_key_exists() {
-    insertOrganization(ORGANIZATION_DTO_1);
+    OrganizationDto organizationDto = newOrganizationDto();
+    insertOrganization(organizationDto);
 
-    Optional<OrganizationDto> optional = underTest.selectByKey(dbSession, ORGANIZATION_DTO_1.getKey());
-    verifyOrganization1(optional);
+    Optional<OrganizationDto> optional = underTest.selectByKey(dbSession, organizationDto.getKey());
+    verifyOrganization(optional.get(), organizationDto);
   }
 
   @Test
@@ -310,6 +331,31 @@ public class OrganizationDaoTest {
       dbSession,
       of(ORGANIZATION_DTO_1.getUuid().toUpperCase(Locale.ENGLISH), ORGANIZATION_DTO_2.getUuid().toUpperCase(Locale.ENGLISH))))
         .isEmpty();
+  }
+
+  @Test
+  public void selectByOwnerId_returns_row_data_when_key_exists() {
+    insertOrganization(ORGANIZATION_DTO_1);
+    insertOrgAlmBinding(ORGANIZATION_DTO_1, GITHUB, "123456");
+
+    Optional<OrganizationDto> result = underTest.selectByOrganizationAlmId(dbSession, GITHUB, "123456");
+
+    verifyOrganization1(result);
+  }
+
+  @Test
+  public void selectByOwnerId_returns_empty_if_organization_is_not_bound() {
+    insertOrganization(ORGANIZATION_DTO_1);
+
+    assertThat(underTest.selectByOrganizationAlmId(dbSession, GITHUB, "123456")).isEmpty();
+  }
+
+  @Test
+  public void selectByOwnerId_returns_empty_if_ownerId_doesnt_match_any_install() {
+    insertOrganization(ORGANIZATION_DTO_1);
+    insertOrgAlmBinding(ORGANIZATION_DTO_1, GITHUB, "123456");
+
+    assertThat(underTest.selectByOrganizationAlmId(dbSession, GITHUB,"unknown")).isEmpty();
   }
 
   @Test
@@ -504,14 +550,14 @@ public class OrganizationDaoTest {
 
   @Test
   public void selectByQuery_filter_on_a_member() {
-    OrganizationDto organization = dbTester.organizations().insert();
-    OrganizationDto anotherOrganization = dbTester.organizations().insert();
-    OrganizationDto organizationWithoutMember = dbTester.organizations().insert();
-    UserDto user = dbTester.users().insertUser();
-    dbTester.organizations().addMember(organization, user);
-    dbTester.organizations().addMember(anotherOrganization, user);
+    OrganizationDto organization = db.organizations().insert();
+    OrganizationDto anotherOrganization = db.organizations().insert();
+    OrganizationDto organizationWithoutMember = db.organizations().insert();
+    UserDto user = db.users().insertUser();
+    db.organizations().addMember(organization, user);
+    db.organizations().addMember(anotherOrganization, user);
 
-    List<OrganizationDto> result = underTest.selectByQuery(dbSession, OrganizationQuery.newOrganizationQueryBuilder().setMember(user.getId()).build(), forPage(1).andSize(100));
+    List<OrganizationDto> result = underTest.selectByQuery(dbSession, newOrganizationQueryBuilder().setMember(user.getId()).build(), forPage(1).andSize(100));
 
     assertThat(result).extracting(OrganizationDto::getUuid)
       .containsExactlyInAnyOrder(organization.getUuid(), anotherOrganization.getUuid())
@@ -520,22 +566,67 @@ public class OrganizationDaoTest {
 
   @Test
   public void selectByQuery_filter_on_a_member_and_keys() {
-    OrganizationDto organization = dbTester.organizations().insert();
-    OrganizationDto anotherOrganization = dbTester.organizations().insert();
-    OrganizationDto organizationWithoutKeyProvided = dbTester.organizations().insert();
-    OrganizationDto organizationWithoutMember = dbTester.organizations().insert();
-    UserDto user = dbTester.users().insertUser();
-    dbTester.organizations().addMember(organization, user);
-    dbTester.organizations().addMember(anotherOrganization, user);
-    dbTester.organizations().addMember(organizationWithoutKeyProvided, user);
+    OrganizationDto organization = db.organizations().insert();
+    OrganizationDto anotherOrganization = db.organizations().insert();
+    OrganizationDto organizationWithoutKeyProvided = db.organizations().insert();
+    OrganizationDto organizationWithoutMember = db.organizations().insert();
+    UserDto user = db.users().insertUser();
+    db.organizations().addMember(organization, user);
+    db.organizations().addMember(anotherOrganization, user);
+    db.organizations().addMember(organizationWithoutKeyProvided, user);
 
-    List<OrganizationDto> result = underTest.selectByQuery(dbSession, OrganizationQuery.newOrganizationQueryBuilder()
+    List<OrganizationDto> result = underTest.selectByQuery(dbSession, newOrganizationQueryBuilder()
       .setKeys(Arrays.asList(organization.getKey(), anotherOrganization.getKey(), organizationWithoutMember.getKey()))
       .setMember(user.getId()).build(), forPage(1).andSize(100));
 
     assertThat(result).extracting(OrganizationDto::getUuid)
       .containsExactlyInAnyOrder(organization.getUuid(), anotherOrganization.getUuid())
       .doesNotContain(organizationWithoutKeyProvided.getUuid(), organizationWithoutMember.getUuid());
+  }
+
+  @Test
+  public void selectByQuery_filter_on_type() {
+    OrganizationDto personalOrg1 = db.organizations().insert();
+    db.users().insertUser(u -> u.setOrganizationUuid(personalOrg1.getUuid()));
+    OrganizationDto personalOrg2 = db.organizations().insert();
+    db.users().insertUser(u -> u.setOrganizationUuid(personalOrg2.getUuid()));
+    OrganizationDto teamOrg1 = db.organizations().insert();
+
+    assertThat(selectUuidsByQuery(q -> q.setOnlyPersonal(), forPage(1).andSize(100)))
+      .containsExactlyInAnyOrder(personalOrg1.getUuid(), personalOrg2.getUuid());
+    assertThat(selectUuidsByQuery(q -> q.setOnlyTeam(), forPage(1).andSize(100)))
+      .containsExactlyInAnyOrder(teamOrg1.getUuid());
+  }
+
+  @Test
+  public void selectByQuery_filter_on_withAnalyses() {
+    assertThat(selectUuidsByQuery(q -> q.setWithAnalyses(), forPage(1).andSize(100)))
+      .isEmpty();
+
+    // has projects and analyses
+    OrganizationDto orgWithAnalyses = db.organizations().insert();
+    ComponentDto analyzedProject = db.components().insertPrivateProject(orgWithAnalyses);
+    db.components().insertSnapshot(analyzedProject, s -> s.setLast(true));
+    // has projects but no analyses
+    OrganizationDto orgWithProjects = db.organizations().insert();
+    db.components().insertPrivateProject(orgWithProjects);
+    db.components().insertPrivateProject(orgWithProjects, p -> p.setEnabled(false));
+    // has no projects
+    db.organizations().insert();
+    // has only disabled projects
+    OrganizationDto orgWithOnlyDisabledProjects = db.organizations().insert();
+    db.components().insertPrivateProject(orgWithOnlyDisabledProjects, p -> p.setEnabled(false));
+
+    assertThat(selectUuidsByQuery(q -> q.setWithAnalyses(), forPage(1).andSize(100)))
+      .containsExactlyInAnyOrder(orgWithAnalyses.getUuid());
+  }
+
+  private List<String> selectUuidsByQuery(Consumer<Builder> query, Pagination pagination) {
+    Builder builder = newOrganizationQueryBuilder();
+    query.accept(builder);
+    return underTest.selectByQuery(dbSession, builder.build(), pagination).stream()
+      .map(OrganizationDto::getUuid)
+      .collect(Collectors.toList());
   }
 
   @Test
@@ -585,7 +676,7 @@ public class OrganizationDaoTest {
   @Test
   public void getDefaultTemplates_is_case_sensitive() {
     insertOrganization(ORGANIZATION_DTO_1);
-    underTest.setDefaultTemplates(dbSession, ORGANIZATION_DTO_1.getUuid(), new DefaultTemplates().setProjectUuid(PERMISSION_1).setViewUuid(PERMISSION_2));
+    underTest.setDefaultTemplates(dbSession, ORGANIZATION_DTO_1.getUuid(), new DefaultTemplates().setProjectUuid(PERMISSION_1).setApplicationsUuid(PERMISSION_2));
 
     assertThat(underTest.getDefaultTemplates(dbSession, ORGANIZATION_DTO_1.getUuid().toUpperCase(Locale.ENGLISH)))
       .isEmpty();
@@ -620,7 +711,7 @@ public class OrganizationDaoTest {
     expectedException.expect(NullPointerException.class);
     expectedException.expectMessage("defaultTemplates.project can't be null");
 
-    underTest.setDefaultTemplates(dbSession, "uuid", new DefaultTemplates().setViewUuid(PERMISSION_1));
+    underTest.setDefaultTemplates(dbSession, "uuid", new DefaultTemplates().setApplicationsUuid(PERMISSION_1));
   }
 
   @Test
@@ -669,11 +760,11 @@ public class OrganizationDaoTest {
   @Test
   public void setDefaultQualityGate() {
     when(system2.now()).thenReturn(DATE_3);
-    OrganizationDto organization = dbTester.organizations().insert();
-    QGateWithOrgDto qualityGate = dbTester.qualityGates().insertQualityGate(organization);
+    OrganizationDto organization = db.organizations().insert();
+    QGateWithOrgDto qualityGate = db.qualityGates().insertQualityGate(organization);
 
     underTest.setDefaultQualityGate(dbSession, organization, qualityGate);
-    dbTester.commit();
+    db.commit();
 
     assertThat(dbClient.qualityGateDao().selectDefault(dbSession, organization).getUuid()).isEqualTo(qualityGate.getUuid());
     verifyOrganizationUpdatedAt(organization.getUuid(), DATE_3);
@@ -693,20 +784,22 @@ public class OrganizationDaoTest {
 
   @Test
   public void update_with_same_information_succeeds_but_has_no_effect() {
-    insertOrganization(ORGANIZATION_DTO_1);
+    OrganizationDto organizationDto = newOrganizationDto();
+    insertOrganization(organizationDto);
 
-    underTest.update(dbSession, ORGANIZATION_DTO_1);
+    underTest.update(dbSession, organizationDto);
     dbSession.commit();
 
     Map<String, Object> row = selectSingleRow();
-    assertThat(row.get("uuid")).isEqualTo(ORGANIZATION_DTO_1.getUuid());
-    assertThat(row.get("key")).isEqualTo(ORGANIZATION_DTO_1.getKey());
-    assertThat(row.get("name")).isEqualTo(ORGANIZATION_DTO_1.getName());
-    assertThat(row.get("description")).isEqualTo(ORGANIZATION_DTO_1.getDescription());
-    assertThat(row.get("url")).isEqualTo(ORGANIZATION_DTO_1.getUrl());
-    assertThat(row.get("avatarUrl")).isEqualTo(ORGANIZATION_DTO_1.getAvatarUrl());
-    assertThat(row.get("createdAt")).isEqualTo(ORGANIZATION_DTO_1.getCreatedAt());
-    assertThat(row.get("updatedAt")).isEqualTo(ORGANIZATION_DTO_1.getUpdatedAt());
+    assertThat(row.get("uuid")).isEqualTo(organizationDto.getUuid());
+    assertThat(row.get("key")).isEqualTo(organizationDto.getKey());
+    assertThat(row.get("name")).isEqualTo(organizationDto.getName());
+    assertThat(row.get("description")).isEqualTo(organizationDto.getDescription());
+    assertThat(row.get("url")).isEqualTo(organizationDto.getUrl());
+    assertThat(row.get("avatarUrl")).isEqualTo(organizationDto.getAvatarUrl());
+    assertThat(row.get("subscription")).isEqualTo(organizationDto.getSubscription().name());
+    assertThat(row.get("createdAt")).isEqualTo(organizationDto.getCreatedAt());
+    assertThat(row.get("updatedAt")).isEqualTo(organizationDto.getUpdatedAt());
   }
 
   @Test
@@ -725,29 +818,41 @@ public class OrganizationDaoTest {
   }
 
   @Test
-  public void update_does_not_update_key_nor_createdAt() {
+  public void update() {
     when(system2.now()).thenReturn(DATE_1);
-    insertOrganization(ORGANIZATION_DTO_1);
+    OrganizationDto oldOrganization = newOrganizationDto()
+      .setUuid("new_uuid")
+      .setKey("old_key")
+      .setName("old_name")
+      .setDescription("old_desc")
+      .setAvatarUrl("old_avatar")
+      .setSubscription(FREE)
+      .setUrl("old_url");
+    insertOrganization(oldOrganization);
 
     when(system2.now()).thenReturn(DATE_3);
-    underTest.update(dbSession, newOrganizationDto()
-      .setUuid(ORGANIZATION_DTO_1.getUuid())
-      .setKey("new key")
-      .setName("new name")
-      .setDescription("new description")
-      .setUrl("new url")
-      .setAvatarUrl("new avatar url")
+    OrganizationDto updatedOrganization = newOrganizationDto()
+      .setUuid("new_uuid")
+      .setKey("new_key")
+      .setName("new_name")
+      .setDescription("new_desc")
+      .setAvatarUrl("new_avatar")
+      .setDefaultGroupId(11)
+      .setSubscription(PAID)
+      .setUrl("new_url")
       .setCreatedAt(2_000L)
-      .setUpdatedAt(3_000L));
+      .setUpdatedAt(3_000L);
+    underTest.update(dbSession, updatedOrganization);
     dbSession.commit();
 
     Map<String, Object> row = selectSingleRow();
-    assertThat(row.get("uuid")).isEqualTo(ORGANIZATION_DTO_1.getUuid());
-    assertThat(row.get("key")).isEqualTo(ORGANIZATION_DTO_1.getKey());
-    assertThat(row.get("name")).isEqualTo("new name");
-    assertThat(row.get("description")).isEqualTo("new description");
-    assertThat(row.get("url")).isEqualTo("new url");
-    assertThat(row.get("avatarUrl")).isEqualTo("new avatar url");
+    assertThat(row.get("uuid")).isEqualTo(updatedOrganization.getUuid());
+    assertThat(row.get("key")).isEqualTo(updatedOrganization.getKey());
+    assertThat(row.get("name")).isEqualTo(updatedOrganization.getName());
+    assertThat(row.get("description")).isEqualTo(updatedOrganization.getDescription());
+    assertThat(row.get("url")).isEqualTo(updatedOrganization.getUrl());
+    assertThat(row.get("avatarUrl")).isEqualTo(updatedOrganization.getAvatarUrl());
+    assertThat(row.get("subscription")).isEqualTo(updatedOrganization.getSubscription().name());
     assertThat(row.get("createdAt")).isEqualTo(DATE_1);
     assertThat(row.get("updatedAt")).isEqualTo(DATE_3);
   }
@@ -781,32 +886,32 @@ public class OrganizationDaoTest {
     String anotherUuid = "uuid";
     insertOrganization(copyOf(ORGANIZATION_DTO_1).setUuid(anotherUuid).setKey("key"));
 
-    assertThat(dbTester.countRowsOfTable("organizations")).isEqualTo(2);
+    assertThat(db.countRowsOfTable("organizations")).isEqualTo(2);
     assertThat(underTest.deleteByUuid(dbSession, anotherUuid)).isEqualTo(1);
     dbSession.commit();
 
     assertThat(underTest.selectByUuid(dbSession, anotherUuid)).isEmpty();
     assertThat(underTest.selectByUuid(dbSession, ORGANIZATION_DTO_1.getUuid())).isNotEmpty();
-    assertThat(dbTester.countRowsOfTable("organizations")).isEqualTo(1);
+    assertThat(db.countRowsOfTable("organizations")).isEqualTo(1);
 
     assertThat(underTest.deleteByUuid(dbSession, anotherUuid)).isEqualTo(0);
     assertThat(underTest.deleteByUuid(dbSession, ORGANIZATION_DTO_1.getUuid())).isEqualTo(1);
     dbSession.commit();
 
     assertThat(underTest.selectByUuid(dbSession, ORGANIZATION_DTO_1.getUuid())).isEmpty();
-    assertThat(dbTester.countRowsOfTable("organizations")).isEqualTo(0);
+    assertThat(db.countRowsOfTable("organizations")).isEqualTo(0);
   }
 
   @Test
   public void selectByPermission_returns_organization_when_user_has_ADMIN_user_permission_on_some_organization() {
-    UserDto user = dbTester.users().insertUser();
-    OrganizationDto organization1 = dbTester.organizations().insert();
-    dbTester.users().insertPermissionOnUser(organization1, user, PERMISSION_2);
-    OrganizationDto organization2 = dbTester.organizations().insert();
-    dbTester.users().insertPermissionOnUser(organization2, user, PERMISSION_2);
-    UserDto otherUser = dbTester.users().insertUser();
-    OrganizationDto organization3 = dbTester.organizations().insert();
-    dbTester.users().insertPermissionOnUser(organization3, otherUser, PERMISSION_2);
+    UserDto user = db.users().insertUser();
+    OrganizationDto organization1 = db.organizations().insert();
+    db.users().insertPermissionOnUser(organization1, user, PERMISSION_2);
+    OrganizationDto organization2 = db.organizations().insert();
+    db.users().insertPermissionOnUser(organization2, user, PERMISSION_2);
+    UserDto otherUser = db.users().insertUser();
+    OrganizationDto organization3 = db.organizations().insert();
+    db.users().insertPermissionOnUser(organization3, otherUser, PERMISSION_2);
 
     assertThat(underTest.selectByPermission(dbSession, user.getId(), PERMISSION_2))
       .extracting(OrganizationDto::getUuid)
@@ -822,20 +927,20 @@ public class OrganizationDaoTest {
 
   @Test
   public void selectByPermission_returns_organization_when_user_has_ADMIN_group_permission_on_some_organization() {
-    UserDto user = dbTester.users().insertUser();
-    OrganizationDto organization1 = dbTester.organizations().insert();
-    GroupDto defaultGroup = dbTester.users().insertGroup(organization1);
-    dbTester.users().insertPermissionOnGroup(defaultGroup, PERMISSION_1);
-    dbTester.users().insertMember(defaultGroup, user);
-    OrganizationDto organization2 = dbTester.organizations().insert();
-    GroupDto group1 = dbTester.users().insertGroup(organization2);
-    dbTester.users().insertPermissionOnGroup(group1, PERMISSION_1);
-    dbTester.users().insertMember(group1, user);
-    UserDto otherUser = dbTester.users().insertUser();
-    OrganizationDto organization3 = dbTester.organizations().insert();
-    GroupDto group2 = dbTester.users().insertGroup(organization3);
-    dbTester.users().insertPermissionOnGroup(group2, PERMISSION_1);
-    dbTester.users().insertMember(group2, otherUser);
+    UserDto user = db.users().insertUser();
+    OrganizationDto organization1 = db.organizations().insert();
+    GroupDto defaultGroup = db.users().insertGroup(organization1);
+    db.users().insertPermissionOnGroup(defaultGroup, PERMISSION_1);
+    db.users().insertMember(defaultGroup, user);
+    OrganizationDto organization2 = db.organizations().insert();
+    GroupDto group1 = db.users().insertGroup(organization2);
+    db.users().insertPermissionOnGroup(group1, PERMISSION_1);
+    db.users().insertMember(group1, user);
+    UserDto otherUser = db.users().insertUser();
+    OrganizationDto organization3 = db.organizations().insert();
+    GroupDto group2 = db.users().insertGroup(organization3);
+    db.users().insertPermissionOnGroup(group2, PERMISSION_1);
+    db.users().insertMember(group2, otherUser);
 
     assertThat(underTest.selectByPermission(dbSession, user.getId(), PERMISSION_1))
       .extracting(OrganizationDto::getUuid)
@@ -852,15 +957,15 @@ public class OrganizationDaoTest {
   @Test
   public void selectByPermission_return_organization_only_once_even_if_user_has_ADMIN_permission_twice_or_more() {
     String permission = "destroy";
-    UserDto user = dbTester.users().insertUser();
-    OrganizationDto organization = dbTester.organizations().insert();
-    GroupDto group1 = dbTester.users().insertGroup(organization);
-    dbTester.users().insertPermissionOnGroup(group1, permission);
-    dbTester.users().insertMember(group1, user);
-    GroupDto group2 = dbTester.users().insertGroup(organization);
-    dbTester.users().insertPermissionOnGroup(group2, permission);
-    dbTester.users().insertMember(group2, user);
-    dbTester.users().insertPermissionOnUser(organization, user, permission);
+    UserDto user = db.users().insertUser();
+    OrganizationDto organization = db.organizations().insert();
+    GroupDto group1 = db.users().insertGroup(organization);
+    db.users().insertPermissionOnGroup(group1, permission);
+    db.users().insertMember(group1, user);
+    GroupDto group2 = db.users().insertGroup(organization);
+    db.users().insertPermissionOnGroup(group2, permission);
+    db.users().insertMember(group2, user);
+    db.users().insertPermissionOnUser(organization, user, permission);
 
     assertThat(underTest.selectByPermission(dbSession, user.getId(), permission))
       .extracting(OrganizationDto::getUuid)
@@ -869,14 +974,14 @@ public class OrganizationDaoTest {
 
   @Test
   public void selectByPermission_returns_organization_only_if_user_has_specific_permission_by_user_permission() {
-    OrganizationDto organization = dbTester.organizations().insert();
-    OrganizationDto otherOrganization = dbTester.organizations().insert();
-    UserDto user = dbTester.users().insertUser();
-    dbTester.users().insertPermissionOnUser(organization, user, PERMISSION_1);
-    dbTester.users().insertPermissionOnUser(otherOrganization, user, PERMISSION_2);
-    UserDto otherUser = dbTester.users().insertUser();
-    dbTester.users().insertPermissionOnUser(organization, otherUser, PERMISSION_2);
-    dbTester.users().insertPermissionOnUser(otherOrganization, otherUser, PERMISSION_1);
+    OrganizationDto organization = db.organizations().insert();
+    OrganizationDto otherOrganization = db.organizations().insert();
+    UserDto user = db.users().insertUser();
+    db.users().insertPermissionOnUser(organization, user, PERMISSION_1);
+    db.users().insertPermissionOnUser(otherOrganization, user, PERMISSION_2);
+    UserDto otherUser = db.users().insertUser();
+    db.users().insertPermissionOnUser(organization, otherUser, PERMISSION_2);
+    db.users().insertPermissionOnUser(otherOrganization, otherUser, PERMISSION_1);
 
     assertThat(underTest.selectByPermission(dbSession, user.getId(), PERMISSION_1))
       .extracting(OrganizationDto::getUuid)
@@ -894,22 +999,22 @@ public class OrganizationDaoTest {
 
   @Test
   public void selectByPermission_returns_organization_only_if_user_has_specific_permission_by_group_permission() {
-    OrganizationDto organization = dbTester.organizations().insert();
-    OrganizationDto otherOrganization = dbTester.organizations().insert();
-    GroupDto group1 = dbTester.users().insertGroup(organization);
-    GroupDto group2 = dbTester.users().insertGroup(organization);
-    GroupDto otherGroup1 = dbTester.users().insertGroup(otherOrganization);
-    GroupDto otherGroup2 = dbTester.users().insertGroup(otherOrganization);
-    dbTester.users().insertPermissionOnGroup(group1, PERMISSION_1);
-    dbTester.users().insertPermissionOnGroup(otherGroup2, PERMISSION_2);
-    dbTester.users().insertPermissionOnGroup(group2, PERMISSION_2);
-    dbTester.users().insertPermissionOnGroup(otherGroup1, PERMISSION_1);
-    UserDto user = dbTester.users().insertUser();
-    dbTester.users().insertMember(group1, user);
-    dbTester.users().insertMember(otherGroup2, user);
-    UserDto otherUser = dbTester.users().insertUser();
-    dbTester.users().insertMember(group2, otherUser);
-    dbTester.users().insertMember(otherGroup1, otherUser);
+    OrganizationDto organization = db.organizations().insert();
+    OrganizationDto otherOrganization = db.organizations().insert();
+    GroupDto group1 = db.users().insertGroup(organization);
+    GroupDto group2 = db.users().insertGroup(organization);
+    GroupDto otherGroup1 = db.users().insertGroup(otherOrganization);
+    GroupDto otherGroup2 = db.users().insertGroup(otherOrganization);
+    db.users().insertPermissionOnGroup(group1, PERMISSION_1);
+    db.users().insertPermissionOnGroup(otherGroup2, PERMISSION_2);
+    db.users().insertPermissionOnGroup(group2, PERMISSION_2);
+    db.users().insertPermissionOnGroup(otherGroup1, PERMISSION_1);
+    UserDto user = db.users().insertUser();
+    db.users().insertMember(group1, user);
+    db.users().insertMember(otherGroup2, user);
+    UserDto otherUser = db.users().insertUser();
+    db.users().insertMember(group2, otherUser);
+    db.users().insertMember(otherGroup1, otherUser);
 
     assertThat(underTest.selectByPermission(dbSession, user.getId(), PERMISSION_1))
       .extracting(OrganizationDto::getUuid)
@@ -925,6 +1030,84 @@ public class OrganizationDaoTest {
       .containsOnlyOnce(organization.getUuid());
   }
 
+  @Test
+  public void selectOrganizationsWithNcloc_on_zero_orgs() {
+    assertThat(underTest.selectOrganizationsWithNcloc(dbSession, new ArrayList<>()))
+      .isEmpty();
+  }
+
+  @Test
+  public void selectOrganizationsWithNcloc_with_not_existing_uuid() {
+    MetricDto ncloc = db.measures().insertMetric(m -> m.setKey(CoreMetrics.NCLOC_KEY));
+    OrganizationDto org1 = db.organizations().insert();
+
+    assertThat(underTest.selectOrganizationsWithNcloc(dbSession, Lists.newArrayList("xxxx")))
+      .isEmpty();
+  }
+
+  @Test
+  public void selectOrganizationsWithNcloc_with_organization_without_projects() {
+    MetricDto ncloc = db.measures().insertMetric(m -> m.setKey(CoreMetrics.NCLOC_KEY));
+    OrganizationDto org1 = db.organizations().insert();
+
+    assertThat(underTest.selectOrganizationsWithNcloc(dbSession, Lists.newArrayList(org1.getUuid())))
+      .extracting(OrganizationWithNclocDto::getId, OrganizationWithNclocDto::getKee, OrganizationWithNclocDto::getName, OrganizationWithNclocDto::getNcloc)
+      .containsExactlyInAnyOrder(
+        tuple(org1.getUuid(), org1.getKey(), org1.getName(), 0L)
+      );
+  }
+
+  @Test
+  public void selectOrganizationsWithNcloc_with_one_organization() {
+    MetricDto ncloc = db.measures().insertMetric(m -> m.setKey(CoreMetrics.NCLOC_KEY));
+    OrganizationDto org1 = db.organizations().insert();
+
+    // private project with highest ncloc in non-main branch
+    ComponentDto project1 = db.components().insertMainBranch(org1);
+    ComponentDto project1Branch = db.components().insertProjectBranch(project1);
+    db.measures().insertLiveMeasure(project1, ncloc, m -> m.setValue(1_000.0));
+    db.measures().insertLiveMeasure(project1Branch, ncloc, m -> m.setValue(110_000.0));
+
+
+    // public project that must be ignored
+    ComponentDto project2 = db.components().insertPublicProject(org1);
+    ComponentDto project2Branch = db.components().insertProjectBranch(project2);
+    db.measures().insertLiveMeasure(project2, ncloc, m -> m.setValue(1_000_000_000.0));
+    db.measures().insertLiveMeasure(project2Branch, ncloc, m -> m.setValue(1_000_000.0));
+
+    assertThat(underTest.selectOrganizationsWithNcloc(dbSession, Lists.newArrayList(org1.getUuid())))
+      .extracting(OrganizationWithNclocDto::getId, OrganizationWithNclocDto::getKee, OrganizationWithNclocDto::getName, OrganizationWithNclocDto::getNcloc)
+      .containsExactlyInAnyOrder(
+        tuple(org1.getUuid(), org1.getKey(), org1.getName(), 110_000L)
+      );
+  }
+
+  @Test
+  public void selectOrganizationsWithNcloc_with_multiple_organizations() {
+    MetricDto ncloc = db.measures().insertMetric(m -> m.setKey(CoreMetrics.NCLOC_KEY));
+
+    Tuple[] expectedResults = new Tuple[9];
+    List<String> orgUuids = new ArrayList<>();
+    IntStream.range(0, 9).forEach(
+      i -> {
+        OrganizationDto org = db.organizations().insert();
+        orgUuids.add(org.getUuid());
+
+        int maxPrivate = insertPrivateProjectsWithBranches(org, ncloc);
+        // Now we are creating public project asking for maxPrivate as minimum ncloc
+        // because those projects *MUST* not be taken during the calculation of ncloc for a private
+        // organization
+        insertPublicProjectsWithBranches(org, ncloc, maxPrivate);
+
+        expectedResults[i] = tuple(org.getUuid(), org.getKey(), org.getName(), (long) maxPrivate);
+      }
+    );
+
+    assertThat(underTest.selectOrganizationsWithNcloc(dbSession, orgUuids))
+      .extracting(OrganizationWithNclocDto::getId, OrganizationWithNclocDto::getKee, OrganizationWithNclocDto::getName, OrganizationWithNclocDto::getNcloc)
+      .containsExactlyInAnyOrder(expectedResults);
+  }
+
   private void expectDtoCanNotBeNull() {
     expectedException.expect(NullPointerException.class);
     expectedException.expectMessage("OrganizationDto can't be null");
@@ -935,8 +1118,14 @@ public class OrganizationDaoTest {
     dbSession.commit();
   }
 
+  private void insertOrgAlmBinding(OrganizationDto organization, ALM alm, String organizationAlmId) {
+    dbClient.almAppInstallDao().insertOrUpdate(dbSession, alm, organizationAlmId, true, randomAlphabetic(8), randomAlphabetic(8));
+    Optional<AlmAppInstallDto> almAppInstallDto = dbClient.almAppInstallDao().selectByOrganizationAlmId(dbSession, GITHUB, organizationAlmId);
+    dbClient.organizationAlmBindingDao().insert(dbSession, organization, almAppInstallDto.get(), "http://github.com/myteam", Uuids.createFast(), true);
+  }
+
   private void dirtyInsertWithDefaultTemplate(String organizationUuid, @Nullable String project, @Nullable String view) {
-    try (Connection connection = dbTester.database().getDataSource().getConnection();
+    try (Connection connection = db.database().getDataSource().getConnection();
       PreparedStatement preparedStatement = connection.prepareStatement(
         "insert into organizations" +
           "    (" +
@@ -944,15 +1133,19 @@ public class OrganizationDaoTest {
           "      kee," +
           "      name," +
           "      default_perm_template_project," +
-          "      default_perm_template_view," +
+          "      default_perm_template_app," +
+          "      default_perm_template_port," +
           "      new_project_private," +
           "      guarded," +
           "      default_quality_gate_uuid," +
+          "      subscription," +
           "      created_at," +
           "      updated_at" +
           "    )" +
           "    values" +
           "    (" +
+          "      ?," +
+          "      ?," +
           "      ?," +
           "      ?," +
           "      ?," +
@@ -969,11 +1162,13 @@ public class OrganizationDaoTest {
       preparedStatement.setString(3, organizationUuid);
       preparedStatement.setString(4, project);
       preparedStatement.setString(5, view);
-      preparedStatement.setBoolean(6, false);
+      preparedStatement.setString(6, view);
       preparedStatement.setBoolean(7, false);
-      preparedStatement.setString(8, "1"); // TODO check ok ?
-      preparedStatement.setLong(9, 1000L);
-      preparedStatement.setLong(10, 2000L);
+      preparedStatement.setBoolean(8, false);
+      preparedStatement.setString(9, "1");
+      preparedStatement.setString(10, FREE.name());
+      preparedStatement.setLong(11, 1000L);
+      preparedStatement.setLong(12, 2000L);
       preparedStatement.execute();
     } catch (SQLException e) {
       throw new RuntimeException("dirty insert failed", e);
@@ -981,7 +1176,7 @@ public class OrganizationDaoTest {
   }
 
   private void setDefaultTemplate(OrganizationDto organizationDto1, @Nullable String project, @Nullable String view) {
-    underTest.setDefaultTemplates(dbSession, organizationDto1.getUuid(), new DefaultTemplates().setProjectUuid(project).setViewUuid(view));
+    underTest.setDefaultTemplates(dbSession, organizationDto1.getUuid(), new DefaultTemplates().setProjectUuid(project).setApplicationsUuid(view));
     dbSession.commit();
   }
 
@@ -998,7 +1193,6 @@ public class OrganizationDaoTest {
     assertThat(dto.getUrl()).isEqualTo(ORGANIZATION_DTO_1.getUrl());
     assertThat(dto.isGuarded()).isEqualTo(ORGANIZATION_DTO_1.isGuarded());
     assertThat(dto.getAvatarUrl()).isEqualTo(ORGANIZATION_DTO_1.getAvatarUrl());
-    assertThat(dto.getUserId()).isEqualTo(ORGANIZATION_DTO_1.getUserId());
     assertThat(dto.getCreatedAt()).isEqualTo(ORGANIZATION_DTO_1.getCreatedAt());
     assertThat(dto.getUpdatedAt()).isEqualTo(ORGANIZATION_DTO_1.getUpdatedAt());
   }
@@ -1010,19 +1204,19 @@ public class OrganizationDaoTest {
     assertThat(dto.getDescription()).isEqualTo(expected.getDescription());
     assertThat(dto.getUrl()).isEqualTo(expected.getUrl());
     assertThat(dto.isGuarded()).isEqualTo(expected.isGuarded());
-    assertThat(dto.getUserId()).isEqualTo(expected.getUserId());
     assertThat(dto.getAvatarUrl()).isEqualTo(expected.getAvatarUrl());
+    assertThat(dto.getSubscription()).isEqualTo(expected.getSubscription());
     assertThat(dto.getCreatedAt()).isEqualTo(expected.getCreatedAt());
     assertThat(dto.getUpdatedAt()).isEqualTo(expected.getUpdatedAt());
   }
 
   private Map<String, Object> selectSingleRow() {
-    List<Map<String, Object>> rows = dbTester.select("select" +
+    List<Map<String, Object>> rows = db.select("select" +
       " uuid as \"uuid\", kee as \"key\", name as \"name\",  description as \"description\", url as \"url\", avatar_url as \"avatarUrl\"," +
-      " guarded as \"guarded\", user_id as \"userId\"," +
+      " guarded as \"guarded\"," +
+      " subscription as \"subscription\"," +
       " created_at as \"createdAt\", updated_at as \"updatedAt\"," +
       " default_perm_template_project as \"projectDefaultPermTemplate\"," +
-      " default_perm_template_view as \"viewDefaultPermTemplate\"," +
       " default_quality_gate_uuid as \"defaultQualityGateUuid\" " +
       " from organizations");
     assertThat(rows).hasSize(1);
@@ -1037,6 +1231,7 @@ public class OrganizationDaoTest {
       .setDescription(organizationDto.getDescription())
       .setUrl(organizationDto.getUrl())
       .setDefaultQualityGateUuid(organizationDto.getDefaultQualityGateUuid())
+      .setSubscription(organizationDto.getSubscription())
       .setAvatarUrl(organizationDto.getAvatarUrl());
   }
 
@@ -1050,11 +1245,45 @@ public class OrganizationDaoTest {
     assertThat(optional).isNotEmpty();
     DefaultTemplates defaultTemplates = optional.get();
     assertThat(defaultTemplates.getProjectUuid()).isEqualTo(expectedProject);
-    assertThat(defaultTemplates.getViewUuid()).isEqualTo(expectedView);
+    assertThat(defaultTemplates.getApplicationsUuid()).isEqualTo(expectedView);
   }
 
   private void verifyOrganizationUpdatedAt(String organization, Long updatedAt) {
-    Map<String, Object> row = dbTester.selectFirst(dbTester.getSession(), String.format("select updated_at as \"updatedAt\" from organizations where uuid='%s'", organization));
+    Map<String, Object> row = db.selectFirst(db.getSession(), String.format("select updated_at as \"updatedAt\" from organizations where uuid='%s'", organization));
     assertThat(row.get("updatedAt")).isEqualTo(updatedAt);
+  }
+
+  private int insertPrivateProjectsWithBranches(OrganizationDto org, MetricDto ncloc) {
+    // private project
+    ComponentDto project1 = db.components().insertMainBranch(org);
+
+    return Math.max(
+      // Create the ncloc on main branch
+      insertLiveMeasures(project1, ncloc, 0),
+      // Create 5 branches and set the ncloc on them
+      IntStream.range(1, 5)
+      .map(i -> insertLiveMeasures(db.components().insertProjectBranch(project1), ncloc, 0))
+      .max().orElse(0)
+    );
+  }
+
+  private int insertPublicProjectsWithBranches(OrganizationDto org, MetricDto ncloc, int minimumNcloc) {
+    // private project
+    ComponentDto project1 = db.components().insertPublicProject(org);
+
+    return Math.max(
+      // Create the ncloc on main branch
+      insertLiveMeasures(project1, ncloc, minimumNcloc),
+      // Create 5 branches and set the ncloc on them
+      IntStream.range(1, 5)
+        .map(i -> insertLiveMeasures(db.components().insertProjectBranch(project1), ncloc, minimumNcloc))
+        .max().orElse(0)
+    );
+  }
+
+  private int insertLiveMeasures(ComponentDto componentDto, MetricDto ncloc, int minimum) {
+    int nclocValue = minimum + RANDOM.nextInt(1_000_000);
+    db.measures().insertLiveMeasure(componentDto, ncloc, m -> m.setValue((double) nclocValue));
+    return nclocValue;
   }
 }

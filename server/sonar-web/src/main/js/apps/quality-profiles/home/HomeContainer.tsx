@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -27,10 +27,9 @@ import { Actions } from '../../../api/quality-profiles';
 interface Props {
   actions: Actions;
   languages: Array<{ key: string; name: string }>;
-  location: { query: { [p: string]: string } };
-  onRequestFail: (reason: any) => void;
+  location: { query: T.Dict<string> };
   organization: string | null;
-  profiles: Array<Profile>;
+  profiles: Profile[];
   updateProfiles: () => Promise<void>;
 }
 

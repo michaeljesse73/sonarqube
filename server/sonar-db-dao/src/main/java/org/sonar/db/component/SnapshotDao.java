@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -32,7 +32,6 @@ import org.apache.ibatis.session.RowBounds;
 import org.sonar.core.util.stream.MoreCollectors;
 import org.sonar.db.Dao;
 import org.sonar.db.DbSession;
-import org.sonar.db.ce.CeActivityDto.Status;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
@@ -84,17 +83,10 @@ public class SnapshotDao implements Dao {
     return dtos.get(0);
   }
 
-  /**
-   * Since this relies on tables EVENTS, this can return results only for root components (PROJECT, VIEW or DEVELOPER).
-   */
-  public List<SnapshotDto> selectPreviousVersionSnapshots(DbSession session, String componentUuid, String lastVersion) {
-    return mapper(session).selectPreviousVersionSnapshots(componentUuid, lastVersion);
-  }
-
-  @CheckForNull
-  public SnapshotDto selectOldestSnapshot(DbSession session, String componentUuid) {
-    List<SnapshotDto> snapshotDtos = mapper(session).selectOldestSnapshots(componentUuid, new RowBounds(0, 1));
-    return snapshotDtos.isEmpty() ? null : snapshotDtos.get(0);
+  public Optional<SnapshotDto> selectOldestSnapshot(DbSession session, String componentUuid) {
+    return mapper(session).selectOldestSnapshots(componentUuid, new RowBounds(0, 1))
+      .stream()
+      .findFirst();
   }
 
   /**
@@ -111,7 +103,7 @@ public class SnapshotDao implements Dao {
       .mapToObj(i -> new ComponentUuidFromDatePair(componentUuids.get(i), fromDates.get(i)))
       .collect(MoreCollectors.toList(componentUuids.size()));
 
-    return executeLargeInputs(componentUuidFromDatePairs, partition -> mapper(dbSession).selectFinishedByComponentUuidsAndFromDates(partition, Status.SUCCESS), i -> i / 2);
+    return executeLargeInputs(componentUuidFromDatePairs, partition -> mapper(dbSession).selectFinishedByComponentUuidsAndFromDates(partition), i -> i / 2);
   }
 
   public void switchIsLastFlagAndSetProcessedStatus(DbSession dbSession, String componentUuid, String analysisUuid) {

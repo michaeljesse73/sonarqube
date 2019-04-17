@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,5 +21,5 @@ import * as React from 'react';
 import CoverageFilter, { Props } from './CoverageFilter';
 
 export default function NewCoverageFilter(props: Props) {
-  return <CoverageFilter {...props} property="new_coverage" className="leak-facet-box" />;
+  return <CoverageFilter {...props} className="leak-facet-box" property="new_coverage" />;
 }

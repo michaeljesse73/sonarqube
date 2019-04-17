@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -43,9 +43,10 @@ import javax.annotation.CheckForNull;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
+import static java.util.Optional.ofNullable;
 import static org.apache.commons.lang.StringUtils.isNotBlank;
-import static org.sonar.core.util.Protobuf.setNullable;
 import static org.sonar.server.projectanalysis.ws.EventValidator.checkModifiable;
+import static org.sonar.server.projectanalysis.ws.EventValidator.checkVersionName;
 import static org.sonar.server.ws.WsUtils.writeProtobuf;
 import static org.sonar.server.projectanalysis.ws.EventCategory.VERSION;
 import static org.sonar.server.projectanalysis.ws.EventCategory.fromLabel;
@@ -53,7 +54,6 @@ import static org.sonar.server.projectanalysis.ws.ProjectAnalysesWsParameters.PA
 import static org.sonar.server.projectanalysis.ws.ProjectAnalysesWsParameters.PARAM_NAME;
 
 public class UpdateEventAction implements ProjectAnalysesWsAction {
-  private static final int MAX_NAME_LENGTH = 100;
   private final DbClient dbClient;
   private final UserSession userSession;
 
@@ -86,7 +86,8 @@ public class UpdateEventAction implements ProjectAnalysesWsAction {
     action.createParam(PARAM_NAME)
       .setMaximumLength(org.sonar.db.event.EventValidator.MAX_NAME_LENGTH)
       .setDescription("New name")
-      .setExampleValue("5.6");
+      .setExampleValue("5.6")
+      .setRequired(true);
   }
 
   @Override
@@ -118,7 +119,7 @@ public class UpdateEventAction implements ProjectAnalysesWsAction {
       dbClient.eventDao().update(dbSession, event.getUuid(), event.getName(), event.getDescription());
       if (VERSION.getLabel().equals(event.getCategory())) {
         SnapshotDto analysis = getAnalysis(dbSession, event);
-        analysis.setVersion(event.getName());
+        analysis.setProjectVersion(event.getName());
         dbClient.snapshotDao().update(dbSession, analysis);
       }
       dbSession.commit();
@@ -151,13 +152,7 @@ public class UpdateEventAction implements ProjectAnalysesWsAction {
   }
 
   private static Consumer<EventDto> checkVersionNameLength(UpdateEventRequest request) {
-    String name = request.getName();
-    return candidateEvent -> {
-      if (name != null && VERSION.getLabel().equals(candidateEvent.getCategory())) {
-        checkArgument(name.length() <= MAX_NAME_LENGTH,
-          "Version length (%s) is longer than the maximum authorized (%s). '%s' was provided.", name.length(), MAX_NAME_LENGTH, name);
-      }
-    };
+    return candidateEvent -> checkVersionName(candidateEvent.getCategory(), request.getName());
   }
 
   private SnapshotDto getAnalysis(DbSession dbSession, EventDto event) {
@@ -167,7 +162,7 @@ public class UpdateEventAction implements ProjectAnalysesWsAction {
 
   private static Function<EventDto, EventDto> updateNameAndDescription(UpdateEventRequest request) {
     return event -> {
-      setNullable(request.getName(), event::setName);
+      ofNullable(request.getName()).ifPresent(event::setName);
       return event;
     };
   }
@@ -178,8 +173,8 @@ public class UpdateEventAction implements ProjectAnalysesWsAction {
         .setKey(dbEvent.getUuid())
         .setCategory(fromLabel(dbEvent.getCategory()).name())
         .setAnalysis(dbEvent.getAnalysisUuid());
-      setNullable(dbEvent.getName(), wsEvent::setName);
-      setNullable(dbEvent.getDescription(), wsEvent::setDescription);
+      ofNullable(dbEvent.getName()).ifPresent(wsEvent::setName);
+      ofNullable(dbEvent.getDescription()).ifPresent(wsEvent::setDescription);
 
       return UpdateEventResponse.newBuilder().setEvent(wsEvent).build();
     };

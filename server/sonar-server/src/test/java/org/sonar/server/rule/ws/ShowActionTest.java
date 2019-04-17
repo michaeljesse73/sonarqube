@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,95 +19,71 @@
  */
 package org.sonar.server.rule.ws;
 
-import java.util.Date;
 import java.util.List;
-import java.util.function.Consumer;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Mockito;
-import org.sonar.api.config.internal.MapSettings;
 import org.sonar.api.resources.Languages;
 import org.sonar.api.rule.RuleKey;
-import org.sonar.api.rule.RuleStatus;
+import org.sonar.api.rule.Severity;
 import org.sonar.api.rules.RuleType;
-import org.sonar.api.utils.System2;
-import org.sonar.db.DbClient;
-import org.sonar.db.DbSession;
+import org.sonar.api.server.ws.WebService;
 import org.sonar.db.DbTester;
 import org.sonar.db.organization.OrganizationDto;
 import org.sonar.db.qualityprofile.ActiveRuleDto;
 import org.sonar.db.qualityprofile.ActiveRuleParamDto;
 import org.sonar.db.qualityprofile.QProfileDto;
-import org.sonar.db.rule.RuleDao;
 import org.sonar.db.rule.RuleDefinitionDto;
 import org.sonar.db.rule.RuleDto;
-import org.sonar.db.rule.RuleDto.Format;
-import org.sonar.db.rule.RuleDto.Scope;
 import org.sonar.db.rule.RuleMetadataDto;
 import org.sonar.db.rule.RuleParamDto;
-import org.sonar.db.rule.RuleTesting;
-import org.sonar.server.es.EsClient;
-import org.sonar.server.es.EsTester;
-import org.sonar.server.es.StartupIndexer;
+import org.sonar.db.user.UserDto;
 import org.sonar.server.exceptions.NotFoundException;
-import org.sonar.server.language.LanguageTesting;
-import org.sonar.server.organization.DefaultOrganizationProvider;
 import org.sonar.server.organization.TestDefaultOrganizationProvider;
-import org.sonar.server.qualityprofile.QProfileTesting;
-import org.sonar.server.qualityprofile.index.ActiveRuleIndexer;
-import org.sonar.server.rule.NewCustomRule;
-import org.sonar.server.rule.RuleCreator;
-import org.sonar.server.rule.index.RuleIndexDefinition;
-import org.sonar.server.rule.index.RuleIndexer;
+import org.sonar.server.tester.UserSessionRule;
 import org.sonar.server.text.MacroInterpreter;
-import org.sonar.server.util.TypeValidations;
-import org.sonar.server.ws.TestResponse;
-import org.sonar.server.ws.WsAction;
 import org.sonar.server.ws.WsActionTester;
+import org.sonarqube.ws.Common;
 import org.sonarqube.ws.Rules;
 import org.sonarqube.ws.Rules.Rule;
+import org.sonarqube.ws.Rules.ShowResponse;
 
-import static com.google.common.collect.Sets.newHashSet;
-import static java.util.Arrays.asList;
-import static java.util.Collections.singletonList;
-import static org.apache.commons.lang.RandomStringUtils.randomAlphanumeric;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
+import static org.assertj.core.api.Assertions.tuple;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
-import static org.sonar.api.rule.Severity.MINOR;
+import static org.mockito.Mockito.verify;
+import static org.sonar.db.organization.OrganizationDto.Subscription.PAID;
+import static org.sonar.db.rule.RuleDto.Format.MARKDOWN;
+import static org.sonar.db.rule.RuleTesting.newCustomRule;
+import static org.sonar.db.rule.RuleTesting.newTemplateRule;
 import static org.sonar.db.rule.RuleTesting.setTags;
+import static org.sonar.server.language.LanguageTesting.newLanguage;
+import static org.sonar.server.rule.ws.ShowAction.PARAM_ACTIVES;
 import static org.sonar.server.rule.ws.ShowAction.PARAM_KEY;
 import static org.sonar.server.rule.ws.ShowAction.PARAM_ORGANIZATION;
-import static org.sonarqube.ws.MediaTypes.PROTOBUF;
+import static org.sonarqube.ws.Common.RuleType.UNKNOWN;
+import static org.sonarqube.ws.Common.RuleType.VULNERABILITY;
 
 public class ShowActionTest {
 
-  public static final String INTERPRETED = "interpreted";
+  private static final String INTERPRETED = "interpreted";
 
   @org.junit.Rule
-  public DbTester dbTester = DbTester.create();
+  public UserSessionRule userSession = UserSessionRule.standalone();
   @org.junit.Rule
-  public EsTester esTester = new EsTester(
-    new RuleIndexDefinition(new MapSettings().asConfig()));
+  public DbTester db = DbTester.create();
   @org.junit.Rule
   public ExpectedException thrown = ExpectedException.none();
 
-  private DbClient dbClient = dbTester.getDbClient();
-  private EsClient esClient = esTester.client();
-
-  private DefaultOrganizationProvider defaultOrganizationProvider = TestDefaultOrganizationProvider.from(dbTester);
   private MacroInterpreter macroInterpreter = mock(MacroInterpreter.class);
-  private Languages languages = new Languages(LanguageTesting.newLanguage("xoo", "Xoo"));
-  private RuleMapper mapper = new RuleMapper(languages, macroInterpreter);
-  private ActiveRuleCompleter activeRuleCompleter = mock(ActiveRuleCompleter.class);
-  private WsAction underTest = new ShowAction(dbClient, mapper, activeRuleCompleter, defaultOrganizationProvider);
-  private WsActionTester actionTester = new WsActionTester(underTest);
+  private Languages languages = new Languages(newLanguage("xoo", "Xoo"));
 
-  private RuleIndexer ruleIndexer = new RuleIndexer(esClient, dbClient);
+  private WsActionTester ws = new WsActionTester(
+    new ShowAction(db.getDbClient(), new RuleMapper(languages, macroInterpreter),
+      new ActiveRuleCompleter(db.getDbClient(), languages),
+      new RuleWsSupport(db.getDbClient(), userSession, TestDefaultOrganizationProvider.from(db))));
 
   @Before
   public void before() {
@@ -115,377 +91,26 @@ public class ShowActionTest {
   }
 
   @Test
-  public void should_show_rule_key() {
-    RuleDefinitionDto rule = insertRule();
+  public void show_rule_key() {
+    RuleDefinitionDto rule = db.rules().insert();
 
-    Rules.ShowResponse result = actionTester.newRequest()
+    ShowResponse result = ws.newRequest()
       .setParam(PARAM_KEY, rule.getKey().toString())
-      .executeProtobuf(Rules.ShowResponse.class);
+      .executeProtobuf(ShowResponse.class);
+
     assertThat(result.getRule()).extracting(Rule::getKey).containsExactly(rule.getKey().toString());
   }
 
   @Test
-  public void should_show_rule_tags_in_default_organization() {
-    RuleDefinitionDto rule = insertRule();
-    RuleMetadataDto metadata = insertMetadata(dbTester.getDefaultOrganization(), rule, setTags("tag1", "tag2"));
+  public void show_rule_with_basic_info() {
+    RuleDefinitionDto rule = db.rules().insert();
+    RuleParamDto ruleParam = db.rules().insertRuleParam(rule);
 
-    Rules.ShowResponse result = actionTester.newRequest()
+    ShowResponse result = ws.newRequest()
       .setParam(PARAM_KEY, rule.getKey().toString())
-      .executeProtobuf(Rules.ShowResponse.class);
-    assertThat(result.getRule().getTags().getTagsList())
-      .containsExactly(metadata.getTags().toArray(new String[0]));
-  }
+      .executeProtobuf(ShowResponse.class);
 
-  @Test
-  public void should_show_rule_tags_in_specific_organization() {
-    RuleDefinitionDto rule = insertRule();
-    OrganizationDto organization = dbTester.organizations().insert();
-    RuleMetadataDto metadata = insertMetadata(organization, rule, setTags("tag1", "tag2"));
-
-    Rules.ShowResponse result = actionTester.newRequest()
-        .setParam(PARAM_KEY, rule.getKey().toString())
-        .setParam(PARAM_ORGANIZATION, organization.getKey())
-        .executeProtobuf(Rules.ShowResponse.class);
-    assertThat(result.getRule().getTags().getTagsList())
-      .containsExactly(metadata.getTags().toArray(new String[0]));
-  }
-
-  @Test
-  public void show_rule_with_activation() {
-    OrganizationDto organization = dbTester.organizations().insert();
-
-    QProfileDto profile = QProfileTesting.newXooP1(organization);
-    dbClient.qualityProfileDao().insert(dbTester.getSession(), profile);
-    dbTester.commit();
-
-    RuleDefinitionDto rule = insertRule();
-    RuleMetadataDto ruleMetadata = dbTester.rules().insertOrUpdateMetadata(rule, organization);
-
-    ArgumentCaptor<OrganizationDto> orgCaptor = ArgumentCaptor.forClass(OrganizationDto.class);
-    ArgumentCaptor<RuleDefinitionDto> ruleCaptor = ArgumentCaptor.forClass(RuleDefinitionDto.class);
-    Rules.Active active = Rules.Active.newBuilder()
-      .setQProfile(randomAlphanumeric(5))
-      .setInherit(randomAlphanumeric(5))
-      .setSeverity(randomAlphanumeric(5))
-      .build();
-    Mockito.doReturn(singletonList(active)).when(activeRuleCompleter).completeShow(any(DbSession.class), orgCaptor.capture(), ruleCaptor.capture());
-
-    ActiveRuleIndexer activeRuleIndexer = new ActiveRuleIndexer(dbClient, esClient);
-    activeRuleIndexer.indexOnStartup(activeRuleIndexer.getIndexTypes());
-
-    TestResponse response = actionTester.newRequest().setMethod("GET")
-      .setMediaType(PROTOBUF)
-      .setParam(ShowAction.PARAM_KEY, rule.getKey().toString())
-      .setParam(ShowAction.PARAM_ACTIVES, "true")
-      .setParam(ShowAction.PARAM_ORGANIZATION, organization.getKey())
-      .execute();
-
-    assertThat(orgCaptor.getValue().getUuid()).isEqualTo(organization.getUuid());
-    assertThat(ruleCaptor.getValue().getKey()).isEqualTo(rule.getKey());
-
-    Rules.ShowResponse result = response.getInputObject(Rules.ShowResponse.class);
     Rule resultRule = result.getRule();
-    assertEqual(rule, ruleMetadata, resultRule);
-
-    List<Rules.Active> actives = result.getActivesList();
-    assertThat(actives).extracting(Rules.Active::getQProfile).containsExactly(active.getQProfile());
-    assertThat(actives).extracting(Rules.Active::getInherit).containsExactly(active.getInherit());
-    assertThat(actives).extracting(Rules.Active::getSeverity).containsExactly(active.getSeverity());
-  }
-
-  @Test
-  public void show_rule_without_activation() {
-    OrganizationDto organization = dbTester.organizations().insert();
-
-    QProfileDto profile = QProfileTesting.newXooP1(organization);
-    dbClient.qualityProfileDao().insert(dbTester.getSession(), profile);
-    dbTester.commit();
-
-    RuleDefinitionDto rule = insertRule();
-    RuleMetadataDto ruleMetadata = dbTester.rules().insertOrUpdateMetadata(rule, organization);
-
-    dbTester.qualityProfiles().activateRule(profile, rule, a -> a.setSeverity("BLOCKER"));
-    ActiveRuleIndexer activeRuleIndexer = new ActiveRuleIndexer(dbClient, esClient);
-    activeRuleIndexer.indexOnStartup(activeRuleIndexer.getIndexTypes());
-
-    TestResponse response = actionTester.newRequest().setMethod("GET")
-      .setParam(ShowAction.PARAM_KEY, rule.getKey().toString())
-      .setParam(ShowAction.PARAM_ORGANIZATION, organization.getKey())
-      .setMediaType(PROTOBUF)
-      .execute();
-
-    Rules.ShowResponse result = response.getInputObject(Rules.ShowResponse.class);
-    Rule resultRule = result.getRule();
-    assertEqual(rule, ruleMetadata, resultRule);
-
-    List<Rules.Active> actives = result.getActivesList();
-    assertThat(actives).isEmpty();
-  }
-
-  @Test
-  public void throw_NotFoundException_if_organization_cannot_be_found() {
-    RuleDefinitionDto rule = dbTester.rules().insert();
-
-    thrown.expect(NotFoundException.class);
-
-    actionTester.newRequest().setMethod("POST")
-      .setParam("key", rule.getKey().toString())
-      .setParam("organization", "foo")
-      .execute();
-  }
-
-  @Test
-  public void show_rule() throws Exception {
-    RuleDto ruleDto = RuleTesting.newDto(RuleKey.of("java", "S001"), dbTester.getDefaultOrganization())
-      .setName("Rule S001")
-      .setDescription("Rule S001 <b>description</b>")
-      .setDescriptionFormat(Format.HTML)
-      .setSeverity(MINOR)
-      .setStatus(RuleStatus.BETA)
-      .setConfigKey("InternalKeyS001")
-      .setLanguage("xoo")
-      .setTags(newHashSet("tag1", "tag2"))
-      .setSystemTags(newHashSet("systag1", "systag2"))
-      .setType(RuleType.BUG)
-      .setScope(Scope.ALL);
-    RuleDefinitionDto definition = ruleDto.getDefinition();
-    RuleDao ruleDao = dbClient.ruleDao();
-    DbSession session = dbTester.getSession();
-    ruleDao.insert(session, definition);
-    ruleDao.insertOrUpdate(session, ruleDto.getMetadata().setRuleId(ruleDto.getId()));
-    RuleParamDto param = RuleParamDto.createFor(definition).setName("regex").setType("STRING").setDescription("Reg *exp*").setDefaultValue(".*");
-    ruleDao.insertRuleParam(session, definition, param);
-    session.commit();
-    session.clearCache();
-
-    actionTester.newRequest()
-      .setParam("key", ruleDto.getKey().toString())
-      .execute().assertJson(getClass(), "show_rule.json");
-  }
-
-  @Test
-  public void show_rule_with_default_debt_infos() throws Exception {
-    RuleDto ruleDto = RuleTesting.newDto(RuleKey.of("java", "S001"), dbTester.getDefaultOrganization())
-      .setName("Rule S001")
-      .setDescription("Rule S001 <b>description</b>")
-      .setSeverity(MINOR)
-      .setStatus(RuleStatus.BETA)
-      .setConfigKey("InternalKeyS001")
-      .setLanguage("xoo")
-      .setDefRemediationFunction("LINEAR_OFFSET")
-      .setDefRemediationGapMultiplier("5d")
-      .setDefRemediationBaseEffort("10h")
-      .setRemediationFunction(null)
-      .setRemediationGapMultiplier(null)
-      .setRemediationBaseEffort(null)
-      .setScope(Scope.ALL);
-    RuleDao ruleDao = dbClient.ruleDao();
-    DbSession session = dbTester.getSession();
-    ruleDao.insert(session, ruleDto.getDefinition());
-    ruleDao.insertOrUpdate(session, ruleDto.getMetadata());
-    session.commit();
-    session.clearCache();
-
-    actionTester.newRequest()
-      .setParam("key", ruleDto.getKey().toString())
-      .execute()
-      .assertJson(getClass(), "show_rule_with_default_debt_infos.json");
-  }
-
-  @Test
-  public void show_rule_with_overridden_debt() throws Exception {
-    RuleDto ruleDto = RuleTesting.newDto(RuleKey.of("java", "S001"), dbTester.getDefaultOrganization())
-      .setName("Rule S001")
-      .setDescription("Rule S001 <b>description</b>")
-      .setSeverity(MINOR)
-      .setStatus(RuleStatus.BETA)
-      .setConfigKey("InternalKeyS001")
-      .setLanguage("xoo")
-      .setDefRemediationFunction(null)
-      .setDefRemediationGapMultiplier(null)
-      .setDefRemediationBaseEffort(null)
-      .setRemediationFunction("LINEAR_OFFSET")
-      .setRemediationGapMultiplier("5d")
-      .setRemediationBaseEffort("10h")
-      .setScope(Scope.ALL);
-    RuleDao ruleDao = dbClient.ruleDao();
-    DbSession session = dbTester.getSession();
-    ruleDao.insert(session, ruleDto.getDefinition());
-    ruleDao.insertOrUpdate(session, ruleDto.getMetadata().setRuleId(ruleDto.getId()));
-    session.commit();
-    session.clearCache();
-
-    actionTester.newRequest()
-      .setParam("key", ruleDto.getKey().toString())
-      .execute().assertJson(getClass(), "show_rule_with_overridden_debt_infos.json");
-  }
-
-  @Test
-  public void show_rule_with_default_and_overridden_debt_infos() throws Exception {
-    RuleDto ruleDto = RuleTesting.newDto(RuleKey.of("java", "S001"), dbTester.getDefaultOrganization())
-      .setName("Rule S001")
-      .setDescription("Rule S001 <b>description</b>")
-      .setSeverity(MINOR)
-      .setStatus(RuleStatus.BETA)
-      .setConfigKey("InternalKeyS001")
-      .setLanguage("xoo")
-      .setDefRemediationFunction("LINEAR")
-      .setDefRemediationGapMultiplier("5min")
-      .setDefRemediationBaseEffort(null)
-      .setRemediationFunction("LINEAR_OFFSET")
-      .setRemediationGapMultiplier("5d")
-      .setRemediationBaseEffort("10h")
-      .setScope(Scope.ALL);
-    RuleDao ruleDao = dbClient.ruleDao();
-    DbSession session = dbTester.getSession();
-    ruleDao.insert(session, ruleDto.getDefinition());
-    ruleDao.insertOrUpdate(session, ruleDto.getMetadata().setRuleId(ruleDto.getId()));
-    session.commit();
-    session.clearCache();
-
-    actionTester.newRequest()
-      .setParam("key", ruleDto.getKey().toString())
-      .execute().assertJson(getClass(), "show_rule_with_default_and_overridden_debt_infos.json");
-  }
-
-  @Test
-  public void show_rule_with_no_default_and_no_overridden_debt() throws Exception {
-    RuleDefinitionDto ruleDto = RuleTesting.newRule(RuleKey.of("java", "S001"))
-      .setName("Rule S001")
-      .setDescription("Rule S001 <b>description</b>")
-      .setDescriptionFormat(Format.HTML)
-      .setSeverity(MINOR)
-      .setStatus(RuleStatus.BETA)
-      .setConfigKey("InternalKeyS001")
-      .setLanguage("xoo")
-      .setDefRemediationFunction(null)
-      .setDefRemediationGapMultiplier(null)
-      .setDefRemediationBaseEffort(null)
-      .setScope(Scope.ALL);
-    RuleDao ruleDao = dbClient.ruleDao();
-    DbSession session = dbTester.getSession();
-    ruleDao.insert(session, ruleDto);
-    session.commit();
-    session.clearCache();
-
-    actionTester.newRequest()
-      .setParam("key", ruleDto.getKey().toString())
-      .execute().assertJson(getClass(), "show_rule_with_no_default_and_no_overridden_debt.json");
-  }
-
-  @Test
-  public void encode_html_description_of_custom_rule() {
-    // Template rule
-    RuleDto templateRule = RuleTesting.newTemplateRule(RuleKey.of("java", "S001"));
-    RuleDao ruleDao = dbClient.ruleDao();
-    DbSession session = dbTester.getSession();
-    ruleDao.insert(session, templateRule.getDefinition());
-    session.commit();
-
-    // Custom rule
-    NewCustomRule customRule = NewCustomRule.createForCustomRule("MY_CUSTOM", templateRule.getKey())
-      .setName("My custom")
-      .setSeverity(MINOR)
-      .setStatus(RuleStatus.READY)
-      .setMarkdownDescription("<div>line1\nline2</div>");
-    RuleKey customRuleKey = new RuleCreator(System2.INSTANCE, ruleIndexer, dbClient, new TypeValidations(asList()), TestDefaultOrganizationProvider.from(dbTester)).create(session, customRule);
-    session.clearCache();
-
-    doReturn("&lt;div&gt;line1<br/>line2&lt;/div&gt;").when(macroInterpreter).interpret("<div>line1\nline2</div>");
-
-    Rules.ShowResponse result = actionTester.newRequest()
-      .setParam("key", customRuleKey.toString())
-      .executeProtobuf(Rules.ShowResponse.class);
-
-    Mockito.verify(macroInterpreter).interpret("&lt;div&gt;line1<br/>line2&lt;/div&gt;");
-
-    assertThat(result.getRule().getKey()).isEqualTo("java:MY_CUSTOM");
-    assertThat(result.getRule().getHtmlDesc()).isEqualTo(INTERPRETED);
-    assertThat(result.getRule().getTemplateKey()).isEqualTo("java:S001");
-  }
-
-  @Test
-  public void show_deprecated_rule_rem_function_fields() throws Exception {
-    RuleDto ruleDto = RuleTesting.newDto(RuleKey.of("java", "S001"), dbTester.getDefaultOrganization())
-      .setName("Rule S001")
-      .setDescription("Rule S001 <b>description</b>")
-      .setSeverity(MINOR)
-      .setStatus(RuleStatus.BETA)
-      .setConfigKey("InternalKeyS001")
-      .setLanguage("xoo")
-      .setDefRemediationFunction("LINEAR_OFFSET")
-      .setDefRemediationGapMultiplier("6d")
-      .setDefRemediationBaseEffort("11h")
-      .setRemediationFunction("LINEAR_OFFSET")
-      .setRemediationGapMultiplier("5d")
-      .setRemediationBaseEffort("10h")
-      .setScope(Scope.ALL);
-    RuleDao ruleDao = dbClient.ruleDao();
-    DbSession session = dbTester.getSession();
-    ruleDao.insert(session, ruleDto.getDefinition());
-    ruleDao.insertOrUpdate(session, ruleDto.getMetadata().setRuleId(ruleDto.getId()));
-    session.commit();
-
-    actionTester.newRequest()
-      .setParam("key", ruleDto.getKey().toString())
-      .execute().assertJson(getClass(), "show_deprecated_rule_rem_function_fields.json");
-  }
-
-  @Test
-  public void show_rule_when_activated() throws Exception {
-    RuleDefinitionDto ruleDto = RuleTesting.newRule(RuleKey.of("java", "S001"))
-      .setName("Rule S001")
-      .setDescription("Rule S001 <b>description</b>")
-      .setDescriptionFormat(Format.HTML)
-      .setSeverity(MINOR)
-      .setStatus(RuleStatus.BETA)
-      .setLanguage("xoo")
-      .setType(RuleType.BUG)
-      .setCreatedAt(new Date().getTime())
-      .setUpdatedAt(new Date().getTime())
-      .setScope(Scope.ALL);
-    RuleDao ruleDao = dbClient.ruleDao();
-    DbSession session = dbTester.getSession();
-    ruleDao.insert(session, ruleDto);
-    session.commit();
-    ruleIndexer.commitAndIndex(session, ruleDto.getId());
-    RuleParamDto regexParam = RuleParamDto.createFor(ruleDto).setName("regex").setType("STRING").setDescription("Reg *exp*").setDefaultValue(".*");
-    ruleDao.insertRuleParam(session, ruleDto, regexParam);
-
-    QProfileDto profile = new QProfileDto()
-      .setRulesProfileUuid("profile")
-      .setKee("profile")
-      .setOrganizationUuid(defaultOrganizationProvider.get().getUuid())
-      .setName("Profile")
-      .setLanguage("xoo");
-    dbClient.qualityProfileDao().insert(session, profile);
-    ActiveRuleDto activeRuleDto = new ActiveRuleDto()
-      .setProfileId(profile.getId())
-      .setRuleId(ruleDto.getId())
-      .setSeverity(MINOR)
-      .setCreatedAt(new Date().getTime())
-      .setUpdatedAt(new Date().getTime());
-    dbClient.activeRuleDao().insert(session, activeRuleDto);
-    dbClient.activeRuleDao().insertParam(session, activeRuleDto, new ActiveRuleParamDto()
-      .setRulesParameterId(regexParam.getId())
-      .setKey(regexParam.getName())
-      .setValue(".*?"));
-    session.commit();
-
-    StartupIndexer activeRuleIndexer = new ActiveRuleIndexer(dbClient, esClient);
-    activeRuleIndexer.indexOnStartup(activeRuleIndexer.getIndexTypes());
-
-    ActiveRuleCompleter activeRuleCompleter = new ActiveRuleCompleter(dbClient, languages);
-    WsAction underTest = new ShowAction(dbClient, mapper, activeRuleCompleter, defaultOrganizationProvider);
-    WsActionTester actionTester = new WsActionTester(underTest);
-
-    actionTester.newRequest()
-      .setParam("key", ruleDto.getKey().toString())
-      .setParam("actives", "true")
-      .execute().assertJson(getClass(), "show_rule_when_activated.json");
-  }
-
-  private void assertEqual(RuleDefinitionDto rule, RuleMetadataDto ruleMetadata, Rule resultRule) {
     assertThat(resultRule.getKey()).isEqualTo(rule.getKey().toString());
     assertThat(resultRule.getRepo()).isEqualTo(rule.getRepositoryKey());
     assertThat(resultRule.getName()).isEqualTo(rule.getName());
@@ -493,22 +118,405 @@ public class ShowActionTest {
     assertThat(resultRule.getStatus().toString()).isEqualTo(rule.getStatus().toString());
     assertThat(resultRule.getInternalKey()).isEqualTo(rule.getConfigKey());
     assertThat(resultRule.getIsTemplate()).isEqualTo(rule.isTemplate());
-    assertThat(resultRule.getTags().getTagsList()).containsExactlyInAnyOrder(ruleMetadata.getTags().toArray(new String[0]));
-    assertThat(resultRule.getSysTags().getSysTagsList()).containsExactlyInAnyOrder(rule.getSystemTags().toArray(new String[0]));
     assertThat(resultRule.getLang()).isEqualTo(rule.getLanguage());
-    assertThat(resultRule.getParams().getParamsList()).isEmpty();
+    assertThat(resultRule.getParams().getParamsList())
+      .extracting(Rule.Param::getKey, Rule.Param::getHtmlDesc, Rule.Param::getDefaultValue)
+      .containsExactlyInAnyOrder(tuple(ruleParam.getName(), ruleParam.getDescription(), ruleParam.getDefaultValue()));
   }
 
-  private RuleDefinitionDto insertRule() {
-    RuleDefinitionDto rule = dbTester.rules().insert();
-    ruleIndexer.commitAndIndex(dbTester.getSession(), rule.getId());
-    return rule;
+  @Test
+  public void show_rule_tags_in_default_organization() {
+    RuleDefinitionDto rule = db.rules().insert();
+    RuleMetadataDto metadata = db.rules().insertOrUpdateMetadata(rule, db.getDefaultOrganization(), setTags("tag1", "tag2"), m -> m.setNoteData(null).setNoteUserUuid(null));
+
+    ShowResponse result = ws.newRequest()
+      .setParam(PARAM_KEY, rule.getKey().toString())
+      .executeProtobuf(ShowResponse.class);
+
+    assertThat(result.getRule().getTags().getTagsList())
+      .containsExactly(metadata.getTags().toArray(new String[0]));
   }
 
-  @SafeVarargs
-  private final RuleMetadataDto insertMetadata(OrganizationDto organization, RuleDefinitionDto rule, Consumer<RuleMetadataDto>... populaters) {
-    RuleMetadataDto metadata = dbTester.rules().insertOrUpdateMetadata(rule, organization, populaters);
-    ruleIndexer.commitAndIndex(dbTester.getSession(), rule.getId(), organization);
-    return metadata;
+  @Test
+  public void show_rule_tags_in_specific_organization() {
+    RuleDefinitionDto rule = db.rules().insert();
+    OrganizationDto organization = db.organizations().insert();
+    RuleMetadataDto metadata = db.rules().insertOrUpdateMetadata(rule, organization, setTags("tag1", "tag2"), m -> m.setNoteData(null).setNoteUserUuid(null));
+
+    ShowResponse result = ws.newRequest()
+      .setParam(PARAM_KEY, rule.getKey().toString())
+      .setParam(PARAM_ORGANIZATION, organization.getKey())
+      .executeProtobuf(ShowResponse.class);
+
+    assertThat(result.getRule().getTags().getTagsList())
+      .containsExactly(metadata.getTags().toArray(new String[0]));
   }
+
+  @Test
+  public void show_rule_with_note_login() {
+    RuleDefinitionDto rule = db.rules().insert();
+    UserDto user = db.users().insertUser();
+    OrganizationDto organization = db.organizations().insert();
+    db.rules().insertOrUpdateMetadata(rule, user, organization);
+
+    ShowResponse result = ws.newRequest()
+      .setParam(PARAM_KEY, rule.getKey().toString())
+      .setParam(PARAM_ORGANIZATION, organization.getKey())
+      .executeProtobuf(ShowResponse.class);
+
+    assertThat(result.getRule().getNoteLogin()).isEqualTo(user.getLogin());
+  }
+
+  @Test
+  public void show_rule_with_default_debt_infos() {
+    RuleDefinitionDto rule = db.rules().insert(r -> r
+      .setDefRemediationFunction("LINEAR_OFFSET")
+      .setDefRemediationGapMultiplier("5d")
+      .setDefRemediationBaseEffort("10h")
+      .setGapDescription("gap desc"));
+
+    ShowResponse result = ws.newRequest()
+      .setParam(PARAM_KEY, rule.getKey().toString())
+      .executeProtobuf(ShowResponse.class);
+
+    Rule resultRule = result.getRule();
+    assertThat(resultRule.getDefaultRemFnType()).isEqualTo("LINEAR_OFFSET");
+    assertThat(resultRule.getDefaultRemFnGapMultiplier()).isEqualTo("5d");
+    assertThat(resultRule.getDefaultRemFnBaseEffort()).isEqualTo("10h");
+    assertThat(resultRule.getGapDescription()).isEqualTo("gap desc");
+    assertThat(resultRule.getRemFnType()).isEqualTo("LINEAR_OFFSET");
+    assertThat(resultRule.getRemFnGapMultiplier()).isEqualTo("5d");
+    assertThat(resultRule.getRemFnBaseEffort()).isEqualTo("10h");
+    assertThat(resultRule.getRemFnOverloaded()).isFalse();
+  }
+
+  @Test
+  public void show_rule_with_only_overridden_debt() {
+    RuleDefinitionDto rule = db.rules().insert(r -> r
+      .setDefRemediationFunction(null)
+      .setDefRemediationGapMultiplier(null)
+      .setDefRemediationBaseEffort(null));
+    db.rules().insertOrUpdateMetadata(rule, db.getDefaultOrganization(),
+      m -> m.setNoteData(null).setNoteUserUuid(null),
+      m -> m
+        .setRemediationFunction("LINEAR_OFFSET")
+        .setRemediationGapMultiplier("5d")
+        .setRemediationBaseEffort("10h"));
+
+    ShowResponse result = ws.newRequest()
+      .setParam(PARAM_KEY, rule.getKey().toString())
+      .executeProtobuf(ShowResponse.class);
+
+    Rule resultRule = result.getRule();
+    assertThat(resultRule.hasDefaultRemFnType()).isFalse();
+    assertThat(resultRule.hasDefaultRemFnGapMultiplier()).isFalse();
+    assertThat(resultRule.hasDefaultRemFnBaseEffort()).isFalse();
+    assertThat(resultRule.getRemFnType()).isEqualTo("LINEAR_OFFSET");
+    assertThat(resultRule.getRemFnGapMultiplier()).isEqualTo("5d");
+    assertThat(resultRule.getRemFnBaseEffort()).isEqualTo("10h");
+    assertThat(resultRule.getRemFnOverloaded()).isTrue();
+  }
+
+  @Test
+  public void show_rule_with_default_and_overridden_debt_infos() {
+    RuleDefinitionDto rule = db.rules().insert(r -> r
+      .setDefRemediationFunction("LINEAR_OFFSET")
+      .setDefRemediationGapMultiplier("5d")
+      .setDefRemediationBaseEffort("10h"));
+    db.rules().insertOrUpdateMetadata(rule, db.getDefaultOrganization(), m -> m.setNoteData(null).setNoteUserUuid(null),
+      m -> m
+        .setRemediationFunction("CONSTANT_ISSUE")
+        .setRemediationGapMultiplier(null)
+        .setRemediationBaseEffort("15h"));
+
+    ShowResponse result = ws.newRequest()
+      .setParam(PARAM_KEY, rule.getKey().toString())
+      .executeProtobuf(ShowResponse.class);
+
+    Rule resultRule = result.getRule();
+    assertThat(resultRule.getDefaultRemFnType()).isEqualTo("LINEAR_OFFSET");
+    assertThat(resultRule.getDefaultRemFnType()).isEqualTo("LINEAR_OFFSET");
+    assertThat(resultRule.getDefaultRemFnGapMultiplier()).isEqualTo("5d");
+    assertThat(resultRule.getDefaultRemFnBaseEffort()).isEqualTo("10h");
+    assertThat(resultRule.getRemFnType()).isEqualTo("CONSTANT_ISSUE");
+    assertThat(resultRule.hasRemFnGapMultiplier()).isFalse();
+    assertThat(resultRule.getRemFnBaseEffort()).isEqualTo("15h");
+    assertThat(resultRule.getRemFnOverloaded()).isTrue();
+  }
+
+  @Test
+  public void show_rule_with_no_default_and_no_overridden_debt() {
+    RuleDefinitionDto rule = db.rules().insert(r -> r
+      .setDefRemediationFunction(null)
+      .setDefRemediationGapMultiplier(null)
+      .setDefRemediationBaseEffort(null));
+    db.rules().insertOrUpdateMetadata(rule, db.getDefaultOrganization(), m -> m.setNoteData(null).setNoteUserUuid(null),
+      m -> m
+        .setRemediationFunction(null)
+        .setRemediationGapMultiplier(null)
+        .setRemediationBaseEffort(null));
+
+    ShowResponse result = ws.newRequest()
+      .setParam(PARAM_KEY, rule.getKey().toString())
+      .executeProtobuf(ShowResponse.class);
+
+    Rule resultRule = result.getRule();
+    assertThat(resultRule.hasDefaultRemFnType()).isFalse();
+    assertThat(resultRule.hasDefaultRemFnGapMultiplier()).isFalse();
+    assertThat(resultRule.hasDefaultRemFnBaseEffort()).isFalse();
+    assertThat(resultRule.hasRemFnType()).isFalse();
+    assertThat(resultRule.hasRemFnGapMultiplier()).isFalse();
+    assertThat(resultRule.hasRemFnBaseEffort()).isFalse();
+    assertThat(resultRule.getRemFnOverloaded()).isFalse();
+  }
+
+  @Test
+  public void show_deprecated_rule_debt_fields() {
+    RuleDefinitionDto rule = db.rules().insert(r -> r
+      .setDefRemediationFunction("LINEAR_OFFSET")
+      .setDefRemediationGapMultiplier("5d")
+      .setDefRemediationBaseEffort("10h")
+      .setGapDescription("gap desc"));
+    db.rules().insertOrUpdateMetadata(rule, db.getDefaultOrganization(), m -> m.setNoteData(null).setNoteUserUuid(null),
+      m -> m
+        .setRemediationFunction("CONSTANT_ISSUE")
+        .setRemediationGapMultiplier(null)
+        .setRemediationBaseEffort("15h"));
+
+    ShowResponse result = ws.newRequest()
+      .setParam(PARAM_KEY, rule.getKey().toString())
+      .executeProtobuf(ShowResponse.class);
+
+    Rule resultRule = result.getRule();
+    assertThat(resultRule.getDefaultRemFnType()).isEqualTo("LINEAR_OFFSET");
+    assertThat(resultRule.getDefaultDebtRemFnCoeff()).isEqualTo("5d");
+    assertThat(resultRule.getDefaultDebtRemFnOffset()).isEqualTo("10h");
+    assertThat(resultRule.getEffortToFixDescription()).isEqualTo("gap desc");
+    assertThat(resultRule.getDebtRemFnType()).isEqualTo("CONSTANT_ISSUE");
+    assertThat(resultRule.hasDebtRemFnCoeff()).isFalse();
+    assertThat(resultRule.getDebtRemFnOffset()).isEqualTo("15h");
+    assertThat(resultRule.getDebtOverloaded()).isTrue();
+  }
+
+  @Test
+  public void encode_html_description_of_custom_rule() {
+    // Template rule
+    RuleDto templateRule = newTemplateRule(RuleKey.of("java", "S001"));
+    db.rules().insert(templateRule.getDefinition());
+    // Custom rule
+    RuleDefinitionDto customRule = newCustomRule(templateRule.getDefinition())
+      .setDescription("<div>line1\nline2</div>")
+      .setDescriptionFormat(MARKDOWN);
+    db.rules().insert(customRule);
+    doReturn("&lt;div&gt;line1<br/>line2&lt;/div&gt;").when(macroInterpreter).interpret("<div>line1\nline2</div>");
+
+    ShowResponse result = ws.newRequest()
+      .setParam("key", customRule.getKey().toString())
+      .executeProtobuf(ShowResponse.class);
+
+    assertThat(result.getRule().getHtmlDesc()).isEqualTo(INTERPRETED);
+    assertThat(result.getRule().getTemplateKey()).isEqualTo(templateRule.getKey().toString());
+    verify(macroInterpreter).interpret("&lt;div&gt;line1<br/>line2&lt;/div&gt;");
+  }
+
+  @Test
+  public void show_external_rule() {
+    RuleDefinitionDto externalRule = db.rules().insert(r -> r
+      .setIsExternal(true)
+      .setName("ext rule name"));
+
+    ShowResponse result = ws.newRequest()
+      .setParam(PARAM_KEY, externalRule.getKey().toString())
+      .executeProtobuf(ShowResponse.class);
+
+    Rule resultRule = result.getRule();
+    assertThat(resultRule.getName()).isEqualTo("ext rule name");
+  }
+
+  @Test
+  public void show_adhoc_rule() {
+    OrganizationDto organization = db.organizations().insert();
+    RuleDefinitionDto externalRule = db.rules().insert(r -> r
+      .setIsExternal(true)
+      .setIsAdHoc(true));
+    RuleMetadataDto metadata = db.rules().insertOrUpdateMetadata(externalRule, organization, m -> m
+      .setAdHocName("adhoc name")
+      .setAdHocDescription("<div>desc</div>")
+      .setAdHocSeverity(Severity.BLOCKER)
+      .setAdHocType(RuleType.VULNERABILITY)
+      .setNoteData(null)
+      .setNoteUserUuid(null));
+    doReturn("&lt;div&gt;desc2&lt;/div&gt;").when(macroInterpreter).interpret(metadata.getAdHocDescription());
+
+    ShowResponse result = ws.newRequest()
+      .setParam(PARAM_KEY, externalRule.getKey().toString())
+      .setParam(PARAM_ORGANIZATION, organization.getKey())
+      .executeProtobuf(ShowResponse.class);
+
+    Rule resultRule = result.getRule();
+    assertThat(resultRule)
+      .extracting(Rule::getName, Rule::getHtmlDesc, Rule::getSeverity, Rule::getType)
+      .containsExactlyInAnyOrder("adhoc name", "&lt;div&gt;desc2&lt;/div&gt;", Severity.BLOCKER, VULNERABILITY);
+  }
+
+  @Test
+  public void ignore_predefined_info_on_adhoc_rule() {
+    OrganizationDto organization = db.organizations().insert();
+    RuleDefinitionDto externalRule = db.rules().insert(r -> r
+      .setIsExternal(true)
+      .setIsAdHoc(true)
+      .setName("predefined name")
+      .setDescription("<div>predefined desc</div>")
+      .setSeverity(Severity.BLOCKER)
+      .setType(RuleType.VULNERABILITY));
+    RuleMetadataDto metadata = db.rules().insertOrUpdateMetadata(externalRule, organization, m -> m
+      .setAdHocName("adhoc name")
+      .setAdHocDescription("<div>adhoc desc</div>")
+      .setAdHocSeverity(Severity.MAJOR)
+      .setAdHocType(RuleType.CODE_SMELL)
+      .setNoteData(null)
+      .setNoteUserUuid(null));
+    doReturn("&lt;div&gt;adhoc desc&lt;/div&gt;").when(macroInterpreter).interpret(metadata.getAdHocDescription());
+
+    ShowResponse result = ws.newRequest()
+      .setParam(PARAM_KEY, externalRule.getKey().toString())
+      .setParam(PARAM_ORGANIZATION, organization.getKey())
+      .executeProtobuf(ShowResponse.class);
+
+    Rule resultRule = result.getRule();
+    assertThat(resultRule)
+      .extracting(Rule::getName, Rule::getHtmlDesc, Rule::getSeverity, Rule::getType)
+      .containsExactlyInAnyOrder("adhoc name", "&lt;div&gt;adhoc desc&lt;/div&gt;", Severity.MAJOR, Common.RuleType.CODE_SMELL);
+  }
+
+  @Test
+  public void adhoc_info_are_empty_when_no_metadata() {
+    OrganizationDto organization = db.organizations().insert();
+    RuleDefinitionDto externalRule = db.rules().insert(r -> r
+      .setIsExternal(true)
+      .setIsAdHoc(true)
+      .setName(null)
+      .setDescription(null)
+      .setDescriptionFormat(null)
+      .setSeverity((String) null)
+      .setType(0));
+
+    ShowResponse result = ws.newRequest()
+      .setParam(PARAM_KEY, externalRule.getKey().toString())
+      .setParam(PARAM_ORGANIZATION, organization.getKey())
+      .executeProtobuf(ShowResponse.class);
+
+    Rule resultRule = result.getRule();
+    assertThat(resultRule)
+      .extracting(Rule::hasName, Rule::hasHtmlDesc, Rule::hasSeverity, Rule::getType)
+      .containsExactlyInAnyOrder(false, false, false, UNKNOWN);
+  }
+
+  @Test
+  public void show_rule_with_activation() {
+    OrganizationDto organization = db.organizations().insert();
+    RuleDefinitionDto rule = db.rules().insert();
+    RuleParamDto ruleParam = db.rules().insertRuleParam(rule, p -> p.setType("STRING").setDescription("Reg *exp*").setDefaultValue(".*"));
+    RuleMetadataDto ruleMetadata = db.rules().insertOrUpdateMetadata(rule, organization, m -> m.setNoteData(null).setNoteUserUuid(null));
+    QProfileDto qProfile = db.qualityProfiles().insert(organization);
+    ActiveRuleDto activeRule = db.qualityProfiles().activateRule(qProfile, rule);
+    db.getDbClient().activeRuleDao().insertParam(db.getSession(), activeRule, new ActiveRuleParamDto()
+      .setRulesParameterId(ruleParam.getId())
+      .setKey(ruleParam.getName())
+      .setValue(".*?"));
+    db.commit();
+
+    ShowResponse result = ws.newRequest()
+      .setParam(PARAM_KEY, rule.getKey().toString())
+      .setParam(PARAM_ACTIVES, "true")
+      .setParam(PARAM_ORGANIZATION, organization.getKey())
+      .executeProtobuf(ShowResponse.class);
+
+    List<Rules.Active> actives = result.getActivesList();
+    assertThat(actives).extracting(Rules.Active::getQProfile).containsExactly(qProfile.getKee());
+    assertThat(actives).extracting(Rules.Active::getSeverity).containsExactly(activeRule.getSeverityString());
+    assertThat(actives).extracting(Rules.Active::getInherit).containsExactly("NONE");
+    assertThat(actives.get(0).getParamsList())
+      .extracting(Rules.Active.Param::getKey, Rules.Active.Param::getValue)
+      .containsExactlyInAnyOrder(tuple(ruleParam.getName(), ".*?"));
+  }
+
+  @Test
+  public void show_rule_without_activation() {
+    OrganizationDto organization = db.organizations().insert();
+    RuleDefinitionDto rule = db.rules().insert();
+    RuleMetadataDto ruleMetadata = db.rules().insertOrUpdateMetadata(rule, organization, m -> m.setNoteData(null).setNoteUserUuid(null));
+    QProfileDto qProfile = db.qualityProfiles().insert(organization);
+    ActiveRuleDto activeRule = db.qualityProfiles().activateRule(qProfile, rule);
+
+    ShowResponse result = ws.newRequest()
+      .setParam(PARAM_KEY, rule.getKey().toString())
+      .setParam(PARAM_ACTIVES, "false")
+      .setParam(PARAM_ORGANIZATION, organization.getKey())
+      .executeProtobuf(ShowResponse.class);
+
+    assertThat(result.getActivesList()).isEmpty();
+  }
+
+  @Test
+  public void active_rules_are_returned_when_member_of_paid_organization() {
+    OrganizationDto organization = db.organizations().insert(o -> o.setSubscription(PAID));
+    RuleDefinitionDto rule = db.rules().insert();
+    QProfileDto qProfile = db.qualityProfiles().insert(organization);
+    ActiveRuleDto activeRule = db.qualityProfiles().activateRule(qProfile, rule);
+    userSession.logIn(db.users().insertUser()).addMembership(organization);
+
+    ShowResponse result = ws.newRequest()
+      .setParam(PARAM_KEY, rule.getKey().toString())
+      .setParam(PARAM_ACTIVES, "true")
+      .setParam(PARAM_ORGANIZATION, organization.getKey())
+      .executeProtobuf(ShowResponse.class);
+
+    assertThat(result.getActivesList()).isNotEmpty();
+  }
+
+  @Test
+  public void active_rules_are_not_returned_when_not_member_of_paid_organization() {
+    OrganizationDto organization = db.organizations().insert(o -> o.setSubscription(PAID));
+    RuleDefinitionDto rule = db.rules().insert();
+    QProfileDto qProfile = db.qualityProfiles().insert(organization);
+    ActiveRuleDto activeRule = db.qualityProfiles().activateRule(qProfile, rule);
+
+    ShowResponse result = ws.newRequest()
+      .setParam(PARAM_KEY, rule.getKey().toString())
+      .setParam(PARAM_ACTIVES, "true")
+      .setParam(PARAM_ORGANIZATION, organization.getKey())
+      .executeProtobuf(ShowResponse.class);
+
+    assertThat(result.getActivesList()).isEmpty();
+  }
+
+  @Test
+  public void throw_NotFoundException_if_organization_cannot_be_found() {
+    RuleDefinitionDto rule = db.rules().insert();
+
+    thrown.expect(NotFoundException.class);
+
+    ws.newRequest()
+      .setParam("key", rule.getKey().toString())
+      .setParam("organization", "foo")
+      .execute();
+  }
+
+  @Test
+  public void test_definition() {
+    WebService.Action def = ws.getDef();
+
+    assertThat(def.isPost()).isFalse();
+    assertThat(def.since()).isEqualTo("4.2");
+    assertThat(def.isInternal()).isFalse();
+    assertThat(def.responseExampleAsString()).isNotEmpty();
+    assertThat(def.params())
+      .extracting(WebService.Param::key, WebService.Param::isRequired)
+      .containsExactlyInAnyOrder(
+        tuple("key", true),
+        tuple("actives", false),
+        tuple("organization", false));
+  }
+
 }

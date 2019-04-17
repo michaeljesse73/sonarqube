@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,41 +19,29 @@
  */
 import { getJSON, RequestData, postJSON, post } from '../helpers/request';
 import throwGlobalError from '../app/utils/throwGlobalError';
-import { Measure, MeasurePeriod } from '../helpers/measures';
-import { Metric, CustomMeasure, Paging } from '../app/types';
-import { Period } from '../helpers/periods';
 
 export function getMeasures(
-  componentKey: string,
-  metrics: string[],
-  branch?: string
-): Promise<{ metric: string; value?: string }[]> {
-  const url = '/api/measures/component';
-  const data = { componentKey, metricKeys: metrics.join(','), branch };
-  return getJSON(url, data).then(r => r.component.measures, throwGlobalError);
-}
-
-interface MeasureComponent {
-  key: string;
-  description?: string;
-  measures: Measure[];
-  name: string;
-  qualifier: string;
+  data: { component: string; metricKeys: string } & T.BranchParameters
+): Promise<T.Measure[]> {
+  return getJSON('/api/measures/component', data).then(r => r.component.measures, throwGlobalError);
 }
 
 export function getMeasuresAndMeta(
-  componentKey: string,
+  component: string,
   metrics: string[],
   additional: RequestData = {}
-): Promise<{ component: MeasureComponent; metrics?: Metric[]; periods?: Period[] }> {
-  const data = { ...additional, componentKey, metricKeys: metrics.join(',') };
-  return getJSON('/api/measures/component', data);
+): Promise<{ component: T.ComponentMeasure; metrics?: T.Metric[]; periods?: T.Period[] }> {
+  return getJSON('/api/measures/component', {
+    ...additional,
+    component,
+    metricKeys: metrics.join(',')
+  }).catch(throwGlobalError);
 }
 
 interface MeasuresForProjects {
   component: string;
   metric: string;
-  periods?: MeasurePeriod[];
+  periods?: T.PeriodMeasure[];
   value?: string;
 }
 
@@ -72,7 +60,7 @@ export function getCustomMeasures(data: {
   p?: number;
   projectKey: string;
   ps?: number;
-}): Promise<{ customMeasures: CustomMeasure[]; paging: Paging }> {
+}): Promise<{ customMeasures: T.CustomMeasure[]; paging: T.Paging }> {
   return getJSON('/api/custom_measures/search', data).then(
     r =>
       ({
@@ -88,7 +76,7 @@ export function createCustomMeasure(data: {
   metricKey: string;
   projectKey: string;
   value: string;
-}): Promise<CustomMeasure> {
+}): Promise<T.CustomMeasure> {
   return postJSON('/api/custom_measures/create', data).catch(throwGlobalError);
 }
 

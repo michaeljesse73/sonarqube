@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -31,7 +31,7 @@ interface Props {
   className?: string;
   onQueryChange: (change: RawQuery) => void;
   options: Option[];
-  query: { [x: string]: any };
+  query: T.Dict<any>;
   renderOption: (option: Option, isSelected: boolean) => React.ReactNode;
 
   value?: Option | Option[];
@@ -65,7 +65,7 @@ export default class Filter extends React.PureComponent<Props> {
     );
   }
 
-  handleClick = (event: React.SyntheticEvent<HTMLAnchorElement>) => {
+  handleClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
     event.preventDefault();
     event.currentTarget.blur();
 
@@ -74,14 +74,15 @@ export default class Filter extends React.PureComponent<Props> {
     let urlOption;
 
     if (option) {
-      if (Array.isArray(value)) {
+      if (Array.isArray(value) && event.ctrlKey) {
         if (this.isSelected(option)) {
           urlOption = value.length > 1 ? value.filter(val => val !== option).join(',') : null;
         } else {
           urlOption = value.concat(option).join(',');
         }
       } else {
-        urlOption = this.isSelected(option) ? null : option;
+        urlOption =
+          this.isSelected(option) && (!Array.isArray(value) || value.length < 2) ? null : option;
       }
 
       this.props.onQueryChange({ [property]: urlOption });
@@ -96,7 +97,7 @@ export default class Filter extends React.PureComponent<Props> {
       <div className="projects-facet-bar">
         <div
           className="projects-facet-bar-inner"
-          style={{ width: facetValue / this.props.maxFacetValue * 60 }}
+          style={{ width: (facetValue / this.props.maxFacetValue) * 60 }}
         />
       </div>
     );

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,11 +25,11 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
-import java.util.stream.Collectors;
 import org.sonar.api.issue.DefaultTransitions;
 import org.sonar.api.rule.RuleKey;
 import org.sonar.api.rule.Severity;
@@ -50,21 +50,26 @@ import org.sonar.db.DbSession;
 import org.sonar.db.component.ComponentDto;
 import org.sonar.db.issue.IssueDto;
 import org.sonar.db.rule.RuleDefinitionDto;
+import org.sonar.db.user.UserDto;
 import org.sonar.server.issue.Action;
 import org.sonar.server.issue.AddTagsAction;
 import org.sonar.server.issue.AssignAction;
 import org.sonar.server.issue.IssueChangePostProcessor;
-import org.sonar.server.issue.IssueStorage;
 import org.sonar.server.issue.RemoveTagsAction;
+import org.sonar.server.issue.WebIssueStorage;
 import org.sonar.server.issue.notification.IssueChangeNotification;
 import org.sonar.server.notification.NotificationManager;
 import org.sonar.server.user.UserSession;
 import org.sonarqube.ws.Issues;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableMap.of;
 import static java.lang.String.format;
+import static java.util.Objects.requireNonNull;
 import static java.util.function.Function.identity;
+import static java.util.stream.Collectors.toMap;
+import static java.util.stream.Collectors.toSet;
 import static org.sonar.api.issue.DefaultTransitions.REOPEN;
 import static org.sonar.api.rule.Severity.BLOCKER;
 import static org.sonar.api.rules.RuleType.BUG;
@@ -89,7 +94,6 @@ import static org.sonarqube.ws.client.issue.IssuesWsParameters.PARAM_ASSIGN;
 import static org.sonarqube.ws.client.issue.IssuesWsParameters.PARAM_COMMENT;
 import static org.sonarqube.ws.client.issue.IssuesWsParameters.PARAM_DO_TRANSITION;
 import static org.sonarqube.ws.client.issue.IssuesWsParameters.PARAM_ISSUES;
-import static org.sonarqube.ws.client.issue.IssuesWsParameters.PARAM_PLAN;
 import static org.sonarqube.ws.client.issue.IssuesWsParameters.PARAM_REMOVE_TAGS;
 import static org.sonarqube.ws.client.issue.IssuesWsParameters.PARAM_SEND_NOTIFICATIONS;
 import static org.sonarqube.ws.client.issue.IssuesWsParameters.PARAM_SET_SEVERITY;
@@ -102,12 +106,12 @@ public class BulkChangeAction implements IssuesWsAction {
   private final System2 system2;
   private final UserSession userSession;
   private final DbClient dbClient;
-  private final IssueStorage issueStorage;
+  private final WebIssueStorage issueStorage;
   private final NotificationManager notificationService;
   private final List<Action> actions;
   private final IssueChangePostProcessor issueChangePostProcessor;
 
-  public BulkChangeAction(System2 system2, UserSession userSession, DbClient dbClient, IssueStorage issueStorage,
+  public BulkChangeAction(System2 system2, UserSession userSession, DbClient dbClient, WebIssueStorage issueStorage,
     NotificationManager notificationService, List<Action> actions,
     IssueChangePostProcessor issueChangePostProcessor) {
     this.system2 = system2;
@@ -150,9 +154,6 @@ public class BulkChangeAction implements IssuesWsAction {
       .setPossibleValues(RuleType.names())
       .setSince("5.5")
       .setDeprecatedKey("set_type.type", "6.2");
-    action.createParam(PARAM_PLAN)
-      .setDescription("In 5.5, action plans are dropped. Has no effect. To plan the list of issues to a specific action plan (key), or unlink all the issues from an action plan")
-      .setDeprecatedSince("5.5");
     action.createParam(PARAM_DO_TRANSITION)
       .setDescription("Transition")
       .setExampleValue(REOPEN)
@@ -187,16 +188,21 @@ public class BulkChangeAction implements IssuesWsAction {
   private BulkChangeResult executeBulkChange(DbSession dbSession, Request request) {
     BulkChangeData bulkChangeData = new BulkChangeData(dbSession, request);
     BulkChangeResult result = new BulkChangeResult(bulkChangeData.issues.size());
-    IssueChangeContext issueChangeContext = IssueChangeContext.createUser(new Date(system2.now()), userSession.getLogin());
+    IssueChangeContext issueChangeContext = IssueChangeContext.createUser(new Date(system2.now()), userSession.getUuid());
 
     List<DefaultIssue> items = bulkChangeData.issues.stream()
       .filter(bulkChange(issueChangeContext, bulkChangeData, result))
       .collect(MoreCollectors.toList());
-    issueStorage.save(items);
+    issueStorage.save(dbSession, items);
 
     refreshLiveMeasures(dbSession, bulkChangeData, result);
 
-    items.forEach(sendNotification(issueChangeContext, bulkChangeData));
+    Set<String> assigneeUuids = items.stream().map(DefaultIssue::assignee).filter(Objects::nonNull).collect(toSet());
+    Map<String, UserDto> userDtoByUuid = dbClient.userDao().selectByUuids(dbSession, assigneeUuids).stream().collect(toMap(UserDto::getUuid, u -> u));
+    String authorUuid = requireNonNull(userSession.getUuid(), "User uuid cannot be null");
+    UserDto author = dbClient.userDao().selectByUuid(dbSession, authorUuid);
+    checkState(author != null, "User with uuid '%s' does not exist");
+    items.forEach(sendNotification(bulkChangeData, userDtoByUuid, author));
 
     return result;
   }
@@ -207,7 +213,7 @@ public class BulkChangeAction implements IssuesWsAction {
     }
     Set<String> touchedComponentUuids = result.success.stream()
       .map(DefaultIssue::componentUuid)
-      .collect(Collectors.toSet());
+      .collect(toSet());
     List<ComponentDto> touchedComponents = touchedComponentUuids.stream()
       .map(data.componentsByUuid::get)
       .collect(MoreCollectors.toList(touchedComponentUuids.size()));
@@ -244,12 +250,13 @@ public class BulkChangeAction implements IssuesWsAction {
     bulkChangeData.getCommentAction().ifPresent(action -> action.execute(bulkChangeData.getProperties(action.key()), actionContext));
   }
 
-  private Consumer<DefaultIssue> sendNotification(IssueChangeContext issueChangeContext, BulkChangeData bulkChangeData) {
+  private Consumer<DefaultIssue> sendNotification(BulkChangeData bulkChangeData, Map<String, UserDto> userDtoByUuid, UserDto author) {
     return issue -> {
-      if (bulkChangeData.sendNotification) {
+      if (bulkChangeData.sendNotification && issue.type() != RuleType.SECURITY_HOTSPOT) {
         notificationService.scheduleForSending(new IssueChangeNotification()
           .setIssue(issue)
-          .setChangeAuthorLogin(issueChangeContext.login())
+          .setAssignee(userDtoByUuid.get(issue.assignee()))
+          .setChangeAuthor(author)
           .setRuleName(bulkChangeData.rulesByKey.get(issue.ruleKey()).getName())
           .setProject(bulkChangeData.projectsByUuid.get(issue.projectUuid()))
           .setComponent(bulkChangeData.componentsByUuid.get(issue.componentUuid())));

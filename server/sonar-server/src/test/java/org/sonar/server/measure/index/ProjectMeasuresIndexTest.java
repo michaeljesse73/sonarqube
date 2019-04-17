@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -33,8 +33,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
-import org.sonar.api.config.internal.MapSettings;
-import org.sonar.api.resources.Qualifiers;
 import org.sonar.api.utils.System2;
 import org.sonar.db.component.ComponentDto;
 import org.sonar.db.component.ComponentTesting;
@@ -42,21 +40,22 @@ import org.sonar.db.organization.OrganizationDto;
 import org.sonar.db.organization.OrganizationTesting;
 import org.sonar.db.user.GroupDto;
 import org.sonar.db.user.UserDto;
-import org.sonar.server.component.ws.FilterParser.Operator;
 import org.sonar.server.es.EsTester;
 import org.sonar.server.es.Facets;
 import org.sonar.server.es.SearchIdResult;
 import org.sonar.server.es.SearchOptions;
 import org.sonar.server.measure.index.ProjectMeasuresQuery.MetricCriterion;
-import org.sonar.server.permission.index.AuthorizationTypeSupport;
-import org.sonar.server.permission.index.PermissionIndexerDao;
+import org.sonar.server.permission.index.IndexPermissions;
 import org.sonar.server.permission.index.PermissionIndexerTester;
+import org.sonar.server.permission.index.WebAuthorizationTypeSupport;
 import org.sonar.server.tester.UserSessionRule;
 
 import static com.google.common.collect.Lists.newArrayList;
 import static com.google.common.collect.Sets.newHashSet;
 import static java.util.Arrays.asList;
+import static java.util.Arrays.stream;
 import static java.util.Collections.singletonList;
+import static java.util.stream.Collectors.toList;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.entry;
 import static org.sonar.api.measures.CoreMetrics.ALERT_STATUS_KEY;
@@ -64,11 +63,13 @@ import static org.sonar.api.measures.CoreMetrics.COVERAGE_KEY;
 import static org.sonar.api.measures.Metric.Level.ERROR;
 import static org.sonar.api.measures.Metric.Level.OK;
 import static org.sonar.api.measures.Metric.Level.WARN;
+import static org.sonar.api.resources.Qualifiers.PROJECT;
 import static org.sonar.db.component.ComponentTesting.newPrivateProjectDto;
 import static org.sonar.db.user.GroupTesting.newGroupDto;
 import static org.sonar.db.user.UserTesting.newUserDto;
 import static org.sonar.server.measure.index.ProjectMeasuresIndexDefinition.FIELD_TAGS;
-import static org.sonar.server.measure.index.ProjectMeasuresIndexDefinition.INDEX_TYPE_PROJECT_MEASURES;
+import static org.sonar.server.measure.index.ProjectMeasuresIndexDefinition.TYPE_PROJECT_MEASURES;
+import static org.sonar.server.measure.index.ProjectMeasuresQuery.Operator;
 
 @RunWith(DataProviderRunner.class)
 public class ProjectMeasuresIndexTest {
@@ -97,11 +98,9 @@ public class ProjectMeasuresIndexTest {
   private static final GroupDto GROUP2 = newGroupDto();
 
   @Rule
-  public EsTester es = new EsTester(new ProjectMeasuresIndexDefinition(new MapSettings().asConfig()));
-
+  public EsTester es = EsTester.create();
   @Rule
   public ExpectedException expectedException = ExpectedException.none();
-
   @Rule
   public UserSessionRule userSession = UserSessionRule.standalone();
 
@@ -111,8 +110,8 @@ public class ProjectMeasuresIndexTest {
   }
 
   private ProjectMeasuresIndexer projectMeasureIndexer = new ProjectMeasuresIndexer(null, es.client());
-  private PermissionIndexerTester authorizationIndexerTester = new PermissionIndexerTester(es, projectMeasureIndexer);
-  private ProjectMeasuresIndex underTest = new ProjectMeasuresIndex(es.client(), new AuthorizationTypeSupport(userSession), System2.INSTANCE);
+  private PermissionIndexerTester authorizationIndexer = new PermissionIndexerTester(es, projectMeasureIndexer);
+  private ProjectMeasuresIndex underTest = new ProjectMeasuresIndex(es.client(), new WebAuthorizationTypeSupport(userSession), System2.INSTANCE);
 
   @Test
   public void return_empty_if_no_projects() {
@@ -174,11 +173,10 @@ public class ProjectMeasuresIndexTest {
     index(
       newDoc(PROJECT1).setQualityGateStatus(OK.name()),
       newDoc(PROJECT2).setQualityGateStatus(ERROR.name()),
-      newDoc(PROJECT3).setQualityGateStatus(WARN.name()),
       newDoc(project4).setQualityGateStatus(OK.name()));
 
-    assertResults(new ProjectMeasuresQuery().setSort("alert_status").setAsc(true), PROJECT1, project4, PROJECT3, PROJECT2);
-    assertResults(new ProjectMeasuresQuery().setSort("alert_status").setAsc(false), PROJECT2, PROJECT3, PROJECT1, project4);
+    assertResults(new ProjectMeasuresQuery().setSort("alert_status").setAsc(true), PROJECT1, project4, PROJECT2);
+    assertResults(new ProjectMeasuresQuery().setSort("alert_status").setAsc(false), PROJECT2, PROJECT1, project4);
   }
 
   @Test
@@ -188,7 +186,7 @@ public class ProjectMeasuresIndexTest {
     ComponentDto apache1 = ComponentTesting.newPrivateProjectDto(ORG).setUuid("apache-1").setName("Apache").setDbKey("project3");
     ComponentDto apache2 = ComponentTesting.newPrivateProjectDto(ORG).setUuid("apache-2").setName("Apache").setDbKey("project4");
     index(
-      newDoc(windows).setQualityGateStatus(WARN.name()),
+      newDoc(windows).setQualityGateStatus(ERROR.name()),
       newDoc(apachee).setQualityGateStatus(OK.name()),
       newDoc(apache1).setQualityGateStatus(OK.name()),
       newDoc(apache2).setQualityGateStatus(OK.name()));
@@ -336,7 +334,7 @@ public class ProjectMeasuresIndexTest {
     index(
       newDoc(PROJECT1).setQualityGateStatus(OK.name()),
       newDoc(PROJECT2).setQualityGateStatus(OK.name()),
-      newDoc(PROJECT3).setQualityGateStatus(WARN.name()));
+      newDoc(PROJECT3).setQualityGateStatus(ERROR.name()));
 
     ProjectMeasuresQuery query = new ProjectMeasuresQuery().setQualityGateStatus(OK);
     assertResults(query, PROJECT1, PROJECT2);
@@ -1042,10 +1040,6 @@ public class ProjectMeasuresIndexTest {
       // 2 docs with QG OK
       newDoc().setQualityGateStatus(OK.name()),
       newDoc().setQualityGateStatus(OK.name()),
-      // 3 docs with QG WARN
-      newDoc().setQualityGateStatus(WARN.name()),
-      newDoc().setQualityGateStatus(WARN.name()),
-      newDoc().setQualityGateStatus(WARN.name()),
       // 4 docs with QG ERROR
       newDoc().setQualityGateStatus(ERROR.name()),
       newDoc().setQualityGateStatus(ERROR.name()),
@@ -1056,8 +1050,8 @@ public class ProjectMeasuresIndexTest {
 
     assertThat(result).containsOnly(
       entry(ERROR.name(), 4L),
-      entry(WARN.name(), 3L),
-      entry(OK.name(), 2L));
+      entry(OK.name(), 2L),
+      entry(WARN.name(), 0L));
   }
 
   @Test
@@ -1066,10 +1060,6 @@ public class ProjectMeasuresIndexTest {
       // 2 docs with QG OK
       newDoc(NCLOC, 10d, COVERAGE, 0d).setQualityGateStatus(OK.name()),
       newDoc(NCLOC, 10d, COVERAGE, 0d).setQualityGateStatus(OK.name()),
-      // 3 docs with QG WARN
-      newDoc(NCLOC, 100d, COVERAGE, 0d).setQualityGateStatus(WARN.name()),
-      newDoc(NCLOC, 100d, COVERAGE, 0d).setQualityGateStatus(WARN.name()),
-      newDoc(NCLOC, 100d, COVERAGE, 0d).setQualityGateStatus(WARN.name()),
       // 4 docs with QG ERROR
       newDoc(NCLOC, 100d, COVERAGE, 0d).setQualityGateStatus(ERROR.name()),
       newDoc(NCLOC, 5000d, COVERAGE, 40d).setQualityGateStatus(ERROR.name()),
@@ -1084,8 +1074,8 @@ public class ProjectMeasuresIndexTest {
     // Sticky facet on quality gate does not take into account quality gate filter
     assertThat(facets.get(ALERT_STATUS_KEY)).containsOnly(
       entry(OK.name(), 2L),
-      entry(WARN.name(), 3L),
-      entry(ERROR.name(), 3L));
+      entry(ERROR.name(), 3L),
+      entry(WARN.name(), 0L));
     // But facet on ncloc does well take into into filters
     assertThat(facets.get(NCLOC)).containsExactly(
       entry("*-1000.0", 1L),
@@ -1101,11 +1091,7 @@ public class ProjectMeasuresIndexTest {
     indexForUser(USER1,
       // 2 docs with QG OK
       newDoc().setQualityGateStatus(OK.name()),
-      newDoc().setQualityGateStatus(OK.name()),
-      // 3 docs with QG WARN
-      newDoc().setQualityGateStatus(WARN.name()),
-      newDoc().setQualityGateStatus(WARN.name()),
-      newDoc().setQualityGateStatus(WARN.name()));
+      newDoc().setQualityGateStatus(OK.name()));
 
     // User cannot see these projects
     indexForUser(USER2,
@@ -1120,6 +1106,30 @@ public class ProjectMeasuresIndexTest {
 
     assertThat(result).containsOnly(
       entry(ERROR.name(), 0L),
+      entry(OK.name(), 2L),
+      entry(WARN.name(), 0L));
+  }
+
+  @Test
+  public void facet_quality_gate_using_deprecated_warning() {
+    index(
+      // 2 docs with QG OK
+      newDoc().setQualityGateStatus(OK.name()),
+      newDoc().setQualityGateStatus(OK.name()),
+      // 3 docs with QG WARN
+      newDoc().setQualityGateStatus(WARN.name()),
+      newDoc().setQualityGateStatus(WARN.name()),
+      newDoc().setQualityGateStatus(WARN.name()),
+      // 4 docs with QG ERROR
+      newDoc().setQualityGateStatus(ERROR.name()),
+      newDoc().setQualityGateStatus(ERROR.name()),
+      newDoc().setQualityGateStatus(ERROR.name()),
+      newDoc().setQualityGateStatus(ERROR.name()));
+
+    LinkedHashMap<String, Long> result = underTest.search(new ProjectMeasuresQuery(), new SearchOptions().addFacets(ALERT_STATUS_KEY)).getFacets().get(ALERT_STATUS_KEY);
+
+    assertThat(result).containsOnly(
+      entry(ERROR.name(), 4L),
       entry(WARN.name(), 3L),
       entry(OK.name(), 2L));
   }
@@ -1253,7 +1263,7 @@ public class ProjectMeasuresIndexTest {
     index(
       newDoc().setTags(newArrayList("finance")).setQualityGateStatus(OK.name()),
       newDoc().setTags(newArrayList("finance")).setQualityGateStatus(ERROR.name()),
-      newDoc().setTags(newArrayList("cpp")).setQualityGateStatus(WARN.name()));
+      newDoc().setTags(newArrayList("cpp")).setQualityGateStatus(ERROR.name()));
 
     Facets facets = underTest.search(
       new ProjectMeasuresQuery().setTags(newHashSet("cpp")),
@@ -1265,8 +1275,8 @@ public class ProjectMeasuresIndexTest {
       entry("cpp", 1L));
     assertThat(facets.get(ALERT_STATUS_KEY)).containsOnly(
       entry(OK.name(), 0L),
-      entry(ERROR.name(), 0L),
-      entry(WARN.name(), 1L));
+      entry(ERROR.name(), 1L),
+      entry(WARN.name(), 0L));
   }
 
   @Test
@@ -1373,19 +1383,17 @@ public class ProjectMeasuresIndexTest {
 
   @Test
   public void search_statistics() {
-    es.putDocuments(INDEX_TYPE_PROJECT_MEASURES,
-      newDoc("lines", 10, "ncloc", 20, "coverage", 80)
+    es.putDocuments(TYPE_PROJECT_MEASURES,
+      newDoc("lines", 10, "coverage", 80)
         .setLanguages(Arrays.asList("java", "cs", "js"))
         .setNclocLanguageDistributionFromMap(ImmutableMap.of("java", 200, "cs", 250, "js", 50)),
-      newDoc("lines", 20, "ncloc", 30, "coverage", 80)
+      newDoc("lines", 20, "coverage", 80)
         .setLanguages(Arrays.asList("java", "python", "kotlin"))
         .setNclocLanguageDistributionFromMap(ImmutableMap.of("java", 300, "python", 100, "kotlin", 404)));
 
     ProjectMeasuresStatistics result = underTest.searchTelemetryStatistics();
 
     assertThat(result.getProjectCount()).isEqualTo(2);
-    assertThat(result.getLines()).isEqualTo(30);
-    assertThat(result.getNcloc()).isEqualTo(50);
     assertThat(result.getProjectCountByLanguage()).containsOnly(
       entry("java", 2L), entry("cs", 1L), entry("js", 1L), entry("python", 1L), entry("kotlin", 1L));
     assertThat(result.getNclocByLanguage()).containsOnly(
@@ -1401,30 +1409,18 @@ public class ProjectMeasuresIndexTest {
   }
 
   private void index(ProjectMeasuresDoc... docs) {
-    es.putDocuments(INDEX_TYPE_PROJECT_MEASURES, docs);
-    for (ProjectMeasuresDoc doc : docs) {
-      PermissionIndexerDao.Dto access = new PermissionIndexerDao.Dto(doc.getId(), Qualifiers.PROJECT);
-      access.allowAnyone();
-      authorizationIndexerTester.allow(access);
-    }
+    es.putDocuments(TYPE_PROJECT_MEASURES, docs);
+    authorizationIndexer.allow(stream(docs).map(doc -> new IndexPermissions(doc.getId(), PROJECT).allowAnyone()).collect(toList()));
   }
 
   private void indexForUser(UserDto user, ProjectMeasuresDoc... docs) {
-    es.putDocuments(INDEX_TYPE_PROJECT_MEASURES, docs);
-    for (ProjectMeasuresDoc doc : docs) {
-      PermissionIndexerDao.Dto access = new PermissionIndexerDao.Dto(doc.getId(), Qualifiers.PROJECT);
-      access.addUserId(user.getId());
-      authorizationIndexerTester.allow(access);
-    }
+    es.putDocuments(TYPE_PROJECT_MEASURES, docs);
+    authorizationIndexer.allow(stream(docs).map(doc -> new IndexPermissions(doc.getId(), PROJECT).addUserId(user.getId())).collect(toList()));
   }
 
   private void indexForGroup(GroupDto group, ProjectMeasuresDoc... docs) {
-    es.putDocuments(INDEX_TYPE_PROJECT_MEASURES, docs);
-    for (ProjectMeasuresDoc doc : docs) {
-      PermissionIndexerDao.Dto access = new PermissionIndexerDao.Dto(doc.getId(), Qualifiers.PROJECT);
-      access.addGroupId(group.getId());
-      authorizationIndexerTester.allow(access);
-    }
+    es.putDocuments(TYPE_PROJECT_MEASURES, docs);
+    authorizationIndexer.allow(stream(docs).map(doc -> new IndexPermissions(doc.getId(), PROJECT).addGroupId(group.getId())).collect(toList()));
   }
 
   private static ProjectMeasuresDoc newDoc(ComponentDto project) {

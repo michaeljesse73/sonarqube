@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -29,6 +29,6 @@ public class UserTokenModuleTest {
   public void verify_count_of_added_components() {
     ComponentContainer container = new ComponentContainer();
     new UserTokenModule().configure(container);
-    assertThat(container.size()).isEqualTo(8);
+    assertThat(container.size()).isEqualTo(9);
   }
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -28,7 +28,7 @@ import org.sonar.db.Pagination;
 
 public interface CeQueueMapper {
 
-  List<CeQueueDto> selectByComponentUuid(@Param("componentUuid") String componentUuid);
+  List<CeQueueDto> selectByMainComponentUuid(@Param("mainComponentUuid") String mainComponentUuid);
 
   List<CeQueueDto> selectAllInAscOrder();
 
@@ -36,15 +36,25 @@ public interface CeQueueMapper {
 
   int countByQuery(@Param("query") CeTaskQuery query);
 
-  List<EligibleTaskDto> selectEligibleForPeek(@Param("maxExecutionCount") int maxExecutionCount, @Param("pagination") Pagination pagination);
+  List<String> selectEligibleForPeek(@Param("pagination") Pagination pagination);
 
   @CheckForNull
   CeQueueDto selectByUuid(@Param("uuid") String uuid);
 
   /**
-   * Select all pending tasks which execution count is greater than or equal to the specified {@code minExecutionCount}.
+   * Select all pending tasks
    */
-  List<CeQueueDto> selectPendingByMinimumExecutionCount(@Param("minExecutionCount") int minExecutionCount);
+  List<CeQueueDto> selectPending();
+
+  /**
+   * Select all pending tasks which have already been started.
+   */
+  List<CeQueueDto> selectWornout();
+
+  /**
+   * The tasks that are in the in-progress status for too long
+   */
+  List<CeQueueDto> selectInProgressStartedBefore(@Param("date") long date);
 
   /**
    * Select all tasks whose worker UUID is not present in {@code knownWorkerUUIDs}
@@ -56,12 +66,11 @@ public interface CeQueueMapper {
    */
   void resetAllInProgressTasks(@Param("updatedAt") long updatedAt);
 
+  int countByStatusAndMainComponentUuid(@Param("status") CeQueueDto.Status status, @Nullable @Param("mainComponentUuid") String mainComponentUuid);
 
-  int countByStatusAndComponentUuid(@Param("status") CeQueueDto.Status status, @Nullable @Param("componentUuid") String componentUuid);
+  List<QueueCount> countByStatusAndMainComponentUuids(@Param("status") CeQueueDto.Status status, @Param("mainComponentUuids") List<String> mainComponentUuids);
 
   void insert(CeQueueDto dto);
-
-  void resetAllToPendingStatus(@Param("updatedAt") long updatedAt);
 
   int resetToPendingForWorker(@Param("workerUuid") String workerUuid, @Param("updatedAt") long updatedAt);
 
@@ -69,5 +78,5 @@ public interface CeQueueMapper {
     @Param("new") UpdateIf.NewProperties newProperties,
     @Param("old") UpdateIf.OldProperties oldProperties);
 
-  void deleteByUuid(@Param("uuid") String uuid);
+  int deleteByUuid(@Param("uuid") String uuid, @Nullable @Param("deleteIf") DeleteIf deleteIf);
 }

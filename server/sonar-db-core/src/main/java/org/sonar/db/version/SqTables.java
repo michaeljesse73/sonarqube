@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -52,17 +52,20 @@ public final class SqTables {
   public static final Set<String> TABLES = unmodifiableSet(new HashSet<>(asList(
     "active_rules",
     "active_rule_parameters",
+    "alm_app_installs",
     "analysis_properties",
     "ce_activity",
     "ce_queue",
     "ce_task_characteristics",
     "ce_task_input",
+    "ce_task_message",
     "ce_scanner_context",
     "default_qprofiles",
     "deprecated_rule_keys",
     "duplications_index",
     "es_queue",
     "events",
+    "event_component_changes",
     "file_sources",
     "groups",
     "groups_users",
@@ -75,6 +78,7 @@ public final class SqTables {
     "metrics",
     "notifications",
     "organizations",
+    "organization_alm_bindings",
     "organization_members",
     "org_qprofiles",
     "org_quality_gates",
@@ -84,8 +88,10 @@ public final class SqTables {
     "perm_tpl_characteristics",
     "plugins",
     "projects",
+    "project_alm_bindings",
     "project_branches",
     "project_links",
+    "project_mappings",
     "project_measures",
     "project_qprofiles",
     "properties",
@@ -102,8 +108,10 @@ public final class SqTables {
     "schema_migrations",
     "snapshots",
     "users",
+    "user_properties",
     "user_roles",
     "user_tokens",
+    "webhooks",
     "webhook_deliveries")));
 
   private SqTables() {

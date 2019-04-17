@@ -3,10 +3,12 @@
 exports[`renders 1`] = `
 <li>
   <OrganizationLink
-    className="dropdown-item-flex"
+    className="display-flex-center"
     organization={
       Object {
-        "isAdmin": true,
+        "actions": Object {
+          "admin": true,
+        },
         "key": "org",
         "name": "org",
         "projectVisibility": "public",
@@ -17,7 +19,9 @@ exports[`renders 1`] = `
       <OrganizationAvatar
         organization={
           Object {
-            "isAdmin": true,
+            "actions": Object {
+              "admin": true,
+            },
             "key": "org",
             "name": "org",
             "projectVisibility": "public",

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -30,7 +30,7 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.ibatis.session.RowBounds;
 import org.sonar.api.utils.System2;
 import org.sonar.db.Dao;
-import org.sonar.db.DaoDatabaseUtils;
+import org.sonar.db.DaoUtils;
 import org.sonar.db.DbSession;
 import org.sonar.db.WildcardPosition;
 
@@ -108,7 +108,7 @@ public class GroupDao implements Dao {
     }
 
     String upperCasedNameQuery = StringUtils.upperCase(query, Locale.ENGLISH);
-    return DaoDatabaseUtils.buildLikeValue(upperCasedNameQuery, WildcardPosition.BEFORE_AND_AFTER);
+    return DaoUtils.buildLikeValue(upperCasedNameQuery, WildcardPosition.BEFORE_AND_AFTER);
   }
 
   public List<GroupDto> selectByOrganizationUuid(DbSession dbSession, String organizationUuid) {

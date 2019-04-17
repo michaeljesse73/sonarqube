@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,12 +21,12 @@ import * as React from 'react';
 import * as classNames from 'classnames';
 import * as Clipboard from 'clipboard';
 import Tooltip from './Tooltip';
+import { Button } from '../ui/buttons';
 import { translate } from '../../helpers/l10n';
 
 interface Props {
   className?: string;
   copyValue: string;
-  tooltipPlacement?: string;
 }
 
 interface State {
@@ -35,7 +35,7 @@ interface State {
 
 export default class ClipboardButton extends React.PureComponent<Props, State> {
   clipboard?: Clipboard;
-  copyButton?: HTMLButtonElement | null;
+  copyButton?: HTMLElement | null;
   mounted = false;
   state: State = { tooltipShown: false };
 
@@ -76,25 +76,15 @@ export default class ClipboardButton extends React.PureComponent<Props, State> {
   };
 
   render() {
-    const button = (
-      <button
-        className={classNames('js-copy-to-clipboard no-select', this.props.className)}
-        data-clipboard-text={this.props.copyValue}
-        ref={node => (this.copyButton = node)}>
-        {translate('copy')}
-      </button>
+    return (
+      <Tooltip overlay={translate('copied_action')} visible={this.state.tooltipShown}>
+        <Button
+          className={classNames('js-copy-to-clipboard no-select', this.props.className)}
+          data-clipboard-text={this.props.copyValue}
+          innerRef={node => (this.copyButton = node)}>
+          {translate('copy')}
+        </Button>
+      </Tooltip>
     );
-    if (this.state.tooltipShown) {
-      return (
-        <Tooltip
-          defaultVisible={true}
-          placement={this.props.tooltipPlacement || 'bottom'}
-          overlay={translate('copied_action')}
-          trigger="manual">
-          {button}
-        </Tooltip>
-      );
-    }
-    return button;
   }
 }

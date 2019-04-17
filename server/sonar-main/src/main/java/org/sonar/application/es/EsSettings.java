@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -44,6 +44,7 @@ public class EsSettings {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(EsSettings.class);
   private static final String STANDALONE_NODE_NAME = "sonarqube";
+  private static final String SECCOMP_PROPERTY = "bootstrap.system_call_filter";
 
   private final Props props;
   private final EsInstallation fileSystem;
@@ -75,13 +76,12 @@ public class EsSettings {
     configureFileSystem(builder);
     configureNetwork(builder);
     configureCluster(builder);
-    configureAction(builder);
+    configureOthers(builder);
     return builder;
   }
 
   private void configureFileSystem(Map<String, String> builder) {
     builder.put("path.data", fileSystem.getDataDirectory().getAbsolutePath());
-    builder.put("path.conf", fileSystem.getConfDirectory().getAbsolutePath());
     builder.put("path.logs", fileSystem.getLogDirectory().getAbsolutePath());
   }
 
@@ -146,7 +146,10 @@ public class EsSettings {
     builder.put("node.master", valueOf(true));
   }
 
-  private static void configureAction(Map<String, String> builder) {
+  private void configureOthers(Map<String, String> builder) {
     builder.put("action.auto_create_index", String.valueOf(false));
+    if (props.value("sonar.search.javaAdditionalOpts", "").contains("-D" + SECCOMP_PROPERTY + "=false")) {
+      builder.put(SECCOMP_PROPERTY, "false");
+    }
   }
 }

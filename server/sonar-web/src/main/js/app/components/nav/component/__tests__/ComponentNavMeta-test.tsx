@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,44 +19,72 @@
  */
 import * as React from 'react';
 import { shallow } from 'enzyme';
-import { ComponentNavMeta } from '../ComponentNavMeta';
-import { BranchType, ShortLivingBranch, LongLivingBranch } from '../../../../types';
+import { ComponentNavMeta, getCurrentPage, Props } from '../ComponentNavMeta';
+import {
+  mockShortLivingBranch,
+  mockComponent,
+  mockLongLivingBranch,
+  mockPullRequest,
+  mockCurrentUser,
+  mockLoggedInUser
+} from '../../../../../helpers/testMocks';
 
-const component = {
-  analysisDate: '2017-01-02T00:00:00.000Z',
-  breadcrumbs: [],
-  key: 'foo',
-  name: 'Foo',
-  organization: 'org',
-  qualifier: 'TRK',
-  version: '0.0.1'
-};
+describe('#ComponentNavMeta', () => {
+  it('renders status of short-living branch', () => {
+    expect(shallowRender()).toMatchSnapshot();
+  });
 
-it('renders status of short-living branch', () => {
-  const branch: ShortLivingBranch = {
-    isMain: false,
-    mergeBranch: 'master',
-    name: 'feature',
-    status: { bugs: 0, codeSmells: 2, vulnerabilities: 3 },
-    type: BranchType.SHORT
-  };
-  expect(
-    shallow(
-      <ComponentNavMeta branch={branch} component={component} currentUser={{ isLoggedIn: false }} />
-    )
-  ).toMatchSnapshot();
+  it('renders meta for long-living branch', () => {
+    expect(
+      shallowRender({ branchLike: mockLongLivingBranch(), currentUser: mockLoggedInUser() })
+    ).toMatchSnapshot();
+  });
+
+  it('renders meta for pull request', () => {
+    expect(
+      shallowRender({
+        branchLike: mockPullRequest({
+          url: 'https://example.com/pull/1234'
+        })
+      })
+    ).toMatchSnapshot();
+  });
 });
 
-it('renders meta for long-living branch', () => {
-  const branch: LongLivingBranch = {
-    isMain: false,
-    name: 'release',
-    status: { qualityGateStatus: 'OK' },
-    type: BranchType.LONG
-  };
-  expect(
-    shallow(
-      <ComponentNavMeta branch={branch} component={component} currentUser={{ isLoggedIn: false }} />
-    )
-  ).toMatchSnapshot();
+describe('#getCurrentPage', () => {
+  it('should return a portfolio page', () => {
+    expect(getCurrentPage(mockComponent({ key: 'foo', qualifier: 'VW' }), undefined)).toEqual({
+      type: 'PORTFOLIO',
+      component: 'foo'
+    });
+  });
+
+  it('should return an app page', () => {
+    expect(
+      getCurrentPage(
+        mockComponent({ key: 'foo', qualifier: 'APP' }),
+        mockLongLivingBranch({ name: 'develop' })
+      )
+    ).toEqual({ type: 'APPLICATION', component: 'foo', branch: 'develop' });
+  });
+
+  it('should return a portfolio page', () => {
+    expect(getCurrentPage(mockComponent(), mockShortLivingBranch())).toEqual({
+      type: 'PROJECT',
+      component: 'my-project',
+      branch: undefined
+    });
+  });
 });
+
+function shallowRender(props: Partial<Props> = {}) {
+  return shallow(
+    <ComponentNavMeta
+      branchLike={mockShortLivingBranch()}
+      component={mockComponent({ analysisDate: '2017-01-02T00:00:00.000Z', version: '0.0.1' })}
+      currentUser={mockCurrentUser()}
+      warnings={[]}
+      {...props}
+    />
+  );
+}

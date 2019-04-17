@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,16 +22,21 @@ import SeverityChange from './SeverityChange';
 import ParameterChange from './ParameterChange';
 
 interface Props {
-  changes: { [change: string]: string | null };
+  changes: T.Dict<string | null>;
 }
 
 export default function ChangesList({ changes }: Props) {
+  const renderSeverity = (key: string) => {
+    const severity = changes[key];
+    return severity ? <SeverityChange severity={severity} /> : null;
+  };
+
   return (
     <ul>
       {Object.keys(changes).map(key => (
         <li key={key}>
           {key === 'severity' ? (
-            <SeverityChange severity={changes[key]} />
+            renderSeverity(key)
           ) : (
             <ParameterChange name={key} value={changes[key]} />
           )}

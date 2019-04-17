@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,6 +22,7 @@ package org.sonar.server.issue.ws;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ListMultimap;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -48,14 +49,15 @@ public class SearchResponseData {
   private final List<IssueDto> issues;
 
   private Long effortTotal = null;
-  private List<UserDto> users = null;
-  private List<RuleDefinitionDto> rules = null;
+  private final Map<String, UserDto> usersByUuid = new HashMap<>();
+  private final List<RuleDefinitionDto> rules = new ArrayList<>();
   private final Map<String, String> organizationKeysByUuid = new HashMap<>();
   private final Map<String, ComponentDto> componentsByUuid = new HashMap<>();
   private final ListMultimap<String, IssueChangeDto> commentsByIssueKey = ArrayListMultimap.create();
   private final ListMultimap<String, String> actionsByIssueKey = ArrayListMultimap.create();
   private final ListMultimap<String, Transition> transitionsByIssueKey = ArrayListMultimap.create();
   private final Set<String> updatableComments = new HashSet<>();
+  private final Set<String> userOrganizationUuids = new HashSet<>();
 
   public SearchResponseData(IssueDto issue) {
     checkNotNull(issue);
@@ -76,16 +78,14 @@ public class SearchResponseData {
   }
 
   @CheckForNull
-  public ComponentDto getComponentByUuid(String uuid) {
+  ComponentDto getComponentByUuid(String uuid) {
     return componentsByUuid.get(uuid);
   }
 
-  @CheckForNull
   public List<UserDto> getUsers() {
-    return users;
+    return new ArrayList<>(usersByUuid.values());
   }
 
-  @CheckForNull
   public List<RuleDefinitionDto> getRules() {
     return rules;
   }
@@ -97,7 +97,7 @@ public class SearchResponseData {
   }
 
   @CheckForNull
-  public List<IssueChangeDto> getCommentsForIssueKey(String issueKey) {
+  List<IssueChangeDto> getCommentsForIssueKey(String issueKey) {
     if (commentsByIssueKey.containsKey(issueKey)) {
       return commentsByIssueKey.get(issueKey);
     }
@@ -105,7 +105,7 @@ public class SearchResponseData {
   }
 
   @CheckForNull
-  public List<String> getActionsForIssueKey(String issueKey) {
+  List<String> getActionsForIssueKey(String issueKey) {
     if (actionsByIssueKey.containsKey(issueKey)) {
       return actionsByIssueKey.get(issueKey);
     }
@@ -113,19 +113,23 @@ public class SearchResponseData {
   }
 
   @CheckForNull
-  public List<Transition> getTransitionsForIssueKey(String issueKey) {
+  List<Transition> getTransitionsForIssueKey(String issueKey) {
     if (transitionsByIssueKey.containsKey(issueKey)) {
       return transitionsByIssueKey.get(issueKey);
     }
     return null;
   }
 
-  public void setUsers(@Nullable List<UserDto> users) {
-    this.users = users;
+  void addUsers(@Nullable List<UserDto> users) {
+    if (users != null) {
+      users.forEach(u -> usersByUuid.put(u.getUuid(), u));
+    }
   }
 
-  public void setRules(@Nullable List<RuleDefinitionDto> rules) {
-    this.rules = rules;
+  public void addRules(@Nullable List<RuleDefinitionDto> rules) {
+    if (rules != null) {
+      this.rules.addAll(rules);
+    }
   }
 
   public void setComments(@Nullable List<IssueChangeDto> comments) {
@@ -142,32 +146,49 @@ public class SearchResponseData {
     }
   }
 
-  public void addActions(String issueKey, List<String> actions) {
+  void addActions(String issueKey, Iterable<String> actions) {
     actionsByIssueKey.putAll(issueKey, actions);
   }
 
-  public void addTransitions(String issueKey, List<Transition> transitions) {
+  void addTransitions(String issueKey, List<Transition> transitions) {
     transitionsByIssueKey.putAll(issueKey, transitions);
   }
 
-  public void addUpdatableComment(String commentKey) {
+  void addUpdatableComment(String commentKey) {
     updatableComments.add(commentKey);
   }
 
-  public boolean isUpdatableComment(String commentKey) {
+  boolean isUpdatableComment(String commentKey) {
     return updatableComments.contains(commentKey);
   }
 
   @CheckForNull
-  public Long getEffortTotal() {
+  Long getEffortTotal() {
     return effortTotal;
   }
 
-  public void setEffortTotal(@Nullable Long effortTotal) {
+  void setEffortTotal(@Nullable Long effortTotal) {
     this.effortTotal = effortTotal;
   }
 
-  public void addOrganization(OrganizationDto organizationDto) {
+  void addOrganization(OrganizationDto organizationDto) {
     this.organizationKeysByUuid.put(organizationDto.getUuid(), organizationDto.getKey());
+  }
+
+  void setUserOrganizationUuids(Set<String> organizationUuids) {
+    this.userOrganizationUuids.addAll(organizationUuids);
+  }
+
+  Set<String> getUserOrganizationUuids() {
+    return this.userOrganizationUuids;
+  }
+
+  @CheckForNull
+  UserDto getUserByUuid(@Nullable String userUuid) {
+    UserDto userDto = usersByUuid.get(userUuid);
+    if (userDto == null) {
+      return null;
+    }
+    return userDto;
   }
 }

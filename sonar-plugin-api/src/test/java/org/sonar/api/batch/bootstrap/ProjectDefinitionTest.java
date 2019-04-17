@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -37,14 +37,14 @@ public class ProjectDefinitionTest {
   @Test
   public void shouldSetVersion() {
     ProjectDefinition def = ProjectDefinition.create();
-    def.setVersion("2.0-SNAPSHOT");
+    def.setProjectVersion("2.0-SNAPSHOT");
     assertThat(def.getVersion()).isEqualTo("2.0-SNAPSHOT");
   }
 
   @Test
   public void shouldSupportNoVersion() {
     ProjectDefinition def = ProjectDefinition.create();
-    def.setVersion(null);
+    def.setProjectVersion(null);
     assertThat(def.getVersion()).isEqualTo("not provided");
     assertThat(def.getOriginalVersion()).isEqualTo("");
   }

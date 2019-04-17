@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -26,7 +26,7 @@ import java.util.Set;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 import org.apache.commons.lang.StringUtils;
-import org.sonar.db.DaoDatabaseUtils;
+import org.sonar.db.DaoUtils;
 import org.sonar.db.WildcardPosition;
 
 public class ProjectQgateAssociationQuery {
@@ -62,7 +62,7 @@ public class ProjectQgateAssociationQuery {
     if (this.projectSearch == null) {
       this.projectSearchUpperLikeSql = null;
     } else {
-      this.projectSearchUpperLikeSql = DaoDatabaseUtils.buildLikeValue(projectSearch.toUpperCase(Locale.ENGLISH), WildcardPosition.BEFORE_AND_AFTER);
+      this.projectSearchUpperLikeSql = DaoUtils.buildLikeValue(projectSearch.toUpperCase(Locale.ENGLISH), WildcardPosition.BEFORE_AND_AFTER);
     }
 
     this.pageSize = builder.pageSize;

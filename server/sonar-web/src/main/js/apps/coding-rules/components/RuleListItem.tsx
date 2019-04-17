@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,24 +21,27 @@ import * as React from 'react';
 import * as classNames from 'classnames';
 import { Link } from 'react-router';
 import ActivationButton from './ActivationButton';
+import RuleInheritanceIcon from './RuleInheritanceIcon';
 import SimilarRulesFilter from './SimilarRulesFilter';
 import { Activation, Query } from '../query';
 import { Profile, deactivateRule } from '../../../api/quality-profiles';
-import { Rule, RuleInheritance } from '../../../app/types';
+import { Button } from '../../../components/ui/buttons';
 import ConfirmButton from '../../../components/controls/ConfirmButton';
-import Tooltip from '../../../components/controls/Tooltip';
-import SeverityIcon from '../../../components/shared/SeverityIcon';
 import IssueTypeIcon from '../../../components/ui/IssueTypeIcon';
+import SeverityIcon from '../../../components/icons-components/SeverityIcon';
+import TagsList from '../../../components/tags/TagsList';
+import Tooltip from '../../../components/controls/Tooltip';
 import { translate, translateWithParameters } from '../../../helpers/l10n';
+import { getRuleUrl } from '../../../helpers/urls';
 
 interface Props {
   activation?: Activation;
   onActivate: (profile: string, rule: string, activation: Activation) => void;
   onDeactivate: (profile: string, rule: string) => void;
   onFilterChange: (changes: Partial<Query>) => void;
+  onOpen: (ruleKey: string) => void;
   organization: string | undefined;
-  path: { pathname: string; query: { [x: string]: any } };
-  rule: Rule;
+  rule: T.Rule;
   selected: boolean;
   selectedProfile?: Profile;
 }
@@ -59,10 +62,22 @@ export default class RuleListItem extends React.PureComponent<Props> {
     if (this.props.selectedProfile) {
       this.props.onActivate(this.props.selectedProfile.key, this.props.rule.key, {
         severity,
-        inherit: RuleInheritance.NotInherited
+        inherit: 'NONE'
       });
     }
     return Promise.resolve();
+  };
+
+  handleNameClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    // cmd(ctrl) + click should open a rule permalink in a new tab
+    const isLeftClickEvent = event.button === 0;
+    const isModifiedEvent = !!(event.metaKey || event.altKey || event.ctrlKey || event.shiftKey);
+    if (isModifiedEvent || !isLeftClickEvent) {
+      return;
+    }
+
+    event.preventDefault();
+    this.props.onOpen(this.props.rule.key);
   };
 
   renderActivation = () => {
@@ -74,31 +89,36 @@ export default class RuleListItem extends React.PureComponent<Props> {
     return (
       <td className="coding-rule-table-meta-cell coding-rule-activation">
         <SeverityIcon severity={activation.severity} />
-        {selectedProfile &&
-          selectedProfile.parentName && (
-            <>
-              {activation.inherit === RuleInheritance.Overridden && (
-                <Tooltip
-                  overlay={translateWithParameters(
-                    'coding_rules.overrides',
-                    selectedProfile.name,
-                    selectedProfile.parentName
-                  )}>
-                  <i className="little-spacer-left icon-inheritance icon-inheritance-overridden" />
-                </Tooltip>
-              )}
-              {activation.inherit === RuleInheritance.Inherited && (
-                <Tooltip
-                  overlay={translateWithParameters(
-                    'coding_rules.inherits',
-                    selectedProfile.name,
-                    selectedProfile.parentName
-                  )}>
-                  <i className="little-spacer-left icon-inheritance" />
-                </Tooltip>
-              )}
-            </>
-          )}
+        {selectedProfile && selectedProfile.parentName && (
+          <>
+            {activation.inherit === 'OVERRIDES' && (
+              <Tooltip
+                overlay={translateWithParameters(
+                  'coding_rules.overrides',
+                  selectedProfile.name,
+                  selectedProfile.parentName
+                )}>
+                <RuleInheritanceIcon
+                  className="little-spacer-left"
+                  inheritance={activation.inherit}
+                />
+              </Tooltip>
+            )}
+            {activation.inherit === 'INHERITED' && (
+              <Tooltip
+                overlay={translateWithParameters(
+                  'coding_rules.inherits',
+                  selectedProfile.name,
+                  selectedProfile.parentName
+                )}>
+                <RuleInheritanceIcon
+                  className="little-spacer-left"
+                  inheritance={activation.inherit}
+                />
+              </Tooltip>
+            )}
+          </>
+        )}
       </td>
     );
   };
@@ -141,18 +161,18 @@ export default class RuleListItem extends React.PureComponent<Props> {
         modalHeader={translate('coding_rules.deactivate')}
         onConfirm={this.handleDeactivate}>
         {({ onClick }) => (
-          <button
+          <Button
             className="coding-rules-detail-quality-profile-deactivate button-red"
             onClick={onClick}>
             {translate('coding_rules.deactivate')}
-          </button>
+          </Button>
         )}
       </ConfirmButton>
     ) : (
-      <Tooltip overlay={translate('coding_rules.can_not_deactivate')} placement="left">
-        <button className="coding-rules-detail-quality-profile-deactivate button-red disabled">
+      <Tooltip overlay={translate('coding_rules.can_not_deactivate')}>
+        <Button className="coding-rules-detail-quality-profile-deactivate button-red disabled">
           {translate('coding_rules.deactivate')}
-        </button>
+        </Button>
       </Tooltip>
     );
   };
@@ -169,7 +189,10 @@ export default class RuleListItem extends React.PureComponent<Props> {
 
               <td>
                 <div className="coding-rule-title">
-                  <Link className="link-no-underline" to={this.props.path}>
+                  <Link
+                    className="link-no-underline"
+                    onClick={this.handleNameClick}
+                    to={getRuleUrl(rule.key, this.props.organization)}>
                     {rule.name}
                   </Link>
                   {rule.isTemplate && (
@@ -185,7 +208,7 @@ export default class RuleListItem extends React.PureComponent<Props> {
               <td className="coding-rule-table-meta-cell">
                 <div className="display-flex-center coding-rule-meta">
                   {rule.status !== 'READY' && (
-                    <span className="spacer-left badge badge-normal-size badge-danger-light">
+                    <span className="spacer-left badge badge-normal-size badge-tiny-height badge-danger-light">
                       {translate('rules.status', rule.status)}
                     </span>
                   )}
@@ -197,10 +220,7 @@ export default class RuleListItem extends React.PureComponent<Props> {
                     </span>
                   </Tooltip>
                   {allTags.length > 0 && (
-                    <span className="spacer-left">
-                      <i className="icon-tags little-spacer-right" />
-                      <span className="note">{allTags.join(', ')}</span>
-                    </span>
+                    <TagsList allowUpdate={false} className="note spacer-left" tags={allTags} />
                   )}
                   <SimilarRulesFilter onFilterChange={this.props.onFilterChange} rule={rule} />
                 </div>

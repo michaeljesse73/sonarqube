@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -17,27 +17,10 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import { RouterState, IndexRouteProps, RouteComponent } from 'react-router';
+import { lazyLoad } from '../../components/lazyLoad';
 
-const routes = [
-  {
-    getComponent(_: RouterState, callback: (err: any, component: RouteComponent) => any) {
-      import('./containers/QualityGatesAppContainer').then(i => callback(null, i.default));
-    },
-    childRoutes: [
-      {
-        getIndexRoute(_: RouterState, callback: (err: any, route: IndexRouteProps) => any) {
-          import('./components/Intro').then(i => callback(null, { component: i.default }));
-        }
-      },
-      {
-        path: 'show/:id',
-        getComponent(_: RouterState, callback: (err: any, component: RouteComponent) => any) {
-          import('./containers/DetailsContainer').then(i => callback(null, i.default));
-        }
-      }
-    ]
-  }
-];
+const App = lazyLoad(() => import('./components/App'));
+
+const routes = [{ indexRoute: { component: App } }, { path: 'show/:id', component: App }];
 
 export default routes;

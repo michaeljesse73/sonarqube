@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,29 +18,37 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import Workspace from '../../../components/workspace/main';
-import PinIcon from '../../../components/shared/pin-icon';
+import PinIcon from '../../../components/icons-components/PinIcon';
+import { WorkspaceContextShape } from '../../../components/workspace/context';
 import { translate } from '../../../helpers/l10n';
-import { Component } from '../types';
 
 interface Props {
-  branch?: string;
-  component: Component;
+  branchLike?: T.BranchLike;
+  component: T.ComponentMeasure;
+  openComponent: WorkspaceContextShape['openComponent'];
 }
 
-export default function ComponentPin({ branch, component }: Props) {
-  const handleClick = (event: React.SyntheticEvent<HTMLAnchorElement>) => {
+export default class ComponentPin extends React.PureComponent<Props> {
+  handleClick = (event: React.SyntheticEvent<HTMLAnchorElement>) => {
     event.preventDefault();
-    Workspace.openComponent({ branch, key: component.key });
+    event.currentTarget.blur();
+    this.props.openComponent({
+      branchLike: this.props.branchLike,
+      key: this.props.component.key,
+      name: this.props.component.path,
+      qualifier: this.props.component.qualifier
+    });
   };
 
-  return (
-    <a
-      className="link-no-underline"
-      onClick={handleClick}
-      title={translate('component_viewer.open_in_workspace')}
-      href="#">
-      <PinIcon />
-    </a>
-  );
+  render() {
+    return (
+      <a
+        className="link-no-underline"
+        href="#"
+        onClick={this.handleClick}
+        title={translate('component_viewer.open_in_workspace')}>
+        <PinIcon />
+      </a>
+    );
+  }
 }

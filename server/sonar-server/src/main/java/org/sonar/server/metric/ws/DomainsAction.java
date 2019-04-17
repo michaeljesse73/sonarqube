@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -40,6 +40,7 @@ public class DomainsAction implements MetricsWsAction {
     context.createAction("domains")
       .setDescription("List all custom metric domains.")
       .setSince("5.2")
+      .setDeprecatedSince("7.7")
       .setResponseExample(getClass().getResource("example-domains.json"))
       .setHandler(this);
   }

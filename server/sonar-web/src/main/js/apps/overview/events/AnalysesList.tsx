@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,22 +20,24 @@
 import * as React from 'react';
 import { Link } from 'react-router';
 import Analysis from './Analysis';
-import { getProjectActivity, Analysis as IAnalysis } from '../../../api/projectActivity';
+import { getProjectActivity } from '../../../api/projectActivity';
 import PreviewGraph from '../../../components/preview-graph/PreviewGraph';
 import { translate } from '../../../helpers/l10n';
-import { Metric, Component } from '../../../app/types';
-import { History } from '../../../api/time-machine';
+import { getBranchLikeQuery, isSameBranchLike } from '../../../helpers/branches';
+import { getActivityUrl } from '../../../helpers/urls';
 
 interface Props {
-  branch?: string;
-  component: Component;
-  history?: History;
-  metrics: { [key: string]: Metric };
+  branchLike?: T.BranchLike;
+  component: T.Component;
+  history?: {
+    [metric: string]: Array<{ date: Date; value?: string }>;
+  };
+  metrics: T.Dict<T.Metric>;
   qualifier: string;
 }
 
 interface State {
-  analyses: IAnalysis[];
+  analyses: T.Analysis[];
   loading: boolean;
 }
 
@@ -51,7 +53,10 @@ export default class AnalysesList extends React.PureComponent<Props, State> {
   }
 
   componentDidUpdate(prevProps: Props) {
-    if (prevProps.component !== this.props.component) {
+    if (
+      prevProps.component.key !== this.props.component.key ||
+      !isSameBranchLike(prevProps.branchLike, this.props.branchLike)
+    ) {
       this.fetchData();
     }
   }
@@ -76,7 +81,7 @@ export default class AnalysesList extends React.PureComponent<Props, State> {
     this.setState({ loading: true });
 
     getProjectActivity({
-      branch: this.props.branch,
+      ...getBranchLikeQuery(this.props.branchLike),
       project: this.getTopLevelComponent(),
       ps: PAGE_SIZE
     }).then(
@@ -93,7 +98,7 @@ export default class AnalysesList extends React.PureComponent<Props, State> {
     );
   };
 
-  renderList(analyses: IAnalysis[]) {
+  renderList(analyses: T.Analysis[]) {
     if (!analyses.length) {
       return <p className="spacer-top note">{translate('no_results')}</p>;
     }
@@ -101,7 +106,7 @@ export default class AnalysesList extends React.PureComponent<Props, State> {
     return (
       <ul className="spacer-top">
         {analyses.map(analysis => (
-          <Analysis key={analysis.key} analysis={analysis} qualifier={this.props.qualifier} />
+          <Analysis analysis={analysis} key={analysis.key} qualifier={this.props.qualifier} />
         ))}
       </ul>
     );
@@ -121,20 +126,16 @@ export default class AnalysesList extends React.PureComponent<Props, State> {
         </h4>
 
         <PreviewGraph
-          branch={this.props.branch}
+          branchLike={this.props.branchLike}
           history={this.props.history}
-          project={this.props.component.key}
           metrics={this.props.metrics}
+          project={this.props.component.key}
         />
 
         {this.renderList(analyses)}
 
         <div className="spacer-top small">
-          <Link
-            to={{
-              pathname: '/project/activity',
-              query: { id: this.props.component.key, branch: this.props.branch }
-            }}>
+          <Link to={getActivityUrl(this.props.component.key, this.props.branchLike)}>
             {translate('show_more')}
           </Link>
         </div>

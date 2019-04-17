@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,8 +18,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import { Link } from 'react-router';
 import { translate } from '../../../helpers/l10n';
+import { getBaseUrl } from '../../../helpers/urls';
 
 interface Props {
   location: {
@@ -33,19 +33,19 @@ export default function Unauthorized(props: Props) {
   const { message } = props.location.query;
 
   return (
-    <div id="bd" className="page-wrapper-simple">
-      <div id="nonav" className="page-simple">
+    <div className="page-wrapper-simple" id="bd">
+      <div className="page-simple" id="nonav">
         <div className="text-center">
           <p id="unauthorized">{translate('unauthorized.message')}</p>
 
-          {!!message && (
+          {Boolean(message) && (
             <p className="spacer-top">
               {translate('unauthorized.reason')} {message}
             </p>
           )}
 
           <div className="big-spacer-top">
-            <Link to="/">{translate('layout.home')}</Link>
+            <a href={getBaseUrl() + '/'}>{translate('layout.home')}</a>
           </div>
         </div>
       </div>

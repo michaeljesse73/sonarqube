@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,7 +20,7 @@
 package org.sonar.api.utils.log;
 
 import org.junit.Test;
-import org.sonar.api.SonarPlugin;
+import org.sonar.api.Plugin;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -32,6 +32,6 @@ public class LoggersTest {
     assertThat(Loggers.getFactory()).isInstanceOf(LogbackLoggers.class);
 
     assertThat(Loggers.get("foo")).isInstanceOf(LogbackLogger.class);
-    assertThat(Loggers.get(SonarPlugin.class)).isInstanceOf(LogbackLogger.class);
+    assertThat(Loggers.get(Plugin.class)).isInstanceOf(LogbackLogger.class);
   }
 }

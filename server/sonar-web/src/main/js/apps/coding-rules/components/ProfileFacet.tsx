@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,6 +22,7 @@ import { sortBy } from 'lodash';
 import * as classNames from 'classnames';
 import { Query, FacetKey } from '../query';
 import { Profile } from '../../../api/quality-profiles';
+import DocTooltip from '../../../components/docs/DocTooltip';
 import FacetBox from '../../../components/facet/FacetBox';
 import FacetHeader from '../../../components/facet/FacetHeader';
 import FacetItem from '../../../components/facet/FacetItem';
@@ -35,7 +36,7 @@ interface Props {
   onChange: (changes: Partial<Query>) => void;
   onToggle: (facet: FacetKey) => void;
   open: boolean;
-  referencedProfiles: { [profile: string]: Profile };
+  referencedProfiles: T.Dict<Profile>;
   value: string | undefined;
 }
 
@@ -85,6 +86,11 @@ export default class ProfileFacet extends React.PureComponent<Props> {
     } else {
       return [];
     }
+  };
+
+  getTooltip = (profile: Profile) => {
+    const base = `${profile.name} ${profile.languageName}`;
+    return profile.isBuiltIn ? `${base} (${translate('quality_profiles.built_in')})` : base;
   };
 
   renderName = (profile: Profile) => (
@@ -137,6 +143,7 @@ export default class ProfileFacet extends React.PureComponent<Props> {
         name={this.renderName(profile)}
         onClick={this.handleItemClick}
         stat={this.renderActivation(profile)}
+        tooltip={this.getTooltip(profile)}
         value={profile.key}
       />
     );
@@ -161,8 +168,12 @@ export default class ProfileFacet extends React.PureComponent<Props> {
           onClear={this.handleClear}
           onClick={this.handleHeaderClick}
           open={this.props.open}
-          values={this.getTextValue()}
-        />
+          values={this.getTextValue()}>
+          <DocTooltip
+            className="spacer-left"
+            doc={import(/* webpackMode: "eager" */ 'Docs/tooltips/rules/rules-quality-profiles.md')}
+          />
+        </FacetHeader>
 
         {this.props.open && <FacetItemsList>{profiles.map(this.renderItem)}</FacetItemsList>}
       </FacetBox>

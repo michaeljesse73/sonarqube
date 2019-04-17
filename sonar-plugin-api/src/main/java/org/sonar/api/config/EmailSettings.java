@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,6 +20,7 @@
 package org.sonar.api.config;
 
 import java.util.List;
+import org.apache.commons.lang.StringUtils;
 import org.sonar.api.PropertyType;
 import org.sonar.api.ce.ComputeEngineSide;
 import org.sonar.api.server.ServerSide;
@@ -94,7 +95,9 @@ public class EmailSettings {
   }
 
   public String getServerBaseURL() {
-    return get(SERVER_BASE_URL, SERVER_BASE_URL_DEFAULT_VALUE);
+    return config.get(SERVER_BASE_URL)
+      .map(t -> StringUtils.removeEnd(t, "/"))
+      .orElse(SERVER_BASE_URL_DEFAULT_VALUE);
   }
 
   private String get(String key, String defaultValue) {

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -27,6 +27,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.sonar.api.issue.Issue;
+import org.sonar.api.rules.RuleType;
 import org.sonar.core.issue.DefaultIssue;
 import org.sonar.core.issue.FieldDiffs;
 import org.sonar.core.issue.IssueChangeContext;
@@ -70,7 +71,7 @@ public class SetSeverityActionTest {
     IssueDto issueDto = newIssue().setSeverity(MAJOR);
     DefaultIssue issue = issueDto.toDefaultIssue();
     setUserWithBrowseAndAdministerIssuePermission(issueDto);
-    BulkChangeAction.ActionContext context = new BulkChangeAction.ActionContext(issue, IssueChangeContext.createUser(NOW, userSession.getLogin()), null);
+    BulkChangeAction.ActionContext context = new BulkChangeAction.ActionContext(issue, IssueChangeContext.createUser(NOW, userSession.getUuid()), null);
 
     action.execute(ImmutableMap.of("severity", MINOR), context);
 
@@ -100,6 +101,16 @@ public class SetSeverityActionTest {
 
     assertThat(action.supports(issue.setResolution(null))).isTrue();
     assertThat(action.supports(issue.setResolution(Issue.RESOLUTION_FIXED))).isFalse();
+  }
+
+  @Test
+  public void doesnt_support_security_hotspots() {
+    IssueDto issueDto = newIssue().setSeverity(MAJOR);
+    DefaultIssue issue = issueDto.toDefaultIssue();
+    setUserWithBrowseAndAdministerIssuePermission(issueDto);
+
+    assertThat(action.supports(issue.setType(RuleType.CODE_SMELL))).isTrue();
+    assertThat(action.supports(issue.setType(RuleType.SECURITY_HOTSPOT))).isFalse();
   }
 
   @Test

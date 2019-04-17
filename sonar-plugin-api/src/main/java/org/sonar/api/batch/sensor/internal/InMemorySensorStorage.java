@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -27,14 +27,18 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import org.sonar.api.batch.sensor.code.internal.DefaultSignificantCode;
 import org.sonar.api.batch.sensor.coverage.internal.DefaultCoverage;
 import org.sonar.api.batch.sensor.cpd.internal.DefaultCpdTokens;
 import org.sonar.api.batch.sensor.error.AnalysisError;
 import org.sonar.api.batch.sensor.highlighting.internal.DefaultHighlighting;
+import org.sonar.api.batch.sensor.issue.ExternalIssue;
 import org.sonar.api.batch.sensor.issue.Issue;
+import org.sonar.api.batch.sensor.issue.internal.DefaultExternalIssue;
 import org.sonar.api.batch.sensor.measure.Measure;
+import org.sonar.api.batch.sensor.rule.AdHocRule;
+import org.sonar.api.batch.sensor.rule.internal.DefaultAdHocRule;
 import org.sonar.api.batch.sensor.symbol.internal.DefaultSymbolTable;
-import org.sonar.api.utils.SonarException;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
@@ -43,6 +47,8 @@ class InMemorySensorStorage implements SensorStorage {
   Table<String, String, Measure> measuresByComponentAndMetric = HashBasedTable.create();
 
   Collection<Issue> allIssues = new ArrayList<>();
+  Collection<ExternalIssue> allExternalIssues = new ArrayList<>();
+  Collection<AdHocRule> allAdHocRules = new ArrayList<>();
   Collection<AnalysisError> allAnalysisErrors = new ArrayList<>();
 
   Map<String, DefaultHighlighting> highlightingByComponent = new HashMap<>();
@@ -50,6 +56,7 @@ class InMemorySensorStorage implements SensorStorage {
   Multimap<String, DefaultCoverage> coverageByComponent = ArrayListMultimap.create();
   Map<String, DefaultSymbolTable> symbolsPerComponent = new HashMap<>();
   Map<String, String> contextProperties = new HashMap<>();
+  Map<String, DefaultSignificantCode> significantCodePerComponent = new HashMap<>();
 
   @Override
   public void store(Measure measure) {
@@ -57,7 +64,7 @@ class InMemorySensorStorage implements SensorStorage {
     String componentKey = measure.inputComponent().key();
     String metricKey = measure.metric().key();
     if (measuresByComponentAndMetric.contains(componentKey, metricKey)) {
-      throw new SonarException("Can not add the same measure twice");
+      throw new IllegalStateException("Can not add the same measure twice");
     }
     measuresByComponentAndMetric.row(componentKey).put(metricKey, measure);
   }
@@ -68,11 +75,16 @@ class InMemorySensorStorage implements SensorStorage {
   }
 
   @Override
+  public void store(DefaultAdHocRule adHocRule) {
+    allAdHocRules.add(adHocRule);
+  }
+
+  @Override
   public void store(DefaultHighlighting highlighting) {
     String fileKey = highlighting.inputFile().key();
     // Emulate duplicate storage check
     if (highlightingByComponent.containsKey(fileKey)) {
-      throw new UnsupportedOperationException("Trying to save highlighting twice for the same file is not supported: " + highlighting.inputFile().relativePath());
+      throw new UnsupportedOperationException("Trying to save highlighting twice for the same file is not supported: " + highlighting.inputFile());
     }
     highlightingByComponent.put(fileKey, highlighting);
   }
@@ -88,7 +100,7 @@ class InMemorySensorStorage implements SensorStorage {
     String fileKey = defaultCpdTokens.inputFile().key();
     // Emulate duplicate storage check
     if (cpdTokensByComponent.containsKey(fileKey)) {
-      throw new UnsupportedOperationException("Trying to save CPD tokens twice for the same file is not supported: " + defaultCpdTokens.inputFile().relativePath());
+      throw new UnsupportedOperationException("Trying to save CPD tokens twice for the same file is not supported: " + defaultCpdTokens.inputFile());
     }
     cpdTokensByComponent.put(fileKey, defaultCpdTokens);
   }
@@ -98,7 +110,7 @@ class InMemorySensorStorage implements SensorStorage {
     String fileKey = symbolTable.inputFile().key();
     // Emulate duplicate storage check
     if (symbolsPerComponent.containsKey(fileKey)) {
-      throw new UnsupportedOperationException("Trying to save symbol table twice for the same file is not supported: " + symbolTable.inputFile().relativePath());
+      throw new UnsupportedOperationException("Trying to save symbol table twice for the same file is not supported: " + symbolTable.inputFile());
     }
     symbolsPerComponent.put(fileKey, symbolTable);
   }
@@ -113,5 +125,20 @@ class InMemorySensorStorage implements SensorStorage {
     checkArgument(key != null, "Key of context property must not be null");
     checkArgument(value != null, "Value of context property must not be null");
     contextProperties.put(key, value);
+  }
+
+  @Override
+  public void store(DefaultExternalIssue issue) {
+    allExternalIssues.add(issue);
+  }
+  
+  @Override
+  public void store(DefaultSignificantCode significantCode) {
+    String fileKey = significantCode.inputFile().key();
+    // Emulate duplicate storage check
+    if (significantCodePerComponent.containsKey(fileKey)) {
+      throw new UnsupportedOperationException("Trying to save significant code information twice for the same file is not supported: " + significantCode.inputFile());
+    }
+    significantCodePerComponent.put(fileKey, significantCode);
   }
 }

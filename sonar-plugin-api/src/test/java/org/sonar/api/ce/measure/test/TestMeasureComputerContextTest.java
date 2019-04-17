@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -203,7 +203,7 @@ public class TestMeasureComputerContextTest {
       .setSeverity(Severity.BLOCKER)
       .setStatus(org.sonar.api.issue.Issue.STATUS_RESOLVED)
       .setResolution(org.sonar.api.issue.Issue.RESOLUTION_FIXED)
-      .setDebt(Duration.create(10L))
+      .setEffort(Duration.create(10L))
       .setType(RuleType.BUG)
       .build();
     underTest.setIssues(Arrays.asList(issue));

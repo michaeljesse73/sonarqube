@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,18 +25,25 @@ import org.sonar.api.batch.fs.FileSystem;
 import org.sonar.api.batch.fs.InputFile;
 import org.sonar.api.batch.fs.InputModule;
 import org.sonar.api.batch.rule.ActiveRules;
+import org.sonar.api.batch.sensor.code.NewSignificantCode;
 import org.sonar.api.batch.sensor.coverage.NewCoverage;
 import org.sonar.api.batch.sensor.cpd.NewCpdTokens;
 import org.sonar.api.batch.sensor.error.NewAnalysisError;
 import org.sonar.api.batch.sensor.highlighting.NewHighlighting;
 import org.sonar.api.batch.sensor.internal.SensorContextTester;
+import org.sonar.api.batch.sensor.issue.ExternalIssue;
 import org.sonar.api.batch.sensor.issue.Issue;
+import org.sonar.api.batch.sensor.issue.NewExternalIssue;
 import org.sonar.api.batch.sensor.issue.NewIssue;
 import org.sonar.api.batch.sensor.measure.Measure;
 import org.sonar.api.batch.sensor.measure.NewMeasure;
+import org.sonar.api.batch.sensor.rule.AdHocRule;
+import org.sonar.api.batch.sensor.rule.NewAdHocRule;
 import org.sonar.api.batch.sensor.symbol.NewSymbolTable;
 import org.sonar.api.config.Configuration;
 import org.sonar.api.config.Settings;
+import org.sonar.api.scanner.fs.InputProject;
+import org.sonar.api.scanner.sensor.ProjectSensor;
 import org.sonar.api.utils.Version;
 
 /**
@@ -53,13 +60,13 @@ public interface SensorContext {
   Settings settings();
 
   /**
-   * Get settings of the current module, or of the project for a global Sensor.
+   * Get settings of the project.
    * @since 6.5
    */
   Configuration config();
 
   /**
-   * Get filesystem of the current module.
+   * Get filesystem of the project.
    */
   FileSystem fileSystem();
 
@@ -70,8 +77,17 @@ public interface SensorContext {
 
   /**
    * @since 5.5
+   * @deprecated since 7.6 modules are deprecated. Use {@link #project()} instead.
+   * @throws UnsupportedOperationException for global {@link ProjectSensor}s
    */
+  @Deprecated
   InputModule module();
+
+  /**
+   * The current project.
+   * @since 7.6
+   */
+  InputProject project();
 
   /**
    * Version of API at runtime, not at compilation time. It's a shortcut on
@@ -111,6 +127,18 @@ public interface SensorContext {
    * Fluent builder to create a new {@link Issue}. Don't forget to call {@link NewIssue#save()} once all parameters are provided.
    */
   NewIssue newIssue();
+
+  /**
+   * Fluent builder to create a new {@link ExternalIssue}. Don't forget to call {@link NewExternalIssue#save()} once all parameters are provided.
+   * @since 7.2
+   */
+  NewExternalIssue newExternalIssue();
+
+  /**
+   * Fluent builder to create a new {@link AdHocRule}. Don't forget to call {@link NewAdHocRule#save()} once all parameters are provided.
+   * @since 7.4
+   */
+  NewAdHocRule newAdHocRule();
 
   // ------------ HIGHLIGHTING ------------
 
@@ -152,6 +180,16 @@ public interface SensorContext {
    * @since 6.0
    */
   NewAnalysisError newAnalysisError();
+
+  /**
+   * Builder to declare which parts of the code is significant code. 
+   * Ranges that are not reported as significant code will be ignored and won't be considered when calculating which lines were modified.
+   * 
+   * If the significant code is not reported for a file, it is assumed that the entire file is significant code.
+   * 
+   * @since 7.2
+   */
+  NewSignificantCode newSignificantCode();
 
   /**
    * Add a property to the scanner context. This context is available

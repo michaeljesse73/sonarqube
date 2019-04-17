@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -23,8 +23,10 @@ import javax.annotation.Nullable;
 import org.sonar.api.resources.Qualifiers;
 import org.sonar.api.resources.Scopes;
 import org.sonar.api.utils.System2;
-import org.sonar.ce.queue.CeTask;
-import org.sonar.ce.queue.CeTaskResult;
+import org.sonar.ce.task.CeTask;
+import org.sonar.ce.task.CeTaskResult;
+import org.sonar.ce.task.projectanalysis.notification.ReportAnalysisFailureNotification;
+import org.sonar.ce.task.projectanalysis.notification.ReportAnalysisFailureNotificationSerializer;
 import org.sonar.ce.taskprocessor.CeWorker;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
@@ -62,7 +64,7 @@ public class ReportAnalysisFailureNotificationExecutionListener implements CeWor
     if (status == CeActivityDto.Status.SUCCESS) {
       return;
     }
-    String projectUuid = ceTask.getComponentUuid();
+    String projectUuid = ceTask.getComponent().map(CeTask.Component::getUuid).orElse(null);
     if (!CeTaskTypes.REPORT.equals(ceTask.getType()) || projectUuid == null) {
       return;
     }

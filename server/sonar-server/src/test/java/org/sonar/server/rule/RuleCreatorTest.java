@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -27,7 +27,6 @@ import org.assertj.core.api.Fail;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
-import org.sonar.api.config.internal.MapSettings;
 import org.sonar.api.rule.RuleKey;
 import org.sonar.api.rule.RuleStatus;
 import org.sonar.api.rule.Severity;
@@ -45,7 +44,6 @@ import org.sonar.server.es.SearchOptions;
 import org.sonar.server.exceptions.BadRequestException;
 import org.sonar.server.organization.TestDefaultOrganizationProvider;
 import org.sonar.server.rule.index.RuleIndex;
-import org.sonar.server.rule.index.RuleIndexDefinition;
 import org.sonar.server.rule.index.RuleIndexer;
 import org.sonar.server.rule.index.RuleQuery;
 
@@ -66,7 +64,7 @@ public class RuleCreatorTest {
   public DbTester dbTester = DbTester.create(system2);
 
   @Rule
-  public EsTester es = new EsTester(new RuleIndexDefinition(new MapSettings().asConfig()));
+  public EsTester es = EsTester.create();
 
   private RuleIndex ruleIndex = new RuleIndex(es.client(), system2);
   private RuleIndexer ruleIndexer = new RuleIndexer(es.client(), dbTester.getDbClient());
@@ -105,6 +103,9 @@ public class RuleCreatorTest {
     assertThat(rule.getGapDescription()).isEqualTo("desc");
     assertThat(rule.getTags()).containsOnly("usertag1", "usertag2");
     assertThat(rule.getSystemTags()).containsOnly("tag1", "tag4");
+    assertThat(rule.getSecurityStandards()).containsOnly("owaspTop10:a1", "cwe:123");
+    assertThat(rule.isExternal()).isFalse();
+    assertThat(rule.isAdHoc()).isFalse();
 
     List<RuleParamDto> params = dbTester.getDbClient().ruleDao().selectRuleParamsByRuleKey(dbSession, customRuleKey);
     assertThat(params).hasSize(1);
@@ -470,6 +471,7 @@ public class RuleCreatorTest {
       .setGapDescription("desc")
       .setTags(Sets.newHashSet("usertag1", "usertag2"))
       .setSystemTags(Sets.newHashSet("tag1", "tag4"))
+      .setSecurityStandards(Sets.newHashSet("owaspTop10:a1", "cwe:123"))
       .setCreatedAt(new Date().getTime())
       .setUpdatedAt(new Date().getTime());
     dbTester.rules().insert(templateRule.getDefinition());

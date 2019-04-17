@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,14 +20,14 @@
 package org.sonar.server.usertoken.ws;
 
 import javax.annotation.Nullable;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.sonar.api.utils.System2;
 import org.sonar.db.DbClient;
-import org.sonar.db.DbSession;
 import org.sonar.db.DbTester;
+import org.sonar.db.user.UserDto;
+import org.sonar.db.user.UserTokenDto;
 import org.sonar.server.exceptions.ForbiddenException;
 import org.sonar.server.exceptions.NotFoundException;
 import org.sonar.server.exceptions.UnauthorizedException;
@@ -35,16 +35,15 @@ import org.sonar.server.tester.UserSessionRule;
 import org.sonar.server.ws.TestRequest;
 import org.sonar.server.ws.WsActionTester;
 import org.sonarqube.ws.UserTokens.SearchWsResponse;
+import org.sonarqube.ws.UserTokens.SearchWsResponse.UserToken;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.sonar.db.user.UserTesting.newUserDto;
-import static org.sonar.db.user.UserTokenTesting.newUserToken;
+import static org.assertj.core.api.Assertions.tuple;
+import static org.sonar.api.utils.DateUtils.formatDateTime;
+import static org.sonar.server.usertoken.ws.UserTokenSupport.PARAM_LOGIN;
 import static org.sonar.test.JsonAssert.assertJson;
-import static org.sonar.server.usertoken.ws.UserTokensWsParameters.PARAM_LOGIN;
 
 public class SearchActionTest {
-  private static final String GRACE_HOPPER = "grace.hopper";
-  private static final String ADA_LOVELACE = "ada.lovelace";
 
   @Rule
   public ExpectedException expectedException = ExpectedException.none();
@@ -52,40 +51,22 @@ public class SearchActionTest {
   public UserSessionRule userSession = UserSessionRule.standalone();
   @Rule
   public DbTester db = DbTester.create(System2.INSTANCE);
-  private DbClient dbClient = db.getDbClient();
-  private DbSession dbSession = db.getSession();
-  private WsActionTester ws = new WsActionTester(new SearchAction(dbClient, userSession));
 
-  @Before
-  public void setUp() {
-    db.users().insertUser(newUserDto().setLogin(GRACE_HOPPER));
-    db.users().insertUser(newUserDto().setLogin(ADA_LOVELACE));
-  }
+  private DbClient dbClient = db.getDbClient();
+  private WsActionTester ws = new WsActionTester(new SearchAction(dbClient, new UserTokenSupport(db.getDbClient(), userSession)));
 
   @Test
   public void search_json_example() {
+    UserDto user1 = db.users().insertUser(u -> u.setLogin("grace.hopper"));
+    UserDto user2 = db.users().insertUser(u -> u.setLogin("ada.lovelace"));
+    db.users().insertToken(user1, t -> t.setName("Project scan on Travis").setCreatedAt(1448523067221L));
+    db.users().insertToken(user1, t -> t.setName("Project scan on AppVeyor").setCreatedAt(1438523067221L));
+    db.users().insertToken(user1, t -> t.setName("Project scan on Jenkins").setCreatedAt(1428523067221L));
+    db.users().insertToken(user2, t -> t.setName("Project scan on Travis").setCreatedAt(141456787123L));
     logInAsSystemAdministrator();
 
-    dbClient.userTokenDao().insert(dbSession, newUserToken()
-      .setCreatedAt(1448523067221L)
-      .setName("Project scan on Travis")
-      .setLogin(GRACE_HOPPER));
-    dbClient.userTokenDao().insert(dbSession, newUserToken()
-      .setCreatedAt(1438523067221L)
-      .setName("Project scan on AppVeyor")
-      .setLogin(GRACE_HOPPER));
-    dbClient.userTokenDao().insert(dbSession, newUserToken()
-      .setCreatedAt(1428523067221L)
-      .setName("Project scan on Jenkins")
-      .setLogin(GRACE_HOPPER));
-    dbClient.userTokenDao().insert(dbSession, newUserToken()
-      .setCreatedAt(141456787123L)
-      .setName("Project scan on Travis")
-      .setLogin(ADA_LOVELACE));
-    dbSession.commit();
-
     String response = ws.newRequest()
-      .setParam(PARAM_LOGIN, GRACE_HOPPER)
+      .setParam(PARAM_LOGIN, user1.getLogin())
       .execute().getInput();
 
     assertJson(response).isSimilarTo(getClass().getResource("search-example.json"));
@@ -93,12 +74,9 @@ public class SearchActionTest {
 
   @Test
   public void a_user_can_search_its_own_token() {
-    userSession.logIn(GRACE_HOPPER);
-    dbClient.userTokenDao().insert(dbSession, newUserToken()
-      .setCreatedAt(1448523067221L)
-      .setName("Project scan on Travis")
-      .setLogin(GRACE_HOPPER));
-    db.commit();
+    UserDto user = db.users().insertUser();
+    db.users().insertToken(user, t -> t.setName("Project scan on Travis").setCreatedAt(1448523067221L));
+    userSession.logIn(user);
 
     SearchWsResponse response = newRequest(null);
 
@@ -106,31 +84,51 @@ public class SearchActionTest {
   }
 
   @Test
+  public void return_last_connection_date() {
+    UserDto user = db.users().insertUser();
+    UserTokenDto token1 = db.users().insertToken(user);
+    UserTokenDto token2 = db.users().insertToken(user);
+    db.getDbClient().userTokenDao().update(db.getSession(), token1.setLastConnectionDate(10_000_000_000L));
+    db.commit();
+    logInAsSystemAdministrator();
+
+    SearchWsResponse response = newRequest(user.getLogin());
+
+    assertThat(response.getUserTokensList())
+      .extracting(UserToken::getName, UserToken::hasLastConnectionDate, UserToken::getLastConnectionDate)
+      .containsExactlyInAnyOrder(
+        tuple(token1.getName(), true, formatDateTime(10_000_000_000L)),
+        tuple(token2.getName(), false, ""));
+  }
+
+  @Test
   public void fail_when_login_does_not_exist() {
     logInAsSystemAdministrator();
 
     expectedException.expect(NotFoundException.class);
-    expectedException.expectMessage("User with login 'unknown-login' not found");
+    expectedException.expectMessage("User with login 'unknown-login' doesn't exist");
 
     newRequest("unknown-login");
   }
 
   @Test
   public void throw_ForbiddenException_if_a_non_root_administrator_searches_for_tokens_of_someone_else() {
+    UserDto user = db.users().insertUser();
     userSession.logIn();
 
     expectedException.expect(ForbiddenException.class);
 
-    newRequest(GRACE_HOPPER);
+    newRequest(user.getLogin());
   }
 
   @Test
   public void throw_UnauthorizedException_if_not_logged_in() {
+    UserDto user = db.users().insertUser();
     userSession.anonymous();
 
     expectedException.expect(UnauthorizedException.class);
 
-    newRequest(GRACE_HOPPER);
+    newRequest(user.getLogin());
   }
 
   private SearchWsResponse newRequest(@Nullable String login) {

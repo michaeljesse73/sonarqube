@@ -2,204 +2,180 @@
 
 exports[`renders main branch 1`] = `
 <li
-  key="master"
+  key="branch-master"
   onMouseEnter={[Function]}
 >
-  <Tooltip
-    mouseEnterDelay={0.5}
-    overlay="master"
-    placement="right"
-  >
-    <Link
-      className="navbar-context-meta-branch-menu-item"
-      onlyActiveOnIndex={false}
-      style={Object {}}
-      to={
-        Object {
-          "pathname": "/dashboard",
-          "query": Object {
-            "id": "component",
-          },
-        }
+  <Link
+    className="navbar-context-meta-branch-menu-item"
+    onlyActiveOnIndex={false}
+    style={Object {}}
+    to={
+      Object {
+        "pathname": "/dashboard",
+        "query": Object {
+          "branch": undefined,
+          "id": "component",
+        },
       }
+    }
+  >
+    <div
+      className="navbar-context-meta-branch-menu-item-name text-ellipsis"
+      title="master"
     >
-      <div
-        className="navbar-context-meta-branch-menu-item-name text-ellipsis"
-      >
-        <BranchIcon
-          branch={
-            Object {
-              "isMain": true,
-              "name": "master",
-            }
+      <BranchIcon
+        branchLike={
+          Object {
+            "isMain": true,
+            "name": "master",
           }
-          className="little-spacer-right"
-        />
-        master
-        <div
-          className="outline-badge spacer-left"
-        >
-          branches.main_branch
-        </div>
-      </div>
+        }
+        className="little-spacer-right"
+      />
+      master
       <div
-        className="big-spacer-left note"
+        className="outline-badge spacer-left"
       >
-        <BranchStatus
-          branch={
-            Object {
-              "isMain": true,
-              "name": "master",
-            }
-          }
-          concise={true}
-        />
+        branches.main_branch
       </div>
-    </Link>
-  </Tooltip>
+    </div>
+    <div
+      className="big-spacer-left note"
+    >
+      <Connect(BranchStatus)
+        branchLike={
+          Object {
+            "isMain": true,
+            "name": "master",
+          }
+        }
+        component="component"
+      />
+    </div>
+  </Link>
 </li>
 `;
 
 exports[`renders short-living branch 1`] = `
 <li
-  key="foo"
+  key="branch-foo"
   onMouseEnter={[Function]}
 >
-  <Tooltip
-    mouseEnterDelay={0.5}
-    overlay="foo"
-    placement="right"
-  >
-    <Link
-      className="navbar-context-meta-branch-menu-item"
-      onlyActiveOnIndex={false}
-      style={Object {}}
-      to={
-        Object {
-          "pathname": "/project/issues",
-          "query": Object {
-            "branch": "foo",
-            "id": "component",
-            "resolved": "false",
-          },
-        }
+  <Link
+    className="navbar-context-meta-branch-menu-item"
+    onlyActiveOnIndex={false}
+    style={Object {}}
+    to={
+      Object {
+        "pathname": "/dashboard",
+        "query": Object {
+          "branch": "foo",
+          "id": "component",
+        },
       }
+    }
+  >
+    <div
+      className="navbar-context-meta-branch-menu-item-name text-ellipsis"
+      title="foo"
     >
-      <div
-        className="navbar-context-meta-branch-menu-item-name text-ellipsis"
-      >
-        <BranchIcon
-          branch={
-            Object {
-              "isMain": false,
-              "mergeBranch": "master",
-              "name": "foo",
-              "status": Object {
-                "bugs": 1,
-                "codeSmells": 2,
-                "vulnerabilities": 3,
-              },
-              "type": "SHORT",
-            }
+      <BranchIcon
+        branchLike={
+          Object {
+            "isMain": false,
+            "mergeBranch": "master",
+            "name": "foo",
+            "status": Object {
+              "qualityGateStatus": "ERROR",
+            },
+            "type": "SHORT",
           }
-          className="little-spacer-right big-spacer-left"
-        />
-        foo
-      </div>
-      <div
-        className="big-spacer-left note"
-      >
-        <BranchStatus
-          branch={
-            Object {
-              "isMain": false,
-              "mergeBranch": "master",
-              "name": "foo",
-              "status": Object {
-                "bugs": 1,
-                "codeSmells": 2,
-                "vulnerabilities": 3,
-              },
-              "type": "SHORT",
-            }
+        }
+        className="little-spacer-right big-spacer-left"
+      />
+      foo
+    </div>
+    <div
+      className="big-spacer-left note"
+    >
+      <Connect(BranchStatus)
+        branchLike={
+          Object {
+            "isMain": false,
+            "mergeBranch": "master",
+            "name": "foo",
+            "status": Object {
+              "qualityGateStatus": "ERROR",
+            },
+            "type": "SHORT",
           }
-          concise={true}
-        />
-      </div>
-    </Link>
-  </Tooltip>
+        }
+        component="component"
+      />
+    </div>
+  </Link>
 </li>
 `;
 
 exports[`renders short-living orhpan branch 1`] = `
 <li
-  key="foo"
+  key="branch-foo"
   onMouseEnter={[Function]}
 >
-  <Tooltip
-    mouseEnterDelay={0.5}
-    overlay="foo"
-    placement="right"
-  >
-    <Link
-      className="navbar-context-meta-branch-menu-item"
-      onlyActiveOnIndex={false}
-      style={Object {}}
-      to={
-        Object {
-          "pathname": "/project/issues",
-          "query": Object {
-            "branch": "foo",
-            "id": "component",
-            "resolved": "false",
-          },
-        }
+  <Link
+    className="navbar-context-meta-branch-menu-item"
+    onlyActiveOnIndex={false}
+    style={Object {}}
+    to={
+      Object {
+        "pathname": "/dashboard",
+        "query": Object {
+          "branch": "foo",
+          "id": "component",
+        },
       }
+    }
+  >
+    <div
+      className="navbar-context-meta-branch-menu-item-name text-ellipsis"
+      title="foo"
     >
-      <div
-        className="navbar-context-meta-branch-menu-item-name text-ellipsis"
-      >
-        <BranchIcon
-          branch={
-            Object {
-              "isMain": false,
-              "isOrphan": true,
-              "mergeBranch": "master",
-              "name": "foo",
-              "status": Object {
-                "bugs": 1,
-                "codeSmells": 2,
-                "vulnerabilities": 3,
-              },
-              "type": "SHORT",
-            }
+      <BranchIcon
+        branchLike={
+          Object {
+            "isMain": false,
+            "isOrphan": true,
+            "mergeBranch": "master",
+            "name": "foo",
+            "status": Object {
+              "qualityGateStatus": "ERROR",
+            },
+            "type": "SHORT",
           }
-          className="little-spacer-right"
-        />
-        foo
-      </div>
-      <div
-        className="big-spacer-left note"
-      >
-        <BranchStatus
-          branch={
-            Object {
-              "isMain": false,
-              "isOrphan": true,
-              "mergeBranch": "master",
-              "name": "foo",
-              "status": Object {
-                "bugs": 1,
-                "codeSmells": 2,
-                "vulnerabilities": 3,
-              },
-              "type": "SHORT",
-            }
+        }
+        className="little-spacer-right"
+      />
+      foo
+    </div>
+    <div
+      className="big-spacer-left note"
+    >
+      <Connect(BranchStatus)
+        branchLike={
+          Object {
+            "isMain": false,
+            "isOrphan": true,
+            "mergeBranch": "master",
+            "name": "foo",
+            "status": Object {
+              "qualityGateStatus": "ERROR",
+            },
+            "type": "SHORT",
           }
-          concise={true}
-        />
-      </div>
-    </Link>
-  </Tooltip>
+        }
+        component="component"
+      />
+    </div>
+  </Link>
 </li>
 `;

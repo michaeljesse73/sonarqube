@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,27 +22,61 @@ package org.sonar.db.organization;
 import java.util.Objects;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
+import org.sonar.api.server.authentication.UserIdentity;
 
 public class OrganizationDto {
+
+  public enum Subscription {
+    /**
+     * Subscription of the default organization, only for SonarQube
+     */
+    SONARQUBE,
+
+    /**
+     * Organization that has not subscribed to a paid subscription, only for SonarCloud
+     */
+    FREE,
+
+    /**
+     * Organization that subscribed to paid plan subscription, only for SonarCloud
+     */
+    PAID
+  }
+
   /** Technical unique identifier, can't be null */
   private String uuid;
-  /** Functional unique identifier, can't be null */
+
+  /**
+   * Functional unique identifier, can't be null.
+   *
+   * On personal organization (created the first time the user authenticates), the key can have the following format :
+   * - When {@link UserIdentity#getLogin()} is not null, it's a slug of the login
+   * - When {@link UserIdentity#getLogin()} is null, it's a slug of the name appended to a random number
+   *
+   * Length is set to 255 (As login length is 255, the size must be at least 255).
+   */
   private String key;
-  /** Name, can't be null */
+
+  /**
+   * Name, can't be null.
+   *
+   * Length is set to 300, as it's generated from the key when no name is provided.
+   */
   private String name;
-  /** description can be null */
+
+  /** description can't be null */
   private String description;
   /** url can be null */
   private String url;
   /** avatar url can be null */
   private String avatarUrl;
 
+  private Subscription subscription;
+
   /**
    * Flag indicated whether being root is required to be able to delete this organization.
    */
   private boolean guarded = false;
-  /** If of the user for whom the organization was created, can be null. */
-  private Integer userId;
   private Integer defaultGroupId;
   private String defaultQualityGateUuid;
   private long createdAt;
@@ -75,6 +109,7 @@ public class OrganizationDto {
     return this;
   }
 
+  @CheckForNull
   public String getDescription() {
     return description;
   }
@@ -84,6 +119,7 @@ public class OrganizationDto {
     return this;
   }
 
+  @CheckForNull
   public String getUrl() {
     return url;
   }
@@ -93,6 +129,7 @@ public class OrganizationDto {
     return this;
   }
 
+  @CheckForNull
   public String getAvatarUrl() {
     return avatarUrl;
   }
@@ -112,22 +149,21 @@ public class OrganizationDto {
   }
 
   @CheckForNull
-  public Integer getUserId() {
-    return userId;
-  }
-
-  public OrganizationDto setUserId(@Nullable Integer userId) {
-    this.userId = userId;
-    return this;
-  }
-
-  @CheckForNull
   public Integer getDefaultGroupId() {
     return defaultGroupId;
   }
 
   public OrganizationDto setDefaultGroupId(@Nullable Integer defaultGroupId) {
     this.defaultGroupId = defaultGroupId;
+    return this;
+  }
+
+  public Subscription getSubscription() {
+    return subscription;
+  }
+
+  public OrganizationDto setSubscription(Subscription subscription) {
+    this.subscription = subscription;
     return this;
   }
 
@@ -185,8 +221,8 @@ public class OrganizationDto {
       ", url='" + url + '\'' +
       ", avatarUrl='" + avatarUrl + '\'' +
       ", guarded=" + guarded +
-      ", userId=" + userId +
       ", defaultQualityGateUuid=" + defaultQualityGateUuid +
+      ", subscription=" + subscription +
       ", createdAt=" + createdAt +
       ", updatedAt=" + updatedAt +
       '}';

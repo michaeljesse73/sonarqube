@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -73,6 +73,12 @@ public class ScannerReportWriter {
     return file;
   }
 
+  public File writeComponentSignificantCode(int componentRef, Iterable<ScannerReport.LineSgnificantCode> lineSignificantCode) {
+    File file = fileStructure.fileFor(FileStructure.Domain.SGNIFICANT_CODE, componentRef);
+    Protobuf.writeStream(lineSignificantCode, file, false);
+    return file;
+  }
+
   public void appendComponentIssue(int componentRef, ScannerReport.Issue issue) {
     File file = fileStructure.fileFor(FileStructure.Domain.ISSUES, componentRef);
     try (OutputStream out = new BufferedOutputStream(new FileOutputStream(file, true))) {
@@ -82,10 +88,37 @@ public class ScannerReportWriter {
     }
   }
 
-  public File writeComponentMeasures(int componentRef, Iterable<ScannerReport.Measure> measures) {
-    File file = fileStructure.fileFor(FileStructure.Domain.MEASURES, componentRef);
-    Protobuf.writeStream(measures, file, false);
+  public File writeComponentChangedLines(int componentRef, ScannerReport.ChangedLines changedLines) {
+    File file = fileStructure.fileFor(FileStructure.Domain.CHANGED_LINES, componentRef);
+    Protobuf.write(changedLines, file);
     return file;
+  }
+
+  public void appendComponentExternalIssue(int componentRef, ScannerReport.ExternalIssue issue) {
+    File file = fileStructure.fileFor(FileStructure.Domain.EXTERNAL_ISSUES, componentRef);
+    try (OutputStream out = new BufferedOutputStream(new FileOutputStream(file, true))) {
+      issue.writeDelimitedTo(out);
+    } catch (Exception e) {
+      throw ContextException.of("Unable to write external issue", e).addContext("file", file);
+    }
+  }
+
+  public void appendAdHocRule(ScannerReport.AdHocRule adHocRule) {
+    File file = fileStructure.adHocRules();
+    try (OutputStream out = new BufferedOutputStream(new FileOutputStream(file, true))) {
+      adHocRule.writeDelimitedTo(out);
+    } catch (Exception e) {
+      throw ContextException.of("Unable to write ad hoc rule", e).addContext("file", file);
+    }
+  }
+
+  public void appendComponentMeasure(int componentRef, ScannerReport.Measure measure) {
+    File file = fileStructure.fileFor(FileStructure.Domain.MEASURES, componentRef);
+    try (OutputStream out = new BufferedOutputStream(new FileOutputStream(file, true))) {
+      measure.writeDelimitedTo(out);
+    } catch (Exception e) {
+      throw ContextException.of("Unable to write measure", e).addContext("file", file);
+    }
   }
 
   public File writeComponentChangesets(ScannerReport.Changesets changesets) {
@@ -124,21 +157,15 @@ public class ScannerReportWriter {
     return file;
   }
 
-  public File writeTests(int componentRef, Iterable<ScannerReport.Test> tests) {
-    File file = fileStructure.fileFor(FileStructure.Domain.TESTS, componentRef);
-    Protobuf.writeStream(tests, file, false);
-    return file;
-  }
-
-  public File writeCoverageDetails(int componentRef, Iterable<ScannerReport.CoverageDetail> tests) {
-    File file = fileStructure.fileFor(FileStructure.Domain.COVERAGE_DETAILS, componentRef);
-    Protobuf.writeStream(tests, file, false);
-    return file;
-  }
-
   public File writeContextProperties(Iterable<ScannerReport.ContextProperty> properties) {
     File file = fileStructure.contextProperties();
     Protobuf.writeStream(properties, file, false);
+    return file;
+  }
+
+  public File writeAnalysisWarnings(Iterable<ScannerReport.AnalysisWarning> analysisWarnings) {
+    File file = fileStructure.analysisWarnings();
+    Protobuf.writeStream(analysisWarnings, file, false);
     return file;
   }
 

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,13 +19,12 @@
  */
 import * as React from 'react';
 import { max } from 'd3-array';
-import { LineChart } from '../../../components/charts/line-chart';
-import { HistoryItem } from '../../../api/time-machine';
+import LineChart from '../../../components/charts/LineChart';
 
 const HEIGHT = 80;
 
 interface Props {
-  history: HistoryItem[];
+  history: Array<{ date: Date; value?: string }>;
   before?: Date;
   after?: Date;
 }
@@ -49,17 +48,19 @@ export default class Timeline extends React.PureComponent<Props> {
     }
 
     const data = snapshots.map((snapshot, index) => {
-      return { x: index, y: snapshot.value };
+      return { x: index, y: snapshot.value !== undefined ? Number(snapshot.value) : undefined };
     });
-    const domain = [0, max(this.props.history, d => parseFloat(d.value))];
+    const domain = [
+      0,
+      max(this.props.history, d => (d.value !== undefined ? parseFloat(d.value) : 0))
+    ] as [number, number];
     return (
       <LineChart
         data={data}
-        domain={domain}
-        interpolate="basis"
         displayBackdrop={true}
         displayPoints={false}
         displayVerticalGrid={false}
+        domain={domain}
         height={HEIGHT}
         padding={[0, 0, 0, 0]}
       />

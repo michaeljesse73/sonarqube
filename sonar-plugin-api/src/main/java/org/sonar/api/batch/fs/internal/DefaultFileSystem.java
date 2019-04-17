@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -31,11 +31,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.SortedSet;
 import java.util.TreeSet;
-import java.util.function.Function;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
-import javax.annotation.Nullable;
 import org.sonar.api.batch.fs.FilePredicate;
 import org.sonar.api.batch.fs.FilePredicates;
 import org.sonar.api.batch.fs.FileSystem;
@@ -54,7 +50,6 @@ public class DefaultFileSystem implements FileSystem {
   private Path workDir;
   private Charset encoding;
   protected final FilePredicates predicates;
-  private Function<FilePredicate, Predicate<InputFile>> defaultPredicateFactory;
 
   /**
    * Only for testing
@@ -100,11 +95,6 @@ public class DefaultFileSystem implements FileSystem {
     return this;
   }
 
-  public DefaultFileSystem setDefaultPredicate(@Nullable Function<FilePredicate, Predicate<InputFile>> defaultPredicateFactory) {
-    this.defaultPredicateFactory = defaultPredicateFactory;
-    return this;
-  }
-
   @Override
   public File workDir() {
     return workDir.toFile();
@@ -136,22 +126,13 @@ public class DefaultFileSystem implements FileSystem {
 
   }
 
-  /**
-   * Bypass default predicate to get all files/dirs indexed.
-   * Default predicate is used when some files/dirs should not be processed by sensors.
-   */
   public Iterable<InputFile> inputFiles() {
-    return OptimizedFilePredicateAdapter.create(predicates.all()).get(cache);
+    return inputFiles(predicates.all());
   }
 
   @Override
   public Iterable<InputFile> inputFiles(FilePredicate predicate) {
-    Iterable<InputFile> iterable = OptimizedFilePredicateAdapter.create(predicate).get(cache);
-    if (defaultPredicateFactory != null) {
-      return StreamSupport.stream(iterable.spliterator(), false)
-        .filter(defaultPredicateFactory.apply(predicate)).collect(Collectors.toList());
-    }
-    return iterable;
+    return OptimizedFilePredicateAdapter.create(predicate).get(cache);
   }
 
   @Override
@@ -172,16 +153,12 @@ public class DefaultFileSystem implements FileSystem {
     if (relativePath == null) {
       return null;
     }
-    return cache.inputDir(relativePath);
+    // Issues on InputDir are moved to the project, so we just return a fake InputDir for backward compatibility
+    return new DefaultInputDir("unused", relativePath).setModuleBaseDir(baseDir);
   }
 
   public DefaultFileSystem add(InputFile inputFile) {
     cache.add(inputFile);
-    return this;
-  }
-
-  public DefaultFileSystem add(DefaultInputDir inputDir) {
-    cache.add(inputDir);
     return this;
   }
 
@@ -199,14 +176,8 @@ public class DefaultFileSystem implements FileSystem {
 
     protected abstract void doAdd(InputFile inputFile);
 
-    protected abstract void doAdd(InputDir inputDir);
-
     final void add(InputFile inputFile) {
       doAdd(inputFile);
-    }
-
-    public void add(InputDir inputDir) {
-      doAdd(inputDir);
     }
 
     protected abstract SortedSet<String> languages();
@@ -217,7 +188,6 @@ public class DefaultFileSystem implements FileSystem {
    */
   private static class MapCache extends Cache {
     private final Map<String, InputFile> fileMap = new HashMap<>();
-    private final Map<String, InputDir> dirMap = new HashMap<>();
     private final SetMultimap<String, InputFile> filesByNameCache = LinkedHashMultimap.create();
     private final SetMultimap<String, InputFile> filesByExtensionCache = LinkedHashMultimap.create();
     private SortedSet<String> languages = new TreeSet<>();
@@ -230,11 +200,6 @@ public class DefaultFileSystem implements FileSystem {
     @Override
     public InputFile inputFile(String relativePath) {
       return fileMap.get(relativePath);
-    }
-
-    @Override
-    public InputDir inputDir(String relativePath) {
-      return dirMap.get(relativePath);
     }
 
     @Override
@@ -255,11 +220,6 @@ public class DefaultFileSystem implements FileSystem {
       fileMap.put(inputFile.relativePath(), inputFile);
       filesByNameCache.put(inputFile.filename(), inputFile);
       filesByExtensionCache.put(FileExtensionPredicate.getExtension(inputFile), inputFile);
-    }
-
-    @Override
-    protected void doAdd(InputDir inputDir) {
-      dirMap.put(inputDir.relativePath(), inputDir);
     }
 
     @Override

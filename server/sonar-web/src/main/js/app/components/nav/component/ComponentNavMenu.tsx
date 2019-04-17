@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,15 +20,18 @@
 import * as React from 'react';
 import { Link } from 'react-router';
 import * as classNames from 'classnames';
-import * as PropTypes from 'prop-types';
-import { Branch, Component, Extension } from '../../../types';
+import Dropdown from '../../../../components/controls/Dropdown';
 import NavBarTabs from '../../../../components/nav/NavBarTabs';
 import {
   isShortLivingBranch,
-  getBranchName,
-  isLongLivingBranch
+  isPullRequest,
+  isMainBranch,
+  getBranchLikeQuery
 } from '../../../../helpers/branches';
 import { translate } from '../../../../helpers/l10n';
+import DropdownIcon from '../../../../components/icons-components/DropdownIcon';
+import { withAppState } from '../../../../components/hoc/withAppState';
+import { isSonarCloud } from '../../../../helpers/system';
 
 const SETTINGS_URLS = [
   '/project/admin',
@@ -42,20 +45,18 @@ const SETTINGS_URLS = [
   '/project/history',
   'background_tasks',
   '/project/key',
-  '/project/deletion'
+  '/project/deletion',
+  '/project/webhooks'
 ];
 
 interface Props {
-  branch?: Branch;
-  component: Component;
+  appState: Pick<T.AppState, 'branchesEnabled'>;
+  branchLike: T.BranchLike | undefined;
+  component: T.Component;
   location?: any;
 }
 
-export default class ComponentNavMenu extends React.PureComponent<Props> {
-  static contextTypes = {
-    branchesEnabled: PropTypes.bool.isRequired
-  };
-
+export class ComponentNavMenu extends React.PureComponent<Props> {
   isProject() {
     return this.props.component.qualifier === 'TRK';
   }
@@ -77,23 +78,15 @@ export default class ComponentNavMenu extends React.PureComponent<Props> {
     return this.props.component.configuration || {};
   }
 
-  renderDashboardLink() {
-    if (isShortLivingBranch(this.props.branch)) {
-      return null;
-    }
+  getQuery = () => {
+    return { id: this.props.component.key, ...getBranchLikeQuery(this.props.branchLike) };
+  };
 
+  renderDashboardLink() {
     const pathname = this.isPortfolio() ? '/portfolio' : '/dashboard';
     return (
       <li>
-        <Link
-          to={{
-            pathname,
-            query: {
-              branch: getBranchName(this.props.branch),
-              id: this.props.component.key
-            }
-          }}
-          activeClassName="active">
+        <Link activeClassName="active" to={{ pathname, query: this.getQuery() }}>
           {translate('overview.page')}
         </Link>
       </li>
@@ -107,15 +100,7 @@ export default class ComponentNavMenu extends React.PureComponent<Props> {
 
     return (
       <li>
-        <Link
-          to={{
-            pathname: '/code',
-            query: {
-              branch: getBranchName(this.props.branch),
-              id: this.props.component.key
-            }
-          }}
-          activeClassName="active">
+        <Link activeClassName="active" to={{ pathname: '/code', query: this.getQuery() }}>
           {this.isPortfolio() || this.isApplication()
             ? translate('view_projects.page')
             : translate('code.page')}
@@ -125,21 +110,17 @@ export default class ComponentNavMenu extends React.PureComponent<Props> {
   }
 
   renderActivityLink() {
-    if (isShortLivingBranch(this.props.branch)) {
+    const { branchLike } = this.props;
+
+    if (isShortLivingBranch(branchLike) || isPullRequest(branchLike)) {
       return null;
     }
 
     return (
       <li>
         <Link
-          to={{
-            pathname: '/project/activity',
-            query: {
-              branch: getBranchName(this.props.branch),
-              id: this.props.component.key
-            }
-          }}
-          activeClassName="active">
+          activeClassName="active"
+          to={{ pathname: '/project/activity', query: this.getQuery() }}>
           {translate('project_activity.page')}
         </Link>
       </li>
@@ -147,18 +128,14 @@ export default class ComponentNavMenu extends React.PureComponent<Props> {
   }
 
   renderIssuesLink() {
+    const { location = { pathname: '' } } = this.props;
+    const isIssuesActive = location.pathname.startsWith('/project/issues');
     return (
       <li>
         <Link
-          to={{
-            pathname: '/project/issues',
-            query: {
-              branch: getBranchName(this.props.branch),
-              id: this.props.component.key,
-              resolved: 'false'
-            }
-          }}
-          activeClassName="active">
+          activeClassName="active"
+          className={classNames({ active: isIssuesActive })}
+          to={{ pathname: '/project/issues', query: { ...this.getQuery(), resolved: 'false' } }}>
           {translate('issues.page')}
         </Link>
       </li>
@@ -166,51 +143,72 @@ export default class ComponentNavMenu extends React.PureComponent<Props> {
   }
 
   renderComponentMeasuresLink() {
-    if (isShortLivingBranch(this.props.branch)) {
-      return null;
-    }
-
     return (
       <li>
         <Link
-          to={{
-            pathname: '/component_measures',
-            query: {
-              branch: getBranchName(this.props.branch),
-              id: this.props.component.key
-            }
-          }}
-          activeClassName="active">
+          activeClassName="active"
+          to={{ pathname: '/component_measures', query: this.getQuery() }}>
           {translate('layout.measures')}
         </Link>
       </li>
     );
   }
 
-  renderAdministration() {
-    const { branch } = this.props;
+  renderSecurityReportsLink() {
+    return (
+      <ul className="menu">
+        <li>
+          <Link
+            activeClassName="active"
+            to={{ pathname: '/project/security_reports/owasp_top_10', query: this.getQuery() }}>
+            {translate('security_reports.owaspTop10.page')}
+          </Link>
+        </li>
+        <li>
+          <Link
+            activeClassName="active"
+            to={{ pathname: '/project/security_reports/sans_top_25', query: this.getQuery() }}>
+            {translate('security_reports.sansTop25.page')}
+          </Link>
+        </li>
+      </ul>
+    );
+  }
 
-    if (!this.getConfiguration().showSettings || (branch && !branch.isMain)) {
+  renderSecurityReports() {
+    const { branchLike } = this.props;
+
+    if (isShortLivingBranch(branchLike) || isPullRequest(branchLike)) {
+      return null;
+    }
+
+    const { location = { pathname: '' } } = this.props;
+    const isActive = location.pathname.startsWith('/project/security_reports');
+    return (
+      <Dropdown overlay={this.renderSecurityReportsLink()} tagName="li">
+        {({ onToggleClick, open }) => (
+          <a
+            aria-expanded={open}
+            aria-haspopup="true"
+            className={classNames('dropdown-toggle', { active: isActive || open })}
+            href="#"
+            onClick={onToggleClick}>
+            {translate('layout.security_reports')}
+            <DropdownIcon className="little-spacer-left" />
+          </a>
+        )}
+      </Dropdown>
+    );
+  }
+
+  renderAdministration() {
+    const { branchLike } = this.props;
+
+    if (!this.getConfiguration().showSettings || (branchLike && !isMainBranch(branchLike))) {
       return null;
     }
 
     const isSettingsActive = SETTINGS_URLS.some(url => window.location.href.indexOf(url) !== -1);
-
-    if (isLongLivingBranch(branch)) {
-      return (
-        <li>
-          <Link
-            className={classNames({ active: isSettingsActive })}
-            id="component-navigation-admin"
-            to={{
-              pathname: '/project/settings',
-              query: { branch: getBranchName(branch), id: this.props.component.key }
-            }}>
-            {translate('branches.branch_settings')}
-          </Link>
-        </li>
-      );
-    }
 
     const adminLinks = this.renderAdministrationLinks();
     if (!adminLinks.some(link => link != null)) {
@@ -218,17 +216,23 @@ export default class ComponentNavMenu extends React.PureComponent<Props> {
     }
 
     return (
-      <li className="dropdown">
-        <a
-          className={classNames('dropdown-toggle', { active: isSettingsActive })}
-          id="component-navigation-admin"
-          data-toggle="dropdown"
-          href="#">
-          {translate('layout.settings')}&nbsp;
-          <i className="icon-dropdown" />
-        </a>
-        <ul className="dropdown-menu">{adminLinks}</ul>
-      </li>
+      <Dropdown
+        data-test="administration"
+        overlay={<ul className="menu">{adminLinks}</ul>}
+        tagName="li">
+        {({ onToggleClick, open }) => (
+          <a
+            aria-expanded={open}
+            aria-haspopup="true"
+            className={classNames('dropdown-toggle', { active: isSettingsActive || open })}
+            href="#"
+            id="component-navigation-admin"
+            onClick={onToggleClick}>
+            {translate('layout.settings')}
+            <DropdownIcon className="little-spacer-left" />
+          </a>
+        )}
+      </Dropdown>
     );
   }
 
@@ -243,6 +247,7 @@ export default class ComponentNavMenu extends React.PureComponent<Props> {
       this.renderPermissionsLink(),
       this.renderBackgroundTasksLink(),
       this.renderUpdateKeyLink(),
+      this.renderWebhooksLink(),
       ...this.renderAdminExtensions(),
       this.renderDeletionLink()
     ];
@@ -255,14 +260,8 @@ export default class ComponentNavMenu extends React.PureComponent<Props> {
     return (
       <li key="settings">
         <Link
-          to={{
-            pathname: '/project/settings',
-            query: {
-              branch: getBranchName(this.props.branch),
-              id: this.props.component.key
-            }
-          }}
-          activeClassName="active">
+          activeClassName="active"
+          to={{ pathname: '/project/settings', query: this.getQuery() }}>
           {translate('project_settings.page')}
         </Link>
       </li>
@@ -271,7 +270,7 @@ export default class ComponentNavMenu extends React.PureComponent<Props> {
 
   renderBranchesLink() {
     if (
-      !this.context.branchesEnabled ||
+      !this.props.appState.branchesEnabled ||
       !this.isProject() ||
       !this.getConfiguration().showSettings
     ) {
@@ -281,8 +280,8 @@ export default class ComponentNavMenu extends React.PureComponent<Props> {
     return (
       <li key="branches">
         <Link
-          to={{ pathname: '/project/branches', query: { id: this.props.component.key } }}
-          activeClassName="active">
+          activeClassName="active"
+          to={{ pathname: '/project/branches', query: { id: this.props.component.key } }}>
           {translate('project_branches.page')}
         </Link>
       </li>
@@ -296,8 +295,8 @@ export default class ComponentNavMenu extends React.PureComponent<Props> {
     return (
       <li key="profiles">
         <Link
-          to={{ pathname: '/project/quality_profiles', query: { id: this.props.component.key } }}
-          activeClassName="active">
+          activeClassName="active"
+          to={{ pathname: '/project/quality_profiles', query: { id: this.props.component.key } }}>
           {translate('project_quality_profiles.page')}
         </Link>
       </li>
@@ -311,8 +310,8 @@ export default class ComponentNavMenu extends React.PureComponent<Props> {
     return (
       <li key="quality_gate">
         <Link
-          to={{ pathname: '/project/quality_gate', query: { id: this.props.component.key } }}
-          activeClassName="active">
+          activeClassName="active"
+          to={{ pathname: '/project/quality_gate', query: { id: this.props.component.key } }}>
           {translate('project_quality_gate.page')}
         </Link>
       </li>
@@ -320,14 +319,14 @@ export default class ComponentNavMenu extends React.PureComponent<Props> {
   }
 
   renderCustomMeasuresLink() {
-    if (!this.getConfiguration().showManualMeasures) {
+    if (isSonarCloud() || !this.getConfiguration().showManualMeasures) {
       return null;
     }
     return (
       <li key="custom_measures">
         <Link
-          to={{ pathname: '/custom_measures', query: { id: this.props.component.key } }}
-          activeClassName="active">
+          activeClassName="active"
+          to={{ pathname: '/custom_measures', query: { id: this.props.component.key } }}>
           {translate('custom_measures.page')}
         </Link>
       </li>
@@ -341,8 +340,8 @@ export default class ComponentNavMenu extends React.PureComponent<Props> {
     return (
       <li key="links">
         <Link
-          to={{ pathname: '/project/links', query: { id: this.props.component.key } }}
-          activeClassName="active">
+          activeClassName="active"
+          to={{ pathname: '/project/links', query: { id: this.props.component.key } }}>
           {translate('project_links.page')}
         </Link>
       </li>
@@ -356,8 +355,8 @@ export default class ComponentNavMenu extends React.PureComponent<Props> {
     return (
       <li key="permissions">
         <Link
-          to={{ pathname: '/project_roles', query: { id: this.props.component.key } }}
-          activeClassName="active">
+          activeClassName="active"
+          to={{ pathname: '/project_roles', query: { id: this.props.component.key } }}>
           {translate('permissions.page')}
         </Link>
       </li>
@@ -371,8 +370,8 @@ export default class ComponentNavMenu extends React.PureComponent<Props> {
     return (
       <li key="background_tasks">
         <Link
-          to={{ pathname: '/project/background_tasks', query: { id: this.props.component.key } }}
-          activeClassName="active">
+          activeClassName="active"
+          to={{ pathname: '/project/background_tasks', query: { id: this.props.component.key } }}>
           {translate('background_tasks.page')}
         </Link>
       </li>
@@ -386,9 +385,24 @@ export default class ComponentNavMenu extends React.PureComponent<Props> {
     return (
       <li key="update_key">
         <Link
-          to={{ pathname: '/project/key', query: { id: this.props.component.key } }}
-          activeClassName="active">
+          activeClassName="active"
+          to={{ pathname: '/project/key', query: { id: this.props.component.key } }}>
           {translate('update_key.page')}
+        </Link>
+      </li>
+    );
+  }
+
+  renderWebhooksLink() {
+    if (!this.getConfiguration().showSettings || !this.isProject()) {
+      return null;
+    }
+    return (
+      <li key="webhooks">
+        <Link
+          activeClassName="active"
+          to={{ pathname: '/project/webhooks', query: { id: this.props.component.key } }}>
+          {translate('webhooks.page')}
         </Link>
       </li>
     );
@@ -408,19 +422,20 @@ export default class ComponentNavMenu extends React.PureComponent<Props> {
     return (
       <li key="project_delete">
         <Link
-          to={{ pathname: '/project/deletion', query: { id: this.props.component.key } }}
-          activeClassName="active">
+          activeClassName="active"
+          to={{ pathname: '/project/deletion', query: { id: this.props.component.key } }}>
           {translate('deletion.page')}
         </Link>
       </li>
     );
   }
 
-  renderExtension = ({ key, name }: Extension, isAdmin: boolean) => {
+  renderExtension = ({ key, name }: T.Extension, isAdmin: boolean) => {
     const pathname = isAdmin ? `/project/admin/extension/${key}` : `/project/extension/${key}`;
+    const query = { id: this.props.component.key, qualifier: this.props.component.qualifier };
     return (
       <li key={key}>
-        <Link to={{ pathname, query: { id: this.props.component.key } }} activeClassName="active">
+        <Link activeClassName="active" to={{ pathname, query }}>
           {name}
         </Link>
       </li>
@@ -428,7 +443,7 @@ export default class ComponentNavMenu extends React.PureComponent<Props> {
   };
 
   renderAdminExtensions() {
-    if (this.props.branch && !this.props.branch.isMain) {
+    if (this.props.branchLike && !isMainBranch(this.props.branchLike)) {
       return [];
     }
     const extensions = this.getConfiguration().extensions || [];
@@ -437,22 +452,28 @@ export default class ComponentNavMenu extends React.PureComponent<Props> {
 
   renderExtensions() {
     const extensions = this.props.component.extensions || [];
-    if (!extensions.length || (this.props.branch && !this.props.branch.isMain)) {
+    if (!extensions.length || (this.props.branchLike && !isMainBranch(this.props.branchLike))) {
       return null;
     }
 
     return (
-      <li className="dropdown">
-        <a
-          className="dropdown-toggle"
-          id="component-navigation-more"
-          data-toggle="dropdown"
-          href="#">
-          {translate('more')}&nbsp;
-          <i className="icon-dropdown" />
-        </a>
-        <ul className="dropdown-menu">{extensions.map(e => this.renderExtension(e, false))}</ul>
-      </li>
+      <Dropdown
+        data-test="extensions"
+        overlay={<ul className="menu">{extensions.map(e => this.renderExtension(e, false))}</ul>}
+        tagName="li">
+        {({ onToggleClick, open }) => (
+          <a
+            aria-expanded={open}
+            aria-haspopup="true"
+            className={classNames('dropdown-toggle', { active: open })}
+            href="#"
+            id="component-navigation-more"
+            onClick={onToggleClick}>
+            {translate('more')}
+            <DropdownIcon className="little-spacer-left" />
+          </a>
+        )}
+      </Dropdown>
     );
   }
 
@@ -461,6 +482,7 @@ export default class ComponentNavMenu extends React.PureComponent<Props> {
       <NavBarTabs>
         {this.renderDashboardLink()}
         {this.renderIssuesLink()}
+        {this.renderSecurityReports()}
         {this.renderComponentMeasuresLink()}
         {this.renderCodeLink()}
         {this.renderActivityLink()}
@@ -470,3 +492,5 @@ export default class ComponentNavMenu extends React.PureComponent<Props> {
     );
   }
 }
+
+export default withAppState(ComponentNavMenu);

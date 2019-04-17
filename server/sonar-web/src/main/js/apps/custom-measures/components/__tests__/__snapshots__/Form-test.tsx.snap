@@ -4,6 +4,7 @@ exports[`should render form 1`] = `
 <Modal
   contentLabel="header"
   onRequestClose={[MockFunction]}
+  size="small"
 >
   <form
     onSubmit={[Function]}
@@ -83,22 +84,19 @@ exports[`should render form 1`] = `
         loading={false}
         timeout={100}
       />
-      <button
+      <SubmitButton
         disabled={true}
         id="create-custom-measure-submit"
-        type="submit"
       >
         confirmButtonText
-      </button>
-      <button
-        className="button-link"
+      </SubmitButton>
+      <ResetButtonLink
         disabled={false}
         id="create-custom-measure-cancel"
         onClick={[Function]}
-        type="reset"
       >
         cancel
-      </button>
+      </ResetButtonLink>
     </footer>
   </form>
 </Modal>
@@ -108,6 +106,7 @@ exports[`should render form 2`] = `
 <Modal
   contentLabel="header"
   onRequestClose={[MockFunction]}
+  size="small"
 >
   <form
     onSubmit={[Function]}
@@ -136,8 +135,9 @@ exports[`should render form 2`] = `
           </em>
         </label>
         <Select
-          autofocus={true}
+          autoFocus={true}
           clearable={false}
+          id="create-custom-measure-metric"
           onChange={[Function]}
           options={
             Array [
@@ -197,22 +197,19 @@ exports[`should render form 2`] = `
         loading={false}
         timeout={100}
       />
-      <button
+      <SubmitButton
         disabled={false}
         id="create-custom-measure-submit"
-        type="submit"
       >
         confirmButtonText
-      </button>
-      <button
-        className="button-link"
+      </SubmitButton>
+      <ResetButtonLink
         disabled={false}
         id="create-custom-measure-cancel"
         onClick={[Function]}
-        type="reset"
       >
         cancel
-      </button>
+      </ResetButtonLink>
     </footer>
   </form>
 </Modal>

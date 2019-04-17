@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -43,8 +43,6 @@ caption,
 cite,
 code,
 dfn,
-em,
-strong,
 th,
 var {
   font-style: normal;
@@ -83,6 +81,10 @@ textarea {
   font-family: inherit;
 }
 
+textarea {
+  min-height: 40px;
+}
+
 /*Remove button padding in FF*/
 select::-moz-focus-inner,
 input::-moz-focus-inner,
@@ -108,6 +110,7 @@ tt {
 svg,
 img {
   vertical-align: top;
+  overflow: visible;
 }
 
 hr {

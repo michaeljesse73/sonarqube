@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,7 +20,7 @@
 import * as React from 'react';
 import { Link } from 'react-router';
 import { sortBy } from 'lodash';
-import { isSameMinute, startOfMinute } from 'date-fns';
+import * as isSameMinute from 'date-fns/is_same_minute';
 import ChangesList from './ChangesList';
 import DateTimeFormatter from '../../../components/intl/DateTimeFormatter';
 import { translate } from '../../../helpers/l10n';
@@ -38,7 +38,7 @@ export default function Changelog(props: Props) {
   const sortedRows = sortBy(
     props.events,
     // sort events by date, rounded to a minute, recent events first
-    e => -Number(startOfMinute(parseDate(e.date))),
+    e => -Number(parseDate(e.date)),
     e => e.action
   );
 
@@ -58,7 +58,7 @@ export default function Changelog(props: Props) {
     const className = 'js-profile-changelog-event ' + (isEvenRow ? 'even' : 'odd');
 
     return (
-      <tr key={index} className={className}>
+      <tr className={className} key={index}>
         <td className="thin nowrap">{!isBulkChange && <DateTimeFormatter date={event.date} />}</td>
 
         <td className="thin nowrap">
@@ -89,9 +89,7 @@ export default function Changelog(props: Props) {
     <table className="data zebra-hover">
       <thead>
         <tr>
-          <th className="thin nowrap">
-            {translate('date')} <i className="icon-sort-desc" />
-          </th>
+          <th className="thin nowrap">{translate('date')}</th>
           <th className="thin nowrap">{translate('user')}</th>
           <th className="thin nowrap">{translate('action')}</th>
           <th>{translate('rule')}</th>

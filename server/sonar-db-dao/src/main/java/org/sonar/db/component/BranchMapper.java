@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,6 +21,7 @@ package org.sonar.db.component;
 
 import java.util.Collection;
 import java.util.List;
+import javax.annotation.Nullable;
 import org.apache.ibatis.annotations.Param;
 
 public interface BranchMapper {
@@ -31,7 +32,9 @@ public interface BranchMapper {
 
   int updateMainBranchName(@Param("projectUuid") String projectUuid, @Param("newBranchName") String newBranchName, @Param("now") long now);
 
-  BranchDto selectByKey(@Param("projectUuid") String projectUuid, @Param("key") String key);
+  int updateManualBaseline(@Param("uuid") String uuid, @Nullable @Param("analysisUuid") String analysisUuid, @Param("now") long now);
+
+  BranchDto selectByKey(@Param("projectUuid") String projectUuid, @Param("key") String key, @Param("keyType") KeyType keyType);
 
   BranchDto selectByUuid(@Param("uuid") String uuid);
 
@@ -40,4 +43,6 @@ public interface BranchMapper {
   List<BranchDto> selectByUuids(@Param("uuids") Collection<String> uuids);
 
   long countNonMainBranches();
+
+  long countByTypeAndCreationDate(@Param("branchType")String branchType, @Param("sinceDate") long sinceDate);
 }

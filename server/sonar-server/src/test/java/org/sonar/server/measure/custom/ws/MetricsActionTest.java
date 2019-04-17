@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -23,7 +23,6 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
-import org.sonar.api.config.internal.MapSettings;
 import org.sonar.api.measures.Metric;
 import org.sonar.api.utils.System2;
 import org.sonar.api.web.UserRole;
@@ -38,8 +37,6 @@ import org.sonar.server.component.TestComponentFinder;
 import org.sonar.server.es.EsTester;
 import org.sonar.server.exceptions.ForbiddenException;
 import org.sonar.server.tester.UserSessionRule;
-import org.sonar.server.user.index.UserDoc;
-import org.sonar.server.user.index.UserIndexDefinition;
 import org.sonar.server.ws.WsTester;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -48,13 +45,12 @@ import static org.sonar.db.metric.MetricTesting.newMetricDto;
 import static org.sonar.server.measure.custom.ws.CustomMeasuresWs.ENDPOINT;
 import static org.sonar.server.measure.custom.ws.MetricsAction.ACTION;
 
-
 public class MetricsActionTest {
   private static final String DEFAULT_PROJECT_UUID = "project-uuid";
   private static final String DEFAULT_PROJECT_KEY = "project-key";
 
   @Rule
-  public EsTester es = new EsTester(new UserIndexDefinition(new MapSettings().asConfig()));
+  public EsTester es = EsTester.create();
   @Rule
   public ExpectedException expectedException = ExpectedException.none();
   @Rule
@@ -62,22 +58,16 @@ public class MetricsActionTest {
   @Rule
   public DbTester db = DbTester.create(System2.INSTANCE);
 
-  final DbClient dbClient = db.getDbClient();
-  final DbSession dbSession = db.getSession();
-
-  WsTester ws;
-  ComponentDto defaultProject;
+  private final DbClient dbClient = db.getDbClient();
+  private final DbSession dbSession = db.getSession();
+  private ComponentDto defaultProject;
+  private WsTester ws;
 
   @Before
   public void setUp() throws Exception {
-    es.putDocuments(UserIndexDefinition.INDEX_TYPE_USER.getIndex(), UserIndexDefinition.INDEX_TYPE_USER.getType(), new UserDoc()
-      .setLogin("login")
-      .setName("Login")
-      .setEmail("login@login.com")
-      .setActive(true));
-    ws = new WsTester(new CustomMeasuresWs(new MetricsAction(dbClient, userSession, TestComponentFinder.from(db))));
     defaultProject = insertDefaultProject();
     userSession.logIn().addProjectPermission(UserRole.ADMIN, defaultProject);
+    ws = new WsTester(new CustomMeasuresWs(new MetricsAction(dbClient, userSession, TestComponentFinder.from(db))));
   }
 
   @Test

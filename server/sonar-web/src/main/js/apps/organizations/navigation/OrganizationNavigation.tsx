@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,25 +18,40 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import OrganizationNavigationHeaderContainer from './OrganizationNavigationHeaderContainer';
+import OrganizationNavigationHeader from './OrganizationNavigationHeader';
 import OrganizationNavigationMeta from './OrganizationNavigationMeta';
-import OrganizationNavigationMenu from './OrganizationNavigationMenu';
+import OrganizationNavigationMenuContainer from './OrganizationNavigationMenuContainer';
 import * as theme from '../../../app/theme';
 import ContextNavBar from '../../../components/nav/ContextNavBar';
-import { Organization } from '../../../app/types';
-import './OrganizationNavigation.css';
 
 interface Props {
+  currentUser: T.CurrentUser;
   location: { pathname: string };
-  organization: Organization;
+  organization: T.Organization;
+  userOrganizations: T.Organization[];
 }
 
-export default function OrganizationNavigation({ organization, location }: Props) {
+export default function OrganizationNavigation({
+  currentUser,
+  location,
+  organization,
+  userOrganizations
+}: Props) {
   return (
-    <ContextNavBar id="context-navigation" height={theme.contextNavHeightRaw}>
-      <OrganizationNavigationHeaderContainer organization={organization} />
-      <OrganizationNavigationMeta organization={organization} />
-      <OrganizationNavigationMenu location={location} organization={organization} />
+    <ContextNavBar height={theme.contextNavHeightRaw} id="context-navigation">
+      <div className="navbar-context-justified">
+        <OrganizationNavigationHeader
+          currentUser={currentUser}
+          organization={organization}
+          organizations={userOrganizations}
+        />
+        <OrganizationNavigationMeta
+          currentUser={currentUser}
+          organization={organization}
+          userOrganizations={userOrganizations}
+        />
+      </div>
+      <OrganizationNavigationMenuContainer location={location} organization={organization} />
     </ContextNavBar>
   );
 }

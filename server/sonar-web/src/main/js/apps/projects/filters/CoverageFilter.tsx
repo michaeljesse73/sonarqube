@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -33,7 +33,7 @@ export interface Props {
   onQueryChange: (change: RawQuery) => void;
   organization?: { key: string };
   property?: string;
-  query: { [x: string]: any };
+  query: T.Dict<any>;
   value?: any;
 }
 
@@ -42,20 +42,20 @@ export default function CoverageFilter(props: Props) {
 
   return (
     <Filter
-      facet={props.facet}
-      maxFacetValue={props.maxFacetValue}
-      onQueryChange={props.onQueryChange}
-      value={props.value}
-      property={property}
       className={props.className}
-      options={[1, 2, 3, 4, 5, 6]}
-      query={props.query}
-      renderOption={renderOption}
-      organization={props.organization}
+      facet={props.facet}
       getFacetValueForOption={getFacetValueForOption}
+      header={<FilterHeader name={translate('metric_domain.Coverage')} />}
       highlightUnder={1}
       highlightUnderMax={5}
-      header={<FilterHeader name={translate('metric_domain.Coverage')} />}
+      maxFacetValue={props.maxFacetValue}
+      onQueryChange={props.onQueryChange}
+      options={[1, 2, 3, 4, 5, 6]}
+      organization={props.organization}
+      property={property}
+      query={props.query}
+      renderOption={renderOption}
+      value={props.value}
     />
   );
 }
@@ -70,9 +70,9 @@ function renderOption(option: number, selected: boolean) {
     <span>
       {option < 6 && (
         <CoverageRating
-          value={getCoverageRatingAverageValue(option)}
-          size="small"
           muted={!selected}
+          size="small"
+          value={getCoverageRatingAverageValue(option)}
         />
       )}
       <span className="spacer-left">

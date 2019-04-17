@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -17,7 +17,6 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-
 package org.sonar.server.authentication;
 
 import java.io.IOException;
@@ -28,13 +27,13 @@ import static java.lang.String.format;
 import static java.net.URLEncoder.encode;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-class AuthenticationRedirection {
+public class AuthenticationRedirection {
 
   private AuthenticationRedirection() {
     // Only static methods
   }
 
-  static String encodeMessage(String message) {
+  public static String encodeMessage(String message) {
     try {
       return encode(message, UTF_8.name());
     } catch (UnsupportedEncodingException e) {
@@ -42,7 +41,7 @@ class AuthenticationRedirection {
     }
   }
 
-  static void redirectTo(HttpServletResponse response, String url) {
+  public static void redirectTo(HttpServletResponse response, String url) {
     try {
       response.sendRedirect(url);
     } catch (IOException e) {

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -29,34 +29,41 @@ import org.sonar.api.internal.SonarRuntimeImpl;
 import org.sonar.api.utils.System2;
 import org.sonar.api.utils.Version;
 import org.sonar.api.utils.internal.TempFolderCleaner;
-import org.sonar.server.config.ConfigurationProvider;
 import org.sonar.core.config.CorePropertyDefinitions;
+import org.sonar.core.extension.CoreExtensionRepositoryImpl;
+import org.sonar.core.extension.CoreExtensionsLoader;
 import org.sonar.core.util.UuidFactoryImpl;
 import org.sonar.db.DBSessionsImpl;
 import org.sonar.db.DaoModule;
-import org.sonar.db.DatabaseChecker;
 import org.sonar.db.DbClient;
 import org.sonar.db.DefaultDatabase;
+import org.sonar.db.MyBatis;
 import org.sonar.db.purge.PurgeProfiler;
 import org.sonar.process.NetworkUtilsImpl;
 import org.sonar.process.logging.LogbackHelper;
 import org.sonar.server.app.ProcessCommandWrapperImpl;
 import org.sonar.server.app.RestartFlagHolderImpl;
 import org.sonar.server.app.WebServerProcessLogging;
+import org.sonar.server.config.ConfigurationProvider;
+import org.sonar.server.es.EsModule;
 import org.sonar.server.issue.index.IssueIndex;
+import org.sonar.server.permission.index.WebAuthorizationTypeSupport;
 import org.sonar.server.platform.LogServerVersion;
 import org.sonar.server.platform.Platform;
 import org.sonar.server.platform.ServerFileSystemImpl;
 import org.sonar.server.platform.TempFolderProvider;
 import org.sonar.server.platform.UrlSettings;
+import org.sonar.server.platform.WebCoreExtensionsInstaller;
 import org.sonar.server.platform.WebServerImpl;
 import org.sonar.server.platform.db.EmbeddedDatabaseFactory;
 import org.sonar.server.rule.index.RuleIndex;
-import org.sonar.server.search.EsSearchModule;
 import org.sonar.server.setting.ThreadLocalSettings;
 import org.sonar.server.user.SystemPasscodeImpl;
 import org.sonar.server.user.ThreadLocalUserSession;
 import org.sonar.server.util.OkHttpClientProvider;
+
+import static org.sonar.core.extension.CoreExtensionsInstaller.noAdditionalSideFilter;
+import static org.sonar.core.extension.PlatformLevelPredicates.hasPlatformLevel;
 
 public class PlatformLevel1 extends PlatformLevel {
   private final Platform platform;
@@ -91,10 +98,7 @@ public class PlatformLevel1 extends PlatformLevel {
       LogbackHelper.class,
       WebServerProcessLogging.class,
       DefaultDatabase.class,
-      DatabaseChecker.class,
-      // must instantiate deprecated class in 5.2 and only this one (and not its replacement)
-      // to avoid having two SqlSessionFactory instances
-      org.sonar.core.persistence.MyBatis.class,
+      MyBatis.class,
       PurgeProfiler.class,
       ServerFileSystemImpl.class,
       TempFolderCleaner.class,
@@ -112,7 +116,8 @@ public class PlatformLevel1 extends PlatformLevel {
       DaoModule.class,
 
       // Elasticsearch
-      EsSearchModule.class,
+      WebAuthorizationTypeSupport.class,
+      EsModule.class,
 
       // rules/qprofiles
       RuleIndex.class,
@@ -121,8 +126,10 @@ public class PlatformLevel1 extends PlatformLevel {
       IssueIndex.class,
 
       new OkHttpClientProvider(),
-      // Classes kept for backward compatibility of plugins/libs (like sonar-license) that are directly calling classes from the core
-      org.sonar.core.properties.PropertiesDao.class);
+
+      CoreExtensionRepositoryImpl.class,
+      CoreExtensionsLoader.class,
+      WebCoreExtensionsInstaller.class);
     addAll(CorePropertyDefinitions.all());
 
     // cluster
@@ -135,5 +142,15 @@ public class PlatformLevel1 extends PlatformLevel {
         add(extraRootComponent);
       }
     }
+  }
+
+  @Override
+  public PlatformLevel start() {
+    get(CoreExtensionsLoader.class)
+      .load();
+    get(WebCoreExtensionsInstaller.class)
+      .install(getContainer(), hasPlatformLevel(1), noAdditionalSideFilter());
+
+    return super.start();
   }
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -35,6 +35,7 @@ public class XooSonarWayProfile extends ProfileDefinition {
     profile.activateRule(Rule.create(XooRulesDefinition.XOO_REPOSITORY, HasTagSensor.RULE_KEY), RulePriority.MAJOR);
     profile.activateRule(Rule.create(XooRulesDefinition.XOO_REPOSITORY, OneIssuePerLineSensor.RULE_KEY), RulePriority.INFO);
     profile.activateRule(Rule.create(XooRulesDefinition.XOO_REPOSITORY, OneIssuePerFileSensor.RULE_KEY), RulePriority.CRITICAL);
+    profile.activateRule(Rule.create(XooRulesDefinition.XOO_REPOSITORY, HotspotSensor.RULE_KEY), RulePriority.CRITICAL);
 
     return profile;
   }

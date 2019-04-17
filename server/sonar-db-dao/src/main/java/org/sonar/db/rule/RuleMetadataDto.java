@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -26,6 +26,7 @@ import java.util.TreeSet;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 import org.apache.commons.lang.StringUtils;
+import org.sonar.api.rules.RuleType;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
@@ -33,13 +34,37 @@ public class RuleMetadataDto {
   private int ruleId;
   private String organizationUuid;
   private String noteData;
-  private String noteUserLogin;
+  private String noteUserUuid;
   private Long noteCreatedAt;
   private Long noteUpdatedAt;
   private String remediationFunction;
   private String remediationGapMultiplier;
   private String remediationBaseEffort;
   private String tags;
+
+  /**
+   * Name of on ad hoc rule.
+   * When {@link RuleDefinitionDto#isAdHoc} is true, this field should always be set
+   */
+  private String adHocName;
+
+  /**
+   * Optional description of on ad hoc rule.
+   */
+  private String adHocDescription;
+
+  /**
+   * Severity of on ad hoc rule.
+   * When {@link RuleDefinitionDto#isAdHoc} is true, this field should always be set
+   */
+  private String adHocSeverity;
+
+  /**
+   * Type of on ad hoc rule.
+   * When {@link RuleDefinitionDto#isAdHoc} is true, this field should always be set
+   */
+  private Integer adHocType;
+
   private long createdAt;
   private long updatedAt;
 
@@ -72,12 +97,12 @@ public class RuleMetadataDto {
   }
 
   @CheckForNull
-  public String getNoteUserLogin() {
-    return noteUserLogin;
+  public String getNoteUserUuid() {
+    return noteUserUuid;
   }
 
-  public RuleMetadataDto setNoteUserLogin(@Nullable String noteUserLogin) {
-    this.noteUserLogin = noteUserLogin;
+  public RuleMetadataDto setNoteUserUuid(@Nullable String noteUserUuid) {
+    this.noteUserUuid = noteUserUuid;
     return this;
   }
 
@@ -154,6 +179,51 @@ public class RuleMetadataDto {
     tags = s;
   }
 
+  @CheckForNull
+  public String getAdHocName() {
+    return adHocName;
+  }
+
+  public RuleMetadataDto setAdHocName(@Nullable String adHocName) {
+    this.adHocName = adHocName;
+    return this;
+  }
+
+  @CheckForNull
+  public String getAdHocDescription() {
+    return adHocDescription;
+  }
+
+  public RuleMetadataDto setAdHocDescription(@Nullable String adHocDescription) {
+    this.adHocDescription = adHocDescription;
+    return this;
+  }
+
+  @CheckForNull
+  public String getAdHocSeverity() {
+    return adHocSeverity;
+  }
+
+  public RuleMetadataDto setAdHocSeverity(@Nullable String adHocSeverity) {
+    this.adHocSeverity = adHocSeverity;
+    return this;
+  }
+
+  @CheckForNull
+  public Integer getAdHocType() {
+    return adHocType;
+  }
+
+  public RuleMetadataDto setAdHocType(@Nullable Integer adHocType) {
+    this.adHocType = adHocType;
+    return this;
+  }
+
+  public RuleMetadataDto setAdHocType(@Nullable RuleType adHocType) {
+    setAdHocType(adHocType != null ? adHocType.getDbConstant() : null);
+    return this;
+  }
+
   public long getCreatedAt() {
     return createdAt;
   }
@@ -178,7 +248,7 @@ public class RuleMetadataDto {
       "ruleId=" + ruleId +
       ", organizationUuid='" + organizationUuid + '\'' +
       ", noteData='" + noteData + '\'' +
-      ", noteUserLogin='" + noteUserLogin + '\'' +
+      ", noteUserUuid='" + noteUserUuid + '\'' +
       ", noteCreatedAt=" + noteCreatedAt +
       ", noteUpdatedAt=" + noteUpdatedAt +
       ", remediationFunction='" + remediationFunction + '\'' +

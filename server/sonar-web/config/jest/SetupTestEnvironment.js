@@ -1,7 +1,7 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2016 SonarSource SA
- * mailto:contact AT sonarsource DOT com
+ * Copyright (C) 2009-2019 SonarSource SA
+ * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -23,8 +23,6 @@ window.t = window.tp = function() {
   return args.join('.');
 };
 
-// Fix for https://github.com/facebook/jest/issues/4545
-// Try to remove when jest 21.3.0 is out
-window.requestAnimationFrame = function(callback) {
-  setTimeout(callback, 0);
-};
+const content = document.createElement('div');
+content.id = 'content';
+document.documentElement.appendChild(content);

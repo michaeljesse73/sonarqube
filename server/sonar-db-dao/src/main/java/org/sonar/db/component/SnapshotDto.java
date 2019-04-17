@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,6 +24,7 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.commons.lang.StringUtils.trimToNull;
 
 public final class SnapshotDto {
 
@@ -33,6 +34,7 @@ public final class SnapshotDto {
   public static final String STATUS_UNPROCESSED = "U";
   public static final String STATUS_PROCESSED = "P";
   public static final int MAX_VERSION_LENGTH = 100;
+  public static final int MAX_BUILD_STRING_LENGTH = 100;
 
   private Long id;
   private String uuid;
@@ -40,9 +42,10 @@ public final class SnapshotDto {
   private Long createdAt;
   private Long buildDate;
   private String status = STATUS_UNPROCESSED;
-  private Integer purgeStatus;
   private Boolean last;
-  private String version;
+  // maps to "version" column in the table
+  private String projectVersion;
+  private String buildString;
   private String periodMode;
   private String periodParam;
   private Long periodDate;
@@ -92,16 +95,6 @@ public final class SnapshotDto {
     return this;
   }
 
-  @CheckForNull
-  public Integer getPurgeStatus() {
-    return purgeStatus;
-  }
-
-  public SnapshotDto setPurgeStatus(@Nullable Integer purgeStatus) {
-    this.purgeStatus = purgeStatus;
-    return this;
-  }
-
   public Boolean getLast() {
     return last;
   }
@@ -111,21 +104,47 @@ public final class SnapshotDto {
     return this;
   }
 
-  /**
-   * Version is only available on projects and modules
-   */
-  @CheckForNull
-  public String getVersion() {
-    return version;
+  private static void checkLength(int maxLength, @Nullable String s, String label) {
+    if (s != null) {
+      checkArgument(s.length() <= maxLength,
+        "%s length (%s) is longer than the maximum authorized (%s). '%s' was provided.", label, s.length(), maxLength, s);
+    }
   }
 
-  public SnapshotDto setVersion(@Nullable String version) {
-    if (version != null) {
-      checkArgument(version.length() <= MAX_VERSION_LENGTH,
-        "Event name length (%s) is longer than the maximum authorized (%s). '%s' was provided.", version.length(), MAX_VERSION_LENGTH, version);
-    }
-    this.version = version;
+  public SnapshotDto setProjectVersion(@Nullable String projectVersion) {
+    checkLength(MAX_VERSION_LENGTH, projectVersion, "projectVersion");
+    this.projectVersion = projectVersion;
     return this;
+  }
+
+  @CheckForNull
+  public String getProjectVersion() {
+    return projectVersion;
+  }
+
+  /**
+   * Used by MyBatis
+   */
+  private void setRawProjectVersion(@Nullable String projectVersion) {
+    this.projectVersion = trimToNull(projectVersion);
+  }
+
+  @CheckForNull
+  public String getBuildString() {
+    return buildString;
+  }
+
+  public SnapshotDto setBuildString(@Nullable String buildString) {
+    checkLength(MAX_BUILD_STRING_LENGTH, buildString, "buildString");
+    this.buildString = buildString;
+    return this;
+  }
+
+  /**
+   * Used by MyBatis
+   */
+  private void setRawBuildString(@Nullable String buildString) {
+    this.buildString = trimToNull(buildString);
   }
 
   public SnapshotDto setPeriodMode(@Nullable String p) {
@@ -185,9 +204,9 @@ public final class SnapshotDto {
       Objects.equals(createdAt, that.createdAt) &&
       Objects.equals(buildDate, that.buildDate) &&
       Objects.equals(status, that.status) &&
-      Objects.equals(purgeStatus, that.purgeStatus) &&
       Objects.equals(last, that.last) &&
-      Objects.equals(version, that.version) &&
+      Objects.equals(projectVersion, that.projectVersion) &&
+      Objects.equals(buildString, that.buildString) &&
       Objects.equals(periodMode, that.periodMode) &&
       Objects.equals(periodParam, that.periodParam) &&
       Objects.equals(periodDate, that.periodDate);
@@ -195,7 +214,7 @@ public final class SnapshotDto {
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, uuid, componentUuid, createdAt, buildDate, status, purgeStatus, last, version, periodMode, periodParam, periodDate);
+    return Objects.hash(id, uuid, componentUuid, createdAt, buildDate, status, last, projectVersion, buildString, periodMode, periodParam, periodDate);
   }
 
   @Override
@@ -207,9 +226,9 @@ public final class SnapshotDto {
       ", createdAt=" + createdAt +
       ", buildDate=" + buildDate +
       ", status='" + status + '\'' +
-      ", purgeStatus=" + purgeStatus +
       ", last=" + last +
-      ", version='" + version + '\'' +
+      ", projectVersion='" + projectVersion + '\'' +
+      ", buildString='" + buildString + '\'' +
       ", periodMode='" + periodMode + '\'' +
       ", periodParam='" + periodParam + '\'' +
       ", periodDate=" + periodDate +

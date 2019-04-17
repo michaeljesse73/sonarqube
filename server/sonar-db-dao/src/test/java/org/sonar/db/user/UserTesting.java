@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,6 +20,7 @@
 package org.sonar.db.user;
 
 import javax.annotation.Nullable;
+import org.sonar.core.util.Uuids;
 
 import static java.util.Collections.singletonList;
 import static org.apache.commons.lang.RandomStringUtils.randomAlphanumeric;
@@ -32,6 +33,7 @@ public class UserTesting {
   public static UserDto newUserDto() {
     return new UserDto()
       .setId(nextInt())
+      .setUuid(randomAlphanumeric(40))
       .setActive(true)
       .setLocal(nextBoolean())
       .setLogin(randomAlphanumeric(30))
@@ -39,7 +41,8 @@ public class UserTesting {
       .setEmail(randomAlphanumeric(30))
       .setOnboarded(nextBoolean())
       .setScmAccounts(singletonList(randomAlphanumeric(40)))
-      .setExternalIdentity(randomAlphanumeric(40))
+      .setExternalId(randomAlphanumeric(40))
+      .setExternalLogin(randomAlphanumeric(40))
       .setExternalIdentityProvider(randomAlphanumeric(40))
       .setSalt(randomAlphanumeric(40))
       .setCryptedPassword(randomAlphanumeric(40))
@@ -60,7 +63,8 @@ public class UserTesting {
       .setName(name)
       .setEmail(email)
       .setLogin(login)
-      .setExternalIdentity(login)
+      .setExternalId(login)
+      .setExternalLogin(login)
       .setExternalIdentityProvider("sonarqube");
   }
 
@@ -70,20 +74,26 @@ public class UserTesting {
       .setName(name)
       .setEmail(email)
       .setLogin(login)
-      .setExternalIdentity(randomAlphanumeric(40))
+      .setExternalId(randomAlphanumeric(40))
+      .setExternalLogin(randomAlphanumeric(40))
       .setExternalIdentityProvider(randomAlphanumeric(40));
   }
 
-  public static UserDto newDisabledUser(String login) {
+  public static UserDto newDisabledUser() {
     return newUserDto()
-      .setLogin(login)
       .setActive(false)
       // All these fields are reset when disabling a user
       .setScmAccounts((String) null)
-      .setExternalIdentity(null)
-      .setExternalIdentityProvider(null)
       .setEmail(null)
       .setCryptedPassword(null)
       .setSalt(null);
+  }
+
+  public static UserPropertyDto newUserSettingDto(UserDto user) {
+    return new UserPropertyDto()
+      .setUuid(Uuids.createFast())
+      .setUserUuid(user.getUuid())
+      .setKey(randomAlphanumeric(20))
+      .setValue(randomAlphanumeric(100));
   }
 }

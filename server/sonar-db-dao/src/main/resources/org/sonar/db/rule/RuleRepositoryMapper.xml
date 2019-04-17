@@ -20,16 +20,6 @@
     order by kee
   </select>
 
-  <select id="selectByKey" parameterType="String" resultType="org.sonar.db.rule.RuleRepositoryDto">
-    select <include refid="sqlColumns"/>
-    from rule_repositories
-    where kee = #{key}
-  </select>
-
-  <update id="truncate">
-    delete from rule_repositories
-  </update>
-
   <insert id="insert" parameterType="map" useGeneratedKeys="false">
     insert into rule_repositories (kee, language, name, created_at)
     values (
@@ -39,4 +29,19 @@
     #{now, jdbcType=BIGINT}
     )
   </insert>
+
+  <update id="update" parameterType="map">
+    update rule_repositories set
+      name = #{repository.name, jdbcType=VARCHAR},
+      language = #{repository.language, jdbcType=VARCHAR}
+    where
+      kee = #{repository.kee, jdbcType=VARCHAR}
+  </update>
+
+  <delete id="deleteIfKeyNotIn" parameterType="String">
+    delete from rule_repositories
+    <if test="!keys.isEmpty()">
+      where kee not in <foreach collection="keys" open="(" close=")" item="key" separator=",">#{key,jdbcType=VARCHAR}</foreach>
+    </if>
+  </delete>
 </mapper>

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,68 +19,100 @@
  */
 import * as React from 'react';
 import { connect } from 'react-redux';
-import { Branch, Component, CurrentUser, isLoggedIn, HomePageType } from '../../../types';
+import ComponentNavWarnings from './ComponentNavWarnings';
 import BranchStatus from '../../../../components/common/BranchStatus';
 import DateTimeFormatter from '../../../../components/intl/DateTimeFormatter';
 import Favorite from '../../../../components/controls/Favorite';
 import HomePageSelect from '../../../../components/controls/HomePageSelect';
 import Tooltip from '../../../../components/controls/Tooltip';
-import { isShortLivingBranch } from '../../../../helpers/branches';
+import DetachIcon from '../../../../components/icons-components/DetachIcon';
+import {
+  isShortLivingBranch,
+  isLongLivingBranch,
+  isMainBranch,
+  isPullRequest
+} from '../../../../helpers/branches';
 import { translate } from '../../../../helpers/l10n';
-import { getCurrentUser } from '../../../../store/rootReducer';
+import { isLoggedIn } from '../../../../helpers/users';
+import { getCurrentUser, Store } from '../../../../store/rootReducer';
 
-interface StateProps {
-  currentUser: CurrentUser;
+export interface Props {
+  branchLike?: T.BranchLike;
+  currentUser: T.CurrentUser;
+  component: T.Component;
+  warnings: string[];
 }
 
-interface Props extends StateProps {
-  branch?: Branch;
-  component: Component;
-}
-
-export function ComponentNavMeta({ branch, component, currentUser }: Props) {
-  const shortBranch = isShortLivingBranch(branch);
-  const mainBranch = !branch || branch.isMain;
+export function ComponentNavMeta({ branchLike, component, currentUser, warnings }: Props) {
+  const mainBranch = !branchLike || isMainBranch(branchLike);
+  const longBranch = isLongLivingBranch(branchLike);
+  const currentPage = getCurrentPage(component, branchLike);
+  const displayVersion = component.version !== undefined && (mainBranch || longBranch);
 
   return (
     <div className="navbar-context-meta">
+      {warnings.length > 0 && <ComponentNavWarnings warnings={warnings} />}
       {component.analysisDate && (
-        <div className="spacer-left">
+        <div className="spacer-left text-ellipsis">
           <DateTimeFormatter date={component.analysisDate} />
         </div>
       )}
-      {component.version &&
-        !shortBranch && (
-          <Tooltip overlay={`${translate('version')} ${component.version}`} mouseEnterDelay={0.5}>
-            <div className="spacer-left text-limited">
-              {translate('version')} {component.version}
-            </div>
-          </Tooltip>
-        )}
-      {isLoggedIn(currentUser) &&
-        mainBranch && (
-          <div className="navbar-context-meta-secondary">
+      {displayVersion && (
+        <Tooltip mouseEnterDelay={0.5} overlay={`${translate('version')} ${component.version}`}>
+          <div className="spacer-left text-limited">
+            {translate('version')} {component.version}
+          </div>
+        </Tooltip>
+      )}
+      {isLoggedIn(currentUser) && (
+        <div className="navbar-context-meta-secondary">
+          {mainBranch && (
             <Favorite
               component={component.key}
               favorite={Boolean(component.isFavorite)}
               qualifier={component.qualifier}
             />
-            <HomePageSelect
-              className="spacer-left"
-              currentPage={{ type: HomePageType.Project, parameter: component.key }}
-            />
-          </div>
-        )}
-      {shortBranch && (
-        <div className="navbar-context-meta-secondary">
-          <BranchStatus branch={branch!} />
+          )}
+          {(mainBranch || longBranch) && currentPage !== undefined && (
+            <HomePageSelect className="spacer-left" currentPage={currentPage} />
+          )}
+        </div>
+      )}
+      {(isShortLivingBranch(branchLike) || isPullRequest(branchLike)) && (
+        <div className="navbar-context-meta-secondary display-inline-flex-center">
+          {isPullRequest(branchLike) && branchLike.url !== undefined && (
+            <a
+              className="display-inline-flex-center big-spacer-right"
+              href={branchLike.url}
+              rel="noopener noreferrer"
+              target="_blank">
+              {translate('branches.see_the_pr')}
+              <DetachIcon className="little-spacer-left" size={12} />
+            </a>
+          )}
+          <BranchStatus branchLike={branchLike} component={component.key} />
         </div>
       )}
     </div>
   );
 }
 
-const mapStateToProps = (state: any): StateProps => ({
+export function getCurrentPage(component: T.Component, branchLike: T.BranchLike | undefined) {
+  let currentPage: T.HomePage | undefined;
+  if (component.qualifier === 'VW' || component.qualifier === 'SVW') {
+    currentPage = { type: 'PORTFOLIO', component: component.key };
+  } else if (component.qualifier === 'APP') {
+    const branch = isLongLivingBranch(branchLike) ? branchLike.name : undefined;
+    currentPage = { type: 'APPLICATION', component: component.key, branch };
+  } else if (component.qualifier === 'TRK') {
+    // when home page is set to the default branch of a project, its name is returned as `undefined`
+    const branch = isLongLivingBranch(branchLike) ? branchLike.name : undefined;
+    currentPage = { type: 'PROJECT', component: component.key, branch };
+  }
+  return currentPage;
+}
+
+const mapStateToProps = (state: Store) => ({
   currentUser: getCurrentUser(state)
 });
 

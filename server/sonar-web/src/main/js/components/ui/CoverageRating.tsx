@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,8 +18,10 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import { DonutChart } from '../charts/donut-chart';
+import { lazyLoad } from '../lazyLoad';
 import * as theme from '../../app/theme';
+
+const DonutChart = lazyLoad(() => import('../charts/DonutChart'));
 
 const SIZE_TO_WIDTH_MAPPING = { small: 16, normal: 24, big: 40, huge: 60 };
 
@@ -45,5 +47,5 @@ export default function CoverageRating({ muted = false, size = 'normal', value }
   const width = SIZE_TO_WIDTH_MAPPING[size];
   const thickness = SIZE_TO_THICKNESS_MAPPING[size];
 
-  return <DonutChart data={data} width={width} height={width} thickness={thickness} />;
+  return <DonutChart data={data} height={width} thickness={thickness} width={width} />;
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,7 +21,7 @@ package org.sonar.api.batch.bootstrap;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -39,21 +39,21 @@ import org.sonar.api.CoreProperties;
  * Since 6.5, plugins should no longer manipulate the project's structure.
  *
  * @since 2.9
+ * @deprecated since 7.6 use {@link org.sonar.api.scanner.fs.InputProject}
  */
+@Deprecated
 public class ProjectDefinition {
 
   public static final String SOURCES_PROPERTY = "sonar.sources";
 
   public static final String TESTS_PROPERTY = "sonar.tests";
 
-  public static final String BUILD_DIR_PROPERTY = "sonar.buildDir";
-
   private static final char SEPARATOR = ',';
 
   private File baseDir;
   private File workDir;
   private File buildDir;
-  private Map<String, String> properties = new HashMap<>();
+  private Map<String, String> properties = new LinkedHashMap<>();
   private ProjectDefinition parent = null;
   private List<ProjectDefinition> subProjects = new ArrayList<>();
 
@@ -147,7 +147,7 @@ public class ProjectDefinition {
     return this;
   }
 
-  public ProjectDefinition setVersion(String s) {
+  public ProjectDefinition setProjectVersion(String s) {
     properties.put(CoreProperties.PROJECT_VERSION_PROPERTY, StringUtils.defaultString(s));
     return this;
   }
@@ -189,12 +189,29 @@ public class ProjectDefinition {
     return null;
   }
 
+  /**
+   * @deprecated since 7.7, use {@link #getOriginalProjectVersion()} instead
+   */
+  @Deprecated
   @CheckForNull
   public String getOriginalVersion() {
+    return getOriginalProjectVersion();
+  }
+
+  /**
+   * @deprecated since 7.7, use {@link #getProjectVersion()} instead
+   */
+  @Deprecated
+  public String getVersion() {
+    return getProjectVersion();
+  }
+
+  @CheckForNull
+  public String getOriginalProjectVersion() {
     return properties.get(CoreProperties.PROJECT_VERSION_PROPERTY);
   }
 
-  public String getVersion() {
+  public String getProjectVersion() {
     String version = properties.get(CoreProperties.PROJECT_VERSION_PROPERTY);
     if (StringUtils.isBlank(version)) {
       version = "not provided";

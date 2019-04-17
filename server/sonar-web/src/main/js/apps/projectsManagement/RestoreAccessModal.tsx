@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,10 +19,11 @@
  */
 import * as React from 'react';
 import { FormattedMessage } from 'react-intl';
-import { Project } from './utils';
 import { grantPermissionToUser } from '../../api/permissions';
 import Modal from '../../components/controls/Modal';
+import { SubmitButton, ResetButtonLink } from '../../components/ui/buttons';
 import { translate } from '../../helpers/l10n';
+import { Project } from '../../api/components';
 
 interface Props {
   currentUser: { login: string };
@@ -47,11 +48,6 @@ export default class RestoreAccessModal extends React.PureComponent<Props, State
     this.mounted = false;
   }
 
-  handleCancelClick = (event: React.SyntheticEvent<HTMLAnchorElement>) => {
-    event.preventDefault();
-    this.props.onClose();
-  };
-
   handleFormSubmit = (event: React.SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
     this.setState({ loading: true });
@@ -66,12 +62,12 @@ export default class RestoreAccessModal extends React.PureComponent<Props, State
   };
 
   grantPermission = (permission: string) =>
-    grantPermissionToUser(
-      this.props.project.key,
-      this.props.currentUser.login,
+    grantPermissionToUser({
+      projectKey: this.props.project.key,
+      login: this.props.currentUser.login,
       permission,
-      this.props.project.organization
-    );
+      organization: this.props.project.organization
+    });
 
   render() {
     const header = translate('global_permissions.restore_access');
@@ -96,12 +92,8 @@ export default class RestoreAccessModal extends React.PureComponent<Props, State
 
           <footer className="modal-foot">
             {this.state.loading && <i className="spinner spacer-right" />}
-            <button disabled={this.state.loading} type="submit">
-              {translate('restore')}
-            </button>
-            <a className="js-modal-close" href="#" onClick={this.handleCancelClick}>
-              {translate('cancel')}
-            </a>
+            <SubmitButton disabled={this.state.loading}>{translate('restore')}</SubmitButton>
+            <ResetButtonLink onClick={this.props.onClose}>{translate('cancel')}</ResetButtonLink>
           </footer>
         </form>
       </Modal>

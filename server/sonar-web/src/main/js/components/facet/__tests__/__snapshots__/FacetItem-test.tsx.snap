@@ -2,10 +2,11 @@
 
 exports[`should render active 1`] = `
 <a
-  className="facet search-navigator-facet active"
+  className="search-navigator-facet active"
   data-facet="bar"
   href="#"
   onClick={[Function]}
+  title="foo"
 >
   <span
     className="facet-name"
@@ -17,8 +18,9 @@ exports[`should render active 1`] = `
 
 exports[`should render disabled 1`] = `
 <span
-  className="facet search-navigator-facet"
+  className="search-navigator-facet"
   data-facet="bar"
+  title="foo"
 >
   <span
     className="facet-name"
@@ -30,10 +32,11 @@ exports[`should render disabled 1`] = `
 
 exports[`should render half width 1`] = `
 <a
-  className="facet search-navigator-facet search-navigator-facet-half"
+  className="search-navigator-facet search-navigator-facet-half"
   data-facet="bar"
   href="#"
   onClick={[Function]}
+  title="foo"
 >
   <span
     className="facet-name"
@@ -45,10 +48,11 @@ exports[`should render half width 1`] = `
 
 exports[`should render inactive 1`] = `
 <a
-  className="facet search-navigator-facet"
+  className="search-navigator-facet"
   data-facet="bar"
   href="#"
   onClick={[Function]}
+  title="foo"
 >
   <span
     className="facet-name"
@@ -60,10 +64,11 @@ exports[`should render inactive 1`] = `
 
 exports[`should render stat 1`] = `
 <a
-  className="facet search-navigator-facet"
+  className="search-navigator-facet"
   data-facet="bar"
   href="#"
   onClick={[Function]}
+  title="foo"
 >
   <span
     className="facet-name"

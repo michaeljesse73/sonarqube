@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -34,7 +34,7 @@ jest.mock('../../../app/utils/handleRequiredAuthorization', () => ({
 }));
 
 import * as React from 'react';
-import { mount } from 'enzyme';
+import { shallow } from 'enzyme';
 import App from '../App';
 
 const associateGateWithProject = require('../../../api/quality-gates')
@@ -62,7 +62,7 @@ const component = {
   organization: 'org',
   qualifier: 'TRK',
   version: '0.0.1'
-};
+} as T.Component;
 
 beforeEach(() => {
   associateGateWithProject.mockClear();
@@ -72,8 +72,11 @@ beforeEach(() => {
 
 it('checks permissions', () => {
   handleRequiredAuthorization.mockClear();
-  mount(
-    <App component={{ ...component, configuration: undefined }} onComponentChange={jest.fn()} />
+  shallow(
+    <App
+      component={{ ...component, configuration: undefined } as T.Component}
+      onComponentChange={jest.fn()}
+    />
   );
   expect(handleRequiredAuthorization).toBeCalled();
 });
@@ -81,7 +84,7 @@ it('checks permissions', () => {
 it('fetches quality gates', () => {
   fetchQualityGates.mockClear();
   getGateForProject.mockClear();
-  mount(<App component={component} onComponentChange={jest.fn()} />);
+  shallow(<App component={component} onComponentChange={jest.fn()} />);
   expect(fetchQualityGates).toBeCalledWith({ organization: 'org' });
   expect(getGateForProject).toBeCalledWith({ organization: 'org', project: 'component' });
 });
@@ -136,7 +139,7 @@ function randomGate(id: string, isDefault = false) {
 }
 
 function mountRender(allGates: any[], gate?: any) {
-  const wrapper = mount(<App component={component} onComponentChange={jest.fn()} />);
+  const wrapper = shallow(<App component={component} onComponentChange={jest.fn()} />);
   wrapper.setState({ allGates, loading: false, gate });
   return wrapper;
 }

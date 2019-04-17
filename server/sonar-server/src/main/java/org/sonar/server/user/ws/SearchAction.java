@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,12 +20,10 @@
 package org.sonar.server.user.ws;
 
 import com.google.common.collect.Multimap;
-
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
+import java.util.Objects;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 import org.sonar.api.server.ws.Change;
@@ -49,23 +47,14 @@ import org.sonarqube.ws.Users.SearchWsResponse;
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Strings.emptyToNull;
-import static org.sonar.api.server.ws.WebService.Param.FIELDS;
+import static java.util.Optional.ofNullable;
 import static org.sonar.api.server.ws.WebService.Param.PAGE;
 import static org.sonar.api.server.ws.WebService.Param.PAGE_SIZE;
 import static org.sonar.api.server.ws.WebService.Param.TEXT_QUERY;
+import static org.sonar.api.utils.DateUtils.formatDateTime;
 import static org.sonar.api.utils.Paging.forPageIndex;
 import static org.sonar.core.util.stream.MoreCollectors.toList;
 import static org.sonar.server.es.SearchOptions.MAX_LIMIT;
-import static org.sonar.server.user.ws.UserJsonWriter.FIELD_ACTIVE;
-import static org.sonar.server.user.ws.UserJsonWriter.FIELD_AVATAR;
-import static org.sonar.server.user.ws.UserJsonWriter.FIELD_EMAIL;
-import static org.sonar.server.user.ws.UserJsonWriter.FIELD_EXTERNAL_IDENTITY;
-import static org.sonar.server.user.ws.UserJsonWriter.FIELD_EXTERNAL_PROVIDER;
-import static org.sonar.server.user.ws.UserJsonWriter.FIELD_GROUPS;
-import static org.sonar.server.user.ws.UserJsonWriter.FIELD_LOCAL;
-import static org.sonar.server.user.ws.UserJsonWriter.FIELD_NAME;
-import static org.sonar.server.user.ws.UserJsonWriter.FIELD_SCM_ACCOUNTS;
-import static org.sonar.server.user.ws.UserJsonWriter.FIELD_TOKENS_COUNT;
 import static org.sonar.server.ws.WsUtils.writeProtobuf;
 import static org.sonarqube.ws.Users.SearchWsResponse.Groups;
 import static org.sonarqube.ws.Users.SearchWsResponse.ScmAccounts;
@@ -92,23 +81,31 @@ public class SearchAction implements UsersWsAction {
   public void define(WebService.NewController controller) {
     WebService.NewAction action = controller.createAction("search")
       .setDescription("Get a list of active users. <br/>" +
-        "Administer System permission is required to show the 'groups' field.<br/>" +
-        "When accessed anonymously, only logins and names are returned.")
+        "The following fields are only returned when user has Administer System permission or for logged-in in user :" +
+        "<ul>" +
+        "   <li>'email'</li>" +
+        "   <li>'externalIdentity'</li>" +
+        "   <li>'externalProvider'</li>" +
+        "   <li>'groups'</li>" +
+        "   <li>'lastConnectionDate'</li>" +
+        "   <li>'tokensCount'</li>" +
+        "</ul>" +
+        "Field 'lastConnectionDate' is only updated every hour, so it may not be accurate, for instance when a user authenticates many times in less than one hour.")
       .setSince("3.6")
       .setChangelog(
+        new Change("7.7", "New field 'lastConnectionDate' is added to response"),
+        new Change("7.4", "External identity is only returned to system administrators"),
         new Change("6.4", "Paging response fields moved to a Paging object"),
         new Change("6.4", "Avatar has been added to the response"),
         new Change("6.4", "Email is only returned when user has Administer System permission"))
       .setHandler(this)
       .setResponseExample(getClass().getResource("search-example.json"));
 
-    action.createFieldsParam(UserJsonWriter.FIELDS)
-      .setDeprecatedSince("5.4");
     action.addPagingParams(50, MAX_LIMIT);
 
     action.createParam(TEXT_QUERY)
       .setMinimumLength(2)
-      .setDescription("Filter on login or name.");
+      .setDescription("Filter on login, name and email");
   }
 
   @Override
@@ -119,22 +116,20 @@ public class SearchAction implements UsersWsAction {
 
   private Users.SearchWsResponse doHandle(SearchRequest request) {
     SearchOptions options = new SearchOptions().setPage(request.getPage(), request.getPageSize());
-    List<String> fields = request.getPossibleFields();
     SearchResult<UserDoc> result = userIndex.search(UserQuery.builder().setTextQuery(request.getQuery()).build(), options);
     try (DbSession dbSession = dbClient.openSession(false)) {
       List<String> logins = result.getDocs().stream().map(UserDoc::login).collect(toList());
       Multimap<String, String> groupsByLogin = dbClient.groupMembershipDao().selectGroupsByLogins(dbSession, logins);
-      Map<String, Integer> tokenCountsByLogin = dbClient.userTokenDao().countTokensByLogins(dbSession, logins);
       List<UserDto> users = dbClient.userDao().selectByOrderedLogins(dbSession, logins);
+      Map<String, Integer> tokenCountsByLogin = dbClient.userTokenDao().countTokensByUsers(dbSession, users);
       Paging paging = forPageIndex(request.getPage()).withPageSize(request.getPageSize()).andTotal((int) result.getTotal());
-      return buildResponse(users, groupsByLogin, tokenCountsByLogin, fields, paging);
+      return buildResponse(users, groupsByLogin, tokenCountsByLogin, paging);
     }
   }
 
-  private SearchWsResponse buildResponse(List<UserDto> users, Multimap<String, String> groupsByLogin, Map<String, Integer> tokenCountsByLogin,
-    @Nullable List<String> fields, Paging paging) {
+  private SearchWsResponse buildResponse(List<UserDto> users, Multimap<String, String> groupsByLogin, Map<String, Integer> tokenCountsByLogin, Paging paging) {
     SearchWsResponse.Builder responseBuilder = newBuilder();
-    users.forEach(user -> responseBuilder.addUsers(towsUser(user, firstNonNull(tokenCountsByLogin.get(user.getLogin()), 0), groupsByLogin.get(user.getLogin()), fields)));
+    users.forEach(user -> responseBuilder.addUsers(towsUser(user, firstNonNull(tokenCountsByLogin.get(user.getUuid()), 0), groupsByLogin.get(user.getLogin()))));
     responseBuilder.getPagingBuilder()
       .setPageIndex(paging.pageIndex())
       .setPageSize(paging.pageSize())
@@ -143,40 +138,28 @@ public class SearchAction implements UsersWsAction {
     return responseBuilder.build();
   }
 
-  private User towsUser(UserDto user, @Nullable Integer tokensCount, Collection<String> groups, @Nullable Collection<String> fields) {
-    User.Builder userBuilder = User.newBuilder()
-      .setLogin(user.getLogin());
-    setIfNeeded(FIELD_NAME, fields, user.getName(), userBuilder::setName);
+  private User towsUser(UserDto user, @Nullable Integer tokensCount, Collection<String> groups) {
+    User.Builder userBuilder = User.newBuilder().setLogin(user.getLogin());
+    ofNullable(user.getName()).ifPresent(userBuilder::setName);
     if (userSession.isLoggedIn()) {
-      setIfNeeded(FIELD_AVATAR, fields, emptyToNull(user.getEmail()), u -> userBuilder.setAvatar(avatarResolver.create(user)));
-      setIfNeeded(FIELD_ACTIVE, fields, user.isActive(), userBuilder::setActive);
-      setIfNeeded(FIELD_LOCAL, fields, user.isLocal(), userBuilder::setLocal);
-      setIfNeeded(FIELD_EXTERNAL_IDENTITY, fields, user.getExternalIdentity(), userBuilder::setExternalIdentity);
-      setIfNeeded(FIELD_EXTERNAL_PROVIDER, fields, user.getExternalIdentityProvider(), userBuilder::setExternalProvider);
-      setIfNeeded(FIELD_TOKENS_COUNT, fields, tokensCount, userBuilder::setTokensCount);
-      setIfNeeded(isNeeded(FIELD_SCM_ACCOUNTS, fields) && !user.getScmAccountsAsList().isEmpty(), user.getScmAccountsAsList(),
-        scm -> userBuilder.setScmAccounts(ScmAccounts.newBuilder().addAllScmAccounts(scm)));
+      ofNullable(emptyToNull(user.getEmail())).ifPresent(u -> userBuilder.setAvatar(avatarResolver.create(user)));
+      userBuilder.setActive(user.isActive());
+      userBuilder.setLocal(user.isLocal());
+      ofNullable(user.getExternalIdentityProvider()).ifPresent(userBuilder::setExternalProvider);
+      if (!user.getScmAccountsAsList().isEmpty()) {
+        userBuilder.setScmAccounts(ScmAccounts.newBuilder().addAllScmAccounts(user.getScmAccountsAsList()));
+      }
     }
-    if (userSession.isSystemAdministrator()) {
-      setIfNeeded(FIELD_EMAIL, fields, user.getEmail(), userBuilder::setEmail);
-      setIfNeeded(isNeeded(FIELD_GROUPS, fields) && !groups.isEmpty(), groups,
-        g -> userBuilder.setGroups(Groups.newBuilder().addAllGroups(g)));
+    if (userSession.isSystemAdministrator() || Objects.equals(userSession.getUuid(), user.getUuid())) {
+      ofNullable(user.getEmail()).ifPresent(userBuilder::setEmail);
+      if (!groups.isEmpty()) {
+        userBuilder.setGroups(Groups.newBuilder().addAllGroups(groups));
+      }
+      ofNullable(user.getExternalLogin()).ifPresent(userBuilder::setExternalIdentity);
+      ofNullable(tokensCount).ifPresent(userBuilder::setTokensCount);
+      ofNullable(user.getLastConnectionDate()).ifPresent(date -> userBuilder.setLastConnectionDate(formatDateTime(date)));
     }
     return userBuilder.build();
-  }
-
-  private static <PARAM> void setIfNeeded(String field, @Nullable Collection<String> fields, @Nullable PARAM parameter, Function<PARAM, ?> setter) {
-    setIfNeeded(isNeeded(field, fields), parameter, setter);
-  }
-
-  private static <PARAM> void setIfNeeded(boolean condition, @Nullable PARAM parameter, Function<PARAM, ?> setter) {
-    if (parameter != null && condition) {
-      setter.apply(parameter);
-    }
-  }
-
-  private static boolean isNeeded(String field, @Nullable Collection<String> fields) {
-    return fields == null || fields.isEmpty() || fields.contains(field);
   }
 
   private static SearchRequest toSearchRequest(Request request) {
@@ -186,7 +169,6 @@ public class SearchAction implements UsersWsAction {
       .setQuery(request.param(TEXT_QUERY))
       .setPage(request.mandatoryParamAsInt(PAGE))
       .setPageSize(pageSize)
-      .setPossibleFields(request.paramAsStrings(FIELDS))
       .build();
   }
 
@@ -195,13 +177,11 @@ public class SearchAction implements UsersWsAction {
     private final Integer page;
     private final Integer pageSize;
     private final String query;
-    private final List<String> possibleFields;
 
     private SearchRequest(Builder builder) {
       this.page = builder.page;
       this.pageSize = builder.pageSize;
       this.query = builder.query;
-      this.possibleFields = builder.additionalFields;
     }
 
     @CheckForNull
@@ -219,10 +199,6 @@ public class SearchAction implements UsersWsAction {
       return query;
     }
 
-    public List<String> getPossibleFields() {
-      return possibleFields;
-    }
-
     public static Builder builder() {
       return new Builder();
     }
@@ -232,7 +208,6 @@ public class SearchAction implements UsersWsAction {
     private Integer page;
     private Integer pageSize;
     private String query;
-    private List<String> additionalFields = new ArrayList<>();
 
     private Builder() {
       // enforce factory method use
@@ -250,11 +225,6 @@ public class SearchAction implements UsersWsAction {
 
     public Builder setQuery(@Nullable String query) {
       this.query = query;
-      return this;
-    }
-
-    public Builder setPossibleFields(List<String> possibleFields) {
-      this.additionalFields = possibleFields;
       return this;
     }
 

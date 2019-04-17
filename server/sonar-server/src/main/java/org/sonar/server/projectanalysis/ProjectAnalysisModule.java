@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,6 +25,8 @@ import org.sonar.server.projectanalysis.ws.DeleteAction;
 import org.sonar.server.projectanalysis.ws.DeleteEventAction;
 import org.sonar.server.projectanalysis.ws.ProjectAnalysesWs;
 import org.sonar.server.projectanalysis.ws.SearchAction;
+import org.sonar.server.projectanalysis.ws.SetBaselineAction;
+import org.sonar.server.projectanalysis.ws.UnsetBaselineAction;
 import org.sonar.server.projectanalysis.ws.UpdateEventAction;
 
 public class ProjectAnalysisModule extends Module {
@@ -38,7 +40,9 @@ public class ProjectAnalysisModule extends Module {
       UpdateEventAction.class,
       DeleteEventAction.class,
       DeleteAction.class,
-      SearchAction.class);
+      SearchAction.class,
+      SetBaselineAction.class,
+      UnsetBaselineAction.class);
   }
 
 }

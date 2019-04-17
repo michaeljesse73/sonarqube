@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,41 +20,36 @@
 import { shallow } from 'enzyme';
 import * as React from 'react';
 import ChangelogSearch from '../ChangelogSearch';
-import DateInput from '../../../../components/controls/DateInput';
 import { click } from '../../../../helpers/testUtils';
+import { parseDate } from '../../../../helpers/dates';
 
-it('should render DateInput', () => {
-  const onFromDateChange = jest.fn();
-  const onToDateChange = jest.fn();
+it('should render', () => {
   const output = shallow(
     <ChangelogSearch
-      fromDate="2016-01-01"
-      toDate="2016-05-05"
-      onFromDateChange={onFromDateChange}
-      onToDateChange={onToDateChange}
+      dateRange={{
+        from: parseDate('2016-01-01T00:00:00.000Z'),
+        to: parseDate('2016-05-05T00:00:00.000Z')
+      }}
+      onDateRangeChange={jest.fn()}
       onReset={jest.fn()}
     />
   );
-  const dateInputs = output.find(DateInput);
-  expect(dateInputs.length).toBe(2);
-  expect(dateInputs.at(0).prop('value')).toBe('2016-01-01');
-  expect(dateInputs.at(0).prop('onChange')).toBe(onFromDateChange);
-  expect(dateInputs.at(1).prop('value')).toBe('2016-05-05');
-  expect(dateInputs.at(1).prop('onChange')).toBe(onToDateChange);
+  expect(output).toMatchSnapshot();
 });
 
 it('should reset', () => {
   const onReset = jest.fn();
   const output = shallow(
     <ChangelogSearch
-      fromDate="2016-01-01"
-      toDate="2016-05-05"
-      onFromDateChange={jest.fn()}
-      onToDateChange={jest.fn()}
+      dateRange={{
+        from: parseDate('2016-01-01T00:00:00.000Z'),
+        to: parseDate('2016-05-05T00:00:00.000Z')
+      }}
+      onDateRangeChange={jest.fn()}
       onReset={onReset}
     />
   );
   expect(onReset).not.toBeCalled();
-  click(output.find('button'));
+  click(output.find('Button'));
   expect(onReset).toBeCalled();
 });

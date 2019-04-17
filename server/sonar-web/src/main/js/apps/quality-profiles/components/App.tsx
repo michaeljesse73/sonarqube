@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,17 +19,17 @@
  */
 import * as React from 'react';
 import { searchQualityProfiles, getExporters, Actions } from '../../../api/quality-profiles';
+import Suggestions from '../../../app/components/embed-docs-modal/Suggestions';
 import { sortProfiles } from '../utils';
-import { translate } from '../../../helpers/l10n';
-import OrganizationHelmet from '../../../components/common/OrganizationHelmet';
-import '../styles.css';
 import { Exporter, Profile } from '../types';
+import OrganizationHelmet from '../../../components/common/OrganizationHelmet';
+import { translate } from '../../../helpers/l10n';
+import '../styles.css';
 
 interface Props {
   children: React.ReactElement<any>;
-  languages: Array<{}>;
-  onRequestFail: (reasong: any) => void;
-  organization: { name: string; key: string } | null;
+  languages: T.Languages;
+  organization: { name: string; key: string } | undefined;
 }
 
 interface State {
@@ -97,11 +97,10 @@ export default class App extends React.PureComponent<Props, State> {
 
     return React.cloneElement(this.props.children, {
       actions: this.state.actions || {},
-      profiles: this.state.profiles,
+      profiles: this.state.profiles || [],
       languages: finalLanguages,
       exporters: this.state.exporters,
       updateProfiles: this.updateProfiles,
-      onRequestFail: this.props.onRequestFail,
       organization: organization ? organization.key : null
     });
   }
@@ -109,9 +108,10 @@ export default class App extends React.PureComponent<Props, State> {
   render() {
     return (
       <div className="page page-limited">
+        <Suggestions suggestions="quality_profiles" />
         <OrganizationHelmet
-          title={translate('quality_profiles.page')}
           organization={this.props.organization}
+          title={translate('quality_profiles.page')}
         />
 
         {this.renderChild()}

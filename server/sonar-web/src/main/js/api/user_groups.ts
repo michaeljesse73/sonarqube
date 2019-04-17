@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,7 +18,6 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import { getJSON, post, postJSON } from '../helpers/request';
-import { Paging, Group } from '../app/types';
 import throwGlobalError from '../app/utils/throwGlobalError';
 
 export function searchUsersGroups(data: {
@@ -27,8 +26,26 @@ export function searchUsersGroups(data: {
   p?: number;
   ps?: number;
   q?: string;
-}): Promise<{ groups: Group[]; paging: Paging }> {
-  return getJSON('/api/user_groups/search', data);
+}): Promise<{ groups: T.Group[]; paging: T.Paging }> {
+  return getJSON('/api/user_groups/search', data).catch(throwGlobalError);
+}
+
+export interface GroupUser {
+  login: string;
+  name: string;
+  selected: boolean;
+}
+
+export function getUsersInGroup(data: {
+  id?: number;
+  name?: string;
+  organization?: string;
+  p?: number;
+  ps?: number;
+  q?: string;
+  selected?: string;
+}): Promise<{ paging: T.Paging; users: GroupUser[] }> {
+  return getJSON('/api/user_groups/users', data).catch(throwGlobalError);
 }
 
 export function addUserToGroup(data: {
@@ -37,7 +54,7 @@ export function addUserToGroup(data: {
   login?: string;
   organization?: string;
 }) {
-  return post('/api/user_groups/add_user', data);
+  return post('/api/user_groups/add_user', data).catch(throwGlobalError);
 }
 
 export function removeUserFromGroup(data: {
@@ -46,14 +63,14 @@ export function removeUserFromGroup(data: {
   login?: string;
   organization?: string;
 }) {
-  return post('/api/user_groups/remove_user', data);
+  return post('/api/user_groups/remove_user', data).catch(throwGlobalError);
 }
 
 export function createGroup(data: {
   description?: string;
   organization: string | undefined;
   name: string;
-}): Promise<Group> {
+}): Promise<T.Group> {
   return postJSON('/api/user_groups/create', data).then(r => r.group, throwGlobalError);
 }
 

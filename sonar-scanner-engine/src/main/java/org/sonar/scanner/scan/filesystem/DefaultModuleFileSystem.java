@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,30 +22,23 @@ package org.sonar.scanner.scan.filesystem;
 import com.google.common.annotations.VisibleForTesting;
 import org.sonar.api.batch.fs.internal.DefaultFileSystem;
 import org.sonar.api.batch.fs.internal.DefaultInputModule;
-import org.sonar.scanner.analysis.DefaultAnalysisMode;
 
 public class DefaultModuleFileSystem extends DefaultFileSystem {
 
-  public DefaultModuleFileSystem(ModuleInputComponentStore moduleInputFileCache, DefaultInputModule module, ModuleFileSystemInitializer initializer, DefaultAnalysisMode mode,
-    StatusDetection statusDetection) {
+  public DefaultModuleFileSystem(ModuleInputComponentStore moduleInputFileCache, DefaultInputModule module) {
     super(module.getBaseDir(), moduleInputFileCache);
-    setFields(module, initializer, mode, statusDetection);
+    initFields(module);
   }
 
   @VisibleForTesting
-  public DefaultModuleFileSystem(DefaultInputModule module, ModuleFileSystemInitializer initializer, DefaultAnalysisMode mode, StatusDetection statusDetection) {
+  public DefaultModuleFileSystem(DefaultInputModule module) {
     super(module.getBaseDir());
-    setFields(module, initializer, mode, statusDetection);
+    initFields(module);
   }
 
-  private void setFields(DefaultInputModule module, ModuleFileSystemInitializer initializer, DefaultAnalysisMode mode, StatusDetection statusDetection) {
+  private void initFields(DefaultInputModule module) {
     setWorkDir(module.getWorkDir());
-    setEncoding(initializer.defaultEncoding());
-
-    // filter the files sensors have access to
-    if (!mode.scanAllFiles()) {
-      setDefaultPredicate(p -> new SameInputFilePredicate(p, statusDetection, module.definition().getKeyWithBranch()));
-    }
+    setEncoding(module.getEncoding());
   }
 
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -46,12 +46,12 @@ import org.sonarqube.ws.ProjectAnalyses.Event;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static java.lang.String.format;
-import static org.apache.commons.lang.StringUtils.isNotBlank;
-import static org.sonar.core.util.Protobuf.setNullable;
+import static java.util.Optional.ofNullable;
 import static org.sonar.db.event.EventValidator.MAX_NAME_LENGTH;
 import static org.sonar.server.projectanalysis.ws.EventCategory.OTHER;
 import static org.sonar.server.projectanalysis.ws.EventCategory.VERSION;
 import static org.sonar.server.projectanalysis.ws.EventCategory.fromLabel;
+import static org.sonar.server.projectanalysis.ws.EventValidator.checkVersionName;
 import static org.sonar.server.projectanalysis.ws.ProjectAnalysesWsParameters.PARAM_ANALYSIS;
 import static org.sonar.server.projectanalysis.ws.ProjectAnalysesWsParameters.PARAM_CATEGORY;
 import static org.sonar.server.projectanalysis.ws.ProjectAnalysesWsParameters.PARAM_NAME;
@@ -127,7 +127,7 @@ public class CreateEventAction implements ProjectAnalysesWsAction {
   private EventDto insertDbEvent(DbSession dbSession, CreateEventRequest request, SnapshotDto analysis) {
     EventDto dbEvent = dbClient.eventDao().insert(dbSession, toDbEvent(request, analysis));
     if (VERSION.equals(request.getCategory())) {
-      analysis.setVersion(request.getName());
+      analysis.setProjectVersion(request.getName());
       dbClient.snapshotDao().update(dbSession, analysis);
     }
     dbSession.commit();
@@ -140,7 +140,7 @@ public class CreateEventAction implements ProjectAnalysesWsAction {
   }
 
   private ComponentDto getProjectOrApplication(DbSession dbSession, SnapshotDto analysis) {
-    ComponentDto project = dbClient.componentDao().selectByUuid(dbSession, analysis.getComponentUuid()).orNull();
+    ComponentDto project = dbClient.componentDao().selectByUuid(dbSession, analysis.getComponentUuid()).orElse(null);
     checkState(project != null, "Project of analysis '%s' is not found", analysis.getUuid());
     checkArgument(ALLOWED_QUALIFIERS.contains(project.qualifier()) && Scopes.PROJECT.equals(project.scope()),
       "An event must be created on a project or an application");
@@ -150,6 +150,7 @@ public class CreateEventAction implements ProjectAnalysesWsAction {
   private void checkRequest(CreateEventRequest request, ComponentDto component) {
     userSession.checkComponentPermission(UserRole.ADMIN, component);
     checkArgument(EventCategory.VERSION != request.getCategory() || Qualifiers.PROJECT.equals(component.qualifier()), "A version event must be created on a project");
+    checkVersionName(request.getCategory(), request.getName());
   }
 
   private static CreateEventRequest toAddEventRequest(Request request) {
@@ -161,7 +162,6 @@ public class CreateEventAction implements ProjectAnalysesWsAction {
   }
 
   private EventDto toDbEvent(CreateEventRequest request, SnapshotDto analysis) {
-    checkArgument(isNotBlank(request.getName()), "A non empty name is required");
     return new EventDto()
       .setUuid(uuidFactory.create())
       .setAnalysisUuid(analysis.getUuid())
@@ -178,7 +178,7 @@ public class CreateEventAction implements ProjectAnalysesWsAction {
       .setCategory(fromLabel(dbEvent.getCategory()).name())
       .setAnalysis(dbEvent.getAnalysisUuid())
       .setName(dbEvent.getName());
-    setNullable(dbEvent.getDescription(), wsEvent::setDescription);
+    ofNullable(dbEvent.getDescription()).ifPresent(wsEvent::setDescription);
 
     return CreateEventResponse.newBuilder().setEvent(wsEvent).build();
   }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -27,7 +27,9 @@ import {
   searchGroups,
   SearchUsersGroupsParameters
 } from '../../../api/quality-profiles';
+import { Button } from '../../../components/ui/buttons';
 import { translate } from '../../../helpers/l10n';
+import { Profile } from '../types';
 
 export interface User {
   avatar?: string;
@@ -41,7 +43,7 @@ export interface Group {
 
 interface Props {
   organization?: string;
-  profile: { language: string; name: string };
+  profile: Pick<Profile, 'key' | 'language' | 'name'>;
 }
 
 interface State {
@@ -63,7 +65,7 @@ export default class ProfilePermissions extends React.PureComponent<Props, State
   componentDidUpdate(prevProps: Props) {
     if (
       prevProps.organization !== this.props.organization ||
-      prevProps.profile !== this.props.profile
+      prevProps.profile.key !== this.props.profile.key
     ) {
       this.fetchUsersAndGroups();
     }
@@ -100,9 +102,7 @@ export default class ProfilePermissions extends React.PureComponent<Props, State
     );
   }
 
-  handleAddUserButtonClick = (event: React.SyntheticEvent<HTMLButtonElement>) => {
-    event.preventDefault();
-    event.currentTarget.blur();
+  handleAddUserButtonClick = () => {
     this.setState({ addUserForm: true });
   };
 
@@ -129,7 +129,7 @@ export default class ProfilePermissions extends React.PureComponent<Props, State
     }
   };
 
-  handleGroupAdd = (addedGroup: Group) => {
+  handleGroupAdd = (addedGroup: T.Group) => {
     if (this.mounted) {
       this.setState((state: State) => ({
         addUserForm: false,
@@ -138,7 +138,7 @@ export default class ProfilePermissions extends React.PureComponent<Props, State
     }
   };
 
-  handleGroupDelete = (removedGroup: Group) => {
+  handleGroupDelete = (removedGroup: T.Group) => {
     if (this.mounted) {
       this.setState((state: State) => ({
         groups: state.groups && state.groups.filter(group => group !== removedGroup)
@@ -180,9 +180,9 @@ export default class ProfilePermissions extends React.PureComponent<Props, State
                   />
                 ))}
               <div className="text-right">
-                <button onClick={this.handleAddUserButtonClick}>
+                <Button onClick={this.handleAddUserButtonClick}>
                   {translate('quality_profiles.grant_permissions_to_more_users')}
-                </button>
+                </Button>
               </div>
             </div>
           )}
@@ -193,8 +193,8 @@ export default class ProfilePermissions extends React.PureComponent<Props, State
             onClose={this.handleAddUserFormClose}
             onGroupAdd={this.handleGroupAdd}
             onUserAdd={this.handleUserAdd}
-            profile={this.props.profile}
             organization={this.props.organization}
+            profile={this.props.profile}
           />
         )}
       </div>

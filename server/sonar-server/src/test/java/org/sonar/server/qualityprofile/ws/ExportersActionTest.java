@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -23,8 +23,10 @@ import java.io.Writer;
 import org.junit.Test;
 import org.sonar.api.profiles.ProfileExporter;
 import org.sonar.api.profiles.RulesProfile;
+import org.sonar.api.server.ws.WebService;
 import org.sonar.server.ws.WsActionTester;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonar.test.JsonAssert.assertJson;
 
 public class ExportersActionTest {
@@ -35,6 +37,15 @@ public class ExportersActionTest {
     String result = ws.newRequest().execute().getInput();
 
     assertJson(result).isSimilarTo(ws.getDef().responseExampleAsString());
+  }
+
+  @Test
+  public void define_exporters_action() {
+    WebService.Action exporters = ws.getDef();
+    assertThat(exporters).isNotNull();
+    assertThat(exporters.isPost()).isFalse();
+    assertThat(exporters.params()).isEmpty();
+    assertThat(exporters.responseExampleAsString()).isNotEmpty();
   }
 
   private ProfileExporter[] createExporters() {

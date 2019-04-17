@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -39,6 +39,7 @@ public class SearchRequest {
   private List<String> f;
   private List<String> facets;
   private List<String> inheritance;
+  private String includeExternal;
   private String isTemplate;
   private List<String> languages;
   private String organization;
@@ -162,6 +163,7 @@ public class SearchRequest {
    *   <li>"remFn"</li>
    *   <li>"remFnOverloaded"</li>
    *   <li>"repo"</li>
+   *   <li>"scope"</li>
    *   <li>"severity"</li>
    *   <li>"status"</li>
    *   <li>"sysTags"</li>
@@ -235,6 +237,24 @@ public class SearchRequest {
 
   public String getIsTemplate() {
     return isTemplate;
+  }
+  
+  /**
+   * Possible values:
+   * <ul>
+   *   <li>"true"</li>
+   *   <li>"false"</li>
+   *   <li>"yes"</li>
+   *   <li>"no"</li>
+   * </ul>
+   */
+  public SearchRequest setIncludeExternal(String includeExternal) {
+    this.includeExternal = includeExternal;
+    return this;
+  }
+
+  public String getIncludeExternal() {
+    return includeExternal;
   }
 
   /**

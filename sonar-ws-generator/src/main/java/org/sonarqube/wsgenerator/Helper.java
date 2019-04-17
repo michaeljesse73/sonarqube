@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -37,7 +37,7 @@ import static java.util.Arrays.asList;
 public class Helper {
 
   static final Set<String> PATH_EXCLUSIONS = new HashSet<>(asList("api/orchestrator"));
-  private static final String OUTPUT_DIR = "target/generated-sources/results";
+  private static final String OUTPUT_DIR = "build/generated-sources/results";
   private final Map<String, List<String[]>> responseTypes;
 
   public Helper() {

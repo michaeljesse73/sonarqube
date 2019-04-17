@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -67,11 +67,13 @@ public class DoTransitionAction implements IssuesWsAction {
   public void define(WebService.NewController controller) {
     WebService.NewAction action = controller.createAction(ACTION_DO_TRANSITION)
       .setDescription("Do workflow transition on an issue. Requires authentication and Browse permission on project.<br/>" +
-        "The transitions '" + DefaultTransitions.WONT_FIX + "' and '" + DefaultTransitions.FALSE_POSITIVE + "' require the permission 'Administer Issues'.")
+        "The transitions '" + DefaultTransitions.WONT_FIX + "' and '" + DefaultTransitions.FALSE_POSITIVE + "' require the permission 'Administer Issues'.<br/>" +
+        "The transitions involving security hotspots (except '" + DefaultTransitions.REQUEST_REVIEW + "') require the permission 'Administer Security Hotspot'.")
       .setSince("3.6")
       .setChangelog(
         new Change("6.5", "the database ids of the components are removed from the response"),
-        new Change("6.5", "the response field components.uuid is deprecated. Use components.key instead."))
+        new Change("6.5", "the response field components.uuid is deprecated. Use components.key instead."),
+        new Change("7.3", "added transitions for security hotspots"))
       .setHandler(this)
       .setResponseExample(Resources.getResource(this.getClass(), "do_transition-example.json"))
       .setPost(true);
@@ -99,7 +101,7 @@ public class DoTransitionAction implements IssuesWsAction {
 
   private SearchResponseData doTransition(DbSession session, IssueDto issueDto, String transitionKey) {
     DefaultIssue defaultIssue = issueDto.toDefaultIssue();
-    IssueChangeContext context = IssueChangeContext.createUser(new Date(system2.now()), userSession.getLogin());
+    IssueChangeContext context = IssueChangeContext.createUser(new Date(system2.now()), userSession.getUuid());
     transitionService.checkTransitionPermission(transitionKey, defaultIssue);
     if (transitionService.doTransition(defaultIssue, context, transitionKey)) {
       return issueUpdater.saveIssueAndPreloadSearchResponseData(session, defaultIssue, context, null, true);

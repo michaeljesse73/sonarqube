@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -35,6 +35,7 @@ import org.sonar.api.server.ServerSide;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Arrays.asList;
 import static java.util.Collections.unmodifiableList;
+import static org.apache.commons.lang.StringUtils.substringBeforeLast;
 
 /**
  * @since 3.1
@@ -140,8 +141,9 @@ public abstract class ServletFilter implements Filter {
      */
     public static class Builder {
       private static final String WILDCARD_CHAR = "*";
-      private static final Collection<String> STATIC_RESOURCES = unmodifiableList(asList("/css/*", "/fonts/*", "/images/*", "/js/*", "/static/*",
-        "/robots.txt", "/favicon.ico", "/apple-touch-icon*", "/mstile*"));
+      private static final Collection<String> STATIC_RESOURCES = unmodifiableList(asList(
+        "*.css", "*.css.map", "*.ico", "*.png", "*.jpg", "*.jpeg", "*.gif", "*.svg", "*.js", "*.js.map", "*.pdf", "/json/*",
+        "/static/*", "/robots.txt", "/favicon.ico", "/apple-touch-icon*", "/mstile*"));
 
       private final Set<String> inclusions = new LinkedHashSet<>();
       private final Set<String> exclusions = new LinkedHashSet<>();
@@ -158,7 +160,8 @@ public abstract class ServletFilter implements Filter {
       /**
        * Add inclusion patterns. Supported formats are:
        * <ul>
-       *   <li>path prefixed by / and ended by *, for example "/api/foo/*", to match all paths "/api/foo" and "api/api/foo/something/else"</li>
+       *   <li>path prefixed by / and ended by * or /*, for example "/api/foo/*", to match all paths "/api/foo" and "api/api/foo/something/else"</li>
+       *   <li>path prefixed by / and ended by .*, for example "/api/foo.*", to match exact path "/api/foo" with any suffix like "/api/foo.protobuf"</li>
        *   <li>path prefixed by *, for example "*\/foo", to match all paths "/api/foo" and "something/else/foo"</li>
        *   <li>path with leading slash and no wildcard, for example "/api/foo", to match exact path "/api/foo"</li>
        * </ul>
@@ -204,8 +207,15 @@ public abstract class ServletFilter implements Filter {
         checkArgument(countStars == 1, "URL pattern accepts only zero or one wildcard character '*': %s", pattern);
         if (pattern.charAt(0) == '/') {
           checkArgument(pattern.endsWith(WILDCARD_CHAR), "URL pattern must end with wildcard character '*': %s", pattern);
-          // remove the ending /* or *
-          String path = pattern.replaceAll("/?\\*", "");
+          if (pattern.endsWith("/*")) {
+            String path = pattern.substring(0, pattern.length() - "/*".length());
+            return url -> url.startsWith(path);
+          }
+          if (pattern.endsWith(".*")) {
+            String path = pattern.substring(0, pattern.length() - ".*".length());
+            return url -> substringBeforeLast(url, ".").equals(path);
+          }
+          String path = pattern.substring(0, pattern.length() - "*".length());
           return url -> url.startsWith(path);
         }
         checkArgument(pattern.startsWith(WILDCARD_CHAR), "URL pattern must start with wildcard character '*': %s", pattern);

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,11 +20,13 @@
 package org.sonar.server.batch;
 
 import java.io.IOException;
+import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import org.assertj.core.groups.Tuple;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.sonar.api.rules.RuleType;
 import org.sonar.api.utils.System2;
 import org.sonar.api.web.UserRole;
 import org.sonar.core.util.CloseableIterator;
@@ -33,6 +35,7 @@ import org.sonar.db.DbTester;
 import org.sonar.db.component.ComponentDto;
 import org.sonar.db.issue.IssueDto;
 import org.sonar.db.rule.RuleDefinitionDto;
+import org.sonar.db.user.UserDto;
 import org.sonar.scanner.protocol.Constants.Severity;
 import org.sonar.scanner.protocol.input.ScannerInput.ServerIssue;
 import org.sonar.server.component.TestComponentFinder;
@@ -44,6 +47,7 @@ import org.sonar.server.ws.TestResponse;
 import org.sonar.server.ws.WsActionTester;
 
 import static java.lang.String.format;
+import static org.apache.commons.lang.math.RandomUtils.nextInt;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.sonar.api.rules.RuleType.BUG;
@@ -52,6 +56,10 @@ import static org.sonar.db.component.ComponentTesting.newFileDto;
 import static org.sonar.db.component.ComponentTesting.newModuleDto;
 
 public class IssuesActionTest {
+
+  private static final RuleType[] RULE_TYPES_EXCEPT_HOTSPOT = Stream.of(RuleType.values())
+    .filter(r -> r != RuleType.SECURITY_HOTSPOT)
+    .toArray(RuleType[]::new);
 
   private System2 system2 = System2.INSTANCE;
 
@@ -81,7 +89,7 @@ public class IssuesActionTest {
       .setMessage(null)
       .setLine(null)
       .setChecksum(null)
-      .setAssignee(null));
+      .setAssigneeUuid(null));
     addPermissionTo(project);
 
     ServerIssue serverIssue = call(project.getKey());
@@ -105,6 +113,7 @@ public class IssuesActionTest {
 
   @Test
   public void test_fields_with_non_null_values() throws Exception {
+    UserDto user = db.users().insertUser(u -> u.setLogin("simon").setName("Simon").setEmail("simon@email.com"));
     RuleDefinitionDto rule = db.rules().insert();
     ComponentDto project = db.components().insertPrivateProject();
     ComponentDto module = db.components().insertComponent(newModuleDto(project));
@@ -117,7 +126,7 @@ public class IssuesActionTest {
       .setMessage("the message")
       .setLine(10)
       .setChecksum("ABC")
-      .setAssignee("foo"));
+      .setAssigneeUuid(user.getUuid()));
     addPermissionTo(project);
 
     ServerIssue serverIssue = call(project.getKey());
@@ -135,7 +144,7 @@ public class IssuesActionTest {
     assertThat(serverIssue.getMsg()).isEqualTo(issue.getMessage());
     assertThat(serverIssue.getResolution()).isEqualTo(issue.getResolution());
     assertThat(serverIssue.getChecksum()).isEqualTo(issue.getChecksum());
-    assertThat(serverIssue.getAssigneeLogin()).isEqualTo(issue.getAssignee());
+    assertThat(serverIssue.getAssigneeLogin()).isEqualTo(user.getLogin());
   }
 
   @Test
@@ -144,9 +153,9 @@ public class IssuesActionTest {
     ComponentDto project = db.components().insertPrivateProject();
     ComponentDto module = db.components().insertComponent(newModuleDto(project));
     ComponentDto file = db.components().insertComponent(newFileDto(module, null));
-    IssueDto issueOnFile = db.issues().insert(rule, project, file, i -> i.setKee("ON_FILE"));
-    IssueDto issueOnModule = db.issues().insert(rule, project, module, i -> i.setKee("ON_MODULE"));
-    IssueDto issueOnProject = db.issues().insert(rule, project, project, i -> i.setKee("ON_PROJECT"));
+    IssueDto issueOnFile = db.issues().insert(rule, project, file, i -> i.setKee("ON_FILE").setType(randomRuleTypeExceptHotspot()));
+    IssueDto issueOnModule = db.issues().insert(rule, project, module, i -> i.setKee("ON_MODULE").setType(randomRuleTypeExceptHotspot()));
+    IssueDto issueOnProject = db.issues().insert(rule, project, project, i -> i.setKee("ON_PROJECT").setType(randomRuleTypeExceptHotspot()));
 
     addPermissionTo(project);
     try (CloseableIterator<ServerIssue> result = callStream(project.getKey(), null)) {
@@ -160,14 +169,43 @@ public class IssuesActionTest {
   }
 
   @Test
+  public void does_not_return_issues_from_external_rules() {
+    RuleDefinitionDto rule = db.rules().insert();
+    ComponentDto project = db.components().insertPrivateProject();
+    ComponentDto module = db.components().insertComponent(newModuleDto(project));
+    ComponentDto file = db.components().insertComponent(newFileDto(module, null));
+    IssueDto issueOnProject = db.issues().insert(rule, project, project, i -> i.setKee("ON_PROJECT").setType(randomRuleTypeExceptHotspot()));
+    IssueDto issueOnModule = db.issues().insert(rule, project, module, i -> i.setKee("ON_MODULE").setType(randomRuleTypeExceptHotspot()));
+    IssueDto issueOnFile = db.issues().insert(rule, project, file, i -> i.setKee("ON_FILE").setType(randomRuleTypeExceptHotspot()));
+
+    RuleDefinitionDto external = db.rules().insert(ruleDefinitionDto -> ruleDefinitionDto.setIsExternal(true));
+    IssueDto issueFromExteralruleOnFile = db.issues().insert(external, project, file, i -> i.setKee("ON_FILE_FROM_EXTERNAL").setType(randomRuleTypeExceptHotspot()));
+    
+    RuleDefinitionDto migrated = db.rules().insert();
+    db.executeUpdateSql("update rules set is_external=? where rules.id = ?", false, migrated.getId());
+    IssueDto issueFromMigratedRule = db.issues().insert(migrated, project, file, i -> i.setKee("MIGRATED").setType(randomRuleTypeExceptHotspot()));
+
+    addPermissionTo(project);
+    try (CloseableIterator<ServerIssue> result = callStream(project.getKey(), null)) {
+      assertThat(result)
+        .extracting(ServerIssue::getKey, ServerIssue::getModuleKey)
+        .containsExactlyInAnyOrder(
+          tuple(issueOnFile.getKey(), module.getKey()),
+          tuple(issueOnModule.getKey(), module.getKey()),
+          tuple(issueOnProject.getKey(), project.getKey()),
+          tuple(issueFromMigratedRule.getKey(), module.getKey()));
+    }
+  }
+
+  @Test
   public void return_issues_of_module() {
     RuleDefinitionDto rule = db.rules().insert();
     ComponentDto project = db.components().insertPrivateProject();
     ComponentDto module = db.components().insertComponent(newModuleDto(project));
     ComponentDto file = db.components().insertComponent(newFileDto(module, null));
-    IssueDto issueOnFile = db.issues().insert(rule, project, file, i -> i.setKee("ON_FILE"));
-    IssueDto issueOnModule = db.issues().insert(rule, project, module, i -> i.setKee("ON_MODULE"));
-    IssueDto issueOnProject = db.issues().insert(rule, project, project, i -> i.setKee("ON_PROJECT"));
+    IssueDto issueOnFile = db.issues().insert(rule, project, file, i -> i.setKee("ON_FILE").setType(randomRuleTypeExceptHotspot()));
+    IssueDto issueOnModule = db.issues().insert(rule, project, module, i -> i.setKee("ON_MODULE").setType(randomRuleTypeExceptHotspot()));
+    IssueDto issueOnProject = db.issues().insert(rule, project, project, i -> i.setKee("ON_PROJECT").setType(randomRuleTypeExceptHotspot()));
 
     addPermissionTo(project);
     try (CloseableIterator<ServerIssue> result = callStream(module.getKey(), null)) {
@@ -185,9 +223,9 @@ public class IssuesActionTest {
     ComponentDto project = db.components().insertPrivateProject();
     ComponentDto module = db.components().insertComponent(newModuleDto(project));
     ComponentDto file = db.components().insertComponent(newFileDto(module, null));
-    IssueDto issueOnFile = db.issues().insert(rule, project, file);
-    IssueDto issueOnModule = db.issues().insert(rule, project, module);
-    IssueDto issueOnProject = db.issues().insert(rule, project, project);
+    IssueDto issueOnFile = db.issues().insert(rule, project, file, i -> i.setType(randomRuleTypeExceptHotspot()));
+    IssueDto issueOnModule = db.issues().insert(rule, project, module, i -> i.setType(randomRuleTypeExceptHotspot()));
+    IssueDto issueOnProject = db.issues().insert(rule, project, project, i -> i.setType(randomRuleTypeExceptHotspot()));
 
     addPermissionTo(project);
     try (CloseableIterator<ServerIssue> result = callStream(file.getKey(), null)) {
@@ -205,8 +243,8 @@ public class IssuesActionTest {
     addPermissionTo(project);
     ComponentDto branch = db.components().insertProjectBranch(project, b -> b.setKey("my_branch"));
     ComponentDto file = db.components().insertComponent(newFileDto(branch));
-    IssueDto issueOnFile = db.issues().insert(rule, branch, file);
-    IssueDto issueOnBranch = db.issues().insert(rule, branch, branch);
+    IssueDto issueOnFile = db.issues().insert(rule, branch, file, i -> i.setType(randomRuleTypeExceptHotspot()));
+    IssueDto issueOnBranch = db.issues().insert(rule, branch, branch, i -> i.setType(randomRuleTypeExceptHotspot()));
 
     assertResult(project.getKey(), "my_branch",
       tuple(issueOnFile.getKey(), branch.getKey()),
@@ -222,9 +260,9 @@ public class IssuesActionTest {
     ComponentDto module = db.components().insertComponent(newModuleDto(branch));
     ComponentDto subModule = db.components().insertComponent(newModuleDto(module));
     ComponentDto file = db.components().insertComponent(newFileDto(subModule));
-    IssueDto issueOnFile = db.issues().insert(rule, branch, file);
-    IssueDto issueOnSubModule = db.issues().insert(rule, branch, subModule);
-    IssueDto issueOnModule = db.issues().insert(rule, branch, module);
+    IssueDto issueOnFile = db.issues().insert(rule, branch, file, i -> i.setType(randomRuleTypeExceptHotspot()));
+    IssueDto issueOnSubModule = db.issues().insert(rule, branch, subModule, i -> i.setType(randomRuleTypeExceptHotspot()));
+    IssueDto issueOnModule = db.issues().insert(rule, branch, module, i -> i.setType(randomRuleTypeExceptHotspot()));
 
     assertResult(module.getKey(), "my_branch",
       tuple(issueOnFile.getKey(), subModule.getKey()),
@@ -251,7 +289,7 @@ public class IssuesActionTest {
     ComponentDto project = db.components().insertPrivateProject();
     ComponentDto module = db.components().insertComponent(newModuleDto(project).setEnabled(false));
     ComponentDto file = db.components().insertComponent(newFileDto(module, null).setEnabled(false));
-    IssueDto issue = db.issues().insert(rule, project, file);
+    IssueDto issue = db.issues().insert(rule, project, file, i -> i.setType(randomRuleTypeExceptHotspot()));
 
     addPermissionTo(project);
     try (CloseableIterator<ServerIssue> result = callStream(project.getKey(), null)) {
@@ -319,5 +357,9 @@ public class IssuesActionTest {
         .extracting(ServerIssue::getKey, ServerIssue::getModuleKey)
         .containsExactlyInAnyOrder(tuples);
     }
+  }
+
+  private RuleType randomRuleTypeExceptHotspot() {
+    return RULE_TYPES_EXCEPT_HOTSPOT[nextInt(RULE_TYPES_EXCEPT_HOTSPOT.length)];
   }
 }

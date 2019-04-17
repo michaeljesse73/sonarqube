@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,25 +19,27 @@
  */
 package org.sonarqube.ws.client;
 
-import com.google.common.base.Throwables;
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
 import java.io.StringReader;
 import java.net.HttpURLConnection;
 import java.nio.charset.StandardCharsets;
-import org.apache.commons.io.IOUtils;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
 import org.sonarqube.ws.MediaTypes;
 
 import static java.util.Objects.requireNonNull;
 
 public class MockWsResponse extends BaseResponse {
 
+  private static final String CONTENT_TYPE_HEADER = "Content-Type";
+
   private int code = HttpURLConnection.HTTP_OK;
   private String requestUrl;
   private byte[] content;
-  private String contentType;
+  private final Map<String, String> headers = new HashMap<>();
 
   @Override
   public int code() {
@@ -51,26 +53,22 @@ public class MockWsResponse extends BaseResponse {
 
   @Override
   public String contentType() {
-    requireNonNull(contentType);
-    return contentType;
+    return requireNonNull(headers.get(CONTENT_TYPE_HEADER));
+  }
+
+  @Override
+  public Optional<String> header(String name) {
+    return Optional.ofNullable(headers.get(name));
   }
 
   public MockWsResponse setContentType(String contentType) {
-    this.contentType = contentType;
+    headers.put(CONTENT_TYPE_HEADER, contentType);
     return this;
   }
 
   public MockWsResponse setRequestUrl(String requestUrl) {
     this.requestUrl = requestUrl;
     return this;
-  }
-
-  public MockWsResponse setContent(InputStream is) {
-    try {
-      return setContent(IOUtils.toByteArray(is));
-    } catch (IOException e) {
-      throw Throwables.propagate(e);
-    }
   }
 
   public MockWsResponse setContent(byte[] b) {

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -31,18 +31,18 @@ import org.junit.rules.ExpectedException;
 import org.sonar.api.utils.MessageException;
 import org.sonar.batch.bootstrapper.Batch;
 import org.sonar.batch.bootstrapper.EnvironmentInformation;
-import org.sonar.scanner.repository.settings.SettingsLoader;
+import org.sonar.scanner.repository.settings.GlobalSettingsLoader;
 
 public class ExceptionHandlingMediumTest {
   @Rule
   public ExpectedException thrown = ExpectedException.none();
 
   private Batch batch;
-  private static ErrorSettingsLoader loader;
+  private static ErrorGlobalSettingsLoader loader;
 
   @BeforeClass
   public static void beforeClass() {
-    loader = new ErrorSettingsLoader();
+    loader = new ErrorGlobalSettingsLoader();
   }
 
   public void setUp(boolean verbose) {
@@ -66,7 +66,7 @@ public class ExceptionHandlingMediumTest {
     thrown.expectMessage("Error loading settings");
     thrown.expectCause(CoreMatchers.nullValue(Throwable.class));
 
-    batch.start();
+    batch.execute();
   }
 
   @Test
@@ -87,7 +87,7 @@ public class ExceptionHandlingMediumTest {
       }
     });
 
-    batch.start();
+    batch.execute();
   }
 
   @Test
@@ -95,14 +95,14 @@ public class ExceptionHandlingMediumTest {
     setUp(true);
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("Unable to load component class");
-    batch.start();
+    batch.execute();
   }
 
-  private static class ErrorSettingsLoader implements SettingsLoader {
+  private static class ErrorGlobalSettingsLoader implements GlobalSettingsLoader {
     boolean withCause = false;
 
     @Override
-    public Map<String, String> load(String componentKey) {
+    public Map<String, String> loadGlobalSettings() {
       if (withCause) {
         IllegalStateException cause = new IllegalStateException("Code 401");
         throw MessageException.of("Error loading settings", cause);

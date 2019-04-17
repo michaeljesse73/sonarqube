@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,14 +20,13 @@
 import * as React from 'react';
 import GroupsForm from './GroupsForm';
 import BulletListIcon from '../../../components/icons-components/BulletListIcon';
-import { User } from '../../../app/types';
 import { ButtonIcon } from '../../../components/ui/buttons';
 import { translate, translateWithParameters } from '../../../helpers/l10n';
 
 interface Props {
   groups: string[];
   onUpdateUsers: () => void;
-  user: User;
+  user: T.User;
 }
 
 interface State {
@@ -54,27 +53,23 @@ export default class UserGroups extends React.PureComponent<Props, State> {
     return (
       <ul>
         {groups.slice(0, limit).map(group => (
-          <li key={group} className="little-spacer-bottom">
+          <li className="little-spacer-bottom" key={group}>
             {group}
           </li>
         ))}
         {groups.length > GROUPS_LIMIT &&
           this.state.showMore &&
           groups.slice(limit).map(group => (
-            <li key={group} className="little-spacer-bottom">
+            <li className="little-spacer-bottom" key={group}>
               {group}
             </li>
           ))}
         <li className="little-spacer-bottom">
-          {groups.length > GROUPS_LIMIT &&
-            !this.state.showMore && (
-              <a
-                className="js-user-more-groups spacer-right"
-                href="#"
-                onClick={this.toggleShowMore}>
-                {translateWithParameters('more_x', groups.length - limit)}
-              </a>
-            )}
+          {groups.length > GROUPS_LIMIT && !this.state.showMore && (
+            <a className="js-user-more-groups spacer-right" href="#" onClick={this.toggleShowMore}>
+              {translateWithParameters('more_x', groups.length - limit)}
+            </a>
+          )}
           <ButtonIcon
             className="js-user-groups button-small"
             onClick={this.handleOpenForm}

@@ -2,11 +2,11 @@
 
 exports[`should show administration menu if the user has the rights 1`] = `
 <ul
-  className="global-navbar-menu pull-left"
+  className="global-navbar-menu"
 >
   <li>
     <Link
-      activeClassName="active"
+      activeClassName=""
       onlyActiveOnIndex={false}
       style={Object {}}
       to="/projects"
@@ -16,6 +16,7 @@ exports[`should show administration menu if the user has the rights 1`] = `
   </li>
   <li>
     <Link
+      className=""
       onlyActiveOnIndex={false}
       style={Object {}}
       to={
@@ -77,89 +78,12 @@ exports[`should show administration menu if the user has the rights 1`] = `
 `;
 
 exports[`should work with extensions 1`] = `
-<ul
-  className="global-navbar-menu pull-left"
->
-  <li>
-    <Link
-      activeClassName="active"
-      onlyActiveOnIndex={false}
-      style={Object {}}
-      to="/projects"
-    >
-      projects.page
-    </Link>
-  </li>
-  <li>
-    <Link
-      onlyActiveOnIndex={false}
-      style={Object {}}
-      to={
-        Object {
-          "pathname": "/issues",
-          "query": Object {
-            "resolved": "false",
-          },
-        }
-      }
-    >
-      issues.page
-    </Link>
-  </li>
-  <li>
-    <Link
-      onlyActiveOnIndex={false}
-      style={Object {}}
-      to="/coding_rules"
-    >
-      coding_rules.page
-    </Link>
-  </li>
-  <li>
-    <Link
-      activeClassName="active"
-      onlyActiveOnIndex={false}
-      style={Object {}}
-      to="/profiles"
-    >
-      quality_profiles.page
-    </Link>
-  </li>
-  <li>
-    <Link
-      activeClassName="active"
-      onlyActiveOnIndex={false}
-      style={Object {}}
-      to={
-        Object {
-          "pathname": "/quality_gates",
-        }
-      }
-    >
-      quality_gates.page
-    </Link>
-  </li>
-  <li
-    className="dropdown"
-  >
-    <a
-      className="dropdown-toggle"
-      data-toggle="dropdown"
-      href="#"
-      id="global-navigation-more"
-    >
-      more
-       
-      <span
-        className="icon-dropdown"
-      />
-    </a>
+<Dropdown
+  overlay={
     <ul
-      className="dropdown-menu"
+      className="menu"
     >
-      <li
-        key="foo"
-      >
+      <li>
         <Link
           onlyActiveOnIndex={false}
           style={Object {}}
@@ -169,6 +93,9 @@ exports[`should work with extensions 1`] = `
         </Link>
       </li>
     </ul>
-  </li>
-</ul>
+  }
+  tagName="li"
+>
+  <Component />
+</Dropdown>
 `;

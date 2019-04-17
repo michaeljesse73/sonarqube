@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,7 +25,6 @@ import java.awt.Dimension;
 import java.awt.EventQueue;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
@@ -92,18 +91,24 @@ public class ScannerReportViewerApp {
   private JEditorPane duplicationEditor;
   private JScrollPane issuesTab;
   private JEditorPane issuesEditor;
+  private JScrollPane externalIssuesTab;
+  private JEditorPane externalIssuesEditor;
   private JScrollPane measuresTab;
   private JEditorPane measuresEditor;
   private JScrollPane scmTab;
   private JEditorPane scmEditor;
   private JScrollPane activeRuleTab;
   private JEditorPane activeRuleEditor;
+  private JScrollPane adHocRuleTab;
+  private JEditorPane adHocRuleEditor;
   private JScrollPane qualityProfileTab;
   private JEditorPane qualityProfileEditor;
   private JScrollPane pluginTab;
   private JEditorPane pluginEditor;
   private JScrollPane cpdTextBlocksTab;
   private JEditorPane cpdTextBlocksEditor;
+  private JScrollPane significantCodeTab;
+  private JEditorPane significantCodeEditor;
 
   /**
    * Create the application.
@@ -194,6 +199,7 @@ public class ScannerReportViewerApp {
     updateTitle();
     loadComponents();
     updateActiveRules();
+    updateAdHocRules();
     updateQualityProfiles();
     updatePlugins();
   }
@@ -222,7 +228,7 @@ public class ScannerReportViewerApp {
         return component.getName();
       case DIRECTORY:
       case FILE:
-        return component.getPath();
+        return component.getProjectRelativePath();
       default:
         throw new IllegalArgumentException("Unknow component type: " + component.getType());
     }
@@ -249,12 +255,13 @@ public class ScannerReportViewerApp {
     updateSymbols(component);
     updateSource(component);
     updateCoverage(component);
-    updateTests(component);
     updateDuplications(component);
     updateIssues(component);
+    updateExternalIssues(component);
     updateMeasures(component);
     updateScm(component);
     updateCpdTextBlocks(component);
+    updateSignificantCode(component);
   }
 
   private void updateCpdTextBlocks(Component component) {
@@ -267,6 +274,22 @@ public class ScannerReportViewerApp {
         }
       } catch (Exception e) {
         throw new IllegalStateException("Can't read CPD text blocks for " + getNodeName(component), e);
+      }
+    }
+  }
+
+  private void updateSignificantCode(Component component) {
+    significantCodeEditor.setText("");
+    if (reader.hasCoverage(component.getRef())) {
+      try (CloseableIterator<ScannerReport.LineSgnificantCode> it = reader.readComponentSignificantCode(component.getRef())) {
+        if (it != null) {
+          while (it.hasNext()) {
+            ScannerReport.LineSgnificantCode textBlock = it.next();
+            significantCodeEditor.getDocument().insertString(significantCodeEditor.getDocument().getEndPosition().getOffset(), textBlock + "\n", null);
+          }
+        }
+      } catch (Exception e) {
+        throw new IllegalStateException("Can't read significant code for " + getNodeName(component), e);
       }
     }
   }
@@ -298,6 +321,19 @@ public class ScannerReportViewerApp {
     }
   }
 
+  private void updateExternalIssues(Component component) {
+    externalIssuesEditor.setText("");
+    try (CloseableIterator<ScannerReport.ExternalIssue> it = reader.readComponentExternalIssues(component.getRef())) {
+      while (it.hasNext()) {
+        ScannerReport.ExternalIssue issue = it.next();
+        int offset = externalIssuesEditor.getDocument().getEndPosition().getOffset();
+        externalIssuesEditor.getDocument().insertString(offset, issue.toString(), null);
+      }
+    } catch (Exception e) {
+      throw new IllegalStateException("Can't read external issues for " + getNodeName(component), e);
+    }
+  }
+
   private void updateCoverage(Component component) {
     coverageEditor.setText("");
     try (CloseableIterator<ScannerReport.LineCoverage> it = reader.readComponentCoverage(component.getRef())) {
@@ -307,23 +343,6 @@ public class ScannerReportViewerApp {
       }
     } catch (Exception e) {
       throw new IllegalStateException("Can't read code coverage for " + getNodeName(component), e);
-    }
-  }
-
-  private void updateTests(Component component) {
-    testsEditor.setText("");
-    File tests = reader.readTests(component.getRef());
-    if (tests == null) {
-      return;
-    }
-    try (InputStream inputStream = FileUtils.openInputStream(tests)) {
-      ScannerReport.Test test = ScannerReport.Test.parser().parseDelimitedFrom(inputStream);
-      while (test != null) {
-        testsEditor.getDocument().insertString(testsEditor.getDocument().getEndPosition().getOffset(), test + "\n", null);
-        test = ScannerReport.Test.parser().parseDelimitedFrom(inputStream);
-      }
-    } catch (Exception e) {
-      throw new IllegalStateException(e);
     }
   }
 
@@ -353,6 +372,18 @@ public class ScannerReportViewerApp {
         builder.append(activeRuleCloseableIterator.next().toString()).append("\n");
       }
       activeRuleEditor.setText(builder.toString());
+    }
+  }
+
+  private void updateAdHocRules() {
+    adHocRuleEditor.setText("");
+
+    StringBuilder builder = new StringBuilder();
+    try (CloseableIterator<ScannerReport.AdHocRule> adHocRuleCloseableIterator = reader.readAdHocRules()) {
+      while (adHocRuleCloseableIterator.hasNext()) {
+        builder.append(adHocRuleCloseableIterator.next().toString()).append("\n");
+      }
+      adHocRuleEditor.setText(builder.toString());
     }
   }
 
@@ -517,6 +548,12 @@ public class ScannerReportViewerApp {
     issuesEditor = new JEditorPane();
     issuesTab.setViewportView(issuesEditor);
 
+    externalIssuesTab = new JScrollPane();
+    tabbedPane.addTab("External Issues", null, externalIssuesTab, null);
+
+    externalIssuesEditor = new JEditorPane();
+    externalIssuesTab.setViewportView(externalIssuesEditor);
+
     measuresTab = new JScrollPane();
     tabbedPane.addTab("Measures", null, measuresTab, null);
 
@@ -535,6 +572,12 @@ public class ScannerReportViewerApp {
     activeRuleEditor = new JEditorPane();
     activeRuleTab.setViewportView(activeRuleEditor);
 
+    adHocRuleTab = new JScrollPane();
+    tabbedPane.addTab("Add Hoc Rules", null, adHocRuleTab, null);
+
+    adHocRuleEditor = new JEditorPane();
+    adHocRuleTab.setViewportView(adHocRuleEditor);
+
     qualityProfileTab = new JScrollPane();
     tabbedPane.addTab("Quality Profiles", null, qualityProfileTab, null);
 
@@ -552,6 +595,12 @@ public class ScannerReportViewerApp {
 
     cpdTextBlocksEditor = new JEditorPane();
     cpdTextBlocksTab.setViewportView(cpdTextBlocksEditor);
+
+    significantCodeTab = new JScrollPane();
+    tabbedPane.addTab("Significant Code Ranges", null, significantCodeTab, null);
+    
+    significantCodeEditor = new JEditorPane();
+    significantCodeTab.setViewportView(significantCodeEditor);
 
     treeScrollPane = new JScrollPane();
     treeScrollPane.setPreferredSize(new Dimension(200, 400));

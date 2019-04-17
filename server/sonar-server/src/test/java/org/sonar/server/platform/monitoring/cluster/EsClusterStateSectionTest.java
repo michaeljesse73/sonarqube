@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,10 +21,8 @@ package org.sonar.server.platform.monitoring.cluster;
 
 import org.junit.Rule;
 import org.junit.Test;
-import org.sonar.api.config.internal.MapSettings;
 import org.sonar.process.systeminfo.protobuf.ProtobufSystemInfo;
 import org.sonar.server.es.EsTester;
-import org.sonar.server.issue.index.IssueIndexDefinition;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonar.process.systeminfo.SystemInfoUtils.attribute;
@@ -32,9 +30,9 @@ import static org.sonar.process.systeminfo.SystemInfoUtils.attribute;
 public class EsClusterStateSectionTest {
 
   @Rule
-  public EsTester esTester = new EsTester(new IssueIndexDefinition(new MapSettings().asConfig()));
+  public EsTester es = EsTester.create();
 
-  private EsClusterStateSection underTest = new EsClusterStateSection(esTester.client());
+  private EsClusterStateSection underTest = new EsClusterStateSection(es.client());
 
   @Test
   public void test_name() {

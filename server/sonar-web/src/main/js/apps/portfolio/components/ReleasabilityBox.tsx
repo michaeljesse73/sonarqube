@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,12 +22,13 @@ import { Link } from 'react-router';
 import RatingFreshness from './RatingFreshness';
 import Rating from '../../../components/ui/Rating';
 import Measure from '../../../components/measure/Measure';
+import Level from '../../../components/ui/Level';
 import { translate } from '../../../helpers/l10n';
 import { getComponentDrilldownUrl } from '../../../helpers/urls';
 
 interface Props {
   component: string;
-  measures: { [key: string]: string | undefined };
+  measures: T.Dict<string | undefined>;
 }
 
 export default function ReleasabilityBox({ component, measures }: Props) {
@@ -41,31 +42,30 @@ export default function ReleasabilityBox({ component, measures }: Props) {
 
       {rating && (
         <Link
-          to={getComponentDrilldownUrl(component, 'alert_status')}
-          className="portfolio-box-rating">
+          className="portfolio-box-rating"
+          to={getComponentDrilldownUrl({ componentKey: component, metric: 'alert_status' })}>
           <Rating value={rating} />
         </Link>
       )}
 
-      <RatingFreshness lastChange={lastReleasabilityChange} />
+      <RatingFreshness lastChange={lastReleasabilityChange} rating={rating} />
 
-      {effort &&
-        Number(effort) > 0 && (
-          <div className="portfolio-effort">
-            <Link to={getComponentDrilldownUrl(component, 'alert_status')}>
-              <span>
-                <Measure
-                  className="little-spacer-right"
-                  metricKey="projects"
-                  metricType="SHORT_INT"
-                  value={effort}
-                />
-                {Number(effort) === 1 ? 'project' : 'projects'}
-              </span>
-            </Link>{' '}
-            <span className="level level-ERROR level-small">{translate('metric.level.ERROR')}</span>
-          </div>
-        )}
+      {effort && Number(effort) > 0 && (
+        <div className="portfolio-effort">
+          <Link to={getComponentDrilldownUrl({ componentKey: component, metric: 'alert_status' })}>
+            <span>
+              <Measure
+                className="little-spacer-right"
+                metricKey="projects"
+                metricType="SHORT_INT"
+                value={effort}
+              />
+              {Number(effort) === 1 ? 'project' : 'projects'}
+            </span>
+          </Link>{' '}
+          <Level level="ERROR" small={true} />
+        </div>
+      )}
     </div>
   );
 }

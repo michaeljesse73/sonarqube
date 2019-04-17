@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -76,7 +76,7 @@ public class OneIssuePerLineSensor implements Sensor {
       if (context.getSonarQubeVersion().isGreaterThanOrEqual(Version.create(5, 5))) {
         newIssue.gap(context.settings().getDouble(EFFORT_TO_FIX_PROPERTY));
       } else {
-        newIssue.effortToFix(context.settings().getDouble(EFFORT_TO_FIX_PROPERTY));
+        newIssue.gap(context.settings().getDouble(EFFORT_TO_FIX_PROPERTY));
       }
       newIssue.save();
     }

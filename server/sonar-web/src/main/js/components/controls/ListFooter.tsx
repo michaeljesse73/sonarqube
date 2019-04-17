@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,14 +19,17 @@
  */
 import * as React from 'react';
 import * as classNames from 'classnames';
+import DeferredSpinner from '../common/DeferredSpinner';
 import { translate, translateWithParameters } from '../../helpers/l10n';
 import { formatMeasure } from '../../helpers/measures';
 
 interface Props {
   count: number;
+  className?: string;
+  loading?: boolean;
   loadMore?: () => void;
   ready?: boolean;
-  total: number;
+  total?: number;
 }
 
 export default function ListFooter({ ready = true, ...props }: Props) {
@@ -38,15 +41,17 @@ export default function ListFooter({ ready = true, ...props }: Props) {
     }
   };
 
-  const hasMore = props.total > props.count;
+  const hasMore = props.total && props.total > props.count;
   const loadMoreLink = (
     <a className="spacer-left" href="#" onClick={handleLoadMore}>
       {translate('show_more')}
     </a>
   );
-  const className = classNames('spacer-top note text-center', {
-    'new-loading': !ready
-  });
+  const className = classNames(
+    'spacer-top note text-center',
+    { 'new-loading': !ready },
+    props.className
+  );
 
   return (
     <footer className={className}>
@@ -56,6 +61,9 @@ export default function ListFooter({ ready = true, ...props }: Props) {
         formatMeasure(props.total, 'INT', null)
       )}
       {props.loadMore != null && hasMore ? loadMoreLink : null}
+      {props.loading && (
+        <DeferredSpinner className="vertical-bottom spacer-left position-absolute" />
+      )}
     </footer>
   );
 }

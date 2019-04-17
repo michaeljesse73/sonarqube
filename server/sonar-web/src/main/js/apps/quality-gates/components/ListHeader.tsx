@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,48 +18,47 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import CreateQualityGateForm from '../components/CreateQualityGateForm';
-import { QualityGate } from '../../../api/quality-gates';
+import CreateQualityGateForm from './CreateQualityGateForm';
+import { Button } from '../../../components/ui/buttons';
+import DocTooltip from '../../../components/docs/DocTooltip';
+import ModalButton from '../../../components/controls/ModalButton';
 import { translate } from '../../../helpers/l10n';
-import { Organization } from '../../../app/types';
 
 interface Props {
   canCreate: boolean;
-  onAdd: (qualityGate: QualityGate) => void;
-  organization?: Organization;
+  refreshQualityGates: () => Promise<void>;
+  organization?: string;
 }
 
-interface State {
-  createQualityGateOpen: boolean;
-}
+export default function ListHeader({ canCreate, refreshQualityGates, organization }: Props) {
+  return (
+    <header className="page-header">
+      {canCreate && (
+        <div className="page-actions">
+          <ModalButton
+            modal={({ onClose }) => (
+              <CreateQualityGateForm
+                onClose={onClose}
+                onCreate={refreshQualityGates}
+                organization={organization}
+              />
+            )}>
+            {({ onClick }) => (
+              <Button id="quality-gate-add" onClick={onClick}>
+                {translate('create')}
+              </Button>
+            )}
+          </ModalButton>
+        </div>
+      )}
 
-export default class ListHeader extends React.PureComponent<Props, State> {
-  state = { createQualityGateOpen: false };
-
-  openCreateQualityGateForm = () => this.setState({ createQualityGateOpen: true });
-  closeCreateQualityGateForm = () => this.setState({ createQualityGateOpen: false });
-
-  render() {
-    const { organization } = this.props;
-
-    return (
-      <header className="page-header">
+      <div className="display-flex-center">
         <h1 className="page-title">{translate('quality_gates.page')}</h1>
-        {this.props.canCreate && (
-          <div className="page-actions">
-            <button id="quality-gate-add" onClick={this.openCreateQualityGateForm}>
-              {translate('create')}
-            </button>
-          </div>
-        )}
-        {this.state.createQualityGateOpen && (
-          <CreateQualityGateForm
-            onClose={this.closeCreateQualityGateForm}
-            onCreate={this.props.onAdd}
-            organization={organization && organization.key}
-          />
-        )}
-      </header>
-    );
-  }
+        <DocTooltip
+          className="spacer-left"
+          doc={import(/* webpackMode: "eager" */ 'Docs/tooltips/quality-gates/quality-gate.md')}
+        />
+      </div>
+    </header>
+  );
 }

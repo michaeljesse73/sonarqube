@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,18 +20,20 @@
 import * as React from 'react';
 import * as classNames from 'classnames';
 import { debounce, Cancelable } from 'lodash';
-import SearchIcon from '../icons-components/SearchIcon';
 import ClearIcon from '../icons-components/ClearIcon';
+import SearchIcon from '../icons-components/SearchIcon';
+import DeferredSpinner from '../common/DeferredSpinner';
 import { ButtonIcon } from '../ui/buttons';
 import * as theme from '../../app/theme';
-import { translateWithParameters } from '../../helpers/l10n';
+import { translateWithParameters, translate } from '../../helpers/l10n';
 import './SearchBox.css';
 
 interface Props {
   autoFocus?: boolean;
   className?: string;
-  innerRef?: (node: HTMLInputElement | null) => void;
   id?: string;
+  innerRef?: (node: HTMLInputElement | null) => void;
+  loading?: boolean;
   minLength?: number;
   onChange: (value: string) => void;
   onClick?: React.MouseEventHandler<HTMLInputElement>;
@@ -103,7 +105,7 @@ export default class SearchBox extends React.PureComponent<Props, State> {
 
   handleResetClick = () => {
     this.changeValue('', false);
-    if (this.props.value === undefined) {
+    if (this.props.value === undefined || this.props.value === '') {
       this.setState({ value: '' });
     }
     if (this.input) {
@@ -119,7 +121,7 @@ export default class SearchBox extends React.PureComponent<Props, State> {
   };
 
   render() {
-    const { minLength } = this.props;
+    const { loading, minLength } = this.props;
     const { value } = this.state;
 
     const inputClassName = classNames('search-box-input', {
@@ -129,8 +131,12 @@ export default class SearchBox extends React.PureComponent<Props, State> {
     const tooShort = minLength !== undefined && value.length > 0 && value.length < minLength;
 
     return (
-      <div className={classNames('search-box', this.props.className)} id={this.props.id}>
+      <div
+        className={classNames('search-box', this.props.className)}
+        id={this.props.id}
+        title={tooShort ? translateWithParameters('select2.tooShort', minLength!) : ''}>
         <input
+          aria-label={translate('search_verb')}
           autoComplete="off"
           autoFocus={this.props.autoFocus}
           className={inputClassName}
@@ -145,7 +151,9 @@ export default class SearchBox extends React.PureComponent<Props, State> {
           value={value}
         />
 
-        <SearchIcon className="search-box-magnifier" />
+        <DeferredSpinner loading={loading !== undefined ? loading : false}>
+          <SearchIcon className="search-box-magnifier" />
+        </DeferredSpinner>
 
         {value && (
           <ButtonIcon
@@ -157,9 +165,7 @@ export default class SearchBox extends React.PureComponent<Props, State> {
         )}
 
         {tooShort && (
-          <span
-            className="search-box-note"
-            title={translateWithParameters('select2.tooShort', minLength!)}>
+          <span className="search-box-note">
             {translateWithParameters('select2.tooShort', minLength!)}
           </span>
         )}

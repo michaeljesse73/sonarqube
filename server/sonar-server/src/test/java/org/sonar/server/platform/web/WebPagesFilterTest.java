@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,10 +19,7 @@
  */
 package org.sonar.server.platform.web;
 
-import java.io.IOException;
-import java.net.MalformedURLException;
 import javax.servlet.FilterChain;
-import javax.servlet.FilterConfig;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.WriteListener;
@@ -34,125 +31,62 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Matchers.anyString;
+import static org.mockito.Mockito.RETURNS_MOCKS;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 
 public class WebPagesFilterTest {
 
+  private static final String TEST_CONTEXT = "/sonarqube";
   @Rule
   public ExpectedException expectedException = ExpectedException.none();
+
+  private ServletContext servletContext = mock(ServletContext.class, RETURNS_MOCKS);
+  private WebPagesCache webPagesCache = mock(WebPagesCache.class);
 
   private HttpServletRequest request = mock(HttpServletRequest.class);
   private HttpServletResponse response = mock(HttpServletResponse.class);
   private FilterChain chain = mock(FilterChain.class);
-  private ServletContext servletContext = mock(ServletContext.class);
-  private FilterConfig filterConfig = mock(FilterConfig.class);
-  private StringOutputStream outputStream = new StringOutputStream();
 
-  private WebPagesFilter underTest = new WebPagesFilter();
+  private WebPagesFilter underTest = new WebPagesFilter(webPagesCache);
 
   @Before
   public void setUp() throws Exception {
-    when(filterConfig.getServletContext()).thenReturn(servletContext);
+    when(servletContext.getContextPath()).thenReturn(TEST_CONTEXT);
+  }
+
+  @Test
+  public void return_web_page_content() throws Exception {
+    String path = "/index.html";
+    when(webPagesCache.getContent(path)).thenReturn("test");
+    when(request.getRequestURI()).thenReturn(path);
+    when(request.getContextPath()).thenReturn(TEST_CONTEXT);
+    StringOutputStream outputStream = new StringOutputStream();
     when(response.getOutputStream()).thenReturn(outputStream);
-  }
 
-  @Test
-  public void verify_paths() throws Exception {
-    mockIndexFile();
-    verifyPathIsHandled("/");
-    verifyPathIsHandled("/issues");
-    verifyPathIsHandled("/foo");
-  }
-
-  @Test
-  public void return_index_file_content() throws Exception {
-    mockIndexFile();
-    mockPath("/foo", "");
-    underTest.init(filterConfig);
     underTest.doFilter(request, response, chain);
 
-    assertThat(outputStream.toString()).contains("<head>");
     verify(response).setContentType("text/html");
     verify(response).setCharacterEncoding("utf-8");
     verify(response).setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-    verify(response).getOutputStream();
-    verifyNoMoreInteractions(response);
+    assertThat(outputStream.toString()).isEqualTo("test");
   }
 
   @Test
-  public void return_index_file_content_with_default_web_context() throws Exception {
-    mockIndexFile();
-    mockPath("/foo", "");
-    underTest.init(filterConfig);
-    underTest.doFilter(request, response, chain);
-
-    assertThat(outputStream.toString()).contains("href=\"/sonar.css\"");
-    assertThat(outputStream.toString()).contains("<script src=\"/sonar.js\"></script>");
-    assertThat(outputStream.toString()).doesNotContain("%WEB_CONTEXT%");
-  }
-
-  @Test
-  public void return_index_file_content_with_web_context() throws Exception {
-    mockIndexFile();
-    mockPath("/foo", "/web");
-    underTest.init(filterConfig);
-    underTest.doFilter(request, response, chain);
-
-    assertThat(outputStream.toString()).contains("href=\"/web/sonar.css\"");
-    assertThat(outputStream.toString()).contains("<script src=\"/web/sonar.js\"></script>");
-    assertThat(outputStream.toString()).doesNotContain("%WEB_CONTEXT%");
-  }
-
-  @Test
-  public void fail_when_index_is_not_found() throws Exception {
-    mockPath("/foo", "");
-    when(servletContext.getResource("/index.html")).thenReturn(null);
-
-    expectedException.expect(IllegalStateException.class);
-    underTest.init(filterConfig);
-  }
-
-  private void mockIndexFile() throws MalformedURLException {
-    when(servletContext.getResource("/index.html")).thenReturn(getClass().getResource("WebPagesFilterTest/index.html"));
-  }
-
-  private void mockPath(String path, String context) {
-    when(request.getRequestURI()).thenReturn(path);
-    when(request.getContextPath()).thenReturn(context);
-    when(servletContext.getContextPath()).thenReturn(context);
-  }
-
-  private void verifyPathIsHandled(String path) throws Exception {
-    mockPath(path, "");
-    underTest.init(filterConfig);
+  public void does_nothing_when_static_resource() throws Exception{
+    when(request.getRequestURI()).thenReturn("/static");
+    when(request.getContextPath()).thenReturn(TEST_CONTEXT);
 
     underTest.doFilter(request, response, chain);
 
-    verify(response).getOutputStream();
-    verify(response).setContentType(anyString());
-    reset(response);
-    when(response.getOutputStream()).thenReturn(outputStream);
-  }
-
-  private void verifyPthIsIgnored(String path) throws Exception {
-    mockPath(path, "");
-    underTest.init(filterConfig);
-
-    underTest.doFilter(request, response, chain);
-
-    verifyZeroInteractions(response);
-    reset(response);
-    when(response.getOutputStream()).thenReturn(outputStream);
+    verify(chain).doFilter(request, response);
+    verifyZeroInteractions(webPagesCache);
   }
 
   class StringOutputStream extends ServletOutputStream {
-    private StringBuffer buf = new StringBuffer();
+    private final StringBuilder buf = new StringBuilder();
 
     StringOutputStream() {
     }

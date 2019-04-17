@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,21 +19,18 @@
  */
 package org.sonar.scanner.repository;
 
-import com.google.common.collect.HashBasedTable;
-import com.google.common.collect.Table;
-import java.util.Date;
+import com.google.common.collect.Maps;
+import java.util.Map;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.sonar.api.batch.bootstrap.ProjectKey;
-import org.sonar.scanner.bootstrap.GlobalAnalysisMode;
+import org.sonar.scanner.bootstrap.ProcessedScannerProperties;
 import org.sonar.scanner.scan.branch.BranchConfiguration;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.times;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
@@ -45,9 +42,7 @@ public class ProjectRepositoriesProviderTest {
   @Mock
   private ProjectRepositoriesLoader loader;
   @Mock
-  private ProjectKey projectKey;
-  @Mock
-  private GlobalAnalysisMode mode;
+  private ProcessedScannerProperties props;
   @Mock
   private BranchConfiguration branchConfiguration;
 
@@ -55,36 +50,31 @@ public class ProjectRepositoriesProviderTest {
   public void setUp() {
     MockitoAnnotations.initMocks(this);
 
-    Table<String, String, String> t1 = HashBasedTable.create();
-    Table<String, String, FileData> t2 = HashBasedTable.create();
+    Map<String, FileData> fileMap = Maps.newHashMap();
 
-    project = new ProjectRepositories(t1, t2, new Date());
+    project = new SingleProjectRepository(fileMap);
     provider = new ProjectRepositoriesProvider();
 
-    when(projectKey.get()).thenReturn("key");
+    when(props.getKeyWithBranch()).thenReturn("key");
   }
 
   @Test
   public void testValidation() {
-    when(mode.isIssues()).thenReturn(true);
-    when(loader.load(eq("key"), eq(true), any())).thenReturn(project);
+    when(loader.load(eq("key"), any())).thenReturn(project);
 
-    provider.provide(loader, projectKey, mode, branchConfiguration);
+    provider.provide(loader, props, branchConfiguration);
   }
 
   @Test
   public void testAssociated() {
-    when(mode.isIssues()).thenReturn(false);
-    when(loader.load(eq("key"), eq(false), any())).thenReturn(project);
+    when(loader.load(eq("key"), any())).thenReturn(project);
 
-    ProjectRepositories repo = provider.provide(loader, projectKey, mode, branchConfiguration);
+    ProjectRepositories repo = provider.provide(loader, props, branchConfiguration);
 
     assertThat(repo.exists()).isEqualTo(true);
-    assertThat(repo.lastAnalysisDate()).isNotNull();
 
-    verify(mode, times(1)).isIssues();
-    verify(projectKey).get();
-    verify(loader).load(eq("key"), eq(false), eq(null));
-    verifyNoMoreInteractions(loader, projectKey, mode);
+    verify(props).getKeyWithBranch();
+    verify(loader).load(eq("key"), eq(null));
+    verifyNoMoreInteractions(loader, props);
   }
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,6 +19,7 @@
  */
 package org.sonar.application.process;
 
+import com.google.common.net.HostAndPort;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -29,19 +30,22 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.function.Supplier;
-import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.sonar.application.command.AbstractCommand;
 import org.sonar.application.command.EsScriptCommand;
 import org.sonar.application.command.JavaCommand;
 import org.sonar.application.command.JvmOptions;
+import org.sonar.application.es.EsConnectorImpl;
 import org.sonar.application.es.EsInstallation;
+import org.sonar.process.FileUtils2;
 import org.sonar.process.ProcessId;
 import org.sonar.process.sharedmemoryfile.AllProcessesCommands;
 import org.sonar.process.sharedmemoryfile.ProcessCommands;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static java.lang.String.format;
+import static java.util.Collections.singleton;
 import static java.util.Objects.requireNonNull;
 import static org.sonar.process.ProcessEntryPoint.PROPERTY_PROCESS_INDEX;
 import static org.sonar.process.ProcessEntryPoint.PROPERTY_PROCESS_KEY;
@@ -71,17 +75,18 @@ public class ProcessLauncherImpl implements ProcessLauncher {
   }
 
   public ProcessMonitor launch(AbstractCommand command) {
-    EsInstallation fileSystem = command.getEsInstallation();
-    if (fileSystem != null) {
-      cleanupOutdatedEsData(fileSystem);
-      writeConfFiles(fileSystem);
+    EsInstallation esInstallation = command.getEsInstallation();
+    if (esInstallation != null) {
+      cleanupOutdatedEsData(esInstallation);
+      writeConfFiles(esInstallation);
+      ensureTempDirExists(esInstallation);
     }
 
     Process process;
     if (command instanceof EsScriptCommand) {
       process = launchExternal((EsScriptCommand) command);
     } else if (command instanceof JavaCommand) {
-      process = launchJava((JavaCommand) command);
+      process = launchJava((JavaCommand<?>) command);
     } else {
       throw new IllegalStateException("Unexpected type of command: " + command.getClass());
     }
@@ -89,7 +94,9 @@ public class ProcessLauncherImpl implements ProcessLauncher {
     ProcessId processId = command.getProcessId();
     try {
       if (processId == ProcessId.ELASTICSEARCH) {
-        return new EsProcessMonitor(process, processId, command.getEsInstallation(), new EsConnectorImpl());
+        checkArgument(esInstallation != null, "Incorrect configuration EsInstallation is null");
+        EsConnectorImpl esConnector = new EsConnectorImpl(esInstallation.getClusterName(), singleton(HostAndPort.fromParts(esInstallation.getHost(), esInstallation.getPort())));
+        return new EsProcessMonitor(process, processId, esConnector);
       } else {
         ProcessCommands commands = allProcessesCommands.createAfterClean(processId.getIpcIndex());
         return new ProcessCommandsProcessMonitor(process, processId, commands);
@@ -114,16 +121,17 @@ public class ProcessLauncherImpl implements ProcessLauncher {
   }
 
   private static void cleanupOutdatedEsData(EsInstallation esInstallation) {
-    esInstallation.getOutdatedSearchDirectories().forEach(outdatedDir -> {
-      if (outdatedDir.exists()) {
-        LOG.info("Deleting outdated search index data directory {}", outdatedDir.getAbsolutePath());
-        try {
-          FileUtils.deleteDirectory(outdatedDir);
-        } catch (IOException e) {
-          LOG.info("Failed to delete outdated search index data directory {}", outdatedDir.getAbsolutePath(), e);
+    esInstallation.getOutdatedSearchDirectories()
+      .forEach(outdatedDir -> {
+        if (outdatedDir.exists()) {
+          LOG.info("Deleting outdated search index data directory {}", outdatedDir.getAbsolutePath());
+          try {
+            FileUtils2.deleteDirectory(outdatedDir);
+          } catch (IOException e) {
+            LOG.info("Failed to delete outdated search index data directory {}", outdatedDir.getAbsolutePath(), e);
+          }
         }
-      }
-    });
+      });
   }
 
   private static void writeConfFiles(EsInstallation esInstallation) {
@@ -140,6 +148,15 @@ public class ProcessLauncherImpl implements ProcessLauncher {
       esInstallation.getLog4j2Properties().store(new FileOutputStream(esInstallation.getLog4j2PropertiesLocation()), "log4j2 properties file for ES bundled in SonarQube");
     } catch (IOException e) {
       throw new IllegalStateException("Failed to write ES configuration files", e);
+    }
+  }
+
+  private static void ensureTempDirExists(EsInstallation esInstallation) {
+    File tmpDirectory = esInstallation.getTmpDirectory();
+    if (!tmpDirectory.exists() && !tmpDirectory.mkdirs()) {
+      String error = format("Failed to create ES temporary directory [%s]", tmpDirectory.getAbsolutePath());
+      LOG.error(error);
+      throw new IllegalStateException(error);
     }
   }
 
@@ -192,13 +209,13 @@ public class ProcessLauncherImpl implements ProcessLauncher {
     return create(javaCommand, commands);
   }
 
-  private ProcessBuilder create(AbstractCommand<?> javaCommand, List<String> commands) {
+  private ProcessBuilder create(AbstractCommand<?> command, List<String> commands) {
     ProcessBuilder processBuilder = processBuilderSupplier.get();
     processBuilder.command(commands);
-    processBuilder.directory(javaCommand.getWorkDir());
+    processBuilder.directory(command.getWorkDir());
     Map<String, String> environment = processBuilder.environment();
-    environment.putAll(javaCommand.getEnvVariables());
-    javaCommand.getSuppressedEnvVariables().forEach(environment::remove);
+    environment.putAll(command.getEnvVariables());
+    command.getSuppressedEnvVariables().forEach(environment::remove);
     processBuilder.redirectErrorStream(true);
     return processBuilder;
   }

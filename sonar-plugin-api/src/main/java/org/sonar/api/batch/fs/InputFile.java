@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -49,7 +49,9 @@ public interface InputFile extends IndexedFile {
 
   /** 
    * Status regarding previous analysis
+   * @deprecated since 7.7 preview mode was dropped
    */
+  @Deprecated
   enum Status {
     SAME, CHANGED, ADDED
   }
@@ -134,8 +136,9 @@ public interface InputFile extends IndexedFile {
   String contents() throws IOException;
 
   /**
-   * Status regarding previous analysis
+   * @deprecated since 7.7 preview/issue mode was removed
    */
+  @Deprecated
   Status status();
 
   /**

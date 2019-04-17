@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,11 +19,14 @@
  */
 package org.sonar.xoo.rule;
 
+import javax.annotation.Nullable;
+import org.sonar.api.SonarRuntime;
 import org.sonar.api.rule.RuleScope;
 import org.sonar.api.rules.RuleType;
 import org.sonar.api.server.rule.RuleParamType;
 import org.sonar.api.server.rule.RulesDefinition;
 import org.sonar.api.server.rule.RulesDefinitionAnnotationLoader;
+import org.sonar.api.utils.Version;
 import org.sonar.xoo.Xoo;
 import org.sonar.xoo.Xoo2;
 import org.sonar.xoo.checks.Check;
@@ -38,10 +41,22 @@ public class XooRulesDefinition implements RulesDefinition {
 
   private static final String TEN_MIN = "10min";
 
+  @Nullable
+  private final Version version;
+
+  public XooRulesDefinition() {
+    this(null);
+  }
+
+  public XooRulesDefinition(@Nullable SonarRuntime sonarRuntime) {
+    this.version = sonarRuntime != null ? sonarRuntime.getApiVersion() : null;
+  }
+
   @Override
   public void define(Context context) {
     defineRulesXoo(context);
     defineRulesXoo2(context);
+    defineRulesXooExternal(context);
   }
 
   private static void defineRulesXoo2(Context context) {
@@ -123,13 +138,10 @@ public class XooRulesDefinition implements RulesDefinition {
     repo.createRule(RandomAccessSensor.RULE_KEY).setName("One Issue Per File with Random Access")
       .setHtmlDescription("This issue is generated on each file");
 
-    repo.createRule(DeprecatedResourceApiSensor.RULE_KEY).setName("Issue created using deprecated API")
-      .setHtmlDescription("Issue created using deprecated API");
-
     repo.createRule(MultilineIssuesSensor.RULE_KEY).setName("Creates issues with ranges/multiple locations")
       .setHtmlDescription("Issue with range and multiple locations");
 
-    repo.createRule(OneIssuePerUnknownFileSensor.RULE_KEY).setName("Creates issues on each file with extenstion 'unknown'")
+    repo.createRule(OneIssuePerUnknownFileSensor.RULE_KEY).setName("Creates issues on each file with extension 'unknown'")
       .setHtmlDescription("This issue is generated on each file with extenstion 'unknown'");
 
     NewRule oneBugIssuePerLine = repo.createRule(OneBugIssuePerLineSensor.RULE_KEY).setName("One Bug Issue Per Line")
@@ -152,8 +164,34 @@ public class XooRulesDefinition implements RulesDefinition {
       .setName("Template of rule")
       .setHtmlDescription("Template to be overridden by custom rules");
 
-    repo.done();
+    NewRule hotspot = repo.createRule(HotspotSensor.RULE_KEY)
+      .setName("Find security hotspots")
+      .setType(RuleType.SECURITY_HOTSPOT)
+      .setActivatedByDefault(false)
+      .setHtmlDescription("Search for Security Hotspots in Xoo files");
+    hotspot
+      .setDebtRemediationFunction(hotspot.debtRemediationFunctions().constantPerIssue("2min"));
 
+    if (version != null && version.isGreaterThanOrEqual(Version.create(7, 3))) {
+      hotspot
+        .addOwaspTop10(OwaspTop10.A1, OwaspTop10.A3)
+        .addCwe(1, 123, 863);
+    }
+
+    repo.done();
+  }
+
+  private static void defineRulesXooExternal(Context context) {
+    NewRepository repo = context.createExternalRepository(OneExternalIssuePerLineSensor.ENGINE_ID, Xoo.KEY).setName(OneExternalIssuePerLineSensor.ENGINE_ID);
+
+    repo.createRule(OnePredefinedRuleExternalIssuePerLineSensor.RULE_ID)
+      .setSeverity(OnePredefinedRuleExternalIssuePerLineSensor.SEVERITY)
+      .setType(OnePredefinedRuleExternalIssuePerLineSensor.TYPE)
+      .setScope(RuleScope.ALL)
+      .setHtmlDescription("Generates one external issue in each line")
+      .setName("One external issue per line");
+
+    repo.done();
   }
 
 }

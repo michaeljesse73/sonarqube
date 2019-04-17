@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,19 +18,23 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import * as PropTypes from 'prop-types';
+import { Link } from 'react-router';
 import CreateProfileForm from './CreateProfileForm';
 import RestoreProfileForm from './RestoreProfileForm';
-import { getProfilePath } from '../utils';
-import { translate } from '../../../helpers/l10n';
 import { Profile } from '../types';
+import { getProfilePath } from '../utils';
 import { Actions } from '../../../api/quality-profiles';
+import { Alert } from '../../../components/ui/Alert';
+import { Button } from '../../../components/ui/buttons';
+import { translate } from '../../../helpers/l10n';
+import { withRouter, Router } from '../../../components/hoc/withRouter';
 
 interface Props {
   actions: Actions;
   languages: Array<{ key: string; name: string }>;
-  onRequestFail: (reason: any) => void;
   organization: string | null;
+  profiles: Profile[];
+  router: Pick<Router, 'push'>;
   updateProfiles: () => Promise<void>;
 }
 
@@ -39,36 +43,32 @@ interface State {
   restoreFormOpen: boolean;
 }
 
-export default class PageHeader extends React.PureComponent<Props, State> {
-  static contextTypes = {
-    router: PropTypes.object
-  };
-
-  state = {
+export class PageHeader extends React.PureComponent<Props, State> {
+  state: State = {
     createFormOpen: false,
     restoreFormOpen: false
   };
 
-  handleCreateClick = (event: React.SyntheticEvent<HTMLElement>) => {
-    event.preventDefault();
-    event.currentTarget.blur();
+  handleCreateClick = () => {
     this.setState({ createFormOpen: true });
   };
 
   handleCreate = (profile: Profile) => {
-    this.props.updateProfiles().then(() => {
-      this.context.router.push(
-        getProfilePath(profile.name, profile.language, this.props.organization)
-      );
-    });
+    this.props.updateProfiles().then(
+      () => {
+        this.props.router.push(
+          getProfilePath(profile.name, profile.language, this.props.organization)
+        );
+      },
+      () => {}
+    );
   };
 
   closeCreateForm = () => {
     this.setState({ createFormOpen: false });
   };
 
-  handleRestoreClick = (event: React.SyntheticEvent<HTMLElement>) => {
-    event.preventDefault();
+  handleRestoreClick = () => {
     this.setState({ restoreFormOpen: true });
   };
 
@@ -77,21 +77,30 @@ export default class PageHeader extends React.PureComponent<Props, State> {
   };
 
   render() {
+    const { actions, languages, organization, profiles } = this.props;
     return (
       <header className="page-header">
         <h1 className="page-title">{translate('quality_profiles.page')}</h1>
 
-        {this.props.actions.create && (
+        {actions.create && (
           <div className="page-actions">
-            <button id="quality-profiles-create" onClick={this.handleCreateClick}>
+            <Button
+              disabled={languages.length === 0}
+              id="quality-profiles-create"
+              onClick={this.handleCreateClick}>
               {translate('create')}
-            </button>
-            <button
+            </Button>
+            <Button
               className="little-spacer-left"
               id="quality-profiles-restore"
               onClick={this.handleRestoreClick}>
               {translate('restore')}
-            </button>
+            </Button>
+            {languages.length === 0 && (
+              <Alert className="spacer-top" variant="warning">
+                {translate('quality_profiles.no_languages_available')}
+              </Alert>
+            )}
           </div>
         )}
 
@@ -99,27 +108,36 @@ export default class PageHeader extends React.PureComponent<Props, State> {
           {translate('quality_profiles.intro1')}
           <br />
           {translate('quality_profiles.intro2')}
+          <Link
+            className="spacer-left"
+            target="_blank"
+            to={{
+              pathname: '/documentation/instance-administration/quality-profiles/'
+            }}>
+            {translate('learn_more')}
+          </Link>
         </div>
 
         {this.state.restoreFormOpen && (
           <RestoreProfileForm
             onClose={this.closeRestoreForm}
-            onRequestFail={this.props.onRequestFail}
             onRestore={this.props.updateProfiles}
-            organization={this.props.organization}
+            organization={organization}
           />
         )}
 
         {this.state.createFormOpen && (
           <CreateProfileForm
-            languages={this.props.languages}
+            languages={languages}
             onClose={this.closeCreateForm}
-            onRequestFail={this.props.onRequestFail}
             onCreate={this.handleCreate}
-            organization={this.props.organization}
+            organization={organization}
+            profiles={profiles}
           />
         )}
       </header>
     );
   }
 }
+
+export default withRouter(PageHeader);

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,9 +22,9 @@ package org.sonar.server.ce.ws;
 import com.google.common.collect.ImmutableSet;
 import java.util.Set;
 import org.junit.Test;
-import org.sonar.ce.queue.CeTask;
-import org.sonar.ce.queue.CeTaskResult;
-import org.sonar.ce.taskprocessor.CeTaskProcessor;
+import org.sonar.ce.task.CeTask;
+import org.sonar.ce.task.CeTaskResult;
+import org.sonar.ce.task.taskprocessor.CeTaskProcessor;
 import org.sonar.server.ws.WsActionTester;
 
 import static org.sonar.test.JsonAssert.assertJson;

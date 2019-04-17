@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,12 +20,10 @@
 package org.sonar.scanner.report;
 
 import java.io.File;
-import java.util.Arrays;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.sonar.api.batch.rule.ActiveRules;
-import org.sonar.api.batch.rule.internal.ActiveRulesBuilder;
 import org.sonar.api.batch.rule.internal.DefaultActiveRules;
 import org.sonar.api.batch.rule.internal.NewActiveRule;
 import org.sonar.api.rule.RuleKey;
@@ -35,6 +33,7 @@ import org.sonar.scanner.protocol.output.ScannerReport;
 import org.sonar.scanner.protocol.output.ScannerReportReader;
 import org.sonar.scanner.protocol.output.ScannerReportWriter;
 
+import static java.util.Collections.singletonList;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class ActiveRulesPublisherTest {
@@ -47,8 +46,15 @@ public class ActiveRulesPublisherTest {
     File outputDir = temp.newFolder();
     ScannerReportWriter writer = new ScannerReportWriter(outputDir);
 
-    NewActiveRule ar = new ActiveRulesBuilder().create(RuleKey.of("java", "S001")).setSeverity("BLOCKER").setParam("p1", "v1");
-    ActiveRules activeRules = new DefaultActiveRules(Arrays.asList(ar));
+    NewActiveRule ar = new NewActiveRule.Builder()
+      .setRuleKey(RuleKey.of("java", "S001"))
+      .setSeverity("BLOCKER")
+      .setParam("p1", "v1")
+      .setCreatedAt(1_000L)
+      .setUpdatedAt(2_000L)
+      .setQProfileKey("qp1")
+      .build();
+    ActiveRules activeRules = new DefaultActiveRules(singletonList(ar));
 
     ActiveRulesPublisher underTest = new ActiveRulesPublisher(activeRules);
     underTest.publish(writer);
@@ -59,9 +65,12 @@ public class ActiveRulesPublisherTest {
       assertThat(reportAr.getRuleRepository()).isEqualTo("java");
       assertThat(reportAr.getRuleKey()).isEqualTo("S001");
       assertThat(reportAr.getSeverity()).isEqualTo(Constants.Severity.BLOCKER);
-      assertThat(reportAr.getParamsByKey()).hasSize(1);
-      assertThat(reportAr.getParamsByKey().entrySet().iterator().next().getKey()).isEqualTo("p1");
-      assertThat(reportAr.getParamsByKey().entrySet().iterator().next().getValue()).isEqualTo("v1");
+      assertThat(reportAr.getCreatedAt()).isEqualTo(1_000L);
+      assertThat(reportAr.getUpdatedAt()).isEqualTo(2_000L);
+      assertThat(reportAr.getQProfileKey()).isEqualTo("qp1");
+      assertThat(reportAr.getParamsByKeyMap()).hasSize(1);
+      assertThat(reportAr.getParamsByKeyMap().entrySet().iterator().next().getKey()).isEqualTo("p1");
+      assertThat(reportAr.getParamsByKeyMap().entrySet().iterator().next().getValue()).isEqualTo("v1");
 
       assertThat(readIt.hasNext()).isFalse();
     }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,9 +21,12 @@ package org.sonar.server.setting.ws;
 
 import java.util.List;
 import java.util.Optional;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nullable;
 import org.sonar.api.config.PropertyDefinition;
 import org.sonar.api.config.PropertyDefinitions;
 import org.sonar.api.config.PropertyFieldDefinition;
+import org.sonar.api.server.ws.Change;
 import org.sonar.api.server.ws.Request;
 import org.sonar.api.server.ws.Response;
 import org.sonar.api.server.ws.WebService;
@@ -37,11 +40,12 @@ import org.sonarqube.ws.Settings.ListDefinitionsWsResponse;
 
 import static com.google.common.base.Strings.emptyToNull;
 import static java.util.Comparator.comparing;
+import static java.util.Optional.ofNullable;
 import static org.sonar.api.web.UserRole.USER;
-import static org.sonar.core.util.Protobuf.setNullable;
 import static org.sonar.server.setting.ws.SettingsWs.SETTING_ON_BRANCHES;
 import static org.sonar.server.setting.ws.SettingsWsParameters.PARAM_BRANCH;
 import static org.sonar.server.setting.ws.SettingsWsParameters.PARAM_COMPONENT;
+import static org.sonar.server.setting.ws.SettingsWsParameters.PARAM_PULL_REQUEST;
 import static org.sonar.server.ws.KeyExamples.KEY_PROJECT_EXAMPLE_001;
 import static org.sonar.server.ws.WsUtils.writeProtobuf;
 
@@ -66,21 +70,23 @@ public class ListDefinitionsAction implements SettingsWsAction {
   public void define(WebService.NewController context) {
     WebService.NewAction action = context.createAction("list_definitions")
       .setDescription("List settings definitions.<br>" +
-        "Requires 'Browse' permission when a component is specified<br/>",
+        "Requires 'Browse' permission when a component is specified<br/>" +
         "To access licensed settings, authentication is required<br/>" +
-          "To access secured settings, one of the following permissions is required: " +
-          "<ul>" +
-          "<li>'Execute Analysis'</li>" +
-          "<li>'Administer System'</li>" +
-          "<li>'Administer' rights on the specified component</li>" +
-          "</ul>")
+        "To access secured settings, one of the following permissions is required: " +
+        "<ul>" +
+        "<li>'Execute Analysis'</li>" +
+        "<li>'Administer System'</li>" +
+        "<li>'Administer' rights on the specified component</li>" +
+        "</ul>")
       .setResponseExample(getClass().getResource("list_definitions-example.json"))
       .setSince("6.3")
+      .setChangelog(new Change("7.6", String.format("The use of module keys in parameter '%s' is deprecated", PARAM_COMPONENT)))
       .setHandler(this);
     action.createParam(PARAM_COMPONENT)
       .setDescription("Component key")
       .setExampleValue(KEY_PROJECT_EXAMPLE_001);
     settingsWsSupport.addBranchParam(action);
+    settingsWsSupport.addPullRequestParam(action);
   }
 
   @Override
@@ -96,7 +102,7 @@ public class ListDefinitionsAction implements SettingsWsAction {
     propertyDefinitions.getAll().stream()
       .filter(definition -> qualifier.map(s -> definition.qualifiers().contains(s)).orElseGet(definition::global))
       .filter(definition -> wsRequest.getBranch() == null || SETTING_ON_BRANCHES.contains(definition.key()))
-      .filter(settingsWsSupport.isDefinitionVisible(component))
+      .filter(definition -> settingsWsSupport.isVisible(definition.key(), component))
       .sorted(comparing(PropertyDefinition::category, String::compareToIgnoreCase)
         .thenComparingInt(PropertyDefinition::index)
         .thenComparing(PropertyDefinition::name, String::compareToIgnoreCase))
@@ -107,7 +113,8 @@ public class ListDefinitionsAction implements SettingsWsAction {
   private static ListDefinitionsRequest toWsRequest(Request request) {
     return new ListDefinitionsRequest()
       .setComponent(request.param(PARAM_COMPONENT))
-      .setBranch(request.param(PARAM_BRANCH));
+      .setBranch(request.param(PARAM_BRANCH))
+      .setPullRequest(request.param(PARAM_PULL_REQUEST));
   }
 
   private static Optional<String> getQualifier(Optional<ComponentDto> component) {
@@ -120,7 +127,7 @@ public class ListDefinitionsAction implements SettingsWsAction {
       if (componentKey == null) {
         return Optional.empty();
       }
-      ComponentDto component = componentFinder.getByKeyAndOptionalBranch(dbSession, componentKey, request.getBranch());
+      ComponentDto component = componentFinder.getByKeyAndOptionalBranchOrPullRequest(dbSession, componentKey, request.getBranch(), request.getPullRequest());
       userSession.checkComponentPermission(USER, component);
       return Optional.of(component);
     }
@@ -132,14 +139,14 @@ public class ListDefinitionsAction implements SettingsWsAction {
       .setKey(key)
       .setType(Settings.Type.valueOf(definition.type().name()))
       .setMultiValues(definition.multiValues());
-    setNullable(emptyToNull(definition.deprecatedKey()), builder::setDeprecatedKey);
-    setNullable(emptyToNull(definition.name()), builder::setName);
-    setNullable(emptyToNull(definition.description()), builder::setDescription);
+    ofNullable(emptyToNull(definition.deprecatedKey())).ifPresent(builder::setDeprecatedKey);
+    ofNullable(emptyToNull(definition.name())).ifPresent(builder::setName);
+    ofNullable(emptyToNull(definition.description())).ifPresent(builder::setDescription);
     String category = propertyDefinitions.getCategory(key);
-    setNullable(emptyToNull(category), builder::setCategory);
+    ofNullable(emptyToNull(category)).ifPresent(builder::setCategory);
     String subCategory = propertyDefinitions.getSubCategory(key);
-    setNullable(emptyToNull(subCategory), builder::setSubCategory);
-    setNullable(emptyToNull(definition.defaultValue()), builder::setDefaultValue);
+    ofNullable(emptyToNull(subCategory)).ifPresent(builder::setSubCategory);
+    ofNullable(emptyToNull(definition.defaultValue())).ifPresent(builder::setDefaultValue);
     List<String> options = definition.options();
     if (!options.isEmpty()) {
       builder.addAllOptions(options);
@@ -164,23 +171,36 @@ public class ListDefinitionsAction implements SettingsWsAction {
 
     private String branch;
     private String component;
+    private String pullRequest;
 
-    public ListDefinitionsRequest setBranch(String branch) {
-      this.branch = branch;
-      return this;
-    }
-
-    public String getBranch() {
-      return branch;
-    }
-
-    public ListDefinitionsRequest setComponent(String component) {
+    public ListDefinitionsRequest setComponent(@Nullable String component) {
       this.component = component;
       return this;
     }
 
+    @CheckForNull
     public String getComponent() {
       return component;
+    }
+
+    public ListDefinitionsRequest setBranch(@Nullable String branch) {
+      this.branch = branch;
+      return this;
+    }
+
+    @CheckForNull
+    public String getBranch() {
+      return branch;
+    }
+
+    public ListDefinitionsRequest setPullRequest(@Nullable String pullRequest) {
+      this.pullRequest = pullRequest;
+      return this;
+    }
+
+    @CheckForNull
+    public String getPullRequest() {
+      return pullRequest;
     }
   }
 }

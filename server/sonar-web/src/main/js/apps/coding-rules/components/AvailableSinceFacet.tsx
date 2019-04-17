@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,15 +18,13 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import { intlShape } from 'react-intl';
+import { injectIntl, InjectedIntlProps } from 'react-intl';
 import { Query } from '../query';
 import DateInput from '../../../components/controls/DateInput';
 import FacetBox from '../../../components/facet/FacetBox';
 import FacetHeader from '../../../components/facet/FacetHeader';
 import { longFormatterOption } from '../../../components/intl/DateFormatter';
-import { parseDate } from '../../../helpers/dates';
 import { translate } from '../../../helpers/l10n';
-import { serializeDateShort } from '../../../helpers/query';
 
 interface Props {
   onChange: (changes: Partial<Query>) => void;
@@ -35,31 +33,23 @@ interface Props {
   value?: Date;
 }
 
-export default class AvailableSinceFacet extends React.PureComponent<Props> {
-  static contextTypes = {
-    intl: intlShape
+class AvailableSinceFacet extends React.PureComponent<Props & InjectedIntlProps> {
+  handleHeaderClick = () => {
+    this.props.onToggle('availableSince');
   };
 
-  handleHeaderClick = () => this.props.onToggle('availableSince');
+  handleClear = () => {
+    this.props.onChange({ availableSince: undefined });
+  };
 
-  handleClear = () => this.props.onChange({ availableSince: undefined });
-
-  handlePeriodChange = (value?: string) =>
-    this.props.onChange({ availableSince: value ? parseDate(value) : undefined });
+  handlePeriodChange = (date: Date | undefined) => {
+    this.props.onChange({ availableSince: date });
+  };
 
   getValues = () =>
     this.props.value
-      ? [this.context.intl.formatDate(this.props.value, longFormatterOption)]
+      ? [this.props.intl.formatDate(this.props.value, longFormatterOption)]
       : undefined;
-
-  renderDateInput = () => (
-    <DateInput
-      name="available-since"
-      onChange={this.handlePeriodChange}
-      placeholder={translate('date')}
-      value={serializeDateShort(this.props.value)}
-    />
-  );
 
   render() {
     return (
@@ -72,8 +62,17 @@ export default class AvailableSinceFacet extends React.PureComponent<Props> {
           values={this.getValues()}
         />
 
-        {this.props.open && this.renderDateInput()}
+        {this.props.open && (
+          <DateInput
+            name="available-since"
+            onChange={this.handlePeriodChange}
+            placeholder={translate('date')}
+            value={this.props.value}
+          />
+        )}
       </FacetBox>
     );
   }
 }
+
+export default injectIntl(AvailableSinceFacet);

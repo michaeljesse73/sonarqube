@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,10 +19,10 @@
  */
 import * as React from 'react';
 import Facet, { BasicProps } from './Facet';
-import { Omit } from '../../../app/types';
+import DocTooltip from '../../../components/docs/DocTooltip';
 import { translate } from '../../../helpers/l10n';
 
-interface Props extends Omit<BasicProps, 'onChange' | 'values'> {
+interface Props extends T.Omit<BasicProps, 'onChange' | 'values'> {
   onChange: (changes: { template: boolean | undefined }) => void;
   value: boolean | undefined;
 }
@@ -55,8 +55,12 @@ export default class TemplateFacet extends React.PureComponent<Props> {
         renderName={this.renderName}
         renderTextName={this.renderName}
         singleSelection={true}
-        values={value !== undefined ? [String(value)] : []}
-      />
+        values={value !== undefined ? [String(value)] : []}>
+        <DocTooltip
+          className="spacer-left"
+          doc={import(/* webpackMode: "eager" */ 'Docs/tooltips/rules/rule-templates.md')}
+        />
+      </Facet>
     );
   }
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -28,6 +28,9 @@ import org.sonar.api.user.UserQuery;
 public interface UserMapper {
 
   @CheckForNull
+  UserDto selectByUuid(String uuid);
+
+  @CheckForNull
   UserDto selectByLogin(String login);
 
   /**
@@ -50,10 +53,19 @@ public interface UserMapper {
 
   List<UserDto> selectByLogins(List<String> logins);
 
+  List<UserDto> selectByUuids(List<String> uuids);
+
   List<UserDto> selectByIds(@Param("ids") List<Integer> ids);
 
+  List<UserDto> selectByEmail(String email);
+
   @CheckForNull
-  UserDto selectByEmail(String email);
+  UserDto selectByExternalIdAndIdentityProvider(@Param("externalId") String externalId, @Param("externalIdentityProvider") String externalExternalIdentityProvider);
+
+  List<UserDto> selectByExternalIdsAndIdentityProvider(@Param("externalIds") List<String> externalIds, @Param("externalIdentityProvider") String externalExternalIdentityProvider);
+
+  @CheckForNull
+  UserDto selectByExternalLoginAndIdentityProvider(@Param("externalLogin") String externalLogin, @Param("externalIdentityProvider") String externalExternalIdentityProvider);
 
   void scrollAll(ResultHandler<UserDto> handler);
 
@@ -62,13 +74,15 @@ public interface UserMapper {
    */
   long countRootUsersButLogin(@Param("login") String login);
 
-  void insert(@Param("user") UserDto userDto, @Param("now") long now);
+  void insert(@Param("user") UserDto userDto);
 
-  void update(@Param("user") UserDto userDto, @Param("now") long now);
+  void update(@Param("user") UserDto userDto);
 
   void setRoot(@Param("login") String login, @Param("root") boolean root, @Param("now") long now);
 
   void deactivateUser(@Param("login") String login, @Param("now") long now);
 
-  void clearHomepage(@Param("homepageType") String type, @Param("homepageParameter") String value, @Param("now") long now);
+  void clearHomepages(@Param("homepageType") String type, @Param("homepageParameter") String value, @Param("now") long now);
+
+  void clearHomepage(@Param("login") String login, @Param("now") long now);
 }

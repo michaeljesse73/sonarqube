@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,21 +19,20 @@
  */
 import * as React from 'react';
 import ComponentName from './ComponentName';
-import { Component } from '../types';
 
 interface Props {
-  branch?: string;
-  breadcrumbs: Component[];
-  rootComponent: Component;
+  branchLike?: T.BranchLike;
+  breadcrumbs: T.Breadcrumb[];
+  rootComponent: T.ComponentMeasure;
 }
 
-export default function Breadcrumbs({ branch, breadcrumbs, rootComponent }: Props) {
+export default function Breadcrumbs({ branchLike, breadcrumbs, rootComponent }: Props) {
   return (
     <ul className="code-breadcrumbs">
       {breadcrumbs.map((component, index) => (
         <li key={component.key}>
           <ComponentName
-            branch={branch}
+            branchLike={branchLike}
             canBrowse={index < breadcrumbs.length - 1}
             component={component}
             rootComponent={rootComponent}

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,17 +24,19 @@ import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import java.util.Date;
 import java.util.List;
+import java.util.regex.Pattern;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
-import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.builder.ToStringBuilder;
 import org.sonar.api.resources.Scopes;
 import org.sonar.db.WildcardPosition;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.lang.String.format;
-import static org.sonar.db.DaoDatabaseUtils.buildLikeValue;
+import static org.apache.commons.lang.StringUtils.substringBeforeLast;
+import static org.sonar.db.DaoUtils.buildLikeValue;
 import static org.sonar.db.component.ComponentValidator.checkComponentKey;
+import static org.sonar.db.component.ComponentValidator.checkComponentLongName;
 import static org.sonar.db.component.ComponentValidator.checkComponentName;
 import static org.sonar.db.component.DbTagsReader.readDbTags;
 
@@ -44,8 +46,11 @@ public class ComponentDto {
    * Separator used to generate the key of the branch
    */
   public static final String BRANCH_KEY_SEPARATOR = ":BRANCH:";
+  public static final String PULL_REQUEST_SEPARATOR = ":PULL_REQUEST:";
 
+  private static final Splitter BRANCH_OR_PULL_REQUEST_SPLITTER = Splitter.on(Pattern.compile(BRANCH_KEY_SEPARATOR + "|" + PULL_REQUEST_SEPARATOR));
   private static final Splitter BRANCH_KEY_SPLITTER = Splitter.on(BRANCH_KEY_SEPARATOR);
+  private static final Splitter PULL_REQUEST_SPLITTER = Splitter.on(PULL_REQUEST_SEPARATOR);
 
   public static final String UUID_PATH_SEPARATOR = ".";
   public static final String UUID_PATH_OF_ROOT = UUID_PATH_SEPARATOR;
@@ -65,7 +70,7 @@ public class ComponentDto {
   private String organizationUuid;
 
   /**
-   * Non-empty and unique functional key
+   * Non-empty and unique functional key. Do not rename, used by MyBatis.
    */
   private String kee;
 
@@ -118,7 +123,7 @@ public class ComponentDto {
 
   /**
    * On non-main branches only, {@link #uuid} of the main branch that represents
-   * the project ({@link #qualifier}="TRK").x
+   * the project ({@link #qualifier}="TRK").
    * It is propagated to all the components of the branch.
    *
    * Value is null on the main-branch components and on other kinds of components
@@ -142,7 +147,6 @@ public class ComponentDto {
   private String scope;
   private String qualifier;
   private String path;
-  private String deprecatedKey;
   private String name;
   private String longName;
   private String language;
@@ -206,20 +210,6 @@ public class ComponentDto {
     return UUID_PATH_SPLITTER.splitToList(uuidPath);
   }
 
-  /**
-   * Used my MyBatis mapper
-   */
-  private String getKee(){
-    return kee;
-  }
-
-  /**
-   * Used my MyBatis mapper
-   */
-  private void setKee(String kee){
-    this.kee = kee;
-  }
-
   public String getDbKey() {
     return kee;
   }
@@ -233,7 +223,7 @@ public class ComponentDto {
    * The key to be displayed to user, doesn't contain information on branches
    */
   public String getKey() {
-    List<String> split = BRANCH_KEY_SPLITTER.splitToList(kee);
+    List<String> split = BRANCH_OR_PULL_REQUEST_SPLITTER.splitToList(kee);
     return split.size() == 2 ? split.get(0) : kee;
   }
 
@@ -243,6 +233,15 @@ public class ComponentDto {
   @CheckForNull
   public String getBranch() {
     List<String> split = BRANCH_KEY_SPLITTER.splitToList(kee);
+    return split.size() == 2 ? split.get(1) : null;
+  }
+
+  /**
+   * @return the pull request id. It will be null when the component is not on a pull request
+   */
+  @CheckForNull
+  public String getPullRequest() {
+    List<String> split = PULL_REQUEST_SPLITTER.splitToList(kee);
     return split.size() == 2 ? split.get(1) : null;
   }
 
@@ -261,16 +260,6 @@ public class ComponentDto {
 
   public ComponentDto setQualifier(String qualifier) {
     this.qualifier = qualifier;
-    return this;
-  }
-
-  @CheckForNull
-  public String deprecatedKey() {
-    return deprecatedKey;
-  }
-
-  public ComponentDto setDeprecatedKey(@Nullable String deprecatedKey) {
-    this.deprecatedKey = deprecatedKey;
     return this;
   }
 
@@ -339,7 +328,7 @@ public class ComponentDto {
   }
 
   public ComponentDto setLongName(String longName) {
-    this.longName = longName;
+    this.longName = checkComponentLongName(longName);
     return this;
   }
 
@@ -483,7 +472,6 @@ public class ComponentDto {
       .append("mainBranchProjectUuid", mainBranchProjectUuid)
       .append("copyComponentUuid", copyComponentUuid)
       .append("path", path)
-      .append("deprecatedKey", deprecatedKey)
       .append("name", name)
       .append("longName", longName)
       .append("language", language)
@@ -509,7 +497,6 @@ public class ComponentDto {
     copy.scope = scope;
     copy.qualifier = qualifier;
     copy.path = path;
-    copy.deprecatedKey = deprecatedKey;
     copy.name = name;
     copy.longName = longName;
     copy.language = language;
@@ -525,8 +512,11 @@ public class ComponentDto {
     return format("%s%s%s", componentKey, BRANCH_KEY_SEPARATOR, branch);
   }
 
-  public static String removeBranchFromKey(String componentKey) {
-    return StringUtils.substringBeforeLast(componentKey, ComponentDto.BRANCH_KEY_SEPARATOR);
+  public static String generatePullRequestKey(String componentKey, String pullRequest) {
+    return format("%s%s%s", componentKey, PULL_REQUEST_SEPARATOR, pullRequest);
   }
 
+  public static String removeBranchAndPullRequestFromKey(String componentKey) {
+    return substringBeforeLast(substringBeforeLast(componentKey, ComponentDto.BRANCH_KEY_SEPARATOR), ComponentDto.PULL_REQUEST_SEPARATOR);
+  }
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,24 +18,25 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import { RuleDetails, RuleParameter } from '../../../app/types';
 import Modal from '../../../components/controls/Modal';
 import { translate } from '../../../helpers/l10n';
 import MarkdownTips from '../../../components/common/MarkdownTips';
-import { SEVERITIES, TYPES, RULE_STATUSES } from '../../../helpers/constants';
-import latinize from '../../../helpers/latinize';
+import { SEVERITIES, RULE_TYPES, RULE_STATUSES } from '../../../helpers/constants';
 import Select from '../../../components/controls/Select';
 import TypeHelper from '../../../components/shared/TypeHelper';
 import SeverityHelper from '../../../components/shared/SeverityHelper';
 import { createRule, updateRule } from '../../../api/rules';
 import { csvEscape } from '../../../helpers/csv';
+import { latinize } from '../../../helpers/strings';
+import { SubmitButton, ResetButtonLink } from '../../../components/ui/buttons';
+import { Alert } from '../../../components/ui/Alert';
 
 interface Props {
-  customRule?: RuleDetails;
+  customRule?: T.RuleDetails;
   onClose: () => void;
-  onDone: (newRuleDetails: RuleDetails) => void;
+  onDone: (newRuleDetails: T.RuleDetails) => void;
   organization: string | undefined;
-  templateRule: RuleDetails;
+  templateRule: T.RuleDetails;
 }
 
 interface State {
@@ -43,7 +44,7 @@ interface State {
   key: string;
   keyModifiedByUser: boolean;
   name: string;
-  params: { [p: string]: string };
+  params: T.Dict<string>;
   reactivating: boolean;
   severity: string;
   status: string;
@@ -56,7 +57,7 @@ export default class CustomRuleFormModal extends React.PureComponent<Props, Stat
 
   constructor(props: Props) {
     super(props);
-    const params: { [p: string]: string } = {};
+    const params: T.Dict<string> = {};
     if (props.customRule && props.customRule.params) {
       for (const param of props.customRule.params) {
         params[param.key] = param.defaultValue || '';
@@ -84,14 +85,7 @@ export default class CustomRuleFormModal extends React.PureComponent<Props, Stat
     this.mounted = false;
   }
 
-  handleCancelClick = (event: React.SyntheticEvent<HTMLButtonElement>) => {
-    event.preventDefault();
-    event.currentTarget.blur();
-    this.props.onClose();
-  };
-
   prepareRequest = () => {
-    /* eslint-disable camelcase */
     const { customRule, organization, templateRule } = this.props;
     const params = Object.keys(this.state.params)
       .map(key => `${key}=${csvEscape(this.state.params[key])}`)
@@ -113,7 +107,6 @@ export default class CustomRuleFormModal extends React.PureComponent<Props, Stat
           template_key: templateRule.key,
           type: this.state.type
         });
-    /* eslint-enable camelcase */
   };
 
   handleFormSubmit = (event: React.SyntheticEvent<HTMLFormElement>) => {
@@ -136,13 +129,10 @@ export default class CustomRuleFormModal extends React.PureComponent<Props, Stat
 
   handleNameChange = (event: React.SyntheticEvent<HTMLInputElement>) => {
     const { value: name } = event.currentTarget;
-    this.setState((state: State) => {
-      const change: Partial<State> = { name };
-      if (!state.keyModifiedByUser) {
-        change.key = latinize(name).replace(/[^A-Za-z0-9]/g, '_');
-      }
-      return change;
-    });
+    this.setState(state => ({
+      name,
+      key: state.keyModifiedByUser ? state.key : latinize(name).replace(/[^A-Za-z0-9]/g, '_')
+    }));
   };
 
   handleKeyChange = (event: React.SyntheticEvent<HTMLInputElement>) =>
@@ -163,203 +153,178 @@ export default class CustomRuleFormModal extends React.PureComponent<Props, Stat
   };
 
   renderNameField = () => (
-    <tr className="property">
-      <th className="nowrap">
-        <h3>
-          {translate('name')} <em className="mandatory">*</em>
-        </h3>
-      </th>
-      <td>
-        <input
-          autoFocus={true}
-          className="coding-rules-name-key"
-          disabled={this.state.submitting}
-          id="coding-rules-custom-rule-creation-name"
-          onChange={this.handleNameChange}
-          required={true}
-          type="text"
-          value={this.state.name}
-        />
-      </td>
-    </tr>
+    <div className="modal-field">
+      <label htmlFor="coding-rules-custom-rule-creation-name">
+        {translate('name')} <em className="mandatory">*</em>
+      </label>
+      <input
+        autoFocus={true}
+        disabled={this.state.submitting}
+        id="coding-rules-custom-rule-creation-name"
+        onChange={this.handleNameChange}
+        required={true}
+        type="text"
+        value={this.state.name}
+      />
+    </div>
   );
 
   renderKeyField = () => (
-    <tr className="property">
-      <th className="nowrap">
-        <h3>
-          {translate('key')} {!this.props.customRule && <em className="mandatory">*</em>}
-        </h3>
-      </th>
-      <td>
-        {this.props.customRule ? (
-          <span className="coding-rules-detail-custom-rule-key" title={this.props.customRule.key}>
-            {this.props.customRule.key}
-          </span>
-        ) : (
-          <input
-            className="coding-rules-name-key"
-            disabled={this.state.submitting}
-            id="coding-rules-custom-rule-creation-key"
-            onChange={this.handleKeyChange}
-            required={true}
-            type="text"
-            value={this.state.key}
-          />
-        )}
-      </td>
-    </tr>
+    <div className="modal-field">
+      <label htmlFor="coding-rules-custom-rule-creation-key">
+        {translate('key')} {!this.props.customRule && <em className="mandatory">*</em>}
+      </label>
+
+      {this.props.customRule ? (
+        <span className="coding-rules-detail-custom-rule-key" title={this.props.customRule.key}>
+          {this.props.customRule.key}
+        </span>
+      ) : (
+        <input
+          disabled={this.state.submitting}
+          id="coding-rules-custom-rule-creation-key"
+          onChange={this.handleKeyChange}
+          required={true}
+          type="text"
+          value={this.state.key}
+        />
+      )}
+    </div>
   );
 
   renderDescriptionField = () => (
-    <tr className="property">
-      <th className="nowrap">
-        <h3>
-          {translate('description')} <em className="mandatory">*</em>
-        </h3>
-      </th>
-      <td>
-        <textarea
-          className="coding-rules-markdown-description"
-          disabled={this.state.submitting}
-          id="coding-rules-custom-rule-creation-html-description"
-          onChange={this.handleDescriptionChange}
-          required={true}
-          rows={5}
-          value={this.state.description}
-        />
-        <span className="text-right">
-          <MarkdownTips />
-        </span>
-      </td>
-    </tr>
+    <div className="modal-field">
+      <label htmlFor="coding-rules-custom-rule-creation-html-description">
+        {translate('description')} <em className="mandatory">*</em>
+      </label>
+      <textarea
+        disabled={this.state.submitting}
+        id="coding-rules-custom-rule-creation-html-description"
+        onChange={this.handleDescriptionChange}
+        required={true}
+        rows={5}
+        value={this.state.description}
+      />
+      <MarkdownTips className="modal-field-descriptor text-right" />
+    </div>
   );
 
-  renderTypeOption = ({ value }: { value: string }) => <TypeHelper type={value} />;
+  renderTypeOption = ({ value }: { value: T.RuleType }) => {
+    return <TypeHelper type={value} />;
+  };
 
   renderTypeField = () => (
-    <tr className="property">
-      <th className="nowrap">
-        <h3>{translate('type')}</h3>
-      </th>
-      <td>
-        <Select
-          className="input-medium"
-          clearable={false}
-          disabled={this.state.submitting}
-          onChange={this.handleTypeChange}
-          options={TYPES.map(type => ({
-            label: translate('issue.type', type),
-            value: type
-          }))}
-          optionRenderer={this.renderTypeOption}
-          searchable={false}
-          value={this.state.type}
-          valueRenderer={this.renderTypeOption}
-        />
-      </td>
-    </tr>
+    <div className="modal-field flex-1 spacer-right">
+      <label htmlFor="coding-rules-custom-rule-type">{translate('type')}</label>
+      <Select
+        clearable={false}
+        disabled={this.state.submitting}
+        id="coding-rules-custom-rule-type"
+        onChange={this.handleTypeChange}
+        optionRenderer={this.renderTypeOption}
+        options={RULE_TYPES.map(type => ({
+          label: translate('issue.type', type),
+          value: type
+        }))}
+        searchable={false}
+        value={this.state.type}
+        valueRenderer={this.renderTypeOption}
+      />
+    </div>
   );
 
   renderSeverityOption = ({ value }: { value: string }) => <SeverityHelper severity={value} />;
 
   renderSeverityField = () => (
-    <tr className="property">
-      <th className="nowrap">
-        <h3>{translate('severity')}</h3>
-      </th>
-      <td>
-        <Select
-          className="input-medium"
-          clearable={false}
-          disabled={this.state.submitting}
-          onChange={this.handleSeverityChange}
-          options={SEVERITIES.map(severity => ({
-            label: translate('severity', severity),
-            value: severity
-          }))}
-          optionRenderer={this.renderSeverityOption}
-          searchable={false}
-          value={this.state.severity}
-          valueRenderer={this.renderSeverityOption}
-        />
-      </td>
-    </tr>
+    <div className="modal-field flex-1 spacer-right">
+      <label htmlFor="coding-rules-custom-rule-severity">{translate('severity')}</label>
+      <Select
+        clearable={false}
+        disabled={this.state.submitting}
+        id="coding-rules-custom-rule-severity"
+        onChange={this.handleSeverityChange}
+        optionRenderer={this.renderSeverityOption}
+        options={SEVERITIES.map(severity => ({
+          label: translate('severity', severity),
+          value: severity
+        }))}
+        searchable={false}
+        value={this.state.severity}
+        valueRenderer={this.renderSeverityOption}
+      />
+    </div>
   );
 
   renderStatusField = () => (
-    <tr className="property">
-      <th className="nowrap">
-        <h3>{translate('coding_rules.filters.status')}</h3>
-      </th>
-      <td>
-        <Select
-          className="input-medium"
-          clearable={false}
-          disabled={this.state.submitting}
-          onChange={this.handleStatusChange}
-          options={RULE_STATUSES.map(status => ({
-            label: translate('rules.status', status),
-            value: status
-          }))}
-          searchable={false}
-          value={this.state.status}
-        />
-      </td>
-    </tr>
+    <div className="modal-field flex-1">
+      <label htmlFor="coding-rules-custom-rule-status">
+        {translate('coding_rules.filters.status')}
+      </label>
+      <Select
+        clearable={false}
+        disabled={this.state.submitting}
+        id="coding-rules-custom-rule-status"
+        onChange={this.handleStatusChange}
+        options={RULE_STATUSES.map(status => ({
+          label: translate('rules.status', status),
+          value: status
+        }))}
+        searchable={false}
+        value={this.state.status}
+      />
+    </div>
   );
 
-  renderParameterField = (param: RuleParameter) => (
-    <tr className="property" key={param.key}>
-      <th className="nowrap">
-        <h3>{param.key}</h3>
-      </th>
-      <td>
-        {param.type === 'TEXT' ? (
-          <textarea
-            className="width100"
-            disabled={this.state.submitting}
-            name={param.key}
-            onChange={this.handleParameterChange}
-            placeholder={param.defaultValue}
-            rows={3}
-            value={this.state.params[param.key] || ''}
-          />
-        ) : (
-          <input
-            className="input-super-large"
-            disabled={this.state.submitting}
-            name={param.key}
-            onChange={this.handleParameterChange}
-            placeholder={param.defaultValue}
-            type="text"
-            value={this.state.params[param.key] || ''}
-          />
-        )}
-        <div className="note" dangerouslySetInnerHTML={{ __html: param.htmlDesc || '' }} />
-        {param.extra && <div className="note">{param.extra}</div>}
-      </td>
-    </tr>
+  renderParameterField = (param: T.RuleParameter) => (
+    <div className="modal-field" key={param.key}>
+      <label className="capitalize" htmlFor={param.key}>
+        {param.key}
+      </label>
+
+      {param.type === 'TEXT' ? (
+        <textarea
+          disabled={this.state.submitting}
+          id={param.key}
+          name={param.key}
+          onChange={this.handleParameterChange}
+          placeholder={param.defaultValue}
+          rows={3}
+          value={this.state.params[param.key] || ''}
+        />
+      ) : (
+        <input
+          disabled={this.state.submitting}
+          id={param.key}
+          name={param.key}
+          onChange={this.handleParameterChange}
+          placeholder={param.defaultValue}
+          type="text"
+          value={this.state.params[param.key] || ''}
+        />
+      )}
+      <div
+        className="modal-field-description"
+        dangerouslySetInnerHTML={{ __html: param.htmlDesc || '' }}
+      />
+    </div>
   );
 
   renderSubmitButton = () => {
     if (this.state.reactivating) {
       return (
-        <button
+        <SubmitButton
           disabled={this.state.submitting}
-          id="coding-rules-custom-rule-creation-reactivate"
-          type="submit">
+          id="coding-rules-custom-rule-creation-reactivate">
           {translate('coding_rules.reactivate')}
-        </button>
+        </SubmitButton>
       );
     } else {
       return (
-        <button
+        <SubmitButton
           disabled={this.state.submitting}
-          id="coding-rules-custom-rule-creation-create"
-          type="submit">
+          id="coding-rules-custom-rule-creation-create">
           {translate(this.props.customRule ? 'save' : 'create')}
-        </button>
+        </SubmitButton>
       );
     }
   };
@@ -380,33 +345,30 @@ export default class CustomRuleFormModal extends React.PureComponent<Props, Stat
 
           <div className="modal-body modal-container">
             {reactivating && (
-              <div className="alert alert-warning">{translate('coding_rules.reactivate.help')}</div>
+              <Alert variant="warning">{translate('coding_rules.reactivate.help')}</Alert>
             )}
-            <table>
-              <tbody>
-                {this.renderNameField()}
-                {this.renderKeyField()}
-                {this.renderDescriptionField()}
-                {/* do not allow to change the type of existing rule */}
-                {!customRule && this.renderTypeField()}
-                {this.renderSeverityField()}
-                {this.renderStatusField()}
-                {params.map(this.renderParameterField)}
-              </tbody>
-            </table>
+
+            {this.renderNameField()}
+            {this.renderKeyField()}
+            <div className="display-flex-space-between">
+              {/* do not allow to change the type of existing rule */}
+              {!customRule && this.renderTypeField()}
+              {this.renderSeverityField()}
+              {this.renderStatusField()}
+            </div>
+            {this.renderDescriptionField()}
+            {params.map(this.renderParameterField)}
           </div>
 
           <div className="modal-foot">
             {submitting && <i className="spinner spacer-right" />}
             {this.renderSubmitButton()}
-            <button
-              className="button-link"
+            <ResetButtonLink
               disabled={submitting}
               id="coding-rules-custom-rule-creation-cancel"
-              onClick={this.handleCancelClick}
-              type="reset">
+              onClick={this.props.onClose}>
               {translate('cancel')}
-            </button>
+            </ResetButtonLink>
           </div>
         </form>
       </Modal>

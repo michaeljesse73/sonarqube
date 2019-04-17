@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,44 +25,51 @@ import ProjectCardOrganizationContainer from './ProjectCardOrganizationContainer
 import Favorite from '../../../components/controls/Favorite';
 import DateTimeFormatter from '../../../components/intl/DateTimeFormatter';
 import TagsList from '../../../components/tags/TagsList';
-import PrivateBadge from '../../../components/common/PrivateBadge';
+import PrivacyBadgeContainer from '../../../components/common/PrivacyBadgeContainer';
 import { translate, translateWithParameters } from '../../../helpers/l10n';
 import { Project } from '../types';
+import { getProjectUrl } from '../../../helpers/urls';
 
 interface Props {
-  organization?: { key: string };
+  height: number;
+  organization: T.Organization | undefined;
   project: Project;
 }
 
-export default function ProjectCardOverall({ organization, project }: Props) {
+export default function ProjectCardOverall({ height, organization, project }: Props) {
   const { measures } = project;
 
-  const isPrivate = project.visibility === 'private';
   const hasTags = project.tags.length > 0;
 
   return (
-    <div data-key={project.key} className="boxed-group project-card">
+    <div className="boxed-group project-card" data-key={project.key} style={{ height }}>
       <div className="boxed-group-header clearfix">
-        {project.isFavorite !== undefined && (
-          <Favorite
-            className="spacer-right"
-            component={project.key}
-            favorite={project.isFavorite}
-            qualifier="TRK"
-          />
-        )}
-        <h2 className="project-card-name">
-          {!organization && (
-            <ProjectCardOrganizationContainer organization={project.organization} />
+        <div className="project-card-header">
+          {project.isFavorite !== undefined && (
+            <Favorite
+              className="spacer-right"
+              component={project.key}
+              favorite={project.isFavorite}
+              qualifier="TRK"
+            />
           )}
-          <Link to={{ pathname: '/dashboard', query: { id: project.key } }}>{project.name}</Link>
-        </h2>
-        {project.analysisDate && <ProjectCardQualityGate status={measures['alert_status']} />}
-        <div className="pull-right text-right">
-          {isPrivate && (
-            <PrivateBadge className="spacer-left" qualifier="TRK" tooltipPlacement="left" />
-          )}
-          {hasTags && <TagsList className="spacer-left note" tags={project.tags} />}
+          <h2 className="project-card-name">
+            {!organization && (
+              <ProjectCardOrganizationContainer organization={project.organization} />
+            )}
+            <Link to={getProjectUrl(project.key)}>{project.name}</Link>
+          </h2>
+          {project.analysisDate && <ProjectCardQualityGate status={measures['alert_status']} />}
+          <div className="project-card-header-right">
+            <PrivacyBadgeContainer
+              className="spacer-left"
+              organization={organization || project.organization}
+              qualifier="TRK"
+              tooltipProps={{ projectKey: project.key }}
+              visibility={project.visibility}
+            />
+            {hasTags && <TagsList className="spacer-left note" tags={project.tags} />}
+          </div>
         </div>
         {project.analysisDate && (
           <div className="project-card-dates note text-right">
@@ -83,7 +90,12 @@ export default function ProjectCardOverall({ organization, project }: Props) {
         </div>
       ) : (
         <div className="boxed-group-inner">
-          <div className="note project-card-not-analyzed">{translate('projects.not_analyzed')}</div>
+          <div className="project-card-not-analyzed">
+            <span className="note">{translate('projects.not_analyzed')}</span>
+            <Link className="button spacer-left" to={getProjectUrl(project.key)}>
+              {translate('projects.configure_analysis')}
+            </Link>
+          </div>
         </div>
       )}
     </div>

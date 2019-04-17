@@ -9,9 +9,9 @@
     s.created_at as createdAt,
     s.build_date as buildDate,
     s.status as status,
-    s.purge_status as purgeStatus,
     s.islast as last,
-    s.version as version,
+    s.version as rawProjectVersion,
+    s.build_string as buildString,
     s.period1_mode as periodMode,
     s.period1_param as periodParam,
     s.period1_date as periodDate
@@ -72,8 +72,8 @@
       <if test="query.status != null">
         AND s.status=#{query.status,jdbcType=VARCHAR}
       </if>
-      <if test="query.version != null">
-        AND s.version=#{query.version,jdbcType=VARCHAR}
+      <if test="query.projectVersion != null">
+        AND s.version=#{query.projectVersion,jdbcType=VARCHAR}
       </if>
       <if test="query.isLast != null">
         AND s.islast=#{query.isLast}
@@ -105,26 +105,13 @@
     from snapshots s
       inner join projects p on p.uuid=s.component_uuid and p.enabled=${_true}
       inner join project_branches pb on pb.uuid=p.uuid
-      inner join ce_activity ca on ca.analysis_uuid = s.uuid and ca.component_uuid = pb.project_uuid
     where
       <foreach collection="componentUuidFromDatePairs" open="(" close=")" item="componentUuidFromDatePair" separator=" or ">
         (pb.project_uuid=#{componentUuidFromDatePair.componentUuid, jdbcType=VARCHAR} and s.created_at >= #{componentUuidFromDatePair.from, jdbcType=BIGINT})
       </foreach>
       and s.status = 'P'
-      and ca.status=#{ceStatus, jdbcType=VARCHAR}
     order by
       s.created_at
-  </select>
-
-  <select id="selectPreviousVersionSnapshots" parameterType="map" resultType="Snapshot">
-    SELECT
-    <include refid="snapshotColumns" />
-    FROM snapshots s
-    INNER JOIN events e ON s.uuid = e.analysis_uuid AND e.name &lt;&gt; #{lastVersion} AND e.category='Version'
-    <where>
-      s.component_uuid=#{componentUuid,jdbcType=VARCHAR}
-    </where>
-    ORDER BY e.event_date DESC
   </select>
 
   <select id="selectOldestSnapshots" parameterType="map" resultType="Snapshot">
@@ -164,36 +151,38 @@
 
   <update id="update" parameterType="Snapshot">
     update snapshots
-    set version = #{version, jdbcType=VARCHAR},
+    set version = #{projectVersion, jdbcType=VARCHAR},
         status = #{status, jdbcType=VARCHAR}
     where uuid = #{uuid,jdbcType=VARCHAR}
   </update>
 
   <insert id="insert" parameterType="Snapshot" keyColumn="id" useGeneratedKeys="true" keyProperty="id">
     insert into snapshots (
-    uuid,
-    component_uuid,
-    created_at,
-    build_date,
-    status,
-    purge_status,
-    islast,
-    version,
-    period1_mode,
-    period1_param,
-    period1_date)
+      uuid,
+      component_uuid,
+      created_at,
+      build_date,
+      status,
+      islast,
+      version,
+      build_string,
+      period1_mode,
+      period1_param,
+      period1_date
+    )
     values (
-    #{uuid, jdbcType=VARCHAR},
-    #{componentUuid, jdbcType=VARCHAR},
-    #{createdAt, jdbcType=BIGINT},
-    #{buildDate, jdbcType=BIGINT},
-    #{status, jdbcType=VARCHAR},
-    #{purgeStatus, jdbcType=INTEGER},
-    #{last, jdbcType=BOOLEAN},
-    #{version, jdbcType=VARCHAR},
-    #{periodMode, jdbcType=VARCHAR},
-    #{periodParam, jdbcType=VARCHAR},
-    #{periodDate, jdbcType=BIGINT})
+      #{uuid, jdbcType=VARCHAR},
+      #{componentUuid, jdbcType=VARCHAR},
+      #{createdAt, jdbcType=BIGINT},
+      #{buildDate, jdbcType=BIGINT},
+      #{status, jdbcType=VARCHAR},
+      #{last, jdbcType=BOOLEAN},
+      #{projectVersion, jdbcType=VARCHAR},
+      #{buildString, jdbcType=VARCHAR},
+      #{periodMode, jdbcType=VARCHAR},
+      #{periodParam, jdbcType=VARCHAR},
+      #{periodDate, jdbcType=BIGINT}
+    )
   </insert>
 </mapper>
 

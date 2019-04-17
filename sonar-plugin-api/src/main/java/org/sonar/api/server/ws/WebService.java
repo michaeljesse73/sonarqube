@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -244,6 +244,7 @@ public interface WebService extends Definable<WebService.Context> {
 
   class NewAction {
     private final String key;
+    private static final String PAGE_PARAM_DESCRIPTION = "1-based page number";
     private String deprecatedKey;
     private String description;
     private String since;
@@ -353,7 +354,7 @@ public interface WebService extends Definable<WebService.Context> {
      */
     public NewAction addPagingParams(int defaultPageSize) {
       createParam(Param.PAGE)
-        .setDescription("1-based page number")
+        .setDescription(PAGE_PARAM_DESCRIPTION)
         .setExampleValue("42")
         .setDeprecatedKey("pageIndex", "5.2")
         .setDefaultValue("1");
@@ -378,7 +379,7 @@ public interface WebService extends Definable<WebService.Context> {
 
     public NewParam createPageParam() {
       return createParam(Param.PAGE)
-        .setDescription("1-based page number")
+        .setDescription(PAGE_PARAM_DESCRIPTION)
         .setExampleValue("42")
         .setDeprecatedKey("pageIndex", "5.2")
         .setDefaultValue("1");
@@ -389,8 +390,27 @@ public interface WebService extends Definable<WebService.Context> {
         .setDeprecatedKey("pageSize", "5.2")
         .setDefaultValue(String.valueOf(defaultPageSize))
         .setMaximumValue(maxPageSize)
-        .setDescription("Page size. Must be greater than 0 and less than " + maxPageSize)
+        .setDescription("Page size. Must be greater than 0 and less or equal than " + maxPageSize)
         .setExampleValue("20");
+    }
+
+    /**
+     * Add predefined parameters related to pagination of results with a maximum page size.
+     * @since 7.1
+     */
+    public NewAction addPagingParamsSince(int defaultPageSize, int maxPageSize, String version) {
+      createParam(Param.PAGE)
+        .setDescription(PAGE_PARAM_DESCRIPTION)
+        .setExampleValue("42")
+        .setDefaultValue("1")
+        .setSince(version);
+      createParam(Param.PAGE_SIZE)
+        .setDescription("Page size. Must be greater than 0 and less than " + maxPageSize)
+        .setDefaultValue(String.valueOf(defaultPageSize))
+        .setMaximumValue(maxPageSize)
+        .setExampleValue("20")
+        .setSince(version);
+      return this;
     }
 
     /**
@@ -503,7 +523,7 @@ public interface WebService extends Definable<WebService.Context> {
       this.changelog = newAction.changelog;
 
       checkState(this.handler != null, "RequestHandler is not set on action %s", path);
-      logWarningIf(isNullOrEmpty(this.description), "Description is not set on action " + path);
+      logWarningIf(isNullOrEmpty(this.description), "Description is not set on action " + path);
       logWarningIf(isNullOrEmpty(this.since), "Since is not set on action " + path);
       logWarningIf(!this.post && this.responseExample == null, "The response example is not set on action " + path);
 
@@ -736,7 +756,7 @@ public interface WebService extends Definable<WebService.Context> {
      * @since 4.4
      * @see Param#possibleValues()
      */
-    public NewParam setPossibleValues(@Nullable Object... values) {
+    public <T> NewParam setPossibleValues(@Nullable T... values) {
       return setPossibleValues(values == null ? Collections.emptyList() : asList(values));
     }
 
@@ -755,7 +775,7 @@ public interface WebService extends Definable<WebService.Context> {
      * @since 4.4
      * @see Param#possibleValues()
      */
-    public NewParam setPossibleValues(@Nullable Collection<?> values) {
+    public <T> NewParam setPossibleValues(@Nullable Collection<T> values) {
       if (values == null || values.isEmpty()) {
         this.possibleValues = null;
       } else {

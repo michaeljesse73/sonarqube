@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,6 +25,7 @@ import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Ordering;
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -229,7 +230,6 @@ public class PluginInfo implements Comparable<PluginInfo> {
     return useChildFirstClassLoader;
   }
 
-  @CheckForNull
   public boolean isSonarLintSupported() {
     return sonarLintSupported;
   }
@@ -430,9 +430,10 @@ public class PluginInfo implements Comparable<PluginInfo> {
     info.setImplementationBuild(manifest.getImplementationBuild());
     String[] requiredPlugins = manifest.getRequirePlugins();
     if (requiredPlugins != null) {
-      for (String s : requiredPlugins) {
-        info.addRequiredPlugin(RequiredPlugin.parse(s));
-      }
+      Arrays.stream(requiredPlugins)
+        .map(RequiredPlugin::parse)
+        .filter(t -> !"license".equals(t.key))
+        .forEach(info::addRequiredPlugin);
     }
     return info;
   }

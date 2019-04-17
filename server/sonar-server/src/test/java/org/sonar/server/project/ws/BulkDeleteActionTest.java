@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,10 +19,14 @@
  */
 package org.sonar.server.project.ws;
 
-import java.io.IOException;
 import java.net.HttpURLConnection;
+import java.util.Arrays;
 import java.util.Date;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import org.apache.commons.lang.StringUtils;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -31,6 +35,7 @@ import org.mockito.ArgumentCaptor;
 import org.sonar.api.resources.Qualifiers;
 import org.sonar.api.server.ws.WebService.Param;
 import org.sonar.api.utils.System2;
+import org.sonar.core.util.stream.MoreCollectors;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
 import org.sonar.db.DbTester;
@@ -41,12 +46,15 @@ import org.sonar.server.exceptions.ForbiddenException;
 import org.sonar.server.exceptions.UnauthorizedException;
 import org.sonar.server.organization.BillingValidationsProxy;
 import org.sonar.server.organization.TestDefaultOrganizationProvider;
+import org.sonar.server.project.Project;
+import org.sonar.server.project.ProjectLifeCycleListeners;
 import org.sonar.server.tester.UserSessionRule;
 import org.sonar.server.ws.TestResponse;
 import org.sonar.server.ws.WsActionTester;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -72,8 +80,9 @@ public class BulkDeleteActionTest {
   private ComponentCleanerService componentCleanerService = mock(ComponentCleanerService.class);
   private DbClient dbClient = db.getDbClient();
   private ProjectsWsSupport support = new ProjectsWsSupport(dbClient, TestDefaultOrganizationProvider.from(db), mock(BillingValidationsProxy.class));
+  private ProjectLifeCycleListeners projectLifeCycleListeners = mock(ProjectLifeCycleListeners.class);
 
-  private BulkDeleteAction underTest = new BulkDeleteAction(componentCleanerService, dbClient, userSession, support);
+  private BulkDeleteAction underTest = new BulkDeleteAction(componentCleanerService, dbClient, userSession, support, projectLifeCycleListeners);
   private WsActionTester ws = new WsActionTester(underTest);
 
   private OrganizationDto org1;
@@ -100,6 +109,7 @@ public class BulkDeleteActionTest {
     assertThat(result.getStatus()).isEqualTo(HttpURLConnection.HTTP_NO_CONTENT);
     assertThat(result.getInput()).isEmpty();
     verifyDeleted(toDeleteInOrg2);
+    verifyListenersOnProjectsDeleted(toDeleteInOrg2);
   }
 
   @Test
@@ -115,6 +125,7 @@ public class BulkDeleteActionTest {
       .execute();
 
     verifyDeleted(toDeleteInOrg1, toDeleteInOrg2);
+    verifyListenersOnProjectsDeleted(toDeleteInOrg1, toDeleteInOrg2);
   }
 
   @Test
@@ -129,6 +140,7 @@ public class BulkDeleteActionTest {
       .execute();
 
     verifyDeleted(toDelete1, toDelete2);
+    verifyListenersOnProjectsDeleted(toDelete1, toDelete2);
   }
 
   @Test
@@ -147,6 +159,7 @@ public class BulkDeleteActionTest {
       .execute();
 
     verifyDeleted(oldProject);
+    verifyListenersOnProjectsDeleted(oldProject);
   }
 
   @Test
@@ -159,6 +172,7 @@ public class BulkDeleteActionTest {
     ws.newRequest().setParam(PARAM_ON_PROVISIONED_ONLY, "true").execute();
 
     verifyDeleted(provisionedProject);
+    verifyListenersOnProjectsDeleted(provisionedProject);
   }
 
   @Test
@@ -169,6 +183,7 @@ public class BulkDeleteActionTest {
     ws.newRequest().execute();
 
     verifyDeleted(projects);
+    verifyListenersOnProjectsDeleted(projects);
   }
 
   @Test
@@ -180,6 +195,7 @@ public class BulkDeleteActionTest {
     ws.newRequest().setParam(PARAM_QUALIFIERS, String.join(",", Qualifiers.PROJECT, Qualifiers.VIEW)).execute();
 
     verifyDeleted(project, view);
+    verifyListenersOnProjectsDeleted(project, view);
   }
 
   @Test
@@ -192,6 +208,7 @@ public class BulkDeleteActionTest {
     ws.newRequest().setParam(Param.TEXT_QUERY, "JeCt-_%-k").execute();
 
     verifyDeleted(matchKeyProject, matchUppercaseKeyProject);
+    verifyListenersOnProjectsDeleted(matchKeyProject, matchUppercaseKeyProject);
   }
 
   @Test
@@ -202,11 +219,58 @@ public class BulkDeleteActionTest {
     expectedException.expect(ForbiddenException.class);
     expectedException.expectMessage("Insufficient privileges");
 
+    try {
+      ws.newRequest()
+        .setParam("projects", project.getDbKey())
+        .execute();
+    } finally {
+      verifyNoDeletions();
+      verifyZeroInteractions(projectLifeCycleListeners);
+    }
+  }
+
+  /**
+   * SONAR-10356
+   */
+  @Test
+  public void delete_only_the_1000_first_projects() {
+    userSession.logIn().addPermission(ADMINISTER, org1);
+    List<String> keys = IntStream.range(0, 1_010).mapToObj(i -> "key" + i).collect(MoreCollectors.toArrayList());
+    keys.forEach(key -> db.components().insertPrivateProject(org1, p -> p.setDbKey(key)));
+
     ws.newRequest()
-      .setParam("projects", project.getDbKey())
+      .setParam("organization", org1.getKey())
+      .setParam("projects", StringUtils.join(keys, ","))
       .execute();
 
-    verifyNoDeletions();
+    verify(componentCleanerService, times(1_000)).delete(any(DbSession.class), any(ComponentDto.class));
+    ArgumentCaptor<Set<Project>> projectsCaptor = ArgumentCaptor.forClass(Set.class);
+    verify(projectLifeCycleListeners).onProjectsDeleted(projectsCaptor.capture());
+    assertThat(projectsCaptor.getValue()).hasSize(1_000);
+  }
+
+  @Test
+  public void projectLifeCycleListeners_onProjectsDeleted_called_even_if_delete_fails() {
+    userSession.logIn().addPermission(ADMINISTER, org1);
+    ComponentDto project1 = db.components().insertPrivateProject(org1);
+    ComponentDto project2 = db.components().insertPrivateProject(org1);
+    ComponentDto project3 = db.components().insertPrivateProject(org1);
+    ComponentCleanerService componentCleanerService = mock(ComponentCleanerService.class);
+    RuntimeException expectedException = new RuntimeException("Faking delete failing on 2nd project");
+    doNothing()
+      .doThrow(expectedException)
+      .when(componentCleanerService)
+      .delete(any(), any(ComponentDto.class));
+
+    try {
+      ws.newRequest()
+        .setParam("organization", org1.getKey())
+        .setParam("projects", project1.getDbKey() + "," + project2.getDbKey() + "," + project3.getDbKey())
+        .execute();
+    } catch (RuntimeException e) {
+      assertThat(e).isSameAs(expectedException);
+      verifyListenersOnProjectsDeleted(project1, project2, project3);
+    }
   }
 
   @Test
@@ -221,6 +285,7 @@ public class BulkDeleteActionTest {
       .execute();
 
     verifyDeleted(toDelete);
+    verifyListenersOnProjectsDeleted(toDelete);
   }
 
   @Test
@@ -232,6 +297,7 @@ public class BulkDeleteActionTest {
       .setParam("ids", "whatever-the-uuid").execute();
 
     verifyNoDeletions();
+    verifyZeroInteractions(projectLifeCycleListeners);
   }
 
   @Test
@@ -245,6 +311,7 @@ public class BulkDeleteActionTest {
       .setParam("ids", "whatever-the-uuid").execute();
 
     verifyNoDeletions();
+    verifyZeroInteractions(projectLifeCycleListeners);
   }
 
   @Test
@@ -260,6 +327,7 @@ public class BulkDeleteActionTest {
       .execute();
 
     verifyNoDeletions();
+    verifyZeroInteractions(projectLifeCycleListeners);
   }
 
   private void verifyDeleted(ComponentDto... projects) {
@@ -273,5 +341,10 @@ public class BulkDeleteActionTest {
 
   private void verifyNoDeletions() {
     verifyZeroInteractions(componentCleanerService);
+  }
+
+  private void verifyListenersOnProjectsDeleted(ComponentDto... components) {
+    verify(projectLifeCycleListeners)
+      .onProjectsDeleted(Arrays.stream(components).map(Project::from).collect(Collectors.toSet()));
   }
 }

@@ -8,6 +8,7 @@ exports[`should render correctly 1`] = `
     <SearchBox
       onChange={[Function]}
       placeholder="api_documentation.search"
+      value=""
     />
   </div>
   <div
@@ -15,6 +16,7 @@ exports[`should render correctly 1`] = `
   >
     <Checkbox
       checked={false}
+      className="text-middle"
       onCheck={[Function]}
       thirdState={false}
     >
@@ -24,22 +26,17 @@ exports[`should render correctly 1`] = `
         api_documentation.show_internal
       </span>
     </Checkbox>
-    <Tooltip
+    <HelpTooltip
+      className="spacer-left"
       overlay="api_documentation.internal_tooltip"
-      placement="right"
-    >
-      <span>
-        <HelpIcon
-          className="spacer-left text-info"
-        />
-      </span>
-    </Tooltip>
+    />
   </div>
   <div
     className="spacer-top"
   >
     <Checkbox
       checked={false}
+      className="text-middle"
       onCheck={[Function]}
       thirdState={false}
     >
@@ -49,16 +46,10 @@ exports[`should render correctly 1`] = `
         api_documentation.show_deprecated
       </span>
     </Checkbox>
-    <Tooltip
+    <HelpTooltip
+      className="spacer-left"
       overlay="api_documentation.deprecation_tooltip"
-      placement="right"
-    >
-      <span>
-        <HelpIcon
-          className="spacer-left text-info"
-        />
-      </span>
-    </Tooltip>
+    />
   </div>
 </div>
 `;

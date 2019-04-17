@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,6 +21,7 @@ package org.sonar.db.component;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 import org.apache.ibatis.annotations.Param;
@@ -33,7 +34,10 @@ public interface ComponentMapper {
   ComponentDto selectByKey(String key);
 
   @CheckForNull
-  ComponentDto selectByKeyAndBranch(@Param("key") String key, @Param("dbKey") String dbKey, @Param("branch") String branch);
+  ComponentDto selectBranchByKeyAndBranchKey(@Param("key") String key, @Param("dbKey") String dbKey, @Param("branch") String branch);
+
+  @CheckForNull
+  ComponentDto selectPrByKeyAndBranchKey(@Param("key") String key, @Param("dbKey") String dbKey, @Param("branch") String branch);
 
   @CheckForNull
   ComponentDto selectById(long id);
@@ -41,12 +45,17 @@ public interface ComponentMapper {
   @CheckForNull
   ComponentDto selectByUuid(String uuid);
 
+  @CheckForNull
+  ComponentDto selectByAlmIdAndAlmRepositoryId(@Param("almId") String almId, @Param("almRepositoryId") String almRepositoryId);
+
   /**
    * Return sub project of component keys
    */
   List<ComponentDto> selectSubProjectsByComponentUuids(@Param("uuids") Collection<String> uuids);
 
   List<ComponentDto> selectByKeys(@Param("keys") Collection<String> keys);
+
+  List<ComponentDto> selectByDbKeys(@Param("dbKeys") Collection<String> dbKeys);
 
   List<ComponentDto> selectByKeysAndBranch(@Param("keys") Collection<String> keys, @Param("branch") String branch);
 
@@ -60,11 +69,13 @@ public interface ComponentMapper {
 
   List<ComponentDto> selectComponentsByQualifiers(@Param("qualifiers") Collection<String> qualifiers);
 
+  int countEnabledModulesByProjectUuid(@Param("projectUuid") String projectUuid);
+
   /**
    * Counts the number of components with the specified id belonging to the specified organization.
    *
    * @return 1 or 0. Either because the organization uuid is not the one of the component or because the component does
-   *         not exist.
+   * not exist.
    */
   int countComponentByOrganizationAndId(@Param("organizationUuid") String organizationUuid, @Param("componentId") long componentId);
 
@@ -81,7 +92,7 @@ public interface ComponentMapper {
    */
   List<ComponentDto> selectProjects();
 
-  List<ComponentDto> selectAllRootsByOrganization(@Param("organizationUuid") String organizationUuid);
+  List<ComponentDto> selectProjectsByOrganization(@Param("organizationUuid") String organizationUuid);
 
   /**
    * Return all descendant modules (including itself) from a given component uuid and scope
@@ -120,6 +131,8 @@ public interface ComponentMapper {
    */
   List<KeyWithUuidDto> selectUuidsByKeyFromProjectKey(@Param("projectKey") String projectKey);
 
+  Set<String> selectViewKeysWithEnabledCopyOfProject(@Param("projectUuids") Collection<String> projectUuids);
+
   /**
    * Return technical projects from a view or a sub-view
    */
@@ -134,6 +147,8 @@ public interface ComponentMapper {
   List<ComponentDto> selectProjectsByNameQuery(@Param("nameQuery") @Nullable String nameQuery, @Param("includeModules") boolean includeModules);
 
   void scrollForIndexing(@Param("projectUuid") @Nullable String projectUuid, ResultHandler<ComponentDto> handler);
+
+  void scrollAllFilesForFileMove(@Param("projectUuid") String projectUuid, ResultHandler<FileMoveRowDto> handler);
 
   void insert(ComponentDto componentDto);
 
@@ -152,4 +167,8 @@ public interface ComponentMapper {
   void updateTags(ComponentDto component);
 
   List<KeyWithUuidDto> selectComponentKeysHavingIssuesToMerge(@Param("mergeBranchUuid") String mergeBranchUuid);
+
+  List<ProjectNclocDistributionDto> selectPrivateProjectsWithNcloc(@Param("organizationUuid") String organizationUuid);
+
+  List<ComponentWithModuleUuidDto> selectEnabledComponentsWithModuleUuidFromProjectKey(String projectKey);
 }

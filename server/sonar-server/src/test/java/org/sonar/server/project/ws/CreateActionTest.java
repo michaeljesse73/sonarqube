@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,21 +19,23 @@
  */
 package org.sonar.server.project.ws;
 
-import org.assertj.core.api.AssertionsForClassTypes;
+import com.google.common.base.Strings;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.sonar.api.server.ws.WebService;
 import org.sonar.api.utils.System2;
+import org.sonar.db.DbSession;
 import org.sonar.db.DbTester;
 import org.sonar.db.component.ComponentDto;
 import org.sonar.db.organization.OrganizationDto;
+import org.sonar.db.user.UserDto;
 import org.sonar.server.component.ComponentUpdater;
 import org.sonar.server.es.TestProjectIndexers;
 import org.sonar.server.exceptions.BadRequestException;
 import org.sonar.server.exceptions.ForbiddenException;
 import org.sonar.server.favorite.FavoriteUpdater;
-import org.sonar.server.i18n.I18nRule;
+import org.sonar.server.l18n.I18nRule;
 import org.sonar.server.organization.BillingValidations;
 import org.sonar.server.organization.BillingValidations.BillingValidationsException;
 import org.sonar.server.organization.BillingValidationsProxy;
@@ -47,12 +49,14 @@ import org.sonar.server.ws.WsActionTester;
 import org.sonarqube.ws.Projects.CreateWsResponse;
 import org.sonarqube.ws.Projects.CreateWsResponse.Project;
 
+import static java.util.Optional.ofNullable;
+import static java.util.stream.IntStream.rangeClosed;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
-import static org.sonar.core.util.Protobuf.setNullable;
+import static org.mockito.Mockito.when;
 import static org.sonar.db.permission.OrganizationPermission.PROVISION_PROJECTS;
 import static org.sonar.server.project.Visibility.PRIVATE;
 import static org.sonar.server.project.ws.ProjectsWsSupport.PARAM_ORGANIZATION;
@@ -82,11 +86,12 @@ public class CreateActionTest {
   private DefaultOrganizationProvider defaultOrganizationProvider = TestDefaultOrganizationProvider.from(db);
   private BillingValidationsProxy billingValidations = mock(BillingValidationsProxy.class);
   private TestProjectIndexers projectIndexers = new TestProjectIndexers();
+  private PermissionTemplateService permissionTemplateService = mock(PermissionTemplateService.class);
   private WsActionTester ws = new WsActionTester(
     new CreateAction(
       new ProjectsWsSupport(db.getDbClient(), defaultOrganizationProvider, billingValidations),
       db.getDbClient(), userSession,
-      new ComponentUpdater(db.getDbClient(), i18n, system2, mock(PermissionTemplateService.class), new FavoriteUpdater(db.getDbClient()),
+      new ComponentUpdater(db.getDbClient(), i18n, system2, permissionTemplateService, new FavoriteUpdater(db.getDbClient()),
         projectIndexers)));
 
   @Test
@@ -212,7 +217,58 @@ public class CreateActionTest {
       .setParam("visibility", "public")
       .executeProtobuf(CreateWsResponse.class);
 
-    AssertionsForClassTypes.assertThat(result.getProject().getVisibility()).isEqualTo("public");
+    assertThat(result.getProject().getVisibility()).isEqualTo("public");
+  }
+
+  @Test
+  public void abbreviate_project_name_if_very_long() {
+    OrganizationDto organization = db.organizations().insert();
+    userSession.addPermission(PROVISION_PROJECTS, organization);
+    String longName = Strings.repeat("a", 1_000);
+
+    ws.newRequest()
+      .setParam("key", DEFAULT_PROJECT_KEY)
+      .setParam("name", longName)
+      .setParam("organization", organization.getKey())
+      .executeProtobuf(CreateWsResponse.class);
+
+    assertThat(db.getDbClient().componentDao().selectByKey(db.getSession(), DEFAULT_PROJECT_KEY).get().name())
+      .isEqualTo(Strings.repeat("a", 497) + "...");
+  }
+
+  @Test
+  public void add_project_to_user_favorites_if_project_creator_is_defined_in_permission_template() {
+    OrganizationDto organization = db.organizations().insert();
+    UserDto user = db.users().insertUser();
+    when(permissionTemplateService.hasDefaultTemplateWithPermissionOnProjectCreator(any(DbSession.class), any(ComponentDto.class))).thenReturn(true);
+    userSession.logIn(user).addPermission(PROVISION_PROJECTS, organization);
+
+    ws.newRequest()
+      .setParam("key", DEFAULT_PROJECT_KEY)
+      .setParam("name", DEFAULT_PROJECT_NAME)
+      .setParam("organization", organization.getKey())
+      .executeProtobuf(CreateWsResponse.class);
+
+    ComponentDto project = db.getDbClient().componentDao().selectByKey(db.getSession(), DEFAULT_PROJECT_KEY).get();
+    assertThat(db.favorites().hasFavorite(project, user.getId())).isTrue();
+  }
+
+  @Test
+  public void do_not_add_project_to_user_favorites_if_project_creator_is_defined_in_permission_template_and_already_100_favorites() {
+    OrganizationDto organization = db.organizations().insert();
+    UserDto user = db.users().insertUser();
+    when(permissionTemplateService.hasDefaultTemplateWithPermissionOnProjectCreator(any(DbSession.class), any(ComponentDto.class))).thenReturn(true);
+    rangeClosed(1, 100).forEach(i -> db.favorites().add(db.components().insertPrivateProject(), user.getId()));
+    userSession.logIn(user).addPermission(PROVISION_PROJECTS, organization);
+
+    ws.newRequest()
+      .setParam("key", DEFAULT_PROJECT_KEY)
+      .setParam("name", DEFAULT_PROJECT_NAME)
+      .setParam("organization", organization.getKey())
+      .executeProtobuf(CreateWsResponse.class);
+
+    ComponentDto project = db.getDbClient().componentDao().selectByKey(db.getSession(), DEFAULT_PROJECT_KEY).get();
+    assertThat(db.favorites().hasNoFavorite(project)).isTrue();
   }
 
   @Test
@@ -322,12 +378,12 @@ public class CreateActionTest {
     assertThat(organization.isRequired()).isFalse();
     assertThat(organization.since()).isEqualTo("6.3");
 
-    WebService.Param isPrivate = definition.param(PARAM_VISIBILITY);
-    assertThat(isPrivate.description()).isNotEmpty();
-    assertThat(isPrivate.isInternal()).isTrue();
-    assertThat(isPrivate.isRequired()).isFalse();
-    assertThat(isPrivate.since()).isEqualTo("6.4");
-    assertThat(isPrivate.possibleValues()).containsExactlyInAnyOrder("private", "public");
+    WebService.Param visibilityParam = definition.param(PARAM_VISIBILITY);
+    assertThat(visibilityParam.description()).isNotEmpty();
+    assertThat(visibilityParam.isInternal()).isFalse();
+    assertThat(visibilityParam.isRequired()).isFalse();
+    assertThat(visibilityParam.since()).isEqualTo("6.4");
+    assertThat(visibilityParam.possibleValues()).containsExactlyInAnyOrder("private", "public");
 
     WebService.Param project = definition.param(PARAM_PROJECT);
     assertThat(project.isRequired()).isTrue();
@@ -335,16 +391,16 @@ public class CreateActionTest {
 
     WebService.Param name = definition.param(PARAM_NAME);
     assertThat(name.isRequired()).isTrue();
-    assertThat(name.maximumLength()).isEqualTo(2000);
+    assertThat(name.description()).isEqualTo("Name of the project. If name is longer than 500, it is abbreviated.");
   }
 
   private CreateWsResponse call(CreateRequest request) {
     TestRequest httpRequest = ws.newRequest()
       .setMethod(POST.name());
-    setNullable(request.getOrganization(), e -> httpRequest.setParam("organization", e));
-    setNullable(request.getKey(), e -> httpRequest.setParam("project", e));
-    setNullable(request.getName(), e -> httpRequest.setParam("name", e));
-    setNullable(request.getBranch(), e -> httpRequest.setParam("branch", e));
+    ofNullable(request.getOrganization()).ifPresent(org -> httpRequest.setParam("organization", org));
+    ofNullable(request.getKey()).ifPresent(key -> httpRequest.setParam("project", key));
+    ofNullable(request.getName()).ifPresent(name -> httpRequest.setParam("name", name));
+    ofNullable(request.getBranch()).ifPresent(branch -> httpRequest.setParam("branch", branch));
     return httpRequest.executeProtobuf(CreateWsResponse.class);
   }
 

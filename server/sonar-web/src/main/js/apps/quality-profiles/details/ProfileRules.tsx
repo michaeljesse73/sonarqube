@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -29,8 +29,10 @@ import { getQualityProfile } from '../../../api/quality-profiles';
 import { getRulesUrl } from '../../../helpers/urls';
 import { translate } from '../../../helpers/l10n';
 import { Profile } from '../types';
+import { Button } from '../../../components/ui/buttons';
+import DocTooltip from '../../../components/docs/DocTooltip';
 
-const TYPES = ['BUG', 'VULNERABILITY', 'CODE_SMELL'];
+const TYPES = ['BUG', 'VULNERABILITY', 'CODE_SMELL', 'SECURITY_HOTSPOT'];
 
 interface Props {
   organization: string | null;
@@ -44,10 +46,9 @@ interface ByType {
 
 interface State {
   activatedTotal: number | null;
-  activatedByType: { [type: string]: ByType };
-  allByType: { [type: string]: ByType };
+  activatedByType: T.Dict<ByType>;
+  allByType: T.Dict<ByType>;
   compareToSonarWay: { profile: string; profileName: string; missingRuleCount: number } | null;
-  loading: boolean;
   total: number | null;
 }
 
@@ -59,7 +60,6 @@ export default class ProfileRules extends React.PureComponent<Props, State> {
     activatedByType: keyBy(TYPES.map(t => ({ val: t, count: null })), 'val'),
     allByType: keyBy(TYPES.map(t => ({ val: t, count: null })), 'val'),
     compareToSonarWay: null,
-    loading: true,
     total: null
   };
 
@@ -69,7 +69,7 @@ export default class ProfileRules extends React.PureComponent<Props, State> {
   }
 
   componentDidUpdate(prevProps: Props) {
-    if (prevProps.profile !== this.props.profile) {
+    if (prevProps.profile.key !== this.props.profile.key) {
       this.loadRules();
     }
   }
@@ -108,7 +108,6 @@ export default class ProfileRules extends React.PureComponent<Props, State> {
   }
 
   loadRules() {
-    this.setState({ loading: true });
     Promise.all([this.loadAllRules(), this.loadActivatedRules(), this.loadProfile()]).then(
       responses => {
         if (this.mounted) {
@@ -118,14 +117,8 @@ export default class ProfileRules extends React.PureComponent<Props, State> {
             allByType: keyBy<ByType>(takeFacet(allRules, 'types'), 'val'),
             activatedByType: keyBy<ByType>(takeFacet(activatedRules, 'types'), 'val'),
             compareToSonarWay: showProfile && showProfile.compareToSonarWay,
-            loading: false,
             total: allRules.total
           });
-        }
-      },
-      () => {
-        if (this.mounted) {
-          this.setState({ loading: false });
         }
       }
     );
@@ -150,6 +143,7 @@ export default class ProfileRules extends React.PureComponent<Props, State> {
       { qprofile: profile.key, activation: 'false' },
       organization
     );
+    const { actions = {} } = profile;
 
     return (
       <div className="boxed-group quality-profile-rules">
@@ -173,8 +167,8 @@ export default class ProfileRules extends React.PureComponent<Props, State> {
               />
               {TYPES.map(type => (
                 <ProfileRulesRowOfType
-                  key={type}
                   count={this.getRulesCountForType(type)}
+                  key={type}
                   organization={organization}
                   qprofile={profile.key}
                   total={this.getRulesTotalForType(type)}
@@ -184,15 +178,27 @@ export default class ProfileRules extends React.PureComponent<Props, State> {
             </tbody>
           </table>
 
-          {profile.actions &&
-            profile.actions.edit &&
-            !profile.isBuiltIn && (
-              <div className="text-right big-spacer-top">
-                <Link to={activateMoreUrl} className="button js-activate-rules">
+          {actions.edit && !profile.isBuiltIn && (
+            <div className="text-right big-spacer-top">
+              <Link className="button js-activate-rules" to={activateMoreUrl}>
+                {translate('quality_profiles.activate_more')}
+              </Link>
+            </div>
+          )}
+
+          {/* if a user is allowed to `copy` a profile if they are a global or organization admin */}
+          {/* this user could potentially active more rules if the profile was not built-in */}
+          {/* in such cases it's better to show the button but disable it with a tooltip */}
+          {actions.copy && profile.isBuiltIn && (
+            <div className="text-right big-spacer-top">
+              <DocTooltip
+                doc={import(/* webpackMode: "eager" */ 'Docs/tooltips/quality-profiles/activate-rules-in-built-in-profile.md')}>
+                <Button className="disabled js-activate-rules">
                   {translate('quality_profiles.activate_more')}
-                </Link>
-              </div>
-            )}
+                </Button>
+              </DocTooltip>
+            </div>
+          )}
         </div>
         {profile.activeDeprecatedRuleCount > 0 && (
           <ProfileRulesDeprecatedWarning
@@ -201,16 +207,15 @@ export default class ProfileRules extends React.PureComponent<Props, State> {
             profile={profile.key}
           />
         )}
-        {compareToSonarWay != null &&
-          compareToSonarWay.missingRuleCount > 0 && (
-            <ProfileRulesSonarWayComparison
-              language={profile.language}
-              organization={organization}
-              profile={profile.key}
-              sonarway={compareToSonarWay.profile}
-              sonarWayMissingRules={compareToSonarWay.missingRuleCount}
-            />
-          )}
+        {compareToSonarWay != null && compareToSonarWay.missingRuleCount > 0 && (
+          <ProfileRulesSonarWayComparison
+            language={profile.language}
+            organization={organization}
+            profile={profile.key}
+            sonarWayMissingRules={compareToSonarWay.missingRuleCount}
+            sonarway={compareToSonarWay.profile}
+          />
+        )}
       </div>
     );
   }

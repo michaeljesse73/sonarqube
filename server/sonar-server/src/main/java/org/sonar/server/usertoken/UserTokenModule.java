@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -23,6 +23,7 @@ import org.sonar.core.platform.Module;
 import org.sonar.server.usertoken.ws.GenerateAction;
 import org.sonar.server.usertoken.ws.RevokeAction;
 import org.sonar.server.usertoken.ws.SearchAction;
+import org.sonar.server.usertoken.ws.UserTokenSupport;
 import org.sonar.server.usertoken.ws.UserTokensWs;
 
 public class UserTokenModule extends Module {
@@ -30,10 +31,11 @@ public class UserTokenModule extends Module {
   protected void configureModule() {
     add(
       UserTokensWs.class,
+      UserTokenSupport.class,
       GenerateAction.class,
       RevokeAction.class,
       SearchAction.class,
-      UserTokenAuthenticator.class,
+      UserTokenAuthentication.class,
       TokenGeneratorImpl.class);
   }
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -26,11 +26,9 @@ import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
 import org.sonar.db.organization.OrganizationDto;
 import org.sonar.db.qualitygate.QualityGateDto;
-import org.sonar.server.qualitygate.QualityGateFinder;
 import org.sonar.server.qualitygate.QualityGateUpdater;
 import org.sonar.server.user.UserSession;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static org.sonar.db.permission.OrganizationPermission.ADMINISTER_QUALITY_GATES;
 import static org.sonar.server.qualitygate.ws.QualityGatesWs.parseId;
 import static org.sonar.server.qualitygate.ws.QualityGatesWsParameters.PARAM_ID;
@@ -43,15 +41,13 @@ public class CopyAction implements QualityGatesWsAction {
   private final DbClient dbClient;
   private final UserSession userSession;
   private final QualityGateUpdater qualityGateUpdater;
-  private final QualityGateFinder qualityGateFinder;
   private final QualityGatesWsSupport wsSupport;
 
   public CopyAction(DbClient dbClient, UserSession userSession, QualityGateUpdater qualityGateUpdater,
-    QualityGateFinder qualityGateFinder, QualityGatesWsSupport wsSupport) {
+    QualityGatesWsSupport wsSupport) {
     this.dbClient = dbClient;
     this.userSession = userSession;
     this.qualityGateUpdater = qualityGateUpdater;
-    this.qualityGateFinder = qualityGateFinder;
     this.wsSupport = wsSupport;
   }
 
@@ -82,13 +78,11 @@ public class CopyAction implements QualityGatesWsAction {
     Long id = parseId(request, PARAM_ID);
     String destinationName = request.mandatoryParam(PARAM_NAME);
 
-    checkArgument(!destinationName.isEmpty(), "The 'name' parameter is empty");
-
     try (DbSession dbSession = dbClient.openSession(false)) {
 
       OrganizationDto organization = wsSupport.getOrganization(dbSession, request);
       userSession.checkPermission(ADMINISTER_QUALITY_GATES, organization);
-      QualityGateDto qualityGate = qualityGateFinder.getByOrganizationAndId(dbSession, organization, id);
+      QualityGateDto qualityGate = wsSupport.getByOrganizationAndId(dbSession, organization, id);
       QualityGateDto copy = qualityGateUpdater.copy(dbSession, organization, qualityGate, destinationName);
       dbSession.commit();
 

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,12 +20,12 @@
 package org.sonar.server.ce.ws;
 
 import com.google.common.base.Joiner;
-import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
@@ -35,7 +35,7 @@ import org.sonar.api.server.ws.Response;
 import org.sonar.api.server.ws.WebService;
 import org.sonar.api.server.ws.WebService.Param;
 import org.sonar.api.web.UserRole;
-import org.sonar.ce.taskprocessor.CeTaskProcessor;
+import org.sonar.ce.task.taskprocessor.CeTaskProcessor;
 import org.sonar.core.util.Uuids;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
@@ -52,26 +52,27 @@ import org.sonarqube.ws.Ce.ActivityResponse;
 import static java.lang.Boolean.parseBoolean;
 import static java.lang.Integer.parseInt;
 import static java.lang.String.format;
+import static java.util.Arrays.asList;
+import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
-import static org.apache.commons.lang.StringUtils.defaultString;
+import static org.sonar.api.server.ws.WebService.Param.TEXT_QUERY;
 import static org.sonar.api.utils.DateUtils.parseEndingDateOrDateTime;
 import static org.sonar.api.utils.DateUtils.parseStartingDateOrDateTime;
 import static org.sonar.core.util.stream.MoreCollectors.toList;
 import static org.sonar.db.Pagination.forPage;
-import static org.sonar.server.ws.WsUtils.checkFoundWithOptional;
-import static org.sonar.server.ws.WsUtils.checkRequest;
-import static org.sonar.server.ws.WsUtils.writeProtobuf;
 import static org.sonar.server.ce.ws.CeWsParameters.PARAM_COMPONENT_ID;
-import static org.sonar.server.ce.ws.CeWsParameters.PARAM_COMPONENT_QUERY;
 import static org.sonar.server.ce.ws.CeWsParameters.PARAM_MAX_EXECUTED_AT;
 import static org.sonar.server.ce.ws.CeWsParameters.PARAM_MIN_SUBMITTED_AT;
 import static org.sonar.server.ce.ws.CeWsParameters.PARAM_ONLY_CURRENTS;
 import static org.sonar.server.ce.ws.CeWsParameters.PARAM_STATUS;
 import static org.sonar.server.ce.ws.CeWsParameters.PARAM_TYPE;
+import static org.sonar.server.ws.WsUtils.checkFoundWithOptional;
+import static org.sonar.server.ws.WsUtils.checkRequest;
+import static org.sonar.server.ws.WsUtils.writeProtobuf;
 
 public class ActivityAction implements CeWsAction {
   private static final int MAX_PAGE_SIZE = 1000;
-  private static final String[] POSSIBLE_QUALIFIERS = new String[] {Qualifiers.PROJECT, Qualifiers.APP, Qualifiers.VIEW, "DEV", Qualifiers.MODULE};
+  private static final String[] POSSIBLE_QUALIFIERS = new String[] {Qualifiers.PROJECT, Qualifiers.APP, Qualifiers.VIEW};
 
   private final UserSession userSession;
   private final DbClient dbClient;
@@ -100,22 +101,15 @@ public class ActivityAction implements CeWsAction {
       .setChangelog(
         new Change("5.5", "it's no more possible to specify the page parameter."),
         new Change("6.1", "field \"logs\" is deprecated and its value is always false"),
-        new Change("6.6", "fields \"branch\" and \"branchType\" added"))
+        new Change("6.6", "fields \"branch\" and \"branchType\" added"),
+        new Change("7.1", "field \"pullRequest\" added"),
+        new Change("7.6", format("The use of module keys in parameters '%s' is deprecated", TEXT_QUERY)))
       .setSince("5.2");
 
     action.createParam(PARAM_COMPONENT_ID)
       .setDescription("Id of the component (project) to filter on")
       .setExampleValue(Uuids.UUID_EXAMPLE_03);
-    action.createParam(PARAM_COMPONENT_QUERY)
-      .setDescription(format("Limit search to: <ul>" +
-        "<li>component names that contain the supplied string</li>" +
-        "<li>component keys that are exactly the same as the supplied string</li>" +
-        "</ul>" +
-        "Must not be set together with %s.<br />" +
-        "Deprecated and replaced by '%s'", PARAM_COMPONENT_ID, Param.TEXT_QUERY))
-      .setExampleValue("Apache")
-      .setDeprecatedSince("5.5");
-    action.createParam(Param.TEXT_QUERY)
+    action.createParam(TEXT_QUERY)
       .setDescription(format("Limit search to: <ul>" +
         "<li>component names that contain the supplied string</li>" +
         "<li>component keys that are exactly the same as the supplied string</li>" +
@@ -127,8 +121,8 @@ public class ActivityAction implements CeWsAction {
     action.createParam(PARAM_STATUS)
       .setDescription("Comma separated list of task statuses")
       .setPossibleValues(ImmutableList.builder()
-        .add(CeActivityDto.Status.values())
-        .add(CeQueueDto.Status.values()).build())
+        .addAll(asList(CeActivityDto.Status.values()))
+        .addAll(asList(CeQueueDto.Status.values())).build())
       .setExampleValue(Joiner.on(",").join(CeQueueDto.Status.IN_PROGRESS, CeActivityDto.Status.SUCCESS))
       // activity statuses by default to be backward compatible
       // queued tasks have been added in 5.5
@@ -147,10 +141,6 @@ public class ActivityAction implements CeWsAction {
     action.createParam(PARAM_MAX_EXECUTED_AT)
       .setDescription("Maximum date of end of task processing (inclusive)")
       .setExampleValue("2017-10-19T13:00:00+0200");
-    action.createParam(Param.PAGE)
-      .setDescription("Deprecated parameter")
-      .setDeprecatedSince("5.5")
-      .setDeprecatedKey("pageIndex", "5.4");
     action.createPageSize(100, MAX_PAGE_SIZE);
   }
 
@@ -207,16 +197,16 @@ public class ActivityAction implements CeWsAction {
   private Optional<Ce.Task> searchTaskByUuid(DbSession dbSession, Request request) {
     String textQuery = request.getQ();
     if (textQuery == null) {
-      return Optional.absent();
+      return Optional.empty();
     }
 
-    java.util.Optional<CeQueueDto> queue = dbClient.ceQueueDao().selectByUuid(dbSession, textQuery);
+    Optional<CeQueueDto> queue = dbClient.ceQueueDao().selectByUuid(dbSession, textQuery);
     if (queue.isPresent()) {
       return Optional.of(formatter.formatQueue(dbSession, queue.get()));
     }
 
-    java.util.Optional<CeActivityDto> activity = dbClient.ceActivityDao().selectByUuid(dbSession, textQuery);
-    return activity.map(ceActivityDto -> Optional.of(formatter.formatActivity(dbSession, ceActivityDto, null))).orElseGet(Optional::absent);
+    Optional<CeActivityDto> activity = dbClient.ceActivityDao().selectByUuid(dbSession, textQuery);
+    return activity.map(ceActivityDto -> formatter.formatActivity(dbSession, ceActivityDto, null, emptyList()));
   }
 
   private CeTaskQuery buildQuery(DbSession dbSession, Request request, @Nullable ComponentDto component) {
@@ -235,9 +225,11 @@ public class ActivityAction implements CeWsAction {
 
     String componentQuery = request.getQ();
     if (component != null) {
-      query.setComponentUuid(component.uuid());
+      query.setMainComponentUuid(component.uuid());
     } else if (componentQuery != null) {
-      query.setComponentUuids(loadComponents(dbSession, componentQuery).stream().map(ComponentDto::uuid).collect(toList()));
+      query.setMainComponentUuids(loadComponents(dbSession, componentQuery).stream()
+        .map(ComponentDto::uuid)
+        .collect(toList()));
     }
     return query;
   }
@@ -283,7 +275,7 @@ public class ActivityAction implements CeWsAction {
   private static Request toSearchWsRequest(org.sonar.api.server.ws.Request request) {
     Request activityWsRequest = new Request()
       .setComponentId(request.param(PARAM_COMPONENT_ID))
-      .setQ(defaultString(request.param(Param.TEXT_QUERY), request.param(PARAM_COMPONENT_QUERY)))
+      .setQ(request.param(TEXT_QUERY))
       .setStatus(request.paramAsStrings(PARAM_STATUS))
       .setType(request.param(PARAM_TYPE))
       .setMinSubmittedAt(request.param(PARAM_MIN_SUBMITTED_AT))
@@ -292,7 +284,7 @@ public class ActivityAction implements CeWsAction {
       .setPs(String.valueOf(request.mandatoryParamAsInt(Param.PAGE_SIZE)));
 
     checkRequest(activityWsRequest.getComponentId() == null || activityWsRequest.getQ() == null, "%s and %s must not be set at the same time",
-      PARAM_COMPONENT_ID, PARAM_COMPONENT_QUERY);
+      PARAM_COMPONENT_ID, TEXT_QUERY);
     return activityWsRequest;
   }
 
@@ -307,14 +299,19 @@ public class ActivityAction implements CeWsAction {
     private List<String> status;
     private String type;
 
+    Request() {
+      // Nothing to do
+    }
+
     /**
      * Example value: "AU-TpxcA-iU5OvuD2FL0"
      */
-    private Request setComponentId(String componentId) {
+    private Request setComponentId(@Nullable String componentId) {
       this.componentId = componentId;
       return this;
     }
 
+    @CheckForNull
     private String getComponentId() {
       return componentId;
     }
@@ -322,11 +319,12 @@ public class ActivityAction implements CeWsAction {
     /**
      * Example value: "2017-10-19T13:00:00+0200"
      */
-    private Request setMaxExecutedAt(String maxExecutedAt) {
+    private Request setMaxExecutedAt(@Nullable String maxExecutedAt) {
       this.maxExecutedAt = maxExecutedAt;
       return this;
     }
 
+    @CheckForNull
     private String getMaxExecutedAt() {
       return maxExecutedAt;
     }
@@ -334,11 +332,12 @@ public class ActivityAction implements CeWsAction {
     /**
      * Example value: "2017-10-19T13:00:00+0200"
      */
-    private Request setMinSubmittedAt(String minSubmittedAt) {
+    private Request setMinSubmittedAt(@Nullable String minSubmittedAt) {
       this.minSubmittedAt = minSubmittedAt;
       return this;
     }
 
+    @CheckForNull
     private String getMinSubmittedAt() {
       return minSubmittedAt;
     }
@@ -376,11 +375,12 @@ public class ActivityAction implements CeWsAction {
     /**
      * Example value: "Apache"
      */
-    private Request setQ(String q) {
+    private Request setQ(@Nullable String q) {
       this.q = q;
       return this;
     }
 
+    @CheckForNull
     private String getQ() {
       return q;
     }
@@ -396,11 +396,12 @@ public class ActivityAction implements CeWsAction {
      *   <li>"IN_PROGRESS"</li>
      * </ul>
      */
-    private Request setStatus(List<String> status) {
+    private Request setStatus(@Nullable List<String> status) {
       this.status = status;
       return this;
     }
 
+    @CheckForNull
     private List<String> getStatus() {
       return status;
     }
@@ -412,11 +413,12 @@ public class ActivityAction implements CeWsAction {
      *   <li>"REPORT"</li>
      * </ul>
      */
-    private Request setType(String type) {
+    private Request setType(@Nullable String type) {
       this.type = type;
       return this;
     }
 
+    @CheckForNull
     private String getType() {
       return type;
     }

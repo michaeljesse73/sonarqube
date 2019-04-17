@@ -18,7 +18,7 @@
     i.status as status,
     i.resolution as resolution,
     i.checksum as checksum,
-    i.assignee as assignee,
+    i.assignee as assigneeUuid,
     i.author_login as authorLogin,
     i.tags as tagsString,
     i.issue_attributes as issueAttributes,
@@ -27,6 +27,7 @@
     i.issue_close_date as issueCloseTime,
     i.created_at as createdAt,
     i.updated_at as updatedAt,
+    r.is_external as "isExternal",
     r.plugin_rule_key as ruleKey,
     r.plugin_name as ruleRepo,
     r.language as language,
@@ -37,7 +38,8 @@
     p.path as filePath,
     root.kee as projectKey,
     i.project_uuid as projectUuid,
-    i.issue_type as type
+    i.issue_type as type,
+    i.from_hotspot as "isFromHotspot"
   </sql>
 
   <sql id="sortColumn">
@@ -50,7 +52,7 @@
           i.status as status
         </when>
         <when test="'ASSIGNEE'.equals(query.sort())">
-          i.assignee as assignee
+          i.assignee as assigneeUuid
         </when>
         <when test="'CREATION_DATE'.equals(query.sort())">
           i.issue_creation_date as issueCreationTime
@@ -84,6 +86,7 @@
     i.issue_close_date as "issueCloseDate",
     i.issue_creation_date as "issueCreationDate",
     i.issue_update_date as "issueUpdateDate",
+    r.is_external as "isExternal",
     r.plugin_name as "pluginName",
     r.plugin_rule_key as "pluginRuleKey",
     r.language,
@@ -93,7 +96,8 @@
     p.scope,
     p.organization_uuid as "organizationUuid",
     i.tags,
-    i.issue_type as "issueType"
+    i.issue_type as "issueType",
+    i.from_hotspot as "isFromHotspot"
   </sql>
 
 
@@ -101,18 +105,20 @@
     INSERT INTO issues (kee, rule_id, severity, manual_severity,
     message, line, locations, gap, effort, status, tags,
     resolution, checksum, assignee, author_login, issue_attributes, issue_creation_date, issue_update_date,
-    issue_close_date, created_at, updated_at, component_uuid, project_uuid, issue_type)
+    issue_close_date, created_at, updated_at, component_uuid, project_uuid, issue_type, from_hotspot)
     VALUES (#{kee,jdbcType=VARCHAR}, #{ruleId,jdbcType=INTEGER},
     #{severity,jdbcType=VARCHAR},
     #{manualSeverity,jdbcType=BOOLEAN}, #{message,jdbcType=VARCHAR}, #{line,jdbcType=INTEGER},
     #{locations,jdbcType=BINARY},
     #{gap,jdbcType=DOUBLE}, #{effort,jdbcType=INTEGER}, #{status,jdbcType=VARCHAR},
-    #{tagsString,jdbcType=VARCHAR}, #{resolution,jdbcType=VARCHAR}, #{checksum,jdbcType=VARCHAR},
-    #{assignee,jdbcType=VARCHAR}, #{authorLogin,jdbcType=VARCHAR},
+    #{tagsString,jdbcType=VARCHAR}, #{resolution,jdbcType=VARCHAR},
+    #{checksum,jdbcType=VARCHAR},
+    #{assigneeUuid,jdbcType=VARCHAR},
+    #{authorLogin,jdbcType=VARCHAR},
     #{issueAttributes,jdbcType=VARCHAR},
     #{issueCreationTime,jdbcType=BIGINT},#{issueUpdateTime,jdbcType=BIGINT}, #{issueCloseTime,jdbcType=BIGINT},
     #{createdAt,jdbcType=BIGINT}, #{updatedAt,jdbcType=BIGINT},
-    #{componentUuid,jdbcType=VARCHAR}, #{projectUuid,jdbcType=VARCHAR}, #{type,jdbcType=INTEGER})
+    #{componentUuid,jdbcType=VARCHAR}, #{projectUuid,jdbcType=VARCHAR}, #{type,jdbcType=INTEGER}, #{isFromHotspot,jdbcType=BOOLEAN})
   </insert>
 
   <!--
@@ -130,7 +136,7 @@
     status=#{status,jdbcType=VARCHAR},
     resolution=#{resolution,jdbcType=VARCHAR},
     checksum=#{checksum,jdbcType=VARCHAR},
-    assignee=#{assignee,jdbcType=VARCHAR},
+    assignee=#{assigneeUuid,jdbcType=VARCHAR},
     author_login=#{authorLogin,jdbcType=VARCHAR},
     tags=#{tagsString,jdbcType=VARCHAR},
     project_uuid=#{projectUuid,jdbcType=VARCHAR},
@@ -139,7 +145,8 @@
     issue_update_date=#{issueUpdateTime,jdbcType=BIGINT},
     issue_close_date=#{issueCloseTime,jdbcType=BIGINT},
     updated_at=#{updatedAt,jdbcType=BIGINT},
-    issue_type=#{type,jdbcType=INTEGER}
+    issue_type=#{type,jdbcType=INTEGER},
+    from_hotspot=#{isFromHotspot,jdbcType=BOOLEAN}
     where kee = #{kee}
   </update>
 
@@ -158,7 +165,7 @@
     status=#{status,jdbcType=VARCHAR},
     resolution=#{resolution,jdbcType=VARCHAR},
     checksum=#{checksum,jdbcType=VARCHAR},
-    assignee=#{assignee,jdbcType=VARCHAR},
+    assignee=#{assigneeUuid,jdbcType=VARCHAR},
     author_login=#{authorLogin,jdbcType=VARCHAR},
     tags=#{tagsString,jdbcType=VARCHAR},
     component_uuid=#{componentUuid,jdbcType=VARCHAR},
@@ -168,7 +175,8 @@
     issue_update_date=#{issueUpdateTime,jdbcType=BIGINT},
     issue_close_date=#{issueCloseTime,jdbcType=BIGINT},
     updated_at=#{updatedAt,jdbcType=BIGINT},
-    issue_type=#{type,jdbcType=INTEGER}
+    issue_type=#{type,jdbcType=INTEGER},
+    from_hotspot=#{isFromHotspot,jdbcType=BOOLEAN}
     where kee = #{kee} and updated_at &lt;= #{selectedAt}
   </update>
 
@@ -194,6 +202,53 @@
     i.status &lt;&gt; 'CLOSED'
   </select>
 
+  <select id="selectNonClosedByComponentUuidExcludingExternals" parameterType="String" resultType="Issue">
+    select
+    <include refid="issueColumns"/>
+    from issues i
+    inner join rules r on r.id=i.rule_id
+    inner join projects p on p.uuid=i.component_uuid
+    inner join projects root on root.uuid=i.project_uuid
+    where
+    (r.is_external is NULL or r.is_external = ${_false}) and
+    i.component_uuid = #{componentUuid,jdbcType=VARCHAR} and
+    i.status &lt;&gt; 'CLOSED' and
+    i.issue_type &lt;&gt; 4 and (i.from_hotspot is NULL or i.from_hotspot = ${_false})
+  </select>
+
+  <select id="scrollClosedByComponentUuid" resultType="Issue" fetchSize="${_scrollFetchSize}" resultSetType="FORWARD_ONLY">
+    select
+      <include refid="issueColumns"/>,
+      ic.change_data as closedChangeData
+    from issues i
+    inner join rules r on
+      r.id = i.rule_id
+    inner join projects p on
+      p.uuid = i.component_uuid
+    inner join projects root on
+      root.uuid = i.project_uuid
+    inner join issue_changes ic on
+      ic.issue_key = i.kee
+      and ic.change_type = 'diff'
+      and ic.change_data like '%status=%|CLOSED%'
+    where
+      i.component_uuid = #{componentUuid,jdbcType=VARCHAR}
+      and i.status = 'CLOSED'
+      and i.issue_close_date is not null
+      and i.issue_close_date >= #{closeDateAfter,jdbcType=BIGINT}
+      and i.issue_type &lt;&gt; 4
+      and (i.from_hotspot is null or i.from_hotspot = ${_false})
+    order by
+      i.kee, ic.issue_change_creation_date desc
+  </select>
+
+  <select id="selectModuleAndDirComponentUuidsOfOpenIssuesForProjectUuid" parameterType="string" resultType="string">
+    select distinct(i.component_uuid)
+    from issues i
+    inner join projects p on p.uuid=i.component_uuid
+    where i.project_uuid=#{projectUuid,jdbcType=VARCHAR} and i.status &lt;&gt; 'CLOSED' and (p.qualifier = 'DIR' OR p.qualifier = 'BRC')
+  </select>
+
   <select id="selectComponentUuidsOfOpenIssuesForProjectUuid" parameterType="string" resultType="string">
     select distinct(i.component_uuid)
     from issues i
@@ -211,6 +266,21 @@
     <foreach collection="list" open="(" close=")" item="key" separator=",">
       #{key,jdbcType=VARCHAR}
     </foreach>
+  </select>
+
+  <select id="selectByKeysIfNotUpdatedAt" parameterType="map" resultType="Issue">
+    select
+      <include refid="issueColumns"/>
+    from issues i
+    inner join rules r on r.id=i.rule_id
+    inner join projects p on p.uuid=i.component_uuid
+    inner join projects root on root.uuid=i.project_uuid
+    where
+      i.kee in
+        <foreach collection="keys" open="(" close=")" item="key" separator=",">
+          #{key,jdbcType=VARCHAR}
+        </foreach>
+      and i.updated_at &lt;&gt; #{updatedAt,jdbcType=BIGINT}
   </select>
 
   <select id="selectOpenByComponentUuids" parameterType="map" resultType="ShortBranchIssue">
@@ -234,7 +304,7 @@
       and i.status &lt;&gt; 'CLOSED'
   </select>
 
-  <select id="scrollNonClosedByModuleOrProject" parameterType="map" resultType="Issue" fetchSize="${_scrollFetchSize}" resultSetType="FORWARD_ONLY">
+  <select id="selectNonClosedByModuleOrProject" parameterType="map" resultType="Issue">
     select
     <include refid="issueColumns"/>
     from issues i
@@ -242,9 +312,11 @@
     inner join projects p on p.uuid = i.component_uuid
     inner join projects root on root.uuid = i.project_uuid
     where
+    (r.is_external is NULL or r.is_external = ${_false}) and
     i.project_uuid = #{projectUuid, jdbcType=VARCHAR} and
     p.module_uuid_path like  #{likeModuleUuidPath, jdbcType=VARCHAR} escape '/' and
-    i.status &lt;&gt; 'CLOSED'
+    i.status &lt;&gt; 'CLOSED' and
+    i.issue_type &lt;&gt; 4 and (i.from_hotspot is NULL or i.from_hotspot = ${_false})
   </select>
 
   <select id="selectIssueGroupsByBaseComponent" resultType="org.sonar.db.issue.IssueGroupDto" parameterType="map">

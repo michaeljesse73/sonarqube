@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,39 +20,35 @@
 import { connect } from 'react-redux';
 import { Dispatch } from 'redux';
 import { uniq } from 'lodash';
+import { searchIssues } from '../../../api/issues';
+import { getOrganizations } from '../../../api/organizations';
 import throwGlobalError from '../../../app/utils/throwGlobalError';
 import {
   getCurrentUser,
   areThereCustomOrganizations,
-  getGlobalSettingValue
+  getMyOrganizations,
+  Store
 } from '../../../store/rootReducer';
-import { getOrganizations } from '../../../api/organizations';
-import { receiveOrganizations } from '../../../store/organizations/duck';
-import { searchIssues } from '../../../api/issues';
+import { lazyLoad } from '../../../components/lazyLoad';
 import { parseIssueFromResponse } from '../../../helpers/issues';
 import { RawQuery } from '../../../helpers/query';
-import { CurrentUser } from '../../../app/types';
-import { lazyLoad } from '../../../components/lazyLoad';
+import { receiveOrganizations } from '../../../store/organizations';
 
 interface StateProps {
-  currentUser: CurrentUser;
-  onSonarCloud: boolean;
+  currentUser: T.CurrentUser;
+  userOrganizations: T.Organization[];
 }
 
-const mapStateToProps = (state: any): StateProps => {
-  const onSonarCloudSetting = getGlobalSettingValue(state, 'sonar.sonarcloud.enabled');
-  return {
-    currentUser: getCurrentUser(state),
-    onSonarCloud: Boolean(onSonarCloudSetting && onSonarCloudSetting.value === 'true')
-  };
-};
+const mapStateToProps = (state: Store): StateProps => ({
+  currentUser: getCurrentUser(state),
+  userOrganizations: getMyOrganizations(state)
+});
 
-const fetchIssueOrganizations = (issues: any[]) => (dispatch: Dispatch<any>) => {
-  if (!issues.length) {
+const fetchIssueOrganizations = (organizationKeys: string[]) => (dispatch: Dispatch) => {
+  if (!organizationKeys.length) {
     return Promise.resolve();
   }
 
-  const organizationKeys = uniq(issues.map(issue => issue.organization));
   return getOrganizations({ organizations: organizationKeys.join() }).then(
     response => dispatch(receiveOrganizations(response.organizations)),
     throwGlobalError
@@ -62,7 +58,7 @@ const fetchIssueOrganizations = (issues: any[]) => (dispatch: Dispatch<any>) => 
 const fetchIssues = (query: RawQuery, requestOrganizations = true) => (
   // use `Function` to be able to do `dispatch(...).then(...)`
   dispatch: Function,
-  getState: () => any
+  getState: () => Store
 ) => {
   const organizationsEnabled = areThereCustomOrganizations(getState());
   return searchIssues({ ...query, additionalFields: '_all' })
@@ -73,8 +69,12 @@ const fetchIssues = (query: RawQuery, requestOrganizations = true) => (
       return { ...response, issues: parsedIssues };
     })
     .then(response => {
+      const organizationKeys = uniq([
+        ...response.issues.map(issue => issue.organization),
+        ...(response.components || []).map(component => component.organization)
+      ]);
       return organizationsEnabled && requestOrganizations
-        ? dispatch(fetchIssueOrganizations(response.issues)).then(() => response)
+        ? dispatch(fetchIssueOrganizations(organizationKeys)).then(() => response)
         : response;
     })
     .catch(throwGlobalError);
@@ -87,11 +87,7 @@ interface DispatchProps {
 // have to type cast this, because of async action
 const mapDispatchToProps = { fetchIssues: fetchIssues as any } as DispatchProps;
 
-interface OwnProps {
-  location: { pathname: string; query: RawQuery };
-  myIssues?: boolean;
-}
-
-export default connect<StateProps, DispatchProps, OwnProps>(mapStateToProps, mapDispatchToProps)(
-  lazyLoad(() => import('./App'))
-);
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(lazyLoad(() => import('./App')));

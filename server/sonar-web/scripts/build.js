@@ -1,7 +1,7 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2016 SonarSource SA
- * mailto:contact AT sonarsource DOT com
+ * Copyright (C) 2009-2019 SonarSource SA
+ * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -21,83 +21,32 @@
 process.env.NODE_ENV = 'production';
 
 const chalk = require('chalk');
-const fs = require('fs-extra');
-const rimrafSync = require('rimraf').sync;
 const webpack = require('webpack');
-const paths = require('../config/paths');
-const formatSize = require('./utils/formatSize');
-const getConfig = require('../config/webpack.config');
+const reportBuildStats = require('./utils/reportBuildStats');
+const getConfigs = require('../config/webpack.config');
 
-const fast = process.argv.some(arg => arg.indexOf('--fast') > -1);
-
-const config = getConfig({ fast, production: true });
-
-function clean() {
-  // Remove all content but keep the directory so that
-  // if you're in it, you don't end up in Trash
-  console.log(chalk.cyan.bold('Cleaning output directories and files...'));
-
-  console.log(paths.jsBuild + '/*');
-  rimrafSync(paths.jsBuild + '/*');
-
-  console.log(paths.cssBuild + '/*');
-  rimrafSync(paths.cssBuild + '/*');
-
-  console.log(paths.htmlBuild);
-  rimrafSync(paths.htmlBuild);
-
-  console.log();
-}
+const release = process.argv.findIndex(val => val === 'release') >= 0;
+const configs = getConfigs({ production: true, release }).filter(
+  config => release || config.name === 'modern'
+);
 
 function build() {
-  if (fast) {
-    console.log(chalk.magenta.bold('Running fast build...'));
-  } else {
-    console.log(chalk.cyan.bold('Creating optimized production build...'));
-  }
+  console.log(chalk.cyan.bold(`Creating ${release ? 'optimized' : 'fast'} production build...`));
   console.log();
 
-  webpack(config, (err, stats) => {
+  webpack(configs, (err, stats) => {
     if (err) {
       console.log(chalk.red.bold('Failed to create a production build!'));
       console.log(chalk.red(err.message || err));
       process.exit(1);
     }
-
-    if (stats.compilation.errors && stats.compilation.errors.length) {
-      console.log(chalk.red.bold('Failed to create a production build!'));
-      stats.compilation.errors.forEach(err => console.log(chalk.red(err.message || err)));
-      process.exit(1);
+    reportBuildStats(stats.stats[0], 'modern');
+    if (release) {
+      console.log();
+      reportBuildStats(stats.stats[1], 'legacy');
     }
-
-    const jsonStats = stats.toJson();
-
-    console.log('Assets:');
-    const assets = jsonStats.assets.slice();
-    assets.sort((a, b) => b.size - a.size);
-    assets.forEach(asset => {
-      let sizeLabel = formatSize(asset.size);
-      const leftPadding = ' '.repeat(Math.max(0, 8 - sizeLabel.length));
-      sizeLabel = leftPadding + sizeLabel;
-      console.log('', chalk.yellow(sizeLabel), asset.name);
-    });
-    console.log();
-
-    const seconds = jsonStats.time / 1000;
-    console.log('Duration: ' + seconds.toFixed(2) + 's');
-    console.log();
-
     console.log(chalk.green.bold('Compiled successfully!'));
   });
 }
 
-function copyPublicFolder() {
-  fs.copySync(paths.appPublic, paths.appBuild, {
-    dereference: true,
-    filter: file => file !== paths.appHtml
-  });
-}
-
-clean();
 build();
-copyPublicFolder();

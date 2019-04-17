@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -30,7 +30,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang.StringUtils.defaultIfBlank;
 import static org.sonar.api.utils.Paging.offset;
-import static org.sonar.db.DaoDatabaseUtils.buildLikeValue;
+import static org.sonar.db.DaoUtils.buildLikeValue;
 
 /**
  * Query used to get users and groups permissions
@@ -152,7 +152,7 @@ public class PermissionQuery {
       return this;
     }
 
-    public Builder setComponentUuid(@Nullable String componentUuid) {
+    public Builder setComponentUuid(String componentUuid) {
       this.componentUuid = componentUuid;
       return this;
     }

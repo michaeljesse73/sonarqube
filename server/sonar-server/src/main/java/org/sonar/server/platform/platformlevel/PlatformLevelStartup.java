@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,6 +19,9 @@
  */
 package org.sonar.server.platform.platformlevel;
 
+import org.sonar.api.utils.log.Loggers;
+import org.sonar.core.platform.EditionProvider;
+import org.sonar.core.platform.PlatformEditionProvider;
 import org.sonar.server.app.ProcessCommandWrapper;
 import org.sonar.server.es.IndexerStartupTask;
 import org.sonar.server.organization.DefaultOrganizationEnforcer;
@@ -32,7 +35,6 @@ import org.sonar.server.qualityprofile.BuiltInQualityProfilesUpdateListener;
 import org.sonar.server.qualityprofile.RegisterQualityProfiles;
 import org.sonar.server.rule.RegisterRules;
 import org.sonar.server.rule.WebServerRuleFinder;
-import org.sonar.server.startup.DeleteOldAnalysisReportsFromFs;
 import org.sonar.server.startup.GeneratePluginIndex;
 import org.sonar.server.startup.RegisterMetrics;
 import org.sonar.server.startup.RegisterPermissionTemplates;
@@ -65,8 +67,7 @@ public class PlatformLevelStartup extends PlatformLevel {
       BuiltInQProfileUpdateImpl.class,
       RegisterQualityProfiles.class,
       RegisterPermissionTemplates.class,
-      RenameDeprecatedPropertyKeys.class,
-      DeleteOldAnalysisReportsFromFs.class);
+      RenameDeprecatedPropertyKeys.class);
 
     // RegisterServletFilters makes the WebService engine of Level4 served by the MasterServletFilter, therefor it
     // must be started after all the other startup tasks
@@ -83,6 +84,8 @@ public class PlatformLevelStartup extends PlatformLevel {
         get(ServerLifecycleNotifier.class).notifyStart();
         get(ProcessCommandWrapper.class).notifyOperational();
         get(WebServerRuleFinder.class).stopCaching();
+        Loggers.get(PlatformLevelStartup.class)
+          .info("Running {} Edition", get(PlatformEditionProvider.class).get().map(EditionProvider.Edition::getLabel).orElse(""));
       }
     });
 

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -41,7 +41,6 @@ public class QualityProfileWsParameters {
   public static final String ACTION_REMOVE_PROJECT = "remove_project";
   public static final String ACTION_REMOVE_GROUP = "remove_group";
   public static final String ACTION_REMOVE_USER = "remove_user";
-  public static final String ACTION_RESTORE = "restore";
   public static final String ACTION_SEARCH = "search";
   public static final String ACTION_SEARCH_USERS = "search_users";
   public static final String ACTION_SEARCH_GROUPS = "search_groups";

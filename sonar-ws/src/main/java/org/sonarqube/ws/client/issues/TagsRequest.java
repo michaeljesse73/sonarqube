@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,7 +19,6 @@
  */
 package org.sonarqube.ws.client.issues;
 
-import java.util.List;
 import javax.annotation.Generated;
 
 /**
@@ -32,6 +31,7 @@ import javax.annotation.Generated;
 public class TagsRequest {
 
   private String organization;
+  private String project;
   private String ps;
   private String q;
 
@@ -46,6 +46,18 @@ public class TagsRequest {
 
   public String getOrganization() {
     return organization;
+  }
+
+  /**
+   * Example value: "my_project"
+   */
+  public TagsRequest setProject(String project) {
+    this.project = project;
+    return this;
+  }
+
+  public String getProject() {
+    return project;
   }
 
   /**

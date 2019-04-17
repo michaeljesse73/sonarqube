@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -35,6 +35,7 @@ import org.sonar.application.command.EsScriptCommand;
 import org.sonar.application.command.JavaCommand;
 import org.sonar.application.command.JvmOptions;
 import org.sonar.application.es.EsInstallation;
+import org.sonar.application.es.EsInstallationImpl;
 import org.sonar.application.es.EsYmlSettings;
 import org.sonar.process.ProcessId;
 import org.sonar.process.Props;
@@ -69,6 +70,7 @@ public class ProcessLauncherImplTest {
     command.setJvmOptions(new JvmOptions<>()
       .add("-Dfoo=bar")
       .add("-Dfoo2=bar2"));
+    command.setEsInstallation(createEsInstallation());
 
     ProcessMonitor monitor = underTest.launch(command);
 
@@ -190,11 +192,32 @@ public class ProcessLauncherImplTest {
     props.set("sonar.path.home", homeDir.getAbsolutePath());
     props.set("sonar.path.data", dataDir.getAbsolutePath());
     props.set("sonar.path.logs", logDir.getAbsolutePath());
-    command.setEsInstallation(new EsInstallation(props)
+    command.setEsInstallation(new EsInstallationImpl(props)
       .setEsYmlSettings(mock(EsYmlSettings.class))
       .setEsJvmOptions(mock(EsJvmOptions.class))
-      .setLog4j2Properties(new Properties()));
+      .setLog4j2Properties(new Properties())
+      .setHost("localhost")
+      .setPort(9001)
+      .setClusterName("sonarqube"));
     return command;
+  }
+
+  private EsInstallation createEsInstallation() throws IOException {
+    File tempFolder = this.temp.newFolder("temp");
+    EsInstallation esInstallation = mock(EsInstallation.class);
+    when(esInstallation.getTmpDirectory()).thenReturn(temp.newFolder());
+    when(esInstallation.getLogDirectory()).thenReturn(temp.newFolder());
+    return new EsInstallationImpl(new Props(new Properties())
+      .set("sonar.path.home", this.temp.newFolder("home").getAbsolutePath())
+      .set("sonar.path.data", this.temp.newFolder("data").getAbsolutePath())
+      .set("sonar.path.temp", tempFolder.getAbsolutePath())
+      .set("sonar.path.logs", this.temp.newFolder("logs").getAbsolutePath()))
+      .setClusterName("cluster")
+      .setPort(9001)
+      .setHost("localhost")
+      .setEsYmlSettings(new EsYmlSettings(new HashMap<>()))
+      .setEsJvmOptions(new EsJvmOptions(esInstallation))
+      .setLog4j2Properties(new Properties());
   }
 
   private static class TestProcessBuilder implements ProcessLauncherImpl.ProcessBuilder {

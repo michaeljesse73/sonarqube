@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,6 +24,10 @@ import RatingFreshness from '../RatingFreshness';
 it('renders', () => {
   const lastChange = '{"date":"2017-01-02T00:00:00.000Z","value":2}';
   expect(shallow(<RatingFreshness lastChange={lastChange} />)).toMatchSnapshot();
+});
+
+it('renders has always been', () => {
+  expect(shallow(<RatingFreshness rating="A" />)).toMatchSnapshot();
 });
 
 it('renders empty', () => {

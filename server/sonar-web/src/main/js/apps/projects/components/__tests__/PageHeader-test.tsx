@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -75,7 +75,6 @@ function shallowRender(props?: {}) {
       loading={false}
       onPerspectiveChange={jest.fn()}
       onQueryChange={jest.fn()}
-      onSonarCloud={false}
       onSortChange={jest.fn()}
       projects={[]}
       query={{ search: 'test' }}

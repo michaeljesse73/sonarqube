@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,12 +19,12 @@
  */
 import * as React from 'react';
 import { renameBranch } from '../../../api/branches';
-import { Branch } from '../../../app/types';
-import { translate } from '../../../helpers/l10n';
 import Modal from '../../../components/controls/Modal';
+import { SubmitButton, ResetButtonLink } from '../../../components/ui/buttons';
+import { translate } from '../../../helpers/l10n';
 
 interface Props {
-  branch: Branch;
+  branch: T.MainBranch;
   component: string;
   onClose: () => void;
   onRename: () => void;
@@ -68,11 +68,6 @@ export default class RenameBranchModal extends React.PureComponent<Props, State>
     );
   };
 
-  handleCancelClick = (event: React.SyntheticEvent<HTMLAnchorElement>) => {
-    event.preventDefault();
-    this.props.onClose();
-  };
-
   handleNameChange = (event: React.SyntheticEvent<HTMLInputElement>) => {
     this.setState({ name: event.currentTarget.value });
   };
@@ -84,7 +79,7 @@ export default class RenameBranchModal extends React.PureComponent<Props, State>
       this.state.loading || !this.state.name || this.state.name === branch.name;
 
     return (
-      <Modal contentLabel={header} onRequestClose={this.props.onClose}>
+      <Modal contentLabel={header} onRequestClose={this.props.onClose} size="small">
         <header className="modal-head">
           <h2>{header}</h2>
         </header>
@@ -110,12 +105,8 @@ export default class RenameBranchModal extends React.PureComponent<Props, State>
           </div>
           <footer className="modal-foot">
             {this.state.loading && <i className="spinner spacer-right" />}
-            <button disabled={submitDisabled} type="submit">
-              {translate('rename')}
-            </button>
-            <a href="#" onClick={this.handleCancelClick}>
-              {translate('cancel')}
-            </a>
+            <SubmitButton disabled={submitDisabled}>{translate('rename')}</SubmitButton>
+            <ResetButtonLink onClick={this.props.onClose}>{translate('cancel')}</ResetButtonLink>
           </footer>
         </form>
       </Modal>

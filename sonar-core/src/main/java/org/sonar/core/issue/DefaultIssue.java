@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -73,25 +73,30 @@ public class DefaultIssue implements Issue, Trackable, org.sonar.api.ce.measure.
   private Duration effort;
   private String status;
   private String resolution;
-  private String assignee;
+  private String assigneeUuid;
   private String checksum;
   private Map<String, String> attributes = null;
   private String authorLogin = null;
-  private List<IssueComment> comments = null;
+  private List<DefaultIssueComment> comments = null;
   private Set<String> tags = null;
   // temporarily an Object as long as DefaultIssue is used by sonar-batch
   private Object locations = null;
+
+  private boolean isFromExternalRuleEngine;
+
   // FUNCTIONAL DATES
   private Date creationDate;
   private Date updateDate;
   private Date closeDate;
 
-  // FOLLOWING FIELDS ARE AVAILABLE ONLY DURING SCAN
+  private boolean isFromHotspot = false;
 
   // Current changes
   private FieldDiffs currentChange = null;
 
   // all changes
+  // -- contains only current change (if any) on CE side unless reopening a closed issue or copying issue from base branch
+  //    when analyzing a long living branch from the first time
   private List<FieldDiffs> changes = null;
 
   // true if the issue did not exist in the previous scan.
@@ -239,6 +244,15 @@ public class DefaultIssue implements Issue, Trackable, org.sonar.api.ce.measure.
     return this;
   }
 
+  public boolean isFromExternalRuleEngine() {
+    return isFromExternalRuleEngine;
+  }
+
+  public DefaultIssue setIsFromExternalRuleEngine(boolean isFromExternalRuleEngine) {
+    this.isFromExternalRuleEngine = isFromExternalRuleEngine;
+    return this;
+  }
+
   @Override
   @CheckForNull
   public String message() {
@@ -262,16 +276,6 @@ public class DefaultIssue implements Issue, Trackable, org.sonar.api.ce.measure.
     return this;
   }
 
-  /**
-   * @deprecated since5.5, replaced by {@link #gap()}
-   */
-  @Deprecated
-  @Override
-  @CheckForNull
-  public Double effortToFix() {
-    return gap();
-  }
-
   @Override
   @CheckForNull
   public Double gap() {
@@ -282,16 +286,6 @@ public class DefaultIssue implements Issue, Trackable, org.sonar.api.ce.measure.
     Preconditions.checkArgument(d == null || d >= 0, "Gap must be greater than or equal 0 (got %s)", d);
     this.gap = d;
     return this;
-  }
-
-  /**
-   * @deprecated since5.5, replaced by {@link #effort()}
-   */
-  @Deprecated
-  @Override
-  @CheckForNull
-  public Duration debt() {
-    return effort();
   }
 
   /**
@@ -335,24 +329,14 @@ public class DefaultIssue implements Issue, Trackable, org.sonar.api.ce.measure.
     return this;
   }
 
-  /**
-   * @deprecated since 5.5, manual issue feature has been dropped.
-   */
-  @Deprecated
-  @Override
-  @CheckForNull
-  public String reporter() {
-    return null;
-  }
-
   @Override
   @CheckForNull
   public String assignee() {
-    return assignee;
+    return assigneeUuid;
   }
 
-  public DefaultIssue setAssignee(@Nullable String s) {
-    this.assignee = s;
+  public DefaultIssue setAssigneeUuid(@Nullable String s) {
+    this.assigneeUuid = s;
     return this;
   }
 
@@ -506,18 +490,11 @@ public class DefaultIssue implements Issue, Trackable, org.sonar.api.ce.measure.
     return this;
   }
 
-  @Override
-  @CheckForNull
-  public String actionPlanKey() {
-    // In 5.5, action plan is dropped.
-    return null;
-  }
-
   public DefaultIssue setFieldChange(IssueChangeContext context, String field, @Nullable Serializable oldValue, @Nullable Serializable newValue) {
     if (!Objects.equals(oldValue, newValue)) {
       if (currentChange == null) {
         currentChange = new FieldDiffs();
-        currentChange.setUserLogin(context.login());
+        currentChange.setUserUuid(context.userUuid());
         currentChange.setCreationDate(context.date());
       }
       currentChange.setDiff(field, oldValue, newValue);
@@ -537,16 +514,14 @@ public class DefaultIssue implements Issue, Trackable, org.sonar.api.ce.measure.
     return currentChange;
   }
 
-  public DefaultIssue addChange(FieldDiffs change) {
+  public DefaultIssue addChange(@Nullable FieldDiffs change) {
+    if (change == null) {
+      return this;
+    }
     if (changes == null) {
       changes = new ArrayList<>();
     }
     changes.add(change);
-    return this;
-  }
-
-  public DefaultIssue setChanges(List<FieldDiffs> changes) {
-    this.changes = changes;
     return this;
   }
 
@@ -565,8 +540,16 @@ public class DefaultIssue implements Issue, Trackable, org.sonar.api.ce.measure.
     return this;
   }
 
+  /**
+   * @deprecated since 7.2, comments are not more available
+   */
   @Override
+  @Deprecated
   public List<IssueComment> comments() {
+    return Collections.emptyList();
+  }
+
+  public List<DefaultIssueComment> defaultIssueComments() {
     if (comments == null) {
       return Collections.emptyList();
     }
@@ -622,6 +605,15 @@ public class DefaultIssue implements Issue, Trackable, org.sonar.api.ce.measure.
     } else {
       return ImmutableSet.copyOf(tags);
     }
+  }
+
+  public DefaultIssue setIsFromHotspot(boolean value) {
+    this.isFromHotspot = value;
+    return this;
+  }
+
+  public boolean isFromHotspot() {
+    return isFromHotspot;
   }
 
   public DefaultIssue setTags(Collection<String> tags) {

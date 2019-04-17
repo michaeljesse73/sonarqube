@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -17,10 +17,6 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-@import './jquery-ui.css';
-@import './select2.css';
-@import './select2-sonar.css';
-
 @import './init/base.css';
 @import './init/type.css';
 @import './init/links.css';
@@ -31,23 +27,19 @@
 @import './init/misc.css';
 
 @import './components/ui.css';
+@import './components/spinner.css';
 @import './components/global-loading.css';
-@import './components/bubble-popup.css';
 @import './components/modals.css';
 @import './components/alerts.css';
 @import './components/issues.css';
-@import './components/search-navigator.css';
-@import './components/tooltips.css';
 @import './components/dropdowns.css';
 @import './components/menu.css';
 @import './components/page.css';
 @import './components/component-name.css';
-@import './components/graphics.css';
 @import './components/list-groups.css';
 @import './components/panels.css';
 @import './components/badges.css';
 @import './components/columns.css';
-@import './components/side-tabs.css';
 @import './components/boxed-group.css';
 
 @import './style.css';

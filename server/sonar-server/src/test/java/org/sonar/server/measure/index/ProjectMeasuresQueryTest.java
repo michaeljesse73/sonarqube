@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -28,7 +28,7 @@ import org.sonar.server.measure.index.ProjectMeasuresQuery.MetricCriterion;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.groups.Tuple.tuple;
 import static org.sonar.api.measures.Metric.Level.OK;
-import static org.sonar.server.component.ws.FilterParser.Operator.EQ;
+import static org.sonar.server.measure.index.ProjectMeasuresQuery.Operator.EQ;
 
 public class ProjectMeasuresQueryTest {
 

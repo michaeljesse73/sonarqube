@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,16 +19,20 @@
  */
 package org.sonar.api.batch.fs.internal;
 
+import java.util.HashSet;
+import java.util.Set;
 import org.sonar.api.batch.fs.InputComponent;
+import org.sonar.api.batch.measure.Metric;
 
 /**
  * @since 5.2
  */
 public abstract class DefaultInputComponent implements InputComponent {
   private int id;
+  private Set<String> storedMetricKeys = new HashSet<>();
 
-  public DefaultInputComponent(int batchId) {
-    this.id = batchId;
+  public DefaultInputComponent(int scannerId) {
+    this.id = scannerId;
   }
 
   @Override
@@ -44,7 +48,7 @@ public abstract class DefaultInputComponent implements InputComponent {
     return key().equals(that.key());
   }
 
-  public int batchId() {
+  public int scannerId() {
     return id;
   }
 
@@ -56,5 +60,13 @@ public abstract class DefaultInputComponent implements InputComponent {
   @Override
   public String toString() {
     return "[key=" + key() + "]";
+  }
+
+  public void setHasMeasureFor(Metric metric) {
+    storedMetricKeys.add(metric.key());
+  }
+
+  public boolean hasMeasureFor(Metric metric) {
+    return storedMetricKeys.contains(metric.key());
   }
 }

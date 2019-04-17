@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -33,10 +33,12 @@ public class SourceService {
 
   private final DbClient dbClient;
   private final HtmlSourceDecorator htmlDecorator;
+  private final Function<DbFileSources.Line, String> lineToHtml;
 
   public SourceService(DbClient dbClient, HtmlSourceDecorator htmlDecorator) {
     this.dbClient = dbClient;
     this.htmlDecorator = htmlDecorator;
+    this.lineToHtml = lineToHtml();
   }
 
   /**
@@ -57,13 +59,13 @@ public class SourceService {
   }
 
   public Optional<Iterable<String>> getLinesAsHtml(DbSession dbSession, String fileUuid, int from, int toInclusive) {
-    return getLines(dbSession, fileUuid, from, toInclusive, lineToHtml());
+    return getLines(dbSession, fileUuid, from, toInclusive, lineToHtml);
   }
 
   private <E> Optional<Iterable<E>> getLines(DbSession dbSession, String fileUuid, int from, int toInclusive, Function<DbFileSources.Line, E> function) {
     verifyLine(from);
     checkArgument(toInclusive >= from, String.format("Line number must greater than or equal to %d, got %d", from, toInclusive));
-    FileSourceDto dto = dbClient.fileSourceDao().selectSourceByFileUuid(dbSession, fileUuid);
+    FileSourceDto dto = dbClient.fileSourceDao().selectByFileUuid(dbSession, fileUuid);
     if (dto == null) {
       return Optional.empty();
     }

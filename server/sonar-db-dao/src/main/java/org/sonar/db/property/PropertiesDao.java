@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -30,7 +30,6 @@ import java.util.Map;
 import java.util.Set;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
-import org.sonar.api.resources.Scopes;
 import org.sonar.api.utils.System2;
 import org.sonar.api.web.UserRole;
 import org.sonar.db.Dao;
@@ -128,10 +127,6 @@ public class PropertiesDao implements Dao {
     }
   }
 
-  public List<PropertyDto> selectEnabledDescendantModuleProperties(String moduleUuid, DbSession session) {
-    return getMapper(session).selectDescendantModuleProperties(moduleUuid, Scopes.PROJECT, true);
-  }
-
   @CheckForNull
   public PropertyDto selectProjectProperty(long componentId, String propertyKey) {
     try (DbSession session = mybatis.openSession(false)) {
@@ -159,6 +154,14 @@ public class PropertiesDao implements Dao {
 
   public List<PropertyDto> selectPropertiesByComponentIds(DbSession session, Set<Long> componentIds) {
     return executeLargeInputs(componentIds, getMapper(session)::selectByComponentIds);
+  }
+
+  public List<PropertyDto> selectByKeyAndMatchingValue(DbSession session, String key, String value) {
+    return getMapper(session).selectByKeyAndMatchingValue(key, value);
+  }
+
+  public List<PropertyDto> selectByKeyAndUserIdAndComponentQualifier(DbSession session, String key, int userId, String qualifier) {
+    return getMapper(session).selectByKeyAndUserIdAndComponentQualifier(key, userId, qualifier);
   }
 
   /**

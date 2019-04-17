@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -28,7 +28,6 @@ import {
   postJSON,
   RequestData
 } from '../helpers/request';
-import { Paging } from '../app/types';
 import throwGlobalError from '../app/utils/throwGlobalError';
 
 export interface ProfileActions {
@@ -95,7 +94,8 @@ export function createQualityProfile(data: RequestData): Promise<any> {
     .setData(data)
     .submit()
     .then(checkStatus)
-    .then(parseJSON);
+    .then(parseJSON)
+    .catch(throwGlobalError);
 }
 
 export function restoreQualityProfile(data: RequestData): Promise<any> {
@@ -104,39 +104,53 @@ export function restoreQualityProfile(data: RequestData): Promise<any> {
     .setData(data)
     .submit()
     .then(checkStatus)
-    .then(parseJSON);
+    .then(parseJSON)
+    .catch(throwGlobalError);
 }
 
-export function getProfileProjects(data: RequestData): Promise<any> {
+export interface ProfileProject {
+  id: number;
+  key: string;
+  name: string;
+  selected: boolean;
+}
+
+export function getProfileProjects(
+  data: RequestData
+): Promise<{ more: boolean; paging: T.Paging; results: ProfileProject[] }> {
   return getJSON('/api/qualityprofiles/projects', data).catch(throwGlobalError);
 }
 
 export function getProfileInheritance(profileKey: string): Promise<any> {
-  return getJSON('/api/qualityprofiles/inheritance', { profileKey });
+  return getJSON('/api/qualityprofiles/inheritance', { profileKey }).catch(throwGlobalError);
 }
 
 export function setDefaultProfile(profileKey: string): Promise<void> {
   return post('/api/qualityprofiles/set_default', { profileKey });
 }
 
-export function renameProfile(key: string, name: string): Promise<void> {
-  return post('/api/qualityprofiles/rename', { key, name });
+export function renameProfile(key: string, name: string) {
+  return post('/api/qualityprofiles/rename', { key, name }).catch(throwGlobalError);
 }
 
 export function copyProfile(fromKey: string, toName: string): Promise<any> {
-  return postJSON('/api/qualityprofiles/copy', { fromKey, toName });
+  return postJSON('/api/qualityprofiles/copy', { fromKey, toName }).catch(throwGlobalError);
 }
 
-export function deleteProfile(profileKey: string): Promise<void> {
-  return post('/api/qualityprofiles/delete', { profileKey });
+export function deleteProfile(profileKey: string) {
+  return post('/api/qualityprofiles/delete', { profileKey }).catch(throwGlobalError);
 }
 
-export function changeProfileParent(profileKey: string, parentKey: string): Promise<void> {
-  return post('/api/qualityprofiles/change_parent', { profileKey, parentKey });
+export function changeProfileParent(profileKey: string, parentKey: string) {
+  return post('/api/qualityprofiles/change_parent', { profileKey, parentKey }).catch(
+    throwGlobalError
+  );
 }
 
-export function getImporters(): Promise<any> {
-  return getJSON('/api/qualityprofiles/importers').then(r => r.importers);
+export function getImporters(): Promise<
+  Array<{ key: string; languages: Array<string>; name: string }>
+> {
+  return getJSON('/api/qualityprofiles/importers').then(r => r.importers, throwGlobalError);
 }
 
 export function getExporters(): Promise<any> {
@@ -147,16 +161,29 @@ export function getProfileChangelog(data: RequestData): Promise<any> {
   return getJSON('/api/qualityprofiles/changelog', data);
 }
 
-export function compareProfiles(leftKey: string, rightKey: string): Promise<any> {
+export interface CompareResponse {
+  left: { name: string };
+  right: { name: string };
+  inLeft: Array<{ key: string; name: string; severity: string }>;
+  inRight: Array<{ key: string; name: string; severity: string }>;
+  modified: Array<{
+    key: string;
+    name: string;
+    left: { params: T.Dict<string>; severity: string };
+    right: { params: T.Dict<string>; severity: string };
+  }>;
+}
+
+export function compareProfiles(leftKey: string, rightKey: string): Promise<CompareResponse> {
   return getJSON('/api/qualityprofiles/compare', { leftKey, rightKey });
 }
 
-export function associateProject(profileKey: string, projectKey: string): Promise<void> {
-  return post('/api/qualityprofiles/add_project', { profileKey, projectKey });
+export function associateProject(key: string, project: string) {
+  return post('/api/qualityprofiles/add_project', { key, project }).catch(throwGlobalError);
 }
 
-export function dissociateProject(profileKey: string, projectKey: string): Promise<void> {
-  return post('/api/qualityprofiles/remove_project', { profileKey, projectKey });
+export function dissociateProject(key: string, project: string) {
+  return post('/api/qualityprofiles/remove_project', { key, project }).catch(throwGlobalError);
 }
 
 export interface SearchUsersGroupsParameters {
@@ -174,7 +201,7 @@ export interface SearchUsersResponse {
     name: string;
     selected?: boolean;
   }>;
-  paging: Paging;
+  paging: T.Paging;
 }
 
 export function searchUsers(parameters: SearchUsersGroupsParameters): Promise<SearchUsersResponse> {
@@ -183,7 +210,7 @@ export function searchUsers(parameters: SearchUsersGroupsParameters): Promise<Se
 
 export interface SearchGroupsResponse {
   groups: Array<{ name: string }>;
-  paging: Paging;
+  paging: T.Paging;
 }
 
 export function searchGroups(
@@ -223,7 +250,6 @@ export function removeGroup(parameters: AddRemoveGroupParameters): Promise<void 
 }
 
 export interface BulkActivateParameters {
-  /* eslint-disable camelcase */
   activation?: boolean;
   active_severities?: string;
   asc?: boolean;
@@ -245,7 +271,6 @@ export interface BulkActivateParameters {
   targetSeverity?: string;
   template_key?: string;
   types?: string;
-  /* eslint-enable camelcase */
 }
 
 export function bulkActivateRules(data: BulkActivateParameters) {
@@ -259,7 +284,7 @@ export function bulkDeactivateRules(data: BulkActivateParameters) {
 export function activateRule(data: {
   key: string;
   organization: string | undefined;
-  params?: { [key: string]: string };
+  params?: T.Dict<string>;
   reset?: boolean;
   rule: string;
   severity?: string;

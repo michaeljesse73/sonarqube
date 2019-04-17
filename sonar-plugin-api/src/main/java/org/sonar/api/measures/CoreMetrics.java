@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,7 +24,6 @@ import java.lang.reflect.Modifier;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.NoSuchElementException;
-import org.sonar.api.test.MutableTestPlan;
 import org.sonar.api.utils.SonarException;
 
 /**
@@ -36,23 +35,6 @@ public final class CoreMetrics {
   public static String DOMAIN_SIZE = "Size";
   public static String DOMAIN_COVERAGE = "Coverage";
 
-  /**
-   * @deprecated in 5.5. Merged into {@link #DOMAIN_COVERAGE}
-   */
-  @Deprecated
-  public static String DOMAIN_TESTS = "Tests";
-
-  /**
-   * @deprecated in 5.5. Merged into {@link #DOMAIN_COVERAGE}
-   */
-  @Deprecated
-  public static String DOMAIN_INTEGRATION_TESTS = "Tests (Integration)";
-
-  /**
-   * @deprecated in 5.5. Merged into {@link #DOMAIN_COVERAGE}
-   */
-  @Deprecated
-  public static String DOMAIN_OVERALL_TESTS = "Tests (Overall)";
   public static String DOMAIN_COMPLEXITY = "Complexity";
   /**
    * @deprecated since 6.2. Merged into {@link #DOMAIN_SIZE}
@@ -69,33 +51,27 @@ public final class CoreMetrics {
    */
   @Deprecated
   public static String DOMAIN_DUPLICATION = "Duplication";
-  public static String DOMAIN_DESIGN = "Design";
 
   /**
    * SonarQube Quality Model
+   *
    * @since 5.5
    */
   public static String DOMAIN_MAINTAINABILITY = "Maintainability";
 
   /**
    * SonarQube Quality Model
+   *
    * @since 5.5
    */
   public static String DOMAIN_RELIABILITY = "Reliability";
 
   /**
    * SonarQube Quality Model
+   *
    * @since 5.5
    */
   public static String DOMAIN_SECURITY = "Security";
-
-  /**
-   * @since 4.0
-   *
-   * @deprecated in 5.5. Replaced by {@link #DOMAIN_MAINTAINABILITY}
-   */
-  @Deprecated
-  public static String DOMAIN_TECHNICAL_DEBT = "Technical Debt";
 
   /**
    * @since 5.5
@@ -190,10 +166,16 @@ public final class CoreMetrics {
     .setDomain(DOMAIN_SIZE)
     .create();
 
-  public static final String DIRECTORIES_KEY = "directories";
   /**
-   * Computed by the platform.
+   * @deprecated since 7.7 - no longer computed
    */
+  @Deprecated
+  public static final String DIRECTORIES_KEY = "directories";
+
+  /**
+   * @deprecated since 7.7 - no longer computed
+   */
+  @Deprecated
   public static final Metric<Integer> DIRECTORIES = new Metric.Builder(DIRECTORIES_KEY, "Directories", Metric.ValueType.INT)
     .setDescription("Directories")
     .setDirection(Metric.DIRECTION_WORST)
@@ -201,32 +183,15 @@ public final class CoreMetrics {
     .setDomain(DOMAIN_SIZE)
     .create();
 
+  /**
+   * Computed by the platform.
+   */
   public static final String FUNCTIONS_KEY = "functions";
   public static final Metric<Integer> FUNCTIONS = new Metric.Builder(FUNCTIONS_KEY, "Functions", Metric.ValueType.INT)
     .setDescription("Functions")
     .setDirection(Metric.DIRECTION_WORST)
     .setQualitative(false)
     .setDomain(DOMAIN_SIZE)
-    .create();
-
-  /**
-   * @deprecated since 5.0.
-   * @see <a href="https://jira.sonarsource.com/browse/SONAR-5224">SONAR-5224</a>
-   */
-  @Deprecated
-  public static final String ACCESSORS_KEY = "accessors";
-
-  /**
-   * @deprecated since 5.0.
-   * @see <a href="https://jira.sonarsource.com/browse/SONAR-5224">SONAR-5224</a>
-   */
-  @Deprecated
-  public static final Metric<Integer> ACCESSORS = new Metric.Builder(ACCESSORS_KEY, "Accessors", Metric.ValueType.INT)
-    .setDescription("Accessors")
-    .setDirection(Metric.DIRECTION_WORST)
-    .setQualitative(false)
-    .setDomain(DOMAIN_SIZE)
-    .setHidden(true)
     .create();
 
   public static final String STATEMENTS_KEY = "statements";
@@ -238,8 +203,8 @@ public final class CoreMetrics {
     .create();
 
   /**
-   * @deprecated since 6.2
    * @see <a href="https://jira.sonarsource.com/browse/SONAR-8328">SONAR-8328</a>
+   * @deprecated since 6.2
    */
   @Deprecated
   public static final String PUBLIC_API_KEY = "public_api";
@@ -295,8 +260,8 @@ public final class CoreMetrics {
   // --------------------------------------------------------------------------------------------------------------------
 
   /**
-   * @deprecated since 6.2
    * @see <a href="https://jira.sonarsource.com/browse/SONAR-8328">SONAR-8328</a>
+   * @deprecated since 6.2
    */
   @Deprecated
   public static final String PUBLIC_DOCUMENTED_API_DENSITY_KEY = "public_documented_api_density";
@@ -312,8 +277,8 @@ public final class CoreMetrics {
     .create();
 
   /**
-   * @deprecated since 6.2
    * @see <a href="https://jira.sonarsource.com/browse/SONAR-8328">SONAR-8328</a>
+   * @deprecated since 6.2
    */
   @Deprecated
   public static final String PUBLIC_UNDOCUMENTED_API_KEY = "public_undocumented_api";
@@ -324,26 +289,6 @@ public final class CoreMetrics {
     .setDomain(DOMAIN_DOCUMENTATION)
     .setBestValue(0.0)
     .setDirection(Metric.DIRECTION_WORST)
-    .setOptimizedBestValue(true)
-    .setHidden(true)
-    .create();
-
-  /**
-   * @deprecated since 4.2 - see SONAR-4990
-   */
-  @Deprecated
-  public static final String COMMENTED_OUT_CODE_LINES_KEY = "commented_out_code_lines";
-
-  /**
-   * @deprecated since 4.2 - see SONAR-4990
-   */
-  @Deprecated
-  public static final Metric<Integer> COMMENTED_OUT_CODE_LINES = new Metric.Builder(COMMENTED_OUT_CODE_LINES_KEY, "Commented-Out LOC", Metric.ValueType.INT)
-    .setDescription("Commented lines of code")
-    .setDirection(Metric.DIRECTION_WORST)
-    .setQualitative(true)
-    .setDomain(DOMAIN_DOCUMENTATION)
-    .setBestValue(0.0)
     .setOptimizedBestValue(true)
     .setHidden(true)
     .create();
@@ -410,6 +355,7 @@ public final class CoreMetrics {
   public static final String CLASS_COMPLEXITY_KEY = "class_complexity";
   /**
    * Information about the cyclomatic complexity per class, calculated by divided the {@link #COMPLEXITY_IN_CLASSES} by the number of {@link #CLASSES}.
+   *
    * @deprecated since 6.7
    */
   @Deprecated
@@ -449,6 +395,7 @@ public final class CoreMetrics {
   public static final String FUNCTION_COMPLEXITY_KEY = "function_complexity";
   /**
    * Information about the cyclomatic complexity per function, calculated by divided the {@link #COMPLEXITY_IN_FUNCTIONS} by the number of {@link #FUNCTIONS}.
+   *
    * @deprecated since 6.7
    */
   @Deprecated
@@ -461,24 +408,6 @@ public final class CoreMetrics {
     .create();
 
   /**
-   * @deprecated in 3.0 - see SONAR-3289
-   */
-  @Deprecated
-  public static final String CLASS_COMPLEXITY_DISTRIBUTION_KEY = "class_complexity_distribution";
-  /**
-   * @deprecated in 3.0 - see SONAR-3289
-   */
-  @Deprecated
-  public static final Metric<String> CLASS_COMPLEXITY_DISTRIBUTION = new Metric.Builder(CLASS_COMPLEXITY_DISTRIBUTION_KEY, "Class Distribution / Complexity",
-    Metric.ValueType.DISTRIB)
-      .setDescription("Classes distribution /complexity")
-      .setDirection(Metric.DIRECTION_NONE)
-      .setQualitative(true)
-      .setDomain(DOMAIN_COMPLEXITY)
-      .setHidden(true)
-      .create();
-
-  /**
    * @deprecated since 6.7
    */
   @Deprecated
@@ -489,12 +418,12 @@ public final class CoreMetrics {
   @Deprecated
   public static final Metric<String> FUNCTION_COMPLEXITY_DISTRIBUTION = new Metric.Builder(FUNCTION_COMPLEXITY_DISTRIBUTION_KEY, "Function Distribution / Complexity",
     Metric.ValueType.DISTRIB)
-      .setDescription("Functions distribution /complexity")
-      .setDirection(Metric.DIRECTION_NONE)
-      .setQualitative(true)
-      .setDomain(DOMAIN_COMPLEXITY)
-      .setHidden(true)
-      .create();
+    .setDescription("Functions distribution /complexity")
+    .setDirection(Metric.DIRECTION_NONE)
+    .setQualitative(true)
+    .setDomain(DOMAIN_COMPLEXITY)
+    .setHidden(true)
+    .create();
 
   /**
    * @deprecated since 6.7
@@ -507,12 +436,12 @@ public final class CoreMetrics {
   @Deprecated
   public static final Metric<String> FILE_COMPLEXITY_DISTRIBUTION = new Metric.Builder(FILE_COMPLEXITY_DISTRIBUTION_KEY, "File Distribution / Complexity",
     Metric.ValueType.DISTRIB)
-      .setDescription("Files distribution /complexity")
-      .setDirection(Metric.DIRECTION_NONE)
-      .setQualitative(true)
-      .setDomain(DOMAIN_COMPLEXITY)
-      .setHidden(true)
-      .create();
+    .setDescription("Files distribution /complexity")
+    .setDirection(Metric.DIRECTION_NONE)
+    .setQualitative(true)
+    .setDomain(DOMAIN_COMPLEXITY)
+    .setHidden(true)
+    .create();
 
   public static final String COGNITIVE_COMPLEXITY_KEY = "cognitive_complexity";
   public static final Metric<Integer> COGNITIVE_COMPLEXITY = new Metric.Builder(COGNITIVE_COMPLEXITY_KEY, "Cognitive Complexity", Metric.ValueType.INT)
@@ -541,7 +470,7 @@ public final class CoreMetrics {
    */
   public static final Metric<Integer> TESTS = new Metric.Builder(TESTS_KEY, "Unit Tests", Metric.ValueType.INT)
     .setDescription("Number of unit tests")
-    .setDirection(Metric.DIRECTION_WORST)
+    .setDirection(Metric.DIRECTION_BETTER)
     .setQualitative(false)
     .setDomain(DOMAIN_COVERAGE)
     .create();
@@ -595,21 +524,6 @@ public final class CoreMetrics {
     .setOptimizedBestValue(true)
     .create();
 
-  /**
-   * @deprecated since 5.2 use {@link MutableTestPlan}
-   */
-  @Deprecated
-  public static final String TEST_DATA_KEY = "test_data";
-  /**
-   * @deprecated since 5.2 use {@link MutableTestPlan}
-   */
-  @Deprecated
-  public static final Metric<String> TEST_DATA = new Metric.Builder(TEST_DATA_KEY, "Unit Test Details", Metric.ValueType.DATA)
-    .setDescription("Unit tests details")
-    .setDirection(Metric.DIRECTION_WORST)
-    .setDomain(DOMAIN_COVERAGE)
-    .create();
-
   public static final String COVERAGE_KEY = "coverage";
   public static final Metric<Double> COVERAGE = new Metric.Builder(COVERAGE_KEY, "Coverage", Metric.ValueType.PERCENT)
     .setDescription("Coverage by tests")
@@ -633,9 +547,6 @@ public final class CoreMetrics {
 
   public static final String LINES_TO_COVER_KEY = "lines_to_cover";
 
-  /**
-   * Use {@link CoverageMeasuresBuilder} to build measure for this metric.
-   */
   public static final Metric<Integer> LINES_TO_COVER = new Metric.Builder(LINES_TO_COVER_KEY, "Lines to Cover", Metric.ValueType.INT)
     .setDescription("Lines to cover")
     .setDirection(Metric.DIRECTION_WORST)
@@ -654,9 +565,6 @@ public final class CoreMetrics {
 
   public static final String UNCOVERED_LINES_KEY = "uncovered_lines";
 
-  /**
-   * Use {@link CoverageMeasuresBuilder} to build measure for this metric.
-   */
   public static final Metric<Integer> UNCOVERED_LINES = new Metric.Builder(UNCOVERED_LINES_KEY, "Uncovered Lines", Metric.ValueType.INT)
     .setDescription("Uncovered lines")
     .setDirection(Metric.DIRECTION_WORST)
@@ -694,47 +602,24 @@ public final class CoreMetrics {
     .setDeleteHistoricalData(true)
     .create();
 
-  /**
-   *
-   * @deprecated since 5.2 soon to be removed
-   */
-  @Deprecated
-  public static final String COVERAGE_LINE_HITS_DATA_KEY = "coverage_line_hits_data";
-
-  /**
-   * Key-value pairs, where key - is a number of line, and value - is a number of hits for this line.
-   * Use {@link CoverageMeasuresBuilder} to build measure for this metric.
-   * @deprecated since 5.2 soon to be removed
-   */
-  @Deprecated
-  public static final Metric<String> COVERAGE_LINE_HITS_DATA = new Metric.Builder(COVERAGE_LINE_HITS_DATA_KEY, "Coverage Hits by Line", Metric.ValueType.DATA)
-    .setDescription("Coverage hits by line")
-    .setDomain(DOMAIN_COVERAGE)
-    .setDeleteHistoricalData(true)
-    .create();
-
   public static final String CONDITIONS_TO_COVER_KEY = "conditions_to_cover";
 
-  /**
-   * Use {@link CoverageMeasuresBuilder} to build measure for this metric.
-   */
   public static final Metric<Integer> CONDITIONS_TO_COVER = new Metric.Builder(CONDITIONS_TO_COVER_KEY, "Conditions to Cover", Metric.ValueType.INT)
     .setDescription("Conditions to cover")
     .setDomain(DOMAIN_COVERAGE)
+    .setDirection(Metric.DIRECTION_WORST)
     .create();
 
   public static final String NEW_CONDITIONS_TO_COVER_KEY = "new_conditions_to_cover";
   public static final Metric<Integer> NEW_CONDITIONS_TO_COVER = new Metric.Builder(NEW_CONDITIONS_TO_COVER_KEY, "Conditions to Cover on New Code", Metric.ValueType.INT)
     .setDescription("Conditions to cover on new code")
     .setDomain(DOMAIN_COVERAGE)
+    .setDirection(Metric.DIRECTION_WORST)
     .setDeleteHistoricalData(true)
     .create();
 
   public static final String UNCOVERED_CONDITIONS_KEY = "uncovered_conditions";
 
-  /**
-   * Use {@link CoverageMeasuresBuilder} to build measure for this metric.
-   */
   public static final Metric<Integer> UNCOVERED_CONDITIONS = new Metric.Builder(UNCOVERED_CONDITIONS_KEY, "Uncovered Conditions", Metric.ValueType.INT)
     .setDescription("Uncovered conditions")
     .setDirection(Metric.DIRECTION_WORST)
@@ -771,763 +656,6 @@ public final class CoreMetrics {
     .setBestValue(100.0)
     .setDeleteHistoricalData(true)
     .create();
-
-  /**
-   * @deprecated since 5.2 soon to be removed
-   */
-  @Deprecated
-  public static final String CONDITIONS_BY_LINE_KEY = "conditions_by_line";
-
-  /**
-   * Use {@link CoverageMeasuresBuilder} to build measure for this metric.
-   *
-   * @since 2.7
-   * @deprecated since 5.2 soon to be removed
-   */
-  @Deprecated
-  public static final Metric<String> CONDITIONS_BY_LINE = new Metric.Builder(CONDITIONS_BY_LINE_KEY, "Conditions by Line", Metric.ValueType.DATA)
-    .setDescription("Conditions by line")
-    .setDomain(DOMAIN_COVERAGE)
-    .setDeleteHistoricalData(true)
-    .create();
-
-  /**
-   * @deprecated since 5.2 soon to be removed
-   */
-  @Deprecated
-  public static final String COVERED_CONDITIONS_BY_LINE_KEY = "covered_conditions_by_line";
-
-  /**
-   * Use {@link CoverageMeasuresBuilder} to build measure for this metric.
-   *
-   * @since 2.7
-   * @deprecated since 5.2 soon to be removed
-   */
-  @Deprecated
-  public static final Metric<String> COVERED_CONDITIONS_BY_LINE = new Metric.Builder(COVERED_CONDITIONS_BY_LINE_KEY, "Covered Conditions by Line", Metric.ValueType.DATA)
-    .setDescription("Covered conditions by line")
-    .setDomain(DOMAIN_COVERAGE)
-    .setDeleteHistoricalData(true)
-    .create();
-
-  // --------------------------------------------------------------------------------------------------------------------
-  //
-  // INTEGRATION TESTS
-  //
-  // --------------------------------------------------------------------------------------------------------------------
-
-  /**
-   * @since 2.12
-   * @deprecated since 6.2 all coverage reports are merged in the same measures 
-   */
-  @Deprecated
-  public static final String IT_COVERAGE_KEY = "it_coverage";
-
-  /**
-   * @since 2.12
-   * @deprecated since 6.2 all coverage reports are merged in the same measures 
-   */
-  @Deprecated
-  public static final Metric<Double> IT_COVERAGE = new Metric.Builder(IT_COVERAGE_KEY, "IT Coverage", Metric.ValueType.PERCENT)
-    .setDescription("Integration tests coverage")
-    .setDirection(Metric.DIRECTION_BETTER)
-    .setQualitative(true)
-    .setDomain(DOMAIN_COVERAGE)
-    .setWorstValue(0.0)
-    .setBestValue(100.0)
-    .setHidden(true)
-    .create();
-
-  /**
-   * @since 2.12
-   * @deprecated since 6.2 all coverage reports are merged in the same measures 
-   */
-  @Deprecated
-  public static final String NEW_IT_COVERAGE_KEY = "new_it_coverage";
-
-  /**
-   * @since 2.12
-   * @deprecated since 6.2 all coverage reports are merged in the same measures 
-   */
-  @Deprecated
-  public static final Metric<Double> NEW_IT_COVERAGE = new Metric.Builder(NEW_IT_COVERAGE_KEY, "Coverage by IT on New Code", Metric.ValueType.PERCENT)
-    .setDescription("Integration tests coverage of new/changed code")
-    .setDirection(Metric.DIRECTION_BETTER)
-    .setQualitative(true)
-    .setDomain(DOMAIN_COVERAGE)
-    .setWorstValue(0.0)
-    .setBestValue(100.0)
-    .setDeleteHistoricalData(true)
-    .setHidden(true)
-    .create();
-
-  /**
-   * @since 2.12
-   * @deprecated since 6.2 all coverage reports are merged in the same measures 
-   */
-  @Deprecated
-  public static final String IT_LINES_TO_COVER_KEY = "it_lines_to_cover";
-
-  /**
-   * @since 2.12
-   * @deprecated since 6.2 all coverage reports are merged in the same measures 
-   */
-  @Deprecated
-  public static final Metric<Integer> IT_LINES_TO_COVER = new Metric.Builder(IT_LINES_TO_COVER_KEY, "IT Lines to Cover", Metric.ValueType.INT)
-    .setDescription("Lines to cover by Integration Tests")
-    .setDirection(Metric.DIRECTION_BETTER)
-    .setDomain(DOMAIN_COVERAGE)
-    .setQualitative(false)
-    .setHidden(true)
-    .create();
-
-  /**
-   * @since 2.12
-   * @deprecated since 6.2 all coverage reports are merged in the same measures 
-   */
-  @Deprecated
-  public static final String NEW_IT_LINES_TO_COVER_KEY = "new_it_lines_to_cover";
-
-  /**
-   * @since 2.12
-   * @deprecated since 6.2 all coverage reports are merged in the same measures 
-   */
-  @Deprecated
-  public static final Metric<Integer> NEW_IT_LINES_TO_COVER = new Metric.Builder(NEW_IT_LINES_TO_COVER_KEY, "Lines to Cover by IT on New Code", Metric.ValueType.INT)
-    .setDescription("Lines to cover on new code by integration tests")
-    .setDirection(Metric.DIRECTION_WORST)
-    .setQualitative(false)
-    .setDomain(DOMAIN_COVERAGE)
-    .setDeleteHistoricalData(true)
-    .setHidden(true)
-    .create();
-
-  /**
-   * @since 2.12
-   * @deprecated since 6.2 all coverage reports are merged in the same measures 
-   */
-  @Deprecated
-  public static final String IT_UNCOVERED_LINES_KEY = "it_uncovered_lines";
-
-  /**
-   * @since 2.12
-   * @deprecated since 6.2 all coverage reports are merged in the same measures 
-   */
-  @Deprecated
-  public static final Metric<Integer> IT_UNCOVERED_LINES = new Metric.Builder(IT_UNCOVERED_LINES_KEY, "IT Uncovered Lines", Metric.ValueType.INT)
-    .setDescription("Uncovered lines by integration tests")
-    .setDirection(Metric.DIRECTION_WORST)
-    .setQualitative(false)
-    .setDomain(DOMAIN_COVERAGE)
-    .setHidden(true)
-    .create();
-
-  /**
-   * @since 2.12
-   * @deprecated since 6.2 all coverage reports are merged in the same measures 
-   */
-  @Deprecated
-  public static final String NEW_IT_UNCOVERED_LINES_KEY = "new_it_uncovered_lines";
-
-  /**
-   * @since 2.12
-   * @deprecated since 6.2 all coverage reports are merged in the same measures 
-   */
-  @Deprecated
-  public static final Metric<Integer> NEW_IT_UNCOVERED_LINES = new Metric.Builder(NEW_IT_UNCOVERED_LINES_KEY, "Uncovered Lines by IT on New Code", Metric.ValueType.INT)
-    .setDescription("New lines that are not covered by integration tests")
-    .setDirection(Metric.DIRECTION_WORST)
-    .setDomain(DOMAIN_COVERAGE)
-    .setBestValue(0.0)
-    .setDeleteHistoricalData(true)
-    .setHidden(true)
-    .create();
-
-  /**
-   * @since 2.12
-   * @deprecated since 6.2 all coverage reports are merged in the same measures 
-   */
-  @Deprecated
-  public static final String IT_LINE_COVERAGE_KEY = "it_line_coverage";
-
-  /**
-   * @since 2.12
-   * @deprecated since 6.2 all coverage reports are merged in the same measures 
-   */
-  @Deprecated
-  public static final Metric<Double> IT_LINE_COVERAGE = new Metric.Builder(IT_LINE_COVERAGE_KEY, "IT Line Coverage", Metric.ValueType.PERCENT)
-    .setDescription("Line coverage by integration tests")
-    .setDirection(Metric.DIRECTION_BETTER)
-    .setQualitative(true)
-    .setDomain(DOMAIN_COVERAGE)
-    .setHidden(true)
-    .create();
-
-  /**
-   * @since 2.12
-   * @deprecated since 6.2 all coverage reports are merged in the same measures 
-   */
-  @Deprecated
-  public static final String NEW_IT_LINE_COVERAGE_KEY = "new_it_line_coverage";
-
-  /**
-   * @since 2.12
-   * @deprecated since 6.2 all coverage reports are merged in the same measures 
-   */
-  @Deprecated
-  public static final Metric<Double> NEW_IT_LINE_COVERAGE = new Metric.Builder(NEW_IT_LINE_COVERAGE_KEY, "Line Coverage by IT on New Code", Metric.ValueType.PERCENT)
-    .setDescription("Integration tests line coverage of added/changed code")
-    .setDirection(Metric.DIRECTION_BETTER)
-    .setQualitative(true)
-    .setWorstValue(0.0)
-    .setBestValue(100.0)
-    .setDomain(DOMAIN_COVERAGE)
-    .setDeleteHistoricalData(true)
-    .setHidden(true)
-    .create();
-
-  /**
-   * @since 2.12
-   * @deprecated since 5.2 soon to be removed
-   */
-  @Deprecated
-  public static final String IT_COVERAGE_LINE_HITS_DATA_KEY = "it_coverage_line_hits_data";
-
-  /**
-   * @since 2.12
-   * @deprecated since 5.2 soon to be removed
-   */
-  @Deprecated
-  public static final Metric<String> IT_COVERAGE_LINE_HITS_DATA = new Metric.Builder(IT_COVERAGE_LINE_HITS_DATA_KEY, "IT Coverage Hits by Line", Metric.ValueType.DATA)
-    .setDescription("Coverage hits by line by integration tests")
-    .setDirection(Metric.DIRECTION_NONE)
-    .setQualitative(false)
-    .setDomain(DOMAIN_COVERAGE)
-    .setDeleteHistoricalData(true)
-    .setHidden(true)
-    .create();
-
-  /**
-   * @since 2.12
-   * @deprecated since 6.2 all coverage reports are merged in the same measures 
-   */
-  @Deprecated
-  public static final String IT_CONDITIONS_TO_COVER_KEY = "it_conditions_to_cover";
-
-  /**
-   * @since 2.12
-   * @deprecated since 6.2 all coverage reports are merged in the same measures 
-   */
-  @Deprecated
-  public static final Metric<Integer> IT_CONDITIONS_TO_COVER = new Metric.Builder(IT_CONDITIONS_TO_COVER_KEY, "IT Branches to Cover", Metric.ValueType.INT)
-    .setDescription("Integration Tests conditions to cover")
-    .setDirection(Metric.DIRECTION_BETTER)
-    .setQualitative(false)
-    .setDomain(DOMAIN_COVERAGE)
-    .setHidden(true)
-    .create();
-
-  /**
-   * @since 2.12
-   * @deprecated since 6.2 all coverage reports are merged in the same measures 
-   */
-  @Deprecated
-  public static final String NEW_IT_CONDITIONS_TO_COVER_KEY = "new_it_conditions_to_cover";
-
-  /**
-   * @since 2.12
-   * @deprecated since 6.2 all coverage reports are merged in the same measures 
-   */
-  @Deprecated
-  public static final Metric<Integer> NEW_IT_CONDITIONS_TO_COVER = new Metric.Builder(NEW_IT_CONDITIONS_TO_COVER_KEY, "Branches to Cover by IT on New Code", Metric.ValueType.INT)
-    .setDescription("Branches to cover by Integration Tests on New Code")
-    .setDomain(DOMAIN_COVERAGE)
-    .setDeleteHistoricalData(true)
-    .setHidden(true)
-    .create();
-
-  /**
-   * @since 2.12
-   * @deprecated since 6.2 all coverage reports are merged in the same measures 
-   */
-  @Deprecated
-  public static final String IT_UNCOVERED_CONDITIONS_KEY = "it_uncovered_conditions";
-
-  /**
-   * @since 2.12
-   * @deprecated since 6.2 all coverage reports are merged in the same measures 
-   */
-  @Deprecated
-  public static final Metric<Integer> IT_UNCOVERED_CONDITIONS = new Metric.Builder(IT_UNCOVERED_CONDITIONS_KEY, "IT Uncovered Conditions", Metric.ValueType.INT)
-    .setDescription("Uncovered conditions by integration tests")
-    .setDirection(Metric.DIRECTION_WORST)
-    .setDomain(DOMAIN_COVERAGE)
-    .setHidden(true)
-    .create();
-
-  /**
-   * @since 2.12
-   * @deprecated since 6.2 all coverage reports are merged in the same measures 
-   */
-  @Deprecated
-  public static final String NEW_IT_UNCOVERED_CONDITIONS_KEY = "new_it_uncovered_conditions";
-
-  /**
-   * @since 2.12
-   * @deprecated since 6.2 all coverage reports are merged in the same measures 
-   */
-  @Deprecated
-  public static final Metric<Integer> NEW_IT_UNCOVERED_CONDITIONS = new Metric.Builder(NEW_IT_UNCOVERED_CONDITIONS_KEY, "Uncovered Conditions by IT on New Code",
-    Metric.ValueType.INT)
-      .setDescription("New conditions that are not covered by integration tests")
-      .setDirection(Metric.DIRECTION_WORST)
-      .setDomain(DOMAIN_COVERAGE)
-      .setBestValue(0.0)
-      .setDeleteHistoricalData(true)
-      .setHidden(true)
-      .create();
-
-  /**
-   * @since 2.12
-   * @deprecated since 6.2 all coverage reports are merged in the same measures 
-   */
-  @Deprecated
-  public static final String IT_BRANCH_COVERAGE_KEY = "it_branch_coverage";
-
-  /**
-   * @since 2.12
-   * @deprecated since 6.2 all coverage reports are merged in the same measures 
-   */
-  @Deprecated
-  public static final Metric<Double> IT_BRANCH_COVERAGE = new Metric.Builder(IT_BRANCH_COVERAGE_KEY, "IT Condition Coverage", Metric.ValueType.PERCENT)
-    .setDescription("Condition coverage by integration tests")
-    .setDirection(Metric.DIRECTION_BETTER)
-    .setQualitative(true)
-    .setDomain(DOMAIN_COVERAGE)
-    .setWorstValue(0.0)
-    .setBestValue(100.0)
-    .setHidden(true)
-    .create();
-
-  /**
-   * @since 2.12
-   * @deprecated since 6.2 all coverage reports are merged in the same measures 
-   */
-  @Deprecated
-  public static final String NEW_IT_BRANCH_COVERAGE_KEY = "new_it_branch_coverage";
-
-  /**
-   * @since 2.12
-   * @deprecated since 6.2 all coverage reports are merged in the same measures 
-   */
-  @Deprecated
-  public static final Metric<Double> NEW_IT_BRANCH_COVERAGE = new Metric.Builder(NEW_IT_BRANCH_COVERAGE_KEY, "Condition Coverage by IT on New Code", Metric.ValueType.PERCENT)
-    .setDescription("Integration tests condition coverage of new/changed code")
-    .setDirection(Metric.DIRECTION_BETTER)
-    .setQualitative(true)
-    .setDomain(DOMAIN_COVERAGE)
-    .setWorstValue(0.0)
-    .setBestValue(100.0)
-    .setDeleteHistoricalData(true)
-    .setHidden(true)
-    .create();
-
-  /**
-   * @since 2.12
-   * @deprecated since 5.2 soon to be removed
-   */
-  @Deprecated
-  public static final String IT_CONDITIONS_BY_LINE_KEY = "it_conditions_by_line";
-
-  /**
-   * @since 2.12
-   * @deprecated since 5.2 soon to be removed
-   */
-  @Deprecated
-  public static final Metric<String> IT_CONDITIONS_BY_LINE = new Metric.Builder(IT_CONDITIONS_BY_LINE_KEY, "IT Conditions by Line", Metric.ValueType.DATA)
-    .setDescription("IT conditions by line")
-    .setDomain(DOMAIN_COVERAGE)
-    .setDeleteHistoricalData(true)
-    .create();
-
-  /**
-   * @since 2.12
-   * @deprecated since 5.2 soon to be removed
-   */
-  @Deprecated
-  public static final String IT_COVERED_CONDITIONS_BY_LINE_KEY = "it_covered_conditions_by_line";
-
-  /**
-   * @since 2.12
-   * @deprecated since 5.2 soon to be removed
-   */
-  @Deprecated
-  public static final Metric<String> IT_COVERED_CONDITIONS_BY_LINE = new Metric.Builder(IT_COVERED_CONDITIONS_BY_LINE_KEY, "IT Covered Conditions by Line", Metric.ValueType.DATA)
-    .setDescription("IT covered conditions by line")
-    .setDomain(DOMAIN_COVERAGE)
-    .setDeleteHistoricalData(true)
-    .create();
-
-  // --------------------------------------------------------------------------------------------------------------------
-  //
-  // OVERALL TESTS
-  //
-  // --------------------------------------------------------------------------------------------------------------------
-
-  /**
-   * @since 3.3
-   * @deprecated since 6.2 all coverage reports are merged in the same measures 
-   */
-  @Deprecated
-  public static final String OVERALL_COVERAGE_KEY = "overall_coverage";
-
-  /**
-   * @since 3.3
-   * @deprecated since 6.2 all coverage reports are merged in the same measures 
-   */
-  @Deprecated
-  public static final Metric<Double> OVERALL_COVERAGE = new Metric.Builder(OVERALL_COVERAGE_KEY, "Overall Coverage", Metric.ValueType.PERCENT)
-    .setDescription("Overall test coverage")
-    .setDirection(Metric.DIRECTION_BETTER)
-    .setQualitative(true)
-    .setDomain(DOMAIN_COVERAGE)
-    .setWorstValue(0.0)
-    .setBestValue(100.0)
-    .setHidden(true)
-    .create();
-
-  /**
-   * @since 3.3
-   * @deprecated since 6.2 all coverage reports are merged in the same measures 
-   */
-  @Deprecated
-  public static final String NEW_OVERALL_COVERAGE_KEY = "new_overall_coverage";
-
-  /**
-   * @since 3.3
-   * @deprecated since 6.2 all coverage reports are merged in the same measures 
-   */
-  @Deprecated
-  public static final Metric<Double> NEW_OVERALL_COVERAGE = new Metric.Builder(NEW_OVERALL_COVERAGE_KEY, "Overall Coverage on New Code", Metric.ValueType.PERCENT)
-    .setDescription("Overall coverage of new/changed code")
-    .setDirection(Metric.DIRECTION_BETTER)
-    .setQualitative(true)
-    .setDomain(DOMAIN_COVERAGE)
-    .setWorstValue(0.0)
-    .setBestValue(100.0)
-    .setDeleteHistoricalData(true)
-    .setHidden(true)
-    .create();
-
-  /**
-   * @since 3.3
-   * @deprecated since 6.2 all coverage reports are merged in the same measures 
-   */
-  @Deprecated
-  public static final String OVERALL_LINES_TO_COVER_KEY = "overall_lines_to_cover";
-
-  /**
-   * @since 3.3
-   * @deprecated since 6.2 all coverage reports are merged in the same measures 
-   */
-  @Deprecated
-  public static final Metric<Integer> OVERALL_LINES_TO_COVER = new Metric.Builder(OVERALL_LINES_TO_COVER_KEY, "Overall Lines to Cover", Metric.ValueType.INT)
-    .setDescription("Overall lines to cover by all tests")
-    .setDirection(Metric.DIRECTION_BETTER)
-    .setDomain(DOMAIN_COVERAGE)
-    .setQualitative(false)
-    .setHidden(true)
-    .create();
-
-  /**
-   * @since 3.3
-   * @deprecated since 6.2 all coverage reports are merged in the same measures 
-   */
-  @Deprecated
-  public static final String NEW_OVERALL_LINES_TO_COVER_KEY = "new_overall_lines_to_cover";
-
-  /**
-   * @since 3.3
-   * @deprecated since 6.2 all coverage reports are merged in the same measures 
-   */
-  @Deprecated
-  public static final Metric<Integer> NEW_OVERALL_LINES_TO_COVER = new Metric.Builder(NEW_OVERALL_LINES_TO_COVER_KEY, "Overall Lines to Cover on New Code", Metric.ValueType.INT)
-    .setDescription("New lines to cover by all tests")
-    .setDirection(Metric.DIRECTION_WORST)
-    .setQualitative(false)
-    .setDomain(DOMAIN_COVERAGE)
-    .setDeleteHistoricalData(true)
-    .setHidden(true)
-    .create();
-
-  /**
-   * @since 3.3
-   * @deprecated since 6.2 all coverage reports are merged in the same measures 
-   */
-  @Deprecated
-  public static final String OVERALL_UNCOVERED_LINES_KEY = "overall_uncovered_lines";
-
-  /**
-   * @since 3.3
-   * @deprecated since 6.2 all coverage reports are merged in the same measures 
-   */
-  @Deprecated
-  public static final Metric<Integer> OVERALL_UNCOVERED_LINES = new Metric.Builder(OVERALL_UNCOVERED_LINES_KEY, "Overall Uncovered Lines", Metric.ValueType.INT)
-    .setDescription("Uncovered lines by all tests")
-    .setDirection(Metric.DIRECTION_WORST)
-    .setQualitative(false)
-    .setDomain(DOMAIN_COVERAGE)
-    .setHidden(true)
-    .create();
-
-  /**
-   * @since 3.3
-   * @deprecated since 6.2 all coverage reports are merged in the same measures 
-   */
-  @Deprecated
-  public static final String NEW_OVERALL_UNCOVERED_LINES_KEY = "new_overall_uncovered_lines";
-
-  /**
-   * @since 3.3
-   * @deprecated since 6.2 all coverage reports are merged in the same measures 
-   */
-  @Deprecated
-  public static final Metric<Integer> NEW_OVERALL_UNCOVERED_LINES = new Metric.Builder(NEW_OVERALL_UNCOVERED_LINES_KEY, "Overall Uncovered Lines on New Code", Metric.ValueType.INT)
-    .setDescription("New lines that are not covered by any tests")
-    .setDirection(Metric.DIRECTION_WORST)
-    .setDomain(DOMAIN_COVERAGE)
-    .setBestValue(0.0)
-    .setDeleteHistoricalData(true)
-    .setHidden(true)
-    .create();
-
-  /**
-   * @since 3.3
-   * @deprecated since 6.2 all coverage reports are merged in the same measures 
-   */
-  @Deprecated
-  public static final String OVERALL_LINE_COVERAGE_KEY = "overall_line_coverage";
-
-  /**
-   * @since 3.3
-   * @deprecated since 6.2 all coverage reports are merged in the same measures 
-   */
-  @Deprecated
-  public static final Metric<Double> OVERALL_LINE_COVERAGE = new Metric.Builder(OVERALL_LINE_COVERAGE_KEY, "Overall Line Coverage", Metric.ValueType.PERCENT)
-    .setDescription("Line coverage by all tests")
-    .setDirection(Metric.DIRECTION_BETTER)
-    .setQualitative(true)
-    .setDomain(DOMAIN_COVERAGE)
-    .setHidden(true)
-    .create();
-
-  /**
-   * @since 3.3
-   * @deprecated since 6.2 all coverage reports are merged in the same measures 
-   */
-  @Deprecated
-  public static final String NEW_OVERALL_LINE_COVERAGE_KEY = "new_overall_line_coverage";
-
-  /**
-   * @since 3.3
-   * @deprecated since 6.2 all coverage reports are merged in the same measures 
-   */
-  @Deprecated
-  public static final Metric<Double> NEW_OVERALL_LINE_COVERAGE = new Metric.Builder(NEW_OVERALL_LINE_COVERAGE_KEY, "Overall Line Coverage on New Code", Metric.ValueType.PERCENT)
-    .setDescription("Line coverage of added/changed code by all tests")
-    .setDirection(Metric.DIRECTION_BETTER)
-    .setQualitative(true)
-    .setWorstValue(0.0)
-    .setBestValue(100.0)
-    .setDomain(DOMAIN_COVERAGE)
-    .setDeleteHistoricalData(true)
-    .setHidden(true)
-    .create();
-
-  /**
-   * @since 3.3
-   * @deprecated since 5.2 soon to be removed
-   */
-  @Deprecated
-  public static final String OVERALL_COVERAGE_LINE_HITS_DATA_KEY = "overall_coverage_line_hits_data";
-
-  /**
-   * @since 3.3
-   * @deprecated since 5.2 soon to be removed
-   */
-  @Deprecated
-  public static final Metric<String> OVERALL_COVERAGE_LINE_HITS_DATA = new Metric.Builder(OVERALL_COVERAGE_LINE_HITS_DATA_KEY, "Overall Coverage Hits by Line",
-    Metric.ValueType.DATA)
-      .setDescription("Coverage hits by all tests and by line")
-      .setDirection(Metric.DIRECTION_NONE)
-      .setQualitative(false)
-      .setDomain(DOMAIN_COVERAGE)
-      .setDeleteHistoricalData(true)
-      .create();
-
-  /**
-   * @since 3.3
-   * @deprecated since 6.2 all coverage reports are merged in the same measures 
-   */
-  @Deprecated
-  public static final String OVERALL_CONDITIONS_TO_COVER_KEY = "overall_conditions_to_cover";
-
-  /**
-   * @since 3.3
-   * @deprecated since 6.2 all coverage reports are merged in the same measures 
-   */
-  @Deprecated
-  public static final Metric<Integer> OVERALL_CONDITIONS_TO_COVER = new Metric.Builder(OVERALL_CONDITIONS_TO_COVER_KEY, "Overall Branches to Cover", Metric.ValueType.INT)
-    .setDescription("Branches to cover by all tests")
-    .setDirection(Metric.DIRECTION_BETTER)
-    .setQualitative(false)
-    .setDomain(DOMAIN_COVERAGE)
-    .setHidden(true)
-    .create();
-
-  /**
-   * @since 3.3
-   * @deprecated since 6.2 all coverage reports are merged in the same measures 
-   */
-  @Deprecated
-  public static final String NEW_OVERALL_CONDITIONS_TO_COVER_KEY = "new_overall_conditions_to_cover";
-
-  /**
-   * @since 3.3
-   * @deprecated since 6.2 all coverage reports are merged in the same measures 
-   */
-  @Deprecated
-  public static final Metric<Integer> NEW_OVERALL_CONDITIONS_TO_COVER = new Metric.Builder(NEW_OVERALL_CONDITIONS_TO_COVER_KEY, "Overall Branches to Cover on New Code",
-    Metric.ValueType.INT)
-      .setDescription("New branches to cover by all tests")
-      .setDomain(DOMAIN_COVERAGE)
-      .setDeleteHistoricalData(true)
-      .setHidden(true)
-      .create();
-
-  /**
-   * @since 3.3
-   * @deprecated since 6.2 all coverage reports are merged in the same measures 
-   */
-  @Deprecated
-  public static final String OVERALL_UNCOVERED_CONDITIONS_KEY = "overall_uncovered_conditions";
-
-  /**
-   * @since 3.3
-   * @deprecated since 6.2 all coverage reports are merged in the same measures 
-   */
-  @Deprecated
-  public static final Metric<Integer> OVERALL_UNCOVERED_CONDITIONS = new Metric.Builder(OVERALL_UNCOVERED_CONDITIONS_KEY, "Overall Uncovered Conditions", Metric.ValueType.INT)
-    .setDescription("Uncovered conditions by all tests")
-    .setDirection(Metric.DIRECTION_WORST)
-    .setDomain(DOMAIN_COVERAGE)
-    .setHidden(true)
-    .create();
-
-  /**
-   * @since 3.3
-   * @deprecated since 6.2 all coverage reports are merged in the same measures 
-   */
-  @Deprecated
-  public static final String NEW_OVERALL_UNCOVERED_CONDITIONS_KEY = "new_overall_uncovered_conditions";
-
-  /**
-   * @since 3.3
-   * @deprecated since 6.2 all coverage reports are merged in the same measures 
-   */
-  @Deprecated
-  public static final Metric<Integer> NEW_OVERALL_UNCOVERED_CONDITIONS = new Metric.Builder(NEW_OVERALL_UNCOVERED_CONDITIONS_KEY, "Overall Uncovered Conditions on New Code",
-    Metric.ValueType.INT)
-      .setDescription("New conditions that are not covered by any test")
-      .setDirection(Metric.DIRECTION_WORST)
-      .setDomain(DOMAIN_COVERAGE)
-      .setBestValue(0.0)
-      .setDeleteHistoricalData(true)
-      .setHidden(true)
-      .create();
-
-  /**
-   * @since 3.3
-   * @deprecated since 6.2 all coverage reports are merged in the same measures 
-   */
-  @Deprecated
-  public static final String OVERALL_BRANCH_COVERAGE_KEY = "overall_branch_coverage";
-
-  /**
-   * @since 3.3
-   * @deprecated since 6.2 all coverage reports are merged in the same measures 
-   */
-  @Deprecated
-  public static final Metric<Double> OVERALL_BRANCH_COVERAGE = new Metric.Builder(OVERALL_BRANCH_COVERAGE_KEY, "Overall Condition Coverage", Metric.ValueType.PERCENT)
-    .setDescription("Condition coverage by all tests")
-    .setDirection(Metric.DIRECTION_BETTER)
-    .setQualitative(true)
-    .setDomain(DOMAIN_COVERAGE)
-    .setWorstValue(0.0)
-    .setBestValue(100.0)
-    .setHidden(true)
-    .create();
-
-  /**
-   * @since 3.3
-   * @deprecated since 6.2 all coverage reports are merged in the same measures 
-   */
-  @Deprecated
-  public static final String NEW_OVERALL_BRANCH_COVERAGE_KEY = "new_overall_branch_coverage";
-
-  /**
-   * @since 3.3
-   * @deprecated since 6.2 all coverage reports are merged in the same measures 
-   */
-  @Deprecated
-  public static final Metric<Double> NEW_OVERALL_BRANCH_COVERAGE = new Metric.Builder(NEW_OVERALL_BRANCH_COVERAGE_KEY, "Overall Condition Coverage on New Code",
-    Metric.ValueType.PERCENT)
-      .setDescription("Condition coverage of new/changed code by all tests")
-      .setDirection(Metric.DIRECTION_BETTER)
-      .setQualitative(true)
-      .setDomain(DOMAIN_COVERAGE)
-      .setWorstValue(0.0)
-      .setBestValue(100.0)
-      .setDeleteHistoricalData(true)
-      .setHidden(true)
-      .create();
-
-  /**
-   * @since 3.3
-   * @deprecated since 5.2 soon to be removed
-   */
-  @Deprecated
-  public static final String OVERALL_CONDITIONS_BY_LINE_KEY = "overall_conditions_by_line";
-
-  /**
-   * @since 3.3
-   * @deprecated since 5.2 soon to be removed
-   */
-  @Deprecated
-  public static final Metric<String> OVERALL_CONDITIONS_BY_LINE = new Metric.Builder(OVERALL_CONDITIONS_BY_LINE_KEY, "Overall Conditions by Line", Metric.ValueType.DATA)
-    .setDescription("Overall conditions by all tests and by line")
-    .setDomain(DOMAIN_COVERAGE)
-    .setDeleteHistoricalData(true)
-    .create();
-
-  /**
-   * @since 3.3
-   * @deprecated since 5.2 soon to be removed
-   */
-  @Deprecated
-  public static final String OVERALL_COVERED_CONDITIONS_BY_LINE_KEY = "overall_covered_conditions_by_line";
-
-  /**
-   * @since 3.3
-   * @deprecated since 5.2 soon to be removed
-   */
-  @Deprecated
-  public static final Metric<String> OVERALL_COVERED_CONDITIONS_BY_LINE = new Metric.Builder(OVERALL_COVERED_CONDITIONS_BY_LINE_KEY, "Overall Covered Conditions by Line",
-    Metric.ValueType.DATA)
-      .setDescription("Overall covered conditions by all tests and by line")
-      .setDomain(DOMAIN_COVERAGE)
-      .setDeleteHistoricalData(true)
-      .create();
 
   // --------------------------------------------------------------------------------------------------------------------
   //
@@ -1574,7 +702,7 @@ public final class CoreMetrics {
 
   /**
    * @since 6.1
-    */
+   */
   public static final String NEW_BLOCKS_DUPLICATED_KEY = "new_duplicated_blocks";
   /**
    * @since 6.1
@@ -1623,15 +751,15 @@ public final class CoreMetrics {
   /**
    * @since 6.1
    */
-  public static final Metric<Integer> NEW_DUPLICATED_LINES_DENSITY = new Metric.Builder(NEW_DUPLICATED_LINES_DENSITY_KEY, "Duplicated Lines on New Code (%)",
+  public static final Metric<Integer> NEW_DUPLICATED_LINES_DENSITY = new Metric.Builder(NEW_DUPLICATED_LINES_DENSITY_KEY, "Duplicated Lines on New Code",
     Metric.ValueType.PERCENT)
-      .setDescription("Duplicated lines on new code balanced by statements")
-      .setDirection(Metric.DIRECTION_WORST)
-      .setQualitative(true)
-      .setDomain(DOMAIN_DUPLICATIONS)
-      .setBestValue(0.0)
-      .setDeleteHistoricalData(true)
-      .create();
+    .setDescription("Duplicated lines on new code balanced by statements")
+    .setDirection(Metric.DIRECTION_WORST)
+    .setQualitative(true)
+    .setDomain(DOMAIN_DUPLICATIONS)
+    .setBestValue(0.0)
+    .setDeleteHistoricalData(true)
+    .create();
 
   /**
    * @deprecated since 4.5. Internal storage of duplication is not an API.
@@ -1884,12 +1012,14 @@ public final class CoreMetrics {
 
   /**
    * SonarQube Quality Model
+   *
    * @since 5.5
    */
   public static final String CODE_SMELLS_KEY = "code_smells";
 
   /**
    * SonarQube Quality Model
+   *
    * @since 5.5
    */
   public static final Metric<Integer> CODE_SMELLS = new Metric.Builder(CODE_SMELLS_KEY, "Code Smells", Metric.ValueType.INT)
@@ -1903,12 +1033,14 @@ public final class CoreMetrics {
 
   /**
    * SonarQube Quality Model
+   *
    * @since 5.5
    */
   public static final String NEW_CODE_SMELLS_KEY = "new_code_smells";
 
   /**
    * SonarQube Quality Model
+   *
    * @since 5.5
    */
   public static final Metric<Integer> NEW_CODE_SMELLS = new Metric.Builder(NEW_CODE_SMELLS_KEY, "New Code Smells", Metric.ValueType.INT)
@@ -1923,12 +1055,14 @@ public final class CoreMetrics {
 
   /**
    * SonarQube Quality Model
+   *
    * @since 5.5
    */
   public static final String BUGS_KEY = "bugs";
 
   /**
    * SonarQube Quality Model
+   *
    * @since 5.5
    */
   public static final Metric<Integer> BUGS = new Metric.Builder(BUGS_KEY, "Bugs", Metric.ValueType.INT)
@@ -1942,12 +1076,14 @@ public final class CoreMetrics {
 
   /**
    * SonarQube Quality Model
+   *
    * @since 5.5
    */
   public static final String NEW_BUGS_KEY = "new_bugs";
 
   /**
    * SonarQube Quality Model
+   *
    * @since 5.5
    */
   public static final Metric<Integer> NEW_BUGS = new Metric.Builder(NEW_BUGS_KEY, "New Bugs", Metric.ValueType.INT)
@@ -1962,12 +1098,14 @@ public final class CoreMetrics {
 
   /**
    * SonarQube Quality Model
+   *
    * @since 5.5
    */
   public static final String VULNERABILITIES_KEY = "vulnerabilities";
 
   /**
    * SonarQube Quality Model
+   *
    * @since 5.5
    */
   public static final Metric<Integer> VULNERABILITIES = new Metric.Builder(VULNERABILITIES_KEY, "Vulnerabilities", Metric.ValueType.INT)
@@ -1981,12 +1119,14 @@ public final class CoreMetrics {
 
   /**
    * SonarQube Quality Model
+   *
    * @since 5.5
    */
   public static final String NEW_VULNERABILITIES_KEY = "new_vulnerabilities";
 
   /**
    * SonarQube Quality Model
+   *
    * @since 5.5
    */
   public static final Metric<Integer> NEW_VULNERABILITIES = new Metric.Builder(NEW_VULNERABILITIES_KEY, "New Vulnerabilities", Metric.ValueType.INT)
@@ -1998,329 +1138,6 @@ public final class CoreMetrics {
     .setOptimizedBestValue(true)
     .setDeleteHistoricalData(true)
     .create();
-
-  // --------------------------------------------------------------------------------------------------------------------
-  //
-  // DESIGN
-  //
-  // --------------------------------------------------------------------------------------------------------------------
-
-  /**
-   * @deprecated since 5.0 this is an internal metric that should not be accessed by plugins
-   */
-  @Deprecated
-  public static final String DEPENDENCY_MATRIX_KEY = "dsm";
-  /**
-   * @deprecated since 5.0 this is an internal metric that should not be accessed by plugins
-   */
-  @Deprecated
-  public static final transient Metric<String> DEPENDENCY_MATRIX = new Metric.Builder(DEPENDENCY_MATRIX_KEY, "Dependency Matrix", Metric.ValueType.DATA)
-    .setDescription("Dependency Matrix")
-    .setDirection(Metric.DIRECTION_NONE)
-    .setQualitative(false)
-    .setDomain(DOMAIN_DESIGN)
-    .setDeleteHistoricalData(true)
-    .create();
-
-  /**
-   * @deprecated since 5.2 No more design features
-   */
-  @Deprecated
-  public static final String DIRECTORY_CYCLES_KEY = "package_cycles";
-  /**
-   * @deprecated since 5.2 No more design features
-   */
-  @Deprecated
-  public static final transient Metric<Integer> DIRECTORY_CYCLES = new Metric.Builder(DIRECTORY_CYCLES_KEY, "Directory Cycles", Metric.ValueType.INT)
-    .setDescription("Directory cycles")
-    .setDirection(Metric.DIRECTION_WORST)
-    .setQualitative(true)
-    .setDomain(DOMAIN_DESIGN)
-    .setBestValue(0.0)
-    .create();
-
-  /**
-   * @deprecated since 5.0 use {@link #DIRECTORY_CYCLES_KEY}
-   */
-  @Deprecated
-  public static final String PACKAGE_CYCLES_KEY = DIRECTORY_CYCLES_KEY;
-  /**
-   * @deprecated since 5.0 use {@link #DIRECTORY_CYCLES}
-   */
-  @Deprecated
-  public static final transient Metric<Integer> PACKAGE_CYCLES = DIRECTORY_CYCLES;
-
-  /**
-   * @deprecated since 5.2 No more design features
-   */
-  @Deprecated
-  public static final String DIRECTORY_TANGLE_INDEX_KEY = "package_tangle_index";
-  /**
-   * @deprecated since 5.2 No more design features
-   */
-  @Deprecated
-  public static final transient Metric<Double> DIRECTORY_TANGLE_INDEX = new Metric.Builder(DIRECTORY_TANGLE_INDEX_KEY, "Directory Tangle Index", Metric.ValueType.PERCENT)
-    .setDescription("Directory tangle index")
-    .setDirection(Metric.DIRECTION_WORST)
-    .setQualitative(true)
-    .setBestValue(0.0)
-    .setDomain(DOMAIN_DESIGN)
-    .create();
-
-  /**
-   * @deprecated since 5.0 use {@link #DIRECTORY_TANGLE_INDEX_KEY}
-   */
-  @Deprecated
-  public static final String PACKAGE_TANGLE_INDEX_KEY = DIRECTORY_TANGLE_INDEX_KEY;
-  /**
-   * @deprecated since 5.0 use {@link #DIRECTORY_TANGLE_INDEX}
-   */
-  @Deprecated
-  public static final transient Metric<Double> PACKAGE_TANGLE_INDEX = DIRECTORY_TANGLE_INDEX;
-
-  /**
-   * @deprecated since 5.2 No more design features
-   */
-  @Deprecated
-  public static final String DIRECTORY_TANGLES_KEY = "package_tangles";
-  /**
-   * @deprecated since 5.2 No more design features
-   */
-  @Deprecated
-  public static final transient Metric<Integer> DIRECTORY_TANGLES = new Metric.Builder(DIRECTORY_TANGLES_KEY, "File Dependencies to Cut", Metric.ValueType.INT)
-    .setDescription("File dependencies to cut")
-    .setDirection(Metric.DIRECTION_WORST)
-    .setQualitative(false)
-    .setDomain(DOMAIN_DESIGN)
-    .create();
-
-  /**
-   * @deprecated since 5.0 use {@link #DIRECTORY_TANGLES_KEY}
-   */
-  @Deprecated
-  public static final String PACKAGE_TANGLES_KEY = DIRECTORY_TANGLES_KEY;
-  /**
-   * @deprecated since 5.0 use {@link #DIRECTORY_TANGLES}
-   */
-  @Deprecated
-  public static final transient Metric<Integer> PACKAGE_TANGLES = DIRECTORY_TANGLES;
-
-  /**
-   * @deprecated since 5.2 No more design features
-   */
-  @Deprecated
-  public static final String DIRECTORY_FEEDBACK_EDGES_KEY = "package_feedback_edges";
-  /**
-   * @deprecated since 5.2 No more design features
-   */
-  @Deprecated
-  public static final transient Metric<Integer> DIRECTORY_FEEDBACK_EDGES = new Metric.Builder(DIRECTORY_FEEDBACK_EDGES_KEY, "Package Dependencies to Cut", Metric.ValueType.INT)
-    .setDescription("Package dependencies to cut")
-    .setDirection(Metric.DIRECTION_WORST)
-    .setQualitative(false)
-    .setDomain(DOMAIN_DESIGN)
-    .setBestValue(0.0)
-    .create();
-
-  /**
-   * @deprecated since 5.0 use {@link #DIRECTORY_FEEDBACK_EDGES_KEY}
-   */
-  @Deprecated
-  public static final String PACKAGE_FEEDBACK_EDGES_KEY = DIRECTORY_FEEDBACK_EDGES_KEY;
-  /**
-   * @deprecated since 5.0 use {@link #DIRECTORY_FEEDBACK_EDGES}
-   */
-  @Deprecated
-  public static final transient Metric<Integer> PACKAGE_FEEDBACK_EDGES = DIRECTORY_FEEDBACK_EDGES;
-
-  /**
-   * @deprecated since 5.2 No more design features
-   */
-  @Deprecated
-  public static final String DIRECTORY_EDGES_WEIGHT_KEY = "package_edges_weight";
-  /**
-   * @deprecated since 5.2 No more design features
-   */
-  @Deprecated
-  public static final transient Metric<Integer> DIRECTORY_EDGES_WEIGHT = new Metric.Builder(DIRECTORY_EDGES_WEIGHT_KEY, "Directory Edges Weight", Metric.ValueType.INT)
-    .setDescription("Directory edges weight")
-    .setDirection(Metric.DIRECTION_BETTER)
-    .setQualitative(false)
-    .setDomain(DOMAIN_DESIGN)
-    .setHidden(true)
-    .setDeleteHistoricalData(true)
-    .create();
-
-  /**
-   * @deprecated since 5.0 use {@link #DIRECTORY_EDGES_WEIGHT_KEY}
-   */
-  @Deprecated
-  public static final String PACKAGE_EDGES_WEIGHT_KEY = DIRECTORY_EDGES_WEIGHT_KEY;
-  /**
-   * @deprecated since 5.0 use {@link #DIRECTORY_EDGES_WEIGHT}
-   */
-  @Deprecated
-  public static final transient Metric<Integer> PACKAGE_EDGES_WEIGHT = DIRECTORY_EDGES_WEIGHT;
-
-  /**
-   * @deprecated since 5.2 No more design features
-   */
-  @Deprecated
-  public static final String FILE_CYCLES_KEY = "file_cycles";
-  /**
-   * @deprecated since 5.2 No more design features
-   */
-  @Deprecated
-  public static final transient Metric<Integer> FILE_CYCLES = new Metric.Builder(FILE_CYCLES_KEY, "File Cycles", Metric.ValueType.INT)
-    .setDescription("File cycles")
-    .setDirection(Metric.DIRECTION_WORST)
-    .setQualitative(true)
-    .setDomain(DOMAIN_DESIGN)
-    .setHidden(true)
-    .setDeleteHistoricalData(true)
-    .setBestValue(0.0)
-    .create();
-
-  /**
-   * @deprecated since 5.2 No more design features
-   */
-  @Deprecated
-  public static final String FILE_TANGLE_INDEX_KEY = "file_tangle_index";
-  /**
-   * @deprecated since 5.2 No more design features
-   */
-  @Deprecated
-  public static final transient Metric<Double> FILE_TANGLE_INDEX = new Metric.Builder(FILE_TANGLE_INDEX_KEY, "File Tangle Index", Metric.ValueType.PERCENT)
-    .setDescription("File tangle index")
-    .setDirection(Metric.DIRECTION_WORST)
-    .setQualitative(true)
-    .setDomain(DOMAIN_DESIGN)
-    .setHidden(true)
-    .setDeleteHistoricalData(true)
-    .setBestValue(0.0)
-    .create();
-
-  /**
-   * @deprecated since 5.2 No more design features
-   */
-  @Deprecated
-  public static final String FILE_TANGLES_KEY = "file_tangles";
-  /**
-   * @deprecated since 5.2 No more design features
-   */
-  @Deprecated
-  public static final transient Metric<Integer> FILE_TANGLES = new Metric.Builder(FILE_TANGLES_KEY, "File Tangles", Metric.ValueType.INT)
-    .setDescription("Files tangles")
-    .setDirection(Metric.DIRECTION_WORST)
-    .setQualitative(false)
-    .setDomain(DOMAIN_DESIGN)
-    .setHidden(true)
-    .setDeleteHistoricalData(true)
-    .create();
-
-  /**
-   * @deprecated since 5.2 No more design features
-   */
-  @Deprecated
-  public static final String FILE_FEEDBACK_EDGES_KEY = "file_feedback_edges";
-  /**
-   * @deprecated since 5.2 No more design features
-   */
-  @Deprecated
-  public static final transient Metric<Integer> FILE_FEEDBACK_EDGES = new Metric.Builder(FILE_FEEDBACK_EDGES_KEY, "Suspect File Dependencies", Metric.ValueType.INT)
-    .setDescription("Suspect file dependencies")
-    .setDirection(Metric.DIRECTION_WORST)
-    .setQualitative(false)
-    .setDomain(DOMAIN_DESIGN)
-    .setHidden(true)
-    .setDeleteHistoricalData(true)
-    .setBestValue(0.0)
-    .create();
-
-  /**
-   * @deprecated since 5.2 No more design features
-   */
-  @Deprecated
-  public static final String FILE_EDGES_WEIGHT_KEY = "file_edges_weight";
-  /**
-   * @deprecated since 5.2 No more design features
-   */
-  @Deprecated
-  public static final transient Metric<Integer> FILE_EDGES_WEIGHT = new Metric.Builder(FILE_EDGES_WEIGHT_KEY, "File Edges Weight", Metric.ValueType.INT)
-    .setDescription("File edges weight")
-    .setDirection(Metric.DIRECTION_BETTER)
-    .setQualitative(false)
-    .setDomain(DOMAIN_DESIGN)
-    .setHidden(true)
-    .setDeleteHistoricalData(true)
-    .create();
-
-  // --------------------------------------------------------------------------------------------------------------------
-  //
-  // SCM
-  //
-  // --------------------------------------------------------------------------------------------------------------------
-
-  /**
-   * @since 2.7
-   * @deprecated since 5.0 SCM data will no more be stored as measures
-   */
-  @Deprecated
-  public static final String SCM_AUTHORS_BY_LINE_KEY = "authors_by_line";
-
-  /**
-   * Key-value pairs, where key - is a number of line, and value - is an author for this line.
-   *
-   * @see org.sonar.api.utils.KeyValueFormat#formatIntString(java.util.Map)
-   * @see org.sonar.api.utils.KeyValueFormat#parseIntString(String)
-   * @since 2.7
-   * @deprecated since 5.0 SCM data will no more be stored as measures
-   */
-  @Deprecated
-  public static final transient Metric<String> SCM_AUTHORS_BY_LINE = new Metric.Builder(SCM_AUTHORS_BY_LINE_KEY, "Authors by Line", Metric.ValueType.DATA)
-    .setDomain(DOMAIN_SCM)
-    .create();
-
-  /**
-   * @since 2.7
-   * @deprecated since 5.0 SCM data will no more be stored as measures
-   */
-  @Deprecated
-  public static final String SCM_REVISIONS_BY_LINE_KEY = "revisions_by_line";
-
-  /**
-   * Key-value pairs, where key - is a number of line, and value - is a revision for this line.
-   *
-   * @see org.sonar.api.utils.KeyValueFormat#formatIntString(java.util.Map)
-   * @see org.sonar.api.utils.KeyValueFormat#parseIntString(String)
-   * @since 2.7
-   * @deprecated since 5.0 SCM data will no more be stored as measures
-   */
-  @Deprecated
-  public static final transient Metric<String> SCM_REVISIONS_BY_LINE = new Metric.Builder(SCM_REVISIONS_BY_LINE_KEY, "Revisions by Line", Metric.ValueType.DATA)
-    .setDomain(DOMAIN_SCM)
-    .create();
-
-  /**
-   * @since 2.7
-   * @deprecated since 5.0 SCM data will no more be stored as measures
-   */
-  @Deprecated
-  public static final String SCM_LAST_COMMIT_DATETIMES_BY_LINE_KEY = "last_commit_datetimes_by_line";
-
-  /**
-   * Key-value pairs, where key - is a number of line, and value - is a date of last commit for this line.
-   *
-   * @see org.sonar.api.utils.KeyValueFormat#formatIntDateTime(java.util.Map)
-   * @see org.sonar.api.utils.KeyValueFormat#parseIntDateTime(String)
-   * @since 2.7
-   * @deprecated since 5.0 SCM data will no more be stored as measures
-   */
-  @Deprecated
-  public static final transient Metric<String> SCM_LAST_COMMIT_DATETIMES_BY_LINE = new Metric.Builder(SCM_LAST_COMMIT_DATETIMES_BY_LINE_KEY, "Last Commit Dates by Line",
-    Metric.ValueType.DATA)
-      .setDomain(DOMAIN_SCM)
-      .create();
 
   // --------------------------------------------------------------------------------------------------------------------
   //
@@ -2339,7 +1156,7 @@ public final class CoreMetrics {
    */
   // TODO should be renamed to MAINTAINABILITY_REMEDIATION_EFFORT
   public static final Metric<Long> TECHNICAL_DEBT = new Metric.Builder(TECHNICAL_DEBT_KEY, "Technical Debt", Metric.ValueType.WORK_DUR)
-    .setDescription("Total effort (in days) to fix all the issues on the component and therefore to comply to all the requirements.")
+    .setDescription("Total effort (in hours) to fix all the issues on the component and therefore to comply to all the requirements.")
     .setDomain(DOMAIN_MAINTAINABILITY)
     .setDirection(Metric.DIRECTION_WORST)
     .setOptimizedBestValue(true)
@@ -2489,13 +1306,13 @@ public final class CoreMetrics {
    */
   public static final Metric<Long> EFFORT_TO_REACH_MAINTAINABILITY_RATING_A = new Metric.Builder(EFFORT_TO_REACH_MAINTAINABILITY_RATING_A_KEY,
     "Effort to Reach Maintainability Rating A", Metric.ValueType.WORK_DUR)
-      .setDescription("Effort to reach maintainability rating A")
-      .setDomain(DOMAIN_MAINTAINABILITY)
-      .setDirection(Metric.DIRECTION_WORST)
-      .setQualitative(true)
-      .setBestValue(0.0)
-      .setOptimizedBestValue(true)
-      .create();
+    .setDescription("Effort to reach maintainability rating A")
+    .setDomain(DOMAIN_MAINTAINABILITY)
+    .setDirection(Metric.DIRECTION_WORST)
+    .setQualitative(true)
+    .setBestValue(0.0)
+    .setOptimizedBestValue(true)
+    .create();
 
   // --------------------------------------------------------------------------------------------------------------------
   //
@@ -2513,13 +1330,13 @@ public final class CoreMetrics {
    */
   public static final Metric<Long> RELIABILITY_REMEDIATION_EFFORT = new Metric.Builder(RELIABILITY_REMEDIATION_EFFORT_KEY, "Reliability Remediation Effort",
     Metric.ValueType.WORK_DUR)
-      .setDescription("Reliability Remediation Effort")
-      .setDomain(DOMAIN_RELIABILITY)
-      .setDirection(Metric.DIRECTION_WORST)
-      .setOptimizedBestValue(true)
-      .setBestValue(0.0)
-      .setQualitative(true)
-      .create();
+    .setDescription("Reliability Remediation Effort")
+    .setDomain(DOMAIN_RELIABILITY)
+    .setDirection(Metric.DIRECTION_WORST)
+    .setOptimizedBestValue(true)
+    .setBestValue(0.0)
+    .setQualitative(true)
+    .create();
 
   /**
    * @since 5.5
@@ -2531,14 +1348,14 @@ public final class CoreMetrics {
    */
   public static final Metric<Long> NEW_RELIABILITY_REMEDIATION_EFFORT = new Metric.Builder(NEW_RELIABILITY_REMEDIATION_EFFORT_KEY, "Reliability Remediation Effort on New Code",
     Metric.ValueType.WORK_DUR)
-      .setDescription("Reliability remediation effort on new code")
-      .setDomain(DOMAIN_RELIABILITY)
-      .setDirection(Metric.DIRECTION_WORST)
-      .setOptimizedBestValue(true)
-      .setBestValue(0.0)
-      .setQualitative(true)
-      .setDeleteHistoricalData(true)
-      .create();
+    .setDescription("Reliability remediation effort on new code")
+    .setDomain(DOMAIN_RELIABILITY)
+    .setDirection(Metric.DIRECTION_WORST)
+    .setOptimizedBestValue(true)
+    .setBestValue(0.0)
+    .setQualitative(true)
+    .setDeleteHistoricalData(true)
+    .create();
 
   /**
    * @since 5.5
@@ -2609,14 +1426,14 @@ public final class CoreMetrics {
    */
   public static final Metric<Long> NEW_SECURITY_REMEDIATION_EFFORT = new Metric.Builder(NEW_SECURITY_REMEDIATION_EFFORT_KEY, "Security Remediation Effort on New Code",
     Metric.ValueType.WORK_DUR)
-      .setDescription("Security remediation effort on new code")
-      .setDomain(DOMAIN_SECURITY)
-      .setDirection(Metric.DIRECTION_WORST)
-      .setOptimizedBestValue(true)
-      .setBestValue(0.0)
-      .setQualitative(true)
-      .setDeleteHistoricalData(true)
-      .create();
+    .setDescription("Security remediation effort on new code")
+    .setDomain(DOMAIN_SECURITY)
+    .setDirection(Metric.DIRECTION_WORST)
+    .setOptimizedBestValue(true)
+    .setBestValue(0.0)
+    .setQualitative(true)
+    .setDeleteHistoricalData(true)
+    .create();
 
   /**
    * @since 5.5
@@ -2680,7 +1497,10 @@ public final class CoreMetrics {
 
   /**
    * @since 2.14
+   * @deprecated in 7.3. Measures are no longer sent within analysis reports, and by consequence no
+   * longer persisted nor available from web API.
    */
+  @Deprecated
   public static final String COMMENT_LINES_DATA_KEY = "comment_lines_data";
 
   /**
@@ -2690,7 +1510,10 @@ public final class CoreMetrics {
    *
    * @see org.sonar.api.measures.FileLinesContext
    * @since 2.14
+   * @deprecated in 7.3. Measures are no longer sent within analysis reports, and by consequence no
+   * longer persisted nor available from web API.
    */
+  @Deprecated
   public static final Metric<String> COMMENT_LINES_DATA = new Metric.Builder(COMMENT_LINES_DATA_KEY, "comment_lines_data", Metric.ValueType.DATA)
     .setHidden(true)
     .setDomain(DOMAIN_SIZE)
@@ -2735,6 +1558,7 @@ public final class CoreMetrics {
   /**
    * The project detailed status with regard to its quality gate.
    * Storing the global quality gate status, along with all evaluated conditions, into a JSON object.
+   *
    * @since 4.4
    */
   public static final Metric<String> QUALITY_GATE_DETAILS = new Metric.Builder(QUALITY_GATE_DETAILS_KEY, "Quality Gate Details", Metric.ValueType.DATA)
@@ -2769,6 +1593,7 @@ public final class CoreMetrics {
   /**
    * Date of the most recent commit. Current implementation is based on commits touching lines of source code. It
    * ignores other changes like file renaming or file deletion.
+   *
    * @since 5.2
    */
   public static final Metric LAST_COMMIT_DATE = new Metric.Builder(LAST_COMMIT_DATE_KEY, "Date of Last Commit", Metric.ValueType.MILLISEC)

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,61 +18,44 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import * as PropTypes from 'prop-types';
 import GlobalNav from './nav/global/GlobalNav';
+import StartupModal from './StartupModal';
 import GlobalFooterContainer from './GlobalFooterContainer';
 import GlobalMessagesContainer from './GlobalMessagesContainer';
+import SuggestionsProvider from './embed-docs-modal/SuggestionsProvider';
+import A11yProvider from './a11y/A11yProvider';
+import A11ySkipLinks from './a11y/A11ySkipLinks';
+import Workspace from '../../components/workspace/Workspace';
 
-interface Props {
+export interface Props {
   children: React.ReactNode;
+  footer?: React.ReactNode;
   location: { pathname: string };
 }
 
-interface State {
-  isOnboardingTutorialOpen: boolean;
-}
+export default function GlobalContainer(props: Props) {
+  // it is important to pass `location` down to `GlobalNav` to trigger render on url change
+  const { footer = <GlobalFooterContainer /> } = props;
+  return (
+    <SuggestionsProvider>
+      <A11yProvider>
+        <StartupModal>
+          <A11ySkipLinks />
 
-export default class GlobalContainer extends React.PureComponent<Props, State> {
-  static childContextTypes = {
-    closeOnboardingTutorial: PropTypes.func,
-    openOnboardingTutorial: PropTypes.func
-  };
-
-  constructor(props: Props) {
-    super(props);
-    this.state = { isOnboardingTutorialOpen: false };
-  }
-
-  getChildContext() {
-    return {
-      closeOnboardingTutorial: this.closeOnboardingTutorial,
-      openOnboardingTutorial: this.openOnboardingTutorial
-    };
-  }
-
-  openOnboardingTutorial = () => this.setState({ isOnboardingTutorialOpen: true });
-
-  closeOnboardingTutorial = () => this.setState({ isOnboardingTutorialOpen: false });
-
-  render() {
-    // it is important to pass `location` down to `GlobalNav` to trigger render on url change
-
-    return (
-      <div className="global-container">
-        <div className="page-wrapper" id="container">
-          <div className="page-container">
-            <GlobalNav
-              closeOnboardingTutorial={this.closeOnboardingTutorial}
-              isOnboardingTutorialOpen={this.state.isOnboardingTutorialOpen}
-              location={this.props.location}
-              openOnboardingTutorial={this.openOnboardingTutorial}
-            />
-            <GlobalMessagesContainer />
-            {this.props.children}
+          <div className="global-container">
+            <div className="page-wrapper" id="container">
+              <div className="page-container">
+                <Workspace>
+                  <GlobalNav location={props.location} />
+                  <GlobalMessagesContainer />
+                  {props.children}
+                </Workspace>
+              </div>
+            </div>
+            {footer}
           </div>
-        </div>
-        <GlobalFooterContainer />
-      </div>
-    );
-  }
+        </StartupModal>
+      </A11yProvider>
+    </SuggestionsProvider>
+  );
 }

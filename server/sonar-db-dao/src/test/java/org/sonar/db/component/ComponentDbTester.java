@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -255,8 +255,12 @@ public class ComponentDbTester {
   @SafeVarargs
   public final ComponentDto insertMainBranch(OrganizationDto organization, Consumer<ComponentDto>... dtoPopulators) {
     ComponentDto project = newPrivateProjectDto(organization);
-    BranchDto branchDto = newBranchDto(project, LONG);
     Arrays.stream(dtoPopulators).forEach(dtoPopulator -> dtoPopulator.accept(project));
+    return insertMainBranch(project);
+  }
+
+  public final ComponentDto insertMainBranch(ComponentDto project) {
+    BranchDto branchDto = newBranchDto(project, LONG);
     insertComponent(project);
     dbClient.branchDao().insert(dbSession, branchDto);
     db.commit();
@@ -286,6 +290,12 @@ public class ComponentDbTester {
     return branch;
   }
 
+  @SafeVarargs
+  public final ComponentDto insertProjectBranch(OrganizationDto organization, Consumer<BranchDto>... dtoPopulators) {
+    ComponentDto project = newPrivateProjectDto(organization);
+    return insertProjectBranch(project, dtoPopulators);
+  }
+
   public final ComponentDto insertProjectBranch(ComponentDto project, BranchDto branchDto) {
     // MainBranchProjectUuid will be null if it's a main branch
     checkArgument(branchDto.getProjectUuid().equals(firstNonNull(project.getMainBranchProjectUuid(), project.projectUuid())));
@@ -294,6 +304,26 @@ public class ComponentDbTester {
     dbClient.branchDao().insert(dbSession, branchDto);
     db.commit();
     return branch;
+  }
+
+  public final void setManualBaseline(ComponentDto longOrMainBranchOfProject, SnapshotDto analysis) {
+    checkArgument(longOrMainBranchOfProject.isRoot());
+
+    BranchDto branchDto = db.getDbClient().branchDao().selectByUuid(dbSession, longOrMainBranchOfProject.uuid())
+      .orElseThrow(() -> new IllegalArgumentException("BranchDto not found for component " + longOrMainBranchOfProject));
+    checkArgument(branchDto.getBranchType() == LONG, "must be a main or a Long Living branch");
+    db.getDbClient().branchDao().updateManualBaseline(dbSession, longOrMainBranchOfProject.uuid(), analysis.getUuid());
+    db.commit();
+  }
+
+  public final void unsetManualBaseline(ComponentDto longOrMainBranchOfProject) {
+    checkArgument(longOrMainBranchOfProject.isRoot());
+
+    BranchDto branchDto = db.getDbClient().branchDao().selectByUuid(dbSession, longOrMainBranchOfProject.uuid())
+      .orElseThrow(() -> new IllegalArgumentException("BranchDto not found for component " + longOrMainBranchOfProject));
+    checkArgument(branchDto.getBranchType() == LONG, "must be a main or a Long Living branch");
+    db.getDbClient().branchDao().updateManualBaseline(dbSession, longOrMainBranchOfProject.uuid(), null);
+    db.commit();
   }
 
   private static <T> T firstNonNull(@Nullable T first, T second) {

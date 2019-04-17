@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,12 +25,15 @@ import org.sonar.api.server.ws.WebService;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
 import org.sonar.db.user.UserDto;
+import org.sonar.server.authentication.CredentialsLocalAuthentication;
+import org.sonar.server.authentication.event.AuthenticationEvent;
+import org.sonar.server.authentication.event.AuthenticationException;
+import org.sonar.server.exceptions.NotFoundException;
 import org.sonar.server.user.UpdateUser;
 import org.sonar.server.user.UserSession;
 import org.sonar.server.user.UserUpdater;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static org.sonar.db.user.UserDto.encryptPassword;
+import static java.lang.String.format;
 
 public class ChangePasswordAction implements UsersWsAction {
 
@@ -41,11 +44,13 @@ public class ChangePasswordAction implements UsersWsAction {
   private final DbClient dbClient;
   private final UserUpdater userUpdater;
   private final UserSession userSession;
+  private final CredentialsLocalAuthentication localAuthentication;
 
-  public ChangePasswordAction(DbClient dbClient, UserUpdater userUpdater, UserSession userSession) {
+  public ChangePasswordAction(DbClient dbClient, UserUpdater userUpdater, UserSession userSession, CredentialsLocalAuthentication localAuthentication) {
     this.dbClient = dbClient;
     this.userUpdater = userUpdater;
     this.userSession = userSession;
+    this.localAuthentication = localAuthentication;
   }
 
   @Override
@@ -80,24 +85,35 @@ public class ChangePasswordAction implements UsersWsAction {
 
     try (DbSession dbSession = dbClient.openSession(false)) {
       String login = request.mandatoryParam(PARAM_LOGIN);
+      UserDto user = getUser(dbSession, login);
       if (login.equals(userSession.getLogin())) {
         String previousPassword = request.mandatoryParam(PARAM_PREVIOUS_PASSWORD);
-        checkCurrentPassword(dbSession, login, previousPassword);
+        checkCurrentPassword(dbSession, user, previousPassword);
       } else {
         userSession.checkIsSystemAdministrator();
       }
 
       String password = request.mandatoryParam(PARAM_PASSWORD);
-      UpdateUser updateUser = UpdateUser.create(login).setPassword(password);
-
-      userUpdater.updateAndCommit(dbSession, updateUser, u -> {});
+      UpdateUser updateUser = new UpdateUser().setPassword(password);
+      userUpdater.updateAndCommit(dbSession, user, updateUser, u -> {
+      });
     }
     response.noContent();
   }
 
-  private void checkCurrentPassword(DbSession dbSession, String login, String password) {
-    UserDto user = dbClient.userDao().selectOrFailByLogin(dbSession, login);
-    String cryptedPassword = encryptPassword(password, user.getSalt());
-    checkArgument(cryptedPassword.equals(user.getCryptedPassword()), "Incorrect password");
+  private UserDto getUser(DbSession dbSession, String login) {
+    UserDto user = dbClient.userDao().selectByLogin(dbSession, login);
+    if (user == null || !user.isActive()) {
+      throw new NotFoundException(format("User with login '%s' has not been found", login));
+    }
+    return user;
+  }
+
+  private void checkCurrentPassword(DbSession dbSession, UserDto user, String password) {
+    try {
+      localAuthentication.authenticate(dbSession, user, password, AuthenticationEvent.Method.BASIC);
+    } catch (AuthenticationException ex) {
+      throw new IllegalArgumentException("Incorrect password");
+    }
   }
 }

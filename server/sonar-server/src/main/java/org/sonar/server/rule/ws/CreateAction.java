@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,6 +19,7 @@
  */
 package org.sonar.server.rule.ws;
 
+import com.google.common.io.Resources;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -44,7 +45,7 @@ import org.sonarqube.ws.Rules;
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static java.net.HttpURLConnection.HTTP_CONFLICT;
 import static java.util.Collections.singletonList;
-import static org.sonar.core.util.Protobuf.setNullable;
+import static java.util.Optional.ofNullable;
 import static org.sonar.server.ws.WsUtils.writeProtobuf;
 
 public class CreateAction implements RulesWsAction {
@@ -81,6 +82,7 @@ public class CreateAction implements RulesWsAction {
       .setPost(true)
       .setDescription("Create a custom rule.<br>" +
         "Requires the 'Administer Quality Profiles' permission")
+      .setResponseExample(Resources.getResource(getClass(), "create-example.json"))
       .setSince("4.4")
       .setChangelog(
         new Change("5.5", "Creating manual rule is not more possible"))
@@ -92,12 +94,6 @@ public class CreateAction implements RulesWsAction {
       .setMaximumLength(KEY_MAXIMUM_LENGTH)
       .setDescription("Key of the custom rule")
       .setExampleValue("Todo_should_not_be_used");
-
-    action
-      .createParam("manual_key")
-      .setDescription("Manual rules are no more supported. This parameter is ignored")
-      .setExampleValue("Error_handling")
-      .setDeprecatedSince("5.5");
 
     action
       .createParam(PARAM_TEMPLATE_KEY)
@@ -159,7 +155,7 @@ public class CreateAction implements RulesWsAction {
         if (!isNullOrEmpty(params)) {
           newRule.setParameters(KeyValueFormat.parse(params));
         }
-        setNullable(request.param(PARAM_TYPE), t -> newRule.setType(RuleType.valueOf(t)));
+        ofNullable(request.param(PARAM_TYPE)).ifPresent(t -> newRule.setType(RuleType.valueOf(t)));
         writeResponse(dbSession, request, response, ruleCreator.create(dbSession, newRule));
       } catch (ReactivationException e) {
         response.stream().setStatus(HTTP_CONFLICT);

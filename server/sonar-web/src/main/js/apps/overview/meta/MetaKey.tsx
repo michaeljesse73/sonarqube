@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -31,7 +31,7 @@ export default function MetaKey({ componentKey, qualifier }: Props) {
     <>
       <h4 className="overview-meta-header">{translate('overview.project_key', qualifier)}</h4>
       <div className="display-flex-center">
-        <input className="overview-key" type="text" value={componentKey} readOnly={true} />
+        <input className="overview-key" readOnly={true} type="text" value={componentKey} />
         <ClipboardButton className="little-spacer-left" copyValue={componentKey} />
       </div>
     </>

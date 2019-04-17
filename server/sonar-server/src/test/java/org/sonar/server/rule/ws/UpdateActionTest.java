@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,11 +19,9 @@
  */
 package org.sonar.server.rule.ws;
 
-import java.io.IOException;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
-import org.sonar.api.config.internal.MapSettings;
 import org.sonar.api.resources.Languages;
 import org.sonar.api.rule.RuleKey;
 import org.sonar.api.rule.RuleStatus;
@@ -34,7 +32,7 @@ import org.sonar.db.DbTester;
 import org.sonar.db.organization.OrganizationDto;
 import org.sonar.db.rule.RuleDefinitionDto;
 import org.sonar.db.rule.RuleMetadataDto;
-import org.sonar.db.rule.RuleTesting;
+import org.sonar.db.user.UserDto;
 import org.sonar.server.es.EsClient;
 import org.sonar.server.es.EsTester;
 import org.sonar.server.exceptions.ForbiddenException;
@@ -43,7 +41,6 @@ import org.sonar.server.exceptions.UnauthorizedException;
 import org.sonar.server.organization.DefaultOrganizationProvider;
 import org.sonar.server.organization.TestDefaultOrganizationProvider;
 import org.sonar.server.rule.RuleUpdater;
-import org.sonar.server.rule.index.RuleIndexDefinition;
 import org.sonar.server.rule.index.RuleIndexer;
 import org.sonar.server.tester.UserSessionRule;
 import org.sonar.server.text.MacroInterpreter;
@@ -54,7 +51,7 @@ import org.sonarqube.ws.Rules;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.AdditionalAnswers.returnsFirstArg;
-import static org.mockito.Matchers.anyString;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.sonar.api.server.debt.DebtRemediationFunction.Type.LINEAR;
@@ -62,10 +59,8 @@ import static org.sonar.api.server.debt.DebtRemediationFunction.Type.LINEAR_OFFS
 import static org.sonar.db.permission.OrganizationPermission.ADMINISTER_QUALITY_PROFILES;
 import static org.sonar.db.rule.RuleTesting.setSystemTags;
 import static org.sonar.db.rule.RuleTesting.setTags;
-import static org.sonar.server.rule.ws.UpdateAction.DEPRECATED_PARAM_REMEDIATION_FN_COEFF;
-import static org.sonar.server.rule.ws.UpdateAction.DEPRECATED_PARAM_REMEDIATION_FN_OFFSET;
-import static org.sonar.server.rule.ws.UpdateAction.DEPRECATED_PARAM_REMEDIATION_FN_TYPE;
 import static org.sonar.server.rule.ws.UpdateAction.PARAM_KEY;
+import static org.sonar.server.rule.ws.UpdateAction.PARAM_MARKDOWN_NOTE;
 import static org.sonar.server.rule.ws.UpdateAction.PARAM_ORGANIZATION;
 import static org.sonar.server.rule.ws.UpdateAction.PARAM_REMEDIATION_FN_BASE_EFFORT;
 import static org.sonar.server.rule.ws.UpdateAction.PARAM_REMEDIATION_FN_GAP_MULTIPLIER;
@@ -84,22 +79,29 @@ public class UpdateActionTest {
   public DbTester db = DbTester.create();
 
   @Rule
-  public EsTester esTester = new EsTester(new RuleIndexDefinition(new MapSettings().asConfig()));
+  public EsTester es = EsTester.create();
 
   @Rule
   public UserSessionRule userSession = UserSessionRule.standalone();
 
   private DbClient dbClient = db.getDbClient();
-  private EsClient esClient = esTester.client();
+  private EsClient esClient = es.client();
 
   private DefaultOrganizationProvider defaultOrganizationProvider = TestDefaultOrganizationProvider.from(db);
   private Languages languages = new Languages();
   private RuleMapper mapper = new RuleMapper(languages, createMacroInterpreter());
   private RuleIndexer ruleIndexer = new RuleIndexer(esClient, dbClient);
   private RuleUpdater ruleUpdater = new RuleUpdater(dbClient, ruleIndexer, System2.INSTANCE);
-  private RuleWsSupport ruleWsSupport = new RuleWsSupport(dbClient, userSession, defaultOrganizationProvider);
-  private WsAction underTest = new UpdateAction(dbClient, ruleUpdater, mapper, userSession, defaultOrganizationProvider);
+  private WsAction underTest = new UpdateAction(dbClient, ruleUpdater, mapper, userSession, new RuleWsSupport(db.getDbClient(), userSession, defaultOrganizationProvider));
   private WsActionTester ws = new WsActionTester(underTest);
+
+  @Test
+  public void check_definition() {
+    assertThat(ws.getDef().isPost()).isTrue();
+    assertThat(ws.getDef().isInternal()).isFalse();
+    assertThat(ws.getDef().responseExampleAsString()).isNotNull();
+    assertThat(ws.getDef().description()).isNotNull();
+  }
 
   @Test
   public void update_custom_rule() {
@@ -157,7 +159,7 @@ public class UpdateActionTest {
     logInAsQProfileAdministrator();
 
     RuleDefinitionDto rule = db.rules().insert(setSystemTags("stag1", "stag2"));
-    db.rules().insertOrUpdateMetadata(rule, db.getDefaultOrganization(), setTags("tag1", "tag2"));
+    db.rules().insertOrUpdateMetadata(rule, db.getDefaultOrganization(), setTags("tag1", "tag2"), m -> m.setNoteData(null).setNoteUserUuid(null));
 
     Rules.UpdateResponse result = ws.newRequest().setMethod("POST")
       .setParam(PARAM_KEY, rule.getKey().toString())
@@ -178,7 +180,7 @@ public class UpdateActionTest {
     logInAsQProfileAdministrator(organization.getUuid());
 
     RuleDefinitionDto rule = db.rules().insert(setSystemTags("stag1", "stag2"));
-    db.rules().insertOrUpdateMetadata(rule, organization, setTags("tagAlt1", "tagAlt2"));
+    db.rules().insertOrUpdateMetadata(rule, organization, setTags("tagAlt1", "tagAlt2"), m -> m.setNoteData(null).setNoteUserUuid(null));
 
     Rules.UpdateResponse result = ws.newRequest().setMethod("POST")
       .setParam(PARAM_KEY, rule.getKey().toString())
@@ -244,43 +246,30 @@ public class UpdateActionTest {
   }
 
   @Test
-  public void update_custom_rule_with_deprecated_remediation_function_parameters() {
-    logInAsQProfileAdministrator();
-
-    RuleDefinitionDto rule = RuleTesting.newRule()
-      .setDefRemediationFunction(LINEAR_OFFSET.toString())
-      .setDefRemediationGapMultiplier("10d")
-      .setDefRemediationBaseEffort("5min");
-    db.rules().insert(rule);
-
-    String newType = LINEAR_OFFSET.toString();
-    String newCoeff = "11d";
-    String newOffset = "6min";
+  public void update_note() {
+    OrganizationDto organization = db.organizations().insert();
+    RuleDefinitionDto rule = db.rules().insert();
+    UserDto userHavingUpdatingNote = db.users().insertUser();
+    db.rules().insertOrUpdateMetadata(rule, userHavingUpdatingNote, organization, m -> m.setNoteData("old data"));
+    UserDto userAuthenticated = db.users().insertUser();
+    userSession.logIn(userAuthenticated).addPermission(ADMINISTER_QUALITY_PROFILES, organization);
 
     Rules.UpdateResponse result = ws.newRequest().setMethod("POST")
       .setParam(PARAM_KEY, rule.getKey().toString())
-      .setParam(DEPRECATED_PARAM_REMEDIATION_FN_TYPE, newType)
-      .setParam(DEPRECATED_PARAM_REMEDIATION_FN_COEFF, newCoeff)
-      .setParam(DEPRECATED_PARAM_REMEDIATION_FN_OFFSET, newOffset)
+      .setParam(PARAM_MARKDOWN_NOTE, "new data")
+      .setParam(PARAM_ORGANIZATION, organization.getKey())
       .executeProtobuf(Rules.UpdateResponse.class);
 
     Rules.Rule updatedRule = result.getRule();
-    assertThat(updatedRule).isNotNull();
 
-    assertThat(updatedRule.getKey()).isEqualTo(rule.getKey().toString());
-    assertThat(updatedRule.getDefaultRemFnType()).isEqualTo(rule.getDefRemediationFunction());
-    assertThat(updatedRule.getDefaultRemFnGapMultiplier()).isEqualTo(rule.getDefRemediationGapMultiplier());
-    assertThat(updatedRule.getDefaultRemFnBaseEffort()).isEqualTo(rule.getDefRemediationBaseEffort());
-    assertThat(updatedRule.getEffortToFixDescription()).isEqualTo(rule.getGapDescription());
+    // check response
+    assertThat(updatedRule.getMdNote()).isEqualTo("new data");
+    assertThat(updatedRule.getNoteLogin()).isEqualTo(userAuthenticated.getLogin());
 
-    assertThat(updatedRule.getRemFnType()).isEqualTo(newType);
-    assertThat(updatedRule.getDebtRemFnCoeff()).isEqualTo(newCoeff);
-    assertThat(updatedRule.getDebtRemFnOffset()).isEqualTo(newOffset);
-
-    assertThat(updatedRule.getRemFnType()).isEqualTo(newType);
-    assertThat(updatedRule.getRemFnGapMultiplier()).isEqualTo(newCoeff);
-    assertThat(updatedRule.getRemFnBaseEffort()).isEqualTo(newOffset);
-    assertThat(updatedRule.getGapDescription()).isEqualTo(rule.getGapDescription());
+    // check database
+    RuleMetadataDto metadataOfSpecificOrg = db.getDbClient().ruleDao().selectMetadataByKey(db.getSession(), rule.getKey(), organization).get();
+    assertThat(metadataOfSpecificOrg.getNoteData()).isEqualTo("new data");
+    assertThat(metadataOfSpecificOrg.getNoteUserUuid()).isEqualTo(userAuthenticated.getUuid());
   }
 
   @Test

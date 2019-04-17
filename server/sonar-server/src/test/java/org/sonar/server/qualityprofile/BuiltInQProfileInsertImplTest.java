@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -193,7 +193,7 @@ public class BuiltInQProfileInsertImplTest {
     assertThat(change.getChangeType()).isEqualTo(ActiveRuleChange.Type.ACTIVATED.name());
     assertThat(change.getCreatedAt()).isPositive();
     assertThat(change.getUuid()).isNotEmpty();
-    assertThat(change.getLogin()).isNull();
+    assertThat(change.getUserUuid()).isNull();
     assertThat(change.getRulesProfileUuid()).isEqualTo(profile.getRulesProfileUuid());
     assertThat(change.getDataAsMap().get("severity")).isEqualTo(expectedSeverity);
   }

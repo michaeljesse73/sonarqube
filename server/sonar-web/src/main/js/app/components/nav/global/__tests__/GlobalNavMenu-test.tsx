@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -32,7 +32,7 @@ it('should work with extensions', () => {
   const wrapper = shallow(
     <GlobalNavMenu appState={appState} currentUser={currentUser} location={{ pathname: '' }} />
   );
-  expect(wrapper).toMatchSnapshot();
+  expect(wrapper.find('Dropdown')).toMatchSnapshot();
 });
 
 it('should show administration menu if the user has the rights', () => {

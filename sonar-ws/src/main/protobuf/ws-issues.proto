@@ -67,12 +67,6 @@ message AssignResponse {
   repeated sonarqube.ws.commons.Rule rules = 3;
   repeated Users.User users = 4;
 }
-message AuthorsResponse {
-  optional Issue issue = 1;
-  repeated Component components = 2;
-  repeated sonarqube.ws.commons.Rule rules = 3;
-  repeated Users.User users = 4;
-}
 message DeleteCommentResponse {
   optional Issue issue = 1;
   repeated Component components = 2;
@@ -156,6 +150,10 @@ message Issue {
 
   optional string organization = 29;
   optional string branch = 30;
+  optional string pullRequest = 32;
+
+  optional string externalRuleEngine = 33;
+  optional bool fromHotspot = 34;
 }
 
 message Transitions {
@@ -171,6 +169,7 @@ message Flow {
 }
 
 message Location {
+  optional string component = 4;
   optional string unusedComponentId = 1;
   // Only when component is a file. Can be empty for a file if this is an issue global to the file.
   optional sonarqube.ws.commons.TextRange textRange = 2;
@@ -234,6 +233,7 @@ message Component {
   optional int64 unusedProjectId = 9;
   optional int64 unusedSubProjectId = 10;
   optional string branch = 12;
+  optional string pullRequest = 13;
 }
 
 // Response of GET api/issues/changelog
@@ -274,6 +274,11 @@ message Users {
     optional string avatar = 3;
     optional bool active = 4;
   }
+}
+
+// Response of GET api/issues/authors
+message AuthorsResponse {
+  repeated string authors = 1;
 }
 
 

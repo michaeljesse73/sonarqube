@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -171,21 +171,5 @@ public class OrganizationsService extends BaseService {
         .setParam("name", request.getName())
         .setParam("url", request.getUrl()),
       UpdateWsResponse.parser());
-  }
-
-  /**
-   *
-   * This is part of the internal API.
-   * This is a POST request.
-   * @see <a href="https://next.sonarqube.com/sonarqube/web_api/api/organizations/update_project_visibility">Further information about this action online (including a response example)</a>
-   * @since 6.4
-   */
-  public void updateProjectVisibility(UpdateProjectVisibilityRequest request) {
-    call(
-      new PostRequest(path("update_project_visibility"))
-        .setParam("organization", request.getOrganization())
-        .setParam("projectVisibility", request.getProjectVisibility())
-        .setMediaType(MediaTypes.JSON)
-      ).content();
   }
 }

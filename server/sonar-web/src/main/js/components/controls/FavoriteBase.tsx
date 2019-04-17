@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -48,7 +48,7 @@ export default class FavoriteBase extends React.PureComponent<Props, State> {
   }
 
   componentWillReceiveProps(nextProps: Props) {
-    if (nextProps.favorite !== this.props.favorite && nextProps.favorite !== this.state.favorite) {
+    if (nextProps.favorite !== this.props.favorite || nextProps.favorite !== this.state.favorite) {
       this.setState({ favorite: nextProps.favorite });
     }
   }
@@ -67,19 +67,25 @@ export default class FavoriteBase extends React.PureComponent<Props, State> {
   };
 
   addFavorite() {
-    this.props.addFavorite().then(() => {
-      if (this.mounted) {
-        this.setState({ favorite: true });
-      }
-    });
+    this.props.addFavorite().then(
+      () => {
+        if (this.mounted) {
+          this.setState({ favorite: true });
+        }
+      },
+      () => {}
+    );
   }
 
   removeFavorite() {
-    this.props.removeFavorite().then(() => {
-      if (this.mounted) {
-        this.setState({ favorite: false });
-      }
-    });
+    this.props.removeFavorite().then(
+      () => {
+        if (this.mounted) {
+          this.setState({ favorite: false });
+        }
+      },
+      () => {}
+    );
   }
 
   render() {
@@ -87,7 +93,7 @@ export default class FavoriteBase extends React.PureComponent<Props, State> {
       ? translate('favorite.current', this.props.qualifier)
       : translate('favorite.check', this.props.qualifier);
     return (
-      <Tooltip overlay={tooltip} placement="left">
+      <Tooltip overlay={tooltip}>
         <a
           className={classNames('display-inline-block', 'link-no-underline', this.props.className)}
           href="#"

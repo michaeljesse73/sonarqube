@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,12 +20,11 @@
 import * as React from 'react';
 import { Link } from 'react-router';
 import ProjectRowActions from './ProjectRowActions';
-import { Project } from './utils';
-import { Visibility } from '../../app/types';
-import PrivateBadge from '../../components/common/PrivateBadge';
+import PrivacyBadgeContainer from '../../components/common/PrivacyBadgeContainer';
 import Checkbox from '../../components/controls/Checkbox';
-import QualifierIcon from '../../components/shared/QualifierIcon';
+import QualifierIcon from '../../components/icons-components/QualifierIcon';
 import DateTooltipFormatter from '../../components/intl/DateTooltipFormatter';
+import { Project } from '../../api/components';
 
 interface Props {
   currentUser: { login: string };
@@ -41,7 +40,7 @@ export default class ProjectRow extends React.PureComponent<Props> {
   };
 
   render() {
-    const { project, selected } = this.props;
+    const { organization, project, selected } = this.props;
 
     return (
       <tr>
@@ -58,9 +57,12 @@ export default class ProjectRow extends React.PureComponent<Props> {
         </td>
 
         <td className="thin nowrap">
-          {project.visibility === Visibility.Private && (
-            <PrivateBadge qualifier={project.qualifier} />
-          )}
+          <PrivacyBadgeContainer
+            organization={organization}
+            qualifier={project.qualifier}
+            tooltipProps={{ projectKey: project.key }}
+            visibility={project.visibility}
+          />
         </td>
 
         <td className="nowrap">
@@ -78,7 +80,7 @@ export default class ProjectRow extends React.PureComponent<Props> {
         <td className="thin nowrap">
           <ProjectRowActions
             currentUser={this.props.currentUser}
-            organization={this.props.organization}
+            organization={organization}
             project={project}
           />
         </td>

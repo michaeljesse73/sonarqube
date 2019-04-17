@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -32,7 +32,6 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
-import org.sonar.api.config.internal.MapSettings;
 import org.sonar.api.resources.Language;
 import org.sonar.api.resources.Languages;
 import org.sonar.api.rule.RuleKey;
@@ -75,11 +74,13 @@ import static java.lang.String.valueOf;
 import static java.util.Collections.singletonList;
 import static org.apache.commons.lang.RandomStringUtils.randomAlphanumeric;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.sonar.api.rule.RuleStatus.READY;
+import static org.sonar.api.rule.RuleStatus.REMOVED;
 import static org.sonar.api.rule.Severity.BLOCKER;
 import static org.sonar.api.rule.Severity.INFO;
 import static org.sonar.api.server.rule.RulesDefinition.NewRepository;
@@ -93,24 +94,28 @@ public class RegisterRulesTest {
   private static final Date DATE2 = DateUtils.parseDateTime("2014-02-01T12:10:03+0100");
   private static final Date DATE3 = DateUtils.parseDateTime("2014-03-01T12:10:03+0100");
 
+  private static final RuleKey EXTERNAL_RULE_KEY1 = RuleKey.of("external_eslint", "rule1");
+  private static final RuleKey EXTERNAL_HOTSPOT_RULE_KEY = RuleKey.of("external_eslint", "hotspot");
+
   private static final RuleKey RULE_KEY1 = RuleKey.of("fake", "rule1");
   private static final RuleKey RULE_KEY2 = RuleKey.of("fake", "rule2");
   private static final RuleKey RULE_KEY3 = RuleKey.of("fake", "rule3");
+  private static final RuleKey HOTSPOT_RULE_KEY = RuleKey.of("fake", "hotspot");
 
   private System2 system = mock(System2.class);
 
   @org.junit.Rule
   public ExpectedException expectedException = ExpectedException.none();
   @org.junit.Rule
-  public DbTester dbTester = DbTester.create(system);
+  public DbTester db = DbTester.create(system);
   @org.junit.Rule
-  public EsTester esTester = new EsTester(new RuleIndexDefinition(new MapSettings().asConfig()));
+  public EsTester es = EsTester.create();
   @org.junit.Rule
   public LogTester logTester = new LogTester();
 
   private QProfileRules qProfileRules = mock(QProfileRules.class);
   private WebServerRuleFinder webServerRuleFinder = mock(WebServerRuleFinder.class);
-  private DbClient dbClient = dbTester.getDbClient();
+  private DbClient dbClient = db.getDbClient();
   private RuleIndexer ruleIndexer;
   private ActiveRuleIndexer activeRuleIndexer;
   private RuleIndex ruleIndex;
@@ -121,10 +126,10 @@ public class RegisterRulesTest {
   @Before
   public void before() {
     when(system.now()).thenReturn(DATE1.getTime());
-    ruleIndexer = new RuleIndexer(esTester.client(), dbClient);
-    ruleIndex = new RuleIndex(esTester.client(), system);
-    activeRuleIndexer = new ActiveRuleIndexer(dbClient, esTester.client());
-    defaultOrganization = dbTester.getDefaultOrganization();
+    ruleIndexer = new RuleIndexer(es.client(), dbClient);
+    ruleIndex = new RuleIndex(es.client(), system);
+    activeRuleIndexer = new ActiveRuleIndexer(dbClient, es.client());
+    defaultOrganization = db.getDefaultOrganization();
   }
 
   @Test
@@ -132,8 +137,8 @@ public class RegisterRulesTest {
     execute(new FakeRepositoryV1());
 
     // verify db
-    assertThat(dbClient.ruleDao().selectAllDefinitions(dbTester.getSession())).hasSize(2);
-    RuleDto rule1 = dbClient.ruleDao().selectOrFailByKey(dbTester.getSession(), dbTester.getDefaultOrganization(), RULE_KEY1);
+    assertThat(dbClient.ruleDao().selectAllDefinitions(db.getSession())).hasSize(3);
+    RuleDto rule1 = dbClient.ruleDao().selectOrFailByKey(db.getSession(), db.getDefaultOrganization(), RULE_KEY1);
     assertThat(rule1.getName()).isEqualTo("One");
     assertThat(rule1.getDescription()).isEqualTo("Description of One");
     assertThat(rule1.getSeverityString()).isEqualTo(BLOCKER);
@@ -149,19 +154,63 @@ public class RegisterRulesTest {
     assertThat(rule1.getDefRemediationBaseEffort()).isEqualTo("10h");
     assertThat(rule1.getType()).isEqualTo(RuleType.CODE_SMELL.getDbConstant());
     assertThat(rule1.getPluginKey()).isEqualTo(FAKE_PLUGIN_KEY);
+    assertThat(rule1.isExternal()).isFalse();
+    assertThat(rule1.isAdHoc()).isFalse();
 
-    List<RuleParamDto> params = dbClient.ruleDao().selectRuleParamsByRuleKey(dbTester.getSession(), RULE_KEY1);
+    RuleDto hotspotRule = dbClient.ruleDao().selectOrFailByKey(db.getSession(), db.getDefaultOrganization(), HOTSPOT_RULE_KEY);
+    assertThat(hotspotRule.getName()).isEqualTo("Hotspot");
+    assertThat(hotspotRule.getDescription()).isEqualTo("Minimal hotspot");
+    assertThat(hotspotRule.getCreatedAt()).isEqualTo(DATE1.getTime());
+    assertThat(hotspotRule.getUpdatedAt()).isEqualTo(DATE1.getTime());
+    assertThat(hotspotRule.getType()).isEqualTo(RuleType.SECURITY_HOTSPOT.getDbConstant());
+    assertThat(hotspotRule.getSecurityStandards()).containsExactly("cwe:1", "cwe:123", "cwe:863", "owaspTop10:a1", "owaspTop10:a3");
+
+    List<RuleParamDto> params = dbClient.ruleDao().selectRuleParamsByRuleKey(db.getSession(), RULE_KEY1);
     assertThat(params).hasSize(2);
     RuleParamDto param = getParam(params, "param1");
     assertThat(param.getDescription()).isEqualTo("parameter one");
     assertThat(param.getDefaultValue()).isEqualTo("default1");
 
     // verify index
-    RuleDto rule2 = dbClient.ruleDao().selectOrFailByKey(dbTester.getSession(), dbTester.getDefaultOrganization(), RULE_KEY2);
-    assertThat(ruleIndex.search(new RuleQuery(), new SearchOptions()).getIds()).containsOnly(rule1.getId(), rule2.getId());
+    RuleDto rule2 = dbClient.ruleDao().selectOrFailByKey(db.getSession(), db.getDefaultOrganization(), RULE_KEY2);
+    assertThat(ruleIndex.search(new RuleQuery(), new SearchOptions()).getIds()).containsOnly(rule1.getId(), rule2.getId(), hotspotRule.getId());
 
     // verify repositories
-    assertThat(dbClient.ruleRepositoryDao().selectAll(dbTester.getSession())).extracting(RuleRepositoryDto::getKey).containsOnly("fake");
+    assertThat(dbClient.ruleRepositoryDao().selectAll(db.getSession())).extracting(RuleRepositoryDto::getKey).containsOnly("fake");
+  }
+
+  @Test
+  public void insert_new_external_rule() {
+    execute(new ExternalRuleRepository());
+
+    // verify db
+    assertThat(dbClient.ruleDao().selectAllDefinitions(db.getSession())).hasSize(2);
+    RuleDto rule1 = dbClient.ruleDao().selectOrFailByKey(db.getSession(), db.getDefaultOrganization(), EXTERNAL_RULE_KEY1);
+    assertThat(rule1.getName()).isEqualTo("One");
+    assertThat(rule1.getDescription()).isEqualTo("Description of One");
+    assertThat(rule1.getSeverityString()).isEqualTo(BLOCKER);
+    assertThat(rule1.getTags()).isEmpty();
+    assertThat(rule1.getSystemTags()).containsOnly("tag1", "tag2", "tag3");
+    assertThat(rule1.getConfigKey()).isEqualTo("config1");
+    assertThat(rule1.getStatus()).isEqualTo(RuleStatus.BETA);
+    assertThat(rule1.getCreatedAt()).isEqualTo(DATE1.getTime());
+    assertThat(rule1.getScope()).isEqualTo(Scope.ALL);
+    assertThat(rule1.getUpdatedAt()).isEqualTo(DATE1.getTime());
+    assertThat(rule1.getDefRemediationFunction()).isNull();
+    assertThat(rule1.getDefRemediationGapMultiplier()).isNull();
+    assertThat(rule1.getDefRemediationBaseEffort()).isNull();
+    assertThat(rule1.getType()).isEqualTo(RuleType.CODE_SMELL.getDbConstant());
+    assertThat(rule1.getPluginKey()).isEqualTo(FAKE_PLUGIN_KEY);
+    assertThat(rule1.isExternal()).isTrue();
+    assertThat(rule1.isAdHoc()).isFalse();
+
+    RuleDto hotspotRule = dbClient.ruleDao().selectOrFailByKey(db.getSession(), db.getDefaultOrganization(), EXTERNAL_HOTSPOT_RULE_KEY);
+    assertThat(hotspotRule.getName()).isEqualTo("Hotspot");
+    assertThat(hotspotRule.getDescription()).isEqualTo("Minimal hotspot");
+    assertThat(hotspotRule.getCreatedAt()).isEqualTo(DATE1.getTime());
+    assertThat(hotspotRule.getUpdatedAt()).isEqualTo(DATE1.getTime());
+    assertThat(hotspotRule.getType()).isEqualTo(RuleType.SECURITY_HOTSPOT.getDbConstant());
+    assertThat(hotspotRule.getSecurityStandards()).containsExactly("cwe:1", "cwe:123", "cwe:863", "owaspTop10:a1", "owaspTop10:a3");
   }
 
   @Test
@@ -178,7 +227,7 @@ public class RegisterRulesTest {
     });
 
     // verify db
-    List<RuleDefinitionDto> rules = dbClient.ruleDao().selectAllDefinitions(dbTester.getSession());
+    List<RuleDefinitionDto> rules = dbClient.ruleDao().selectAllDefinitions(db.getSession());
     assertThat(rules)
       .extracting(RuleDefinitionDto::getKey)
       .extracting(RuleKey::rule)
@@ -193,13 +242,13 @@ public class RegisterRulesTest {
     execute(context -> context.createRepository("fake", "java").done());
 
     // verify db
-    assertThat(dbClient.ruleDao().selectAllDefinitions(dbTester.getSession()))
+    assertThat(dbClient.ruleDao().selectAllDefinitions(db.getSession()))
       .extracting(RuleDefinitionDto::getKey)
       .extracting(RuleKey::rule)
       .containsExactly(ruleKey);
-    assertThat(dbClient.ruleDao().selectAllDefinitions(dbTester.getSession()))
+    assertThat(dbClient.ruleDao().selectAllDefinitions(db.getSession()))
       .extracting(RuleDefinitionDto::getStatus)
-      .containsExactly(RuleStatus.REMOVED);
+      .containsExactly(REMOVED);
 
     // verify index
     assertThat(ruleIndex.search(new RuleQuery(), new SearchOptions()).getIds())
@@ -222,13 +271,13 @@ public class RegisterRulesTest {
     });
 
     // verify db
-    assertThat(dbClient.ruleDao().selectAllDefinitions(dbTester.getSession()))
+    assertThat(dbClient.ruleDao().selectAllDefinitions(db.getSession()))
       .hasSize(numberOfRules)
       .extracting(RuleDefinitionDto::getStatus)
-      .containsOnly(RuleStatus.READY);
+      .containsOnly(READY);
 
     // verify index
-    assertThat(esTester.countDocuments(RuleIndexDefinition.INDEX_TYPE_RULE)).isEqualTo(numberOfRules);
+    assertThat(es.countDocuments(RuleIndexDefinition.TYPE_RULE)).isEqualTo(numberOfRules);
     assertThat(ruleIndex.search(new RuleQuery(), new SearchOptions()).getIds())
       .isNotEmpty();
 
@@ -236,13 +285,13 @@ public class RegisterRulesTest {
     execute(context -> context.createRepository("fake", "java").done());
 
     // verify db
-    assertThat(dbClient.ruleDao().selectAllDefinitions(dbTester.getSession()))
+    assertThat(dbClient.ruleDao().selectAllDefinitions(db.getSession()))
       .hasSize(numberOfRules)
       .extracting(RuleDefinitionDto::getStatus)
-      .containsOnly(RuleStatus.REMOVED);
+      .containsOnly(REMOVED);
 
     // verify index (documents are still in the index, but all are removed)
-    assertThat(esTester.countDocuments(RuleIndexDefinition.INDEX_TYPE_RULE)).isEqualTo(numberOfRules);
+    assertThat(es.countDocuments(RuleIndexDefinition.TYPE_RULE)).isEqualTo(numberOfRules);
     assertThat(ruleIndex.search(new RuleQuery(), new SearchOptions()).getIds())
       .isEmpty();
   }
@@ -250,35 +299,36 @@ public class RegisterRulesTest {
   @Test
   public void delete_repositories_that_have_been_uninstalled() {
     RuleRepositoryDto repository = new RuleRepositoryDto("findbugs", "java", "Findbugs");
-    DbSession dbSession = dbTester.getSession();
-    dbTester.getDbClient().ruleRepositoryDao().insert(dbSession, singletonList(repository));
+    DbSession dbSession = db.getSession();
+    db.getDbClient().ruleRepositoryDao().insertOrUpdate(dbSession, singletonList(repository));
     dbSession.commit();
 
     execute(new FakeRepositoryV1());
 
-    assertThat(dbTester.getDbClient().ruleRepositoryDao().selectAll(dbSession)).extracting(RuleRepositoryDto::getKey).containsOnly("fake");
+    assertThat(db.getDbClient().ruleRepositoryDao().selectAll(dbSession)).extracting(RuleRepositoryDto::getKey).containsOnly("fake");
   }
 
   @Test
   public void update_and_remove_rules_on_changes() {
     execute(new FakeRepositoryV1());
-    assertThat(dbClient.ruleDao().selectAllDefinitions(dbTester.getSession())).hasSize(2);
-    RuleDto rule1 = dbClient.ruleDao().selectOrFailByKey(dbTester.getSession(), defaultOrganization, RULE_KEY1);
-    RuleDto rule2 = dbClient.ruleDao().selectOrFailByKey(dbTester.getSession(), defaultOrganization, RULE_KEY2);
-    assertThat(esTester.getIds(RuleIndexDefinition.INDEX_TYPE_RULE)).containsOnly(valueOf(rule1.getId()), valueOf(rule2.getId()));
+    assertThat(dbClient.ruleDao().selectAllDefinitions(db.getSession())).hasSize(3);
+    RuleDto rule1 = dbClient.ruleDao().selectOrFailByKey(db.getSession(), defaultOrganization, RULE_KEY1);
+    RuleDto rule2 = dbClient.ruleDao().selectOrFailByKey(db.getSession(), defaultOrganization, RULE_KEY2);
+    RuleDto hotspotRule = dbClient.ruleDao().selectOrFailByKey(db.getSession(), defaultOrganization, HOTSPOT_RULE_KEY);
+    assertThat(es.getIds(RuleIndexDefinition.TYPE_RULE)).containsOnly(valueOf(rule1.getId()), valueOf(rule2.getId()), valueOf(hotspotRule.getId()));
 
     // user adds tags and sets markdown note
     rule1.setTags(newHashSet("usertag1", "usertag2"));
     rule1.setNoteData("user *note*");
-    rule1.setNoteUserLogin("marius");
-    dbClient.ruleDao().insertOrUpdate(dbTester.getSession(), rule1.getMetadata());
-    dbTester.getSession().commit();
+    rule1.setNoteUserUuid("marius");
+    dbClient.ruleDao().insertOrUpdate(db.getSession(), rule1.getMetadata());
+    db.getSession().commit();
 
     when(system.now()).thenReturn(DATE2.getTime());
     execute(new FakeRepositoryV2());
 
     // rule1 has been updated
-    rule1 = dbClient.ruleDao().selectOrFailByKey(dbTester.getSession(), defaultOrganization, RULE_KEY1);
+    rule1 = dbClient.ruleDao().selectOrFailByKey(db.getSession(), defaultOrganization, RULE_KEY1);
     assertThat(rule1.getName()).isEqualTo("One v2");
     assertThat(rule1.getDescription()).isEqualTo("Description of One v2");
     assertThat(rule1.getSeverityString()).isEqualTo(INFO);
@@ -286,34 +336,34 @@ public class RegisterRulesTest {
     assertThat(rule1.getSystemTags()).containsOnly("tag1", "tag4");
     assertThat(rule1.getConfigKey()).isEqualTo("config1 v2");
     assertThat(rule1.getNoteData()).isEqualTo("user *note*");
-    assertThat(rule1.getNoteUserLogin()).isEqualTo("marius");
-    assertThat(rule1.getStatus()).isEqualTo(RuleStatus.READY);
+    assertThat(rule1.getNoteUserUuid()).isEqualTo("marius");
+    assertThat(rule1.getStatus()).isEqualTo(READY);
     assertThat(rule1.getType()).isEqualTo(RuleType.BUG.getDbConstant());
     assertThat(rule1.getCreatedAt()).isEqualTo(DATE1.getTime());
     assertThat(rule1.getUpdatedAt()).isEqualTo(DATE2.getTime());
     // TODO check remediation function
 
-    List<RuleParamDto> params = dbClient.ruleDao().selectRuleParamsByRuleKey(dbTester.getSession(), RULE_KEY1);
+    List<RuleParamDto> params = dbClient.ruleDao().selectRuleParamsByRuleKey(db.getSession(), RULE_KEY1);
     assertThat(params).hasSize(2);
     RuleParamDto param = getParam(params, "param1");
     assertThat(param.getDescription()).isEqualTo("parameter one v2");
     assertThat(param.getDefaultValue()).isEqualTo("default1 v2");
 
     // rule2 has been removed -> status set to REMOVED but db row is not deleted
-    rule2 = dbClient.ruleDao().selectOrFailByKey(dbTester.getSession(), defaultOrganization, RULE_KEY2);
-    assertThat(rule2.getStatus()).isEqualTo(RuleStatus.REMOVED);
+    rule2 = dbClient.ruleDao().selectOrFailByKey(db.getSession(), defaultOrganization, RULE_KEY2);
+    assertThat(rule2.getStatus()).isEqualTo(REMOVED);
     assertThat(rule2.getUpdatedAt()).isEqualTo(DATE2.getTime());
 
     // rule3 has been created
-    RuleDto rule3 = dbClient.ruleDao().selectOrFailByKey(dbTester.getSession(), defaultOrganization, RULE_KEY3);
+    RuleDto rule3 = dbClient.ruleDao().selectOrFailByKey(db.getSession(), defaultOrganization, RULE_KEY3);
     assertThat(rule3).isNotNull();
-    assertThat(rule3.getStatus()).isEqualTo(RuleStatus.READY);
+    assertThat(rule3.getStatus()).isEqualTo(READY);
 
     // verify index
     assertThat(ruleIndex.search(new RuleQuery(), new SearchOptions()).getIds()).containsOnly(rule1.getId(), rule3.getId());
 
     // verify repositories
-    assertThat(dbClient.ruleRepositoryDao().selectAll(dbTester.getSession())).extracting(RuleRepositoryDto::getKey).containsOnly("fake");
+    assertThat(dbClient.ruleRepositoryDao().selectAll(db.getSession())).extracting(RuleRepositoryDto::getKey).containsOnly("fake");
   }
 
   @Test
@@ -327,8 +377,8 @@ public class RegisterRulesTest {
       repo.done();
     });
 
-    OrganizationDto defaultOrganization = dbTester.getDefaultOrganization();
-    RuleDto rule = dbClient.ruleDao().selectOrFailByKey(dbTester.getSession(), defaultOrganization, RULE_KEY1);
+    OrganizationDto defaultOrganization = db.getDefaultOrganization();
+    RuleDto rule = dbClient.ruleDao().selectOrFailByKey(db.getSession(), defaultOrganization, RULE_KEY1);
     assertThat(rule.getSystemTags()).containsOnly("tag1");
 
     execute((RulesDefinition) context -> {
@@ -340,8 +390,38 @@ public class RegisterRulesTest {
       repo.done();
     });
 
-    rule = dbClient.ruleDao().selectOrFailByKey(dbTester.getSession(), defaultOrganization, RULE_KEY1);
+    rule = dbClient.ruleDao().selectOrFailByKey(db.getSession(), defaultOrganization, RULE_KEY1);
     assertThat(rule.getSystemTags()).containsOnly("tag1", "tag2");
+  }
+
+  @Test
+  public void add_new_security_standards() {
+    execute((RulesDefinition) context -> {
+      NewRepository repo = context.createRepository("fake", "java");
+      repo.createRule("rule1")
+        .setName("Rule One")
+        .setHtmlDescription("Description of Rule One")
+        .addOwaspTop10(RulesDefinition.OwaspTop10.A1)
+        .addCwe(123);
+      repo.done();
+    });
+
+    OrganizationDto defaultOrganization = db.getDefaultOrganization();
+    RuleDto rule = dbClient.ruleDao().selectOrFailByKey(db.getSession(), defaultOrganization, RULE_KEY1);
+    assertThat(rule.getSecurityStandards()).containsOnly("cwe:123", "owaspTop10:a1");
+
+    execute((RulesDefinition) context -> {
+      NewRepository repo = context.createRepository("fake", "java");
+      repo.createRule("rule1")
+        .setName("Rule One")
+        .setHtmlDescription("Description of Rule One")
+        .addOwaspTop10(RulesDefinition.OwaspTop10.A1, RulesDefinition.OwaspTop10.A3)
+        .addCwe(1, 123, 863);
+      repo.done();
+    });
+
+    rule = dbClient.ruleDao().selectOrFailByKey(db.getSession(), defaultOrganization, RULE_KEY1);
+    assertThat(rule.getSecurityStandards()).containsOnly("cwe:1", "cwe:123", "cwe:863", "owaspTop10:a1", "owaspTop10:a3");
   }
 
   @Test
@@ -365,7 +445,7 @@ public class RegisterRulesTest {
     });
 
     // rule1 has been updated
-    RuleDto rule1 = dbClient.ruleDao().selectOrFailByKey(dbTester.getSession(), defaultOrganization, RuleKey.of("fake", "rule"));
+    RuleDto rule1 = dbClient.ruleDao().selectOrFailByKey(db.getSession(), defaultOrganization, RuleKey.of("fake", "rule"));
     assertThat(rule1.getName()).isEqualTo("Name2");
     assertThat(rule1.getDescription()).isEqualTo("Description");
 
@@ -388,7 +468,7 @@ public class RegisterRulesTest {
       repo.done();
     });
 
-    RuleDto rule1 = dbClient.ruleDao().selectOrFailByKey(dbTester.getSession(), defaultOrganization, RuleKey.of(repository, ruleKey1));
+    RuleDto rule1 = dbClient.ruleDao().selectOrFailByKey(db.getSession(), defaultOrganization, RuleKey.of(repository, ruleKey1));
     SearchIdResult<Integer> searchRule1 = ruleIndex.search(new RuleQuery().setQueryText("Name1"), new SearchOptions());
     assertThat(searchRule1.getIds()).containsOnly(rule1.getId());
     assertThat(searchRule1.getTotal()).isEqualTo(1);
@@ -404,7 +484,7 @@ public class RegisterRulesTest {
     });
 
     // rule2 is actually rule1
-    RuleDto rule2 = dbClient.ruleDao().selectOrFailByKey(dbTester.getSession(), defaultOrganization, RuleKey.of(repository, ruleKey2));
+    RuleDto rule2 = dbClient.ruleDao().selectOrFailByKey(db.getSession(), defaultOrganization, RuleKey.of(repository, ruleKey2));
     assertThat(rule2.getId()).isEqualTo(rule1.getId());
     assertThat(rule2.getName()).isEqualTo("Name2");
     assertThat(rule2.getDescription()).isEqualTo(rule1.getDescription());
@@ -430,7 +510,7 @@ public class RegisterRulesTest {
       repo.done();
     });
 
-    RuleDto rule1 = dbClient.ruleDao().selectOrFailByKey(dbTester.getSession(), defaultOrganization, RuleKey.of(repository1, ruleKey));
+    RuleDto rule1 = dbClient.ruleDao().selectOrFailByKey(db.getSession(), defaultOrganization, RuleKey.of(repository1, ruleKey));
     SearchIdResult<Integer> searchRule1 = ruleIndex.search(new RuleQuery().setQueryText("Name1"), new SearchOptions());
     assertThat(searchRule1.getIds()).containsOnly(rule1.getId());
     assertThat(searchRule1.getTotal()).isEqualTo(1);
@@ -446,7 +526,7 @@ public class RegisterRulesTest {
     });
 
     // rule2 is actually rule1
-    RuleDto rule2 = dbClient.ruleDao().selectOrFailByKey(dbTester.getSession(), defaultOrganization, RuleKey.of(repository2, ruleKey));
+    RuleDto rule2 = dbClient.ruleDao().selectOrFailByKey(db.getSession(), defaultOrganization, RuleKey.of(repository2, ruleKey));
     assertThat(rule2.getId()).isEqualTo(rule1.getId());
     assertThat(rule2.getName()).isEqualTo("Name2");
     assertThat(rule2.getDescription()).isEqualTo(rule1.getDescription());
@@ -471,7 +551,7 @@ public class RegisterRulesTest {
       repo.done();
     });
 
-    RuleDto rule1 = dbClient.ruleDao().selectOrFailByKey(dbTester.getSession(), defaultOrganization, RuleKey.of(repo1, ruleKey1));
+    RuleDto rule1 = dbClient.ruleDao().selectOrFailByKey(db.getSession(), defaultOrganization, RuleKey.of(repo1, ruleKey1));
     assertThat(ruleIndex.search(new RuleQuery().setQueryText(name), new SearchOptions()).getIds())
       .containsOnly(rule1.getId());
 
@@ -486,7 +566,7 @@ public class RegisterRulesTest {
     });
 
     // rule2 is actually rule1
-    RuleDto rule2 = dbClient.ruleDao().selectOrFailByKey(dbTester.getSession(), defaultOrganization, RuleKey.of(repo2, ruleKey2));
+    RuleDto rule2 = dbClient.ruleDao().selectOrFailByKey(db.getSession(), defaultOrganization, RuleKey.of(repo2, ruleKey2));
     assertThat(rule2.getId()).isEqualTo(rule1.getId());
     assertThat(rule2.getName()).isEqualTo(rule1.getName());
     assertThat(rule2.getDescription()).isEqualTo(rule1.getDescription());
@@ -520,7 +600,7 @@ public class RegisterRulesTest {
       repo.done();
     });
 
-    RuleDto rule1 = dbClient.ruleDao().selectOrFailByKey(dbTester.getSession(), defaultOrganization, RuleKey.of(repository1, ruleKey1));
+    RuleDto rule1 = dbClient.ruleDao().selectOrFailByKey(db.getSession(), defaultOrganization, RuleKey.of(repository1, ruleKey1));
     assertThat(ruleIndex.search(new RuleQuery().setQueryText("Name1"), new SearchOptions()).getIds())
       .containsOnly(rule1.getId());
 
@@ -537,7 +617,7 @@ public class RegisterRulesTest {
     });
 
     // rule2 is actually rule1
-    RuleDto rule2 = dbClient.ruleDao().selectOrFailByKey(dbTester.getSession(), defaultOrganization, RuleKey.of(repository2, ruleKey2));
+    RuleDto rule2 = dbClient.ruleDao().selectOrFailByKey(db.getSession(), defaultOrganization, RuleKey.of(repository2, ruleKey2));
     assertThat(rule2.getId()).isEqualTo(rule1.getId());
 
     assertThat(ruleIndex.search(new RuleQuery().setQueryText("Name2"), new SearchOptions()).getIds())
@@ -565,12 +645,54 @@ public class RegisterRulesTest {
     });
 
     // rule1 has been updated
-    RuleDto rule1 = dbClient.ruleDao().selectOrFailByKey(dbTester.getSession(), defaultOrganization, RuleKey.of("fake", "rule"));
+    RuleDto rule1 = dbClient.ruleDao().selectOrFailByKey(db.getSession(), defaultOrganization, RuleKey.of("fake", "rule"));
     assertThat(rule1.getName()).isEqualTo("Name");
     assertThat(rule1.getDescription()).isEqualTo("Desc2");
 
     assertThat(ruleIndex.search(new RuleQuery().setQueryText("Desc2"), new SearchOptions()).getTotal()).isEqualTo(1);
     assertThat(ruleIndex.search(new RuleQuery().setQueryText("Desc1"), new SearchOptions()).getTotal()).isEqualTo(0);
+  }
+
+  @Test
+  public void rule_previously_created_as_adhoc_becomes_none_adhoc() {
+    RuleDefinitionDto rule = db.rules().insert(r -> r.setRepositoryKey("external_fake").setIsExternal(true).setIsAdHoc(true));
+    when(system.now()).thenReturn(DATE2.getTime());
+    execute((RulesDefinition) context -> {
+      NewRepository repo = context.createExternalRepository("fake", rule.getLanguage());
+      repo.createRule(rule.getRuleKey())
+        .setName(rule.getName())
+        .setHtmlDescription(rule.getDescription());
+      repo.done();
+    });
+
+    RuleDto reloaded = dbClient.ruleDao().selectByKey(db.getSession(), defaultOrganization, rule.getKey()).get();
+    assertThat(reloaded.isAdHoc()).isFalse();
+  }
+
+  @Test
+  public void remove_no_more_defined_external_rule() {
+    RuleDefinitionDto rule = db.rules().insert(r -> r.setRepositoryKey("external_fake")
+      .setStatus(READY)
+      .setIsExternal(true)
+      .setIsAdHoc(false));
+
+    execute();
+
+    RuleDto reloaded = dbClient.ruleDao().selectByKey(db.getSession(), defaultOrganization, rule.getKey()).get();
+    assertThat(reloaded.getStatus()).isEqualTo(REMOVED);
+  }
+
+  @Test
+  public void do_not_remove_no_more_defined_ad_hoc_rule() {
+    RuleDefinitionDto rule = db.rules().insert(r -> r.setRepositoryKey("external_fake")
+      .setStatus(READY)
+      .setIsExternal(true)
+      .setIsAdHoc(true));
+
+    execute();
+
+    RuleDto reloaded = dbClient.ruleDao().selectByKey(db.getSession(), defaultOrganization, rule.getKey()).get();
+    assertThat(reloaded.getStatus()).isEqualTo(READY);
   }
 
   @Test
@@ -583,15 +705,15 @@ public class RegisterRulesTest {
     when(system.now()).thenReturn(DATE2.getTime());
     execute();
 
-    RuleDto rule = dbClient.ruleDao().selectOrFailByKey(dbTester.getSession(), defaultOrganization, RULE_KEY1);
-    assertThat(rule.getStatus()).isEqualTo(RuleStatus.REMOVED);
+    RuleDto rule = dbClient.ruleDao().selectOrFailByKey(db.getSession(), defaultOrganization, RULE_KEY1);
+    assertThat(rule.getStatus()).isEqualTo(REMOVED);
     assertThat(ruleIndex.search(new RuleQuery().setKey(RULE_KEY1.toString()), new SearchOptions()).getTotal()).isEqualTo(0);
 
     // Re-install rule
     when(system.now()).thenReturn(DATE3.getTime());
     execute(new FakeRepositoryV1());
 
-    rule = dbClient.ruleDao().selectOrFailByKey(dbTester.getSession(), defaultOrganization, RULE_KEY1);
+    rule = dbClient.ruleDao().selectOrFailByKey(db.getSession(), defaultOrganization, RULE_KEY1);
     assertThat(rule.getStatus()).isEqualTo(RuleStatus.BETA);
     assertThat(ruleIndex.search(new RuleQuery().setKey(RULE_KEY1.toString()), new SearchOptions()).getTotal()).isEqualTo(1);
   }
@@ -599,12 +721,12 @@ public class RegisterRulesTest {
   @Test
   public void do_not_update_rules_when_no_changes() {
     execute(new FakeRepositoryV1());
-    assertThat(dbClient.ruleDao().selectAllDefinitions(dbTester.getSession())).hasSize(2);
+    assertThat(dbClient.ruleDao().selectAllDefinitions(db.getSession())).hasSize(3);
 
     when(system.now()).thenReturn(DATE2.getTime());
     execute(new FakeRepositoryV1());
 
-    RuleDto rule1 = dbClient.ruleDao().selectOrFailByKey(dbTester.getSession(), defaultOrganization, RULE_KEY1);
+    RuleDto rule1 = dbClient.ruleDao().selectOrFailByKey(db.getSession(), defaultOrganization, RULE_KEY1);
     assertThat(rule1.getCreatedAt()).isEqualTo(DATE1.getTime());
     assertThat(rule1.getUpdatedAt()).isEqualTo(DATE1.getTime());
   }
@@ -612,35 +734,36 @@ public class RegisterRulesTest {
   @Test
   public void do_not_update_already_removed_rules() {
     execute(new FakeRepositoryV1());
-    assertThat(dbClient.ruleDao().selectAllDefinitions(dbTester.getSession())).hasSize(2);
+    assertThat(dbClient.ruleDao().selectAllDefinitions(db.getSession())).hasSize(3);
 
-    RuleDto rule1 = dbClient.ruleDao().selectOrFailByKey(dbTester.getSession(), defaultOrganization, RULE_KEY1);
-    RuleDto rule2 = dbClient.ruleDao().selectOrFailByKey(dbTester.getSession(), defaultOrganization, RULE_KEY2);
-    assertThat(esTester.getIds(RuleIndexDefinition.INDEX_TYPE_RULE)).containsOnly(valueOf(rule1.getId()), valueOf(rule2.getId()));
+    RuleDto rule1 = dbClient.ruleDao().selectOrFailByKey(db.getSession(), defaultOrganization, RULE_KEY1);
+    RuleDto rule2 = dbClient.ruleDao().selectOrFailByKey(db.getSession(), defaultOrganization, RULE_KEY2);
+    RuleDto hotspotRule = dbClient.ruleDao().selectOrFailByKey(db.getSession(), defaultOrganization, HOTSPOT_RULE_KEY);
+    assertThat(es.getIds(RuleIndexDefinition.TYPE_RULE)).containsOnly(valueOf(rule1.getId()), valueOf(rule2.getId()), valueOf(hotspotRule.getId()));
 
-    assertThat(rule2.getStatus()).isEqualTo(RuleStatus.READY);
+    assertThat(rule2.getStatus()).isEqualTo(READY);
 
     when(system.now()).thenReturn(DATE2.getTime());
     execute(new FakeRepositoryV2());
 
     // On MySQL, need to update a rule otherwise rule2 will be seen as READY, but why ???
-    dbClient.ruleDao().update(dbTester.getSession(), rule1.getDefinition());
-    dbTester.getSession().commit();
+    dbClient.ruleDao().update(db.getSession(), rule1.getDefinition());
+    db.getSession().commit();
 
     // rule2 is removed
-    rule2 = dbClient.ruleDao().selectOrFailByKey(dbTester.getSession(), defaultOrganization, RULE_KEY2);
-    RuleDto rule3 = dbClient.ruleDao().selectOrFailByKey(dbTester.getSession(), defaultOrganization, RULE_KEY3);
-    assertThat(rule2.getStatus()).isEqualTo(RuleStatus.REMOVED);
+    rule2 = dbClient.ruleDao().selectOrFailByKey(db.getSession(), defaultOrganization, RULE_KEY2);
+    RuleDto rule3 = dbClient.ruleDao().selectOrFailByKey(db.getSession(), defaultOrganization, RULE_KEY3);
+    assertThat(rule2.getStatus()).isEqualTo(REMOVED);
 
     assertThat(ruleIndex.search(new RuleQuery(), new SearchOptions()).getIds()).containsOnly(rule1.getId(), rule3.getId());
 
     when(system.now()).thenReturn(DATE3.getTime());
     execute(new FakeRepositoryV2());
-    dbTester.getSession().commit();
+    db.getSession().commit();
 
     // -> rule2 is still removed, but not update at DATE3
-    rule2 = dbClient.ruleDao().selectOrFailByKey(dbTester.getSession(), defaultOrganization, RULE_KEY2);
-    assertThat(rule2.getStatus()).isEqualTo(RuleStatus.REMOVED);
+    rule2 = dbClient.ruleDao().selectOrFailByKey(db.getSession(), defaultOrganization, RULE_KEY2);
+    assertThat(rule2.getStatus()).isEqualTo(REMOVED);
     assertThat(rule2.getUpdatedAt()).isEqualTo(DATE2.getTime());
 
     assertThat(ruleIndex.search(new RuleQuery(), new SearchOptions()).getIds()).containsOnly(rule1.getId(), rule3.getId());
@@ -649,15 +772,15 @@ public class RegisterRulesTest {
   @Test
   public void mass_insert() {
     execute(new BigRepository());
-    assertThat(dbTester.countRowsOfTable("rules")).isEqualTo(BigRepository.SIZE);
-    assertThat(dbTester.countRowsOfTable("rules_parameters")).isEqualTo(BigRepository.SIZE * 20);
-    assertThat(esTester.getIds(RuleIndexDefinition.INDEX_TYPE_RULE)).hasSize(BigRepository.SIZE);
+    assertThat(db.countRowsOfTable("rules")).isEqualTo(BigRepository.SIZE);
+    assertThat(db.countRowsOfTable("rules_parameters")).isEqualTo(BigRepository.SIZE * 20);
+    assertThat(es.getIds(RuleIndexDefinition.TYPE_RULE)).hasSize(BigRepository.SIZE);
   }
 
   @Test
   public void manage_repository_extensions() {
     execute(new FindbugsRepository(), new FbContribRepository());
-    List<RuleDefinitionDto> rules = dbClient.ruleDao().selectAllDefinitions(dbTester.getSession());
+    List<RuleDefinitionDto> rules = dbClient.ruleDao().selectAllDefinitions(db.getSession());
     assertThat(rules).hasSize(2);
     for (RuleDefinitionDto rule : rules) {
       assertThat(rule.getRepositoryKey()).isEqualTo("findbugs");
@@ -667,7 +790,7 @@ public class RegisterRulesTest {
   @Test
   public void remove_system_tags_when_plugin_does_not_provide_any() {
     // Rule already exists in DB, with some system tags
-    dbClient.ruleDao().insert(dbTester.getSession(), new RuleDefinitionDto()
+    dbClient.ruleDao().insert(db.getSession(), new RuleDefinitionDto()
       .setRuleKey("rule1")
       .setRepositoryKey("findbugs")
       .setName("Rule One")
@@ -675,12 +798,12 @@ public class RegisterRulesTest {
       .setDescription("Rule one description")
       .setDescriptionFormat(RuleDto.Format.HTML)
       .setSystemTags(newHashSet("tag1", "tag2")));
-    dbTester.getSession().commit();
+    db.getSession().commit();
 
     // Synchronize rule without tag
     execute(new FindbugsRepository());
 
-    List<RuleDefinitionDto> rules = dbClient.ruleDao().selectAllDefinitions(dbTester.getSession());
+    List<RuleDefinitionDto> rules = dbClient.ruleDao().selectAllDefinitions(db.getSession());
     assertThat(rules).hasSize(1);
     RuleDefinitionDto result = rules.get(0);
     assertThat(result.getKey()).isEqualTo(RuleKey.of("findbugs", "rule1"));
@@ -689,16 +812,16 @@ public class RegisterRulesTest {
 
   @Test
   public void ignore_template_rules_if_organizations_are_enabled() {
-    organizationFlags.enable(dbTester.getSession());
+    organizationFlags.enable(db.getSession());
     execute(new RepositoryWithOneTemplateRule());
 
-    List<RuleDefinitionDto> rules = dbClient.ruleDao().selectAllDefinitions(dbTester.getSession());
+    List<RuleDefinitionDto> rules = dbClient.ruleDao().selectAllDefinitions(db.getSession());
     assertThat(rules).hasSize(0);
   }
 
   @Test
   public void log_ignored_template_rules_if_organizations_are_enabled() {
-    organizationFlags.enable(dbTester.getSession());
+    organizationFlags.enable(db.getSession());
     execute(new RepositoryWithOneTemplateRule());
 
     assertThat(logTester.logs(LoggerLevel.INFO)).contains("Template rule test:rule1 will not be imported, because organizations are enabled.");
@@ -734,8 +857,8 @@ public class RegisterRulesTest {
       repo.done();
     });
 
-    List<RuleDefinitionDto> rules = dbClient.ruleDao().selectAllDefinitions(dbTester.getSession());
-    Set<DeprecatedRuleKeyDto> deprecatedRuleKeys = dbClient.ruleDao().selectAllDeprecatedRuleKeys(dbTester.getSession());
+    List<RuleDefinitionDto> rules = dbClient.ruleDao().selectAllDefinitions(db.getSession());
+    Set<DeprecatedRuleKeyDto> deprecatedRuleKeys = dbClient.ruleDao().selectAllDeprecatedRuleKeys(db.getSession());
     assertThat(rules).hasSize(1);
     assertThat(deprecatedRuleKeys).hasSize(2);
   }
@@ -770,8 +893,8 @@ public class RegisterRulesTest {
       repo.done();
     });
 
-    assertThat(dbClient.ruleDao().selectAllDefinitions(dbTester.getSession())).hasSize(1);
-    Set<DeprecatedRuleKeyDto> deprecatedRuleKeys = dbClient.ruleDao().selectAllDeprecatedRuleKeys(dbTester.getSession());
+    assertThat(dbClient.ruleDao().selectAllDefinitions(db.getSession())).hasSize(1);
+    Set<DeprecatedRuleKeyDto> deprecatedRuleKeys = dbClient.ruleDao().selectAllDeprecatedRuleKeys(db.getSession());
     assertThat(deprecatedRuleKeys).hasSize(2);
 
     execute(context -> {
@@ -787,8 +910,8 @@ public class RegisterRulesTest {
       repo.done();
     });
 
-    assertThat(dbClient.ruleDao().selectAllDefinitions(dbTester.getSession())).hasSize(1);
-    deprecatedRuleKeys = dbClient.ruleDao().selectAllDeprecatedRuleKeys(dbTester.getSession());
+    assertThat(dbClient.ruleDao().selectAllDefinitions(db.getSession())).hasSize(1);
+    deprecatedRuleKeys = dbClient.ruleDao().selectAllDeprecatedRuleKeys(db.getSession());
     assertThat(deprecatedRuleKeys).hasSize(0);
   }
 
@@ -858,8 +981,7 @@ public class RegisterRulesTest {
 
     expectedException.expect(IllegalStateException.class);
     expectedException.expectMessage("An incorrect state of deprecated rule keys has been detected.\n " +
-      "The deprecated rule key [javascript:linelength] was previously deprecated by [javascript:s103]. [javascript:s103] should be a deprecated key of [sonarjs:s103],"
-    );
+      "The deprecated rule key [javascript:linelength] was previously deprecated by [javascript:s103]. [javascript:s103] should be a deprecated key of [sonarjs:s103],");
 
     // This rule should have been moved to another repository
     execute(context -> createRule(context, "javascript", "sonarjs", "s103",
@@ -908,7 +1030,7 @@ public class RegisterRulesTest {
       languages, system, organizationFlags, webServerRuleFinder, uuidFactory);
     task.start();
     // Execute a commit to refresh session state as the task is using its own session
-    dbTester.getSession().commit();
+    db.getSession().commit();
 
     verify(webServerRuleFinder).startCaching();
   }
@@ -955,6 +1077,13 @@ public class RegisterRulesTest {
       rule1.createParam("param1").setDescription("parameter one").setDefaultValue("default1");
       rule1.createParam("param2").setDescription("parameter two").setDefaultValue("default2");
 
+      repo.createRule(HOTSPOT_RULE_KEY.rule())
+        .setName("Hotspot")
+        .setHtmlDescription("Minimal hotspot")
+        .setType(RuleType.SECURITY_HOTSPOT)
+        .addOwaspTop10(OwaspTop10.A1, OwaspTop10.A3)
+        .addCwe(1, 123, 863);
+
       repo.createRule(RULE_KEY2.rule())
         .setName("Two")
         .setHtmlDescription("Minimal rule");
@@ -979,7 +1108,7 @@ public class RegisterRulesTest {
         // tag2 and tag3 removed, tag4 added
         .setTags("tag1", "tag4")
         .setType(RuleType.BUG)
-        .setStatus(RuleStatus.READY)
+        .setStatus(READY)
         .setGapDescription("squid.S115.effortToFix.v2");
       rule1.setDebtRemediationFunction(rule1.debtRemediationFunctions().linearWithOffset("6d", "2h"));
       rule1.createParam("param1").setDescription("parameter one v2").setDefaultValue("default1 v2");
@@ -989,6 +1118,32 @@ public class RegisterRulesTest {
       repo.createRule(RULE_KEY3.rule())
         .setName("Three")
         .setHtmlDescription("Rule Three");
+
+      repo.done();
+    }
+  }
+
+  static class ExternalRuleRepository implements RulesDefinition {
+    @Override
+    public void define(Context context) {
+      NewRepository repo = context.createExternalRepository("eslint", "js");
+      repo.createRule(RULE_KEY1.rule())
+        .setName("One")
+        .setHtmlDescription("Description of One")
+        .setSeverity(BLOCKER)
+        .setInternalKey("config1")
+        .setTags("tag1", "tag2", "tag3")
+        .setScope(RuleScope.ALL)
+        .setType(RuleType.CODE_SMELL)
+        .setStatus(RuleStatus.BETA);
+
+      repo.createRule(EXTERNAL_HOTSPOT_RULE_KEY.rule())
+        .setName("Hotspot")
+        .setHtmlDescription("Minimal hotspot")
+        .setType(RuleType.SECURITY_HOTSPOT)
+        .addOwaspTop10(OwaspTop10.A1, OwaspTop10.A3)
+        .addCwe(1, 123, 863);
+
       repo.done();
     }
   }

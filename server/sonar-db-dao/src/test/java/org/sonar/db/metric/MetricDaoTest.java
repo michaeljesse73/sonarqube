@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -195,22 +195,6 @@ public class MetricDaoTest {
     MetricDto result = underTest.selectById(dbSession, metric.getId());
 
     assertThat(result).isNotNull();
-  }
-
-  @Test
-  public void selectOrFailById() {
-    MetricDto metric = underTest.insert(dbSession, newMetricDto());
-
-    MetricDto result = underTest.selectOrFailById(dbSession, metric.getId());
-
-    assertThat(result).isNotNull();
-  }
-
-  @Test
-  public void fail_when_no_id_selectOrFailById() {
-    expectedException.expect(RowNotFoundException.class);
-
-    underTest.selectOrFailById(dbSession, 42L);
   }
 
   @Test

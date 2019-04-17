@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -29,13 +29,14 @@ import org.sonar.db.organization.OrganizationDto;
 import org.sonar.db.qualityprofile.QProfileDto;
 import org.sonar.server.qualityprofile.BulkChangeResult;
 import org.sonar.server.qualityprofile.QProfileRules;
+import org.sonar.server.rule.index.RuleQuery;
 import org.sonar.server.rule.ws.RuleQueryFactory;
 import org.sonar.server.user.UserSession;
 
 import static org.sonar.core.util.Uuids.UUID_EXAMPLE_03;
 import static org.sonar.server.qualityprofile.ws.BulkChangeWsResponse.writeResponse;
 import static org.sonar.server.qualityprofile.ws.QProfileReference.fromKey;
-import static org.sonar.server.rule.ws.SearchAction.defineRuleSearchParameters;
+import static org.sonar.server.rule.ws.RuleWsSupport.defineGenericRuleSearchParameters;
 import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.ACTION_ACTIVATE_RULES;
 import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.PARAM_TARGET_KEY;
 import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.PARAM_TARGET_SEVERITY;
@@ -69,7 +70,7 @@ public class ActivateRulesAction implements QProfileWsAction {
       .setSince("4.4")
       .setHandler(this);
 
-    defineRuleSearchParameters(activate);
+    defineGenericRuleSearchParameters(activate);
 
     activate.createParam(PARAM_TARGET_KEY)
       .setDescription("Quality Profile key on which the rule activation is done. To retrieve a quality profile key please see <code>api/qualityprofiles/search</code>")
@@ -92,8 +93,10 @@ public class ActivateRulesAction implements QProfileWsAction {
       QProfileDto profile = wsSupport.getProfile(dbSession, fromKey(qualityProfileKey));
       OrganizationDto organization = wsSupport.getOrganization(dbSession, profile);
       wsSupport.checkCanEdit(dbSession, organization, profile);
-      wsSupport.checkNotBuiltInt(profile);
-      result = qProfileRules.bulkActivateAndCommit(dbSession, profile, ruleQueryFactory.createRuleQuery(dbSession, request), request.param(PARAM_TARGET_SEVERITY));
+      wsSupport.checkNotBuiltIn(profile);
+      RuleQuery ruleQuery = ruleQueryFactory.createRuleQuery(dbSession, request);
+      ruleQuery.setIncludeExternal(false);
+      result = qProfileRules.bulkActivateAndCommit(dbSession, profile, ruleQuery, request.param(PARAM_TARGET_SEVERITY));
     }
 
     writeResponse(result, response);

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -31,7 +31,6 @@ import org.sonar.server.exceptions.ForbiddenException;
 import org.sonar.server.exceptions.NotFoundException;
 import org.sonar.server.organization.DefaultOrganizationProvider;
 import org.sonar.server.organization.TestDefaultOrganizationProvider;
-import org.sonar.server.qualitygate.QualityGateFinder;
 import org.sonar.server.tester.UserSessionRule;
 import org.sonar.server.ws.WsActionTester;
 import org.sonarqube.ws.Qualitygates.QualityGate;
@@ -54,7 +53,7 @@ public class RenameActionTest {
   private DefaultOrganizationProvider defaultOrganizationProvider = TestDefaultOrganizationProvider.from(db);
 
   private WsActionTester ws = new WsActionTester(
-    new RenameAction(db.getDbClient(), new QualityGateFinder(db.getDbClient()), new QualityGatesWsSupport(db.getDbClient(), userSession, defaultOrganizationProvider)));
+    new RenameAction(db.getDbClient(), new QualityGatesWsSupport(db.getDbClient(), userSession, defaultOrganizationProvider)));
 
   @Test
   public void verify_definition() {
@@ -155,7 +154,7 @@ public class RenameActionTest {
     QGateWithOrgDto qualityGate = db.qualityGates().insertQualityGate(organization);
 
     expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("Name can't be empty");
+    expectedException.expectMessage("The 'name' parameter is missing");
 
     ws.newRequest()
       .setParam("id", qualityGate.getId().toString())

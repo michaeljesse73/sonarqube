@@ -1,7 +1,9 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`opens form 1`] = `
-<div>
+<div
+  className="display-flex-center"
+>
   <span
     className="text-middle"
   >
@@ -14,7 +16,6 @@ exports[`opens form 1`] = `
   </span>
   <Tooltip
     overlay="background_tasks.change_number_of_workers"
-    placement="bottom"
   >
     <EditButton
       className="js-edit button-small spacer-left"
@@ -25,7 +26,9 @@ exports[`opens form 1`] = `
 `;
 
 exports[`opens form 2`] = `
-<div>
+<div
+  className="display-flex-center"
+>
   <span
     className="text-middle"
   >
@@ -38,7 +41,6 @@ exports[`opens form 2`] = `
   </span>
   <Tooltip
     overlay="background_tasks.change_number_of_workers"
-    placement="bottom"
   >
     <EditButton
       className="js-edit button-small spacer-left"
@@ -53,7 +55,9 @@ exports[`opens form 2`] = `
 `;
 
 exports[`renders 1`] = `
-<div>
+<div
+  className="display-flex-center"
+>
   <span
     className="text-middle"
   >
@@ -66,7 +70,9 @@ exports[`renders 1`] = `
 `;
 
 exports[`renders 2`] = `
-<div>
+<div
+  className="display-flex-center"
+>
   <span
     className="text-middle"
   >
@@ -79,7 +85,6 @@ exports[`renders 2`] = `
   </span>
   <Tooltip
     overlay="background_tasks.change_number_of_workers"
-    placement="bottom"
   >
     <EditButton
       className="js-edit button-small spacer-left"
@@ -90,14 +95,19 @@ exports[`renders 2`] = `
 `;
 
 exports[`renders 3`] = `
-<div>
+<div
+  className="display-flex-center"
+>
   <Tooltip
     overlay="background_tasks.number_of_workers.warning"
-    placement="bottom"
   >
-    <i
-      className="icon-alert-warn little-spacer-right bt-workers-warning-icon"
-    />
+    <span
+      className="display-inline-flex-center little-spacer-right"
+    >
+      <AlertWarnIcon
+        fill="#d3d3d3"
+      />
+    </span>
   </Tooltip>
   <span
     className="text-middle"
@@ -111,7 +121,6 @@ exports[`renders 3`] = `
   </span>
   <Tooltip
     overlay="background_tasks.change_number_of_workers"
-    placement="bottom"
   >
     <EditButton
       className="js-edit button-small spacer-left"
@@ -122,14 +131,19 @@ exports[`renders 3`] = `
 `;
 
 exports[`renders 4`] = `
-<div>
+<div
+  className="display-flex-center"
+>
   <Tooltip
     overlay="background_tasks.number_of_workers.warning"
-    placement="bottom"
   >
-    <i
-      className="icon-alert-warn little-spacer-right bt-workers-warning-icon"
-    />
+    <span
+      className="display-inline-flex-center little-spacer-right"
+    >
+      <AlertWarnIcon
+        fill="#d3d3d3"
+      />
+    </span>
   </Tooltip>
   <span
     className="text-middle"
@@ -141,31 +155,17 @@ exports[`renders 4`] = `
       2
     </strong>
   </span>
-  <span
+  <HelpTooltip
     className="spacer-left"
-  >
-    <a
-      className="link-no-underline"
-      href="#"
-      onClick={[Function]}
-    >
-      <HelpIcon
-        className="text-text-bottom"
-        fill="#cdcdcd"
-      />
-    </a>
-    <BubblePopupHelper
-      isOpen={false}
-      popup={<NoWorkersSupportPopup />}
-      position="bottomright"
-      togglePopup={[Function]}
-    />
-  </span>
+    overlay={<NoWorkersSupportPopup />}
+  />
 </div>
 `;
 
 exports[`updates worker count 1`] = `
-<div>
+<div
+  className="display-flex-center"
+>
   <span
     className="text-middle"
   >
@@ -178,7 +178,6 @@ exports[`updates worker count 1`] = `
   </span>
   <Tooltip
     overlay="background_tasks.change_number_of_workers"
-    placement="bottom"
   >
     <EditButton
       className="js-edit button-small spacer-left"
@@ -193,14 +192,19 @@ exports[`updates worker count 1`] = `
 `;
 
 exports[`updates worker count 2`] = `
-<div>
+<div
+  className="display-flex-center"
+>
   <Tooltip
     overlay="background_tasks.number_of_workers.warning"
-    placement="bottom"
   >
-    <i
-      className="icon-alert-warn little-spacer-right bt-workers-warning-icon"
-    />
+    <span
+      className="display-inline-flex-center little-spacer-right"
+    >
+      <AlertWarnIcon
+        fill="#d3d3d3"
+      />
+    </span>
   </Tooltip>
   <span
     className="text-middle"
@@ -214,7 +218,6 @@ exports[`updates worker count 2`] = `
   </span>
   <Tooltip
     overlay="background_tasks.change_number_of_workers"
-    placement="bottom"
   >
     <EditButton
       className="js-edit button-small spacer-left"

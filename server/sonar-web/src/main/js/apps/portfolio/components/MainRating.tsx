@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -30,7 +30,7 @@ interface Props {
 
 export default function MainRating({ component, metric, value }: Props) {
   return (
-    <Link to={getMeasureTreemapUrl(component, metric)} className="portfolio-box-rating">
+    <Link className="portfolio-box-rating" to={getMeasureTreemapUrl(component, metric)}>
       <Rating value={value} />
     </Link>
   );

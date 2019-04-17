@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,23 +22,22 @@ import * as classNames from 'classnames';
 import { connect } from 'react-redux';
 import Tooltip from './Tooltip';
 import HomeIcon from '../icons-components/HomeIcon';
-import { CurrentUser, isLoggedIn, HomePage, isSameHomePage } from '../../app/types';
 import { translate } from '../../helpers/l10n';
-import { getCurrentUser, getGlobalSettingValue } from '../../store/rootReducer';
-import { setHomePage } from '../../store/users/actions';
+import { getCurrentUser, Store } from '../../store/rootReducer';
+import { setHomePage } from '../../store/users';
+import { isLoggedIn } from '../../helpers/users';
 
 interface StateProps {
-  currentUser: CurrentUser;
-  onSonarCloud: boolean;
+  currentUser: T.CurrentUser;
 }
 
 interface DispatchProps {
-  setHomePage: (homepage: HomePage) => void;
+  setHomePage: (homepage: T.HomePage) => void;
 }
 
 interface Props extends StateProps, DispatchProps {
   className?: string;
-  currentPage: HomePage;
+  currentPage: T.HomePage;
 }
 
 class HomePageSelect extends React.PureComponent<Props> {
@@ -49,9 +48,9 @@ class HomePageSelect extends React.PureComponent<Props> {
   };
 
   render() {
-    const { currentPage, currentUser, onSonarCloud } = this.props;
+    const { currentPage, currentUser } = this.props;
 
-    if (!isLoggedIn(currentUser) || !onSonarCloud) {
+    if (!isLoggedIn(currentUser)) {
       return null;
     }
 
@@ -60,7 +59,7 @@ class HomePageSelect extends React.PureComponent<Props> {
     const tooltip = checked ? translate('homepage.current') : translate('homepage.check');
 
     return (
-      <Tooltip overlay={tooltip} placement="left">
+      <Tooltip overlay={tooltip}>
         {checked ? (
           <span className={classNames('display-inline-block', this.props.className)}>
             <HomeIcon filled={checked} />
@@ -82,15 +81,22 @@ class HomePageSelect extends React.PureComponent<Props> {
   }
 }
 
-const mapStateToProps = (state: any): StateProps => {
-  const sonarCloudSetting = getGlobalSettingValue(state, 'sonar.sonarcloud.enabled');
-
-  return {
-    currentUser: getCurrentUser(state),
-    onSonarCloud: Boolean(sonarCloudSetting && sonarCloudSetting.value === 'true')
-  };
-};
+const mapStateToProps = (state: Store): StateProps => ({
+  currentUser: getCurrentUser(state)
+});
 
 const mapDispatchToProps: DispatchProps = { setHomePage };
 
-export default connect(mapStateToProps, mapDispatchToProps)(HomePageSelect);
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(HomePageSelect);
+
+function isSameHomePage(a: T.HomePage, b: T.HomePage) {
+  return (
+    a.type === b.type &&
+    (a as any).branch === (b as any).branch &&
+    (a as any).component === (b as any).component &&
+    (a as any).organization === (b as any).organization
+  );
+}

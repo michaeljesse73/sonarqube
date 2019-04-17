@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,8 +22,11 @@ package org.sonar.ce.container;
 import java.io.File;
 import java.io.IOException;
 import java.util.Date;
+import java.util.Locale;
 import java.util.Properties;
 import java.util.stream.Collectors;
+import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.commons.lang.StringUtils;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -40,7 +43,6 @@ import org.sonar.db.property.PropertyDto;
 import org.sonar.process.ProcessId;
 import org.sonar.process.ProcessProperties;
 import org.sonar.process.Props;
-import org.sonar.server.platform.ServerIdChecksum;
 import org.sonar.server.property.InternalProperties;
 
 import static java.lang.String.valueOf;
@@ -62,6 +64,7 @@ public class ComputeEngineContainerImplTest {
   @Rule
   public TemporaryFolder tempFolder = new TemporaryFolder();
   @Rule
+
   public DbTester db = DbTester.create(System2.INSTANCE);
 
   private ComputeEngineContainerImpl underTest;
@@ -84,64 +87,72 @@ public class ComputeEngineContainerImplTest {
     // required persisted properties
     insertProperty(CoreProperties.SERVER_ID, "a_server_id");
     insertProperty(CoreProperties.SERVER_STARTTIME, DateUtils.formatDateTime(new Date()));
-    insertInternalProperty(InternalProperties.SERVER_ID_CHECKSUM, ServerIdChecksum.of("a_server_id", db.getUrl()));
+    insertInternalProperty(InternalProperties.SERVER_ID_CHECKSUM, DigestUtils.sha256Hex("a_server_id|" + cleanJdbcUrl()));
 
     underTest
       .start(new Props(properties));
 
     MutablePicoContainer picoContainer = underTest.getComponentContainer().getPicoContainer();
-    assertThat(picoContainer.getComponentAdapters())
-      .hasSize(
+    try {
+      assertThat(picoContainer.getComponentAdapters())
+        .hasSize(
+          CONTAINER_ITSELF
+            + 68 // level 4
+            + 6 // content of CeConfigurationModule
+            + 4 // content of CeQueueModule
+            + 3 // content of CeHttpModule
+            + 3 // content of CeTaskCommonsModule
+            + 4 // content of ProjectAnalysisTaskModule
+            + 9 // content of CeTaskProcessorModule
+            + 3 // content of ReportAnalysisFailureNotificationModule
+            + 3 // CeCleaningModule + its content
+            + 4 // WebhookModule
+            + 1 // CeDistributedInformation
+        );
+      assertThat(picoContainer.getParent().getComponentAdapters()).hasSize(
         CONTAINER_ITSELF
-          + 78 // level 4
-          + 21 // content of QualityGateModule
-          + 6 // content of CeConfigurationModule
-          + 4 // content of CeQueueModule
-          + 4 // content of CeHttpModule
-          + 3 // content of CeTaskCommonsModule
-          + 4 // content of ProjectAnalysisTaskModule
-          + 7 // content of CeTaskProcessorModule
-          + 4 // content of ReportAnalysisFailureNotificationModule
-          + 3 // CeCleaningModule + its content
-          + 4 // WebhookModule
-          + 1 // CeDistributedInformation
-    );
-    assertThat(picoContainer.getParent().getComponentAdapters()).hasSize(
-      CONTAINER_ITSELF
-        + 7 // level 3
-    );
-    assertThat(picoContainer.getParent().getParent().getComponentAdapters()).hasSize(
-      CONTAINER_ITSELF
-        + 15 // MigrationConfigurationModule
-        + 17 // level 2
-    );
-    assertThat(picoContainer.getParent().getParent().getParent().getComponentAdapters()).hasSize(
-      COMPONENTS_IN_LEVEL_1_AT_CONSTRUCTION
-        + 26 // level 1
-        + 52 // content of DaoModule
-        + 3 // content of EsSearchModule
-        + 60 // content of CorePropertyDefinitions
-        + 1 // StopFlagContainer
-    );
-    assertThat(
-      picoContainer.getComponentAdapters().stream()
-        .map(ComponentAdapter::getComponentImplementation)
-        .collect(Collectors.toList())).doesNotContain(
-          (Class) CeDistributedInformationImpl.class).contains(
-            (Class) StandaloneCeDistributedInformation.class);
-    assertThat(picoContainer.getParent().getParent().getParent().getParent()).isNull();
-    underTest.stop();
+          + 8 // level 3
+      );
+      assertThat(picoContainer.getParent().getParent().getComponentAdapters()).hasSize(
+        CONTAINER_ITSELF
+          + 21 // MigrationConfigurationModule
+          + 17 // level 2
+      );
+      assertThat(picoContainer.getParent().getParent().getParent().getComponentAdapters()).hasSize(
+        COMPONENTS_IN_LEVEL_1_AT_CONSTRUCTION
+          + 26 // level 1
+          + 60 // content of DaoModule
+          + 3 // content of EsModule
+          + 52 // content of CorePropertyDefinitions
+          + 1 // StopFlagContainer
+      );
+      assertThat(
+        picoContainer.getComponentAdapters().stream()
+          .map(ComponentAdapter::getComponentImplementation)
+          .collect(Collectors.toList())).doesNotContain(
+            (Class) CeDistributedInformationImpl.class).contains(
+              (Class) StandaloneCeDistributedInformation.class);
+      assertThat(picoContainer.getParent().getParent().getParent().getParent()).isNull();
+    } finally {
+      underTest.stop();
+    }
 
     assertThat(picoContainer.getLifecycleState().isStarted()).isFalse();
     assertThat(picoContainer.getLifecycleState().isStopped()).isFalse();
     assertThat(picoContainer.getLifecycleState().isDisposed()).isTrue();
   }
 
+  private String cleanJdbcUrl() {
+    return StringUtils.lowerCase(StringUtils.substringBefore(db.getUrl(), "?"), Locale.ENGLISH);
+  }
+
   private Properties getProperties() throws IOException {
     Properties properties = ProcessProperties.defaults();
     File homeDir = tempFolder.newFolder();
     File dataDir = new File(homeDir, "data");
+    dataDir.mkdirs();
     File tmpDir = new File(homeDir, "tmp");
+    tmpDir.mkdirs();
     properties.setProperty(PATH_HOME.getKey(), homeDir.getAbsolutePath());
     properties.setProperty(PATH_DATA.getKey(), dataDir.getAbsolutePath());
     properties.setProperty(PATH_TEMP.getKey(), tmpDir.getAbsolutePath());

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,26 +24,15 @@ import org.sonar.server.es.metadata.EsDbCompatibility;
 public class TestEsDbCompatibility implements EsDbCompatibility {
 
   private boolean hasSameDbVendor = true;
-  private boolean hasSameDbSchemaVersion = true;
 
   public TestEsDbCompatibility setHasSameDbVendor(boolean b) {
     this.hasSameDbVendor = b;
     return this;
   }
 
-  public TestEsDbCompatibility setHasSameDbSchemaVersion(boolean b) {
-    this.hasSameDbSchemaVersion = b;
-    return this;
-  }
-
   @Override
   public boolean hasSameDbVendor() {
     return hasSameDbVendor;
-  }
-
-  @Override
-  public boolean hasSameDbSchemaVersion() {
-    return hasSameDbSchemaVersion;
   }
 
   @Override

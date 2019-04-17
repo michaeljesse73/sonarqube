@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,26 +19,26 @@
  */
 import * as React from 'react';
 import { shallow } from 'enzyme';
-import ComponentNavBranchesMenu from '../ComponentNavBranchesMenu';
-import {
-  BranchType,
-  MainBranch,
-  ShortLivingBranch,
-  LongLivingBranch,
-  Component
-} from '../../../../types';
+import { ComponentNavBranchesMenu } from '../ComponentNavBranchesMenu';
 import { elementKeydown } from '../../../../../helpers/testUtils';
 
-const component = { key: 'component' } as Component;
+const component = { key: 'component' } as T.Component;
 
 it('renders list', () => {
   expect(
     shallow(
       <ComponentNavBranchesMenu
-        branches={[mainBranch(), shortBranch('foo'), longBranch('bar'), shortBranch('baz', true)]}
+        branchLikes={[
+          mainBranch(),
+          shortBranch('foo'),
+          longBranch('bar'),
+          shortBranch('baz', true),
+          pullRequest('qux')
+        ]}
         component={component}
-        currentBranch={mainBranch()}
+        currentBranchLike={mainBranch()}
         onClose={jest.fn()}
+        router={{ push: jest.fn() }}
       />
     )
   ).toMatchSnapshot();
@@ -47,10 +47,17 @@ it('renders list', () => {
 it('searches', () => {
   const wrapper = shallow(
     <ComponentNavBranchesMenu
-      branches={[mainBranch(), shortBranch('foo'), shortBranch('foobar'), longBranch('bar')]}
+      branchLikes={[
+        mainBranch(),
+        shortBranch('foo'),
+        shortBranch('foobar'),
+        longBranch('bar'),
+        longBranch('BARBAZ')
+      ]}
       component={component}
-      currentBranch={mainBranch()}
+      currentBranchLike={mainBranch()}
       onClose={jest.fn()}
+      router={{ push: jest.fn() }}
     />
   );
   wrapper.setState({ query: 'bar' });
@@ -58,40 +65,51 @@ it('searches', () => {
 });
 
 it('selects next & previous', () => {
-  const wrapper = shallow(
+  const wrapper = shallow<ComponentNavBranchesMenu>(
     <ComponentNavBranchesMenu
-      branches={[mainBranch(), shortBranch('foo'), shortBranch('foobar'), longBranch('bar')]}
+      branchLikes={[mainBranch(), shortBranch('foo'), shortBranch('foobar'), longBranch('bar')]}
       component={component}
-      currentBranch={mainBranch()}
+      currentBranchLike={mainBranch()}
       onClose={jest.fn()}
+      router={{ push: jest.fn() }}
     />
   );
   elementKeydown(wrapper.find('SearchBox'), 40);
   wrapper.update();
-  expect(wrapper.state().selected).toBe('foo');
+  expect(wrapper.state().selected).toEqual(shortBranch('foo'));
   elementKeydown(wrapper.find('SearchBox'), 40);
   wrapper.update();
-  expect(wrapper.state().selected).toBe('foobar');
+  expect(wrapper.state().selected).toEqual(shortBranch('foobar'));
   elementKeydown(wrapper.find('SearchBox'), 38);
   wrapper.update();
-  expect(wrapper.state().selected).toBe('foo');
+  expect(wrapper.state().selected).toEqual(shortBranch('foo'));
 });
 
-function mainBranch(): MainBranch {
+function mainBranch(): T.MainBranch {
   return { isMain: true, name: 'master' };
 }
 
-function shortBranch(name: string, isOrphan?: true): ShortLivingBranch {
+function shortBranch(name: string, isOrphan?: true): T.ShortLivingBranch {
   return {
     isMain: false,
     isOrphan,
     mergeBranch: 'master',
     name,
-    status: { bugs: 0, codeSmells: 0, vulnerabilities: 0 },
-    type: BranchType.SHORT
+    status: { qualityGateStatus: 'OK' },
+    type: 'SHORT'
   };
 }
 
-function longBranch(name: string): LongLivingBranch {
-  return { isMain: false, name, type: BranchType.LONG };
+function longBranch(name: string): T.LongLivingBranch {
+  return { isMain: false, name, type: 'LONG' };
+}
+
+function pullRequest(title: string): T.PullRequest {
+  return {
+    base: 'master',
+    branch: 'feature',
+    key: '1234',
+    status: { qualityGateStatus: 'OK' },
+    title
+  };
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,12 +24,13 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
-import org.sonar.api.issue.condition.IsUnResolved;
+import org.sonar.api.rules.RuleType;
 import org.sonar.api.server.ServerSide;
 import org.sonar.core.issue.DefaultIssue;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
 import org.sonar.db.user.UserDto;
+import org.sonar.server.issue.workflow.IsUnResolved;
 import org.sonar.server.user.UserSession;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -51,7 +52,7 @@ public class AssignAction extends Action {
     super(ASSIGN_KEY);
     this.dbClient = dbClient;
     this.issueFieldsSetter = issueFieldsSetter;
-    super.setConditions(new IsUnResolved());
+    super.setConditions(new IsUnResolved(), issue -> ((DefaultIssue) issue).type() != RuleType.SECURITY_HOTSPOT);
   }
 
   @Override

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,6 +20,7 @@
 import * as React from 'react';
 import { shallow } from 'enzyme';
 import ProjectCardOverall from '../ProjectCardOverall';
+import { Project } from '../../types';
 
 const MEASURES = {
   alert_status: 'OK',
@@ -28,7 +29,7 @@ const MEASURES = {
   new_bugs: '12'
 };
 
-const PROJECT = {
+const PROJECT: Project = {
   analysisDate: '2017-01-01',
   key: 'foo',
   measures: MEASURES,
@@ -40,12 +41,18 @@ const PROJECT = {
 
 it('should display analysis date (and not leak period) when defined', () => {
   expect(
-    shallow(<ProjectCardOverall project={PROJECT} />)
+    shallow(<ProjectCardOverall height={100} organization={undefined} project={PROJECT} />)
       .find('.project-card-dates')
       .exists()
   ).toBeTruthy();
   expect(
-    shallow(<ProjectCardOverall project={{ ...PROJECT, analysisDate: undefined }} />)
+    shallow(
+      <ProjectCardOverall
+        height={100}
+        organization={undefined}
+        project={{ ...PROJECT, analysisDate: undefined }}
+      />
+    )
       .find('.project-card-dates')
       .exists()
   ).toBeFalsy();
@@ -54,7 +61,7 @@ it('should display analysis date (and not leak period) when defined', () => {
 it('should not display the quality gate', () => {
   const project = { ...PROJECT, analysisDate: undefined };
   expect(
-    shallow(<ProjectCardOverall project={project} />)
+    shallow(<ProjectCardOverall height={100} organization={undefined} project={project} />)
       .find('ProjectCardOverallQualityGate')
       .exists()
   ).toBeFalsy();
@@ -63,21 +70,35 @@ it('should not display the quality gate', () => {
 it('should display tags', () => {
   const project = { ...PROJECT, tags: ['foo', 'bar'] };
   expect(
-    shallow(<ProjectCardOverall project={project} />)
+    shallow(<ProjectCardOverall height={100} organization={undefined} project={project} />)
       .find('TagsList')
       .exists()
   ).toBeTruthy();
 });
 
-it('should private badge', () => {
-  const project = { ...PROJECT, visibility: 'private' };
+it('should display private badge', () => {
+  const project: Project = { ...PROJECT, visibility: 'private' };
   expect(
-    shallow(<ProjectCardOverall project={project} />)
-      .find('PrivateBadge')
+    shallow(<ProjectCardOverall height={100} organization={undefined} project={project} />)
+      .find('Connect(PrivacyBadge)')
       .exists()
   ).toBeTruthy();
 });
 
 it('should display the overall measures and quality gate', () => {
-  expect(shallow(<ProjectCardOverall project={PROJECT} />)).toMatchSnapshot();
+  expect(
+    shallow(<ProjectCardOverall height={100} organization={undefined} project={PROJECT} />)
+  ).toMatchSnapshot();
+});
+
+it('should display not analyzed yet', () => {
+  expect(
+    shallow(
+      <ProjectCardOverall
+        height={100}
+        organization={undefined}
+        project={{ ...PROJECT, analysisDate: undefined }}
+      />
+    )
+  ).toMatchSnapshot();
 });

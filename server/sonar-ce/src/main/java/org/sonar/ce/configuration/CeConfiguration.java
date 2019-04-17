@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,11 +20,6 @@
 package org.sonar.ce.configuration;
 
 public interface CeConfiguration {
-
-  /**
-   * Requests {@link CeConfiguration} to refresh its state, if it has any.
-   */
-  void refresh();
 
   /**
    * The maximum number of workers to process CeTasks concurrently, integer strictly greater than 0.

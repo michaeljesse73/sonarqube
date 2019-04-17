@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -27,6 +27,7 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 import org.apache.commons.lang.BooleanUtils;
 import org.sonar.api.measures.Metric;
+import org.sonar.api.server.ws.Change;
 import org.sonar.api.server.ws.Request;
 import org.sonar.api.server.ws.Response;
 import org.sonar.api.server.ws.WebService;
@@ -57,9 +58,11 @@ import static org.sonar.api.measures.CoreMetrics.VIOLATIONS;
 import static org.sonar.api.measures.CoreMetrics.VIOLATIONS_KEY;
 import static org.sonar.core.util.Uuids.UUID_EXAMPLE_01;
 import static org.sonar.server.component.ComponentFinder.ParamNames.COMPONENT_ID_AND_COMPONENT;
+import static org.sonar.server.component.ws.MeasuresWsParameters.PARAM_BRANCH;
+import static org.sonar.server.component.ws.MeasuresWsParameters.PARAM_PULL_REQUEST;
 import static org.sonar.server.ws.KeyExamples.KEY_BRANCH_EXAMPLE_001;
 import static org.sonar.server.ws.KeyExamples.KEY_PROJECT_EXAMPLE_001;
-import static org.sonar.server.component.ws.MeasuresWsParameters.PARAM_BRANCH;
+import static org.sonar.server.ws.KeyExamples.KEY_PULL_REQUEST_EXAMPLE_001;
 
 public class AppAction implements ComponentsWsAction {
 
@@ -90,6 +93,7 @@ public class AppAction implements ComponentsWsAction {
         "Requires the following permission: 'Browse'.")
       .setResponseExample(getClass().getResource("app-example.json"))
       .setSince("4.4")
+      .setChangelog(new Change("7.6", String.format("The use of module keys in parameter '%s' is deprecated", PARAM_COMPONENT)))
       .setInternal(true)
       .setHandler(this);
 
@@ -110,6 +114,12 @@ public class AppAction implements ComponentsWsAction {
       .setSince("6.6")
       .setInternal(true)
       .setExampleValue(KEY_BRANCH_EXAMPLE_001);
+
+    action.createParam(PARAM_PULL_REQUEST)
+      .setDescription("Pull request id")
+      .setSince("7.1")
+      .setInternal(true)
+      .setExampleValue(KEY_PULL_REQUEST_EXAMPLE_001);
   }
 
   @Override
@@ -131,12 +141,14 @@ public class AppAction implements ComponentsWsAction {
 
   private ComponentDto loadComponent(DbSession dbSession, Request request) {
     String componentUuid = request.param(PARAM_COMPONENT_ID);
-    String branch = request.param("branch");
-    checkArgument(componentUuid == null || branch == null, "'%s' and '%s' parameters cannot be used at the same time", PARAM_COMPONENT_ID, PARAM_BRANCH);
-    if (branch == null) {
+    String branch = request.param(PARAM_BRANCH);
+    String pullRequest = request.param(PARAM_PULL_REQUEST);
+    checkArgument(componentUuid == null || (branch == null && pullRequest == null), "Parameter '%s' cannot be used at the same time as '%s' or '%s'", PARAM_COMPONENT_ID,
+      PARAM_BRANCH, PARAM_PULL_REQUEST);
+    if (branch == null && pullRequest == null) {
       return componentFinder.getByUuidOrKey(dbSession, componentUuid, request.param(PARAM_COMPONENT), COMPONENT_ID_AND_COMPONENT);
     }
-    return componentFinder.getByKeyAndOptionalBranch(dbSession, request.mandatoryParam(PARAM_COMPONENT), branch);
+    return componentFinder.getByKeyAndOptionalBranchOrPullRequest(dbSession, request.mandatoryParam(PARAM_COMPONENT), branch, pullRequest);
   }
 
   private void appendComponent(JsonWriter json, ComponentDto component, UserSession userSession, DbSession session) {
@@ -155,18 +167,22 @@ public class AppAction implements ComponentsWsAction {
     json.prop("longName", component.longName());
     json.prop("q", component.qualifier());
 
-    ComponentDto parentProject = retrieveRootIfNotCurrentComponent(component, session);
+    ComponentDto parentModule = retrieveParentModuleIfNotCurrentComponent(component, session);
     ComponentDto project = dbClient.componentDao().selectOrFailByUuid(session, component.projectUuid());
 
-    // Do not display parent project if parent project and project are the same
-    boolean displayParentProject = parentProject != null && !parentProject.uuid().equals(project.uuid());
-    json.prop("subProject", displayParentProject ? parentProject.getKey() : null);
-    json.prop("subProjectName", displayParentProject ? parentProject.longName() : null);
+    // Do not display parent module if parent module and project are the same
+    boolean displayParentModule = parentModule != null && !parentModule.uuid().equals(project.uuid());
+    json.prop("subProject", displayParentModule ? parentModule.getKey() : null);
+    json.prop("subProjectName", displayParentModule ? parentModule.longName() : null);
     json.prop("project", project.getKey());
     json.prop("projectName", project.longName());
     String branch = project.getBranch();
     if (branch != null) {
       json.prop("branch", branch);
+    }
+    String pullRequest = project.getPullRequest();
+    if (pullRequest != null) {
+      json.prop("pullRequest", pullRequest);
     }
 
     json.prop("fav", isFavourite);
@@ -195,11 +211,12 @@ public class AppAction implements ComponentsWsAction {
   }
 
   @CheckForNull
-  private ComponentDto retrieveRootIfNotCurrentComponent(ComponentDto componentDto, DbSession session) {
-    if (componentDto.uuid().equals(componentDto.getRootUuid())) {
+  private ComponentDto retrieveParentModuleIfNotCurrentComponent(ComponentDto componentDto, DbSession session) {
+    final String moduleUuid = componentDto.moduleUuid();
+    if (moduleUuid == null || componentDto.uuid().equals(moduleUuid)) {
       return null;
     }
-    return dbClient.componentDao().selectOrFailByUuid(session, componentDto.getRootUuid());
+    return dbClient.componentDao().selectOrFailByUuid(session, moduleUuid);
   }
 
   @CheckForNull

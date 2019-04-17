@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -78,4 +78,27 @@ it('should render ChangesList', () => {
   const changesList = changelog.find(ChangesList);
   expect(changesList.length).toBe(1);
   expect(changesList.prop('changes')).toBe(params);
+});
+
+it('should render events sorted by time and action', () => {
+  const events = [
+    createEvent({ date: '2019-02-07T14:03:45', action: 'DEACTIVATED' }),
+    createEvent({ date: '2019-02-07T14:03:14', action: 'DEACTIVATED' }),
+    createEvent({ date: '2019-02-07T14:03:14', action: 'ACTIVATED' }),
+    createEvent({ date: '2019-02-07T14:03:07', action: 'ACTIVATED' })
+  ];
+  const changelog = shallow(<Changelog events={events} organization={null} />);
+  const rows = changelog.find('tbody').find('tr');
+
+  const getAction = (index: number) =>
+    rows
+      .at(index)
+      .childAt(2)
+      .childAt(0)
+      .text();
+
+  expect(getAction(0)).toBe('quality_profiles.changelog.DEACTIVATED');
+  expect(getAction(1)).toBe('quality_profiles.changelog.ACTIVATED');
+  expect(getAction(2)).toBe('quality_profiles.changelog.DEACTIVATED');
+  expect(getAction(3)).toBe('quality_profiles.changelog.ACTIVATED');
 });

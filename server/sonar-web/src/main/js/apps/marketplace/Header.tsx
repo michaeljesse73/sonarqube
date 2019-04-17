@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,11 +20,24 @@
 import * as React from 'react';
 import { translate } from '../../helpers/l10n';
 
-export default function Header() {
+interface Props {
+  currentEdition?: T.EditionKey;
+}
+
+export default function Header({ currentEdition }: Props) {
   return (
-    <header id="marketplace-header" className="page-header">
+    <header className="page-header" id="marketplace-header">
       <h1 className="page-title">{translate('marketplace.page')}</h1>
-      <p className="page-description">{translate('marketplace.page.description')}</p>
+      {currentEdition && (
+        <h3 className="page-description">
+          {translate('marketplace.page.you_are_running', currentEdition)}
+        </h3>
+      )}
+      <p className="page-description">
+        {currentEdition === 'datacenter'
+          ? translate('marketplace.page.description_best_edition')
+          : translate('marketplace.page.description')}
+      </p>
     </header>
   );
 }

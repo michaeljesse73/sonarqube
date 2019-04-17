@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -27,13 +27,14 @@ import {
   searchQualityProfiles,
   Profile
 } from '../../api/quality-profiles';
-import { Component } from '../../app/types';
+import A11ySkipTarget from '../../app/components/a11y/A11ySkipTarget';
+import Suggestions from '../../app/components/embed-docs-modal/Suggestions';
 import addGlobalSuccessMessage from '../../app/utils/addGlobalSuccessMessage';
 import handleRequiredAuthorization from '../../app/utils/handleRequiredAuthorization';
 import { translate, translateWithParameters } from '../../helpers/l10n';
 
 interface Props {
-  component: Component;
+  component: T.Component;
 }
 
 interface State {
@@ -118,7 +119,10 @@ export default class QualityProfiles extends React.PureComponent<Props, State> {
 
     return (
       <div className="page page-limited">
+        <Suggestions suggestions="project_quality_profiles" />
         <Helmet title={translate('project_quality_profiles.page')} />
+
+        <A11ySkipTarget anchor="profiles_main" />
 
         <Header />
 
@@ -129,8 +133,8 @@ export default class QualityProfiles extends React.PureComponent<Props, State> {
           profiles && (
             <Table
               allProfiles={allProfiles}
-              profiles={profiles}
               onChangeProfile={this.handleChangeProfile}
+              profiles={profiles}
             />
           )
         )}

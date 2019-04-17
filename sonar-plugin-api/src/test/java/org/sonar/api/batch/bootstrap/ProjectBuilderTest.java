@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -66,7 +66,7 @@ public class ProjectBuilderTest {
       subProject.setBaseDir(baseDir);
       subProject.setWorkDir(new File(baseDir, "target/.sonar"));
       subProject.setKey("groupId:parentProjectId");
-      subProject.setVersion(root.getOriginalVersion());
+      subProject.setProjectVersion(root.getOriginalVersion());
       subProject.setName("Sub Project");
       subProject.setSources("src");
       root.addSubProject(subProject);

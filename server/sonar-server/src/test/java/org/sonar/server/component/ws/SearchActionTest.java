@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,7 +20,6 @@
 package org.sonar.server.component.ws;
 
 import com.google.common.base.Joiner;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -28,9 +27,9 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
-import org.sonar.api.config.internal.MapSettings;
 import org.sonar.api.resources.Language;
 import org.sonar.api.resources.Languages;
+import org.sonar.api.server.ws.Change;
 import org.sonar.api.server.ws.WebService;
 import org.sonar.api.utils.System2;
 import org.sonar.db.DbTester;
@@ -40,14 +39,13 @@ import org.sonar.db.component.ResourceTypesRule;
 import org.sonar.db.organization.OrganizationDto;
 import org.sonar.db.user.UserDto;
 import org.sonar.server.component.index.ComponentIndex;
-import org.sonar.server.component.index.ComponentIndexDefinition;
 import org.sonar.server.component.index.ComponentIndexer;
 import org.sonar.server.component.ws.SearchAction.SearchRequest;
 import org.sonar.server.es.EsTester;
-import org.sonar.server.i18n.I18nRule;
+import org.sonar.server.l18n.I18nRule;
 import org.sonar.server.organization.TestDefaultOrganizationProvider;
-import org.sonar.server.permission.index.AuthorizationTypeSupport;
 import org.sonar.server.permission.index.PermissionIndexerTester;
+import org.sonar.server.permission.index.WebAuthorizationTypeSupport;
 import org.sonar.server.tester.UserSessionRule;
 import org.sonar.server.ws.TestRequest;
 import org.sonar.server.ws.WsActionTester;
@@ -58,6 +56,7 @@ import org.sonarqube.ws.MediaTypes;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptySet;
 import static java.util.Collections.singletonList;
+import static java.util.Optional.ofNullable;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.Mockito.mock;
@@ -69,7 +68,6 @@ import static org.sonar.api.resources.Qualifiers.PROJECT;
 import static org.sonar.api.server.ws.WebService.Param.PAGE;
 import static org.sonar.api.server.ws.WebService.Param.PAGE_SIZE;
 import static org.sonar.api.server.ws.WebService.Param.TEXT_QUERY;
-import static org.sonar.core.util.Protobuf.setNullable;
 import static org.sonar.db.component.ComponentTesting.newDirectory;
 import static org.sonar.db.component.ComponentTesting.newFileDto;
 import static org.sonar.db.component.ComponentTesting.newModuleDto;
@@ -88,7 +86,7 @@ public class SearchActionTest {
   @Rule
   public DbTester db = DbTester.create(System2.INSTANCE);
   @Rule
-  public EsTester es = new EsTester(new ComponentIndexDefinition(new MapSettings().asConfig()));
+  public EsTester es = EsTester.create();
 
   private I18nRule i18n = new I18nRule();
   private TestDefaultOrganizationProvider defaultOrganizationProvider = TestDefaultOrganizationProvider.from(db);
@@ -96,7 +94,7 @@ public class SearchActionTest {
   private Languages languages = mock(Languages.class);
   private ComponentIndexer indexer = new ComponentIndexer(db.getDbClient(), es.client());
   private PermissionIndexerTester authorizationIndexerTester = new PermissionIndexerTester(es, indexer);
-  private ComponentIndex index = new ComponentIndex(es.client(), new AuthorizationTypeSupport(userSession), System2.INSTANCE);
+  private ComponentIndex index = new ComponentIndex(es.client(), new WebAuthorizationTypeSupport(userSession), System2.INSTANCE);
 
   private UserDto user;
 
@@ -119,6 +117,8 @@ public class SearchActionTest {
     assertThat(action.since()).isEqualTo("6.3");
     assertThat(action.isPost()).isFalse();
     assertThat(action.isInternal()).isFalse();
+    assertThat(action.changelog()).extracting(Change::getVersion, Change::getDescription).containsExactlyInAnyOrder(
+      tuple("7.6", "The use of 'BRC' as value for parameter 'qualifiers' is deprecated"));
     assertThat(action.responseExampleAsString()).isNotEmpty();
 
     assertThat(action.params()).hasSize(6);
@@ -127,7 +127,7 @@ public class SearchActionTest {
     assertThat(pageSize.isRequired()).isFalse();
     assertThat(pageSize.defaultValue()).isEqualTo("100");
     assertThat(pageSize.maximumValue()).isEqualTo(500);
-    assertThat(pageSize.description()).isEqualTo("Page size. Must be greater than 0 and less than 500");
+    assertThat(pageSize.description()).isEqualTo("Page size. Must be greater than 0 and less or equal than 500");
 
     WebService.Param qualifiers = action.param("qualifiers");
     assertThat(qualifiers.isRequired()).isTrue();
@@ -269,7 +269,7 @@ public class SearchActionTest {
     String response = ws.newRequest()
       .setMediaType(MediaTypes.JSON)
       .setParam(PARAM_ORGANIZATION, organizationDto.getKey())
-      .setParam(PARAM_QUALIFIERS, Joiner.on(",").join(PROJECT, MODULE, DIRECTORY, FILE))
+      .setParam(PARAM_QUALIFIERS, Joiner.on(",").join(PROJECT, DIRECTORY, FILE))
       .execute().getInput();
     assertJson(response).isSimilarTo(ws.getDef().responseExampleAsString());
   }
@@ -287,12 +287,12 @@ public class SearchActionTest {
 
   private SearchWsResponse call(SearchRequest wsRequest) {
     TestRequest request = ws.newRequest();
-    setNullable(wsRequest.getOrganization(), p -> request.setParam(PARAM_ORGANIZATION, p));
-    setNullable(wsRequest.getLanguage(), p -> request.setParam(PARAM_LANGUAGE, p));
-    setNullable(wsRequest.getQualifiers(), p -> request.setParam(PARAM_QUALIFIERS, Joiner.on(",").join(p)));
-    setNullable(wsRequest.getQuery(), p -> request.setParam(TEXT_QUERY, p));
-    setNullable(wsRequest.getPage(), page -> request.setParam(PAGE, String.valueOf(page)));
-    setNullable(wsRequest.getPageSize(), pageSize -> request.setParam(PAGE_SIZE, String.valueOf(pageSize)));
+    ofNullable(wsRequest.getOrganization()).ifPresent(p3 -> request.setParam(PARAM_ORGANIZATION, p3));
+    ofNullable(wsRequest.getLanguage()).ifPresent(p2 -> request.setParam(PARAM_LANGUAGE, p2));
+    ofNullable(wsRequest.getQualifiers()).ifPresent(p1 -> request.setParam(PARAM_QUALIFIERS, Joiner.on(",").join(p1)));
+    ofNullable(wsRequest.getQuery()).ifPresent(p -> request.setParam(TEXT_QUERY, p));
+    ofNullable(wsRequest.getPage()).ifPresent(page -> request.setParam(PAGE, String.valueOf(page)));
+    ofNullable(wsRequest.getPageSize()).ifPresent(pageSize -> request.setParam(PAGE_SIZE, String.valueOf(pageSize)));
     return request.executeProtobuf(SearchWsResponse.class);
   }
 

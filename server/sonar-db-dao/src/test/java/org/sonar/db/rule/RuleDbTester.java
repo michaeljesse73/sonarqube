@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,6 +24,7 @@ import org.sonar.api.rule.RuleKey;
 import org.sonar.api.server.rule.RuleParamType;
 import org.sonar.db.DbTester;
 import org.sonar.db.organization.OrganizationDto;
+import org.sonar.db.user.UserDto;
 
 import static java.util.Arrays.asList;
 import static org.apache.commons.lang.RandomStringUtils.randomAlphabetic;
@@ -79,6 +80,13 @@ public class RuleDbTester {
     return insertOrUpdateMetadata(dto);
   }
 
+  @SafeVarargs
+  public final RuleMetadataDto insertOrUpdateMetadata(RuleDefinitionDto rule, UserDto noteUser, OrganizationDto organization, Consumer<RuleMetadataDto>... populaters) {
+    RuleMetadataDto dto = RuleTesting.newRuleMetadata(rule, noteUser, organization);
+    asList(populaters).forEach(populater -> populater.accept(dto));
+    return insertOrUpdateMetadata(dto);
+  }
+
   public RuleMetadataDto insertOrUpdateMetadata(RuleMetadataDto metadata) {
     db.getDbClient().ruleDao().insertOrUpdate(db.getSession(), metadata);
     db.commit();
@@ -86,7 +94,8 @@ public class RuleDbTester {
   }
 
   public RuleParamDto insertRuleParam(RuleDefinitionDto rule) {
-    return insertRuleParam(rule, p -> {});
+    return insertRuleParam(rule, p -> {
+    });
   }
 
   @SafeVarargs
@@ -108,15 +117,6 @@ public class RuleDbTester {
     return ruleDto;
   }
 
-  public RuleDto updateRule(RuleDto ruleDto) {
-    update(ruleDto.getDefinition());
-    RuleMetadataDto metadata = ruleDto.getMetadata();
-    if (metadata.getOrganizationUuid() != null) {
-      db.getDbClient().ruleDao().insertOrUpdate(db.getSession(), metadata.setRuleId(ruleDto.getId()));
-      db.commit();
-    }
-    return ruleDto;
-  }
   /**
    * Create and persist a rule with random values.
    */
@@ -145,7 +145,6 @@ public class RuleDbTester {
     db.getDbClient().ruleDao().insert(db.getSession(), deprecatedRuleKeyDto);
     return deprecatedRuleKeyDto;
   }
-
 
   public RuleParamDto insertRuleParam(RuleDto rule) {
     RuleParamDto param = new RuleParamDto();

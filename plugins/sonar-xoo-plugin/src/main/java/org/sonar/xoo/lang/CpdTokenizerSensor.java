@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -34,8 +34,6 @@ import org.sonar.xoo.Xoo;
  * Tokenize files for CPD
  */
 public class CpdTokenizerSensor implements Sensor {
-
-  public static final String ENABLE_PROP = "sonar.xoo.useNewCpdTokenizerApi";
 
   private void tokenize(InputFile inputFile, SensorContext context) {
     int lineIdx = 1;
@@ -74,7 +72,6 @@ public class CpdTokenizerSensor implements Sensor {
   public void describe(SensorDescriptor descriptor) {
     descriptor
       .name("Xoo Cpd Tokenizer Sensor")
-      .onlyWhenConfiguration(conf -> conf.hasKey(ENABLE_PROP) || conf.hasKey(ENABLE_PROP + ".old"))
       .onlyOnLanguages(Xoo.KEY);
   }
 

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -17,23 +17,13 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-const PROJECTS_DEFAULT_FILTER = 'sonarqube.projects.default';
-const PROJECTS_FAVORITE = 'favorite';
-const PROJECTS_ALL = 'all';
-
-const PROJECTS_VIEW = 'sonarqube.projects.view';
-const PROJECTS_VISUALIZATION = 'sonarqube.projects.visualization';
-const PROJECTS_SORT = 'sonarqube.projects.sort';
-
-const PROJECT_ACTIVITY_GRAPH = 'sonarqube.project_activity.graph';
-const PROJECT_ACTIVITY_GRAPH_CUSTOM = 'sonarqube.project_activity.graph.custom';
-
-function save(key: string, value?: string): void {
+export function save(key: string, value?: string, suffix?: string): void {
   try {
+    const finalKey = suffix ? `${key}.${suffix}` : key;
     if (value) {
-      window.localStorage.setItem(key, value);
+      window.localStorage.setItem(finalKey, value);
     } else {
-      window.localStorage.removeItem(key);
+      window.localStorage.removeItem(finalKey);
     }
   } catch (e) {
     // usually that means the storage is full
@@ -41,61 +31,18 @@ function save(key: string, value?: string): void {
   }
 }
 
-export function saveFavorite(): void {
-  save(PROJECTS_DEFAULT_FILTER, PROJECTS_FAVORITE);
+export function remove(key: string, suffix?: string): void {
+  try {
+    window.localStorage.removeItem(suffix ? `${key}.${suffix}` : key);
+  } catch {
+    // Fail silently
+  }
 }
 
-export function isFavoriteSet(): boolean {
-  const setting = window.localStorage.getItem(PROJECTS_DEFAULT_FILTER);
-  return setting === PROJECTS_FAVORITE;
-}
-
-export function saveAll(): void {
-  save(PROJECTS_DEFAULT_FILTER, PROJECTS_ALL);
-}
-
-export function isAllSet(): boolean {
-  const setting = window.localStorage.getItem(PROJECTS_DEFAULT_FILTER);
-  return setting === PROJECTS_ALL;
-}
-
-export function saveView(view?: string): void {
-  save(PROJECTS_VIEW, view);
-}
-
-export function getView(): string | null {
-  return window.localStorage.getItem(PROJECTS_VIEW);
-}
-
-export function saveVisualization(visualization?: string): void {
-  save(PROJECTS_VISUALIZATION, visualization);
-}
-
-export function getVisualization(): string | null {
-  return window.localStorage.getItem(PROJECTS_VISUALIZATION);
-}
-
-export function saveSort(sort?: string): void {
-  save(PROJECTS_SORT, sort);
-}
-
-export function getSort(): string | null {
-  return window.localStorage.getItem(PROJECTS_SORT);
-}
-
-export function saveCustomGraph(metrics?: string[]): void {
-  save(PROJECT_ACTIVITY_GRAPH_CUSTOM, metrics ? metrics.join(',') : '');
-}
-
-export function getCustomGraph(): string[] {
-  const customGraphs = window.localStorage.getItem(PROJECT_ACTIVITY_GRAPH_CUSTOM);
-  return customGraphs ? customGraphs.split(',') : [];
-}
-
-export function saveGraph(graph?: string): void {
-  save(PROJECT_ACTIVITY_GRAPH, graph);
-}
-
-export function getGraph(): string {
-  return window.localStorage.getItem(PROJECT_ACTIVITY_GRAPH) || 'issues';
+export function get(key: string, suffix?: string): string | null {
+  try {
+    return window.localStorage.getItem(suffix ? `${key}.${suffix}` : key);
+  } catch {
+    return null;
+  }
 }

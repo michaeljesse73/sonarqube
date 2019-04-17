@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,6 +22,7 @@ package org.sonar.server.user;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Optional;
+import org.sonar.db.organization.OrganizationDto;
 import org.sonar.db.permission.OrganizationPermission;
 import org.sonar.db.user.GroupDto;
 
@@ -72,6 +73,11 @@ public final class DoPrivileged {
       }
 
       @Override
+      public String getUuid() {
+        return null;
+      }
+
+      @Override
       public String getName() {
         return null;
       }
@@ -97,6 +103,21 @@ public final class DoPrivileged {
       }
 
       @Override
+      public Optional<IdentityProvider> getIdentityProvider() {
+        return Optional.empty();
+      }
+
+      @Override
+      public Optional<ExternalIdentity> getExternalIdentity() {
+        return Optional.empty();
+      }
+
+      @Override
+      public Optional<String> getPersonalOrganizationUuid() {
+        return Optional.empty();
+      }
+
+      @Override
       protected boolean hasPermissionImpl(OrganizationPermission permission, String organizationUuid) {
         return true;
       }
@@ -111,9 +132,14 @@ public final class DoPrivileged {
       protected boolean hasProjectUuidPermission(String permission, String projectUuid) {
         return true;
       }
-      
+
       @Override
       public boolean isSystemAdministrator() {
+        return true;
+      }
+
+      @Override
+      public boolean hasMembershipImpl(OrganizationDto organizationDto) {
         return true;
       }
     }

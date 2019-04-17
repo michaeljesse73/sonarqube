@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,13 +19,16 @@
  */
 package org.sonar.api.batch.sensor.internal;
 
-import org.sonar.api.batch.ScannerSide;
+import org.sonar.api.scanner.ScannerSide;
+import org.sonar.api.batch.sensor.code.internal.DefaultSignificantCode;
 import org.sonar.api.batch.sensor.coverage.internal.DefaultCoverage;
 import org.sonar.api.batch.sensor.cpd.internal.DefaultCpdTokens;
 import org.sonar.api.batch.sensor.error.AnalysisError;
 import org.sonar.api.batch.sensor.highlighting.internal.DefaultHighlighting;
 import org.sonar.api.batch.sensor.issue.Issue;
+import org.sonar.api.batch.sensor.issue.internal.DefaultExternalIssue;
 import org.sonar.api.batch.sensor.measure.Measure;
+import org.sonar.api.batch.sensor.rule.internal.DefaultAdHocRule;
 import org.sonar.api.batch.sensor.symbol.internal.DefaultSymbolTable;
 
 /**
@@ -38,6 +41,10 @@ public interface SensorStorage {
   void store(Measure measure);
 
   void store(Issue issue);
+
+  void store(DefaultExternalIssue issue);
+
+  void store(DefaultAdHocRule adHocRule);
 
   void store(DefaultHighlighting highlighting);
 
@@ -68,4 +75,9 @@ public interface SensorStorage {
    * @since 6.1
    */
   void storeProperty(String key, String value);
+
+  /**
+   * @since 7.2
+   */
+  void store(DefaultSignificantCode significantCode);
 }

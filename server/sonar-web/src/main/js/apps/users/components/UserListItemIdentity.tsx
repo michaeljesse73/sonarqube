@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,13 +19,12 @@
  */
 import * as React from 'react';
 import * as theme from '../../../app/theme';
-import { IdentityProvider, User } from '../../../app/types';
 import { getTextColor } from '../../../helpers/colors';
 import { getBaseUrl } from '../../../helpers/urls';
 
-interface Props {
-  identityProvider?: IdentityProvider;
-  user: User;
+export interface Props {
+  identityProvider?: T.IdentityProvider;
+  user: T.User;
 }
 
 export default function UserListItemIdentity({ identityProvider, user }: Props) {
@@ -36,10 +35,9 @@ export default function UserListItemIdentity({ identityProvider, user }: Props) 
         <span className="js-user-login note little-spacer-left">{user.login}</span>
       </div>
       {user.email && <div className="js-user-email little-spacer-top">{user.email}</div>}
-      {!user.local &&
-        user.externalProvider !== 'sonarqube' && (
-          <ExternalProvider identityProvider={identityProvider} user={user} />
-        )}
+      {!user.local && user.externalProvider !== 'sonarqube' && (
+        <ExternalProvider identityProvider={identityProvider} user={user} />
+      )}
     </td>
   );
 }
@@ -60,15 +58,15 @@ export function ExternalProvider({ identityProvider, user }: Props) {
       <div
         className="identity-provider"
         style={{
-          'background-color': identityProvider.backgroundColor,
+          backgroundColor: identityProvider.backgroundColor,
           color: getTextColor(identityProvider.backgroundColor, theme.secondFontColor)
         }}>
         <img
           alt={identityProvider.name}
           className="little-spacer-right"
+          height="14"
           src={getBaseUrl() + identityProvider.iconPath}
           width="14"
-          height="14"
         />
         {user.externalIdentity}
       </div>

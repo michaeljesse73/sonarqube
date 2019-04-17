@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -17,23 +17,11 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import { isNil, omitBy } from 'lodash';
+import { isEqual, isNil, omitBy } from 'lodash';
 import { isValidDate, parseDate, toNotSoISOString, toShortNotSoISOString } from './dates';
 
 export interface RawQuery {
   [x: string]: any;
-}
-
-function arraysEqual(a: RawQuery, b: RawQuery): boolean {
-  if (a.length !== b.length) {
-    return false;
-  }
-  for (let i = 0; i < a.length; i++) {
-    if (a[i] !== b[i]) {
-      return false;
-    }
-  }
-  return true;
 }
 
 export function queriesEqual(a: RawQuery, b: RawQuery): boolean {
@@ -44,12 +32,7 @@ export function queriesEqual(a: RawQuery, b: RawQuery): boolean {
     return false;
   }
 
-  return keysA.every(
-    key =>
-      Array.isArray(a[key]) && Array.isArray(b[key])
-        ? arraysEqual(a[key], b[key])
-        : a[key] === b[key]
-  );
+  return keysA.every(key => isEqual(a[key], b[key]));
 }
 
 export function cleanQuery(query: RawQuery): RawQuery {
@@ -78,10 +61,6 @@ export function parseAsDate(value?: string): Date | undefined {
     }
   }
   return undefined;
-}
-
-export function parseAsFacetMode(facetMode: string): string {
-  return facetMode === 'debt' || facetMode === 'effort' ? 'effort' : 'count';
 }
 
 export function parseAsString(value: string | undefined): string {

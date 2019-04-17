@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,11 +19,15 @@
  */
 package org.sonar.server.ce.ws;
 
-import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
+import java.util.Random;
+import java.util.stream.IntStream;
+import javax.annotation.Nullable;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.sonar.api.utils.DateUtils;
 import org.sonar.api.utils.System2;
 import org.sonar.db.DbTester;
@@ -31,18 +35,26 @@ import org.sonar.db.ce.CeActivityDto;
 import org.sonar.db.ce.CeQueueDto;
 import org.sonar.db.ce.CeTaskTypes;
 import org.sonar.db.organization.OrganizationDto;
-import org.sonarqube.ws.Ce;
+import org.sonar.db.user.UserDto;
 import org.sonarqube.ws.Ce;
 
 import static java.util.Arrays.asList;
+import static java.util.Collections.emptyList;
+import static java.util.stream.Collectors.toList;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.sonar.db.ce.CeQueueTesting.makeInProgress;
 
 public class TaskFormatterTest {
 
   @Rule
   public DbTester db = DbTester.create(System2.INSTANCE);
+  @Rule
+  public ExpectedException expectedException = ExpectedException.none();
+
+  private int warningCount = new Random().nextInt(10);
 
   private System2 system2 = mock(System2.class);
   private TaskFormatter underTest = new TaskFormatter(db.getDbClient(), system2);
@@ -79,17 +91,20 @@ public class TaskFormatterTest {
     String uuid = "COMPONENT_UUID";
     OrganizationDto organizationDto = db.organizations().insert();
     db.components().insertPrivateProject(organizationDto, (t) -> t.setUuid(uuid).setDbKey("COMPONENT_KEY").setName("Component Name"));
+    UserDto user = db.users().insertUser();
 
     CeQueueDto dto = new CeQueueDto();
     dto.setUuid("UUID");
     dto.setTaskType("TYPE");
-    dto.setStatus(CeQueueDto.Status.IN_PROGRESS);
+    dto.setStatus(CeQueueDto.Status.PENDING);
     dto.setCreatedAt(1_450_000_000_000L);
-    dto.setStartedAt(1_451_000_000_000L);
     dto.setComponentUuid(uuid);
-    dto.setSubmitterLogin("rob");
+    dto.setSubmitterUuid(user.getUuid());
+    db.getDbClient().ceQueueDao().insert(db.getSession(), dto);
+    makeInProgress(db.getSession(), "workerUuid", 1_958_000_000_000L, dto);
+    CeQueueDto inProgress = db.getDbClient().ceQueueDao().selectByUuid(db.getSession(), dto.getUuid()).get();
 
-    Ce.Task wsTask = underTest.formatQueue(db.getSession(), dto);
+    Ce.Task wsTask = underTest.formatQueue(db.getSession(), inProgress);
 
     assertThat(wsTask.getType()).isEqualTo("TYPE");
     assertThat(wsTask.getId()).isEqualTo("UUID");
@@ -99,7 +114,7 @@ public class TaskFormatterTest {
     assertThat(wsTask.getComponentQualifier()).isEqualTo("TRK");
     assertThat(wsTask.getStatus()).isEqualTo(Ce.TaskStatus.IN_PROGRESS);
     assertThat(wsTask.getLogs()).isFalse();
-    assertThat(wsTask.getSubmitterLogin()).isEqualTo("rob");
+    assertThat(wsTask.getSubmitterLogin()).isEqualTo(user.getLogin());
     assertThat(wsTask.hasExecutionTimeMs()).isTrue();
     assertThat(wsTask.hasExecutedAt()).isFalse();
     assertThat(wsTask.hasScannerContext()).isFalse();
@@ -128,12 +143,14 @@ public class TaskFormatterTest {
     CeQueueDto dto = new CeQueueDto();
     dto.setUuid("UUID");
     dto.setTaskType("TYPE");
-    dto.setStatus(CeQueueDto.Status.IN_PROGRESS);
+    dto.setStatus(CeQueueDto.Status.PENDING);
     dto.setCreatedAt(1_450_000_000_000L);
-    dto.setStartedAt(startedAt);
+    db.getDbClient().ceQueueDao().insert(db.getSession(), dto);
+    makeInProgress(db.getSession(), "workerUuid", startedAt, dto);
+    CeQueueDto inProgress = db.getDbClient().ceQueueDao().selectByUuid(db.getSession(), dto.getUuid()).get();
     when(system2.now()).thenReturn(now);
 
-    Ce.Task wsTask = underTest.formatQueue(db.getSession(), dto);
+    Ce.Task wsTask = underTest.formatQueue(db.getSession(), inProgress);
 
     assertThat(wsTask.getExecutionTimeMs()).isEqualTo(now - startedAt);
   }
@@ -157,45 +174,76 @@ public class TaskFormatterTest {
   }
 
   @Test
-  public void formatActivity() {
-    CeActivityDto dto = newActivity("UUID", "COMPONENT_UUID", CeActivityDto.Status.FAILED);
+  public void formatActivity_throws_NPE_if_warnings_parameter_is_null() {
+    UserDto user = db.users().insertUser();
+    CeActivityDto dto = newActivity("UUID", "COMPONENT_UUID", CeActivityDto.Status.FAILED, user);
 
-    Ce.Task wsTask = underTest.formatActivity(db.getSession(), dto, null);
+    expectedException.expect(NullPointerException.class);
+
+    underTest.formatActivity(db.getSession(), dto, "foo", null);
+  }
+
+  @Test
+  public void formatActivity() {
+    UserDto user = db.users().insertUser();
+    CeActivityDto dto = newActivity("UUID", "COMPONENT_UUID", CeActivityDto.Status.FAILED, user);
+
+    Ce.Task wsTask = underTest.formatActivity(db.getSession(), dto, null, emptyList());
 
     assertThat(wsTask.getType()).isEqualTo(CeTaskTypes.REPORT);
     assertThat(wsTask.getId()).isEqualTo("UUID");
     assertThat(wsTask.getStatus()).isEqualTo(Ce.TaskStatus.FAILED);
     assertThat(wsTask.getSubmittedAt()).isEqualTo(DateUtils.formatDateTime(new Date(1_450_000_000_000L)));
+    assertThat(wsTask.getSubmitterLogin()).isEqualTo(user.getLogin());
     assertThat(wsTask.getExecutionTimeMs()).isEqualTo(500L);
     assertThat(wsTask.getAnalysisId()).isEqualTo("U1");
     assertThat(wsTask.getLogs()).isFalse();
     assertThat(wsTask.hasScannerContext()).isFalse();
+    assertThat(wsTask.getWarningCount()).isEqualTo(warningCount);
+    assertThat(wsTask.getWarningsList()).isEmpty();
   }
 
   @Test
   public void formatActivity_set_scanner_context_if_argument_is_non_null() {
-    CeActivityDto dto = newActivity("UUID", "COMPONENT_UUID", CeActivityDto.Status.FAILED);
+    CeActivityDto dto = newActivity("UUID", "COMPONENT_UUID", CeActivityDto.Status.FAILED, null);
 
     String expected = "scanner context baby!";
-    Ce.Task wsTask = underTest.formatActivity(db.getSession(), dto, expected);
+    Ce.Task wsTask = underTest.formatActivity(db.getSession(), dto, expected, emptyList());
 
     assertThat(wsTask.hasScannerContext()).isTrue();
     assertThat(wsTask.getScannerContext()).isEqualTo(expected);
   }
 
   @Test
+  public void formatActivity_set_warnings_list_if_argument_is_non_empty_not_checking_consistency_with_warning_count() {
+    CeActivityDto dto = newActivity("UUID", "COMPONENT_UUID", CeActivityDto.Status.FAILED, null);
+    String[] warnings = IntStream.range(0, warningCount + 1 + new Random().nextInt(5)).mapToObj(i -> "warning_" + i).toArray(String[]::new);
+
+    Ce.Task wsTask = underTest.formatActivity(db.getSession(), dto, null, Arrays.stream(warnings).collect(toList()));
+
+    assertThat(wsTask.getWarningCount()).isEqualTo(warningCount);
+    assertThat(wsTask.getWarningsList()).containsExactly(warnings);
+  }
+
+  @Test
   public void formatActivities() {
-    CeActivityDto dto1 = newActivity("UUID1", "COMPONENT_UUID", CeActivityDto.Status.FAILED);
-    CeActivityDto dto2 = newActivity("UUID2", "COMPONENT_UUID", CeActivityDto.Status.SUCCESS);
+    UserDto user1 = db.users().insertUser();
+    UserDto user2 = db.users().insertUser();
+    CeActivityDto dto1 = newActivity("UUID1", "COMPONENT_UUID", CeActivityDto.Status.FAILED, user1);
+    CeActivityDto dto2 = newActivity("UUID2", "COMPONENT_UUID", CeActivityDto.Status.SUCCESS, user2);
 
     Iterable<Ce.Task> wsTasks = underTest.formatActivity(db.getSession(), asList(dto1, dto2));
 
-    assertThat(wsTasks).extracting("id").containsExactly("UUID1", "UUID2");
+    assertThat(wsTasks)
+      .extracting(Ce.Task::getId, Ce.Task::getSubmitterLogin)
+      .containsExactlyInAnyOrder(
+        tuple("UUID1", user1.getLogin()),
+        tuple("UUID2", user2.getLogin()));
   }
 
   @Test
   public void formatActivity_with_both_error_message_and_stacktrace() {
-    CeActivityDto dto = newActivity("UUID", "COMPONENT_UUID", CeActivityDto.Status.FAILED)
+    CeActivityDto dto = newActivity("UUID", "COMPONENT_UUID", CeActivityDto.Status.FAILED, null)
       .setErrorMessage("error msg")
       .setErrorStacktrace("error stacktrace")
       .setErrorType("anErrorType");
@@ -209,7 +257,7 @@ public class TaskFormatterTest {
 
   @Test
   public void formatActivity_with_both_error_message_only() {
-    CeActivityDto dto = newActivity("UUID", "COMPONENT_UUID", CeActivityDto.Status.FAILED)
+    CeActivityDto dto = newActivity("UUID", "COMPONENT_UUID", CeActivityDto.Status.FAILED, null)
       .setErrorMessage("error msg");
 
     Ce.Task task = underTest.formatActivity(db.getSession(), Collections.singletonList(dto)).iterator().next();
@@ -220,7 +268,7 @@ public class TaskFormatterTest {
 
   @Test
   public void formatActivity_with_both_error_message_and_only_stacktrace_flag() {
-    CeActivityDto dto = newActivity("UUID", "COMPONENT_UUID", CeActivityDto.Status.FAILED)
+    CeActivityDto dto = newActivity("UUID", "COMPONENT_UUID", CeActivityDto.Status.FAILED, null)
       .setErrorMessage("error msg");
 
     Ce.Task task = underTest.formatActivity(db.getSession(), Collections.singletonList(dto)).iterator().next();
@@ -229,16 +277,35 @@ public class TaskFormatterTest {
     assertThat(task.hasErrorStacktrace()).isFalse();
   }
 
-  private CeActivityDto newActivity(String taskUuid, String componentUuid, CeActivityDto.Status status) {
-    CeQueueDto queueDto = new CeQueueDto();
-    queueDto.setCreatedAt(1_450_000_000_000L);
-    queueDto.setTaskType(CeTaskTypes.REPORT);
-    queueDto.setComponentUuid(componentUuid);
-    queueDto.setUuid(taskUuid);
-    CeActivityDto activityDto = new CeActivityDto(queueDto);
-    activityDto.setStatus(status);
-    activityDto.setExecutionTimeMs(500L);
-    activityDto.setAnalysisUuid("U1");
-    return activityDto;
+  private CeActivityDto newActivity(String taskUuid, String componentUuid, CeActivityDto.Status status, @Nullable UserDto user) {
+    CeQueueDto queueDto = new CeQueueDto()
+      .setCreatedAt(1_450_000_000_000L)
+      .setTaskType(CeTaskTypes.REPORT)
+      .setComponentUuid(componentUuid)
+      .setSubmitterUuid(user == null ? null : user.getUuid())
+      .setUuid(taskUuid);
+    TestActivityDto testActivityDto = new TestActivityDto(queueDto);
+    testActivityDto.setWarningCount(warningCount);
+    return testActivityDto
+      .setStatus(status)
+      .setExecutionTimeMs(500L)
+      .setAnalysisUuid("U1");
+  }
+
+  private class TestActivityDto extends CeActivityDto {
+
+    public TestActivityDto(CeQueueDto queueDto) {
+      super(queueDto);
+    }
+
+    @Override
+    public CeActivityDto setHasScannerContext(boolean hasScannerContext) {
+      return super.setHasScannerContext(hasScannerContext);
+    }
+
+    @Override
+    public CeActivityDto setWarningCount(int warningCount) {
+      return super.setWarningCount(warningCount);
+    }
   }
 }

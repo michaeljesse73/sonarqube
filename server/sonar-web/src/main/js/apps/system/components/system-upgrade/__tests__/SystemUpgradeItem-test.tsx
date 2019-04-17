@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -54,6 +54,6 @@ it('should display correctly', () => {
 });
 
 it('should display a badge', () => {
-  const wrapper = shallow(<SystemUpgradeItem type="LTS Version" systemUpgrades={UPGRADES} />);
+  const wrapper = shallow(<SystemUpgradeItem systemUpgrades={UPGRADES} type="LTS Version" />);
   expect(wrapper.find('h1').exists()).toBeTruthy();
 });

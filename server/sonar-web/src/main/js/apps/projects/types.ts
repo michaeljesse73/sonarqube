@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,11 +22,11 @@ export interface Project {
   isFavorite?: boolean;
   key: string;
   leakPeriodDate?: string;
-  measures: { [key: string]: string };
+  measures: T.Dict<string>;
   name: string;
   organization?: { key: string; name: string };
   tags: string[];
-  visibility: string;
+  visibility: T.Visibility;
 }
 
 export interface Facet {

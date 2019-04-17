@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,13 +19,15 @@
  */
 import * as React from 'react';
 import OpenCloseIcon from '../icons-components/OpenCloseIcon';
-import HelpIcon from '../icons-components/HelpIcon';
-import Tooltip from '../controls/Tooltip';
+import HelpTooltip from '../controls/HelpTooltip';
+import { Button } from '../ui/buttons';
 import { translate, translateWithParameters } from '../../helpers/l10n';
 
 interface Props {
+  children?: React.ReactNode;
+  clearLabel?: string;
   helper?: string;
-  name: string;
+  name: React.ReactNode;
   onClear?: () => void;
   onClick?: () => void;
   open: boolean;
@@ -33,14 +35,6 @@ interface Props {
 }
 
 export default class FacetHeader extends React.PureComponent<Props> {
-  handleClearClick = (event: React.SyntheticEvent<HTMLButtonElement>) => {
-    event.preventDefault();
-    event.currentTarget.blur();
-    if (this.props.onClear) {
-      this.props.onClear();
-    }
-  };
-
   handleClick = (event: React.SyntheticEvent<HTMLAnchorElement>) => {
     event.preventDefault();
     event.currentTarget.blur();
@@ -53,18 +47,12 @@ export default class FacetHeader extends React.PureComponent<Props> {
     if (!this.props.helper) {
       return null;
     }
-    return (
-      <Tooltip overlay={this.props.helper} placement="right">
-        <span>
-          <HelpIcon className="spacer-left text-info" />
-        </span>
-      </Tooltip>
-    );
+    return <HelpTooltip className="spacer-left" overlay={this.props.helper} />;
   }
 
   renderValueIndicator() {
     const { values } = this.props;
-    if (this.props.open || !values || !values.length) {
+    if (!values || !values.length) {
       return null;
     }
     const value =
@@ -83,7 +71,7 @@ export default class FacetHeader extends React.PureComponent<Props> {
     return (
       <div className="search-navigator-facet-header-wrapper">
         {this.props.onClick ? (
-          <span className="search-navigator-facet-header">
+          <span className="search-navigator-facet-header display-flex-center">
             <a href="#" onClick={this.handleClick}>
               <OpenCloseIcon className="little-spacer-right" open={this.props.open} />
               {this.props.name}
@@ -91,22 +79,24 @@ export default class FacetHeader extends React.PureComponent<Props> {
             {this.renderHelper()}
           </span>
         ) : (
-          <span className="search-navigator-facet-header">
+          <span className="search-navigator-facet-header display-flex-center">
             {this.props.name}
             {this.renderHelper()}
           </span>
         )}
+
+        {this.props.children}
 
         <span className="search-navigator-facet-header-value spacer-left spacer-right ">
           {this.renderValueIndicator()}
         </span>
 
         {showClearButton && (
-          <button
+          <Button
             className="search-navigator-facet-header-button button-small button-red"
-            onClick={this.handleClearClick}>
-            {translate('clear')}
-          </button>
+            onClick={this.props.onClear}>
+            {translate(this.props.clearLabel || 'clear')}
+          </Button>
         )}
       </div>
     );

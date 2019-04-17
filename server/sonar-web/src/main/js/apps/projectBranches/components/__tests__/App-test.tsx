@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,7 +25,6 @@ jest.mock('../../../../api/settings', () => ({
 import * as React from 'react';
 import { mount, shallow } from 'enzyme';
 import App from '../App';
-import { BranchType, MainBranch, LongLivingBranch, ShortLivingBranch } from '../../../../app/types';
 
 const getValues = require('../../../../api/settings').getValues as jest.Mock<any>;
 
@@ -34,19 +33,40 @@ beforeEach(() => {
 });
 
 it('renders sorted list of branches', () => {
-  const branches: [MainBranch, LongLivingBranch, ShortLivingBranch] = [
+  const branchLikes: [
+    T.MainBranch,
+    T.LongLivingBranch,
+    T.ShortLivingBranch,
+    T.PullRequest,
+    T.ShortLivingBranch
+  ] = [
     { isMain: true, name: 'master' },
-    { isMain: false, name: 'branch-1.0', type: BranchType.LONG },
-    { isMain: false, name: 'branch-1.0', mergeBranch: 'master', type: BranchType.SHORT }
+    { isMain: false, name: 'branch-1.0', type: 'LONG' },
+    { isMain: false, mergeBranch: 'master', name: 'feature', type: 'SHORT' },
+    { base: 'master', branch: 'feature', key: '1234', title: 'Feature PR' },
+    {
+      isMain: false,
+      mergeBranch: 'foobar',
+      isOrphan: true,
+      name: 'feature',
+      type: 'SHORT'
+    }
   ];
   const wrapper = shallow(
-    <App branches={branches} component={{ key: 'foo' }} onBranchesChange={jest.fn()} />
+    <App
+      branchLikes={branchLikes}
+      canAdmin={true}
+      component={{ key: 'foo' }}
+      onBranchesChange={jest.fn()}
+    />
   );
   wrapper.setState({ branchLifeTime: '100', loading: false });
   expect(wrapper).toMatchSnapshot();
 });
 
 it('fetches branch life time setting on mount', () => {
-  mount(<App branches={[]} component={{ key: 'foo' }} onBranchesChange={jest.fn()} />);
-  expect(getValues).toBeCalledWith('sonar.dbcleaner.daysBeforeDeletingInactiveShortLivingBranches');
+  mount(<App branchLikes={[]} component={{ key: 'foo' }} onBranchesChange={jest.fn()} />);
+  expect(getValues).toBeCalledWith({
+    keys: 'sonar.dbcleaner.daysBeforeDeletingInactiveShortLivingBranches'
+  });
 });

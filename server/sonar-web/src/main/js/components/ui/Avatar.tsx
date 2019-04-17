@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,19 +21,22 @@ import * as React from 'react';
 import { connect } from 'react-redux';
 import * as classNames from 'classnames';
 import GenericAvatar from './GenericAvatar';
-import { getGlobalSettingValue } from '../../store/rootReducer';
+import { getGlobalSettingValue, Store } from '../../store/rootReducer';
 
 interface Props {
   className?: string;
   enableGravatar: boolean;
   gravatarServerUrl: string;
   hash?: string;
-  name: string;
+  name?: string;
   size: number;
 }
 
 function Avatar(props: Props) {
   if (!props.enableGravatar || !props.hash) {
+    if (!props.name) {
+      return null;
+    }
     return <GenericAvatar className={props.className} name={props.name} size={props.size} />;
   }
 
@@ -43,19 +46,23 @@ function Avatar(props: Props) {
 
   return (
     <img
+      alt={props.name}
       className={classNames(props.className, 'rounded')}
+      height={props.size}
       src={url}
       width={props.size}
-      height={props.size}
-      alt={props.name}
     />
   );
 }
 
-const mapStateToProps = (state: any) => ({
-  enableGravatar: (getGlobalSettingValue(state, 'sonar.lf.enableGravatar') || {}).value === 'true',
-  gravatarServerUrl: (getGlobalSettingValue(state, 'sonar.lf.gravatarServerUrl') || {}).value
-});
+const mapStateToProps = (state: Store) => {
+  const enableGravatar = getGlobalSettingValue(state, 'sonar.lf.enableGravatar');
+  const gravatarServerUrl = getGlobalSettingValue(state, 'sonar.lf.gravatarServerUrl');
+  return {
+    enableGravatar: Boolean(enableGravatar && enableGravatar.value === 'true'),
+    gravatarServerUrl: (gravatarServerUrl && gravatarServerUrl.value) || ''
+  };
+};
 
 export default connect(mapStateToProps)(Avatar);
 

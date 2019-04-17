@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,7 +22,10 @@ package org.sonar.server.ws;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.net.HttpHeaders;
+import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStream;
+import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -67,6 +70,15 @@ public class ServletRequest extends ValidatingRequest {
   }
 
   @Override
+  public BufferedReader getReader() {
+    try {
+      return source.getReader();
+    } catch (IOException e) {
+      throw new IllegalStateException("Failed to read", e);
+    }
+  }
+
+  @Override
   public boolean hasParam(String key) {
     return source.getParameterMap().containsKey(key);
   }
@@ -74,6 +86,11 @@ public class ServletRequest extends ValidatingRequest {
   @Override
   protected String readParam(String key) {
     return source.getParameter(key);
+  }
+
+  @Override
+  public Map<String, String[]> getParams() {
+    return source.getParameterMap();
   }
 
   @Override
@@ -140,5 +157,16 @@ public class ServletRequest extends ValidatingRequest {
   @Override
   public Optional<String> header(String name) {
     return Optional.ofNullable(source.getHeader(name));
+  }
+
+  @Override
+  public Map<String, String> getHeaders() {
+    ImmutableMap.Builder<String, String> mapBuilder = ImmutableMap.builder();
+    Enumeration<String> headerNames = source.getHeaderNames();
+    while (headerNames.hasMoreElements()) {
+      String headerName = headerNames.nextElement();
+      mapBuilder.put(headerName, source.getHeader(headerName));
+    }
+    return mapBuilder.build();
   }
 }

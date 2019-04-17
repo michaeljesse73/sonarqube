@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,6 +24,7 @@ import { Facet } from '../types';
 import Level from '../../../components/ui/Level';
 import { translate } from '../../../helpers/l10n';
 import { RawQuery } from '../../../helpers/query';
+import HelpTooltip from '../../../components/controls/HelpTooltip';
 
 export interface Props {
   className?: string;
@@ -31,7 +32,7 @@ export interface Props {
   maxFacetValue?: number;
   onQueryChange: (change: RawQuery) => void;
   organization?: { key: string };
-  query: { [x: string]: any };
+  query: T.Dict<any>;
   value?: any;
 }
 
@@ -39,16 +40,16 @@ export default function QualityGateFilter(props: Props) {
   return (
     <Filter
       facet={props.facet}
-      maxFacetValue={props.maxFacetValue}
-      onQueryChange={props.onQueryChange}
-      value={props.value}
-      property="gate"
-      options={['OK', 'WARN', 'ERROR']}
-      query={props.query}
-      renderOption={renderOption}
-      organization={props.organization}
       getFacetValueForOption={getFacetValueForOption}
       header={<FilterHeader name={translate('projects.facets.quality_gate')} />}
+      maxFacetValue={props.maxFacetValue}
+      onQueryChange={props.onQueryChange}
+      options={['OK', 'WARN', 'ERROR']}
+      organization={props.organization}
+      property="gate"
+      query={props.query}
+      renderOption={renderOption}
+      value={props.value}
     />
   );
 }
@@ -58,5 +59,15 @@ function getFacetValueForOption(facet: Facet, option: string) {
 }
 
 function renderOption(option: string, selected: boolean) {
-  return <Level level={option} small={true} muted={!selected} />;
+  return (
+    <>
+      <Level level={option} muted={!selected} small={true} />
+      {option === 'WARN' && (
+        <HelpTooltip
+          className="little-spacer-left"
+          overlay={translate('projects.facets.quality_gate.warning_help')}
+        />
+      )}
+    </>
+  );
 }

@@ -7,12 +7,17 @@
     "noImplicitAny": true,
     "strict": true,
     "strictFunctionTypes": false,
-    "target": "es5",
+    "target": "es2018",
     "jsx": "react",
     "lib": ["es2017", "dom"],
     "module": "esnext",
     "moduleResolution": "node",
-    "typeRoots": ["./src/main/js/typings", "./node_modules/@types"]
+    "sourceMap": true,
+    "baseUrl": ".",
+    "paths": {
+      "Docs/*": ["../sonar-docs/src/*"],
+      "*": ["./src/main/js/@types/*"]
+    }
   },
   "include": ["./src/main/js/**/*"]
 }

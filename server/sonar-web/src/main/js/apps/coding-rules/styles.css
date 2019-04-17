@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -83,10 +83,6 @@
   margin-right: calc(2 * var(--gridSize));
   margin-bottom: var(--gridSize);
   font-size: var(--smallFontSize);
-}
-
-.coding-rules-detail-property .select2-search-field {
-  line-height: 1;
 }
 
 .coding-rules-detail-tag + .coding-rules-detail-tag {
@@ -196,29 +192,13 @@
 }
 
 .coding-rules-detail-quality-profile-inheritance {
-  margin-top: 4px;
   font-size: var(--smallFontSize);
   font-weight: normal;
-}
-
-.coding-rules-detail-quality-profile-inheritance i {
-  position: relative;
-  top: -1px;
-  font-size: var(--mediumFontSize);
 }
 
 .coding-rules-detail-quality-profiles-activation {
   margin-top: -3px;
   margin-left: 10px;
-}
-
-input.coding-rules-name-key {
-  width: 100%;
-}
-
-textarea.coding-rules-markdown-description {
-  width: 100%;
-  margin-bottom: 4px;
 }
 
 .coding-rules-most-violated-projects td {
@@ -268,6 +248,11 @@ textarea.coding-rules-markdown-description {
   white-space: nowrap;
 }
 
+@media (max-width: 1320px) {
+  .coding-rule-table .tags-list span {
+    max-width: 100px;
+  }
+}
 .coding-rule-title {
   line-height: calc(2.5 * var(--gridSize));
   font-size: var(--baseFontSize);
@@ -276,11 +261,6 @@ textarea.coding-rules-markdown-description {
 .coding-rule-meta {
   padding: calc(0.25 * var(--gridSize));
   padding-left: 30px;
-  font-size: var(--smallFontSize);
-}
-
-.coding-rule-meta .icon-tags:before {
-  color: var(--secondFontColor);
   font-size: var(--smallFontSize);
 }
 

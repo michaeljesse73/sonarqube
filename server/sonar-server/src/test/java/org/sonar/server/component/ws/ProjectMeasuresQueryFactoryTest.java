@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -35,14 +35,13 @@ import static java.util.Collections.emptySet;
 import static java.util.Collections.singletonList;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
-import static org.sonar.server.component.ws.FilterParser.Operator;
-import static org.sonar.server.component.ws.FilterParser.Operator.EQ;
-import static org.sonar.server.component.ws.FilterParser.Operator.GT;
-import static org.sonar.server.component.ws.FilterParser.Operator.IN;
-import static org.sonar.server.component.ws.FilterParser.Operator.LT;
-import static org.sonar.server.component.ws.FilterParser.Operator.LTE;
+import static org.sonar.server.measure.index.ProjectMeasuresQuery.Operator;
+import static org.sonar.server.measure.index.ProjectMeasuresQuery.Operator.EQ;
+import static org.sonar.server.measure.index.ProjectMeasuresQuery.Operator.GT;
+import static org.sonar.server.measure.index.ProjectMeasuresQuery.Operator.IN;
+import static org.sonar.server.measure.index.ProjectMeasuresQuery.Operator.LT;
+import static org.sonar.server.measure.index.ProjectMeasuresQuery.Operator.LTE;
 import static org.sonar.server.component.ws.ProjectMeasuresQueryFactory.newProjectMeasuresQuery;
-import static org.sonar.server.computation.task.projectanalysis.measure.Measure.Level.OK;
 
 public class ProjectMeasuresQueryFactoryTest {
 
@@ -98,7 +97,7 @@ public class ProjectMeasuresQueryFactoryTest {
     ProjectMeasuresQuery query = newProjectMeasuresQuery(singletonList(Criterion.builder().setKey("alert_status").setOperator(EQ).setValue("OK").build()),
       emptySet());
 
-    assertThat(query.getQualityGateStatus().get().name()).isEqualTo(OK.name());
+    assertThat(query.getQualityGateStatus().get().name()).isEqualTo("OK");
   }
 
   @Test

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,7 +20,7 @@
 import * as React from 'react';
 import SettingForm from './SettingForm';
 import { translate } from '../../../helpers/l10n';
-import { getValues, SettingValue } from '../../../api/settings';
+import { getValues } from '../../../api/settings';
 import Modal from '../../../components/controls/Modal';
 
 interface Props {
@@ -31,7 +31,7 @@ interface Props {
 
 interface State {
   loading: boolean;
-  setting?: SettingValue;
+  setting?: T.SettingValue;
   submitting: boolean;
   value?: string;
 }
@@ -53,7 +53,7 @@ export default class LeakPeriodForm extends React.PureComponent<Props, State> {
 
   fetchSetting() {
     this.setState({ loading: true });
-    getValues(LEAK_PERIOD, this.props.project, this.props.branch).then(
+    getValues({ keys: LEAK_PERIOD, component: this.props.project, branch: this.props.branch }).then(
       settings => {
         if (this.mounted) {
           this.setState({ loading: false, setting: settings[0] });
@@ -74,7 +74,7 @@ export default class LeakPeriodForm extends React.PureComponent<Props, State> {
 
   render() {
     const { setting } = this.state;
-    const header = translate('branches.set_leak_period');
+    const header = translate('branches.set_new_code_period');
 
     return (
       <Modal contentLabel={header} onRequestClose={this.props.onClose}>

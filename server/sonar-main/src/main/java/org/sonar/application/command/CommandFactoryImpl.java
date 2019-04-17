@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Optional;
 import org.slf4j.LoggerFactory;
 import org.sonar.application.es.EsInstallation;
+import org.sonar.application.es.EsInstallationImpl;
 import org.sonar.application.es.EsLogging;
 import org.sonar.application.es.EsSettings;
 import org.sonar.application.es.EsYmlSettings;
@@ -51,6 +52,7 @@ import static org.sonar.process.ProcessProperties.Property.WEB_JAVA_OPTS;
 
 public class CommandFactoryImpl implements CommandFactory {
   private static final String ENV_VAR_JAVA_TOOL_OPTIONS = "JAVA_TOOL_OPTIONS";
+  private static final String ENV_VAR_ES_JAVA_OPTS = "ES_JAVA_OPTS";
   /**
    * Properties about proxy that must be set as system properties
    */
@@ -78,6 +80,13 @@ public class CommandFactoryImpl implements CommandFactory {
         .warn("JAVA_TOOL_OPTIONS is defined but will be ignored. " +
           "Use properties sonar.*.javaOpts and/or sonar.*.javaAdditionalOpts in sonar.properties to change SQ JVM processes options");
     }
+    String esJavaOpts = system2.getenv(ENV_VAR_ES_JAVA_OPTS);
+    if (esJavaOpts != null && !esJavaOpts.trim().isEmpty()) {
+      LoggerFactory.getLogger(CommandFactoryImpl.class)
+        .warn("ES_JAVA_OPTS is defined but will be ignored. " +
+          "Use properties sonar.search.javaOpts and/or sonar.search.javaAdditionalOpts in sonar.properties to change SQ JVM processes options");
+    }
+
   }
 
   @Override
@@ -92,10 +101,11 @@ public class CommandFactoryImpl implements CommandFactory {
     EsInstallation esInstallation = createEsInstallation();
     return new EsScriptCommand(ProcessId.ELASTICSEARCH, esInstallation.getHomeDirectory())
       .setEsInstallation(esInstallation)
-      .addOption("-Epath.conf=" + esInstallation.getConfDirectory().getAbsolutePath())
+      .setEnvVariable("ES_PATH_CONF", esInstallation.getConfDirectory().getAbsolutePath())
       .setEnvVariable("ES_JVM_OPTIONS", esInstallation.getJvmOptions().getAbsolutePath())
       .setEnvVariable("JAVA_HOME", System.getProperties().getProperty("java.home"))
-      .suppressEnvVariable(ENV_VAR_JAVA_TOOL_OPTIONS);
+      .suppressEnvVariable(ENV_VAR_JAVA_TOOL_OPTIONS)
+      .suppressEnvVariable(ENV_VAR_ES_JAVA_OPTS);
   }
 
   private JavaCommand createEsCommandForWindows() {
@@ -103,21 +113,22 @@ public class CommandFactoryImpl implements CommandFactory {
     return new JavaCommand<EsJvmOptions>(ProcessId.ELASTICSEARCH, esInstallation.getHomeDirectory())
       .setEsInstallation(esInstallation)
       .setReadsArgumentsFromFile(false)
-      .setArgument("path.conf", esInstallation.getConfDirectory().getAbsolutePath())
-      .setJvmOptions(new EsJvmOptions()
+      .setJvmOptions(new EsJvmOptions(esInstallation)
         .addFromMandatoryProperty(props, SEARCH_JAVA_OPTS.getKey())
         .addFromMandatoryProperty(props, SEARCH_JAVA_ADDITIONAL_OPTS.getKey())
         .add("-Delasticsearch")
-        .add("-Des.path.home=" + esInstallation.getHomeDirectory()))
+        .add("-Des.path.home=" + esInstallation.getHomeDirectory().getAbsolutePath())
+        .add("-Des.path.conf=" + esInstallation.getConfDirectory().getAbsolutePath()))
       .setEnvVariable("ES_JVM_OPTIONS", esInstallation.getJvmOptions().getAbsolutePath())
       .setEnvVariable("JAVA_HOME", System.getProperties().getProperty("java.home"))
       .setClassName("org.elasticsearch.bootstrap.Elasticsearch")
       .addClasspath("lib/*")
-      .suppressEnvVariable(ENV_VAR_JAVA_TOOL_OPTIONS);
+      .suppressEnvVariable(ENV_VAR_JAVA_TOOL_OPTIONS)
+      .suppressEnvVariable(ENV_VAR_ES_JAVA_OPTS);
   }
 
   private EsInstallation createEsInstallation() {
-    EsInstallation esInstallation = new EsInstallation(props);
+    EsInstallationImpl esInstallation = new EsInstallationImpl(props);
     if (!esInstallation.getExecutable().exists()) {
       throw new IllegalStateException("Cannot find elasticsearch binary");
     }
@@ -125,7 +136,7 @@ public class CommandFactoryImpl implements CommandFactory {
 
     esInstallation
       .setLog4j2Properties(new EsLogging().createProperties(props, esInstallation.getLogDirectory()))
-      .setEsJvmOptions(new EsJvmOptions()
+      .setEsJvmOptions(new EsJvmOptions(esInstallation)
         .addFromMandatoryProperty(props, SEARCH_JAVA_OPTS.getKey())
         .addFromMandatoryProperty(props, SEARCH_JAVA_ADDITIONAL_OPTS.getKey()))
       .setEsYmlSettings(new EsYmlSettings(settingsMap))
@@ -152,8 +163,7 @@ public class CommandFactoryImpl implements CommandFactory {
       .setEnvVariable(PATH_LOGS.getKey(), props.nonNullValue(PATH_LOGS.getKey()))
       .setArgument("sonar.cluster.web.startupLeader", Boolean.toString(leader))
       .setClassName("org.sonar.server.app.WebServer")
-      .addClasspath("./lib/common/*")
-      .addClasspath("./lib/server/*");
+      .addClasspath("./lib/common/*");
     String driverPath = props.value(JDBC_DRIVER_PATH.getKey());
     if (driverPath != null) {
       command.addClasspath(driverPath);
@@ -176,9 +186,7 @@ public class CommandFactoryImpl implements CommandFactory {
       .setArguments(props.rawProperties())
       .setJvmOptions(jvmOptions)
       .setClassName("org.sonar.ce.app.CeServer")
-      .addClasspath("./lib/common/*")
-      .addClasspath("./lib/server/*")
-      .addClasspath("./lib/ce/*");
+      .addClasspath("./lib/common/*");
     String driverPath = props.value(JDBC_DRIVER_PATH.getKey());
     if (driverPath != null) {
       command.addClasspath(driverPath);

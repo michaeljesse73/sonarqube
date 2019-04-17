@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,6 +25,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
 import javax.annotation.Nullable;
+
 import org.apache.ibatis.session.ResultHandler;
 import org.sonar.api.rule.RuleKey;
 import org.sonar.api.rules.RuleQuery;
@@ -47,6 +48,11 @@ public class RuleDao implements Dao {
     RuleDto res = mapper(session).selectByKey(organization.getUuid(), key);
     ensureOrganizationIsSet(organization.getUuid(), res);
     return ofNullable(res);
+  }
+
+  public RuleDto selectOrFailByKey(DbSession session, RuleKey key) {
+    RuleDefinitionDto ruleDefinitionDto = selectOrFailDefinitionByKey(session, key);
+    return new RuleDto(ruleDefinitionDto, new RuleMetadataDto());
   }
 
   public Optional<RuleDefinitionDto> selectDefinitionByKey(DbSession session, RuleKey key) {
@@ -133,6 +139,11 @@ public class RuleDao implements Dao {
 
   public List<RuleDefinitionDto> selectAllDefinitions(DbSession session) {
     return mapper(session).selectAllDefinitions();
+  }
+
+  public List<RuleDto> selectByTypeAndLanguages(DbSession session, String organizationUuid, List<Integer> types, List<String> languages) {
+    return ensureOrganizationIsSet(organizationUuid,
+      executeLargeInputs(languages, chunk -> mapper(session).selectByTypeAndLanguages(organizationUuid, types, chunk)));
   }
 
   public List<RuleDto> selectByQuery(DbSession session, String organizationUuid, RuleQuery ruleQuery) {

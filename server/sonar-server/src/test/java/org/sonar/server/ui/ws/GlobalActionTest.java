@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,6 +19,7 @@
  */
 package org.sonar.server.ui.ws;
 
+import java.util.Optional;
 import org.junit.Rule;
 import org.junit.Test;
 import org.sonar.api.config.internal.MapSettings;
@@ -28,6 +29,10 @@ import org.sonar.api.resources.ResourceTypeTree;
 import org.sonar.api.resources.ResourceTypes;
 import org.sonar.api.web.page.Page;
 import org.sonar.api.web.page.PageDefinition;
+import org.sonar.core.extension.CoreExtensionRepository;
+import org.sonar.core.platform.EditionProvider;
+import org.sonar.core.platform.PlatformEditionProvider;
+import org.sonar.core.platform.PluginInfo;
 import org.sonar.core.platform.PluginRepository;
 import org.sonar.db.DbClient;
 import org.sonar.db.dialect.H2;
@@ -40,9 +45,10 @@ import org.sonar.server.platform.WebServer;
 import org.sonar.server.tester.UserSessionRule;
 import org.sonar.server.ui.PageRepository;
 import org.sonar.server.ws.WsActionTester;
+import org.sonar.updatecenter.common.Version;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Matchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -58,10 +64,10 @@ public class GlobalActionTest {
   private Server server = mock(Server.class);
   private WebServer webServer = mock(WebServer.class);
   private DbClient dbClient = mock(DbClient.class, RETURNS_DEEP_STUBS);
-
   private TestOrganizationFlags organizationFlags = TestOrganizationFlags.standalone();
   private DefaultOrganizationProvider defaultOrganizationProvider = TestDefaultOrganizationProvider.fromUuid("foo");
   private BranchFeatureRule branchFeature = new BranchFeatureRule();
+  private PlatformEditionProvider editionProvider = mock(PlatformEditionProvider.class);
 
   private WsActionTester ws;
 
@@ -102,9 +108,7 @@ public class GlobalActionTest {
     settings.setProperty("sonar.lf.logoWidthPx", 135);
     settings.setProperty("sonar.lf.gravatarServerUrl", "https://secure.gravatar.com/avatar/{EMAIL_MD5}.jpg?s={SIZE}&d=identicon");
     settings.setProperty("sonar.lf.enableGravatar", true);
-    settings.setProperty("sonar.sonarcloud.enabled", true);
     settings.setProperty("sonar.updatecenter.activate", false);
-    settings.setProperty("sonar.editions.jsonUrl", "https://foo.bar/editions.json");
     settings.setProperty("sonar.technicalDebt.ratingGrid", "0.05,0.1,0.2,0.5");
     // This setting should be ignored as it's not needed
     settings.setProperty("sonar.defaultGroup", "sonar-users");
@@ -116,10 +120,25 @@ public class GlobalActionTest {
       "    \"sonar.lf.logoWidthPx\": \"135\"," +
       "    \"sonar.lf.gravatarServerUrl\": \"https://secure.gravatar.com/avatar/{EMAIL_MD5}.jpg?s={SIZE}&d=identicon\"," +
       "    \"sonar.lf.enableGravatar\": \"true\"," +
-      "    \"sonar.sonarcloud.enabled\": \"true\"," +
-      "    \"sonar.editions.jsonUrl\": \"https://foo.bar/editions.json\"," +
       "    \"sonar.updatecenter.activate\": \"false\"," +
       "    \"sonar.technicalDebt.ratingGrid\": \"0.05,0.1,0.2,0.5\"" +
+      "  }" +
+      "}");
+  }
+
+  @Test
+  public void return_sonarcloud_settings() {
+    settings.setProperty("sonar.sonarcloud.enabled", true);
+    settings.setProperty("sonar.prismic.accessToken", "secret");
+    settings.setProperty("sonar.analytics.trackingId", "ga_id");
+    settings.setProperty("sonar.homepage.url", "https://s3/homepage.json");
+    init();
+
+    assertJson(call()).isSimilarTo("{" +
+      "  \"settings\": {" +
+      "    \"sonar.prismic.accessToken\": \"secret\"," +
+      "    \"sonar.analytics.trackingId\": \"ga_id\"," +
+      "    \"sonar.homepage.url\": \"https://s3/homepage.json\"" +
       "  }" +
       "}");
   }
@@ -233,7 +252,6 @@ public class GlobalActionTest {
     userSession.logIn().setRoot();
     when(webServer.isStandalone()).thenReturn(true);
 
-
     assertJson(call()).isSimilarTo("{\"standalone\":true}");
   }
 
@@ -242,7 +260,6 @@ public class GlobalActionTest {
     init();
     userSession.logIn().setRoot();
     when(webServer.isStandalone()).thenReturn(false);
-
 
     assertJson(call()).isSimilarTo("{\"standalone\":false}");
   }
@@ -270,9 +287,28 @@ public class GlobalActionTest {
     when(server.getVersion()).thenReturn("6.2");
     when(dbClient.getDatabase().getDialect()).thenReturn(new MySql());
     when(webServer.isStandalone()).thenReturn(true);
+    when(editionProvider.get()).thenReturn(Optional.of(EditionProvider.Edition.COMMUNITY));
 
     String result = call();
     assertJson(result).isSimilarTo(ws.getDef().responseExampleAsString());
+  }
+
+  @Test
+  public void edition_is_not_returned_if_not_defined() {
+    init();
+    when(editionProvider.get()).thenReturn(Optional.empty());
+
+    String json = call();
+    assertThat(json).doesNotContain("edition");
+  }
+
+  @Test
+  public void edition_is_returned_if_defined() {
+    init();
+    when(editionProvider.get()).thenReturn(Optional.of(EditionProvider.Edition.DEVELOPER));
+
+    String json = call();
+    assertJson(json).isSimilarTo("{\"edition\":\"developer\"}");
   }
 
   private void init() {
@@ -283,15 +319,18 @@ public class GlobalActionTest {
     when(dbClient.getDatabase().getDialect()).thenReturn(new H2());
     when(server.getVersion()).thenReturn("6.42");
     PluginRepository pluginRepository = mock(PluginRepository.class);
-    when(pluginRepository.hasPlugin(anyString())).thenReturn(true);
-    PageRepository pageRepository = new PageRepository(pluginRepository, new PageDefinition[] {context -> {
+    when(pluginRepository.hasPlugin(any())).thenReturn(true);
+    when(pluginRepository.getPluginInfo(any())).thenReturn(new PluginInfo("unused").setVersion(Version.create("1.0")));
+    CoreExtensionRepository coreExtensionRepository = mock(CoreExtensionRepository.class);
+    when(coreExtensionRepository.isInstalled(any())).thenReturn(false);
+    PageRepository pageRepository = new PageRepository(pluginRepository, coreExtensionRepository, new PageDefinition[] {context -> {
       for (Page page : pages) {
         context.addPage(page);
       }
     }});
     pageRepository.start();
     GlobalAction wsAction = new GlobalAction(pageRepository, settings.asConfig(), new ResourceTypes(resourceTypeTrees), server,
-      webServer, dbClient, organizationFlags, defaultOrganizationProvider, branchFeature, userSession);
+      webServer, dbClient, organizationFlags, defaultOrganizationProvider, branchFeature, userSession, editionProvider);
     ws = new WsActionTester(wsAction);
     wsAction.start();
   }

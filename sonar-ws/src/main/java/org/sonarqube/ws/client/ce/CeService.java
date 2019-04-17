@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,18 +21,20 @@ package org.sonarqube.ws.client.ce;
 
 import java.util.stream.Collectors;
 import javax.annotation.Generated;
+import org.sonarqube.ws.Ce.ActivityResponse;
+import org.sonarqube.ws.Ce.ActivityStatusWsResponse;
+import org.sonarqube.ws.Ce.AnalysisStatusWsResponse;
+import org.sonarqube.ws.Ce.ComponentResponse;
+import org.sonarqube.ws.Ce.InfoWsResponse;
+import org.sonarqube.ws.Ce.SubmitResponse;
+import org.sonarqube.ws.Ce.TaskResponse;
+import org.sonarqube.ws.Ce.TaskTypesWsResponse;
+import org.sonarqube.ws.Ce.WorkerCountResponse;
 import org.sonarqube.ws.MediaTypes;
 import org.sonarqube.ws.client.BaseService;
 import org.sonarqube.ws.client.GetRequest;
 import org.sonarqube.ws.client.PostRequest;
 import org.sonarqube.ws.client.WsConnector;
-import org.sonarqube.ws.Ce.ActivityResponse;
-import org.sonarqube.ws.Ce.ActivityStatusWsResponse;
-import org.sonarqube.ws.Ce.ComponentResponse;
-import org.sonarqube.ws.Ce.SubmitResponse;
-import org.sonarqube.ws.Ce.TaskResponse;
-import org.sonarqube.ws.Ce.TaskTypesWsResponse;
-import org.sonarqube.ws.Ce.WorkerCountResponse;
 
 /**
  * @see <a href="https://next.sonarqube.com/sonarqube/web_api/api/ce">Further information about this web service online</a>
@@ -55,11 +57,9 @@ public class CeService extends BaseService {
     return call(
       new GetRequest(path("activity"))
         .setParam("componentId", request.getComponentId())
-        .setParam("componentQuery", request.getComponentQuery())
         .setParam("maxExecutedAt", request.getMaxExecutedAt())
         .setParam("minSubmittedAt", request.getMinSubmittedAt())
         .setParam("onlyCurrents", request.getOnlyCurrents())
-        .setParam("p", request.getP())
         .setParam("ps", request.getPs())
         .setParam("q", request.getQ())
         .setParam("status", request.getStatus() == null ? null : request.getStatus().stream().collect(Collectors.joining(",")))
@@ -80,6 +80,22 @@ public class CeService extends BaseService {
         .setParam("componentId", request.getComponentId())
         .setParam("componentKey", request.getComponentKey()),
       ActivityStatusWsResponse.parser());
+  }
+
+  /**
+   *
+   * This is part of the internal API.
+   * This is a GET request.
+   * @see <a href="https://next.sonarqube.com/sonarqube/web_api/api/ce/analysis_status">Further information about this action online (including a response example)</a>
+   * @since 7.4
+   */
+  public AnalysisStatusWsResponse analysisStatus(AnalysisStatusRequest request) {
+    return call(
+      new GetRequest(path("analysis_status"))
+        .setParam("branch", request.getBranch())
+        .setParam("component", request.getComponent())
+        .setParam("pullRequest", request.getPullRequest()),
+      AnalysisStatusWsResponse.parser());
   }
 
   /**
@@ -124,6 +140,47 @@ public class CeService extends BaseService {
         .setParam("component", request.getComponent())
         .setParam("componentId", request.getComponentId()),
       ComponentResponse.parser());
+  }
+
+  /**
+   *
+   * This is part of the internal API.
+   * This is a GET request.
+   * @see <a href="https://next.sonarqube.com/sonarqube/web_api/api/ce/info">Further information about this action online (including a response example)</a>
+   * @since 7.2
+   */
+  public InfoWsResponse info() {
+    return call(
+      new GetRequest(path("info")),
+      InfoWsResponse.parser());
+  }
+
+  /**
+   *
+   * This is part of the internal API.
+   * This is a POST request.
+   * @see <a href="https://next.sonarqube.com/sonarqube/web_api/api/ce/pause">Further information about this action online (including a response example)</a>
+   * @since 7.2
+   */
+  public void pause() {
+    call(
+      new PostRequest(path("pause"))
+        .setMediaType(MediaTypes.JSON)
+      ).content();
+  }
+
+  /**
+   *
+   * This is part of the internal API.
+   * This is a POST request.
+   * @see <a href="https://next.sonarqube.com/sonarqube/web_api/api/ce/resume">Further information about this action online (including a response example)</a>
+   * @since 7.2
+   */
+  public void resume() {
+    call(
+      new PostRequest(path("resume"))
+        .setMediaType(MediaTypes.JSON)
+      ).content();
   }
 
   /**

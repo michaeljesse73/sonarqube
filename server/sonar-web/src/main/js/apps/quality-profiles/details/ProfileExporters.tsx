@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -59,9 +59,9 @@ export default class ProfileExporters extends React.PureComponent<Props> {
           <ul>
             {exportersForLanguage.map((exporter, index) => (
               <li
-                key={exporter.key}
+                className={index > 0 ? 'spacer-top' : undefined}
                 data-key={exporter.key}
-                className={index > 0 ? 'spacer-top' : undefined}>
+                key={exporter.key}>
                 <a href={this.getExportUrl(exporter)} target="_blank">
                   {exporter.name}
                 </a>

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -17,32 +17,23 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import { getJSON, parseJSON, request } from '../helpers/request';
+import { getJSON } from '../helpers/request';
 import throwGlobalError from '../app/utils/throwGlobalError';
 
-export function getGlobalNavigation(): Promise<any> {
+export function getGlobalNavigation(): Promise<T.AppState> {
   return getJSON('/api/navigation/global');
 }
 
-export function getComponentNavigation(componentKey: string, branch?: string): Promise<any> {
-  return getJSON('/api/navigation/component', { componentKey, branch }).catch(throwGlobalError);
+export function getComponentNavigation(
+  data: { component: string } & T.BranchParameters
+): Promise<any> {
+  return getJSON('/api/navigation/component', data).catch(throwGlobalError);
+}
+
+export function getMarketplaceNavigation(): Promise<{ serverId: string; ncloc: number }> {
+  return getJSON('/api/navigation/marketplace').catch(throwGlobalError);
 }
 
 export function getSettingsNavigation(): Promise<any> {
   return getJSON('/api/navigation/settings').catch(throwGlobalError);
-}
-
-export function tryGetGlobalNavigation(): Promise<any> {
-  return request('/api/navigation/global')
-    .submit()
-    .then(response => {
-      if (response.status >= 200 && response.status < 300) {
-        return parseJSON(response);
-      } else if (response.status === 401) {
-        return {};
-      } else {
-        return Promise.reject(response);
-      }
-    })
-    .catch(response => throwGlobalError({ response }).catch(() => Promise.resolve({})));
 }

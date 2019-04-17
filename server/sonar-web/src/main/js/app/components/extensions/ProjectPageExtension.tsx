@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,12 +18,11 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import ExtensionContainer from './ExtensionContainer';
-import ExtensionNotFound from './ExtensionNotFound';
-import { Component } from '../../types';
+import Extension from './Extension';
+import NotFound from '../NotFound';
 
 interface Props {
-  component: Component;
+  component: T.Component;
   location: { query: { id: string } };
   params: {
     extensionKey: string;
@@ -38,8 +37,8 @@ export default function ProjectPageExtension(props: Props) {
     component.extensions &&
     component.extensions.find(p => p.key === `${pluginKey}/${extensionKey}`);
   return extension ? (
-    <ExtensionContainer extension={extension} options={{ component }} />
+    <Extension extension={extension} options={{ component }} />
   ) : (
-    <ExtensionNotFound />
+    <NotFound withContainer={false} />
   );
 }

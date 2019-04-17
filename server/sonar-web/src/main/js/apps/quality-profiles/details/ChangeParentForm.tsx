@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,16 +19,16 @@
  */
 import * as React from 'react';
 import { sortBy } from 'lodash';
+import { Profile } from '../types';
 import { changeProfileParent } from '../../../api/quality-profiles';
 import Modal from '../../../components/controls/Modal';
 import Select from '../../../components/controls/Select';
+import { SubmitButton, ResetButtonLink } from '../../../components/ui/buttons';
 import { translate } from '../../../helpers/l10n';
-import { Profile } from '../types';
 
 interface Props {
   onChange: () => void;
   onClose: () => void;
-  onRequestFail: (reasong: any) => void;
   profile: Profile;
   profiles: Profile[];
 }
@@ -53,11 +53,6 @@ export default class ChangeParentForm extends React.PureComponent<Props, State> 
     this.mounted = false;
   }
 
-  handleCancelClick = (event: React.SyntheticEvent<HTMLElement>) => {
-    event.preventDefault();
-    this.props.onClose();
-  };
-
   handleSelectChange = (option: { value: string }) => {
     this.setState({ selected: option.value });
   };
@@ -71,11 +66,10 @@ export default class ChangeParentForm extends React.PureComponent<Props, State> 
       this.setState({ loading: true });
       changeProfileParent(this.props.profile.key, parent)
         .then(this.props.onChange)
-        .catch((error: any) => {
+        .catch(() => {
           if (this.mounted) {
             this.setState({ loading: false });
           }
-          this.props.onRequestFail(error);
         });
     }
   };
@@ -101,7 +95,8 @@ export default class ChangeParentForm extends React.PureComponent<Props, State> 
     return (
       <Modal
         contentLabel={translate('quality_profiles.change_parent')}
-        onRequestClose={this.props.onClose}>
+        onRequestClose={this.props.onClose}
+        size="small">
         <form id="change-profile-parent-form" onSubmit={this.handleFormSubmit}>
           <div className="modal-head">
             <h2>{translate('quality_profiles.change_parent')}</h2>
@@ -113,6 +108,7 @@ export default class ChangeParentForm extends React.PureComponent<Props, State> 
               </label>
               <Select
                 clearable={false}
+                id="change-profile-parent"
                 name="parentKey"
                 onChange={this.handleSelectChange}
                 options={options}
@@ -126,12 +122,12 @@ export default class ChangeParentForm extends React.PureComponent<Props, State> 
           </div>
           <div className="modal-foot">
             {this.state.loading && <i className="spinner spacer-right" />}
-            <button disabled={submitDisabled} id="change-profile-parent-submit">
+            <SubmitButton disabled={submitDisabled} id="change-profile-parent-submit">
               {translate('change_verb')}
-            </button>
-            <a href="#" id="change-profile-parent-cancel" onClick={this.handleCancelClick}>
+            </SubmitButton>
+            <ResetButtonLink id="change-profile-parent-cancel" onClick={this.props.onClose}>
               {translate('cancel')}
-            </a>
+            </ResetButtonLink>
           </div>
         </form>
       </Modal>

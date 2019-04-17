@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,6 +20,7 @@
 package org.sonar.ce.notification;
 
 import java.util.Arrays;
+import java.util.Optional;
 import java.util.Random;
 import javax.annotation.Nullable;
 import org.junit.Before;
@@ -29,8 +30,10 @@ import org.junit.rules.ExpectedException;
 import org.mockito.ArgumentCaptor;
 import org.sonar.api.notifications.Notification;
 import org.sonar.api.utils.System2;
-import org.sonar.ce.queue.CeTask;
-import org.sonar.ce.queue.CeTaskResult;
+import org.sonar.ce.task.CeTask;
+import org.sonar.ce.task.CeTaskResult;
+import org.sonar.ce.task.projectanalysis.notification.ReportAnalysisFailureNotification;
+import org.sonar.ce.task.projectanalysis.notification.ReportAnalysisFailureNotificationSerializer;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbTester;
 import org.sonar.db.RowNotFoundException;
@@ -47,8 +50,8 @@ import static java.util.Collections.singleton;
 import static org.apache.commons.lang.RandomStringUtils.randomAlphanumeric;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.same;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyZeroInteractions;
@@ -119,7 +122,7 @@ public class ReportAnalysisFailureNotificationExecutionListenerTest {
   public void onEnd_has_no_effect_if_there_is_no_subscriber_for_ReportAnalysisFailureNotification_type() {
     String componentUuid = randomAlphanumeric(6);
     when(ceTaskMock.getType()).thenReturn(CeTaskTypes.REPORT);
-    when(ceTaskMock.getComponentUuid()).thenReturn(componentUuid);
+    when(ceTaskMock.getComponent()).thenReturn(Optional.of(new CeTask.Component(componentUuid, null, null)));
     when(notificationService.hasProjectSubscribersForTypes(componentUuid, singleton(ReportAnalysisFailureNotification.TYPE)))
       .thenReturn(false);
 
@@ -132,7 +135,7 @@ public class ReportAnalysisFailureNotificationExecutionListenerTest {
   public void onEnd_fails_with_RowNotFoundException_if_component_does_not_exist_in_DB() {
     String componentUuid = randomAlphanumeric(6);
     when(ceTaskMock.getType()).thenReturn(CeTaskTypes.REPORT);
-    when(ceTaskMock.getComponentUuid()).thenReturn(componentUuid);
+    when(ceTaskMock.getComponent()).thenReturn(Optional.of(new CeTask.Component(componentUuid, null, null)));
     when(notificationService.hasProjectSubscribersForTypes(componentUuid, singleton(ReportAnalysisFailureNotification.TYPE)))
       .thenReturn(true);
 
@@ -158,7 +161,7 @@ public class ReportAnalysisFailureNotificationExecutionListenerTest {
     Arrays.asList(module, directory, file, view, subView, projectCopy, application)
       .forEach(component -> {
         try {
-          when(ceTaskMock.getComponentUuid()).thenReturn(component.uuid());
+          when(ceTaskMock.getComponent()).thenReturn(Optional.of(new CeTask.Component(component.uuid(), null, null)));
           when(notificationService.hasProjectSubscribersForTypes(component.uuid(), singleton(ReportAnalysisFailureNotification.TYPE)))
             .thenReturn(true);
 
@@ -178,7 +181,7 @@ public class ReportAnalysisFailureNotificationExecutionListenerTest {
     String taskUuid = randomAlphanumeric(6);
     when(ceTaskMock.getType()).thenReturn(CeTaskTypes.REPORT);
     when(ceTaskMock.getUuid()).thenReturn(taskUuid);
-    when(ceTaskMock.getComponentUuid()).thenReturn(componentUuid);
+    when(ceTaskMock.getComponent()).thenReturn(Optional.of(new CeTask.Component(componentUuid, null, null)));
     when(notificationService.hasProjectSubscribersForTypes(componentUuid, singleton(ReportAnalysisFailureNotification.TYPE)))
       .thenReturn(true);
     dbTester.components().insertPrivateProject(s -> s.setUuid(componentUuid));
@@ -291,7 +294,7 @@ public class ReportAnalysisFailureNotificationExecutionListenerTest {
   private ComponentDto initMocksToPassConditions(String taskUuid, int createdAt, @Nullable Long executedAt) {
     ComponentDto project = random.nextBoolean() ? dbTester.components().insertPrivateProject() : dbTester.components().insertPublicProject();
     when(ceTaskMock.getType()).thenReturn(CeTaskTypes.REPORT);
-    when(ceTaskMock.getComponentUuid()).thenReturn(project.uuid());
+    when(ceTaskMock.getComponent()).thenReturn(Optional.of(new CeTask.Component(project.uuid(), null, null)));
     when(ceTaskMock.getUuid()).thenReturn(taskUuid);
     when(notificationService.hasProjectSubscribersForTypes(project.uuid(), singleton(ReportAnalysisFailureNotification.TYPE)))
       .thenReturn(true);

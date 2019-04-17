@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -34,7 +34,7 @@ interface Props {
   onQueryChange: (change: RawQuery) => void;
   organization?: { key: string };
   property?: string;
-  query: { [x: string]: any };
+  query: T.Dict<any>;
   value?: string[];
 }
 
@@ -105,29 +105,29 @@ export default class TagsFilter extends React.PureComponent<Props, State> {
 
     return (
       <Filter
-        onQueryChange={this.props.onQueryChange}
-        property={property}
-        options={this.getSortedOptions(this.props.facet)}
-        query={this.props.query}
-        renderOption={this.renderOption}
-        value={this.props.value}
         facet={this.props.facet}
-        maxFacetValue={this.props.maxFacetValue}
-        organization={this.props.organization}
-        getFacetValueForOption={this.getFacetValueForOption}
-        header={<FilterHeader name={translate('projects.facets.tags')} />}
         footer={
           <SearchableFilterFooter
-            onQueryChange={this.props.onQueryChange}
             isLoading={this.state.isLoading}
             onInputChange={this.handleSearch}
             onOpen={this.handleSearch}
-            organization={this.props.organization}
+            onQueryChange={this.props.onQueryChange}
             options={this.getSearchOptions()}
+            organization={this.props.organization}
             property={property}
             query={this.props.query}
           />
         }
+        getFacetValueForOption={this.getFacetValueForOption}
+        header={<FilterHeader name={translate('projects.facets.tags')} />}
+        maxFacetValue={this.props.maxFacetValue}
+        onQueryChange={this.props.onQueryChange}
+        options={this.getSortedOptions(this.props.facet)}
+        organization={this.props.organization}
+        property={property}
+        query={this.props.query}
+        renderOption={this.renderOption}
+        value={this.props.value}
       />
     );
   }

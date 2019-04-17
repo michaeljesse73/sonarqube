@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,6 +19,7 @@
  */
 package org.sonar.db.qualityprofile;
 
+import com.google.common.collect.Sets;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -38,6 +39,7 @@ import org.sonar.db.DbTester;
 import org.sonar.db.component.ComponentDto;
 import org.sonar.db.organization.OrganizationDto;
 import org.sonar.db.organization.OrganizationTesting;
+import org.sonar.db.rule.RuleDefinitionDto;
 
 import static com.google.common.collect.ImmutableList.of;
 import static com.google.common.collect.Lists.newArrayList;
@@ -144,6 +146,32 @@ public class QualityProfileDaoTest {
     assertThat(reloaded.getRulesUpdatedAt()).isEqualTo(update.getRulesUpdatedAt());
     assertThat(reloaded.getParentKee()).isEqualTo(update.getParentKee());
     assertThat(reloaded.isBuiltIn()).isEqualTo(update.isBuiltIn());
+  }
+
+  @Test
+  public void test_updateLastUsedDate() {
+    QProfileDto initial = QualityProfileTesting.newQualityProfileDto()
+      .setLastUsed(10_000L);
+    underTest.insert(dbSession, initial);
+
+    int count = underTest.updateLastUsedDate(dbSession, initial, 15_000L);
+
+    assertThat(count).isEqualTo(1);
+    QProfileDto reloaded = underTest.selectByUuid(dbSession, initial.getKee());
+    assertThat(reloaded.getLastUsed()).isEqualTo(15_000L);
+  }
+
+  @Test
+  public void updateLastUsedDate_does_not_touch_row_if_last_used_is_more_recent() {
+    QProfileDto initial = QualityProfileTesting.newQualityProfileDto()
+      .setLastUsed(10_000L);
+    underTest.insert(dbSession, initial);
+
+    int count = underTest.updateLastUsedDate(dbSession, initial, 8_000L);
+
+    assertThat(count).isZero();
+    QProfileDto reloaded = underTest.selectByUuid(dbSession, initial.getKee());
+    assertThat(reloaded.getLastUsed()).isEqualTo(10_000L);
   }
 
   @Test
@@ -480,6 +508,81 @@ public class QualityProfileDaoTest {
     assertThat(dto2.getName()).isEqualTo("Child2");
     assertThat(dto2.getLanguage()).isEqualTo("java");
     assertThat(dto2.getParentKee()).isEqualTo("java_parent");
+  }
+
+  @Test
+  public void selectBuiltInRuleProfilesWithActiveRules() {
+    // a quality profile without active rules but not builtin
+    db.qualityProfiles().insert(db.getDefaultOrganization(), qp -> qp.setIsBuiltIn(false));
+
+    // a built-in quality profile without active rules
+    db.qualityProfiles().insert(db.getDefaultOrganization(), qp -> qp.setIsBuiltIn(true));
+
+    // a built-in quality profile with active rules
+    QProfileDto builtInQPWithActiveRules = db.qualityProfiles().insert(db.getDefaultOrganization(), qp -> qp.setIsBuiltIn(true));
+    RuleDefinitionDto ruleDefinitionDto = db.rules().insert();
+    db.qualityProfiles().activateRule(builtInQPWithActiveRules, ruleDefinitionDto);
+
+    dbSession.commit();
+
+    List<RulesProfileDto> rulesProfileDtos = underTest.selectBuiltInRuleProfilesWithActiveRules(dbSession);
+    assertThat(rulesProfileDtos).extracting(RulesProfileDto::getName)
+      .containsOnly(builtInQPWithActiveRules.getName());
+  }
+
+  @Test
+  public void selectByRuleProfileUuid() {
+    db.qualityProfiles().insert(db.getDefaultOrganization(), qp -> qp.setIsBuiltIn(false));
+    db.qualityProfiles().insert(db.getDefaultOrganization(), qp -> qp.setIsBuiltIn(true));
+    QProfileDto qprofile1 = db.qualityProfiles().insert(db.getDefaultOrganization(), qp -> qp.setIsBuiltIn(true));
+
+    dbSession.commit();
+
+    assertThat(underTest.selectByRuleProfileUuid(dbSession, db.getDefaultOrganization().getUuid(), qprofile1.getRulesProfileUuid()))
+      .extracting(QProfileDto::getName)
+      .containsOnly(qprofile1.getName());
+
+    assertThat(underTest.selectByRuleProfileUuid(dbSession, "A", qprofile1.getRulesProfileUuid()))
+      .isNull();
+
+    assertThat(underTest.selectByRuleProfileUuid(dbSession, db.getDefaultOrganization().getUuid(), "A"))
+      .isNull();
+  }
+
+
+  @Test
+  public void selectDefaultBuiltInProfilesWithoutActiveRules() {
+    // a quality profile without active rules but not builtin
+    db.qualityProfiles().insert(db.getDefaultOrganization(), qp -> qp.setIsBuiltIn(false).setLanguage("java"));
+
+    // a built-in quality profile without active rules
+    QProfileDto javaQPWithoutActiveRules = db.qualityProfiles().insert(db.getDefaultOrganization(), qp -> qp.setIsBuiltIn(true).setLanguage("java"));
+    db.qualityProfiles().setAsDefault(javaQPWithoutActiveRules);
+
+    // a built-in quality profile without active rules
+    QProfileDto cppQPWithoutActiveRules = db.qualityProfiles().insert(db.getDefaultOrganization(), qp -> qp.setIsBuiltIn(true).setLanguage("cpp"));
+    db.qualityProfiles().setAsDefault(cppQPWithoutActiveRules);
+
+    // a built-in quality profile with active rules
+    QProfileDto builtInQPWithActiveRules = db.qualityProfiles().insert(db.getDefaultOrganization(), qp -> qp.setIsBuiltIn(true).setLanguage("java"));
+    RuleDefinitionDto ruleDefinitionDto = db.rules().insert();
+    db.qualityProfiles().activateRule(builtInQPWithActiveRules, ruleDefinitionDto);
+
+    dbSession.commit();
+
+    assertThat(underTest.selectDefaultBuiltInProfilesWithoutActiveRules(dbSession, Sets.newHashSet("java", "cpp")))
+      .extracting(QProfileDto::getName)
+      .containsOnly(javaQPWithoutActiveRules.getName(), cppQPWithoutActiveRules.getName());
+
+    assertThat(underTest.selectDefaultBuiltInProfilesWithoutActiveRules(dbSession, Sets.newHashSet("java")))
+      .extracting(QProfileDto::getName)
+      .containsOnly(javaQPWithoutActiveRules.getName());
+
+    assertThat(underTest.selectDefaultBuiltInProfilesWithoutActiveRules(dbSession, Sets.newHashSet("cobol")))
+      .isEmpty();
+
+    assertThat(underTest.selectDefaultBuiltInProfilesWithoutActiveRules(dbSession, Sets.newHashSet()))
+      .isEmpty();
   }
 
   @Test

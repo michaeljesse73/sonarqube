@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -30,7 +30,7 @@ import org.apache.commons.lang.StringUtils;
 import org.sonar.api.CoreProperties;
 import org.sonar.api.Properties;
 import org.sonar.api.Property;
-import org.sonar.api.batch.ScannerSide;
+import org.sonar.api.scanner.ScannerSide;
 import org.sonar.api.ce.ComputeEngineSide;
 import org.sonar.api.server.ServerSide;
 import org.sonar.api.utils.AnnotationUtils;
@@ -142,26 +142,26 @@ public final class PropertyDefinitions {
     if (qualifier == null) {
       // Special categories on global page
       Map<SubCategory, Collection<PropertyDefinition>> emailSubCategories = new HashMap<>();
-      emailSubCategories.put(new SubCategory("email", true), new ArrayList<PropertyDefinition>());
+      emailSubCategories.put(new SubCategory("email", true), new ArrayList<>());
       byCategory.put(new Category(CoreProperties.CATEGORY_GENERAL, false), emailSubCategories);
 
       HashMap<SubCategory, Collection<PropertyDefinition>> licenseSubCategories = new HashMap<>();
-      licenseSubCategories.put(new SubCategory("server_id", true), new ArrayList<PropertyDefinition>());
+      licenseSubCategories.put(new SubCategory("server_id", true), new ArrayList<>());
       byCategory.put(new Category(CoreProperties.CATEGORY_LICENSES, false), licenseSubCategories);
 
       HashMap<SubCategory, Collection<PropertyDefinition>> encryptionSubCategories = new HashMap<>();
-      encryptionSubCategories.put(new SubCategory("encryption", true), new ArrayList<PropertyDefinition>());
+      encryptionSubCategories.put(new SubCategory("encryption", true), new ArrayList<>());
       byCategory.put(new Category(CoreProperties.CATEGORY_SECURITY, false), encryptionSubCategories);
     }
     for (PropertyDefinition definition : getAll()) {
       if (qualifier == null ? definition.global() : definition.qualifiers().contains(qualifier)) {
         Category category = categories.get(definition.key());
         if (!byCategory.containsKey(category)) {
-          byCategory.put(category, new HashMap<SubCategory, Collection<PropertyDefinition>>());
+          byCategory.put(category, new HashMap<>());
         }
         SubCategory subCategory = subcategories.get(definition.key());
         if (!byCategory.get(category).containsKey(subCategory)) {
-          byCategory.get(category).put(subCategory, new ArrayList<PropertyDefinition>());
+          byCategory.get(category).put(subCategory, new ArrayList<>());
         }
         byCategory.get(category).get(subCategory).add(definition);
       }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,15 +19,12 @@
  */
 package org.sonar.server.organization.ws;
 
-import java.util.List;
 import java.util.stream.IntStream;
 import javax.annotation.Nullable;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
-import org.sonar.api.config.internal.MapSettings;
 import org.sonar.api.server.ws.WebService;
-import org.sonar.api.utils.System2;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
 import org.sonar.db.DbTester;
@@ -37,24 +34,21 @@ import org.sonar.db.user.GroupMembershipDto;
 import org.sonar.db.user.GroupMembershipQuery;
 import org.sonar.db.user.UserDto;
 import org.sonar.server.es.EsTester;
-import org.sonar.server.es.SearchOptions;
 import org.sonar.server.exceptions.ForbiddenException;
 import org.sonar.server.exceptions.NotFoundException;
 import org.sonar.server.issue.ws.AvatarResolverImpl;
+import org.sonar.server.organization.MemberUpdater;
+import org.sonar.server.organization.OrganizationValidationImpl;
 import org.sonar.server.tester.UserSessionRule;
-import org.sonar.server.user.index.UserDoc;
-import org.sonar.server.user.index.UserIndex;
-import org.sonar.server.user.index.UserIndexDefinition;
 import org.sonar.server.user.index.UserIndexer;
-import org.sonar.server.user.index.UserQuery;
 import org.sonar.server.usergroups.DefaultGroupFinder;
 import org.sonar.server.ws.TestRequest;
 import org.sonar.server.ws.WsActionTester;
 import org.sonarqube.ws.Organizations.AddMemberWsResponse;
 
 import static java.lang.String.format;
+import static java.util.Optional.ofNullable;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.sonar.core.util.Protobuf.setNullable;
 import static org.sonar.db.permission.OrganizationPermission.ADMINISTER;
 import static org.sonar.db.permission.OrganizationPermission.ADMINISTER_QUALITY_GATES;
 import static org.sonar.db.user.GroupMembershipQuery.IN;
@@ -67,18 +61,19 @@ public class AddMemberActionTest {
   @Rule
   public UserSessionRule userSession = UserSessionRule.standalone().logIn().setRoot();
   @Rule
-  public EsTester es = new EsTester(new UserIndexDefinition(new MapSettings().asConfig()));
-  private UserIndex userIndex = new UserIndex(es.client(), System2.INSTANCE);
+  public EsTester es = EsTester.create();
   @Rule
   public DbTester db = DbTester.create();
+
   private DbClient dbClient = db.getDbClient();
   private DbSession dbSession = db.getSession();
-
+  private OrganizationsWsSupport wsSupport = new OrganizationsWsSupport(new OrganizationValidationImpl(), dbClient);
   private WsActionTester ws = new WsActionTester(
-    new AddMemberAction(dbClient, userSession, new UserIndexer(dbClient, es.client()), new DefaultGroupFinder(dbClient), new AvatarResolverImpl()));
+    new AddMemberAction(dbClient, userSession, new AvatarResolverImpl(), wsSupport,
+      new MemberUpdater(dbClient, new DefaultGroupFinder(dbClient), new UserIndexer(dbClient, es.client()))));
 
   @Test
-  public void add_member_in_db_and_user_index() {
+  public void add_member() {
     OrganizationDto organization = db.organizations().insert();
     db.users().insertDefaultGroup(organization, "default");
     UserDto user = db.users().insertUser();
@@ -86,9 +81,6 @@ public class AddMemberActionTest {
     call(organization.getKey(), user.getLogin());
 
     assertMember(organization.getUuid(), user.getId());
-    List<UserDoc> userDocs = userIndex.search(UserQuery.builder().build(), new SearchOptions()).getDocs();
-    assertThat(userDocs).hasSize(1);
-    assertThat(userDocs.get(0).organizationUuids()).containsOnly(organization.getUuid());
   }
 
   @Test
@@ -228,6 +220,17 @@ public class AddMemberActionTest {
   }
 
   @Test
+  public void fail_if_org_is_bind_to_alm_and_members_sync_is_enabled() {
+    OrganizationDto organization = db.organizations().insert();
+    db.alm().insertOrganizationAlmBinding(organization, db.alm().insertAlmAppInstall(), true);
+    UserDto user = db.users().insertUser();
+
+    expectedException.expect(IllegalArgumentException.class);
+
+    call(organization.getKey(), user.getLogin());
+  }
+
+  @Test
   public void json_example() {
     OrganizationDto organization = db.organizations().insert();
     db.users().insertDefaultGroup(organization, "default");
@@ -258,8 +261,8 @@ public class AddMemberActionTest {
 
   private AddMemberWsResponse call(@Nullable String organizationKey, @Nullable String login) {
     TestRequest request = ws.newRequest();
-    setNullable(organizationKey, o -> request.setParam(PARAM_ORGANIZATION, o));
-    setNullable(login, l -> request.setParam("login", l));
+    ofNullable(organizationKey).ifPresent(o -> request.setParam(PARAM_ORGANIZATION, o));
+    ofNullable(login).ifPresent(l -> request.setParam("login", l));
     return request.executeProtobuf(AddMemberWsResponse.class);
   }
 

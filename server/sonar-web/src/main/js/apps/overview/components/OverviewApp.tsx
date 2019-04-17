@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,50 +20,51 @@
 import * as React from 'react';
 import { uniq } from 'lodash';
 import { connect } from 'react-redux';
-import QualityGate from '../qualityGate/QualityGate';
 import ApplicationQualityGate from '../qualityGate/ApplicationQualityGate';
 import BugsAndVulnerabilities from '../main/BugsAndVulnerabilities';
 import CodeSmells from '../main/CodeSmells';
 import Coverage from '../main/Coverage';
 import Duplications from '../main/Duplications';
-import Meta from '../meta/Meta';
-import throwGlobalError from '../../../app/utils/throwGlobalError';
+import MetaContainer from '../meta/MetaContainer';
+import QualityGate from '../qualityGate/QualityGate';
+import A11ySkipTarget from '../../../app/components/a11y/A11ySkipTarget';
 import { getMeasuresAndMeta } from '../../../api/measures';
-import { getAllTimeMachineData, History } from '../../../api/time-machine';
+import { getAllTimeMachineData } from '../../../api/time-machine';
 import { parseDate } from '../../../helpers/dates';
-import { enhanceMeasuresWithMetrics, MeasureEnhanced } from '../../../helpers/measures';
-import { getLeakPeriod, Period } from '../../../helpers/periods';
-import { getCustomGraph, getGraph } from '../../../helpers/storage';
+import { enhanceMeasuresWithMetrics } from '../../../helpers/measures';
+import { getLeakPeriod } from '../../../helpers/periods';
 import { METRICS, HISTORY_METRICS_LIST } from '../utils';
-import { DEFAULT_GRAPH, getDisplayedHistoryMetrics } from '../../projectActivity/utils';
-import { getBranchName } from '../../../helpers/branches';
+import {
+  DEFAULT_GRAPH,
+  getDisplayedHistoryMetrics,
+  getProjectActivityGraph
+} from '../../projectActivity/utils';
+import {
+  isSameBranchLike,
+  getBranchLikeQuery,
+  isLongLivingBranch
+} from '../../../helpers/branches';
 import { fetchMetrics } from '../../../store/rootActions';
-import { getMetrics } from '../../../store/rootReducer';
-import { Branch, Component, Metric } from '../../../app/types';
+import { getMetrics, Store } from '../../../store/rootReducer';
+import { translate } from '../../../helpers/l10n';
 import '../styles.css';
 
-interface OwnProps {
-  branch?: Branch;
-  component: Component;
-  onComponentChange: (changes: {}) => void;
-}
-
-interface StateToProps {
-  metrics: { [key: string]: Metric };
-}
-
-interface DispatchToProps {
+interface Props {
+  branchLike?: T.BranchLike;
+  component: T.Component;
   fetchMetrics: () => void;
+  onComponentChange: (changes: {}) => void;
+  metrics: T.Dict<T.Metric>;
 }
-
-type Props = StateToProps & DispatchToProps & OwnProps;
 
 interface State {
-  history?: History;
+  history?: {
+    [metric: string]: Array<{ date: Date; value?: string }>;
+  };
   historyStartDate?: Date;
   loading: boolean;
-  measures: MeasureEnhanced[];
-  periods?: Period[];
+  measures: T.MeasureEnhanced[];
+  periods?: T.Period[];
 }
 
 export class OverviewApp extends React.PureComponent<Props, State> {
@@ -79,7 +80,7 @@ export class OverviewApp extends React.PureComponent<Props, State> {
   componentDidUpdate(prevProps: Props) {
     if (
       this.props.component.key !== prevProps.component.key ||
-      this.props.branch !== prevProps.branch
+      !isSameBranchLike(this.props.branchLike, prevProps.branchLike)
     ) {
       this.loadMeasures().then(this.loadHistory, () => {});
     }
@@ -89,83 +90,106 @@ export class OverviewApp extends React.PureComponent<Props, State> {
     this.mounted = false;
   }
 
-  loadMeasures() {
-    const { branch, component } = this.props;
-    this.setState({ loading: true });
+  getApplicationLeakPeriod = () => {
+    return this.state.measures.find(measure => measure.metric.key === 'new_bugs')
+      ? ({ index: 1 } as T.Period)
+      : undefined;
+  };
 
-    return getMeasuresAndMeta(component.key, METRICS, {
-      additionalFields: 'metrics,periods',
-      branch: getBranchName(branch)
-    }).then(
-      r => {
-        if (this.mounted && r.metrics) {
-          this.setState({
-            loading: false,
-            measures: enhanceMeasuresWithMetrics(r.component.measures, r.metrics),
-            periods: r.periods
-          });
-        }
-      },
-      error => {
-        throwGlobalError(error);
-        if (this.mounted) {
-          this.setState({ loading: false });
-        }
-      }
+  isEmpty = () => {
+    return (
+      this.state.measures === undefined ||
+      this.state.measures.find(measure => measure.metric.key === 'ncloc') === undefined
     );
-  }
+  };
 
   loadHistory = () => {
-    const { branch, component } = this.props;
+    const { branchLike, component } = this.props;
 
-    let graphMetrics = getDisplayedHistoryMetrics(getGraph(), getCustomGraph());
+    const { graph, customGraphs } = getProjectActivityGraph(component.key);
+    let graphMetrics = getDisplayedHistoryMetrics(graph, customGraphs);
     if (!graphMetrics || graphMetrics.length <= 0) {
       graphMetrics = getDisplayedHistoryMetrics(DEFAULT_GRAPH, []);
     }
 
     const metrics = uniq(HISTORY_METRICS_LIST.concat(graphMetrics));
-    return getAllTimeMachineData(component.key, metrics, { branch: getBranchName(branch) }).then(
-      r => {
-        if (this.mounted) {
-          const history: History = {};
-          r.measures.forEach(measure => {
-            const measureHistory = measure.history.map(analysis => ({
-              date: parseDate(analysis.date),
-              value: analysis.value
-            }));
-            history[measure.metric] = measureHistory;
+    return getAllTimeMachineData({
+      ...getBranchLikeQuery(branchLike),
+      component: component.key,
+      metrics: metrics.join()
+    }).then(r => {
+      if (this.mounted) {
+        const history: T.Dict<Array<{ date: Date; value?: string }>> = {};
+        r.measures.forEach(measure => {
+          const measureHistory = measure.history.map(analysis => ({
+            date: parseDate(analysis.date),
+            value: analysis.value
+          }));
+          history[measure.metric] = measureHistory;
+        });
+        const historyStartDate = history[HISTORY_METRICS_LIST[0]][0].date;
+        this.setState({ history, historyStartDate });
+      }
+    });
+  };
+
+  loadMeasures = () => {
+    const { branchLike, component } = this.props;
+    this.setState({ loading: true });
+
+    return getMeasuresAndMeta(component.key, METRICS, {
+      additionalFields: 'metrics,periods',
+      ...getBranchLikeQuery(branchLike)
+    }).then(
+      ({ component, metrics, periods }) => {
+        if (this.mounted && metrics && component.measures) {
+          this.setState({
+            loading: false,
+            measures: enhanceMeasuresWithMetrics(component.measures, metrics),
+            periods
           });
-          const historyStartDate = history[HISTORY_METRICS_LIST[0]][0].date;
-          this.setState({ history, historyStartDate });
+        }
+      },
+      () => {
+        if (this.mounted) {
+          this.setState({ loading: false });
         }
       }
     );
   };
 
-  getApplicationLeakPeriod = () =>
-    this.state.measures.find(measure => measure.metric.key === 'new_bugs') ? { index: 1 } : null;
+  renderEmpty = () => {
+    const { component } = this.props;
+    const isApp = component.qualifier === 'APP';
+    return (
+      <div className="overview-main page-main">
+        <h3>
+          {!this.state.measures ||
+          !this.state.measures.find(measure => measure.metric.key === 'projects')
+            ? translate(isApp ? 'portfolio.app.empty' : 'overview.project.empty')
+            : translate(
+                isApp ? 'portfolio.app.no_lines_of_code' : 'overview.project.no_lines_of_code'
+              )}
+        </h3>
+      </div>
+    );
+  };
 
-  renderLoading() {
+  renderLoading = () => {
     return (
       <div className="text-center">
         <i className="spinner spinner-margin" />
       </div>
     );
-  }
+  };
 
-  render() {
-    const { branch, component } = this.props;
-    const { loading, measures, periods, history, historyStartDate } = this.state;
-
-    if (loading) {
-      return this.renderLoading();
-    }
-
+  renderMain = () => {
+    const { branchLike, component } = this.props;
+    const { periods, measures, history, historyStartDate } = this.state;
     const leakPeriod =
       component.qualifier === 'APP' ? this.getApplicationLeakPeriod() : getLeakPeriod(periods);
-    const branchName = getBranchName(branch);
     const domainProps = {
-      branch: branchName,
+      branchLike,
       component,
       measures,
       leakPeriod,
@@ -173,27 +197,49 @@ export class OverviewApp extends React.PureComponent<Props, State> {
       historyStartDate
     };
 
+    if (this.isEmpty()) {
+      return this.renderEmpty();
+    }
+
+    return (
+      <div className="overview-main page-main">
+        {component.qualifier === 'APP' ? (
+          <ApplicationQualityGate
+            branch={isLongLivingBranch(branchLike) ? branchLike : undefined}
+            component={component}
+          />
+        ) : (
+          <QualityGate branchLike={branchLike} component={component} measures={measures} />
+        )}
+
+        <div className="overview-domains-list">
+          <BugsAndVulnerabilities {...domainProps} />
+          <CodeSmells {...domainProps} />
+          <Coverage {...domainProps} />
+          <Duplications {...domainProps} />
+        </div>
+      </div>
+    );
+  };
+
+  render() {
+    const { branchLike, component } = this.props;
+    const { loading, measures, history } = this.state;
+
+    if (loading) {
+      return this.renderLoading();
+    }
+
     return (
       <div className="page page-limited">
         <div className="overview page-with-sidebar">
-          <div className="overview-main page-main">
-            {component.qualifier === 'APP' ? (
-              <ApplicationQualityGate component={component} />
-            ) : (
-              <QualityGate branch={branchName} component={component} measures={measures} />
-            )}
+          <A11ySkipTarget anchor="overview_main" />
 
-            <div className="overview-domains-list">
-              <BugsAndVulnerabilities {...domainProps} />
-              <CodeSmells {...domainProps} />
-              <Coverage {...domainProps} />
-              <Duplications {...domainProps} />
-            </div>
-          </div>
+          {this.renderMain()}
 
           <div className="overview-sidebar page-sidebar-fixed">
-            <Meta
-              branch={branchName}
+            <MetaContainer
+              branchLike={branchLike}
               component={component}
               history={history}
               measures={measures}
@@ -207,13 +253,11 @@ export class OverviewApp extends React.PureComponent<Props, State> {
   }
 }
 
-const mapDispatchToProps: DispatchToProps = { fetchMetrics };
+const mapDispatchToProps = { fetchMetrics };
 
-const mapStateToProps = (state: any): StateToProps => ({
-  metrics: getMetrics(state)
-});
+const mapStateToProps = (state: Store) => ({ metrics: getMetrics(state) });
 
-export default connect<StateToProps, DispatchToProps, OwnProps>(
+export default connect(
   mapStateToProps,
   mapDispatchToProps
 )(OverviewApp);

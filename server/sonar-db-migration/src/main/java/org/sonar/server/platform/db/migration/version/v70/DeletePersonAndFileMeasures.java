@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -49,10 +49,14 @@ public class DeletePersonAndFileMeasures extends DataChange {
     MassUpdate massUpdate = context.prepareMassUpdate();
     massUpdate.select("select uuid from snapshots");
     massUpdate.rowPluralName("snapshots");
-    massUpdate.update(getDeleteSql());
+    massUpdate.update(getDeleteSql()).setBatchSize(1);
 
     massUpdate.execute((row, update) -> {
-      update.setString(1, row.getString(1));
+      String analysisUuid = row.getString(1);
+      update.setString(1, analysisUuid);
+      if (getDialect().getId().equals(Oracle.ID)) {
+        update.setString(2, analysisUuid);
+      }
       return true;
     });
   }
@@ -86,7 +90,7 @@ public class DeletePersonAndFileMeasures extends DataChange {
           "  where pm2.analysis_uuid = ? " +
           "  and (c.qualifier in ('UTS', 'FIL') or pm.person_id is not null) " +
           "  and pm.id = pm2.id" +
-          ")";
+          ") and pm.analysis_uuid = ?";
       default:
         throw new IllegalStateException("Unsupported DB dialect: " + getDialect());
     }

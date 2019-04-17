@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -45,8 +45,8 @@ public class ProjectBranchesService extends BaseService {
    * @see <a href="https://next.sonarqube.com/sonarqube/web_api/api/project_branches/delete">Further information about this action online (including a response example)</a>
    * @since 6.6
    */
-  public String delete(DeleteRequest request) {
-    return call(
+  public void delete(DeleteRequest request) {
+    call(
       new PostRequest(path("delete"))
         .setParam("branch", request.getBranch())
         .setParam("project", request.getProject())

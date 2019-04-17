@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -27,7 +27,7 @@ import { translate } from '../../../helpers/l10n';
 
 interface Props {
   component: string;
-  measures: { [key: string]: string | undefined };
+  measures: T.Dict<string | undefined>;
 }
 
 export default function MaintainabilityBox({ component, measures }: Props) {
@@ -46,7 +46,7 @@ export default function MaintainabilityBox({ component, measures }: Props) {
 
       {rating && <MainRating component={component} metric={'sqale_rating'} value={rating} />}
 
-      <RatingFreshness lastChange={lastMaintainabilityChange} />
+      <RatingFreshness lastChange={lastMaintainabilityChange} rating={rating} />
 
       {effort && <Effort component={component} effort={effort} metricKey={'sqale_rating'} />}
     </div>

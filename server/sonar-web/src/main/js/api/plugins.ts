@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,12 +20,13 @@
 import { findLastIndex } from 'lodash';
 import { getJSON, post } from '../helpers/request';
 import throwGlobalError from '../app/utils/throwGlobalError';
+import { isDefined } from '../helpers/types';
 
 export interface Plugin {
   key: string;
   name: string;
   category?: string;
-  description: string;
+  description?: string;
   editionBundled?: boolean;
   license?: string;
   organizationName?: string;
@@ -47,6 +48,12 @@ export interface Update {
   release?: Release;
   requires: Plugin[];
   previousUpdates?: Update[];
+}
+
+export interface PluginPendingResult {
+  installing: PluginPending[];
+  updating: PluginPending[];
+  removing: PluginPending[];
 }
 
 export interface PluginAvailable extends Plugin {
@@ -74,11 +81,7 @@ export function getAvailablePlugins(): Promise<{
   return getJSON('/api/plugins/available').catch(throwGlobalError);
 }
 
-export function getPendingPlugins(): Promise<{
-  installing: PluginPending[];
-  updating: PluginPending[];
-  removing: PluginPending[];
-}> {
+export function getPendingPlugins(): Promise<PluginPendingResult> {
   return getJSON('/api/plugins/pending').catch(throwGlobalError);
 }
 
@@ -92,7 +95,7 @@ function getLastUpdates(updates: undefined | Update[]): Update[] {
       return index > -1 ? updates[index] : undefined;
     }
   );
-  return lastUpdate.filter(Boolean) as Update[];
+  return lastUpdate.filter(isDefined);
 }
 
 function addChangelog(update: Update, updates?: Update[]) {

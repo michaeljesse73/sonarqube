@@ -5,7 +5,7 @@ exports[`should clear 1`] = `
   className="search-navigator-facet-header-wrapper"
 >
   <span
-    className="search-navigator-facet-header"
+    className="search-navigator-facet-header display-flex-center"
   >
     <a
       href="#"
@@ -28,12 +28,12 @@ exports[`should clear 1`] = `
       x_selected.3
     </span>
   </span>
-  <button
+  <Button
     className="search-navigator-facet-header-button button-small button-red"
-    onClick={[Function]}
+    onClick={[MockFunction]}
   >
     clear
-  </button>
+  </Button>
 </div>
 `;
 
@@ -42,7 +42,7 @@ exports[`should render closed facet with value 1`] = `
   className="search-navigator-facet-header-wrapper"
 >
   <span
-    className="search-navigator-facet-header"
+    className="search-navigator-facet-header display-flex-center"
   >
     <a
       href="#"
@@ -73,7 +73,7 @@ exports[`should render closed facet without value 1`] = `
   className="search-navigator-facet-header-wrapper"
 >
   <span
-    className="search-navigator-facet-header"
+    className="search-navigator-facet-header display-flex-center"
   >
     <a
       href="#"
@@ -97,7 +97,7 @@ exports[`should render open facet with value 1`] = `
   className="search-navigator-facet-header-wrapper"
 >
   <span
-    className="search-navigator-facet-header"
+    className="search-navigator-facet-header display-flex-center"
   >
     <a
       href="#"
@@ -112,7 +112,14 @@ exports[`should render open facet with value 1`] = `
   </span>
   <span
     className="search-navigator-facet-header-value spacer-left spacer-right "
-  />
+  >
+    <span
+      className="badge badge-secondary is-rounded text-ellipsis"
+      title="foo"
+    >
+      foo
+    </span>
+  </span>
 </div>
 `;
 
@@ -121,7 +128,7 @@ exports[`should render open facet without value 1`] = `
   className="search-navigator-facet-header-wrapper"
 >
   <span
-    className="search-navigator-facet-header"
+    className="search-navigator-facet-header display-flex-center"
   >
     <a
       href="#"
@@ -145,7 +152,7 @@ exports[`should render without link 1`] = `
   className="search-navigator-facet-header-wrapper"
 >
   <span
-    className="search-navigator-facet-header"
+    className="search-navigator-facet-header display-flex-center"
   >
     foo
   </span>

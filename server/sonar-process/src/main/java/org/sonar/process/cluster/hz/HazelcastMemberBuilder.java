@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -30,19 +30,17 @@ import java.util.List;
 import java.util.stream.Collectors;
 import javax.annotation.CheckForNull;
 import org.sonar.process.ProcessId;
-import org.sonar.process.cluster.NodeType;
 import org.sonar.process.cluster.hz.HazelcastMember.Attribute;
 
 import static java.lang.String.format;
 import static java.util.Collections.singletonList;
 import static java.util.Objects.requireNonNull;
-import static org.sonar.process.ProcessProperties.Property.CLUSTER_NODE_PORT;
+import static org.sonar.process.ProcessProperties.Property.CLUSTER_NODE_HZ_PORT;
 
 public class HazelcastMemberBuilder {
 
   private String nodeName;
   private int port;
-  private NodeType nodeType;
   private ProcessId processId;
   private String networkInterface;
   private List<String> members = new ArrayList<>();
@@ -52,12 +50,10 @@ public class HazelcastMemberBuilder {
     return this;
   }
 
-  public HazelcastMemberBuilder setNodeType(NodeType t) {
-    this.nodeType = t;
-    return this;
-  }
-
   public HazelcastMemberBuilder setProcessId(ProcessId p) {
+    if (p == ProcessId.ELASTICSEARCH) {
+      throw new IllegalArgumentException("Hazelcast must not be enabled on Elasticsearch node");
+    }
     this.processId = p;
     return this;
   }
@@ -83,7 +79,7 @@ public class HazelcastMemberBuilder {
    */
   public HazelcastMemberBuilder setMembers(Collection<String> c) {
     this.members = c.stream()
-      .map(host -> host.contains(":") ? host : format("%s:%s", host, CLUSTER_NODE_PORT.getDefaultValue()))
+      .map(host -> host.contains(":") ? host : format("%s:%s", host, CLUSTER_NODE_HZ_PORT.getDefaultValue()))
       .collect(Collectors.toList());
     return this;
   }
@@ -128,7 +124,6 @@ public class HazelcastMemberBuilder {
 
     MemberAttributeConfig attributes = config.getMemberAttributeConfig();
     attributes.setStringAttribute(Attribute.NODE_NAME.getKey(), requireNonNull(nodeName, "Node name is missing"));
-    attributes.setStringAttribute(Attribute.NODE_TYPE.getKey(), requireNonNull(nodeType, "Node type is missing").getValue());
     attributes.setStringAttribute(Attribute.PROCESS_KEY.getKey(), requireNonNull(processId, "Process key is missing").getKey());
 
     return new HazelcastMemberImpl(Hazelcast.newHazelcastInstance(config));

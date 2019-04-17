@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,77 +18,56 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import { IndexLink } from 'react-router';
-import { translate, translateWithParameters } from '../../../helpers/l10n';
+import { Option } from 'react-select';
+import { translate } from '../../../helpers/l10n';
 import { getProfilesPath, getProfilesForLanguagePath } from '../utils';
+import Select from '../../../components/controls/Select';
+import { withRouter, Router } from '../../../components/hoc/withRouter';
 
 interface Props {
   currentFilter?: string;
   languages: Array<{ key: string; name: string }>;
   organization: string | null;
+  router: Pick<Router, 'replace'>;
 }
 
-export default class ProfilesListHeader extends React.PureComponent<Props> {
-  renderFilterToggle() {
-    const { languages, currentFilter } = this.props;
-    const currentLanguage = currentFilter && languages.find(l => l.key === currentFilter);
+export class ProfilesListHeader extends React.PureComponent<Props> {
+  handleChange = (option: { value: string } | null) => {
+    const { organization, router } = this.props;
 
-    const label = currentLanguage
-      ? translateWithParameters('quality_profiles.x_Profiles', currentLanguage.name)
-      : translate('quality_profiles.all_profiles');
-
-    return (
-      <a
-        className="dropdown-toggle link-no-underline js-language-filter"
-        href="#"
-        data-toggle="dropdown">
-        {label} <i className="icon-dropdown" />
-      </a>
+    router.replace(
+      !option
+        ? getProfilesPath(organization)
+        : getProfilesForLanguagePath(option.value, organization)
     );
-  }
-
-  renderFilterMenu() {
-    return (
-      <ul className="dropdown-menu">
-        <li>
-          <IndexLink to={getProfilesPath(this.props.organization)}>
-            {translate('quality_profiles.all_profiles')}
-          </IndexLink>
-        </li>
-        {this.props.languages.map(language => (
-          <li key={language.key}>
-            <IndexLink
-              to={getProfilesForLanguagePath(language.key, this.props.organization)}
-              className="js-language-filter-option"
-              data-language={language.key}>
-              {language.name}
-            </IndexLink>
-          </li>
-        ))}
-      </ul>
-    );
-  }
+  };
 
   render() {
-    if (this.props.languages.length < 2) {
+    const { currentFilter, languages } = this.props;
+    if (languages.length < 2) {
       return null;
     }
 
-    const { languages, currentFilter } = this.props;
-    const currentLanguage = currentFilter && languages.find(l => l.key === currentFilter);
+    const options: Option[] = languages.map(language => ({
+      label: language.name,
+      value: language.key
+    }));
 
-    // if unknown language, then
-    if (currentFilter && !currentLanguage) {
-      return null;
-    }
+    const currentLanguage = currentFilter && options.find(l => l.value === currentFilter);
 
     return (
       <header className="quality-profiles-list-header clearfix">
-        <div className="dropdown">
-          {this.renderFilterToggle()}
-          {this.renderFilterMenu()}
-        </div>
+        <span className="spacer-right">{translate('quality_profiles.filter_by')}:</span>
+        <Select
+          className="input-medium"
+          clearable={true}
+          onChange={this.handleChange}
+          options={options}
+          value={currentLanguage}
+        />
       </header>
     );
   }
 }
+
+export default withRouter(ProfilesListHeader);

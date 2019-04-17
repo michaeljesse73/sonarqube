@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -23,48 +23,26 @@ import { Link } from 'react-router';
 import ActivationButton from './ActivationButton';
 import RuleInheritanceIcon from './RuleInheritanceIcon';
 import { Profile, deactivateRule, activateRule } from '../../../api/quality-profiles';
-import { RuleActivation, RuleDetails, RuleInheritance } from '../../../app/types';
 import ConfirmButton from '../../../components/controls/ConfirmButton';
-import { translate, translateWithParameters } from '../../../helpers/l10n';
-import { getQualityProfileUrl } from '../../../helpers/urls';
 import BuiltInQualityProfileBadge from '../../quality-profiles/components/BuiltInQualityProfileBadge';
-import Tooltip from '../../../components/controls/Tooltip';
+import InstanceMessage from '../../../components/common/InstanceMessage';
 import SeverityHelper from '../../../components/shared/SeverityHelper';
+import Tooltip from '../../../components/controls/Tooltip';
+import { Button } from '../../../components/ui/buttons';
+import { getQualityProfileUrl } from '../../../helpers/urls';
+import { translate, translateWithParameters } from '../../../helpers/l10n';
 
 interface Props {
-  activations: RuleActivation[] | undefined;
+  activations: T.RuleActivation[] | undefined;
   canWrite: boolean | undefined;
   onActivate: () => Promise<void>;
   onDeactivate: () => Promise<void>;
   organization: string | undefined;
-  referencedProfiles: { [profile: string]: Profile };
-  ruleDetails: RuleDetails;
+  referencedProfiles: T.Dict<Profile>;
+  ruleDetails: T.RuleDetails;
 }
 
-interface State {
-  loading: boolean;
-}
-
-export default class RuleDetailsProfiles extends React.PureComponent<Props, State> {
-  mounted = false;
-
-  componentDidMount() {
-    this.mounted = true;
-    this.fetchProfiles();
-  }
-
-  componentDidUpdate(prevProps: Props) {
-    if (prevProps.ruleDetails.key !== this.props.ruleDetails.key) {
-      this.fetchProfiles();
-    }
-  }
-
-  componentWillUnmount() {
-    this.mounted = false;
-  }
-
-  fetchProfiles = () => this.setState({ loading: true });
-
+export default class RuleDetailsProfiles extends React.PureComponent<Props> {
   handleActivate = () => this.props.onActivate();
 
   handleDeactivate = (key?: string) => {
@@ -88,7 +66,7 @@ export default class RuleDetailsProfiles extends React.PureComponent<Props, Stat
     }
   };
 
-  renderInheritedProfile = (activation: RuleActivation, profile: Profile) => {
+  renderInheritedProfile = (activation: T.RuleActivation, profile: Profile) => {
     if (!profile.parentName) {
       return null;
     }
@@ -99,15 +77,10 @@ export default class RuleDetailsProfiles extends React.PureComponent<Props, Stat
     );
     return (
       <div className="coding-rules-detail-quality-profile-inheritance">
-        {(activation.inherit === RuleInheritance.Overridden ||
-          activation.inherit === RuleInheritance.Inherited) && (
+        {(activation.inherit === 'OVERRIDES' || activation.inherit === 'INHERITED') && (
           <>
-            <RuleInheritanceIcon
-              inheritance={activation.inherit}
-              parentProfileName={profile.parentName}
-              profileName={profile.name}
-            />
-            <Link className="link-base-color spacer-left" to={profilePath}>
+            <RuleInheritanceIcon className="text-middle" inheritance={activation.inherit} />
+            <Link className="link-base-color little-spacer-left text-middle" to={profilePath}>
               {profile.parentName}
             </Link>
           </>
@@ -116,23 +89,25 @@ export default class RuleDetailsProfiles extends React.PureComponent<Props, Stat
     );
   };
 
-  renderSeverity = (activation: RuleActivation, parentActivation?: RuleActivation) => (
+  renderSeverity = (activation: T.RuleActivation, parentActivation?: T.RuleActivation) => (
     <td className="coding-rules-detail-quality-profile-severity">
       <Tooltip overlay={translate('coding_rules.activation_severity')}>
         <span>
-          <SeverityHelper severity={activation.severity} />
+          <SeverityHelper className="display-inline-flex-center" severity={activation.severity} />
         </span>
       </Tooltip>
-      {parentActivation !== undefined &&
-        activation.severity !== parentActivation.severity && (
-          <div className="coding-rules-detail-quality-profile-inheritance">
-            {translate('coding_rules.original')} {translate('severity', parentActivation.severity)}
-          </div>
-        )}
+      {parentActivation !== undefined && activation.severity !== parentActivation.severity && (
+        <div className="coding-rules-detail-quality-profile-inheritance">
+          {translate('coding_rules.original')} {translate('severity', parentActivation.severity)}
+        </div>
+      )}
     </td>
   );
 
-  renderParameter = (param: { key: string; value: string }, parentActivation?: RuleActivation) => {
+  renderParameter = (
+    param: { key: string; value: string },
+    parentActivation?: T.RuleActivation
+  ) => {
     const originalParam =
       parentActivation && parentActivation.params.find(p => p.key === param.key);
     const originalValue = originalParam && originalParam.value;
@@ -144,26 +119,25 @@ export default class RuleDetailsProfiles extends React.PureComponent<Props, Stat
         <span className="value" title={param.value}>
           {param.value}
         </span>
-        {parentActivation &&
-          param.value !== originalValue && (
-            <div className="coding-rules-detail-quality-profile-inheritance">
-              {translate('coding_rules.original')} <span className="value">{originalValue}</span>
-            </div>
-          )}
+        {parentActivation && param.value !== originalValue && (
+          <div className="coding-rules-detail-quality-profile-inheritance">
+            {translate('coding_rules.original')} <span className="value">{originalValue}</span>
+          </div>
+        )}
       </div>
     );
   };
 
-  renderParameters = (activation: RuleActivation, parentActivation?: RuleActivation) => (
+  renderParameters = (activation: T.RuleActivation, parentActivation?: T.RuleActivation) => (
     <td className="coding-rules-detail-quality-profile-parameters">
       {activation.params.map(param => this.renderParameter(param, parentActivation))}
     </td>
   );
 
-  renderActions = (activation: RuleActivation, profile: Profile) => {
+  renderActions = (activation: T.RuleActivation, profile: Profile) => {
     const canEdit = profile.actions && profile.actions.edit && !profile.isBuiltIn;
     const { ruleDetails } = this.props;
-    const hasParent = activation.inherit !== RuleInheritance.NotInherited && profile.parentKey;
+    const hasParent = activation.inherit !== 'NONE' && profile.parentKey;
     return (
       <td className="coding-rules-detail-quality-profile-actions">
         {canEdit && (
@@ -181,7 +155,7 @@ export default class RuleDetailsProfiles extends React.PureComponent<Props, Stat
               />
             )}
             {hasParent ? (
-              activation.inherit === RuleInheritance.Overridden &&
+              activation.inherit === 'OVERRIDES' &&
               profile.parentName && (
                 <ConfirmButton
                   confirmButtonText={translate('yes')}
@@ -193,11 +167,11 @@ export default class RuleDetailsProfiles extends React.PureComponent<Props, Stat
                   modalHeader={translate('coding_rules.revert_to_parent_definition')}
                   onConfirm={this.handleRevert}>
                   {({ onClick }) => (
-                    <button
+                    <Button
                       className="coding-rules-detail-quality-profile-revert button-red spacer-left"
                       onClick={onClick}>
                       {translate('coding_rules.revert_to_parent_definition')}
-                    </button>
+                    </Button>
                   )}
                 </ConfirmButton>
               )
@@ -209,11 +183,11 @@ export default class RuleDetailsProfiles extends React.PureComponent<Props, Stat
                 modalHeader={translate('coding_rules.deactivate')}
                 onConfirm={this.handleDeactivate}>
                 {({ onClick }) => (
-                  <button
+                  <Button
                     className="coding-rules-detail-quality-profile-deactivate button-red spacer-left"
                     onClick={onClick}>
                     {translate('coding_rules.deactivate')}
-                  </button>
+                  </Button>
                 )}
               </ConfirmButton>
             )}
@@ -223,7 +197,7 @@ export default class RuleDetailsProfiles extends React.PureComponent<Props, Stat
     );
   };
 
-  renderActivation = (activation: RuleActivation) => {
+  renderActivation = (activation: T.RuleActivation) => {
     const { activations = [], ruleDetails } = this.props;
     const profile = this.props.referencedProfiles[activation.qProfile];
     if (!profile) {
@@ -233,7 +207,7 @@ export default class RuleDetailsProfiles extends React.PureComponent<Props, Stat
     const parentActivation = activations.find(x => x.qProfile === profile.parentKey);
 
     return (
-      <tr key={profile.key} data-profile={profile.key}>
+      <tr data-profile={profile.key} key={profile.key}>
         <td className="coding-rules-detail-quality-profile-name">
           <Link to={getQualityProfileUrl(profile.name, profile.language, this.props.organization)}>
             {profile.name}
@@ -261,7 +235,7 @@ export default class RuleDetailsProfiles extends React.PureComponent<Props, Stat
           <div className="coding-rule-section-separator" />
 
           <h3 className="coding-rules-detail-title">
-            {translate('coding_rules.quality_profiles')}
+            <InstanceMessage message={translate('coding_rules.quality_profiles')} />
           </h3>
 
           {canActivate && (
@@ -281,8 +255,8 @@ export default class RuleDetailsProfiles extends React.PureComponent<Props, Stat
 
           {activations.length > 0 && (
             <table
-              id="coding-rules-detail-quality-profiles"
-              className="coding-rules-detail-quality-profiles width100">
+              className="coding-rules-detail-quality-profiles width-100"
+              id="coding-rules-detail-quality-profiles">
               <tbody>{activations.map(this.renderActivation)}</tbody>
             </table>
           )}

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,62 +18,64 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import { Link } from 'react-router';
+import { getSelectedLocation } from '../utils';
 import Organization from '../../../components/shared/Organization';
 import { collapsePath, limitComponentName } from '../../../helpers/path';
-import { getProjectUrl } from '../../../helpers/urls';
-import { Component } from '../../../app/types';
 
 interface Props {
-  branch?: string;
-  component?: Component;
-  issue: {
-    component: string;
-    componentLongName: string;
-    organization: string;
-    project: string;
-    projectName: string;
-    subProject?: string;
-    subProjectName?: string;
-  };
-  organization?: { key: string };
+  component?: T.Component;
+  issue: Pick<
+    T.Issue,
+    | 'component'
+    | 'componentLongName'
+    | 'flows'
+    | 'organization'
+    | 'project'
+    | 'projectName'
+    | 'secondaryLocations'
+    | 'subProject'
+    | 'subProjectName'
+  >;
+  link?: boolean;
+  organization: { key: string } | undefined;
+  selectedFlowIndex?: number;
+  selectedLocationIndex?: number;
 }
 
-export default function ComponentBreadcrumbs({ branch, component, issue, organization }: Props) {
+export default function ComponentBreadcrumbs({
+  component,
+  issue,
+  organization,
+  selectedFlowIndex,
+  selectedLocationIndex
+}: Props) {
   const displayOrganization =
-    !organization && (component == null || ['VW', 'SVW'].includes(component.qualifier));
-  const displayProject = component == null || !['TRK', 'BRC', 'DIR'].includes(component.qualifier);
-  const displaySubProject = component == null || !['BRC', 'DIR'].includes(component.qualifier);
+    !organization && (!component || ['VW', 'SVW'].includes(component.qualifier));
+  const displayProject = !component || !['TRK', 'BRC', 'DIR'].includes(component.qualifier);
+  const displaySubProject = !component || !['BRC', 'DIR'].includes(component.qualifier);
+
+  const selectedLocation = getSelectedLocation(issue, selectedFlowIndex, selectedLocationIndex);
+  const componentName = selectedLocation ? selectedLocation.componentName : issue.componentLongName;
 
   return (
     <div className="component-name text-ellipsis">
-      {displayOrganization && (
-        <Organization linkClassName="link-no-underline" organizationKey={issue.organization} />
-      )}
+      {displayOrganization && <Organization link={false} organizationKey={issue.organization} />}
 
       {displayProject && (
         <span title={issue.projectName}>
-          <Link to={getProjectUrl(issue.project, branch)} className="link-no-underline">
-            {limitComponentName(issue.projectName)}
-          </Link>
+          {limitComponentName(issue.projectName)}
           <span className="slash-separator" />
         </span>
       )}
 
-      {displaySubProject &&
-        issue.subProject !== undefined &&
-        issue.subProjectName !== undefined && (
-          <span title={issue.subProjectName}>
-            <Link to={getProjectUrl(issue.subProject, branch)} className="link-no-underline">
-              {limitComponentName(issue.subProjectName)}
-            </Link>
-            <span className="slash-separator" />
-          </span>
-        )}
+      {displaySubProject && issue.subProject !== undefined && issue.subProjectName !== undefined && (
+        <span title={issue.subProjectName}>
+          {limitComponentName(issue.subProjectName)}
+          <span className="slash-separator" />
+        </span>
+      )}
 
-      <Link to={getProjectUrl(issue.component, branch)} className="link-no-underline">
-        <span title={issue.componentLongName}>{collapsePath(issue.componentLongName)}</span>
-      </Link>
+      {collapsePath(componentName || '')}
     </div>
   );
 }

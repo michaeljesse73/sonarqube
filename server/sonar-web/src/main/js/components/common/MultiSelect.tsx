@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,30 +18,40 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
+import * as classNames from 'classnames';
 import { difference } from 'lodash';
 import MultiSelectOption from './MultiSelectOption';
 import SearchBox from '../controls/SearchBox';
+import { translateWithParameters } from '../../helpers/l10n';
 
 interface Props {
-  selectedElements: Array<string>;
-  elements: Array<string>;
+  allowNewElements?: boolean;
+  allowSelection?: boolean;
+  elements: string[];
+  filterSelected?: (query: string, selectedElements: string[]) => string[];
+  footerNode?: React.ReactNode;
   listSize?: number;
-  onSearch: (query: string) => void;
+  onSearch: (query: string) => Promise<void>;
   onSelect: (item: string) => void;
   onUnselect: (item: string) => void;
-  validateSearchInput?: (value: string) => string;
   placeholder: string;
+  renderLabel?: (element: string) => React.ReactNode;
+  selectedElements: string[];
+  validateSearchInput?: (value: string) => string;
 }
 
 interface State {
-  query: string;
-  selectedElements: Array<string>;
-  unselectedElements: Array<string>;
   activeIdx: number;
+  loading: boolean;
+  query: string;
+  selectedElements: string[];
+  unselectedElements: string[];
 }
 
 interface DefaultProps {
+  filterSelected: (query: string, selectedElements: string[]) => string[];
   listSize: number;
+  renderLabel: (element: string) => React.ReactNode;
   validateSearchInput: (value: string) => string;
 }
 
@@ -50,24 +60,31 @@ type PropsWithDefault = Props & DefaultProps;
 export default class MultiSelect extends React.PureComponent<Props, State> {
   container?: HTMLDivElement | null;
   searchInput?: HTMLInputElement | null;
+  mounted = false;
 
   static defaultProps: DefaultProps = {
-    listSize: 10,
+    filterSelected: (query: string, selectedElements: string[]) =>
+      selectedElements.filter(elem => elem.includes(query)),
+    listSize: 0,
+    renderLabel: (element: string) => element,
     validateSearchInput: (value: string) => value
   };
 
   constructor(props: Props) {
     super(props);
     this.state = {
+      activeIdx: 0,
+      loading: true,
       query: '',
       selectedElements: [],
-      unselectedElements: [],
-      activeIdx: 0
+      unselectedElements: []
     };
   }
 
   componentDidMount() {
-    this.updateSelectedElements(this.props);
+    this.mounted = true;
+    this.onSearchQuery('');
+    this.updateSelectedElements(this.props as PropsWithDefault);
     this.updateUnselectedElements(this.props as PropsWithDefault);
     if (this.container) {
       this.container.addEventListener('keydown', this.handleKeyboard, true);
@@ -96,6 +113,7 @@ export default class MultiSelect extends React.PureComponent<Props, State> {
   }
 
   componentWillUnmount() {
+    this.mounted = false;
     if (this.container) {
       this.container.removeEventListener('keydown', this.handleKeyboard);
     }
@@ -122,14 +140,14 @@ export default class MultiSelect extends React.PureComponent<Props, State> {
   handleKeyboard = (evt: KeyboardEvent) => {
     switch (evt.keyCode) {
       case 40: // down
-        this.setState(this.selectNextElement);
         evt.stopPropagation();
         evt.preventDefault();
+        this.setState(this.selectNextElement);
         break;
       case 38: // up
-        this.setState(this.selectPreviousElement);
         evt.stopPropagation();
         evt.preventDefault();
+        this.setState(this.selectPreviousElement);
         break;
       case 37: // left
       case 39: // right
@@ -144,8 +162,8 @@ export default class MultiSelect extends React.PureComponent<Props, State> {
   };
 
   onSearchQuery = (query: string) => {
-    this.setState({ query, activeIdx: 0 });
-    this.props.onSearch(query);
+    this.setState({ activeIdx: 0, loading: true, query });
+    this.props.onSearch(query).then(this.stopLoading, this.stopLoading);
   };
 
   onSelectItem = (item: string) => {
@@ -158,13 +176,13 @@ export default class MultiSelect extends React.PureComponent<Props, State> {
   onUnselectItem = (item: string) => this.props.onUnselect(item);
 
   isNewElement = (elem: string, { selectedElements, elements }: Props) =>
-    elem && selectedElements.indexOf(elem) === -1 && elements.indexOf(elem) === -1;
+    elem.length > 0 && selectedElements.indexOf(elem) === -1 && elements.indexOf(elem) === -1;
 
-  updateSelectedElements = (props: Props) => {
+  updateSelectedElements = (props: PropsWithDefault) => {
     this.setState((state: State) => {
       if (state.query) {
         return {
-          selectedElements: [...props.selectedElements.filter(elem => elem.includes(state.query))]
+          selectedElements: props.filterSelected(state.query, props.selectedElements)
         };
       } else {
         return { selectedElements: [...props.selectedElements] };
@@ -174,7 +192,9 @@ export default class MultiSelect extends React.PureComponent<Props, State> {
 
   updateUnselectedElements = (props: PropsWithDefault) => {
     this.setState((state: State) => {
-      if (props.listSize < state.selectedElements.length) {
+      if (props.listSize === 0) {
+        return { unselectedElements: difference(props.elements, props.selectedElements) };
+      } else if (props.listSize < state.selectedElements.length) {
         return { unselectedElements: [] };
       } else {
         return {
@@ -218,6 +238,12 @@ export default class MultiSelect extends React.PureComponent<Props, State> {
     }
   };
 
+  stopLoading = () => {
+    if (this.mounted) {
+      this.setState({ loading: false });
+    }
+  };
+
   toggleSelect = (item: string) => {
     if (this.props.selectedElements.indexOf(item) === -1) {
       this.onSelectItem(item);
@@ -227,52 +253,72 @@ export default class MultiSelect extends React.PureComponent<Props, State> {
   };
 
   render() {
+    const { allowSelection = true, allowNewElements = true, footerNode = '' } = this.props;
+    const { renderLabel } = this.props as PropsWithDefault;
     const { query, activeIdx, selectedElements, unselectedElements } = this.state;
     const activeElement = this.getAllElements(this.props, this.state)[activeIdx];
+    const showNewElement = allowNewElements && this.isNewElement(query, this.props);
+    const infiniteList = this.props.listSize === 0;
+    const listClasses = classNames('menu', {
+      'menu-vertically-limited': infiniteList,
+      'spacer-top': infiniteList,
+      'with-top-separator': infiniteList,
+      'with-bottom-separator': Boolean(footerNode)
+    });
 
     return (
       <div className="multi-select" ref={div => (this.container = div)}>
         <div className="menu-search">
           <SearchBox
             autoFocus={true}
+            className="little-spacer-top"
+            loading={this.state.loading}
             onChange={this.handleSearchChange}
             placeholder={this.props.placeholder}
             value={query}
           />
         </div>
-        <ul className="menu">
+        <ul className={listClasses}>
           {selectedElements.length > 0 &&
             selectedElements.map(element => (
               <MultiSelectOption
-                key={element}
-                element={element}
-                selected={true}
                 active={activeElement === element}
-                onSelectChange={this.handleSelectChange}
+                element={element}
+                key={element}
                 onHover={this.handleElementHover}
+                onSelectChange={this.handleSelectChange}
+                renderLabel={renderLabel}
+                selected={true}
               />
             ))}
           {unselectedElements.length > 0 &&
             unselectedElements.map(element => (
               <MultiSelectOption
-                key={element}
-                element={element}
                 active={activeElement === element}
-                onSelectChange={this.handleSelectChange}
+                disabled={!allowSelection}
+                element={element}
+                key={element}
                 onHover={this.handleElementHover}
+                onSelectChange={this.handleSelectChange}
+                renderLabel={renderLabel}
               />
             ))}
-          {this.isNewElement(query, this.props) && (
+          {showNewElement && (
             <MultiSelectOption
-              key={query}
-              element={query}
-              custom={true}
               active={activeElement === query}
-              onSelectChange={this.handleSelectChange}
+              custom={true}
+              element={query}
+              key={query}
               onHover={this.handleElementHover}
+              onSelectChange={this.handleSelectChange}
+              renderLabel={renderLabel}
             />
           )}
+          {!showNewElement && selectedElements.length < 1 && unselectedElements.length < 1 && (
+            <li className="spacer-left">{translateWithParameters('no_results_for_x', query)}</li>
+          )}
         </ul>
+        {footerNode}
       </div>
     );
   }

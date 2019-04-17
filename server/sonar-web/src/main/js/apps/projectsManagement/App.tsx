@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,22 +24,23 @@ import Header from './Header';
 import Search from './Search';
 import Projects from './Projects';
 import CreateProjectForm from './CreateProjectForm';
-import { PAGE_SIZE, Project } from './utils';
 import ListFooter from '../../components/controls/ListFooter';
-import { getComponents } from '../../api/components';
-import { Organization } from '../../app/types';
+import Suggestions from '../../app/components/embed-docs-modal/Suggestions';
+import { getComponents, Project } from '../../api/components';
+import { toNotSoISOString } from '../../helpers/dates';
 import { translate } from '../../helpers/l10n';
 
 export interface Props {
   currentUser: { login: string };
   hasProvisionPermission?: boolean;
-  onVisibilityChange: (visibility: string) => void;
-  organization: Organization;
+  onOrganizationUpgrade: () => void;
+  onVisibilityChange: (visibility: T.Visibility) => void;
+  organization: T.Organization;
   topLevelQualifiers: string[];
 }
 
 interface State {
-  analyzedBefore?: string;
+  analyzedBefore?: Date;
   createProjectForm: boolean;
   page: number;
   projects: Project[];
@@ -49,7 +50,10 @@ interface State {
   ready: boolean;
   selection: string[];
   total: number;
+  visibility?: T.Visibility;
 }
+
+const PAGE_SIZE = 50;
 
 export default class App extends React.PureComponent<Props, State> {
   mounted = false;
@@ -80,28 +84,33 @@ export default class App extends React.PureComponent<Props, State> {
   }
 
   requestProjects = () => {
+    const { analyzedBefore } = this.state;
     const parameters = {
-      analyzedBefore: this.state.analyzedBefore,
+      analyzedBefore: analyzedBefore && toNotSoISOString(analyzedBefore),
       onProvisionedOnly: this.state.provisioned || undefined,
       organization: this.props.organization.key,
       p: this.state.page !== 1 ? this.state.page : undefined,
       ps: PAGE_SIZE,
       q: this.state.query || undefined,
-      qualifiers: this.state.qualifiers
+      qualifiers: this.state.qualifiers,
+      visibility: this.state.visibility
     };
-    getComponents(parameters).then(r => {
-      if (this.mounted) {
-        let projects: Project[] = r.components;
-        if (this.state.page > 1) {
-          projects = [...this.state.projects, ...projects];
+    getComponents(parameters).then(
+      r => {
+        if (this.mounted) {
+          let projects: Project[] = r.components;
+          if (this.state.page > 1) {
+            projects = [...this.state.projects, ...projects];
+          }
+          this.setState({ ready: true, projects, selection: [], total: r.paging.total });
         }
-        this.setState({ ready: true, projects, selection: [], total: r.paging.total });
-      }
-    });
+      },
+      () => {}
+    );
   };
 
   loadMore = () => {
-    this.setState({ ready: false, page: this.state.page + 1 }, this.requestProjects);
+    this.setState(({ page }) => ({ ready: false, page: page + 1 }), this.requestProjects);
   };
 
   onSearch = (query: string) => {
@@ -129,22 +138,33 @@ export default class App extends React.PureComponent<Props, State> {
     );
   };
 
-  handleDateChanged = (analyzedBefore?: string) =>
+  onVisibilityChanged = (newVisibility: T.Visibility | 'all') => {
+    this.setState(
+      {
+        ready: false,
+        page: 1,
+        provisioned: false,
+        query: '',
+        visibility: newVisibility === 'all' ? undefined : newVisibility,
+        selection: []
+      },
+      this.requestProjects
+    );
+  };
+
+  handleDateChanged = (analyzedBefore: Date | undefined) =>
     this.setState({ ready: false, page: 1, analyzedBefore }, this.requestProjects);
 
   onProjectSelected = (project: string) => {
-    const newSelection = uniq([...this.state.selection, project]);
-    this.setState({ selection: newSelection });
+    this.setState(({ selection }) => ({ selection: uniq([...selection, project]) }));
   };
 
   onProjectDeselected = (project: string) => {
-    const newSelection = without(this.state.selection, project);
-    this.setState({ selection: newSelection });
+    this.setState(({ selection }) => ({ selection: without(selection, project) }));
   };
 
   onAllSelected = () => {
-    const newSelection = this.state.projects.map(project => project.key);
-    this.setState({ selection: newSelection });
+    this.setState(({ projects }) => ({ selection: projects.map(project => project.key) }));
   };
 
   onAllDeselected = () => {
@@ -162,6 +182,7 @@ export default class App extends React.PureComponent<Props, State> {
   render() {
     return (
       <div className="page page-limited" id="projects-management-page">
+        <Suggestions suggestions="projects_management" />
         <Helmet title={translate('projects_management')} />
 
         <Header
@@ -173,13 +194,14 @@ export default class App extends React.PureComponent<Props, State> {
 
         <Search
           analyzedBefore={this.state.analyzedBefore}
-          onAllSelected={this.onAllSelected}
           onAllDeselected={this.onAllDeselected}
+          onAllSelected={this.onAllSelected}
           onDateChanged={this.handleDateChanged}
           onDeleteProjects={this.requestProjects}
           onProvisionedChanged={this.onProvisionedChanged}
           onQualifierChanged={this.onQualifierChanged}
           onSearch={this.onSearch}
+          onVisibilityChanged={this.onVisibilityChanged}
           organization={this.props.organization}
           projects={this.state.projects}
           provisioned={this.state.provisioned}
@@ -189,28 +211,30 @@ export default class App extends React.PureComponent<Props, State> {
           selection={this.state.selection}
           topLevelQualifiers={this.props.topLevelQualifiers}
           total={this.state.total}
+          visibility={this.state.visibility}
         />
 
         <Projects
           currentUser={this.props.currentUser}
-          ready={this.state.ready}
-          projects={this.state.projects}
-          selection={this.state.selection}
-          onProjectSelected={this.onProjectSelected}
           onProjectDeselected={this.onProjectDeselected}
+          onProjectSelected={this.onProjectSelected}
           organization={this.props.organization}
+          projects={this.state.projects}
+          ready={this.state.ready}
+          selection={this.state.selection}
         />
 
         <ListFooter
-          ready={this.state.ready}
           count={this.state.projects.length}
-          total={this.state.total}
           loadMore={this.loadMore}
+          ready={this.state.ready}
+          total={this.state.total}
         />
 
         {this.state.createProjectForm && (
           <CreateProjectForm
             onClose={this.closeCreateProjectForm}
+            onOrganizationUpgrade={this.props.onOrganizationUpgrade}
             onProjectCreated={this.requestProjects}
             organization={this.props.organization}
           />

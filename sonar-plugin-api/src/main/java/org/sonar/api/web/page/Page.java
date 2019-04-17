@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -56,6 +56,10 @@ public final class Page {
 
   public String getKey() {
     return key;
+  }
+
+  public String getPluginKey() {
+    return key.substring(0, key.indexOf('/'));
   }
 
   public String getName() {
@@ -115,6 +119,10 @@ public final class Page {
      * @param key It must respect the format plugin_key/page_identifier. Example: <code>my_plugin/my_page</code>
      */
     private Builder(String key) {
+      requireNonNull(key, "Key must not be null");
+      if (key.split("/").length != 2) {
+        throw new IllegalArgumentException("Page key [" + key + "] is not valid. It must contain a single slash, for example my_plugin/my_page.");
+      }
       this.key = requireNonNull(key, "Key must not be null");
     }
 

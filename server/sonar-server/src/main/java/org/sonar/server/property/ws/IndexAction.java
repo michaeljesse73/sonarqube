@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -48,7 +48,6 @@ import org.sonar.server.ws.WsAction;
 import static org.apache.commons.lang.StringUtils.isEmpty;
 import static org.sonar.api.PropertyType.PROPERTY_SET;
 import static org.sonar.api.web.UserRole.ADMIN;
-import static org.sonar.server.setting.ws.SettingsWsSupport.DOT_LICENSE;
 import static org.sonar.server.setting.ws.SettingsWsSupport.DOT_SECURED;
 import static org.sonar.server.ws.KeyExamples.KEY_PROJECT_EXAMPLE_001;
 
@@ -120,10 +119,10 @@ public class IndexAction implements WsAction {
 
   private Optional<ComponentDto> loadComponent(DbSession dbSession, String component) {
     try {
-      Long componentId = Long.parseLong(component);
-      return Optional.ofNullable(dbClient.componentDao().selectById(dbSession, componentId).orNull());
+      long componentId = Long.parseLong(component);
+      return Optional.ofNullable(dbClient.componentDao().selectById(dbSession, componentId).orElse(null));
     } catch (NumberFormatException e) {
-      return Optional.ofNullable(dbClient.componentDao().selectByKey(dbSession, component).orNull());
+      return Optional.ofNullable(dbClient.componentDao().selectByKey(dbSession, component).orElse(null));
     }
   }
 
@@ -138,8 +137,7 @@ public class IndexAction implements WsAction {
 
   Predicate<PropertyDto> isVisible(Optional<ComponentDto> component) {
     return propertyDto -> !propertyDto.getKey().endsWith(DOT_SECURED)
-      || hasAdminPermission(component)
-      || (propertyDto.getKey().contains(DOT_LICENSE) && userSession.isLoggedIn());
+      || hasAdminPermission(component);
   }
 
   private boolean hasAdminPermission(Optional<ComponentDto> component) {

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,6 +19,7 @@
  */
 package org.sonar.server.component;
 
+import com.google.common.collect.ImmutableSet;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -34,9 +35,15 @@ import org.sonar.server.es.ProjectIndexer;
 import org.sonar.server.es.TestProjectIndexers;
 import org.sonar.server.exceptions.BadRequestException;
 import org.sonar.server.exceptions.ForbiddenException;
+import org.sonar.server.project.Project;
+import org.sonar.server.project.ProjectLifeCycleListeners;
+import org.sonar.server.project.RekeyedProject;
 import org.sonar.server.tester.UserSessionRule;
 
-import static org.assertj.guava.api.Assertions.assertThat;
+import static java.util.Collections.emptyList;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.sonar.db.component.ComponentTesting.newFileDto;
 import static org.sonar.db.component.ComponentTesting.newModuleDto;
 
@@ -55,7 +62,8 @@ public class ComponentServiceUpdateKeyTest {
   private DbClient dbClient = db.getDbClient();
   private DbSession dbSession = db.getSession();
   private TestProjectIndexers projectIndexers = new TestProjectIndexers();
-  private ComponentService underTest = new ComponentService(dbClient, userSession, projectIndexers);
+  private ProjectLifeCycleListeners projectLifeCycleListeners = mock(ProjectLifeCycleListeners.class);
+  private ComponentService underTest = new ComponentService(dbClient, userSession, projectIndexers, projectLifeCycleListeners);
 
   @Test
   public void update_project_key() {
@@ -70,16 +78,17 @@ public class ComponentServiceUpdateKeyTest {
     dbSession.commit();
 
     // Check project key has been updated
-    assertThat(db.getDbClient().componentDao().selectByKey(dbSession, project.getDbKey())).isAbsent();
+    assertThat(db.getDbClient().componentDao().selectByKey(dbSession, project.getDbKey())).isEmpty();
     assertThat(db.getDbClient().componentDao().selectByKey(dbSession, "sample2:root")).isNotNull();
 
     // Check file key has been updated
-    assertThat(db.getDbClient().componentDao().selectByKey(dbSession, file.getDbKey())).isAbsent();
+    assertThat(db.getDbClient().componentDao().selectByKey(dbSession, file.getDbKey())).isEmpty();
     assertThat(db.getDbClient().componentDao().selectByKey(dbSession, "sample2:root:src/File.xoo")).isNotNull();
+    assertThat(db.getDbClient().componentDao().selectByKey(dbSession, "sample2:root:src/InactiveFile.xoo")).isNotNull();
 
-    assertThat(dbClient.componentDao().selectByKey(dbSession, inactiveFile.getDbKey())).isPresent();
+    assertThat(dbClient.componentDao().selectByKey(dbSession, inactiveFile.getDbKey())).isEmpty();
 
-    org.assertj.core.api.Assertions.assertThat(projectIndexers.hasBeenCalled(project.uuid(), ProjectIndexer.Cause.PROJECT_KEY_UPDATE)).isTrue();
+    assertThat(projectIndexers.hasBeenCalled(project.uuid(), ProjectIndexer.Cause.PROJECT_KEY_UPDATE)).isTrue();
   }
 
   @Test
@@ -99,7 +108,7 @@ public class ComponentServiceUpdateKeyTest {
     assertComponentKeyHasBeenUpdated(file.getDbKey(), "sample:root2:module:src/File.xoo");
 
     // do not index the module but the project
-    org.assertj.core.api.Assertions.assertThat(projectIndexers.hasBeenCalled(project.uuid(), ProjectIndexer.Cause.PROJECT_KEY_UPDATE)).isTrue();
+    assertThat(projectIndexers.hasBeenCalled(project.uuid(), ProjectIndexer.Cause.PROJECT_KEY_UPDATE)).isTrue();
   }
 
   @Test
@@ -113,7 +122,7 @@ public class ComponentServiceUpdateKeyTest {
     dbSession.commit();
 
     assertComponentKeyHasBeenUpdated(provisionedProject.getDbKey(), "provisionedProject2");
-    org.assertj.core.api.Assertions.assertThat(projectIndexers.hasBeenCalled(provisionedProject.uuid(), ProjectIndexer.Cause.PROJECT_KEY_UPDATE)).isTrue();
+    assertThat(projectIndexers.hasBeenCalled(provisionedProject.uuid(), ProjectIndexer.Cause.PROJECT_KEY_UPDATE)).isTrue();
   }
 
   @Test
@@ -185,17 +194,33 @@ public class ComponentServiceUpdateKeyTest {
     assertComponentKeyUpdated(project.getDbKey(), "your_project");
     assertComponentKeyUpdated(module.getDbKey(), "your_project:root:module");
     assertComponentKeyUpdated(file.getDbKey(), "your_project:root:module:src/File.xoo");
-    assertComponentKeyNotUpdated(inactiveModule.getDbKey());
-    assertComponentKeyNotUpdated(inactiveFile.getDbKey());
+    assertComponentKeyUpdated(inactiveModule.getDbKey(), "your_project:root:inactive_module");
+    assertComponentKeyUpdated(inactiveFile.getDbKey(), "your_project:root:module:src/InactiveFile.xoo");
+    verify(projectLifeCycleListeners).onProjectsRekeyed(ImmutableSet.of(
+      new RekeyedProject(new Project(project.uuid(), "your_project", project.name(), project.uuid(), emptyList()), "my_project")
+    ));
+  }
+
+  @Test
+  public void bulk_update_key_with_branch_and_pr() {
+    ComponentDto project = componentDb.insertComponent(ComponentTesting.newPrivateProjectDto(db.organizations().insert()).setDbKey("my_project"));
+    ComponentDto branch = componentDb.insertProjectBranch(project);
+    ComponentDto module = componentDb.insertComponent(newModuleDto(branch).setDbKey("my_project:root:module"));
+    ComponentDto file = componentDb.insertComponent(newFileDto(module, null).setDbKey("my_project:root:module:src/File.xoo"));
+
+    underTest.bulkUpdateKey(dbSession, project, "my_", "your_");
+
+    assertComponentKeyUpdated(project.getDbKey(), "your_project");
+    assertComponentKeyUpdated(module.getDbKey(), "your_project:root:module");
+    assertComponentKeyUpdated(file.getDbKey(), "your_project:root:module:src/File.xoo");
+    verify(projectLifeCycleListeners).onProjectsRekeyed(ImmutableSet.of(
+      new RekeyedProject(new Project(project.uuid(), "your_project", project.name(), project.uuid(), emptyList()), "my_project")
+    ));
   }
 
   private void assertComponentKeyUpdated(String oldKey, String newKey) {
-    assertThat(dbClient.componentDao().selectByKey(dbSession, oldKey)).isAbsent();
+    assertThat(dbClient.componentDao().selectByKey(dbSession, oldKey)).isEmpty();
     assertThat(dbClient.componentDao().selectByKey(dbSession, newKey)).isPresent();
-  }
-
-  private void assertComponentKeyNotUpdated(String key) {
-    assertThat(dbClient.componentDao().selectByKey(dbSession, key)).isPresent();
   }
 
   private ComponentDto insertSampleRootProject() {
@@ -208,7 +233,7 @@ public class ComponentServiceUpdateKeyTest {
   }
 
   private void assertComponentKeyHasBeenUpdated(String oldKey, String newKey) {
-    assertThat(dbClient.componentDao().selectByKey(dbSession, oldKey)).isAbsent();
+    assertThat(dbClient.componentDao().selectByKey(dbSession, oldKey)).isEmpty();
     assertThat(dbClient.componentDao().selectByKey(dbSession, newKey)).isPresent();
   }
 

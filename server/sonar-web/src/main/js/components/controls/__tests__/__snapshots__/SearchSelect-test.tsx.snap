@@ -2,9 +2,8 @@
 
 exports[`should render Select 1`] = `
 <Select
-  autofocus={true}
-  className="input-super-large"
-  clearable={false}
+  autoFocus={true}
+  escapeClearsValue={false}
   filterOption={[Function]}
   isLoading={false}
   noResultsText="select2.tooShort.2"

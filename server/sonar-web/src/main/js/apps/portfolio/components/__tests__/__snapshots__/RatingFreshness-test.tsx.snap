@@ -25,7 +25,24 @@ exports[`renders 1`] = `
 exports[`renders empty 1`] = `
 <div
   className="portfolio-freshness"
+/>
+`;
+
+exports[`renders has always been 1`] = `
+<div
+  className="portfolio-freshness"
 >
-   
+  <FormattedMessage
+    defaultMessage="portfolio.has_always_been_x"
+    id="portfolio.has_always_been_x"
+    values={
+      Object {
+        "rating": <Rating
+          small={true}
+          value="A"
+        />,
+      }
+    }
+  />
 </div>
 `;

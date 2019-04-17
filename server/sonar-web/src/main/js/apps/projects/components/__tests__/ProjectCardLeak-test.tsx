@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,6 +20,12 @@
 import * as React from 'react';
 import { shallow } from 'enzyme';
 import ProjectCardLeak from '../ProjectCardLeak';
+import { Project } from '../../types';
+
+jest.mock(
+  'date-fns/difference_in_milliseconds',
+  () => () => 1000 * 60 * 60 * 24 * 30 * 8 // ~ 8 months
+);
 
 const MEASURES = {
   alert_status: 'OK',
@@ -28,7 +34,7 @@ const MEASURES = {
   new_bugs: '12'
 };
 
-const PROJECT = {
+const PROJECT: Project = {
   analysisDate: '2017-01-01',
   leakPeriodDate: '2016-12-01',
   key: 'foo',
@@ -40,36 +46,50 @@ const PROJECT = {
 };
 
 it('should display analysis date and leak start date', () => {
-  const card = shallow(<ProjectCardLeak project={PROJECT} />);
+  const card = shallow(<ProjectCardLeak height={100} organization={undefined} project={PROJECT} />);
   expect(card.find('.project-card-dates').exists()).toBeTruthy();
-  expect(card.find('.project-card-dates').find('DateFromNow')).toHaveLength(1);
+  expect(card.find('.project-card-dates').find('.project-card-leak-date')).toHaveLength(1);
   expect(card.find('.project-card-dates').find('DateTimeFormatter')).toHaveLength(1);
 });
 
 it('should not display analysis date or leak start date', () => {
   const project = { ...PROJECT, analysisDate: undefined };
-  const card = shallow(<ProjectCardLeak project={project} />);
+  const card = shallow(<ProjectCardLeak height={100} organization={undefined} project={project} />);
   expect(card.find('.project-card-dates').exists()).toBeFalsy();
 });
 
 it('should display tags', () => {
   const project = { ...PROJECT, tags: ['foo', 'bar'] };
   expect(
-    shallow(<ProjectCardLeak project={project} />)
+    shallow(<ProjectCardLeak height={100} organization={undefined} project={project} />)
       .find('TagsList')
       .exists()
   ).toBeTruthy();
 });
 
-it('should private badge', () => {
-  const project = { ...PROJECT, visibility: 'private' };
+it('should display private badge', () => {
+  const project: Project = { ...PROJECT, visibility: 'private' };
   expect(
-    shallow(<ProjectCardLeak project={project} />)
-      .find('PrivateBadge')
+    shallow(<ProjectCardLeak height={100} organization={undefined} project={project} />)
+      .find('Connect(PrivacyBadge)')
       .exists()
   ).toBeTruthy();
 });
 
 it('should display the leak measures and quality gate', () => {
-  expect(shallow(<ProjectCardLeak project={PROJECT} />)).toMatchSnapshot();
+  expect(
+    shallow(<ProjectCardLeak height={100} organization={undefined} project={PROJECT} />)
+  ).toMatchSnapshot();
+});
+
+it('should display not analyzed yet', () => {
+  expect(
+    shallow(
+      <ProjectCardLeak
+        height={100}
+        organization={undefined}
+        project={{ ...PROJECT, analysisDate: undefined }}
+      />
+    )
+  ).toMatchSnapshot();
 });

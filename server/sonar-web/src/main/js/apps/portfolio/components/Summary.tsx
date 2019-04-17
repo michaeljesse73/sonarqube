@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -26,7 +26,7 @@ import { getComponentDrilldownUrl } from '../../../helpers/urls';
 
 interface Props {
   component: { description?: string; key: string };
-  measures: { [key: string]: string | undefined };
+  measures: T.Dict<string | undefined>;
 }
 
 export default function Summary({ component, measures }: Props) {
@@ -34,23 +34,32 @@ export default function Summary({ component, measures }: Props) {
   const nclocDistribution = measures['ncloc_language_distribution'];
 
   return (
-    <section id="portfolio-summary" className="big-spacer-bottom">
+    <section className="big-spacer-bottom" id="portfolio-summary">
       {component.description && <div className="big-spacer-bottom">{component.description}</div>}
 
       <ul className="portfolio-grid">
         <li>
           <div className="portfolio-measure-secondary-value">
-            <Link to={getComponentDrilldownUrl(component.key, 'projects')}>
-              <Measure metricKey="projects" metricType="SHORT_INT" value={projects} />
-            </Link>
+            {projects ? (
+              <Link
+                to={getComponentDrilldownUrl({ componentKey: component.key, metric: 'projects' })}>
+                <Measure metricKey="projects" metricType="SHORT_INT" value={projects} />
+              </Link>
+            ) : (
+              '0'
+            )}
           </div>
           <div className="spacer-top text-muted">{translate('projects')}</div>
         </li>
         <li>
           <div className="portfolio-measure-secondary-value">
-            <Link to={getComponentDrilldownUrl(component.key, 'ncloc')}>
-              <Measure metricKey="ncloc" metricType="SHORT_INT" value={ncloc} />
-            </Link>
+            {ncloc ? (
+              <Link to={getComponentDrilldownUrl({ componentKey: component.key, metric: 'ncloc' })}>
+                <Measure metricKey="ncloc" metricType="SHORT_INT" value={ncloc} />
+              </Link>
+            ) : (
+              '0'
+            )}
           </div>
           <div className="spacer-top text-muted">{translate('metric.ncloc.name')}</div>
         </li>

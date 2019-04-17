@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,18 +20,25 @@
 import { RouterState, RedirectFunction } from 'react-router';
 import DefaultPageSelectorContainer from './components/DefaultPageSelectorContainer';
 import FavoriteProjectsContainer from './components/FavoriteProjectsContainer';
-import { saveAll } from '../../helpers/storage';
+import { PROJECTS_DEFAULT_FILTER, PROJECTS_ALL } from './utils';
+import { save } from '../../helpers/storage';
+import { lazyLoad } from '../../components/lazyLoad';
+import { isDefined } from '../../helpers/types';
 
 const routes = [
   { indexRoute: { component: DefaultPageSelectorContainer } },
   {
     path: 'all',
     onEnter(_: RouterState, replace: RedirectFunction) {
-      saveAll();
+      save(PROJECTS_DEFAULT_FILTER, PROJECTS_ALL);
       replace('/projects');
     }
   },
-  { path: 'favorite', component: FavoriteProjectsContainer }
-];
+  { path: 'favorite', component: FavoriteProjectsContainer },
+  {
+    path: 'create',
+    component: lazyLoad(() => import('../create/project/CreateProjectPage'))
+  }
+].filter(isDefined);
 
 export default routes;

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -45,6 +45,11 @@ public interface CoreProperties {
   String SUBCATEGORY_DATABASE_CLEANER = "databaseCleaner";
 
   /**
+   * @since 7.6
+   */
+  String SUBCATEGORY_MODULES = "subProjects";
+
+  /**
    * @since 4.0
    */
   String SUBCATEGORY_DUPLICATIONS = "duplications";
@@ -73,6 +78,11 @@ public interface CoreProperties {
    * @since 4.0
    */
   String SUBCATEGORY_L10N = "localization";
+
+  /**
+   * @since 7.2
+   */
+  String CATEGORY_EXTERNAL_ISSUES = "externalIssues";
 
   /**
    * @since 2.11
@@ -136,6 +146,7 @@ public interface CoreProperties {
   @Deprecated
   String PROJECT_BRANCH_PROPERTY = "sonar.branch";
   String PROJECT_VERSION_PROPERTY = "sonar.projectVersion";
+  String BUILD_STRING_PROPERTY = "sonar.buildString";
 
   /**
    * @since 2.6
@@ -168,12 +179,6 @@ public interface CoreProperties {
    * @since 6.6
    */
   String LONG_LIVED_BRANCHES_REGEX = "sonar.branch.longLivedBranches.regex";
-
-  /**
-   * @deprecated since 4.2 projects are now multi-language
-   */
-  @Deprecated
-  String PROJECT_LANGUAGE_PROPERTY = "sonar.language";
 
   /* Exclusions */
   String PROJECT_INCLUSIONS_PROPERTY = "sonar.inclusions";
@@ -328,7 +333,9 @@ public interface CoreProperties {
 
   /**
    * @since 3.3
+   * @deprecated since 7.1, developer connection link is no more feed
    */
+  @Deprecated
   String LINKS_SOURCES_DEV = "sonar.links.scm_dev";
 
   /**
@@ -343,25 +350,23 @@ public interface CoreProperties {
 
   /**
    * @since 3.5
+   * @deprecated since 7.6
    */
+  @Deprecated
   String TASK = "sonar.task";
 
   /**
    * @since 3.6
+   * @deprecated since 7.6
    */
+  @Deprecated
   String SCAN_TASK = "scan";
 
   /**
    * @since 3.6
    */
+  // TODO remove?
   String PROFILING_LOG_PROPERTY = "sonar.showProfiling";
-
-  /**
-   * @since 4.0
-   * @deprecated in 5.1 no more used
-   */
-  @Deprecated
-  String PREVIEW_READ_TIMEOUT_SEC = "sonar.preview.readTimeout";
 
   /**
    * @since 4.0
@@ -369,53 +374,6 @@ public interface CoreProperties {
    */
   @Deprecated
   String CORE_PREVENT_AUTOMATIC_PROJECT_CREATION = "sonar.preventAutoProjectCreation";
-
-  /**
-   * @since 4.0
-   */
-  String ANALYSIS_MODE = "sonar.analysis.mode";
-
-  /**
-   * @since 4.0
-   * @deprecated since 5.2 the default mode is publish
-   */
-  @Deprecated
-  String ANALYSIS_MODE_ANALYSIS = "analysis";
-
-  /**
-   * @since 4.0
-   */
-  String ANALYSIS_MODE_PREVIEW = "preview";
-
-  /**
-   * @since 5.2
-   */
-  String ANALYSIS_MODE_ISSUES = "issues";
-
-  /**
-   * @since 5.2
-   */
-  String ANALYSIS_MODE_PUBLISH = "publish";
-
-  /**
-   * @since 4.0
-   * @deprecated since 5.2
-   */
-  @Deprecated
-  String ANALYSIS_MODE_INCREMENTAL = "incremental";
-
-  /**
-   * @since 4.0
-   */
-  String PREVIEW_INCLUDE_PLUGINS = "sonar.preview.includePlugins";
-  String PREVIEW_INCLUDE_PLUGINS_DEFAULT_VALUE = "";
-
-  /**
-   * @since 4.0
-   */
-  String PREVIEW_EXCLUDE_PLUGINS = "sonar.preview.excludePlugins";
-
-  String PREVIEW_EXCLUDE_PLUGINS_DEFAULT_VALUE = "devcockpit,pdfreport,governance,ldap,authaad,authgithub,authbitbucket,googleanalytics";
 
   /**
    * @since 4.0
@@ -502,6 +460,11 @@ public interface CoreProperties {
   String SCM_DISABLED_KEY = "sonar.scm.disabled";
 
   /**
+   * @since 7.6
+   */
+  String SCM_EXCLUSIONS_DISABLED_KEY = "sonar.scm.exclusions.disabled";
+
+  /**
    * @since 5.0
    */
   String SCM_PROVIDER_KEY = "sonar.scm.provider";
@@ -517,4 +480,9 @@ public interface CoreProperties {
    * @since 5.1
    */
   String DEFAULT_ISSUE_ASSIGNEE = "sonar.issues.defaultAssigneeLogin";
+
+  /**
+   * @since 7.6
+   */
+  String MODULE_LEVEL_ARCHIVED_SETTINGS = "sonar.subproject.settings.archived";
 }

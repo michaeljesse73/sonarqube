@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,6 +21,7 @@
 import * as React from 'react';
 import { shallow } from 'enzyme';
 import LongBranchesPattern from '../LongBranchesPattern';
+import { click } from '../../../../helpers/testUtils';
 
 jest.mock('../../../../api/settings', () => ({
   getValues: jest.fn(() => Promise.resolve([]))
@@ -42,8 +43,7 @@ it('opens form', () => {
   const wrapper = shallow(<LongBranchesPattern project="project" />);
   wrapper.setState({ loading: false, setting: { value: 'release-.*' } });
 
-  wrapper.find('EditButton').prop<Function>('onClick')();
-  wrapper.update();
+  click(wrapper.find('EditButton'));
   expect(wrapper.find('LongBranchesPatternForm').exists()).toBeTruthy();
 
   wrapper.find('LongBranchesPatternForm').prop<Function>('onClose')();
@@ -53,7 +53,10 @@ it('opens form', () => {
 
 it('fetches setting value on mount', () => {
   shallow(<LongBranchesPattern project="project" />);
-  expect(getValues).lastCalledWith('sonar.branch.longLivedBranches.regex', 'project');
+  expect(getValues).lastCalledWith({
+    keys: 'sonar.branch.longLivedBranches.regex',
+    component: 'project'
+  });
 });
 
 it('fetches new setting value after change', () => {

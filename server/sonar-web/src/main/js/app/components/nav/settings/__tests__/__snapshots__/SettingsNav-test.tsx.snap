@@ -1,5 +1,25 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`should display a pending plugin notif 1`] = `
+<PendingPluginsActionNotif
+  pending={
+    Object {
+      "installing": Array [
+        Object {
+          "implementationBuild": "1",
+          "key": "foo",
+          "name": "Foo",
+          "version": "1.0",
+        },
+      ],
+      "removing": Array [],
+      "updating": Array [],
+    }
+  }
+  refreshPending={[Function]}
+/>
+`;
+
 exports[`should work with extensions 1`] = `
 <ContextNavBar
   height={72}
@@ -13,23 +33,155 @@ exports[`should work with extensions 1`] = `
     </h1>
   </header>
   <NavBarTabs>
-    <li
-      className="dropdown"
+    <Dropdown
+      overlay={
+        <ul
+          className="menu"
+        >
+          <li>
+            <IndexLink
+              activeClassName="active"
+              to="/admin/settings"
+            >
+              settings.page
+            </IndexLink>
+          </li>
+          <li>
+            <IndexLink
+              activeClassName="active"
+              to="/admin/settings/encryption"
+            >
+              property.category.security.encryption
+            </IndexLink>
+          </li>
+          <li>
+            <IndexLink
+              activeClassName="active"
+              to="/admin/custom_metrics"
+            >
+              custom_metrics.page
+            </IndexLink>
+          </li>
+          <li>
+            <IndexLink
+              activeClassName="active"
+              to="/admin/webhooks"
+            >
+              webhooks.page
+            </IndexLink>
+          </li>
+          <li>
+            <Link
+              activeClassName="active"
+              onlyActiveOnIndex={false}
+              style={Object {}}
+              to="/admin/extension/foo"
+            >
+              Foo
+            </Link>
+          </li>
+        </ul>
+      }
+      tagName="li"
     >
-      <a
-        className="dropdown-toggle active"
-        data-toggle="dropdown"
-        href="#"
-        id="settings-navigation-configuration"
+      <Component />
+    </Dropdown>
+    <Dropdown
+      overlay={
+        <ul
+          className="menu"
+        >
+          <li>
+            <IndexLink
+              activeClassName="active"
+              to="/admin/users"
+            >
+              users.page
+            </IndexLink>
+          </li>
+          <li>
+            <IndexLink
+              activeClassName="active"
+              to="/admin/groups"
+            >
+              user_groups.page
+            </IndexLink>
+          </li>
+          <li>
+            <IndexLink
+              activeClassName="active"
+              to="/admin/permissions"
+            >
+              global_permissions.page
+            </IndexLink>
+          </li>
+          <li>
+            <IndexLink
+              activeClassName="active"
+              to="/admin/permission_templates"
+            >
+              permission_templates
+            </IndexLink>
+          </li>
+        </ul>
+      }
+      tagName="li"
+    >
+      <Component />
+    </Dropdown>
+    <Dropdown
+      overlay={
+        <ul
+          className="menu"
+        >
+          <li>
+            <IndexLink
+              activeClassName="active"
+              to="/admin/projects_management"
+            >
+              management
+            </IndexLink>
+          </li>
+          <li>
+            <IndexLink
+              activeClassName="active"
+              to="/admin/background_tasks"
+            >
+              background_tasks.page
+            </IndexLink>
+          </li>
+        </ul>
+      }
+      tagName="li"
+    >
+      <Component />
+    </Dropdown>
+    <li>
+      <IndexLink
+        activeClassName="active"
+        to="/admin/system"
       >
-        sidebar.project_settings
-         
-        <i
-          className="icon-dropdown"
-        />
-      </a>
+        sidebar.system
+      </IndexLink>
+    </li>
+    <li>
+      <IndexLink
+        activeClassName="active"
+        to="/admin/marketplace"
+      >
+        marketplace.page
+      </IndexLink>
+    </li>
+  </NavBarTabs>
+</ContextNavBar>
+`;
+
+exports[`should work with extensions 2`] = `
+Array [
+  <Dropdown
+    overlay={
       <ul
-        className="dropdown-menu"
+        className="menu"
       >
         <li>
           <IndexLink
@@ -55,9 +207,15 @@ exports[`should work with extensions 1`] = `
             custom_metrics.page
           </IndexLink>
         </li>
-        <li
-          key="foo"
-        >
+        <li>
+          <IndexLink
+            activeClassName="active"
+            to="/admin/webhooks"
+          >
+            webhooks.page
+          </IndexLink>
+        </li>
+        <li>
           <Link
             activeClassName="active"
             onlyActiveOnIndex={false}
@@ -68,23 +226,15 @@ exports[`should work with extensions 1`] = `
           </Link>
         </li>
       </ul>
-    </li>
-    <li
-      className="dropdown"
-    >
-      <a
-        className="dropdown-toggle"
-        data-toggle="dropdown"
-        href="#"
-      >
-        sidebar.security
-         
-        <i
-          className="icon-dropdown"
-        />
-      </a>
+    }
+    tagName="li"
+  >
+    <Component />
+  </Dropdown>,
+  <Dropdown
+    overlay={
       <ul
-        className="dropdown-menu"
+        className="menu"
       >
         <li>
           <IndexLink
@@ -119,23 +269,15 @@ exports[`should work with extensions 1`] = `
           </IndexLink>
         </li>
       </ul>
-    </li>
-    <li
-      className="dropdown"
-    >
-      <a
-        className="dropdown-toggle"
-        data-toggle="dropdown"
-        href="#"
-      >
-        sidebar.projects
-         
-        <i
-          className="icon-dropdown"
-        />
-      </a>
+    }
+    tagName="li"
+  >
+    <Component />
+  </Dropdown>,
+  <Dropdown
+    overlay={
       <ul
-        className="dropdown-menu"
+        className="menu"
       >
         <li>
           <IndexLink
@@ -154,23 +296,10 @@ exports[`should work with extensions 1`] = `
           </IndexLink>
         </li>
       </ul>
-    </li>
-    <li>
-      <IndexLink
-        activeClassName="active"
-        to="/admin/system"
-      >
-        sidebar.system
-      </IndexLink>
-    </li>
-    <li>
-      <IndexLink
-        activeClassName="active"
-        to="/admin/marketplace"
-      >
-        marketplace.page
-      </IndexLink>
-    </li>
-  </NavBarTabs>
-</ContextNavBar>
+    }
+    tagName="li"
+  >
+    <Component />
+  </Dropdown>,
+]
 `;

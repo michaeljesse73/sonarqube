@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,10 +19,10 @@
  */
 package org.sonar.server.ce.ws;
 
-import java.io.IOException;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.stream.IntStream;
 import javax.annotation.Nullable;
 import org.junit.Rule;
 import org.junit.Test;
@@ -30,14 +30,16 @@ import org.junit.rules.ExpectedException;
 import org.sonar.api.server.ws.WebService.Param;
 import org.sonar.api.utils.System2;
 import org.sonar.api.web.UserRole;
-import org.sonar.ce.taskprocessor.CeTaskProcessor;
+import org.sonar.ce.task.taskprocessor.CeTaskProcessor;
 import org.sonar.core.util.Uuids;
 import org.sonar.db.DbTester;
 import org.sonar.db.ce.CeActivityDto;
 import org.sonar.db.ce.CeActivityDto.Status;
 import org.sonar.db.ce.CeQueueDto;
 import org.sonar.db.ce.CeTaskCharacteristicDto;
+import org.sonar.db.ce.CeTaskMessageDto;
 import org.sonar.db.ce.CeTaskTypes;
+import org.sonar.db.component.BranchType;
 import org.sonar.db.component.ComponentDto;
 import org.sonar.db.component.SnapshotDto;
 import org.sonar.db.organization.OrganizationDto;
@@ -51,15 +53,17 @@ import org.sonar.server.ws.TestResponse;
 import org.sonar.server.ws.WsActionTester;
 import org.sonar.test.JsonAssert;
 import org.sonarqube.ws.Ce;
-import org.sonarqube.ws.Common;
-import org.sonarqube.ws.MediaTypes;
 import org.sonarqube.ws.Ce.ActivityResponse;
 import org.sonarqube.ws.Ce.Task;
+import org.sonarqube.ws.Common;
+import org.sonarqube.ws.MediaTypes;
 
 import static java.util.Arrays.asList;
+import static java.util.Collections.emptyList;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.Mockito.mock;
+import static org.sonar.api.server.ws.WebService.Param.TEXT_QUERY;
 import static org.sonar.api.utils.DateUtils.formatDate;
 import static org.sonar.api.utils.DateUtils.formatDateTime;
 import static org.sonar.db.ce.CeActivityDto.Status.FAILED;
@@ -68,9 +72,9 @@ import static org.sonar.db.ce.CeQueueDto.Status.IN_PROGRESS;
 import static org.sonar.db.ce.CeQueueDto.Status.PENDING;
 import static org.sonar.db.ce.CeTaskCharacteristicDto.BRANCH_KEY;
 import static org.sonar.db.ce.CeTaskCharacteristicDto.BRANCH_TYPE_KEY;
+import static org.sonar.db.ce.CeTaskCharacteristicDto.PULL_REQUEST;
 import static org.sonar.db.component.BranchType.LONG;
 import static org.sonar.server.ce.ws.CeWsParameters.PARAM_COMPONENT_ID;
-import static org.sonar.server.ce.ws.CeWsParameters.PARAM_COMPONENT_QUERY;
 import static org.sonar.server.ce.ws.CeWsParameters.PARAM_MAX_EXECUTED_AT;
 import static org.sonar.server.ce.ws.CeWsParameters.PARAM_MIN_SUBMITTED_AT;
 import static org.sonar.server.ce.ws.CeWsParameters.PARAM_STATUS;
@@ -115,6 +119,7 @@ public class ActivityActionTest {
     assertThat(task.hasAnalysisId()).isFalse();
     assertThat(task.getExecutionTimeMs()).isEqualTo(500L);
     assertThat(task.getLogs()).isFalse();
+    assertThat(task.getWarningCount()).isZero();
 
     task = activityResponse.getTasks(1);
     assertThat(task.getId()).isEqualTo("T1");
@@ -122,6 +127,7 @@ public class ActivityActionTest {
     assertThat(task.getComponentId()).isEqualTo(project1.uuid());
     assertThat(task.getLogs()).isFalse();
     assertThat(task.getOrganization()).isEqualTo(org1.getKey());
+    assertThat(task.getWarningCount()).isZero();
   }
 
   @Test
@@ -214,6 +220,36 @@ public class ActivityActionTest {
   }
 
   @Test
+  public void return_warnings_count_on_queue_and_activity_but_no_warnings_list() {
+    logInAsSystemAdministrator();
+    ComponentDto project1 = db.components().insertPrivateProject();
+    ComponentDto project2 = db.components().insertPrivateProject();
+    insertActivity("T1", project1, SUCCESS);
+    insertActivity("T2", project2, FAILED);
+    insertQueue("T3", project1, IN_PROGRESS);
+    insertMessages("T1", 2);
+    insertMessages("T2", 0);
+    insertMessages("T3", 5);
+
+    ActivityResponse activityResponse = call(ws.newRequest()
+      .setParam(Param.PAGE_SIZE, Integer.toString(10))
+      .setParam(PARAM_STATUS, "SUCCESS,FAILED,CANCELED,IN_PROGRESS,PENDING"));
+    assertThat(activityResponse.getTasksList())
+      .extracting(Task::getId, Task::getWarningCount, Task::getWarningsList)
+      .containsOnly(tuple("T1", 2, emptyList()), tuple("T2", 0, emptyList()), tuple("T3", 0, emptyList()));
+  }
+
+  private void insertMessages(String taskUuid, int messageCount) {
+    IntStream.range(0, messageCount)
+      .forEach(i -> db.getDbClient().ceTaskMessageDao().insert(db.getSession(), new CeTaskMessageDto()
+        .setUuid("uuid_" + taskUuid + "_" + i)
+        .setTaskUuid(taskUuid)
+        .setMessage("m_" + taskUuid + "_" + i)
+        .setCreatedAt(taskUuid.hashCode() + i)));
+    db.commit();
+  }
+
+  @Test
   public void project_administrator_can_access_his_project_activity() {
     ComponentDto project1 = db.components().insertPrivateProject();
     ComponentDto project2 = db.components().insertPrivateProject();
@@ -254,7 +290,7 @@ public class ActivityActionTest {
     insertActivity("T2", zookeeper, SUCCESS);
     insertActivity("T3", eclipse, SUCCESS);
 
-    ActivityResponse activityResponse = call(ws.newRequest().setParam(PARAM_COMPONENT_QUERY, "apac"));
+    ActivityResponse activityResponse = call(ws.newRequest().setParam(TEXT_QUERY, "apac"));
 
     assertThat(activityResponse.getTasksList()).extracting("id").containsOnly("T1", "T2");
   }
@@ -266,7 +302,7 @@ public class ActivityActionTest {
     logInAsSystemAdministrator();
     insertActivity("T2", apacheView, SUCCESS);
 
-    ActivityResponse activityResponse = call(ws.newRequest().setParam(PARAM_COMPONENT_QUERY, "apac"));
+    ActivityResponse activityResponse = call(ws.newRequest().setParam(TEXT_QUERY, "apac"));
 
     assertThat(activityResponse.getTasksList()).extracting("id").containsOnly("T2");
   }
@@ -278,7 +314,7 @@ public class ActivityActionTest {
     logInAsSystemAdministrator();
     insertActivity("T2", apacheApp, SUCCESS);
 
-    ActivityResponse activityResponse = call(ws.newRequest().setParam(PARAM_COMPONENT_QUERY, "apac"));
+    ActivityResponse activityResponse = call(ws.newRequest().setParam(TEXT_QUERY, "apac"));
 
     assertThat(activityResponse.getTasksList()).extracting(Task::getId).containsOnly("T2");
   }
@@ -382,13 +418,52 @@ public class ActivityActionTest {
   }
 
   @Test
+  public void pull_request_in_past_activity() {
+    logInAsSystemAdministrator();
+    ComponentDto project = db.components().insertMainBranch();
+    userSession.addProjectPermission(UserRole.USER, project);
+    ComponentDto pullRequest = db.components().insertProjectBranch(project, b -> b.setBranchType(BranchType.PULL_REQUEST));
+    SnapshotDto analysis = db.components().insertSnapshot(pullRequest);
+    CeActivityDto activity = insertActivity("T1", project, SUCCESS, analysis);
+    insertCharacteristic(activity, PULL_REQUEST, pullRequest.getPullRequest());
+
+    ActivityResponse response = ws.newRequest().executeProtobuf(ActivityResponse.class);
+
+    assertThat(response.getTasksList())
+      .extracting(Task::getId, Ce.Task::getPullRequest, Ce.Task::hasPullRequestTitle, Ce.Task::getStatus, Ce.Task::getComponentKey)
+      .containsExactlyInAnyOrder(
+        // TODO the pull request title must be loaded from db
+        tuple("T1", pullRequest.getPullRequest(), false, Ce.TaskStatus.SUCCESS, pullRequest.getKey()));
+  }
+
+  @Test
+  public void pull_request_in_queue_analysis() {
+    logInAsSystemAdministrator();
+    String branch = "pr-123";
+    CeQueueDto queue1 = insertQueue("T1", null, IN_PROGRESS);
+    insertCharacteristic(queue1, PULL_REQUEST, branch);
+    CeQueueDto queue2 = insertQueue("T2", null, PENDING);
+    insertCharacteristic(queue2, PULL_REQUEST, branch);
+
+    ActivityResponse response = ws.newRequest()
+      .setParam("status", "FAILED,IN_PROGRESS,PENDING")
+      .executeProtobuf(ActivityResponse.class);
+
+    assertThat(response.getTasksList())
+      .extracting(Task::getId, Ce.Task::getPullRequest, Ce.Task::hasPullRequestTitle, Ce.Task::getStatus)
+      .containsExactlyInAnyOrder(
+        tuple("T1", branch, false, Ce.TaskStatus.IN_PROGRESS),
+        tuple("T2", branch, false, Ce.TaskStatus.PENDING));
+  }
+
+  @Test
   public void fail_if_both_filters_on_component_id_and_name() {
     expectedException.expect(BadRequestException.class);
-    expectedException.expectMessage("componentId and componentQuery must not be set at the same time");
+    expectedException.expectMessage("componentId and q must not be set at the same time");
 
     ws.newRequest()
       .setParam("componentId", "ID1")
-      .setParam("componentQuery", "apache")
+      .setParam("q", "apache")
       .setMediaType(MediaTypes.PROTOBUF)
       .execute();
   }
@@ -467,7 +542,7 @@ public class ActivityActionTest {
   private CeQueueDto insertQueue(String taskUuid, @Nullable ComponentDto project, CeQueueDto.Status status) {
     CeQueueDto queueDto = new CeQueueDto();
     queueDto.setTaskType(CeTaskTypes.REPORT);
-    queueDto.setComponentUuid(project == null ? null : project.uuid());
+    queueDto.setComponent(project);
     queueDto.setUuid(taskUuid);
     queueDto.setStatus(status);
     db.getDbClient().ceQueueDao().insert(db.getSession(), queueDto);
@@ -482,7 +557,7 @@ public class ActivityActionTest {
   private CeActivityDto insertActivity(String taskUuid, ComponentDto project, Status status, @Nullable SnapshotDto analysis) {
     CeQueueDto queueDto = new CeQueueDto();
     queueDto.setTaskType(CeTaskTypes.REPORT);
-    queueDto.setComponentUuid(project.uuid());
+    queueDto.setComponent(project);
     queueDto.setUuid(taskUuid);
     queueDto.setCreatedAt(EXECUTED_AT);
     CeActivityDto activityDto = new CeActivityDto(queueDto);

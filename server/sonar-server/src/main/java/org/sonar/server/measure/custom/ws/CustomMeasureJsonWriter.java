@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,8 +22,6 @@ package org.sonar.server.measure.custom.ws;
 import com.google.common.collect.ImmutableSet;
 import java.util.Collection;
 import java.util.Date;
-import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.sonar.api.measures.Metric;
@@ -59,7 +57,8 @@ public class CustomMeasureJsonWriter {
     this.userJsonWriter = userJsonWriter;
   }
 
-  public void write(JsonWriter json, CustomMeasureDto measure, MetricDto metric, ComponentDto component, UserDto user, boolean isPending, Collection<String> fieldsToReturn) {
+  public void write(JsonWriter json, CustomMeasureDto measure, MetricDto metric, ComponentDto component, UserDto user, boolean isPending,
+    @Nullable Collection<String> fieldsToReturn) {
     json.beginObject();
     json.prop(FIELD_ID, String.valueOf(measure.getId()));
     writeIfNeeded(json, measureValue(measure, metric), FIELD_VALUE, fieldsToReturn);
@@ -82,7 +81,7 @@ public class CustomMeasureJsonWriter {
     json.endObject();
   }
 
-  private String measureValue(CustomMeasureDto measure, MetricDto metric) {
+  private static String measureValue(CustomMeasureDto measure, MetricDto metric) {
     Metric.ValueType metricType = Metric.ValueType.valueOf(metric.getValueType());
     Double doubleValue = measure.getValue();
     String stringValue = measure.getTextValue();
@@ -109,14 +108,4 @@ public class CustomMeasureJsonWriter {
     }
   }
 
-  public void write(JsonWriter json, List<CustomMeasureDto> customMeasures, ComponentDto project, Map<Integer, MetricDto> metricsById, Map<String, UserDto> usersByLogin,
-    @Nullable Long lastAnalysisTimestamp, Collection<String> fieldsToReturn) {
-    json.name("customMeasures");
-    json.beginArray();
-    for (CustomMeasureDto customMeasure : customMeasures) {
-      boolean pending = lastAnalysisTimestamp == null || lastAnalysisTimestamp < customMeasure.getUpdatedAt();
-      write(json, customMeasure, metricsById.get(customMeasure.getMetricId()), project, usersByLogin.get(customMeasure.getUserLogin()), pending, fieldsToReturn);
-    }
-    json.endArray();
-  }
 }

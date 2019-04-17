@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,19 +21,18 @@ import * as React from 'react';
 import { sortBy } from 'lodash';
 import Event from './Event';
 import DateTooltipFormatter from '../../../components/intl/DateTooltipFormatter';
-import { Analysis as IAnalysis, Event as IEvent } from '../../../api/projectActivity';
 import { translate } from '../../../helpers/l10n';
 
 interface Props {
-  analysis: IAnalysis;
+  analysis: T.Analysis;
   qualifier: string;
 }
 
 export default function Analysis({ analysis, ...props }: Props) {
-  const sortedEvents: Array<IEvent> = sortBy(
+  const sortedEvents = sortBy(
     analysis.events,
     // versions first
-    (event: IEvent) => (event.category === 'VERSION' ? 0 : 1),
+    event => (event.category === 'VERSION' ? 0 : 1),
     // then the rest sorted by category
     'category'
   );
@@ -45,13 +44,15 @@ export default function Analysis({ analysis, ...props }: Props) {
     <li className="overview-analysis">
       <div className="small little-spacer-bottom">
         <strong>
-          <DateTooltipFormatter date={analysis.date} placement="right" />
+          <DateTooltipFormatter date={analysis.date} />
         </strong>
       </div>
 
       {sortedEvents.length > 0 ? (
-        <div className="project-activity-events">
-          {sortedEvents.map(event => <Event event={event} key={event.key} />)}
+        <div className="overview-activity-events">
+          {sortedEvents.map(event => (
+            <Event event={event} key={event.key} />
+          ))}
         </div>
       ) : (
         <span className="note">{translate('project_activity.analyzed', qualifier)}</span>

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,7 +19,6 @@
  */
 package org.sonar.server.component.ws;
 
-import java.io.IOException;
 import java.util.Date;
 import javax.annotation.Nullable;
 import org.junit.Rule;
@@ -47,6 +46,7 @@ import static org.assertj.core.api.Assertions.tuple;
 import static org.sonar.api.utils.DateUtils.formatDateTime;
 import static org.sonar.api.utils.DateUtils.parseDateTime;
 import static org.sonar.api.web.UserRole.USER;
+import static org.sonar.db.component.BranchType.PULL_REQUEST;
 import static org.sonar.db.component.ComponentTesting.newDirectory;
 import static org.sonar.db.component.ComponentTesting.newFileDto;
 import static org.sonar.db.component.ComponentTesting.newModuleDto;
@@ -56,6 +56,7 @@ import static org.sonar.test.JsonAssert.assertJson;
 import static org.sonarqube.ws.client.component.ComponentsWsParameters.PARAM_BRANCH;
 import static org.sonarqube.ws.client.component.ComponentsWsParameters.PARAM_COMPONENT;
 import static org.sonarqube.ws.client.component.ComponentsWsParameters.PARAM_COMPONENT_ID;
+import static org.sonarqube.ws.client.component.ComponentsWsParameters.PARAM_PULL_REQUEST;
 
 public class ShowActionTest {
   @Rule
@@ -80,8 +81,9 @@ public class ShowActionTest {
       tuple("6.4", "The 'visibility' field is added to the response"),
       tuple("6.5", "Leak period date is added to the response"),
       tuple("6.6", "'branch' is added to the response"),
-      tuple("6.6", "'version' is added to the response"));
-    assertThat(action.params()).extracting(WebService.Param::key).containsExactlyInAnyOrder("component", "componentId", "branch");
+      tuple("6.6", "'version' is added to the response"),
+      tuple("7.6", "The use of module keys in parameter 'component' is deprecated"));
+    assertThat(action.params()).extracting(WebService.Param::key).containsExactlyInAnyOrder("component", "componentId", "branch", "pullRequest");
 
     WebService.Param componentId = action.param(PARAM_COMPONENT_ID);
     assertThat(componentId.isRequired()).isFalse();
@@ -102,6 +104,11 @@ public class ShowActionTest {
     assertThat(branch.isInternal()).isTrue();
     assertThat(branch.isRequired()).isFalse();
     assertThat(branch.since()).isEqualTo("6.6");
+
+    WebService.Param pullRequest = action.param(PARAM_PULL_REQUEST);
+    assertThat(pullRequest.isInternal()).isTrue();
+    assertThat(pullRequest.isRequired()).isFalse();
+    assertThat(pullRequest.since()).isEqualTo("7.1");
   }
 
   @Test
@@ -269,7 +276,7 @@ public class ShowActionTest {
     ComponentDto module = db.components().insertComponent(newModuleDto(project));
     ComponentDto directory = db.components().insertComponent(newDirectory(module, "dir"));
     ComponentDto file = db.components().insertComponent(newFileDto(directory));
-    db.components().insertSnapshot(project, s -> s.setVersion("1.1"));
+    db.components().insertSnapshot(project, s -> s.setProjectVersion("1.1"));
     userSession.addProjectPermission(USER, project);
 
     ShowWsResponse response = newRequest(null, file.getDbKey());
@@ -289,7 +296,7 @@ public class ShowActionTest {
     ComponentDto module = db.components().insertComponent(newModuleDto(branch));
     ComponentDto directory = db.components().insertComponent(newDirectory(module, "dir"));
     ComponentDto file = db.components().insertComponent(newFileDto(directory));
-    db.components().insertSnapshot(branch, s -> s.setVersion("1.1"));
+    db.components().insertSnapshot(branch, s -> s.setProjectVersion("1.1"));
 
     ShowWsResponse response = ws.newRequest()
       .setParam(PARAM_COMPONENT, file.getKey())
@@ -304,6 +311,32 @@ public class ShowActionTest {
         tuple(directory.getKey(), branchKey, "1.1"),
         tuple(module.getKey(), branchKey, "1.1"),
         tuple(branch.getKey(), branchKey, "1.1"));
+  }
+
+  @Test
+  public void pull_request() {
+    ComponentDto project = db.components().insertMainBranch();
+    userSession.addProjectPermission(UserRole.USER, project);
+    String pullRequest = "pr-1234";
+    ComponentDto branch = db.components().insertProjectBranch(project, b -> b.setKey(pullRequest).setBranchType(PULL_REQUEST));
+    ComponentDto module = db.components().insertComponent(newModuleDto(branch));
+    ComponentDto directory = db.components().insertComponent(newDirectory(module, "dir"));
+    ComponentDto file = db.components().insertComponent(newFileDto(directory));
+    db.components().insertSnapshot(branch, s -> s.setProjectVersion("1.1"));
+
+    ShowWsResponse response = ws.newRequest()
+      .setParam(PARAM_COMPONENT, file.getKey())
+      .setParam(PARAM_PULL_REQUEST, pullRequest)
+      .executeProtobuf(ShowWsResponse.class);
+
+    assertThat(response.getComponent())
+      .extracting(Component::getKey, Component::getPullRequest, Component::getVersion)
+      .containsExactlyInAnyOrder(file.getKey(), pullRequest, "1.1");
+    assertThat(response.getAncestorsList()).extracting(Component::getKey, Component::getPullRequest, Component::getVersion)
+      .containsExactlyInAnyOrder(
+        tuple(directory.getKey(), pullRequest, "1.1"),
+        tuple(module.getKey(), pullRequest, "1.1"),
+        tuple(branch.getKey(), pullRequest, "1.1"));
   }
 
   @Test
@@ -343,7 +376,7 @@ public class ShowActionTest {
     ComponentDto branch = db.components().insertProjectBranch(project, b -> b.setKey("my_branch"));
 
     expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("'componentId' and 'branch' parameters cannot be used at the same time");
+    expectedException.expectMessage("Parameter 'componentId' cannot be used at the same time as 'branch' or 'pullRequest'");
 
     ws.newRequest()
       .setParam(PARAM_COMPONENT_ID, branch.uuid())
@@ -415,7 +448,7 @@ public class ShowActionTest {
       .setQualifier(Qualifiers.PROJECT)
       .setTagsString("language, plugin"));
     db.components().insertSnapshot(project, snapshot -> snapshot
-      .setVersion("1.1")
+      .setProjectVersion("1.1")
       .setCreatedAt(parseDateTime("2017-03-01T11:39:03+0100").getTime())
       .setPeriodDate(parseDateTime("2017-01-01T11:39:03+0100").getTime()));
     ComponentDto directory = newDirectory(project, "AVIF-FfgA3Ax6PH2efPF", "src/main/java/com/sonarsource/markdown/impl")

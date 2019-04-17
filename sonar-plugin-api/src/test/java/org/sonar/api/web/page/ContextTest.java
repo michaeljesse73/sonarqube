@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -48,17 +48,17 @@ public class ContextTest {
   @Test
   public void ordered_by_name() {
     underTest
-      .addPage(Page.builder("K1").setName("N2").build())
-      .addPage(Page.builder("K2").setName("N3").build())
-      .addPage(Page.builder("K3").setName("N1").build());
+      .addPage(Page.builder("fake/K1").setName("N2").build())
+      .addPage(Page.builder("fake/K2").setName("N3").build())
+      .addPage(Page.builder("fake/K3").setName("N1").build());
 
     Collection<Page> result = underTest.getPages();
 
     assertThat(result).extracting(Page::getKey, Page::getName)
       .containsOnly(
-        tuple("K3", "N1"),
-        tuple("K1", "N2"),
-        tuple("K2", "N3"));
+        tuple("fake/K3", "N1"),
+        tuple("fake/K1", "N2"),
+        tuple("fake/K2", "N3"));
   }
 
   @Test

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -38,6 +38,8 @@ public interface AuthorizationMapper {
 
   int countUsersWithGlobalPermissionExcludingUser(@Param("organizationUuid") String organizationUuid, @Param("permission") String permission,
     @Param("excludedUserId") int excludedUserId);
+
+  List<Integer> selectUserIdsWithGlobalPermission(@Param("organizationUuid") String organizationUuid, @Param("permission") String permission);
 
   int countUsersWithGlobalPermissionExcludingGroupMember(@Param("organizationUuid") String organizationUuid,
     @Param("permission") String permission, @Param("groupId") int groupId, @Param("userId") int userId);

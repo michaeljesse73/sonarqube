@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -53,7 +53,7 @@ public abstract class BasePermissionWsTest<A extends PermissionsWsAction> {
   public DbTester db = DbTester.create(new AlwaysIncreasingSystem2());
 
   @Rule
-  public EsTester esTester = new EsTester(new FooIndexDefinition());
+  public EsTester es = EsTester.createCustom(new FooIndexDefinition());
 
   @Rule
   public ExpectedException expectedException = ExpectedException.none();
@@ -84,7 +84,7 @@ public abstract class BasePermissionWsTest<A extends PermissionsWsAction> {
 
   protected PermissionUpdater newPermissionUpdater() {
     return new PermissionUpdater(
-      new ProjectIndexersImpl(new PermissionIndexer(db.getDbClient(), esTester.client())),
+      new ProjectIndexersImpl(new PermissionIndexer(db.getDbClient(), es.client())),
       new UserPermissionChanger(db.getDbClient()),
       new GroupPermissionChanger(db.getDbClient()));
   }

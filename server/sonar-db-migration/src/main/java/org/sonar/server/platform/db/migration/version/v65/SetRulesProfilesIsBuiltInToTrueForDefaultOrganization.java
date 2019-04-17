@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -50,10 +50,10 @@ public class SetRulesProfilesIsBuiltInToTrueForDefaultOrganization extends DataC
       "inner join org_qprofiles oqp on rp.kee = oqp.rules_profile_uuid " +
       "where oqp.organization_uuid = ? ")
       .setString(1, defaultOrganizationUuid);
-
     massUpdate.update("update rules_profiles " +
       "set is_built_in=? " +
-      "where kee=?").execute((row, update) -> {
+      "where kee=?");
+    massUpdate.execute((row, update) -> {
         String rulesProfilesUuid = row.getString(1);
         update.setBoolean(1, true);
         update.setString(2, rulesProfilesUuid);

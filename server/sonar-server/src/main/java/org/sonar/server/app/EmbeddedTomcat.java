@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -61,6 +61,7 @@ class EmbeddedTomcat {
       tomcat.start();
       new TomcatStartupLogs(Loggers.get(getClass())).log(tomcat);
     } catch (LifecycleException e) {
+      Loggers.get(EmbeddedTomcat.class).error("Fail to start web server", e);
       Throwables.propagate(e);
     }
   }

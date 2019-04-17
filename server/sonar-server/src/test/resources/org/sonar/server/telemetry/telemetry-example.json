@@ -1,6 +1,7 @@
 {
   "id": "AU-TpxcB-iU5OvuD2FL7",
   "version": "7.5.4",
+  "edition": "developer",
   "database": {
     "name": "PostgreSQL",
     "version": "9.6.5"
@@ -22,7 +23,6 @@
   "userCount": 3,
   "projectCount": 2,
   "usingBranches": true,
-  "lines": 500,
   "ncloc": 300,
   "projectCountByLanguage": [
     {

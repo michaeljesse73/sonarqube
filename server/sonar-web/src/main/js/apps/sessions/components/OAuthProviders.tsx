@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,54 +18,59 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
+import * as classNames from 'classnames';
+import HelpTooltip from '../../../components/controls/HelpTooltip';
+import IdentityProviderLink from '../../../components/ui/IdentityProviderLink';
 import { translateWithParameters } from '../../../helpers/l10n';
-import * as theme from '../../../app/theme';
-import { IdentityProvider } from '../../../app/types';
-import Tooltip from '../../../components/controls/Tooltip';
-import HelpIcon from '../../../components/icons-components/HelpIcon';
-import { getTextColor } from '../../../helpers/colors';
 import { getBaseUrl } from '../../../helpers/urls';
 import './OAuthProviders.css';
 
 interface Props {
-  identityProviders: IdentityProvider[];
+  className?: string;
+  formatLabel?: (name: string) => React.ReactNode;
+  identityProviders: T.IdentityProvider[];
   returnTo: string;
 }
 
 export default function OAuthProviders(props: Props) {
+  const formatFunction = props.formatLabel || defaultFormatLabel;
   return (
-    <section className="oauth-providers">
+    <section className={classNames('oauth-providers', props.className)}>
       <ul>
         {props.identityProviders.map(identityProvider => (
-          <li key={identityProvider.key}>
-            <a
-              href={
-                `${getBaseUrl()}/sessions/init/${identityProvider.key}` +
-                `?return_to=${encodeURIComponent(props.returnTo)}`
-              }
-              style={{
-                backgroundColor: identityProvider.backgroundColor,
-                color: getTextColor(identityProvider.backgroundColor, theme.secondFontColor)
-              }}>
-              <img
-                alt={identityProvider.name}
-                width="20"
-                height="20"
-                src={getBaseUrl() + identityProvider.iconPath}
-              />
-              <span>{defaultFormatLabel(identityProvider.name)}</span>
-            </a>
-            {identityProvider.helpMessage && (
-              <Tooltip overlay={identityProvider.helpMessage}>
-                <div className="oauth-providers-help">
-                  <HelpIcon fill={theme.blue} />
-                </div>
-              </Tooltip>
-            )}
-          </li>
+          <OAuthProvider
+            format={formatFunction}
+            identityProvider={identityProvider}
+            key={identityProvider.key}
+            returnTo={props.returnTo}
+          />
         ))}
       </ul>
     </section>
+  );
+}
+
+interface ItemProps {
+  format: (name: string) => React.ReactNode;
+  identityProvider: T.IdentityProvider;
+  returnTo: string;
+}
+
+function OAuthProvider({ format, identityProvider, returnTo }: ItemProps) {
+  return (
+    <li>
+      <IdentityProviderLink
+        identityProvider={identityProvider}
+        url={
+          `${getBaseUrl()}/sessions/init/${identityProvider.key}` +
+          `?return_to=${encodeURIComponent(returnTo)}`
+        }>
+        <span>{format(identityProvider.name)}</span>
+      </IdentityProviderLink>
+      {identityProvider.helpMessage && (
+        <HelpTooltip className="oauth-providers-help" overlay={identityProvider.helpMessage} />
+      )}
+    </li>
   );
 }
 

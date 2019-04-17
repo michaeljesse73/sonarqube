@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,11 +20,10 @@
 package org.sonar.core.issue.tracking;
 
 import com.google.common.base.MoreObjects;
-import com.google.common.base.Predicate;
-import com.google.common.collect.Iterables;
 import java.util.Collection;
 import java.util.IdentityHashMap;
 import java.util.Map;
+import java.util.stream.Stream;
 import javax.annotation.CheckForNull;
 
 public class Tracking<RAW extends Trackable, BASE extends Trackable> {
@@ -32,18 +31,21 @@ public class Tracking<RAW extends Trackable, BASE extends Trackable> {
   /**
    * Matched issues -> a raw issue is associated to a base issue
    */
-  private final IdentityHashMap<RAW, BASE> rawToBase = new IdentityHashMap<>();
-  private final IdentityHashMap<BASE, RAW> baseToRaw = new IdentityHashMap<>();
-
+  protected final IdentityHashMap<RAW, BASE> rawToBase;
+  protected final IdentityHashMap<BASE, RAW> baseToRaw;
   private final Collection<RAW> raws;
   private final Collection<BASE> bases;
 
-  private final Predicate<RAW> unmatchedRawPredicate = raw -> !rawToBase.containsKey(raw);
-  private final Predicate<BASE> unmatchedBasePredicate = raw -> !baseToRaw.containsKey(raw);
+  Tracking(Collection<RAW> rawInput, Collection<BASE> baseInput) {
+    this(rawInput, baseInput, new IdentityHashMap<>(), new IdentityHashMap<>());
+  }
 
-  public Tracking(Collection<RAW> rawInput, Collection<BASE> baseInput) {
+  protected Tracking(Collection<RAW> rawInput, Collection<BASE> baseInput,
+    IdentityHashMap<RAW, BASE> rawToBase, IdentityHashMap<BASE, RAW> baseToRaw) {
     this.raws = rawInput;
     this.bases = baseInput;
+    this.rawToBase = rawToBase;
+    this.baseToRaw = baseToRaw;
   }
 
   /**
@@ -51,8 +53,8 @@ public class Tracking<RAW extends Trackable, BASE extends Trackable> {
    * that the traversal does not fail if method {@link #match(Trackable, Trackable)}
    * is called.
    */
-  public Iterable<RAW> getUnmatchedRaws() {
-    return Iterables.filter(raws, unmatchedRawPredicate);
+  public Stream<RAW> getUnmatchedRaws() {
+    return raws.stream().filter(raw -> !rawToBase.containsKey(raw));
   }
 
   public Map<RAW, BASE> getMatchedRaws() {
@@ -67,8 +69,8 @@ public class Tracking<RAW extends Trackable, BASE extends Trackable> {
   /**
    * The base issues that are not matched by a raw issue and that need to be closed.
    */
-  public Iterable<BASE> getUnmatchedBases() {
-    return Iterables.filter(bases, unmatchedBasePredicate);
+  public Stream<BASE> getUnmatchedBases() {
+    return bases.stream().filter(base -> !baseToRaw.containsKey(base));
   }
 
   boolean containsUnmatchedBase(BASE base) {
@@ -82,7 +84,7 @@ public class Tracking<RAW extends Trackable, BASE extends Trackable> {
     }
   }
 
-  boolean isComplete() {
+  public boolean isComplete() {
     return rawToBase.size() == raws.size();
   }
 

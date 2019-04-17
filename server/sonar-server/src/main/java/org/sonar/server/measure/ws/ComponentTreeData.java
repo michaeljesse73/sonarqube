@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -39,7 +39,7 @@ class ComponentTreeData {
   private final int componentCount;
   private final Map<String, ComponentDto> referenceComponentsByUuid;
   private final List<MetricDto> metrics;
-  private final List<Measures.Period> periods;
+  private final Measures.Period period;
   private final Table<String, MetricDto, Measure> measuresByComponentUuidAndMetric;
 
   private ComponentTreeData(Builder builder) {
@@ -49,7 +49,7 @@ class ComponentTreeData {
     this.referenceComponentsByUuid = builder.referenceComponentsByUuid;
     this.metrics = builder.metrics;
     this.measuresByComponentUuidAndMetric = builder.measuresByComponentUuidAndMetric;
-    this.periods = builder.periods;
+    this.period = builder.period;
   }
 
   public ComponentDto getBaseComponent() {
@@ -77,8 +77,8 @@ class ComponentTreeData {
   }
 
   @CheckForNull
-  List<Measures.Period> getPeriods() {
-    return periods;
+  Measures.Period getPeriod() {
+    return period;
   }
 
   @CheckForNull
@@ -96,7 +96,7 @@ class ComponentTreeData {
     private Map<String, ComponentDto> referenceComponentsByUuid;
     private int componentCount;
     private List<MetricDto> metrics;
-    private List<Measures.Period> periods;
+    private Measures.Period period;
     private Table<String, MetricDto, Measure> measuresByComponentUuidAndMetric;
 
     private Builder() {
@@ -123,8 +123,8 @@ class ComponentTreeData {
       return this;
     }
 
-    public Builder setPeriods(List<Measures.Period> periods) {
-      this.periods = periods;
+    public Builder setPeriod(@Nullable Measures.Period period) {
+      this.period = period;
       return this;
     }
 
@@ -149,10 +149,14 @@ class ComponentTreeData {
     private String data;
     private double variation;
 
+    public Measure(@Nullable String data, @Nullable Double value, @Nullable Double variation) {
+      this.data = data;
+      this.value = toPrimitive(value);
+      this.variation = toPrimitive(variation);
+    }
+
     private Measure(LiveMeasureDto measureDto) {
-      this.value = toPrimitive(measureDto.getValue());
-      this.data = measureDto.getDataAsString();
-      this.variation = toPrimitive(measureDto.getVariation());
+      this(measureDto.getDataAsString(), measureDto.getValue(), measureDto.getVariation());
     }
 
     public double getValue() {

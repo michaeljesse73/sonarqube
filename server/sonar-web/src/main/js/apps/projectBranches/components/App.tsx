@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,14 +22,19 @@ import { FormattedMessage } from 'react-intl';
 import { Link } from 'react-router';
 import BranchRow from './BranchRow';
 import LongBranchesPattern from './LongBranchesPattern';
-import { Branch } from '../../../app/types';
-import { sortBranchesAsTree } from '../../../helpers/branches';
+import {
+  sortBranchesAsTree,
+  getBranchLikeKey,
+  isShortLivingBranch,
+  isPullRequest
+} from '../../../helpers/branches';
 import { translate } from '../../../helpers/l10n';
 import { getValues } from '../../../api/settings';
 import { formatMeasure } from '../../../helpers/measures';
+import HelpTooltip from '../../../components/controls/HelpTooltip';
 
 interface Props {
-  branches: Branch[];
+  branchLikes: T.BranchLike[];
   canAdmin?: boolean;
   component: { key: string };
   onBranchesChange: () => void;
@@ -57,7 +62,7 @@ export default class App extends React.PureComponent<Props, State> {
 
   fetchPurgeSetting() {
     this.setState({ loading: true });
-    getValues(BRANCH_LIFETIME_SETTING).then(
+    getValues({ keys: BRANCH_LIFETIME_SETTING }).then(
       settings => {
         if (this.mounted) {
           this.setState({
@@ -72,32 +77,39 @@ export default class App extends React.PureComponent<Props, State> {
     );
   }
 
+  isOrphan = (branchLike: T.BranchLike) => {
+    return (isShortLivingBranch(branchLike) || isPullRequest(branchLike)) && branchLike.isOrphan;
+  };
+
   renderBranchLifeTime() {
     const { branchLifeTime } = this.state;
     if (!branchLifeTime) {
       return null;
     }
 
-    const messageKey = this.props.canAdmin
-      ? 'project_branches.page.life_time.admin'
-      : 'project_branches.page.life_time';
-
     return (
       <p className="page-description">
         <FormattedMessage
-          defaultMessage={translate(messageKey)}
-          id={messageKey}
-          values={{
-            days: formatMeasure(this.state.branchLifeTime, 'INT'),
-            settings: <Link to="/admin/settings">{translate('settings.page')}</Link>
-          }}
+          defaultMessage={translate('project_branches.page.life_time')}
+          id="project_branches.page.life_time"
+          values={{ days: formatMeasure(this.state.branchLifeTime, 'INT') }}
         />
+        {this.props.canAdmin && (
+          <>
+            <br />
+            <FormattedMessage
+              defaultMessage={translate('project_branches.page.life_time.admin')}
+              id="project_branches.page.life_time.admin"
+              values={{ settings: <Link to="/admin/settings">{translate('settings.page')}</Link> }}
+            />
+          </>
+        )}
       </p>
     );
   }
 
   render() {
-    const { branches, component, onBranchesChange } = this.props;
+    const { branchLikes, component, onBranchesChange } = this.props;
 
     if (this.state.loading) {
       return (
@@ -124,22 +136,43 @@ export default class App extends React.PureComponent<Props, State> {
             <thead>
               <tr>
                 <th>{translate('branch')}</th>
-                <th className="thin nowrap text-right">{translate('status')}</th>
-                <th className="thin nowrap text-right">
+                <th className="thin nowrap">{translate('status')}</th>
+                <th className="thin nowrap text-right big-spacer-left">
                   {translate('branches.last_analysis_date')}
                 </th>
                 <th className="thin nowrap text-right">{translate('actions')}</th>
               </tr>
             </thead>
             <tbody>
-              {sortBranchesAsTree(branches).map(branch => (
-                <BranchRow
-                  branch={branch}
-                  component={component.key}
-                  key={branch.name}
-                  onChange={onBranchesChange}
-                />
-              ))}
+              {sortBranchesAsTree(branchLikes).map((branchLike, index) => {
+                const isOrphan = this.isOrphan(branchLike);
+                const previous = index > 0 ? branchLikes[index - 1] : undefined;
+                const isPreviousOrphan = previous !== undefined && this.isOrphan(previous);
+                const showOrphanHeader = isOrphan && !isPreviousOrphan;
+                return (
+                  <React.Fragment key={getBranchLikeKey(branchLike)}>
+                    {showOrphanHeader && (
+                      <tr>
+                        <td colSpan={4}>
+                          <div className="display-inline-block text-middle">
+                            {translate('branches.orphan_branches')}
+                          </div>
+                          <HelpTooltip
+                            className="spacer-left"
+                            overlay={translate('branches.orphan_branches.tooltip')}
+                          />
+                        </td>
+                      </tr>
+                    )}
+                    <BranchRow
+                      branchLike={branchLike}
+                      component={component.key}
+                      isOrphan={isOrphan}
+                      onChange={onBranchesChange}
+                    />
+                  </React.Fragment>
+                );
+              })}
             </tbody>
           </table>
         </div>

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,28 +19,17 @@
  */
 package org.sonar.server.badge.ws;
 
-import org.sonar.api.config.Configuration;
 import org.sonar.core.platform.Module;
-
-import static org.sonar.process.ProcessProperties.Property.SONARCLOUD_ENABLED;
 
 public class ProjectBadgesWsModule extends Module {
 
-  private final Configuration config;
-
-  public ProjectBadgesWsModule(Configuration config) {
-    this.config = config;
-  }
-
   @Override
   protected void configureModule() {
-    if (!config.getBoolean(SONARCLOUD_ENABLED.getKey()).orElse(false)) {
-      return;
-    }
     add(
       ProjectBadgesWs.class,
       QualityGateAction.class,
       MeasureAction.class,
-      SvgGenerator.class);
+      SvgGenerator.class,
+      ProjectBadgesSupport.class);
   }
 }

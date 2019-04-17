@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -32,7 +32,7 @@ import static java.util.Objects.requireNonNull;
 
 public interface AuthenticationEvent {
 
-  void loginSuccess(HttpServletRequest request, String login, Source source);
+  void loginSuccess(HttpServletRequest request, @Nullable String login, Source source);
 
   void loginFailure(HttpServletRequest request, AuthenticationException e);
 

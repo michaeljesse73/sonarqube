@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -26,38 +26,55 @@ export interface Props {
   disabled?: boolean;
   halfWidth?: boolean;
   name: React.ReactNode;
-  onClick: (x: string) => void;
+  onClick: (x: string, multiple?: boolean) => void;
   stat?: React.ReactNode;
+  /** Textual version of `name` */
+  tooltip: string;
   value: string;
 }
 
 export default class FacetItem extends React.PureComponent<Props> {
   static defaultProps = {
     disabled: false,
-    halfWidth: false
+    halfWidth: false,
+    loading: false
   };
 
-  handleClick = (event: React.SyntheticEvent<HTMLAnchorElement>) => {
+  handleClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
     event.preventDefault();
     event.currentTarget.blur();
-    this.props.onClick(this.props.value);
+    this.props.onClick(this.props.value, event.ctrlKey || event.metaKey);
   };
 
+  renderValue() {
+    if (this.props.stat == null) {
+      return null;
+    }
+
+    return <span className="facet-stat">{this.props.stat}</span>;
+  }
+
   render() {
-    const className = classNames('facet', 'search-navigator-facet', this.props.className, {
+    const { name } = this.props;
+    const className = classNames('search-navigator-facet', this.props.className, {
       active: this.props.active,
       'search-navigator-facet-half': this.props.halfWidth
     });
 
     return this.props.disabled ? (
-      <span className={className} data-facet={this.props.value}>
-        <span className="facet-name">{this.props.name}</span>
-        {this.props.stat != null && <span className="facet-stat">{this.props.stat}</span>}
+      <span className={className} data-facet={this.props.value} title={this.props.tooltip}>
+        <span className="facet-name">{name}</span>
+        {this.renderValue()}
       </span>
     ) : (
-      <a className={className} data-facet={this.props.value} href="#" onClick={this.handleClick}>
-        <span className="facet-name">{this.props.name}</span>
-        {this.props.stat != null && <span className="facet-stat">{this.props.stat}</span>}
+      <a
+        className={className}
+        data-facet={this.props.value}
+        href="#"
+        onClick={this.handleClick}
+        title={this.props.tooltip}>
+        <span className="facet-name">{name}</span>
+        {this.renderValue()}
       </a>
     );
   }

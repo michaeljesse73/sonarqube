@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -26,7 +26,6 @@ import { translate, translateWithParameters } from '../../../helpers/l10n';
 interface Option {
   login: string;
   name: string;
-  email?: string;
   avatar?: string;
 }
 
@@ -61,8 +60,8 @@ export default class UsersSelectSearch extends React.PureComponent<Props, State>
     this.handleSearch(this.state.search);
   }
 
-  componentWillReceiveProps(nextProps: Props) {
-    if (this.props.excludedUsers !== nextProps.excludedUsers) {
+  componentDidUpdate(prevProps: Props) {
+    if (this.props.excludedUsers !== prevProps.excludedUsers) {
       this.handleSearch(this.state.search);
     }
   }
@@ -74,15 +73,26 @@ export default class UsersSelectSearch extends React.PureComponent<Props, State>
   filterSearchResult = ({ users }: { users: Option[] }) =>
     users.filter(user => !this.props.excludedUsers.includes(user.login)).slice(0, LIST_SIZE);
 
+  filterOptions = (options: Option[]) => {
+    return options; // We don't filter anything, this is done by the WS
+  };
+
   handleSearch = (search: string) => {
     this.props
       .searchUsers(search, Math.min(this.props.excludedUsers.length + LIST_SIZE, 500))
       .then(this.filterSearchResult)
-      .then(searchResult => {
-        if (this.mounted) {
-          this.setState({ isLoading: false, searchResult });
+      .then(
+        searchResult => {
+          if (this.mounted) {
+            this.setState({ isLoading: false, searchResult });
+          }
+        },
+        () => {
+          if (this.mounted) {
+            this.setState({ isLoading: false, searchResult: [] });
+          }
         }
-      });
+      );
   };
 
   handleInputChange = (search: string) => {
@@ -101,21 +111,22 @@ export default class UsersSelectSearch extends React.PureComponent<Props, State>
         : translate('no_results');
     return (
       <Select
-        autofocus={this.props.autoFocus}
+        autoFocus={this.props.autoFocus}
         className="Select-big"
-        options={this.state.searchResult}
+        clearable={false}
+        filterOptions={this.filterOptions}
         isLoading={this.state.isLoading}
-        optionComponent={UsersSelectSearchOption}
-        valueComponent={UsersSelectSearchValue}
+        labelKey="name"
+        noResultsText={noResult}
         onChange={this.props.handleValueChange}
         onInputChange={this.handleInputChange}
-        value={this.props.selectedUser}
+        optionComponent={UsersSelectSearchOption}
+        options={this.state.searchResult}
         placeholder=""
-        noResultsText={noResult}
-        labelKey="name"
-        valueKey="login"
-        clearable={false}
         searchable={true}
+        value={this.props.selectedUser}
+        valueComponent={UsersSelectSearchValue}
+        valueKey="login"
       />
     );
   }
@@ -156,6 +167,7 @@ export class UsersSelectSearchOption extends React.PureComponent<OptionProps> {
         onMouseDown={this.handleMouseDown}
         onMouseEnter={this.handleMouseEnter}
         onMouseMove={this.handleMouseMove}
+        role="listitem"
         title={option.name}>
         <Avatar hash={option.avatar} name={option.name} size={AVATAR_SIZE} />
         <strong className="spacer-left">{this.props.children}</strong>
@@ -173,14 +185,13 @@ interface ValueProps {
 export function UsersSelectSearchValue({ children, value }: ValueProps) {
   return (
     <div className="Select-value" title={value ? value.name : ''}>
-      {value &&
-        value.login && (
-          <div className="Select-value-label">
-            <Avatar hash={value.avatar} name={value.name} size={AVATAR_SIZE} />
-            <strong className="spacer-left">{children}</strong>
-            <span className="note little-spacer-left">{value.login}</span>
-          </div>
-        )}
+      {value && value.login && (
+        <div className="Select-value-label">
+          <Avatar hash={value.avatar} name={value.name} size={AVATAR_SIZE} />
+          <strong className="spacer-left">{children}</strong>
+          <span className="note little-spacer-left">{value.login}</span>
+        </div>
+      )}
     </div>
   );
 }

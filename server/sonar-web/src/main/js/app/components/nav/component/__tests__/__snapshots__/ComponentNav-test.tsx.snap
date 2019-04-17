@@ -5,43 +5,48 @@ exports[`renders 1`] = `
   height={72}
   id="context-navigation"
 >
-  <Connect(ComponentNavHeader)
-    branches={Array []}
-    component={
-      Object {
-        "breadcrumbs": Array [
-          Object {
-            "key": "component",
-            "name": "component",
-            "qualifier": "TRK",
-          },
-        ],
-        "key": "component",
-        "name": "component",
-        "organization": "org",
-        "qualifier": "TRK",
+  <div
+    className="navbar-context-justified"
+  >
+    <Connect(ComponentNavHeader)
+      branchLikes={Array []}
+      component={
+        Object {
+          "breadcrumbs": Array [
+            Object {
+              "key": "component",
+              "name": "component",
+              "qualifier": "TRK",
+            },
+          ],
+          "key": "component",
+          "name": "component",
+          "organization": "org",
+          "qualifier": "TRK",
+        }
       }
-    }
-    location={Object {}}
-  />
-  <Connect(ComponentNavMeta)
-    component={
-      Object {
-        "breadcrumbs": Array [
-          Object {
-            "key": "component",
-            "name": "component",
-            "qualifier": "TRK",
-          },
-        ],
-        "key": "component",
-        "name": "component",
-        "organization": "org",
-        "qualifier": "TRK",
+      location={Object {}}
+    />
+    <Connect(ComponentNavMeta)
+      component={
+        Object {
+          "breadcrumbs": Array [
+            Object {
+              "key": "component",
+              "name": "component",
+              "qualifier": "TRK",
+            },
+          ],
+          "key": "component",
+          "name": "component",
+          "organization": "org",
+          "qualifier": "TRK",
+        }
       }
-    }
-  />
-  <ComponentNavMenu
+      warnings={Array []}
+    />
+  </div>
+  <Connect(withAppState(ComponentNavMenu))
     component={
       Object {
         "breadcrumbs": Array [

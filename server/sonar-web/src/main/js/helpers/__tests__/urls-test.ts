@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,12 +18,14 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import {
+  isRelativeUrl,
   getComponentIssuesUrl,
   getComponentDrilldownUrl,
   getPathUrlAsString,
   getProjectUrl,
   getQualityGatesUrl,
-  getQualityGateUrl
+  getQualityGateUrl,
+  getReturnUrl
 } from '../urls';
 
 const SIMPLE_COMPONENT_KEY = 'sonarqube';
@@ -43,8 +45,8 @@ afterEach(() => {
 
 describe('#getPathUrlAsString', () => {
   it('should return component url', () => {
-    expect(getPathUrlAsString(getProjectUrl(SIMPLE_COMPONENT_KEY, 'branch:7.0'))).toBe(
-      '/dashboard?id=' + SIMPLE_COMPONENT_KEY + '&branch=branch%3A7.0'
+    expect(getPathUrlAsString(getProjectUrl(SIMPLE_COMPONENT_KEY))).toBe(
+      '/dashboard?id=' + SIMPLE_COMPONENT_KEY
     );
   });
 
@@ -80,14 +82,18 @@ describe('#getComponentIssuesUrl', () => {
 
 describe('#getComponentDrilldownUrl', () => {
   it('should return component drilldown url', () => {
-    expect(getComponentDrilldownUrl(SIMPLE_COMPONENT_KEY, METRIC)).toEqual({
+    expect(
+      getComponentDrilldownUrl({ componentKey: SIMPLE_COMPONENT_KEY, metric: METRIC })
+    ).toEqual({
       pathname: '/component_measures',
       query: { id: SIMPLE_COMPONENT_KEY, metric: METRIC }
     });
   });
 
   it('should not encode component key', () => {
-    expect(getComponentDrilldownUrl(COMPLEX_COMPONENT_KEY, METRIC)).toEqual({
+    expect(
+      getComponentDrilldownUrl({ componentKey: COMPLEX_COMPONENT_KEY, metric: METRIC })
+    ).toEqual({
       pathname: '/component_measures',
       query: { id: COMPLEX_COMPONENT_KEY, metric: METRIC }
     });
@@ -111,5 +117,23 @@ describe('#getQualityGate(s)Url', () => {
     expect(getQualityGateUrl(COMPLEX_COMPONENT_KEY)).toEqual({
       pathname: '/quality_gates/show/' + COMPLEX_COMPONENT_KEY_ENCODED
     });
+  });
+});
+
+describe('#getReturnUrl', () => {
+  it('should get the return url', () => {
+    expect(getReturnUrl({ query: { return_to: '/test' } })).toBe('/test');
+    expect(getReturnUrl({ query: { return_to: 'http://www.google.com' } })).toBe('/');
+    expect(getReturnUrl({})).toBe('/');
+  });
+});
+
+describe('#isRelativeUrl', () => {
+  it('should check a relative url', () => {
+    expect(isRelativeUrl('/test')).toBeTruthy();
+    expect(isRelativeUrl('http://www.google.com')).toBeFalsy();
+    expect(isRelativeUrl('javascript:alert("test")')).toBeFalsy();
+    expect(isRelativeUrl('\\test')).toBeFalsy();
+    expect(isRelativeUrl('//test')).toBeFalsy();
   });
 });

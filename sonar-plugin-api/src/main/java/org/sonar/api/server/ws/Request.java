@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,10 +20,13 @@
 package org.sonar.api.server.ws;
 
 import com.google.common.base.Splitter;
+import com.google.common.collect.ImmutableMap;
+import java.io.BufferedReader;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -52,6 +55,10 @@ public abstract class Request {
    */
   public abstract String method();
 
+  public BufferedReader getReader() {
+    throw new UnsupportedOperationException("getReader not supported");
+  }
+
   /**
    * Returns the requested MIME type, or {@code "application/octet-stream"} if not specified.
    */
@@ -70,7 +77,7 @@ public abstract class Request {
    */
   public String mandatoryParam(String key) {
     String value = param(key);
-    checkArgument(value != null, format(MSG_PARAMETER_MISSING, key));
+    checkArgument(value != null && !value.isEmpty(), format(MSG_PARAMETER_MISSING, key));
     return value;
   }
 
@@ -122,6 +129,8 @@ public abstract class Request {
 
   @CheckForNull
   public abstract List<String> paramAsStrings(String key);
+
+  public abstract Map<String, String[]> getParams();
 
   @CheckForNull
   public abstract String param(String key);
@@ -308,6 +317,10 @@ public abstract class Request {
    * @since 6.6
    */
   public abstract Optional<String> header(String name);
+
+  public Map<String, String> getHeaders() {
+    return ImmutableMap.of();
+  }
 
   /**
    * Allows a web service to call another web service.

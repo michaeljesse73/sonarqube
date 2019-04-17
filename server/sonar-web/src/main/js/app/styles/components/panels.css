@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -35,19 +35,8 @@
   background-color: #fff;
 }
 
-.panel-info {
-  border: 1px solid var(--blue);
-  background-color: var(--lightBlue);
-}
-
 .panel-warning {
   border: 1px solid #faebcc;
   background-color: #fcf8e3;
   color: #8a6d3b;
-}
-
-.panel-danger {
-  border-color: transparent !important;
-  background-color: #f2dede;
-  color: #a94442;
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,8 +19,13 @@
  */
 package org.sonar.db.component;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.Objects;
+import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
+import org.sonar.db.protobuf.DbProjectBranches;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
@@ -49,9 +54,17 @@ public class BranchDto {
   private String projectUuid;
 
   /**
-   * Name of branch, for example "feature/foo".
+   * Key that identifies a branch or a pull request.
+   * For keyType=BRANCH, this is the name of the branch, for example "feature/foo".
+   * For keyType=PULL_REQUEST, this is the ID of the pull request in some external system, for example 123 in GitHub.
    */
   private String kee;
+
+  /**
+   * Key type, as provided by {@link KeyType}.
+   * Not null.
+   */
+  private KeyType keyType;
 
   /**
    * Branch type, as provided by {@link BranchType}.
@@ -68,6 +81,18 @@ public class BranchDto {
    */
   @Nullable
   private String mergeBranchUuid;
+
+  /**
+   * Pull Request data, such as branch name, title, url, and provider specific attributes
+   */
+  @Nullable
+  private byte[] pullRequestBinary;
+
+  /**
+   * The UUID of the analysis set by user as manual baseline for computation of the New Code Period, if any.
+   */
+  @Nullable
+  private String manualBaseline;
 
   public String getUuid() {
     return uuid;
@@ -115,11 +140,16 @@ public class BranchDto {
     return this;
   }
 
+  BranchDto setKeyType(KeyType keyType) {
+    this.keyType = keyType;
+    return this;
+  }
+
   public BranchType getBranchType() {
     return branchType;
   }
 
-  public BranchDto setBranchType(@Nullable BranchType b) {
+  public BranchDto setBranchType(BranchType b) {
     this.branchType = b;
     return this;
   }
@@ -131,6 +161,47 @@ public class BranchDto {
 
   public BranchDto setMergeBranchUuid(@Nullable String s) {
     this.mergeBranchUuid = s;
+    return this;
+  }
+
+  public BranchDto setPullRequestData(DbProjectBranches.PullRequestData pullRequestData) {
+    this.pullRequestBinary = encodePullRequestData(pullRequestData);
+    return this;
+  }
+
+  @CheckForNull
+  public DbProjectBranches.PullRequestData getPullRequestData() {
+    if (pullRequestBinary == null) {
+      return null;
+    }
+    return decodePullRequestData(pullRequestBinary);
+  }
+
+  private static byte[] encodePullRequestData(DbProjectBranches.PullRequestData pullRequestData) {
+    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+    try {
+      pullRequestData.writeTo(outputStream);
+      return outputStream.toByteArray();
+    } catch (IOException e) {
+      throw new IllegalStateException("Fail to serialize pull request data", e);
+    }
+  }
+
+  private static DbProjectBranches.PullRequestData decodePullRequestData(byte[] pullRequestBinary) {
+    try (ByteArrayInputStream inputStream = new ByteArrayInputStream(pullRequestBinary)) {
+      return DbProjectBranches.PullRequestData.parseFrom(inputStream);
+    } catch (IOException e) {
+      throw new IllegalStateException("Fail to deserialize pull request data", e);
+    }
+  }
+
+  @CheckForNull
+  public String getManualBaseline() {
+    return manualBaseline;
+  }
+
+  public BranchDto setManualBaseline(@Nullable String manualBaseline) {
+    this.manualBaseline = manualBaseline == null || manualBaseline.isEmpty() ? null : manualBaseline;
     return this;
   }
 
@@ -147,7 +218,8 @@ public class BranchDto {
         Objects.equals(projectUuid, branchDto.projectUuid) &&
         Objects.equals(kee, branchDto.kee) &&
         branchType == branchDto.branchType &&
-        Objects.equals(mergeBranchUuid, branchDto.mergeBranchUuid);
+        Objects.equals(mergeBranchUuid, branchDto.mergeBranchUuid) &&
+        Objects.equals(manualBaseline, branchDto.manualBaseline);
   }
 
   @Override
@@ -161,8 +233,10 @@ public class BranchDto {
     sb.append("uuid='").append(uuid).append('\'');
     sb.append(", projectUuid='").append(projectUuid).append('\'');
     sb.append(", kee='").append(kee).append('\'');
+    sb.append(", keyType=").append(keyType);
     sb.append(", branchType=").append(branchType);
     sb.append(", mergeBranchUuid='").append(mergeBranchUuid).append('\'');
+    sb.append(", manualBaseline='").append(manualBaseline).append('\'');
     sb.append('}');
     return sb.toString();
   }

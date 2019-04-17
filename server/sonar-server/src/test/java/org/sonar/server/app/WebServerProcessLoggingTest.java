@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -526,7 +526,6 @@ public class WebServerProcessLoggingTest {
     assertThat(ctx.getLogger("org.apache.ibatis").getLevel()).isEqualTo(Level.WARN);
     assertThat(ctx.getLogger("java.sql").getLevel()).isEqualTo(Level.WARN);
     assertThat(ctx.getLogger("java.sql.ResultSet").getLevel()).isEqualTo(Level.WARN);
-    assertThat(ctx.getLogger("org.sonar.MEASURE_FILTER").getLevel()).isEqualTo(Level.WARN);
     assertThat(ctx.getLogger("org.elasticsearch").getLevel()).isEqualTo(Level.INFO);
     assertThat(ctx.getLogger("org.elasticsearch.node").getLevel()).isEqualTo(Level.INFO);
     assertThat(ctx.getLogger("org.elasticsearch.http").getLevel()).isEqualTo(Level.INFO);

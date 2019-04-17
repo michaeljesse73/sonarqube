@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,26 +21,27 @@ import * as React from 'react';
 import { sortBy } from 'lodash';
 import BulkApplyTemplateModal from './BulkApplyTemplateModal';
 import DeleteModal from './DeleteModal';
-import { QUALIFIERS_ORDER, Project } from './utils';
-import { Organization } from '../../app/types';
 import Checkbox from '../../components/controls/Checkbox';
-import { translate } from '../../helpers/l10n';
-import QualifierIcon from '../../components/shared/QualifierIcon';
-import Tooltip from '../../components/controls/Tooltip';
+import QualifierIcon from '../../components/icons-components/QualifierIcon';
+import HelpTooltip from '../../components/controls/HelpTooltip';
 import DateInput from '../../components/controls/DateInput';
 import Select from '../../components/controls/Select';
 import SearchBox from '../../components/controls/SearchBox';
+import { Button } from '../../components/ui/buttons';
+import { Project } from '../../api/components';
+import { translate } from '../../helpers/l10n';
 
 export interface Props {
-  analyzedBefore?: string;
+  analyzedBefore: Date | undefined;
   onAllDeselected: () => void;
   onAllSelected: () => void;
-  onDateChanged: (analyzedBefore?: string) => void;
+  onDateChanged: (analyzedBefore: Date | undefined) => void;
   onDeleteProjects: () => void;
   onProvisionedChanged: (provisioned: boolean) => void;
   onQualifierChanged: (qualifier: string) => void;
+  onVisibilityChanged: (qualifier: string) => void;
   onSearch: (query: string) => void;
-  organization: Organization;
+  organization: T.Organization;
   projects: Project[];
   provisioned: boolean;
   qualifiers: string;
@@ -49,12 +50,15 @@ export interface Props {
   selection: any[];
   topLevelQualifiers: string[];
   total: number;
+  visibility?: T.Visibility;
 }
 
 interface State {
   bulkApplyTemplateModal: boolean;
   deleteModal: boolean;
 }
+
+const QUALIFIERS_ORDER = ['TRK', 'VW', 'APP'];
 
 export default class Search extends React.PureComponent<Props, State> {
   mounted = false;
@@ -76,9 +80,7 @@ export default class Search extends React.PureComponent<Props, State> {
     }
   };
 
-  handleDeleteClick = (event: React.SyntheticEvent<HTMLButtonElement>) => {
-    event.preventDefault();
-    event.currentTarget.blur();
+  handleDeleteClick = () => {
     this.setState({ deleteModal: true });
   };
 
@@ -91,9 +93,7 @@ export default class Search extends React.PureComponent<Props, State> {
     this.props.onDeleteProjects();
   };
 
-  handleBulkApplyTemplateClick = (event: React.SyntheticEvent<HTMLButtonElement>) => {
-    event.preventDefault();
-    event.currentTarget.blur();
+  handleBulkApplyTemplateClick = () => {
     this.setState({ bulkApplyTemplateModal: true });
   };
 
@@ -102,6 +102,8 @@ export default class Search extends React.PureComponent<Props, State> {
   };
 
   handleQualifierChange = ({ value }: { value: string }) => this.props.onQualifierChanged(value);
+
+  handleVisibilityChange = ({ value }: { value: string }) => this.props.onVisibilityChanged(value);
 
   renderCheckbox = () => {
     const isAllChecked =
@@ -115,8 +117,8 @@ export default class Search extends React.PureComponent<Props, State> {
       <Checkbox
         checked={checked}
         id="projects-selection"
-        thirdState={thirdState}
         onCheck={this.onCheck}
+        thirdState={thirdState}
       />
     );
   };
@@ -139,13 +141,34 @@ export default class Search extends React.PureComponent<Props, State> {
           className="input-medium"
           clearable={false}
           disabled={!this.props.ready}
-          optionRenderer={this.renderQualifierOption}
-          options={this.getQualifierOptions()}
-          value={this.props.qualifiers}
-          valueRenderer={this.renderQualifierOption}
           name="projects-qualifier"
           onChange={this.handleQualifierChange}
+          optionRenderer={this.renderQualifierOption}
+          options={this.getQualifierOptions()}
           searchable={false}
+          value={this.props.qualifiers}
+          valueRenderer={this.renderQualifierOption}
+        />
+      </td>
+    );
+  };
+
+  renderVisibilityFilter = () => {
+    return (
+      <td className="thin nowrap text-middle">
+        <Select
+          className="input-small"
+          clearable={false}
+          disabled={!this.props.ready}
+          name="projects-visibility"
+          onChange={this.handleVisibilityChange}
+          options={[
+            { value: 'all', label: translate('visibility.both') },
+            { value: 'public', label: translate('visibility.public') },
+            { value: 'private', label: translate('visibility.private') }
+          ]}
+          searchable={false}
+          value={this.props.visibility || 'all'}
         />
       </td>
     );
@@ -155,17 +178,18 @@ export default class Search extends React.PureComponent<Props, State> {
     this.props.qualifiers === 'TRK' ? (
       <td className="thin nowrap text-middle">
         <Checkbox
-          className="link-checkbox-control"
           checked={this.props.provisioned}
+          className="link-checkbox-control"
           id="projects-provisioned"
           onCheck={this.props.onProvisionedChanged}>
-          <span className="little-spacer-left">
+          <span className="text-middle little-spacer-left">
             {translate('provisioning.only_provisioned')}
-            <Tooltip overlay={translate('provisioning.only_provisioned.tooltip')}>
-              <i className="spacer-left icon-help" />
-            </Tooltip>
           </span>
         </Checkbox>
+        <HelpTooltip
+          className="spacer-left"
+          overlay={translate('provisioning.only_provisioned.tooltip')}
+        />
       </td>
     ) : null;
 
@@ -194,6 +218,7 @@ export default class Search extends React.PureComponent<Props, State> {
               </td>
               {this.renderQualifierFilter()}
               {this.renderDateFilter()}
+              {this.renderVisibilityFilter()}
               {this.renderTypeFilter()}
               <td className="text-middle">
                 <SearchBox
@@ -204,19 +229,19 @@ export default class Search extends React.PureComponent<Props, State> {
                 />
               </td>
               <td className="thin nowrap text-middle">
-                <button
+                <Button
                   className="js-bulk-apply-permission-template"
                   disabled={this.props.total === 0}
                   onClick={this.handleBulkApplyTemplateClick}>
                   {translate('permission_templates.bulk_apply_permission_template')}
-                </button>
+                </Button>
                 {this.props.qualifiers === 'TRK' && (
-                  <button
+                  <Button
                     className="js-delete spacer-left button-red"
                     disabled={this.props.total === 0}
                     onClick={this.handleDeleteClick}>
                     {translate('delete')}
-                  </button>
+                  </Button>
                 )}
               </td>
             </tr>

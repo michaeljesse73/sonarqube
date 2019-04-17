@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,13 +20,12 @@
 package org.sonar.scanner.bootstrap;
 
 import java.util.Arrays;
-import java.util.List;
 import org.apache.commons.lang.ClassUtils;
 import org.junit.Test;
-import org.sonar.api.BatchExtension;
 import org.sonar.api.ExtensionProvider;
-import org.sonar.api.SonarPlugin;
+import org.sonar.api.Plugin;
 import org.sonar.api.SonarRuntime;
+import org.sonar.api.batch.ScannerSide;
 import org.sonar.api.config.internal.MapSettings;
 import org.sonar.core.platform.ComponentContainer;
 import org.sonar.core.platform.PluginInfo;
@@ -38,15 +37,10 @@ import static org.mockito.Mockito.when;
 public class ExtensionInstallerTest {
 
   private MapSettings settings = new MapSettings();
-  private GlobalAnalysisMode mode = mock(GlobalAnalysisMode.class);
   private ScannerPluginRepository pluginRepository = mock(ScannerPluginRepository.class);
 
-  private static SonarPlugin newPluginInstance(final Object... extensions) {
-    return new SonarPlugin() {
-      public List getExtensions() {
-        return Arrays.asList(extensions);
-      }
-    };
+  private static Plugin newPluginInstance(final Object... extensions) {
+    return desc -> desc.addExtensions(Arrays.asList(extensions));
   }
 
   @Test
@@ -55,7 +49,7 @@ public class ExtensionInstallerTest {
     when(pluginRepository.getPluginInstance("foo")).thenReturn(newPluginInstance(Foo.class, Bar.class));
 
     ComponentContainer container = new ComponentContainer();
-    ExtensionInstaller installer = new ExtensionInstaller(mock(SonarRuntime.class), pluginRepository, mode, settings.asConfig());
+    ExtensionInstaller installer = new ExtensionInstaller(mock(SonarRuntime.class), pluginRepository, settings.asConfig());
     installer.install(container, new FooMatcher());
 
     assertThat(container.getComponentByType(Foo.class)).isNotNull();
@@ -67,7 +61,7 @@ public class ExtensionInstallerTest {
     when(pluginRepository.getPluginInfos()).thenReturn(Arrays.asList(new PluginInfo("foo")));
     when(pluginRepository.getPluginInstance("foo")).thenReturn(newPluginInstance(new FooProvider(), new BarProvider()));
     ComponentContainer container = new ComponentContainer();
-    ExtensionInstaller installer = new ExtensionInstaller(mock(SonarRuntime.class), pluginRepository, mode, settings.asConfig());
+    ExtensionInstaller installer = new ExtensionInstaller(mock(SonarRuntime.class), pluginRepository, settings.asConfig());
 
     installer.install(container, new FooMatcher());
 
@@ -80,7 +74,7 @@ public class ExtensionInstallerTest {
     when(pluginRepository.getPluginInfos()).thenReturn(Arrays.asList(new PluginInfo("foo")));
     when(pluginRepository.getPluginInstance("foo")).thenReturn(newPluginInstance(new FooBarProvider()));
     ComponentContainer container = new ComponentContainer();
-    ExtensionInstaller installer = new ExtensionInstaller(mock(SonarRuntime.class), pluginRepository, mode, settings.asConfig());
+    ExtensionInstaller installer = new ExtensionInstaller(mock(SonarRuntime.class), pluginRepository, settings.asConfig());
 
     installer.install(container, new TrueMatcher());
 
@@ -100,29 +94,34 @@ public class ExtensionInstallerTest {
     }
   }
 
-  public static class Foo implements BatchExtension {
+  @ScannerSide
+  public static class Foo {
 
   }
 
-  public static class Bar implements BatchExtension {
+  @ScannerSide
+  public static class Bar {
 
   }
 
-  public static class FooProvider extends ExtensionProvider implements BatchExtension {
+  @ScannerSide
+  public static class FooProvider extends ExtensionProvider {
     @Override
     public Object provide() {
       return new Foo();
     }
   }
 
-  public static class BarProvider extends ExtensionProvider implements BatchExtension {
+  @ScannerSide
+  public static class BarProvider extends ExtensionProvider {
     @Override
     public Object provide() {
       return new Bar();
     }
   }
 
-  public static class FooBarProvider extends ExtensionProvider implements BatchExtension {
+  @ScannerSide
+  public static class FooBarProvider extends ExtensionProvider {
     @Override
     public Object provide() {
       return Arrays.asList(new Foo(), new Bar());

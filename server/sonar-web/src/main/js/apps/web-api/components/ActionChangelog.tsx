@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,17 +18,16 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import { Changelog } from '../../../api/web-api';
 
 interface Props {
-  changelog: Changelog[];
+  changelog: T.WebApi.Changelog[];
 }
 
 export default function ActionChangelog({ changelog }: Props) {
   return (
     <ul className="big-spacer-top">
       {changelog.map((item, index) => (
-        <li key={index} className="spacer-top">
+        <li className="spacer-top" key={index}>
           <span className="spacer-right badge">{item.version}</span>
           {item.description}
         </li>

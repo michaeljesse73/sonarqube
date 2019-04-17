@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -36,13 +36,14 @@ import org.picocontainer.MutablePicoContainer;
 import org.picocontainer.PicoContainer;
 import org.picocontainer.behaviors.OptInCaching;
 import org.picocontainer.monitors.NullComponentMonitor;
-import org.sonar.api.batch.ScannerSide;
+import org.sonar.api.scanner.ScannerSide;
 import org.sonar.api.ce.ComputeEngineSide;
 import org.sonar.api.config.PropertyDefinitions;
 import org.sonar.api.server.ServerSide;
 
 import static com.google.common.collect.ImmutableList.copyOf;
 import static java.util.Objects.requireNonNull;
+import static java.util.Optional.ofNullable;
 
 @ScannerSide
 @ServerSide
@@ -228,7 +229,7 @@ public class ComponentContainer implements ContainerPopulator.Container {
       } catch (Throwable t) {
         throw new IllegalStateException("Unable to register component " + getName(component), t);
       }
-      declareExtension(null, component);
+      declareExtension("", component);
     }
     return this;
   }
@@ -244,6 +245,17 @@ public class ComponentContainer implements ContainerPopulator.Container {
     return this;
   }
 
+  public ComponentContainer addExtension(@Nullable String defaultCategory, Object extension) {
+    Object key = componentKeys.of(extension);
+    try {
+      pico.as(Characteristics.CACHE).addComponent(key, extension);
+    } catch (Throwable t) {
+      throw new IllegalStateException("Unable to register extension " + getName(extension), t);
+    }
+    declareExtension(defaultCategory, extension);
+    return this;
+  }
+
   private static String getName(Object extension) {
     if (extension instanceof Class) {
       return ((Class<?>) extension).getName();
@@ -252,7 +264,11 @@ public class ComponentContainer implements ContainerPopulator.Container {
   }
 
   public void declareExtension(@Nullable PluginInfo pluginInfo, Object extension) {
-    propertyDefinitions.addComponent(extension, pluginInfo != null ? pluginInfo.getName() : "");
+    declareExtension(pluginInfo != null ? pluginInfo.getName() : "", extension);
+  }
+
+  public void declareExtension(@Nullable String defaultCategory, Object extension) {
+    propertyDefinitions.addComponent(extension, ofNullable(defaultCategory).orElse(""));
   }
 
   public ComponentContainer addPicoAdapter(ComponentAdapter<?> adapter) {

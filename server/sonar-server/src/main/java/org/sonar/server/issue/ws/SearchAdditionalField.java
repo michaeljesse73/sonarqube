@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -38,8 +38,7 @@ public enum SearchAdditionalField {
   DEPRECATED_ACTION_PLANS("actionPlans"),
   COMMENTS("comments"),
   LANGUAGES("languages"),
-  // may contain strings representing rule ids (from ES facets) or string representing ruleKeys (from HTTP request)
-  RULE_IDS_AND_KEYS("rules"),
+  RULES("rules"),
   TRANSITIONS("transitions"),
   USERS("users");
 

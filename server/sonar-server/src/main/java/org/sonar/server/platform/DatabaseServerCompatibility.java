@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,19 +21,24 @@ package org.sonar.server.platform;
 
 import java.util.Optional;
 import org.picocontainer.Startable;
+import org.sonar.api.config.Configuration;
 import org.sonar.api.utils.MessageException;
 import org.sonar.api.utils.log.Loggers;
+import org.sonar.process.ProcessProperties;
 import org.sonar.server.platform.db.migration.version.DatabaseVersion;
 
-import static org.sonar.server.app.ServerProcessLogging.STARTUP_LOGGER_NAME;
+import static org.sonar.server.log.ServerProcessLogging.STARTUP_LOGGER_NAME;
 
 public class DatabaseServerCompatibility implements Startable {
 
   private static final String HIGHLIGHTER = "################################################################################";
-  private DatabaseVersion version;
 
-  public DatabaseServerCompatibility(DatabaseVersion version) {
+  private final DatabaseVersion version;
+  private final Configuration configuration;
+
+  public DatabaseServerCompatibility(DatabaseVersion version, Configuration configuration) {
     this.version = version;
+    this.configuration = configuration;
   }
 
   @Override
@@ -47,12 +52,15 @@ public class DatabaseServerCompatibility implements Startable {
       if (currentVersion.isPresent() && currentVersion.get() < DatabaseVersion.MIN_UPGRADE_VERSION) {
         throw MessageException.of("Current version is too old. Please upgrade to Long Term Support version firstly.");
       }
-      String msg = "Database must be upgraded. Please backup database and browse /setup";
-      Loggers.get(DatabaseServerCompatibility.class).warn(msg);
-      Loggers.get(STARTUP_LOGGER_NAME).warn('\n'
-        + HIGHLIGHTER + '\n'
-        + "      " + msg
-        + '\n' + HIGHLIGHTER);
+      boolean blueGreen = configuration.getBoolean(ProcessProperties.Property.BLUE_GREEN_ENABLED.getKey()).orElse(false);
+      if (!blueGreen) {
+        String msg = "Database must be upgraded. Please backup database and browse /setup";
+        Loggers.get(DatabaseServerCompatibility.class).warn(msg);
+        Loggers.get(STARTUP_LOGGER_NAME).warn('\n'
+          + HIGHLIGHTER + '\n'
+          + "      " + msg
+          + '\n' + HIGHLIGHTER);
+      }
     }
   }
 

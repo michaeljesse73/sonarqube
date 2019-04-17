@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,7 +20,6 @@
 package org.sonar.ce.configuration;
 
 import java.util.Random;
-import java.util.stream.IntStream;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -96,69 +95,25 @@ public class CeConfigurationImplTest {
   private void expectMessageException(int value) {
     expectedException.expect(MessageException.class);
     expectedException.expectMessage("Worker count '" + value + "' is invalid. " +
-      "It must an integer strictly greater than 0 and less or equal to 10");
+      "It must be an integer strictly greater than 0 and less or equal to 10");
   }
 
   @Test
-  public void getCleanCeTasksInitialDelay_returns_1() {
+  public void getCleanCeTasksInitialDelay_returns_0() {
     assertThat(new CeConfigurationImpl(EMPTY_CONFIGURATION).getCleanCeTasksInitialDelay())
-      .isEqualTo(1L);
+      .isEqualTo(0L);
     workerCountProvider.set(1);
     assertThat(new CeConfigurationImpl(EMPTY_CONFIGURATION, workerCountProvider).getCleanCeTasksInitialDelay())
-      .isEqualTo(1L);
+      .isEqualTo(0L);
   }
 
   @Test
-  public void getCleanCeTasksDelay_returns_10() {
+  public void getCleanCeTasksDelay_returns_2() {
     assertThat(new CeConfigurationImpl(EMPTY_CONFIGURATION).getCleanCeTasksDelay())
-      .isEqualTo(10L);
+      .isEqualTo(2L);
     workerCountProvider.set(1);
     assertThat(new CeConfigurationImpl(EMPTY_CONFIGURATION, workerCountProvider).getCleanCeTasksDelay())
-      .isEqualTo(10L);
-  }
-
-  @Test
-  public void refresh_does_not_change_any_value_when_there_is_no_WorkerCountProvider() {
-    CeConfigurationImpl underTest = new CeConfigurationImpl(EMPTY_CONFIGURATION);
-    long cleanCeTasksInitialDelay = underTest.getCleanCeTasksInitialDelay();
-    long cleanCeTasksDelay = underTest.getCleanCeTasksDelay();
-    long queuePollingDelay = underTest.getQueuePollingDelay();
-    int workerThreadCount = underTest.getWorkerMaxCount();
-    int workerCount = underTest.getWorkerCount();
-
-    IntStream.range(0, 1 + abs(new Random().nextInt(10)))
-      .forEach(ignored -> {
-        underTest.refresh();
-        assertThat(underTest.getCleanCeTasksInitialDelay()).isEqualTo(cleanCeTasksInitialDelay);
-        assertThat(underTest.getCleanCeTasksDelay()).isEqualTo(cleanCeTasksDelay);
-        assertThat(underTest.getQueuePollingDelay()).isEqualTo(queuePollingDelay);
-        assertThat(underTest.getWorkerMaxCount()).isEqualTo(workerThreadCount);
-        assertThat(underTest.getWorkerCount()).isEqualTo(workerCount);
-      });
-  }
-
-  @Test
-  public void refresh_updates_only_workerCount_from_WorkerCountProvider_when_there_WorkerCountProvider_is_present() {
-    workerCountProvider.set(randomValidWorkerCount());
-    CeConfigurationImpl underTest = new CeConfigurationImpl(EMPTY_CONFIGURATION, workerCountProvider);
-    long cleanCeTasksInitialDelay = underTest.getCleanCeTasksInitialDelay();
-    long cleanCeTasksDelay = underTest.getCleanCeTasksDelay();
-    long queuePollingDelay = underTest.getQueuePollingDelay();
-    int workerThreadCount = underTest.getWorkerMaxCount();
-
-    IntStream.range(0, 1 + abs(new Random().nextInt(10)))
-      .forEach(ignored -> {
-        int newWorkerCount = randomValidWorkerCount();
-        workerCountProvider.set(newWorkerCount);
-
-        underTest.refresh();
-
-        assertThat(underTest.getCleanCeTasksInitialDelay()).isEqualTo(cleanCeTasksInitialDelay);
-        assertThat(underTest.getCleanCeTasksDelay()).isEqualTo(cleanCeTasksDelay);
-        assertThat(underTest.getQueuePollingDelay()).isEqualTo(queuePollingDelay);
-        assertThat(underTest.getWorkerMaxCount()).isEqualTo(workerThreadCount);
-        assertThat(underTest.getWorkerCount()).isEqualTo(newWorkerCount);
-      });
+      .isEqualTo(2L);
   }
 
   private static final class SimpleWorkerCountProvider implements WorkerCountProvider {

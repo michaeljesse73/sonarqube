@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -38,6 +38,8 @@ public interface OAuth2AuthenticationParameters {
   Optional<String> getReturnTo(HttpServletRequest request);
 
   Optional<Boolean> getAllowEmailShift(HttpServletRequest request);
+
+  Optional<Boolean> getAllowUpdateLogin(HttpServletRequest request);
 
   void delete(HttpServletRequest request, HttpServletResponse response);
 

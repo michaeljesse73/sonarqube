@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,22 +25,22 @@ import {
   fetchQualityGates,
   getGateForProject,
   associateGateWithProject,
-  dissociateGateWithProject,
-  QualityGate
+  dissociateGateWithProject
 } from '../../api/quality-gates';
+import A11ySkipTarget from '../../app/components/a11y/A11ySkipTarget';
+import Suggestions from '../../app/components/embed-docs-modal/Suggestions';
 import addGlobalSuccessMessage from '../../app/utils/addGlobalSuccessMessage';
 import handleRequiredAuthorization from '../../app/utils/handleRequiredAuthorization';
-import { Component } from '../../app/types';
 import { translate } from '../../helpers/l10n';
 
 interface Props {
-  component: Component;
+  component: T.Component;
   onComponentChange: (changes: {}) => void;
 }
 
 interface State {
-  allGates?: QualityGate[];
-  gate?: QualityGate;
+  allGates?: T.QualityGate[];
+  gate?: T.QualityGate;
   loading: boolean;
 }
 
@@ -127,8 +127,10 @@ export default class App extends React.PureComponent<Props> {
     const { allGates, gate, loading } = this.state;
 
     return (
-      <div id="project-quality-gate" className="page page-limited">
+      <div className="page page-limited" id="project-quality-gate">
+        <Suggestions suggestions="project_quality_gate" />
         <Helmet title={translate('project_quality_gate.page')} />
+        <A11ySkipTarget anchor="qg_main" />
         <Header />
         {loading ? (
           <i className="spinner" />

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -17,7 +17,6 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-
 /* eslint-disable no-bitwise, no-mixed-operators */
 export function stringToColor(str: string) {
   let hash = 0;
@@ -32,17 +31,20 @@ export function stringToColor(str: string) {
   return color;
 }
 
-export function getTextColor(background: string, dark = '#222', light = '#fff') {
-  background = background.substr(1);
-  if (background.length === 3) {
+export function isDarkColor(color: string) {
+  color = color.substr(1);
+  if (color.length === 3) {
     // shortcut notation: #f90
-    background =
-      background[0] + background[0] + background[1] + background[1] + background[2] + background[2];
+    color = color[0] + color[0] + color[1] + color[1] + color[2] + color[2];
   }
-  const rgb = parseInt(background.substr(1), 16);
+  const rgb = parseInt(color.substr(1), 16);
   const r = (rgb >> 16) & 0xff;
   const g = (rgb >> 8) & 0xff;
   const b = (rgb >> 0) & 0xff;
   const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-  return luma > 140 ? dark : light;
+  return luma < 140;
+}
+
+export function getTextColor(background: string, dark = '#222', light = '#fff') {
+  return isDarkColor(background) ? light : dark;
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -32,6 +32,7 @@ import org.sonar.db.DbTester;
 import org.sonar.db.issue.IssueChangeDto;
 import org.sonar.db.issue.IssueDbTester;
 import org.sonar.db.issue.IssueDto;
+import org.sonar.db.user.UserDto;
 import org.sonar.server.exceptions.ForbiddenException;
 import org.sonar.server.exceptions.NotFoundException;
 import org.sonar.server.exceptions.UnauthorizedException;
@@ -41,14 +42,14 @@ import org.sonar.server.ws.TestRequest;
 import org.sonar.server.ws.TestResponse;
 import org.sonar.server.ws.WsActionTester;
 
+import static java.util.Optional.ofNullable;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.sonar.api.web.UserRole.CODEVIEWER;
 import static org.sonar.api.web.UserRole.USER;
-import static org.sonar.core.util.Protobuf.setNullable;
 
 public class DeleteCommentActionTest {
 
@@ -70,8 +71,9 @@ public class DeleteCommentActionTest {
   @Test
   public void delete_comment() {
     IssueDto issueDto = issueDbTester.insertIssue();
-    IssueChangeDto commentDto = issueDbTester.insertComment(issueDto, "john", "please fix it");
-    loginAndAddProjectPermission("john", issueDto, USER);
+    UserDto user = dbTester.users().insertUser();
+    IssueChangeDto commentDto = issueDbTester.insertComment(issueDto, user, "please fix it");
+    loginAndAddProjectPermission(user, issueDto, USER);
 
     call(commentDto.getKey());
 
@@ -83,8 +85,9 @@ public class DeleteCommentActionTest {
   @Test
   public void delete_comment_using_deprecated_key_parameter() {
     IssueDto issueDto = issueDbTester.insertIssue();
-    IssueChangeDto commentDto = issueDbTester.insertComment(issueDto, "john", "please fix it");
-    loginAndAddProjectPermission("john", issueDto, USER);
+    UserDto user = dbTester.users().insertUser();
+    IssueChangeDto commentDto = issueDbTester.insertComment(issueDto, user, "please fix it");
+    loginAndAddProjectPermission(user, issueDto, USER);
 
     tester.newRequest().setParam("key", commentDto.getKey()).setParam("text", "please have a look").execute();
 
@@ -96,8 +99,10 @@ public class DeleteCommentActionTest {
   @Test
   public void fail_when_comment_does_not_belong_to_current_user() {
     IssueDto issueDto = issueDbTester.insertIssue();
-    IssueChangeDto commentDto = issueDbTester.insertComment(issueDto, "john", "please fix it");
-    loginAndAddProjectPermission("another", issueDto, USER);
+    UserDto user = dbTester.users().insertUser();
+    IssueChangeDto commentDto = issueDbTester.insertComment(issueDto, user, "please fix it");
+    UserDto another = dbTester.users().insertUser();
+    loginAndAddProjectPermission(another, issueDto, USER);
 
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("You can only delete your own comments");
@@ -107,8 +112,9 @@ public class DeleteCommentActionTest {
   @Test
   public void fail_when_comment_has_not_user() {
     IssueDto issueDto = issueDbTester.insertIssue();
+    UserDto user = dbTester.users().insertUser();
     IssueChangeDto commentDto = issueDbTester.insertComment(issueDto, null, "please fix it");
-    loginAndAddProjectPermission("john", issueDto, USER);
+    loginAndAddProjectPermission(user, issueDto, USER);
 
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("You can only delete your own comments");
@@ -140,8 +146,9 @@ public class DeleteCommentActionTest {
   @Test
   public void fail_when_not_enough_permission() {
     IssueDto issueDto = issueDbTester.insertIssue();
-    IssueChangeDto commentDto = issueDbTester.insertComment(issueDto, "john", "please fix it");
-    loginAndAddProjectPermission("john", issueDto, CODEVIEWER);
+    UserDto user = dbTester.users().insertUser();
+    IssueChangeDto commentDto = issueDbTester.insertComment(issueDto, user, "please fix it");
+    loginAndAddProjectPermission(user, issueDto, CODEVIEWER);
 
     expectedException.expect(ForbiddenException.class);
     call(commentDto.getKey());
@@ -168,12 +175,12 @@ public class DeleteCommentActionTest {
 
   private TestResponse call(@Nullable String commentKey) {
     TestRequest request = tester.newRequest();
-    setNullable(commentKey, comment -> request.setParam("comment", comment));
+    ofNullable(commentKey).ifPresent(comment -> request.setParam("comment", comment));
     return request.execute();
   }
 
-  private void loginAndAddProjectPermission(String login, IssueDto issueDto, String permission) {
-    userSession.logIn(login).addProjectPermission(permission, dbClient.componentDao().selectByUuid(dbTester.getSession(), issueDto.getProjectUuid()).get());
+  private void loginAndAddProjectPermission(UserDto user, IssueDto issueDto, String permission) {
+    userSession.logIn(user).addProjectPermission(permission, dbClient.componentDao().selectByUuid(dbTester.getSession(), issueDto.getProjectUuid()).get());
   }
 
 }

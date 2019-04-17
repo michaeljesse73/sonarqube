@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,22 +20,25 @@
 import * as React from 'react';
 import { Link } from 'react-router';
 import ChangeProjectsForm from './ChangeProjectsForm';
-import QualifierIcon from '../../../components/shared/QualifierIcon';
-import { getProfileProjects } from '../../../api/quality-profiles';
-import { translate } from '../../../helpers/l10n';
 import { Profile } from '../types';
+import { getProfileProjects } from '../../../api/quality-profiles';
+import QualifierIcon from '../../../components/icons-components/QualifierIcon';
+import { Button } from '../../../components/ui/buttons';
+import ListFooter from '../../../components/controls/ListFooter';
+import { translate } from '../../../helpers/l10n';
 
 interface Props {
   organization: string | null;
   profile: Profile;
-  updateProfiles: () => Promise<void>;
 }
 
 interface State {
   formOpen: boolean;
   loading: boolean;
-  more?: boolean;
-  projects: Array<{ key: string; name: string; uuid: string }> | null;
+  loadingMore: boolean;
+  page: number;
+  projects: Array<{ key: string; name: string }>;
+  total: number;
 }
 
 export default class ProfileProjects extends React.PureComponent<Props, State> {
@@ -44,7 +47,10 @@ export default class ProfileProjects extends React.PureComponent<Props, State> {
   state: State = {
     formOpen: false,
     loading: true,
-    projects: null
+    loadingMore: false,
+    page: 1,
+    projects: [],
+    total: 0
   };
 
   componentDidMount() {
@@ -53,7 +59,7 @@ export default class ProfileProjects extends React.PureComponent<Props, State> {
   }
 
   componentDidUpdate(prevProps: Props) {
-    if (prevProps.profile !== this.props.profile) {
+    if (prevProps.profile.key !== this.props.profile.key) {
       this.loadProjects();
     }
   }
@@ -62,42 +68,55 @@ export default class ProfileProjects extends React.PureComponent<Props, State> {
     this.mounted = false;
   }
 
+  stopLoading = () => {
+    if (this.mounted) {
+      this.setState({ loading: false });
+    }
+  };
+
   loadProjects() {
     if (this.props.profile.isDefault) {
-      this.setState({ loading: false });
+      this.setState({ loading: false, projects: [] });
       return;
     }
 
-    const data = { key: this.props.profile.key };
-    getProfileProjects(data).then(
-      (r: any) => {
-        if (this.mounted) {
-          this.setState({
-            projects: r.results,
-            more: r.more,
-            loading: false
-          });
-        }
-      },
-      () => {}
-    );
+    this.setState({ loading: true });
+    const data = { key: this.props.profile.key, page: this.state.page };
+    getProfileProjects(data).then(({ paging, results }) => {
+      if (this.mounted) {
+        this.setState({
+          projects: results,
+          total: paging.total,
+          loading: false
+        });
+      }
+    }, this.stopLoading);
   }
 
-  handleChangeClick = (event: React.SyntheticEvent<HTMLElement>) => {
-    event.preventDefault();
+  loadMore = () => {
+    this.setState({ loadingMore: true });
+    const data = { key: this.props.profile.key, page: this.state.page + 1 };
+    getProfileProjects(data).then(({ paging, results }) => {
+      if (this.mounted) {
+        this.setState(state => ({
+          projects: [...state.projects, ...results],
+          total: paging.total,
+          loadingMore: false
+        }));
+      }
+    }, this.stopLoading);
+  };
+
+  handleChangeClick = () => {
     this.setState({ formOpen: true });
   };
 
   closeForm = () => {
     this.setState({ formOpen: false });
-    this.props.updateProfiles();
+    this.loadProjects();
   };
 
   renderDefault() {
-    if (this.state.loading) {
-      return <i className="spinner" />;
-    }
-
     return (
       <div>
         <span className="badge spacer-right">{translate('default')}</span>
@@ -113,26 +132,30 @@ export default class ProfileProjects extends React.PureComponent<Props, State> {
 
     const { projects } = this.state;
 
-    if (projects == null) {
-      return null;
-    }
-
     if (projects.length === 0) {
       return <div>{translate('quality_profiles.no_projects_associated_to_profile')}</div>;
     }
 
     return (
-      <ul>
-        {projects.map(project => (
-          <li key={project.uuid} className="spacer-top js-profile-project" data-key={project.key}>
-            <Link
-              to={{ pathname: '/dashboard', query: { id: project.key } }}
-              className="link-with-icon">
-              <QualifierIcon qualifier="TRK" /> <span>{project.name}</span>
-            </Link>
-          </li>
-        ))}
-      </ul>
+      <>
+        <ul>
+          {projects.map(project => (
+            <li className="spacer-top js-profile-project" data-key={project.key} key={project.key}>
+              <Link
+                className="link-with-icon"
+                to={{ pathname: '/dashboard', query: { id: project.key } }}>
+                <QualifierIcon qualifier="TRK" /> <span>{project.name}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+        <ListFooter
+          count={projects.length}
+          loadMore={this.loadMore}
+          ready={!this.state.loadingMore}
+          total={this.state.total}
+        />
+      </>
     );
   }
 
@@ -140,14 +163,13 @@ export default class ProfileProjects extends React.PureComponent<Props, State> {
     const { profile } = this.props;
     return (
       <div className="boxed-group quality-profile-projects">
-        {profile.actions &&
-          profile.actions.associateProjects && (
-            <div className="boxed-group-actions">
-              <button className="js-change-projects" onClick={this.handleChangeClick}>
-                {translate('quality_profiles.change_projects')}
-              </button>
-            </div>
-          )}
+        {profile.actions && profile.actions.associateProjects && (
+          <div className="boxed-group-actions">
+            <Button className="js-change-projects" onClick={this.handleChangeClick}>
+              {translate('quality_profiles.change_projects')}
+            </Button>
+          </div>
+        )}
 
         <header className="boxed-group-header">
           <h2>{translate('projects')}</h2>

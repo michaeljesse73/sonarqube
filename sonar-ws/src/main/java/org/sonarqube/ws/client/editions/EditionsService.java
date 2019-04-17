@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,16 +19,12 @@
  */
 package org.sonarqube.ws.client.editions;
 
-import java.util.stream.Collectors;
 import javax.annotation.Generated;
 import org.sonarqube.ws.MediaTypes;
 import org.sonarqube.ws.client.BaseService;
 import org.sonarqube.ws.client.GetRequest;
 import org.sonarqube.ws.client.PostRequest;
 import org.sonarqube.ws.client.WsConnector;
-import org.sonarqube.ws.Editions.FormDataResponse;
-import org.sonarqube.ws.Editions.PreviewResponse;
-import org.sonarqube.ws.Editions.StatusResponse;
 
 /**
  * @see <a href="https://next.sonarqube.com/sonarqube/web_api/api/editions">Further information about this web service online</a>
@@ -43,13 +39,27 @@ public class EditionsService extends BaseService {
   /**
    *
    * This is part of the internal API.
-   * This is a POST request.
-   * @see <a href="https://next.sonarqube.com/sonarqube/web_api/api/editions/apply_license">Further information about this action online (including a response example)</a>
-   * @since 6.7
+   * This is a GET request.
+   * @see <a href="https://next.sonarqube.com/sonarqube/web_api/api/editions/is_valid_license">Further information about this action online (including a response example)</a>
+   * @since 7.3
    */
-  public String applyLicense(ApplyLicenseRequest request) {
+  public String isValidLicense() {
     return call(
-      new PostRequest(path("apply_license"))
+      new GetRequest(path("is_valid_license"))
+        .setMediaType(MediaTypes.JSON)
+      ).content();
+  }
+
+  /**
+   *
+   * This is part of the internal API.
+   * This is a POST request.
+   * @see <a href="https://next.sonarqube.com/sonarqube/web_api/api/editions/set_license">Further information about this action online (including a response example)</a>
+   * @since 7.2
+   */
+  public void setLicense(SetLicenseRequest request) {
+    call(
+      new PostRequest(path("set_license"))
         .setParam("license", request.getLicense())
         .setMediaType(MediaTypes.JSON)
       ).content();
@@ -58,13 +68,13 @@ public class EditionsService extends BaseService {
   /**
    *
    * This is part of the internal API.
-   * This is a POST request.
-   * @see <a href="https://next.sonarqube.com/sonarqube/web_api/api/editions/clear_error_message">Further information about this action online (including a response example)</a>
-   * @since 6.7
+   * This is a GET request.
+   * @see <a href="https://next.sonarqube.com/sonarqube/web_api/api/editions/show_license">Further information about this action online (including a response example)</a>
+   * @since 7.2
    */
-  public void clearErrorMessage() {
-    call(
-      new PostRequest(path("clear_error_message"))
+  public String showLicense() {
+    return call(
+      new GetRequest(path("show_license"))
         .setMediaType(MediaTypes.JSON)
       ).content();
   }
@@ -72,53 +82,13 @@ public class EditionsService extends BaseService {
   /**
    *
    * This is part of the internal API.
-   * This is a GET request.
-   * @see <a href="https://next.sonarqube.com/sonarqube/web_api/api/editions/form_data">Further information about this action online (including a response example)</a>
-   * @since 6.7
-   */
-  public FormDataResponse formData() {
-    return call(
-      new GetRequest(path("form_data")),
-      FormDataResponse.parser());
-  }
-
-  /**
-   *
-   * This is part of the internal API.
    * This is a POST request.
-   * @see <a href="https://next.sonarqube.com/sonarqube/web_api/api/editions/preview">Further information about this action online (including a response example)</a>
-   * @since 6.7
+   * @see <a href="https://next.sonarqube.com/sonarqube/web_api/api/editions/unset_license">Further information about this action online (including a response example)</a>
+   * @since 7.2
    */
-  public PreviewResponse preview(PreviewRequest request) {
-    return call(
-      new PostRequest(path("preview"))
-        .setParam("license", request.getLicense()),
-      PreviewResponse.parser());
-  }
-
-  /**
-   *
-   * This is part of the internal API.
-   * This is a GET request.
-   * @see <a href="https://next.sonarqube.com/sonarqube/web_api/api/editions/status">Further information about this action online (including a response example)</a>
-   * @since 6.7
-   */
-  public StatusResponse status() {
-    return call(
-      new GetRequest(path("status")),
-      StatusResponse.parser());
-  }
-
-  /**
-   *
-   * This is part of the internal API.
-   * This is a POST request.
-   * @see <a href="https://next.sonarqube.com/sonarqube/web_api/api/editions/uninstall">Further information about this action online (including a response example)</a>
-   * @since 6.7
-   */
-  public void uninstall() {
+  public void unsetLicense() {
     call(
-      new PostRequest(path("uninstall"))
+      new PostRequest(path("unset_license"))
         .setMediaType(MediaTypes.JSON)
       ).content();
   }

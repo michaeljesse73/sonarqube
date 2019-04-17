@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,11 +20,9 @@
 package org.sonar.server.project.ws;
 
 import javax.annotation.Nullable;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
-import org.sonar.api.config.internal.MapSettings;
 import org.sonar.api.server.ws.WebService;
 import org.sonar.api.utils.System2;
 import org.sonar.api.web.UserRole;
@@ -38,12 +36,10 @@ import org.sonar.db.organization.OrganizationDto;
 import org.sonar.server.component.ComponentFinder;
 import org.sonar.server.component.ComponentService;
 import org.sonar.server.component.TestComponentFinder;
-import org.sonar.server.component.index.ComponentIndexDefinition;
 import org.sonar.server.es.EsTester;
 import org.sonar.server.exceptions.BadRequestException;
 import org.sonar.server.exceptions.ForbiddenException;
 import org.sonar.server.exceptions.NotFoundException;
-import org.sonar.server.measure.index.ProjectMeasuresIndexDefinition;
 import org.sonar.server.tester.UserSessionRule;
 import org.sonar.server.ws.TestRequest;
 import org.sonar.server.ws.WsActionTester;
@@ -52,8 +48,8 @@ import org.sonarqube.ws.Projects.BulkUpdateKeyWsResponse.Key;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.sonar.db.component.ComponentTesting.newFileDto;
@@ -75,10 +71,9 @@ public class BulkUpdateKeyActionTest {
   @Rule
   public ExpectedException expectedException = ExpectedException.none();
   @Rule
-  public UserSessionRule userSession = UserSessionRule.standalone();
+  public UserSessionRule userSession = UserSessionRule.standalone().logIn().setRoot();
   @Rule
-  public EsTester es = new EsTester(new ProjectMeasuresIndexDefinition(new MapSettings().asConfig()),
-    new ComponentIndexDefinition(new MapSettings().asConfig()));
+  public EsTester es = EsTester.create();
   @Rule
   public DbTester db = DbTester.create(system2);
 
@@ -88,11 +83,6 @@ public class BulkUpdateKeyActionTest {
   private ComponentService componentService = mock(ComponentService.class);
   private WsActionTester ws = new WsActionTester(
     new BulkUpdateKeyAction(dbClient, componentFinder, componentService, userSession));
-
-  @Before
-  public void setUp() {
-    userSession.logIn().setRoot();
-  }
 
   @Test
   public void json_example() {
@@ -151,6 +141,30 @@ public class BulkUpdateKeyActionTest {
     callByKey(provisionedProject.getDbKey(), provisionedProject.getDbKey(), newKey);
 
     verify(componentService).bulkUpdateKey(any(DbSession.class), eq(provisionedProject), eq(provisionedProject.getDbKey()), eq(newKey));
+  }
+
+  @Test
+  public void fail_to_bulk_update_key_using_branch_db_key() {
+    ComponentDto project = db.components().insertMainBranch();
+    ComponentDto branch = db.components().insertProjectBranch(project);
+    userSession.addProjectPermission(UserRole.USER, project);
+
+    expectedException.expect(NotFoundException.class);
+    expectedException.expectMessage(String.format("Component key '%s' not found", branch.getDbKey()));
+
+    callByKey(branch.getDbKey(), FROM, TO);
+  }
+
+  @Test
+  public void fail_to_bulk_update_key_using_branch_uuid() {
+    ComponentDto project = db.components().insertMainBranch();
+    ComponentDto branch = db.components().insertProjectBranch(project);
+    userSession.addProjectPermission(UserRole.USER, project);
+
+    expectedException.expect(NotFoundException.class);
+    expectedException.expectMessage(String.format("Component id '%s' not found", branch.uuid()));
+
+    callByUuid(branch.uuid(), FROM, TO);
   }
 
   @Test

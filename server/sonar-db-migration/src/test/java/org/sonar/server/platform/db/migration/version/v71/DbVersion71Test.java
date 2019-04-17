@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -17,7 +17,6 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-
 package org.sonar.server.platform.db.migration.version.v71;
 
 import org.junit.Test;
@@ -36,7 +35,7 @@ public class DbVersion71Test {
 
   @Test
   public void verify_migration_count() {
-    verifyMigrationCount(underTest, 8);
+    verifyMigrationCount(underTest, 24);
   }
 
 }

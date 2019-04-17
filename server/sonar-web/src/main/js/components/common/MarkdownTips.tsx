@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,10 +18,15 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
+import * as classNames from 'classnames';
 import { getMarkdownHelpUrl } from '../../helpers/urls';
 import { translate } from '../../helpers/l10n';
 
-export default class MarkdownTips extends React.PureComponent {
+interface Props {
+  className?: string;
+}
+
+export default class MarkdownTips extends React.PureComponent<Props> {
   handleClick(evt: React.SyntheticEvent<HTMLAnchorElement>) {
     evt.preventDefault();
     window.open(getMarkdownHelpUrl(), 'Markdown', 'height=300,width=600,scrollbars=1,resizable=1');
@@ -29,13 +34,17 @@ export default class MarkdownTips extends React.PureComponent {
 
   render() {
     return (
-      <div className="markdown-tips">
+      <div className={classNames('markdown-tips', this.props.className)}>
         <a className="little-spacer-right" href="#" onClick={this.handleClick}>
           {translate('markdown.helplink')}
         </a>
         {':'}
         <span className="spacer-left">*{translate('bold')}*</span>
-        <span className="spacer-left">``{translate('code')}``</span>
+        <span className="spacer-left">
+          ``
+          {translate('code')}
+          ``
+        </span>
         <span className="spacer-left">* {translate('bulleted_point')}</span>
       </div>
     );

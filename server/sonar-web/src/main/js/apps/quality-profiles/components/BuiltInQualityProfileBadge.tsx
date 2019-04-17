@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,7 +19,7 @@
  */
 import * as React from 'react';
 import * as classNames from 'classnames';
-import Tooltip from '../../../components/controls/Tooltip';
+import DocTooltip from '../../../components/docs/DocTooltip';
 import { translate } from '../../../helpers/l10n';
 
 interface Props {
@@ -34,18 +34,13 @@ export default function BuiltInQualityProfileBadge({ className, tooltip = true }
     </div>
   );
 
-  const overlay = (
-    <span>
-      {translate('quality_profiles.built_in.description.1')}{' '}
-      {translate('quality_profiles.built_in.description.2')}
-    </span>
-  );
-
-  return tooltip ? (
-    <Tooltip overlay={overlay} placement="right">
-      {badge}
-    </Tooltip>
-  ) : (
-    badge
-  );
+  if (tooltip) {
+    return (
+      <DocTooltip
+        doc={import(/* webpackMode: "eager" */ 'Docs/tooltips/quality-profiles/built-in-quality-profile.md')}>
+        {badge}
+      </DocTooltip>
+    );
+  }
+  return badge;
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,6 +22,8 @@ package org.sonar.ce.queue;
 import java.util.Optional;
 import java.util.Set;
 import javax.annotation.Nullable;
+import org.sonar.ce.task.CeTask;
+import org.sonar.ce.task.CeTaskResult;
 import org.sonar.db.ce.CeActivityDto.Status;
 
 /**
@@ -36,7 +38,7 @@ public interface InternalCeQueue extends CeQueue {
   /**
    * Peek the oldest task in status {@link org.sonar.db.ce.CeQueueDto.Status#PENDING}.
    * The task status is changed to {@link org.sonar.db.ce.CeQueueDto.Status#IN_PROGRESS}.
-   * Does not return anything if the queue is paused (see {@link #isPeekPaused()}.
+   * Does not return anything if workers are paused or being paused (see {@link #getWorkersPauseStatus()}.
    *
    * <p>Only a single task can be peeked by project.</p>
    *

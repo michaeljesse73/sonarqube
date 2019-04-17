@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,18 +20,6 @@
 import { flatten, sortBy } from 'lodash';
 import { SEVERITIES } from './constants';
 
-interface TextRange {
-  startLine: number;
-  endLine: number;
-  startOffset: number;
-  endOffset: number;
-}
-
-interface FlowLocation {
-  msg: string;
-  textRange?: TextRange;
-}
-
 interface Comment {
   login: string;
   [x: string]: any;
@@ -43,7 +31,10 @@ interface User {
 
 interface Rule {}
 
-interface Component {}
+interface Component {
+  key: string;
+  name: string;
+}
 
 interface IssueBase {
   severity: string;
@@ -56,7 +47,8 @@ export interface RawIssue extends IssueBase {
   comments?: Array<Comment>;
   component: string;
   flows?: Array<{
-    locations?: FlowLocation[];
+    // `componentName` is not available in RawIssue
+    locations?: Array<T.Omit<T.FlowLocation, 'componentName'>>;
   }>;
   key: string;
   line?: number;
@@ -64,22 +56,20 @@ export interface RawIssue extends IssueBase {
   rule: string;
   status: string;
   subProject?: string;
-  textRange?: TextRange;
+  textRange?: T.TextRange;
 }
 
-interface Issue extends IssueBase {}
-
-export function sortBySeverity(issues: Issue[]): Issue[] {
+export function sortBySeverity(issues: T.Issue[]): T.Issue[] {
   return sortBy(issues, issue => SEVERITIES.indexOf(issue.severity));
 }
 
 function injectRelational(
-  issue: { [x: string]: any },
+  issue: T.Dict<any>,
   source: any[] | undefined,
   baseField: string,
   lookupField: string
 ) {
-  const newFields: { [x: string]: any } = {};
+  const newFields: T.Dict<any> = {};
   const baseValue = issue[baseField];
   if (baseValue !== undefined && source !== undefined) {
     const lookupValue = source.find(candidate => candidate[lookupField] === baseValue);
@@ -107,13 +97,17 @@ function injectCommentsRelational(issue: RawIssue, users?: User[]) {
   return { comments };
 }
 
-function prepareClosed(issue: RawIssue) {
+function prepareClosed(
+  issue: RawIssue,
+  secondaryLocations: T.FlowLocation[],
+  flows: T.FlowLocation[][]
+) {
   return issue.status === 'CLOSED'
-    ? { flows: undefined, line: undefined, textRange: undefined }
-    : {};
+    ? { flows: [], line: undefined, textRange: undefined, secondaryLocations: [] }
+    : { flows, secondaryLocations };
 }
 
-function ensureTextRange(issue: RawIssue): { textRange?: TextRange } {
+function ensureTextRange(issue: RawIssue): { textRange?: T.TextRange } {
   return issue.line && !issue.textRange
     ? {
         textRange: {
@@ -126,18 +120,25 @@ function ensureTextRange(issue: RawIssue): { textRange?: TextRange } {
     : {};
 }
 
-function reverseLocations(locations: FlowLocation[]): FlowLocation[] {
+function reverseLocations(locations: T.FlowLocation[]): T.FlowLocation[] {
   const x = [...locations];
   x.reverse();
   return x;
 }
 
 function splitFlows(
-  issue: RawIssue
-): { secondaryLocations: FlowLocation[]; flows: FlowLocation[][] } {
-  const parsedFlows = (issue.flows || [])
-    .filter(flow => flow.locations != null)
-    .map(flow => flow.locations!.filter(location => location.textRange != null));
+  issue: RawIssue,
+  components: Component[] = []
+): { secondaryLocations: T.FlowLocation[]; flows: T.FlowLocation[][] } {
+  const parsedFlows: T.FlowLocation[][] = (issue.flows || [])
+    .filter(flow => flow.locations !== undefined)
+    .map(flow => flow.locations!.filter(location => location.textRange != null))
+    .map(flow =>
+      flow.map(location => {
+        const component = components.find(component => component.key === location.component);
+        return { ...location, componentName: component && component.name };
+      })
+    );
 
   const onlySecondaryLocations = parsedFlows.every(flow => flow.length === 1);
 
@@ -146,7 +147,7 @@ function splitFlows(
     : { secondaryLocations: [], flows: parsedFlows.map(reverseLocations) };
 }
 
-function orderLocations(locations: FlowLocation[]) {
+function orderLocations(locations: T.FlowLocation[]) {
   return sortBy(
     locations,
     location => location.textRange && location.textRange.startLine,
@@ -159,8 +160,8 @@ export function parseIssueFromResponse(
   components?: Component[],
   users?: User[],
   rules?: Rule[]
-): Issue {
-  const { secondaryLocations, flows } = splitFlows(issue);
+): T.Issue {
+  const { secondaryLocations, flows } = splitFlows(issue, components);
   return {
     ...issue,
     ...injectRelational(issue, components, 'component', 'key'),
@@ -169,9 +170,7 @@ export function parseIssueFromResponse(
     ...injectRelational(issue, rules, 'rule', 'key'),
     ...injectRelational(issue, users, 'assignee', 'login'),
     ...injectCommentsRelational(issue, users),
-    ...prepareClosed(issue),
-    ...ensureTextRange(issue),
-    secondaryLocations,
-    flows
-  };
+    ...prepareClosed(issue, secondaryLocations, flows),
+    ...ensureTextRange(issue)
+  } as T.Issue;
 }

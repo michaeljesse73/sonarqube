@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,6 +25,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 import org.sonar.api.utils.System2;
@@ -71,8 +72,12 @@ public class QualityProfileDao implements Dao {
     return mapper(dbSession).selectOrderedByOrganizationUuid(organization.getUuid());
   }
 
-  public List<RulesProfileDto> selectBuiltInRulesProfiles(DbSession dbSession) {
+  public List<RulesProfileDto> selectBuiltInRuleProfiles(DbSession dbSession) {
     return mapper(dbSession).selectBuiltInRuleProfiles();
+  }
+
+  public List<RulesProfileDto> selectBuiltInRuleProfilesWithActiveRules(DbSession dbSession) {
+    return mapper(dbSession).selectBuiltInRuleProfilesWithActiveRules();
   }
 
   @CheckForNull
@@ -116,6 +121,10 @@ public class QualityProfileDao implements Dao {
     }
   }
 
+  public int updateLastUsedDate(DbSession dbSession, QProfileDto profile, long lastUsedDate) {
+    return mapper(dbSession).updateLastUsedDate(profile.getKee(), lastUsedDate, system.now());
+  }
+
   public void update(DbSession dbSession, RulesProfileDto rulesProfile) {
     QualityProfileMapper mapper = mapper(dbSession);
     long now = system.now();
@@ -129,6 +138,10 @@ public class QualityProfileDao implements Dao {
 
   public List<QProfileDto> selectDefaultProfiles(DbSession dbSession, OrganizationDto organization, Collection<String> languages) {
     return executeLargeInputs(languages, partition -> mapper(dbSession).selectDefaultProfiles(organization.getUuid(), partition));
+  }
+
+  public List<QProfileDto> selectDefaultBuiltInProfilesWithoutActiveRules(DbSession dbSession, Set<String> languages) {
+    return executeLargeInputs(languages, partition -> mapper(dbSession).selectDefaultBuiltInProfilesWithoutActiveRules(partition));
   }
 
   @CheckForNull
@@ -170,6 +183,11 @@ public class QualityProfileDao implements Dao {
   @CheckForNull
   public QProfileDto selectByNameAndLanguage(DbSession dbSession, OrganizationDto organization, String name, String language) {
     return mapper(dbSession).selectByNameAndLanguage(organization.getUuid(), name, language);
+  }
+
+  @CheckForNull
+  public QProfileDto selectByRuleProfileUuid(DbSession dbSession, String organizationUuid, String ruleProfileKee) {
+    return mapper(dbSession).selectByRuleProfileUuid(organizationUuid, ruleProfileKee);
   }
 
   public List<QProfileDto> selectByNameAndLanguages(DbSession dbSession, OrganizationDto organization, String name, Collection<String> languages) {

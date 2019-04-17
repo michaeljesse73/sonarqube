@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -136,7 +136,7 @@ public class EditCommentAction implements IssuesWsAction {
         .orElseThrow(() -> new NotFoundException(format("Comment with key '%s' does not exist", request.getComment())));
       // Load issue now to quickly fail if user hasn't permission to see it
       this.issueDto = issueFinder.getByKey(dbSession, issueChangeDto.getIssueKey());
-      checkArgument(Objects.equals(issueChangeDto.getUserLogin(), userSession.getLogin()), "You can only edit your own comments");
+      checkArgument(Objects.equals(issueChangeDto.getUserUuid(), userSession.getUuid()), "You can only edit your own comments");
     }
 
     IssueChangeDto getIssueChangeDto() {

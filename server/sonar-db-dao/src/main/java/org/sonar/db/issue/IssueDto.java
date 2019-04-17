@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -28,22 +28,20 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Date;
+import java.util.Optional;
 import java.util.Set;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 import org.apache.commons.lang.builder.ToStringBuilder;
 import org.apache.commons.lang.builder.ToStringStyle;
-import org.sonar.api.resources.Project;
 import org.sonar.api.rule.RuleKey;
 import org.sonar.api.rules.RuleType;
 import org.sonar.api.utils.Duration;
 import org.sonar.api.utils.KeyValueFormat;
 import org.sonar.core.issue.DefaultIssue;
-import org.sonar.core.util.Uuids;
 import org.sonar.db.component.ComponentDto;
 import org.sonar.db.protobuf.DbIssues;
 import org.sonar.db.rule.RuleDefinitionDto;
-import org.sonar.db.rule.RuleDto;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.sonar.api.utils.DateUtils.dateToLong;
@@ -71,7 +69,7 @@ public final class IssueDto implements Serializable {
   private String status;
   private String resolution;
   private String checksum;
-  private String assignee;
+  private String assigneeUuid;
   private String authorLogin;
   private String issueAttributes;
   private byte[] locations;
@@ -91,6 +89,7 @@ public final class IssueDto implements Serializable {
   // joins
   private String ruleKey;
   private String ruleRepo;
+  private boolean isExternal;
   private String language;
   private String componentKey;
   private String moduleUuid;
@@ -98,6 +97,9 @@ public final class IssueDto implements Serializable {
   private String projectKey;
   private String filePath;
   private String tags;
+  private boolean isFromHotspot;
+  // populate only when retrieving closed issue for issue tracking
+  private String closedChangeData;
 
   /**
    * On batch side, component keys and uuid are useless
@@ -116,9 +118,11 @@ public final class IssueDto implements Serializable {
       .setSeverity(issue.severity())
       .setManualSeverity(issue.manualSeverity())
       .setChecksum(issue.checksum())
-      .setAssignee(issue.assignee())
+      .setAssigneeUuid(issue.assignee())
       .setRuleId(ruleId)
       .setRuleKey(issue.ruleKey().repository(), issue.ruleKey().rule())
+      .setExternal(issue.isFromExternalRuleEngine())
+      .setIsFromHotspot(issue.isFromHotspot())
       .setTags(issue.tags())
       .setComponentUuid(issue.componentUuid())
       .setComponentKey(issue.componentKey())
@@ -162,10 +166,12 @@ public final class IssueDto implements Serializable {
       .setSeverity(issue.severity())
       .setChecksum(issue.checksum())
       .setManualSeverity(issue.manualSeverity())
-      .setAssignee(issue.assignee())
+      .setAssigneeUuid(issue.assignee())
       .setIssueAttributes(KeyValueFormat.format(issue.attributes()))
       .setAuthorLogin(issue.authorLogin())
       .setRuleKey(issue.ruleKey().repository(), issue.ruleKey().rule())
+      .setExternal(issue.isFromExternalRuleEngine())
+      .setIsFromHotspot(issue.isFromHotspot())
       .setTags(issue.tags())
       .setComponentUuid(issue.componentUuid())
       .setComponentKey(issue.componentKey())
@@ -180,13 +186,6 @@ public final class IssueDto implements Serializable {
 
       // technical date
       .setUpdatedAt(now);
-  }
-
-  public static IssueDto createFor(Project project, RuleDto rule) {
-    return new IssueDto()
-      .setProjectUuid(project.getUuid())
-      .setRuleId(rule.getId())
-      .setKee(Uuids.create());
   }
 
   public String getKey() {
@@ -335,13 +334,13 @@ public final class IssueDto implements Serializable {
   }
 
   @CheckForNull
-  public String getAssignee() {
-    return assignee;
+  public String getAssigneeUuid() {
+    return assigneeUuid;
   }
 
-  public IssueDto setAssignee(@Nullable String s) {
-    checkArgument(s == null || s.length() <= 255, "Value is too long for issue assignee: %s", s);
-    this.assignee = s;
+  public IssueDto setAssigneeUuid(@Nullable String s) {
+    checkArgument(s == null || s.length() <= 255, "Value is too long for issue assigneeUuid: %s", s);
+    this.assigneeUuid = s;
     return this;
   }
 
@@ -455,6 +454,7 @@ public final class IssueDto implements Serializable {
     this.ruleKey = rule.getRuleKey();
     this.ruleRepo = rule.getRepositoryKey();
     this.language = rule.getLanguage();
+    this.isExternal = rule.isExternal();
     return this;
   }
 
@@ -477,6 +477,24 @@ public final class IssueDto implements Serializable {
    */
   public IssueDto setLanguage(String language) {
     this.language = language;
+    return this;
+  }
+
+  public boolean isExternal() {
+    return isExternal;
+  }
+
+  public IssueDto setExternal(boolean external) {
+    isExternal = external;
+    return this;
+  }
+
+  public boolean isFromHotspot() {
+    return isFromHotspot;
+  }
+
+  public IssueDto setIsFromHotspot(boolean value) {
+    isFromHotspot = value;
     return this;
   }
 
@@ -683,6 +701,10 @@ public final class IssueDto implements Serializable {
     return this;
   }
 
+  public Optional<String> getClosedChangeData() {
+    return Optional.ofNullable(closedChangeData);
+  }
+
   @Override
   public String toString() {
     return ToStringBuilder.reflectionToString(this, ToStringStyle.SHORT_PREFIX_STYLE);
@@ -700,7 +722,7 @@ public final class IssueDto implements Serializable {
     issue.setLine(line);
     issue.setChecksum(checksum);
     issue.setSeverity(severity);
-    issue.setAssignee(assignee);
+    issue.setAssigneeUuid(assigneeUuid);
     issue.setAttributes(KeyValueFormat.parse(MoreObjects.firstNonNull(issueAttributes, "")));
     issue.setComponentKey(componentKey);
     issue.setComponentUuid(componentUuid);
@@ -719,6 +741,8 @@ public final class IssueDto implements Serializable {
     issue.setUpdateDate(longToDate(issueUpdateDate));
     issue.setSelectedAt(selectedAt);
     issue.setLocations(parseLocations());
+    issue.setIsFromExternalRuleEngine(isExternal);
+    issue.setIsFromHotspot(isFromHotspot);
     return issue;
   }
 }

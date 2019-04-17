@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,13 +19,16 @@
  */
 package org.sonar.scanner.report;
 
+import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+
 import org.apache.commons.io.IOUtils;
 import org.sonar.api.batch.fs.internal.DefaultInputFile;
 import org.sonar.scanner.protocol.output.ScannerReportWriter;
@@ -41,10 +44,10 @@ public class SourcePublisher implements ReportPublisherStep {
 
   @Override
   public void publish(ScannerReportWriter writer) {
-    for (final DefaultInputFile inputFile : componentCache.allFilesToPublish()) {
-      File iofile = writer.getSourceFile(inputFile.batchId());
+    for (final DefaultInputFile inputFile : componentCache.allChangedFilesToPublish()) {
+      File iofile = writer.getSourceFile(inputFile.scannerId());
 
-      try (FileOutputStream output = new FileOutputStream(iofile);
+      try (OutputStream output = new BufferedOutputStream(new FileOutputStream(iofile));
         InputStream in = inputFile.inputStream();
         BufferedReader reader = new BufferedReader(new InputStreamReader(in, inputFile.charset()))) {
         writeSource(reader, output, inputFile.lines());
@@ -54,7 +57,7 @@ public class SourcePublisher implements ReportPublisherStep {
     }
   }
 
-  private static void writeSource(BufferedReader reader, FileOutputStream output, int lines) throws IOException {
+  private static void writeSource(BufferedReader reader, OutputStream output, int lines) throws IOException {
     int line = 0;
     String lineStr = reader.readLine();
     while (lineStr != null) {

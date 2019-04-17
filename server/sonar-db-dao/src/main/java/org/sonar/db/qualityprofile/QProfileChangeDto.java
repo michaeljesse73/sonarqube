@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -32,7 +32,7 @@ public class QProfileChangeDto {
   private String uuid;
   private String rulesProfileUuid;
   private String changeType;
-  private String login;
+  private String userUuid;
   private String data;
   private long createdAt;
 
@@ -73,12 +73,12 @@ public class QProfileChangeDto {
   }
 
   @CheckForNull
-  public String getLogin() {
-    return login;
+  public String getUserUuid() {
+    return userUuid;
   }
 
-  public QProfileChangeDto setLogin(@Nullable String s) {
-    this.login = s;
+  public QProfileChangeDto setUserUuid(@Nullable String s) {
+    this.userUuid = s;
     return this;
   }
 

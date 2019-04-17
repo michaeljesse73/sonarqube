@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -23,9 +23,10 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
-final class UpdateIf {
+public final class UpdateIf {
   private UpdateIf() {
     // just a wrapping class, prevent instantiation
   }
@@ -34,15 +35,14 @@ final class UpdateIf {
   public static class NewProperties {
     private final CeQueueDto.Status status;
     private final String workerUuid;
-    private final int executionCount;
     private final Long startedAt;
     private final long updatedAt;
 
-    NewProperties(CeQueueDto.Status status, @Nullable String workerUuid, int executionCount,
-      Long startedAt, long updatedAt) {
+    public NewProperties(CeQueueDto.Status status, @Nullable String workerUuid,
+      long startedAt, long updatedAt) {
+      checkArgument(workerUuid == null || workerUuid.length() <= 40, "worker uuid is too long: %s", workerUuid);
       this.status = requireNonNull(status, "status can't be null");
       this.workerUuid = workerUuid;
-      this.executionCount = executionCount;
       this.startedAt = startedAt;
       this.updatedAt = updatedAt;
     }
@@ -56,11 +56,6 @@ final class UpdateIf {
       return workerUuid;
     }
 
-    public int getExecutionCount() {
-      return executionCount;
-    }
-
-    @CheckForNull
     public Long getStartedAt() {
       return startedAt;
     }
@@ -73,19 +68,13 @@ final class UpdateIf {
   @Immutable
   public static class OldProperties {
     private final CeQueueDto.Status status;
-    private final int executionCount;
 
-    OldProperties(CeQueueDto.Status status, int executionCount) {
+    public OldProperties(CeQueueDto.Status status) {
       this.status = requireNonNull(status, "status can't be null");
-      this.executionCount = executionCount;
     }
 
     public CeQueueDto.Status getStatus() {
       return status;
-    }
-
-    public int getExecutionCount() {
-      return executionCount;
     }
   }
 

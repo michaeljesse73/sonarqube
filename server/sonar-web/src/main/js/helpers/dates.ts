@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -17,14 +17,13 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import {
-  differenceInDays as _differenceInDays,
-  differenceInSeconds as _differenceInSeconds,
-  differenceInYears as _differenceInYears,
-  isSameDay as _isSameDay,
-  parse,
-  startOfDay as _startOfDay
-} from 'date-fns';
+import * as _differenceInDays from 'date-fns/difference_in_days';
+import * as _differenceInHours from 'date-fns/difference_in_hours';
+import * as _differenceInSeconds from 'date-fns/difference_in_seconds';
+import * as _differenceInYears from 'date-fns/difference_in_years';
+import * as _isSameDay from 'date-fns/is_same_day';
+import * as _startOfDay from 'date-fns/start_of_day';
+import * as parse from 'date-fns/parse';
 
 function pad(number: number) {
   if (number < 10) {
@@ -61,14 +60,18 @@ export function isSameDay(dateLeft: Date, dateRight: Date): boolean {
   return _isSameDay(dateLeft, dateRight);
 }
 
-export function differenceInYears(dateLeft: Date, dateRight: Date): number {
+export function differenceInYears(dateLeft: ParsableDate, dateRight: ParsableDate): number {
   return _differenceInYears(dateLeft, dateRight);
 }
 
-export function differenceInDays(dateLeft: Date, dateRight: Date): number {
+export function differenceInDays(dateLeft: ParsableDate, dateRight: ParsableDate): number {
   return _differenceInDays(dateLeft, dateRight);
 }
 
-export function differenceInSeconds(dateLeft: Date, dateRight: Date): number {
+export function differenceInHours(dateLeft: ParsableDate, dateRight: ParsableDate): number {
+  return _differenceInHours(dateLeft, dateRight);
+}
+
+export function differenceInSeconds(dateLeft: ParsableDate, dateRight: ParsableDate): number {
   return _differenceInSeconds(dateLeft, dateRight);
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,20 +21,20 @@ import * as React from 'react';
 import { Helmet } from 'react-helmet';
 import Header from './Header';
 import List from './List';
-import { searchUsersGroups, deleteGroup, updateGroup, createGroup } from '../../../api/user_groups';
-import { Group, Paging } from '../../../app/types';
 import ListFooter from '../../../components/controls/ListFooter';
 import SearchBox from '../../../components/controls/SearchBox';
+import Suggestions from '../../../app/components/embed-docs-modal/Suggestions';
+import { searchUsersGroups, deleteGroup, updateGroup, createGroup } from '../../../api/user_groups';
 import { translate } from '../../../helpers/l10n';
 
 interface Props {
-  organization?: { key: string };
+  organization?: Pick<T.Organization, 'key'>;
 }
 
 interface State {
-  groups?: Group[];
+  groups?: T.Group[];
   loading: boolean;
-  paging?: Paging;
+  paging?: T.Paging;
   query: string;
 }
 
@@ -140,6 +140,7 @@ export default class App extends React.PureComponent<Props, State> {
 
     return (
       <>
+        <Suggestions suggestions="user_groups" />
         <Helmet title={translate('user_groups.page')} />
         <div className="page page-limited" id="groups-page">
           <Header loading={loading} onCreate={this.handleCreate} />
@@ -164,17 +165,16 @@ export default class App extends React.PureComponent<Props, State> {
             />
           )}
 
-          {groups !== undefined &&
-            paging !== undefined && (
-              <div id="groups-list-footer">
-                <ListFooter
-                  count={showAnyone ? groups.length + 1 : groups.length}
-                  loadMore={this.fetchMoreGroups}
-                  ready={!loading}
-                  total={showAnyone ? paging.total + 1 : paging.total}
-                />
-              </div>
-            )}
+          {groups !== undefined && paging !== undefined && (
+            <div id="groups-list-footer">
+              <ListFooter
+                count={showAnyone ? groups.length + 1 : groups.length}
+                loadMore={this.fetchMoreGroups}
+                ready={!loading}
+                total={showAnyone ? paging.total + 1 : paging.total}
+              />
+            </div>
+          )}
         </div>
       </>
     );

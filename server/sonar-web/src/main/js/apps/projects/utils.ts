@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -17,9 +17,9 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import { sumBy, uniq } from 'lodash';
+import { uniq } from 'lodash';
 import { Query, convertToFilter } from './query';
-import { translate } from '../../helpers/l10n';
+import { translate, translateWithParameters } from '../../helpers/l10n';
 import { RequestData } from '../../helpers/request';
 import { getOrganizations } from '../../api/organizations';
 import { searchProjects, Facet } from '../../api/components';
@@ -30,6 +30,10 @@ interface SortingOption {
   class?: string;
   value: string;
 }
+
+export const PROJECTS_DEFAULT_FILTER = 'sonarqube.projects.default';
+export const PROJECTS_FAVORITE = 'favorite';
+export const PROJECTS_ALL = 'all';
 
 export const SORTING_METRICS: SortingOption[] = [
   { value: 'name' },
@@ -53,7 +57,7 @@ export const SORTING_LEAK_METRICS: SortingOption[] = [
   { value: 'new_lines', class: 'projects-leak-sorting-option' }
 ];
 
-export const SORTING_SWITCH: { [x: string]: string } = {
+export const SORTING_SWITCH: T.Dict<string> = {
   analysis_date: 'analysis_date',
   name: 'name',
   reliability: 'new_reliability',
@@ -70,7 +74,7 @@ export const SORTING_SWITCH: { [x: string]: string } = {
   new_lines: 'size'
 };
 
-export const VIEWS = ['overall', 'leak'];
+export const VIEWS = [{ value: 'overall', label: 'overall' }, { value: 'leak', label: 'new_code' }];
 
 export const VISUALIZATIONS = [
   'risk',
@@ -111,7 +115,7 @@ const LEAK_METRICS = [
   'new_lines'
 ];
 
-const METRICS_BY_VISUALIZATION: { [x: string]: string[] } = {
+const METRICS_BY_VISUALIZATION: T.Dict<string[]> = {
   risk: ['reliability_rating', 'security_rating', 'coverage', 'ncloc', 'sqale_index'],
   // x, y, size, color
   reliability: ['ncloc', 'reliability_remediation_effort', 'bugs', 'reliability_rating'],
@@ -121,7 +125,7 @@ const METRICS_BY_VISUALIZATION: { [x: string]: string[] } = {
   duplications: ['ncloc', 'duplicated_lines_density', 'duplicated_blocks']
 };
 
-const FACETS = [
+export const FACETS = [
   'reliability_rating',
   'security_rating',
   'sqale_rating',
@@ -133,7 +137,7 @@ const FACETS = [
   'tags'
 ];
 
-const LEAK_FACETS = [
+export const LEAK_FACETS = [
   'new_reliability_rating',
   'new_security_rating',
   'new_maintainability_rating',
@@ -143,21 +147,6 @@ const LEAK_FACETS = [
   'alert_status',
   'languages',
   'tags'
-];
-
-const CUMULATIVE_FACETS = [
-  'reliability',
-  'new_reliability',
-  'security',
-  'new_security',
-  'maintainability',
-  'new_maintainability',
-  'coverage',
-  'new_coverage',
-  'duplications',
-  'new_duplications',
-  'size',
-  'new_lines'
 ];
 
 const REVERSED_FACETS = ['coverage', 'new_coverage'];
@@ -174,34 +163,40 @@ export function parseSorting(sort: string): { sortValue: string; sortDesc: boole
 export function fetchProjects(
   query: Query,
   isFavorite: boolean,
-  organization?: string,
+  organization: T.Organization | undefined,
   pageIndex = 1
 ) {
   const ps = query.view === 'visualizations' ? PAGE_SIZE_VISUALIZATIONS : PAGE_SIZE;
-  const data = convertToQueryData(query, isFavorite, organization, {
+  const data = convertToQueryData(query, isFavorite, organization && organization.key, {
     p: pageIndex > 1 ? pageIndex : undefined,
     ps,
     facets: defineFacets(query).join(),
     f: 'analysisDate,leakPeriodDate'
   });
-  return searchProjects(data).then(({ components, facets, paging }) => {
-    return Promise.all([
-      fetchProjectMeasures(components, query),
-      fetchProjectOrganizations(components)
-    ]).then(([measures, organizations]) => {
+  return searchProjects(data)
+    .then(response =>
+      Promise.all([
+        fetchProjectMeasures(response.components, query),
+        fetchProjectOrganizations(response.components, organization),
+        Promise.resolve(response)
+      ])
+    )
+    .then(([measures, organizations, { components, facets, paging }]) => {
       return {
         facets: getFacetsMap(facets),
         projects: components
           .map(component => {
-            const componentMeasures: { [key: string]: string } = {};
-            measures.filter(measure => measure.component === component.key).forEach(measure => {
-              const value = isDiffMetric(measure.metric)
-                ? getPeriodValue(measure, 1)
-                : measure.value;
-              if (value !== undefined) {
-                componentMeasures[measure.metric] = value;
-              }
-            });
+            const componentMeasures: T.Dict<string> = {};
+            measures
+              .filter(measure => measure.component === component.key)
+              .forEach(measure => {
+                const value = isDiffMetric(measure.metric)
+                  ? getPeriodValue(measure, 1)
+                  : measure.value;
+                if (value !== undefined) {
+                  componentMeasures[measure.metric] = value;
+                }
+              });
             return { ...component, measures: componentMeasures };
           })
           .map(component => {
@@ -211,7 +206,6 @@ export function fetchProjects(
         total: paging.total
       };
     });
-  });
 }
 
 function defineMetrics(query: Query): string[] {
@@ -240,7 +234,7 @@ function convertToQueryData(
 ) {
   const data: RequestData = { ...defaultData, organization };
   const filter = convertToFilter(query, isFavorite);
-  const sort = convertToSorting(query as any);
+  const sort = convertToSorting(query);
 
   if (filter) {
     data.filter = filter;
@@ -254,7 +248,7 @@ function convertToQueryData(
   return data;
 }
 
-function fetchProjectMeasures(projects: Array<{ key: string }>, query: Query) {
+export function fetchProjectMeasures(projects: Array<{ key: string }>, query: Query) {
   if (!projects.length) {
     return Promise.resolve([]);
   }
@@ -264,7 +258,13 @@ function fetchProjectMeasures(projects: Array<{ key: string }>, query: Query) {
   return getMeasuresForProjects(projectKeys, metrics);
 }
 
-function fetchProjectOrganizations(projects: Array<{ organization: string }>) {
+export function fetchProjectOrganizations(
+  projects: Array<{ organization: string }>,
+  organization: T.Organization | undefined
+) {
+  if (organization) {
+    return Promise.resolve([organization]);
+  }
   if (!projects.length) {
     return Promise.resolve([]);
   }
@@ -274,47 +274,28 @@ function fetchProjectOrganizations(projects: Array<{ organization: string }>) {
 }
 
 function mapFacetValues(values: Array<{ val: string; count: number }>) {
-  const map: { [value: string]: number } = {};
+  const map: T.Dict<number> = {};
   values.forEach(value => {
     map[value.val] = value.count;
   });
   return map;
 }
 
-export function cumulativeMapFacetValues(values: Array<{ val: string; count: number }>) {
-  const noDataVal = values.find(value => value.val === 'NO_DATA');
-  const filteredValues = noDataVal ? values.filter(value => value.val !== 'NO_DATA') : values;
-
-  let sum = sumBy(filteredValues, value => value.count);
-  const map: { [value: string]: number } = {};
-  filteredValues.forEach((value, index) => {
-    map[value.val] = index > 0 && index < values.length - 1 ? sum : value.count;
-    sum -= value.count;
-  });
-
-  if (noDataVal) {
-    map[noDataVal.val] = noDataVal.count;
-  }
-  return map;
-}
-
 function getFacetsMap(facets: Facet[]) {
-  const map: { [property: string]: { [value: string]: number } } = {};
+  const map: T.Dict<T.Dict<number>> = {};
   facets.forEach(facet => {
     const property = mapMetricToProperty(facet.property);
     const { values } = facet;
     if (REVERSED_FACETS.includes(property)) {
       values.reverse();
     }
-    map[property] = CUMULATIVE_FACETS.includes(property)
-      ? cumulativeMapFacetValues(values)
-      : mapFacetValues(values);
+    map[property] = mapFacetValues(values);
   });
   return map;
 }
 
 function mapPropertyToMetric(property?: string) {
-  const map: { [property: string]: string } = {
+  const map: T.Dict<string> = {
     analysis_date: 'analysisDate',
     reliability: 'reliability_rating',
     new_reliability: 'new_reliability_rating',
@@ -344,7 +325,7 @@ function convertToSorting({ sort }: Query): { s?: string; asc?: boolean } {
 }
 
 function mapMetricToProperty(metricKey: string) {
-  const map: { [metric: string]: string } = {
+  const map: T.Dict<string> = {
     analysisDate: 'analysis_date',
     reliability_rating: 'reliability',
     new_reliability_rating: 'new_reliability',
@@ -364,4 +345,48 @@ function mapMetricToProperty(metricKey: string) {
     query: 'search'
   };
   return map[metricKey];
+}
+
+const ONE_MINUTE = 60000;
+const ONE_HOUR = 60 * ONE_MINUTE;
+const ONE_DAY = 24 * ONE_HOUR;
+const ONE_MONTH = 30 * ONE_DAY;
+const ONE_YEAR = 12 * ONE_MONTH;
+
+function format(periods: Array<{ value: number; label: string }>) {
+  let result = '';
+  let count = 0;
+  let lastId = -1;
+  for (let i = 0; i < periods.length && count < 2; i++) {
+    if (periods[i].value > 0) {
+      count++;
+      if (lastId < 0 || lastId + 1 === i) {
+        lastId = i;
+        result += translateWithParameters(periods[i].label, periods[i].value) + ' ';
+      }
+    }
+  }
+  return result;
+}
+
+export function formatDuration(ms: number) {
+  if (ms < ONE_MINUTE) {
+    return translate('duration.seconds');
+  }
+  const years = Math.floor(ms / ONE_YEAR);
+  ms -= years * ONE_YEAR;
+  const months = Math.floor(ms / ONE_MONTH);
+  ms -= months * ONE_MONTH;
+  const days = Math.floor(ms / ONE_DAY);
+  ms -= days * ONE_DAY;
+  const hours = Math.floor(ms / ONE_HOUR);
+  ms -= hours * ONE_HOUR;
+  const minutes = Math.floor(ms / ONE_MINUTE);
+  return format([
+    { value: years, label: 'duration.years' },
+    { value: months, label: 'duration.months' },
+    { value: days, label: 'duration.days' },
+    { value: hours, label: 'duration.hours' },
+    { value: minutes, label: 'duration.minutes' }
+  ]);
 }

@@ -45,14 +45,54 @@ exports[`renders for SonarCloud 1`] = `
     <div
       className="huge-spacer-top"
     >
-      <a
-        className="button"
-        href="#"
-        onClick={[Function]}
+      <Button
+        onClick={[MockFunction]}
       >
-        my_account.analyze_new_project
-      </a>
-      <Dropdown />
+        provisioning.analyze_new_project
+      </Button>
+      <Dropdown
+        className="display-inline-block big-spacer-left"
+        overlay={
+          <ul
+            className="menu"
+          >
+            <OrganizationListItem
+              organization={
+                Object {
+                  "actions": Object {
+                    "admin": true,
+                  },
+                  "key": "org1",
+                  "name": "org1",
+                  "projectVisibility": "public",
+                }
+              }
+            />
+            <OrganizationListItem
+              organization={
+                Object {
+                  "actions": Object {
+                    "admin": false,
+                  },
+                  "key": "org2",
+                  "name": "org2",
+                  "projectVisibility": "public",
+                }
+              }
+            />
+          </ul>
+        }
+      >
+        <a
+          className="button"
+          href="#"
+        >
+          projects.no_favorite_projects.favorite_projects_from_orgs
+          <DropdownIcon
+            className="little-spacer-left"
+          />
+        </a>
+      </Dropdown>
       <Link
         className="button big-spacer-left"
         onlyActiveOnIndex={false}

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,42 +18,55 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import Checkbox from '../../../../components/controls/Checkbox';
+import { without } from 'lodash';
+import PermissionCell from './PermissionCell';
 import GroupIcon from '../../../../components/icons-components/GroupIcon';
-import { PermissionGroup } from '../../../../api/permissions';
+import { isPermissionDefinitionGroup } from '../../utils';
 
 interface Props {
-  group: PermissionGroup;
-  permissions: string[];
+  group: T.PermissionGroup;
+  onToggle: (group: T.PermissionGroup, permission: string) => Promise<void>;
+  permissions: T.PermissionDefinitions;
   selectedPermission?: string;
-  permissionsOrder: string[];
-  onToggle: (group: PermissionGroup, permission: string) => void;
 }
 
-export default class GroupHolder extends React.PureComponent<Props> {
-  handleCheck = (_checked: boolean, permission?: string) =>
-    permission && this.props.onToggle(this.props.group, permission);
+interface State {
+  loading: string[];
+}
+
+export default class GroupHolder extends React.PureComponent<Props, State> {
+  mounted = false;
+  state: State = { loading: [] };
+
+  componentDidMount() {
+    this.mounted = true;
+  }
+
+  componentWillUnmount() {
+    this.mounted = false;
+  }
+
+  stopLoading = (permission: string) => {
+    if (this.mounted) {
+      this.setState(state => ({ loading: without(state.loading, permission) }));
+    }
+  };
+
+  handleCheck = (_checked: boolean, permission?: string) => {
+    if (permission !== undefined) {
+      this.setState(state => ({ loading: [...state.loading, permission] }));
+      this.props
+        .onToggle(this.props.group, permission)
+        .then(() => this.stopLoading(permission), () => this.stopLoading(permission));
+    }
+  };
 
   render() {
-    const { selectedPermission } = this.props;
-    const permissionCells = this.props.permissionsOrder.map(permission => (
-      <td
-        key={permission}
-        className="text-center text-middle"
-        style={{ backgroundColor: permission === selectedPermission ? '#d9edf7' : 'transparent' }}>
-        <Checkbox
-          checked={this.props.permissions.includes(permission)}
-          id={permission}
-          onCheck={this.handleCheck}
-        />
-      </td>
-    ));
-
     const { group } = this.props;
 
     return (
       <tr>
-        <td className="nowrap">
+        <td className="nowrap text-middle">
           <div className="display-inline-block text-middle big-spacer-right">
             <GroupIcon />
           </div>
@@ -66,7 +79,16 @@ export default class GroupHolder extends React.PureComponent<Props> {
             </div>
           </div>
         </td>
-        {permissionCells}
+        {this.props.permissions.map(permission => (
+          <PermissionCell
+            key={isPermissionDefinitionGroup(permission) ? permission.category : permission.key}
+            loading={this.state.loading}
+            onCheck={this.handleCheck}
+            permission={permission}
+            permissionItem={group}
+            selectedPermission={this.props.selectedPermission}
+          />
+        ))}
       </tr>
     );
   }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -39,10 +39,5 @@
 }
 
 .bt-workers-warning-icon {
-  position: relative;
-  top: -1px;
-}
-
-.bt-workers-warning-icon::before {
-  color: #d3d3d3;
+  margin-top: 5px;
 }

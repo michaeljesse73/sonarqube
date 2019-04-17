@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -57,7 +57,7 @@ public class QualityProfileTesting {
       .setRulesProfileUuid(randomAlphanumeric(40))
       .setCreatedAt(nextLong())
       .setChangeType("ACTIVATED")
-      .setLogin(randomAlphanumeric(10));
+      .setUserUuid("userUuid_" + randomAlphanumeric(10));
   }
 
   /**

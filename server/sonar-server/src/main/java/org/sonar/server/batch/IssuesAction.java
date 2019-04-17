@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,11 +22,12 @@ package org.sonar.server.batch;
 import com.google.common.base.Splitter;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import org.apache.ibatis.session.ResultHandler;
 import org.sonar.api.resources.Scopes;
 import org.sonar.api.rules.RuleType;
+import org.sonar.api.server.ws.Change;
 import org.sonar.api.server.ws.Request;
 import org.sonar.api.server.ws.Response;
 import org.sonar.api.server.ws.WebService;
@@ -34,6 +35,7 @@ import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
 import org.sonar.db.component.ComponentDto;
 import org.sonar.db.issue.IssueDto;
+import org.sonar.db.user.UserDto;
 import org.sonar.scanner.protocol.input.ScannerInput;
 import org.sonar.server.component.ComponentFinder;
 import org.sonar.server.user.UserSession;
@@ -42,8 +44,10 @@ import org.sonarqube.ws.MediaTypes;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.Maps.newHashMap;
 import static java.lang.String.format;
+import static java.util.Optional.ofNullable;
+import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.toMap;
 import static org.sonar.api.web.UserRole.USER;
-import static org.sonar.core.util.Protobuf.setNullable;
 import static org.sonar.server.ws.KeyExamples.KEY_BRANCH_EXAMPLE_001;
 import static org.sonar.server.ws.KeyExamples.KEY_PROJECT_EXAMPLE_001;
 
@@ -69,6 +73,7 @@ public class IssuesAction implements BatchWsAction {
       .setDescription("Return open issues")
       .setResponseExample(getClass().getResource("issues-example.proto"))
       .setSince("5.1")
+      .setChangelog(new Change("7.6", String.format("The use of module keys in parameter '%s' is deprecated", PARAM_KEY)))
       .setInternal(true)
       .setHandler(this);
 
@@ -96,40 +101,49 @@ public class IssuesAction implements BatchWsAction {
       response.stream().setMediaType(MediaTypes.PROTOBUF);
       OutputStream output = response.stream().output();
 
-      ResultHandler<IssueDto> handler = resultContext -> {
-        IssueDto issue = resultContext.getResultObject();
-        handleIssue(issue, responseBuilder, keysByUUid, output);
-      };
+      List<IssueDto> issueDtos = new ArrayList<>();
       switch (component.scope()) {
         case Scopes.PROJECT:
-          dbClient.issueDao().scrollNonClosedByModuleOrProject(dbSession, component, handler);
+          issueDtos.addAll(dbClient.issueDao().selectNonClosedByModuleOrProjectExcludingExternalsAndSecurityHotspots(dbSession, component));
           break;
         case Scopes.FILE:
-          dbClient.issueDao().scrollNonClosedByComponentUuid(dbSession, component.uuid(), handler);
+          issueDtos.addAll(dbClient.issueDao().selectNonClosedByComponentUuidExcludingExternalsAndSecurityHotspots(dbSession, component.uuid()));
           break;
         default:
           // only projects, modules and files are supported. Other types of components are not allowed.
           throw new IllegalArgumentException(format("Component of scope '%s' is not allowed", component.scope()));
       }
+
+      List<String> usersUuids = issueDtos.stream()
+        .filter(issue -> issue.getAssigneeUuid() != null)
+        .map(IssueDto::getAssigneeUuid)
+        .collect(toList());
+
+      Map<String, String> userLoginsByUserUuids = dbClient.userDao().selectByUuids(dbSession, usersUuids)
+        .stream().collect(toMap(UserDto::getUuid, UserDto::getLogin));
+
+      issueDtos.forEach(issue -> {
+        issue.setAssigneeUuid(userLoginsByUserUuids.get(issue.getAssigneeUuid()));
+        handleIssue(issue, responseBuilder, keysByUUid, output);
+      });
     }
   }
 
-  private static void handleIssue(IssueDto issue, ScannerInput.ServerIssue.Builder issueBuilder,
-    Map<String, String> keysByUUid, OutputStream out) {
+  private static void handleIssue(IssueDto issue, ScannerInput.ServerIssue.Builder issueBuilder, Map<String, String> keysByUUid, OutputStream out) {
     issueBuilder.setKey(issue.getKey());
     String moduleUuid = extractModuleUuid(issue);
     issueBuilder.setModuleKey(keysByUUid.get(moduleUuid));
-    setNullable(issue.getFilePath(), issueBuilder::setPath);
+    ofNullable(issue.getFilePath()).ifPresent(issueBuilder::setPath);
     issueBuilder.setRuleRepository(issue.getRuleRepo());
     issueBuilder.setRuleKey(issue.getRule());
-    setNullable(issue.getChecksum(), issueBuilder::setChecksum);
-    setNullable(issue.getAssignee(), issueBuilder::setAssigneeLogin);
-    setNullable(issue.getLine(), issueBuilder::setLine);
-    setNullable(issue.getMessage(), issueBuilder::setMsg);
+    ofNullable(issue.getChecksum()).ifPresent(issueBuilder::setChecksum);
+    ofNullable(issue.getAssigneeUuid()).ifPresent(issueBuilder::setAssigneeLogin);
+    ofNullable(issue.getLine()).ifPresent(issueBuilder::setLine);
+    ofNullable(issue.getMessage()).ifPresent(issueBuilder::setMsg);
     issueBuilder.setSeverity(org.sonar.scanner.protocol.Constants.Severity.valueOf(issue.getSeverity()));
     issueBuilder.setManualSeverity(issue.isManualSeverity());
     issueBuilder.setStatus(issue.getStatus());
-    setNullable(issue.getResolution(), issueBuilder::setResolution);
+    ofNullable(issue.getResolution()).ifPresent(issueBuilder::setResolution);
     issueBuilder.setType(RuleType.valueOf(issue.getType()).name());
     issueBuilder.setCreationDate(issue.getIssueCreationTime());
     try {

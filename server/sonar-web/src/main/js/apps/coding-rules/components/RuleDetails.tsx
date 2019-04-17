@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -28,29 +28,31 @@ import RuleDetailsProfiles from './RuleDetailsProfiles';
 import { Query, Activation } from '../query';
 import { Profile } from '../../../api/quality-profiles';
 import { getRuleDetails, deleteRule, updateRule } from '../../../api/rules';
-import { RuleActivation, RuleDetails as IRuleDetails } from '../../../app/types';
 import DeferredSpinner from '../../../components/common/DeferredSpinner';
 import ConfirmButton from '../../../components/controls/ConfirmButton';
+import DocTooltip from '../../../components/docs/DocTooltip';
+import { Button } from '../../../components/ui/buttons';
 import { translate, translateWithParameters } from '../../../helpers/l10n';
 
 interface Props {
   allowCustomRules?: boolean;
   canWrite?: boolean;
+  hideQualityProfiles?: boolean;
   onActivate: (profile: string, rule: string, activation: Activation) => void;
   onDeactivate: (profile: string, rule: string) => void;
   onDelete: (rule: string) => void;
   onFilterChange: (changes: Partial<Query>) => void;
   organization: string | undefined;
-  referencedProfiles: { [profile: string]: Profile };
-  referencedRepositories: { [repository: string]: { key: string; language: string; name: string } };
+  referencedProfiles: T.Dict<Profile>;
+  referencedRepositories: T.Dict<{ key: string; language: string; name: string }>;
   ruleKey: string;
   selectedProfile?: Profile;
 }
 
 interface State {
-  actives?: RuleActivation[];
+  actives?: T.RuleActivation[];
   loading: boolean;
-  ruleDetails?: IRuleDetails;
+  ruleDetails?: T.RuleDetails;
 }
 
 export default class RuleDetails extends React.PureComponent<Props, State> {
@@ -92,7 +94,7 @@ export default class RuleDetails extends React.PureComponent<Props, State> {
       }
     );
 
-  handleRuleChange = (ruleDetails: IRuleDetails) => {
+  handleRuleChange = (ruleDetails: T.RuleDetails) => {
     if (this.mounted) {
       this.setState({ ruleDetails });
     }
@@ -101,14 +103,18 @@ export default class RuleDetails extends React.PureComponent<Props, State> {
   handleTagsChange = (tags: string[]) => {
     // optimistic update
     const oldTags = this.state.ruleDetails && this.state.ruleDetails.tags;
-    this.setState(state => ({ ruleDetails: { ...state.ruleDetails, tags } }));
+    this.setState(state =>
+      state.ruleDetails ? { ruleDetails: { ...state.ruleDetails, tags } } : null
+    );
     updateRule({
       key: this.props.ruleKey,
       organization: this.props.organization,
       tags: tags.join()
     }).catch(() => {
       if (this.mounted) {
-        this.setState(state => ({ ruleDetails: { ...state.ruleDetails, tags: oldTags } }));
+        this.setState(state =>
+          state.ruleDetails ? { ruleDetails: { ...state.ruleDetails, tags: oldTags } } : null
+        );
       }
     });
   };
@@ -146,7 +152,13 @@ export default class RuleDetails extends React.PureComponent<Props, State> {
       return <div className="coding-rule-details" />;
     }
 
-    const { allowCustomRules, canWrite, organization, referencedProfiles } = this.props;
+    const {
+      allowCustomRules,
+      canWrite,
+      hideQualityProfiles,
+      organization,
+      referencedProfiles
+    } = this.props;
     const { params = [] } = ruleDetails;
 
     const isCustom = !!ruleDetails.templateKey;
@@ -174,7 +186,7 @@ export default class RuleDetails extends React.PureComponent<Props, State> {
           {params.length > 0 && <RuleDetailsParameters params={params} />}
 
           {isEditable && (
-            <div className="coding-rules-detail-description">
+            <div className="coding-rules-detail-description display-flex-center">
               {/* `templateRule` is used to get rule meta data, `customRule` is used to get parameter values */}
               {/* it's expected to pass the same rule to both parameters */}
               <CustomRuleButton
@@ -183,12 +195,12 @@ export default class RuleDetails extends React.PureComponent<Props, State> {
                 organization={organization}
                 templateRule={ruleDetails}>
                 {({ onClick }) => (
-                  <button
+                  <Button
                     className="js-edit-custom"
                     id="coding-rules-detail-custom-rule-change"
                     onClick={onClick}>
                     {translate('edit')}
-                  </button>
+                  </Button>
                 )}
               </CustomRuleButton>
               <ConfirmButton
@@ -201,12 +213,18 @@ export default class RuleDetails extends React.PureComponent<Props, State> {
                 modalHeader={translate('coding_rules.delete_rule')}
                 onConfirm={this.handleDelete}>
                 {({ onClick }) => (
-                  <button
-                    className="button-red spacer-left js-delete"
-                    id="coding-rules-detail-rule-delete"
-                    onClick={onClick}>
-                    {translate('delete')}
-                  </button>
+                  <>
+                    <Button
+                      className="button-red spacer-left js-delete"
+                      id="coding-rules-detail-rule-delete"
+                      onClick={onClick}>
+                      {translate('delete')}
+                    </Button>
+                    <DocTooltip
+                      className="spacer-left"
+                      doc={import(/* webpackMode: "eager" */ 'Docs/tooltips/rules/custom-rule-removal.md')}
+                    />
+                  </>
                 )}
               </ConfirmButton>
             </div>
@@ -220,7 +238,7 @@ export default class RuleDetails extends React.PureComponent<Props, State> {
             />
           )}
 
-          {!ruleDetails.isTemplate && (
+          {!ruleDetails.isTemplate && !hideQualityProfiles && (
             <RuleDetailsProfiles
               activations={this.state.actives}
               canWrite={canWrite}
@@ -233,7 +251,7 @@ export default class RuleDetails extends React.PureComponent<Props, State> {
           )}
 
           {!ruleDetails.isTemplate && (
-            <RuleDetailsIssues organization={organization} ruleKey={ruleDetails.key} />
+            <RuleDetailsIssues organization={organization} ruleDetails={ruleDetails} />
           )}
         </DeferredSpinner>
       </div>

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,10 +19,8 @@
  */
 package org.sonar.xoo.lang;
 
-import com.google.common.base.Splitter;
 import java.io.File;
 import java.io.IOException;
-import java.util.Iterator;
 import java.util.List;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
@@ -30,12 +28,13 @@ import org.sonar.api.batch.fs.InputFile;
 import org.sonar.api.batch.sensor.Sensor;
 import org.sonar.api.batch.sensor.SensorContext;
 import org.sonar.api.batch.sensor.SensorDescriptor;
-import org.sonar.api.component.ResourcePerspectives;
-import org.sonar.api.source.Highlightable;
-import org.sonar.api.source.Highlightable.HighlightingBuilder;
+import org.sonar.api.batch.sensor.highlighting.NewHighlighting;
+import org.sonar.api.batch.sensor.highlighting.TypeOfText;
 import org.sonar.api.utils.log.Logger;
 import org.sonar.api.utils.log.Loggers;
 import org.sonar.xoo.Xoo;
+
+import static java.lang.Integer.parseInt;
 
 /**
  * Parse files *.xoo.highlighting
@@ -43,14 +42,7 @@ import org.sonar.xoo.Xoo;
 public class SyntaxHighlightingSensor implements Sensor {
 
   private static final Logger LOG = Loggers.get(SyntaxHighlightingSensor.class);
-
   private static final String HIGHLIGHTING_EXTENSION = ".highlighting";
-
-  private final ResourcePerspectives perspectives;
-
-  public SyntaxHighlightingSensor(ResourcePerspectives perspectives) {
-    this.perspectives = perspectives;
-  }
 
   private void processFileHighlighting(InputFile inputFile, SensorContext context) {
     File ioFile = inputFile.file();
@@ -60,30 +52,39 @@ public class SyntaxHighlightingSensor implements Sensor {
       try {
         List<String> lines = FileUtils.readLines(highlightingFile, context.fileSystem().encoding().name());
         int lineNumber = 0;
-        Highlightable highlightable = perspectives.as(Highlightable.class, inputFile);
-        if (highlightable != null) {
-          HighlightingBuilder highlightingBuilder = highlightable.newHighlighting();
-          for (String line : lines) {
-            lineNumber++;
-            if (StringUtils.isBlank(line) || line.startsWith("#")) {
-              continue;
-            }
-            processLine(highlightingFile, lineNumber, highlightingBuilder, line);
+        NewHighlighting highlighting = context.newHighlighting()
+          .onFile(inputFile);
+        for (String line : lines) {
+          lineNumber++;
+          if (StringUtils.isBlank(line) || line.startsWith("#")) {
+            continue;
           }
-          highlightingBuilder.done();
+          processLine(highlightingFile, lineNumber, highlighting, line);
         }
+        highlighting.save();
       } catch (IOException e) {
         throw new IllegalStateException(e);
       }
     }
   }
 
-  private static void processLine(File highlightingFile, int lineNumber, HighlightingBuilder highlightingBuilder, String line) {
+  private static void processLine(File highlightingFile, int lineNumber, NewHighlighting highlighting, String line) {
     try {
-      Iterator<String> split = Splitter.on(":").split(line).iterator();
-      int startOffset = Integer.parseInt(split.next());
-      int endOffset = Integer.parseInt(split.next());
-      highlightingBuilder.highlight(startOffset, endOffset, split.next());
+      String[] split = line.split(":");
+      if (split.length == 3) {
+        int startOffset = parseInt(split[0]);
+        int endOffset = parseInt(split[1]);
+        highlighting.highlight(startOffset, endOffset, TypeOfText.forCssClass(split[2]));
+      } else if (split.length == 5) {
+        int startLine = parseInt(split[0]);
+        int startLineOffset = parseInt(split[1]);
+        int endLine = parseInt(split[2]);
+        int endLineOffset = parseInt(split[3]);
+        highlighting.highlight(startLine, startLineOffset, endLine, endLineOffset, TypeOfText.forCssClass(split[4]));
+      } else {
+        throw new IllegalStateException("Illegal number of elements separated by ':'. " +
+          "Must either be startOffset:endOffset:class (offset in whole file) or startLine:startLineOffset:endLine:endLineOffset:class");
+      }
     } catch (Exception e) {
       throw new IllegalStateException("Error processing line " + lineNumber + " of file " + highlightingFile.getAbsolutePath(), e);
     }

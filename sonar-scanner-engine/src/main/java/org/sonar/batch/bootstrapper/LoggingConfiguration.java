@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -66,14 +66,7 @@ public final class LoggingConfiguration {
   }
 
   public LoggingConfiguration setProperties(Map<String, String> properties) {
-    setShowSql(properties, null);
-    setVerbose(properties, null);
-    return this;
-  }
-
-  public LoggingConfiguration setProperties(Map<String, String> properties, @Nullable Map<String, String> fallback) {
-    setShowSql(properties, fallback);
-    setVerbose(properties, fallback);
+    setVerbose(properties);
     return this;
   }
 
@@ -90,10 +83,10 @@ public final class LoggingConfiguration {
     return verbose;
   }
 
-  public LoggingConfiguration setVerbose(Map<String, String> props, @Nullable Map<String, String> fallback) {
-    String logLevel = getFallback("sonar.log.level", props, fallback);
-    String deprecatedProfilingLevel = getFallback("sonar.log.profilingLevel", props, fallback);
-    verbose = "true".equals(getFallback("sonar.verbose", props, fallback)) ||
+  public LoggingConfiguration setVerbose(Map<String, String> props) {
+    String logLevel = props.get("sonar.log.level");
+    String deprecatedProfilingLevel = props.get("sonar.log.profilingLevel");
+    verbose = "true".equals(props.get("sonar.verbose")) ||
       "DEBUG".equals(logLevel) || "TRACE".equals(logLevel) ||
       "BASIC".equals(deprecatedProfilingLevel) || "FULL".equals(deprecatedProfilingLevel);
 
@@ -115,22 +108,6 @@ public final class LoggingConfiguration {
 
   public LoggingConfiguration setRootLevel(String level) {
     return addSubstitutionVariable(PROPERTY_ROOT_LOGGER_LEVEL, level);
-  }
-
-  /**
-   * @deprecated since 5.2 there is no more db access from scanner side
-   */
-  @Deprecated
-  public LoggingConfiguration setShowSql(boolean showSql) {
-    return this;
-  }
-
-  /**
-   * @deprecated since 5.2 there is no more db access from scanner side
-   */
-  @Deprecated
-  public LoggingConfiguration setShowSql(Map<String, String> properties, @Nullable Map<String, String> fallback) {
-    return this;
   }
 
   @VisibleForTesting

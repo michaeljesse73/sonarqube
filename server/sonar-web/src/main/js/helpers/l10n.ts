@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,6 +19,11 @@
  */
 import { getJSON } from './request';
 import { toNotSoISOString } from './dates';
+import { save, get } from './storage';
+
+const L10_TIMESTAMP = 'l10n.timestamp';
+const L10_LOCALE = 'l10n.locale';
+const L10_BUNDLE = 'l10n.bundle';
 
 interface LanguageBundle {
   [name: string]: string;
@@ -77,7 +82,7 @@ function getPreferredLanguage(): string | undefined {
 }
 
 function checkCachedBundle(): boolean {
-  const cached = localStorage.getItem('l10n.bundle');
+  const cached = get(L10_BUNDLE);
 
   if (!cached) {
     return false;
@@ -98,14 +103,14 @@ function getL10nBundle(params: BundleRequestParams): Promise<BundleRequestRespon
 
 export function requestMessages(): Promise<string> {
   const browserLocale = getPreferredLanguage();
-  const cachedLocale = localStorage.getItem('l10n.locale');
+  const cachedLocale = get(L10_LOCALE);
   const params: BundleRequestParams = {};
 
   if (browserLocale) {
     params.locale = browserLocale;
 
     if (cachedLocale && browserLocale.startsWith(cachedLocale)) {
-      const bundleTimestamp = localStorage.getItem('l10n.timestamp');
+      const bundleTimestamp = get(L10_TIMESTAMP);
       if (bundleTimestamp !== null && checkCachedBundle()) {
         params.ts = bundleTimestamp;
       }
@@ -114,20 +119,16 @@ export function requestMessages(): Promise<string> {
 
   return getL10nBundle(params).then(
     ({ effectiveLocale, messages }: BundleRequestResponse) => {
-      try {
-        const currentTimestamp = toNotSoISOString(new Date());
-        localStorage.setItem('l10n.timestamp', currentTimestamp);
-        localStorage.setItem('l10n.locale', effectiveLocale);
-        localStorage.setItem('l10n.bundle', JSON.stringify(messages));
-      } catch (e) {
-        // do nothing
-      }
+      const currentTimestamp = toNotSoISOString(new Date());
+      save(L10_TIMESTAMP, currentTimestamp);
+      save(L10_LOCALE, effectiveLocale);
+      save(L10_BUNDLE, JSON.stringify(messages));
       resetBundle(messages);
       return effectiveLocale;
     },
     ({ response }) => {
       if (response && response.status === 304) {
-        resetBundle(JSON.parse(localStorage.getItem('l10n.bundle') || '{}'));
+        resetBundle(JSON.parse(get(L10_BUNDLE) || '{}') as LanguageBundle);
       } else {
         throw new Error('Unexpected status code: ' + response.status);
       }
@@ -146,43 +147,58 @@ export function installGlobal() {
   (window as any).requestMessages = requestMessages;
 }
 
-export function getLocalizedDashboardName(baseName: string) {
-  const l10nKey = `dashboard.${baseName}.name`;
-  const l10nLabel = translate(l10nKey);
-  return l10nLabel !== l10nKey ? l10nLabel : baseName;
-}
-
 export function getLocalizedMetricName(
   metric: { key: string; name?: string },
   short?: boolean
 ): string {
   const bundleKey = `metric.${metric.key}.${short ? 'short_name' : 'name'}`;
-  const fromBundle = translate(bundleKey);
-  if (fromBundle === bundleKey) {
-    if (short) {
-      return getLocalizedMetricName(metric);
-    }
+  if (hasMessage(bundleKey)) {
+    return translate(bundleKey);
+  } else if (short) {
+    return getLocalizedMetricName(metric);
+  } else {
     return metric.name || metric.key;
   }
-  return fromBundle;
 }
 
 export function getLocalizedCategoryMetricName(metric: { key: string; name?: string }) {
   const bundleKey = `metric.${metric.key}.extra_short_name`;
-  const fromBundle = translate(bundleKey);
-  return fromBundle === bundleKey ? getLocalizedMetricName(metric, true) : fromBundle;
+  return hasMessage(bundleKey) ? translate(bundleKey) : getLocalizedMetricName(metric, true);
 }
 
 export function getLocalizedMetricDomain(domainName: string) {
   const bundleKey = `metric_domain.${domainName}`;
-  const fromBundle = translate(bundleKey);
-  return fromBundle !== bundleKey ? fromBundle : domainName;
+  return hasMessage(bundleKey) ? translate(bundleKey) : domainName;
 }
 
 export function getCurrentLocale() {
-  // check `window && window.localStorage` for tests
-  return (
-    (window && window.localStorage && window.localStorage.getItem('l10n.locale')) ||
-    DEFAULT_LANGUAGE
-  );
+  return get(L10_LOCALE) || DEFAULT_LANGUAGE;
+}
+
+export function getShortMonthName(index: number) {
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec'
+  ];
+  return translate(months[index]);
+}
+
+export function getWeekDayName(index: number) {
+  const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  return weekdays[index] ? translate(weekdays[index]) : '';
+}
+
+export function getShortWeekDayName(index: number) {
+  const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  return weekdays[index] ? translate(weekdays[index]) : '';
 }

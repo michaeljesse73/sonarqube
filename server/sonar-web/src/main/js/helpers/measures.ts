@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,28 +18,9 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import { translate, translateWithParameters, getCurrentLocale } from './l10n';
-import { Metric } from '../app/types';
+import { isDefined } from './types';
 
 const HOURS_IN_DAY = 8;
-
-export interface MeasurePeriod {
-  index: number;
-  value: string;
-}
-
-export interface MeasureIntern {
-  value?: string;
-  periods?: MeasurePeriod[];
-}
-
-export interface Measure extends MeasureIntern {
-  metric: string;
-}
-
-export interface MeasureEnhanced extends MeasureIntern {
-  metric: Metric;
-  leak?: string;
-}
 
 interface Formatter {
   (value: string | number, options?: any): string;
@@ -71,23 +52,34 @@ export function getShortType(type: string): string {
 }
 
 export function enhanceMeasuresWithMetrics(
-  measures: Measure[],
-  metrics: Metric[]
-): MeasureEnhanced[] {
-  return measures.map(measure => {
-    const metric = metrics.find(metric => metric.key === measure.metric) as Metric;
-    return { ...measure, metric };
-  });
+  measures: T.Measure[],
+  metrics: T.Metric[]
+): T.MeasureEnhanced[] {
+  return measures
+    .map(measure => {
+      const metric = metrics.find(metric => metric.key === measure.metric);
+      return metric && { ...measure, metric };
+    })
+    .filter(isDefined);
 }
 
 /** Get period value of a measure */
 export function getPeriodValue(
-  measure: Measure | MeasureEnhanced,
+  measure: T.Measure | T.MeasureEnhanced,
   periodIndex: number
 ): string | undefined {
   const { periods } = measure;
   const period = periods && periods.find(period => period.index === periodIndex);
   return period ? period.value : undefined;
+}
+
+export function isPeriodBestValue(
+  measure: T.Measure | T.MeasureEnhanced,
+  periodIndex: number
+): boolean {
+  const { periods } = measure;
+  const period = periods && periods.find(period => period.index === periodIndex);
+  return (period && period.bestValue) || false;
 }
 
 /** Check if metric is differential */
@@ -104,7 +96,7 @@ function useFormatter(
 }
 
 function getFormatter(type: string): Formatter {
-  const FORMATTERS: { [type: string]: Formatter } = {
+  const FORMATTERS: T.Dict<Formatter> = {
     INT: intFormatter,
     SHORT_INT: shortIntFormatter,
     FLOAT: floatFormatter,
@@ -364,4 +356,12 @@ export function getRatingTooltip(metricKey: string, value: number | string): str
   return finalMetricKey === 'sqale_rating' || finalMetricKey === 'maintainability_rating'
     ? getMaintainabilityRatingTooltip(Number(value))
     : translate('metric', finalMetricKey, 'tooltip', ratingLetter);
+}
+
+export function getDisplayMetrics(metrics: T.Metric[]) {
+  return metrics.filter(metric => !metric.hidden && !['DATA', 'DISTRIB'].includes(metric.type));
+}
+
+export function findMeasure(measures: T.Measure[], metric: string) {
+  return measures.find(measure => measure.metric === metric);
 }

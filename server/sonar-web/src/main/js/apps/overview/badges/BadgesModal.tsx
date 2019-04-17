@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,18 +19,21 @@
  */
 import * as React from 'react';
 import BadgeButton from './BadgeButton';
-import BadgeSnippet from './BadgeSnippet';
 import BadgeParams from './BadgeParams';
-import { BadgeType, BadgeOptions, getBadgeUrl } from './utils';
-import { Metric } from '../../../app/types';
+import { BadgeType, BadgeOptions, getBadgeUrl, getBadgeSnippet } from './utils';
+import CodeSnippet from '../../../components/common/CodeSnippet';
 import Modal from '../../../components/controls/Modal';
+import { getBranchLikeQuery } from '../../../helpers/branches';
 import { translate } from '../../../helpers/l10n';
+import { Button, ResetButtonLink } from '../../../components/ui/buttons';
+import { isSonarCloud } from '../../../helpers/system';
 import './styles.css';
 
 interface Props {
-  branch?: string;
-  metrics: { [key: string]: Metric };
+  branchLike?: T.BranchLike;
+  metrics: T.Dict<T.Metric>;
   project: string;
+  qualifier: string;
 }
 
 interface State {
@@ -46,38 +49,46 @@ export default class BadgesModal extends React.PureComponent<Props, State> {
     badgeOptions: { color: 'white', metric: 'alert_status' }
   };
 
-  handleClose = () => this.setState({ open: false });
+  handleClose = () => {
+    this.setState({ open: false });
+  };
 
-  handleOpen = () => this.setState({ open: true });
+  handleOpen = () => {
+    this.setState({ open: true });
+  };
 
-  handleSelectBadge = (selectedType: BadgeType) => this.setState({ selectedType });
+  handleSelectBadge = (selectedType: BadgeType) => {
+    this.setState({ selectedType });
+  };
 
-  handleUpdateOptions = (options: Partial<BadgeOptions>) =>
-    this.setState(state => ({
-      badgeOptions: { ...state.badgeOptions, ...options }
-    }));
-
-  handleCancelClick = () => this.handleClose();
+  handleUpdateOptions = (options: Partial<BadgeOptions>) => {
+    this.setState(state => ({ badgeOptions: { ...state.badgeOptions, ...options } }));
+  };
 
   render() {
-    const { branch, project } = this.props;
+    const { branchLike, project, qualifier } = this.props;
     const { selectedType, badgeOptions } = this.state;
     const header = translate('overview.badges.title');
-    const fullBadgeOptions = { branch, project, ...badgeOptions };
+    const fullBadgeOptions = { project, ...badgeOptions, ...getBranchLikeQuery(branchLike) };
+    const badges = isSonarCloud()
+      ? [BadgeType.measure, BadgeType.qualityGate, BadgeType.marketing]
+      : [BadgeType.measure, BadgeType.qualityGate];
     return (
       <div className="overview-meta-card">
-        <button className="js-project-badges" onClick={this.handleOpen}>
-          {translate('overview.badges.get_badge')}
-        </button>
+        <Button className="js-project-badges" onClick={this.handleOpen}>
+          {translate('overview.badges.get_badge', qualifier)}
+        </Button>
         {this.state.open && (
           <Modal contentLabel={header} onRequestClose={this.handleClose}>
             <header className="modal-head">
               <h2>{header}</h2>
             </header>
             <div className="modal-body">
-              <p className="huge-spacer-bottom">{translate('overview.badges.description')}</p>
+              <p className="huge-spacer-bottom">
+                {translate('overview.badges.description', qualifier)}
+              </p>
               <div className="badges-list spacer-bottom">
-                {[BadgeType.measure, BadgeType.qualityGate, BadgeType.marketing].map(type => (
+                {badges.map(type => (
                   <BadgeButton
                     key={type}
                     onClick={this.handleSelectBadge}
@@ -88,7 +99,7 @@ export default class BadgesModal extends React.PureComponent<Props, State> {
                 ))}
               </div>
               <p className="text-center note huge-spacer-bottom">
-                {translate('overview.badges', selectedType, 'description')}
+                {translate('overview.badges', selectedType, 'description', qualifier)}
               </p>
               <BadgeParams
                 className="big-spacer-bottom"
@@ -97,12 +108,15 @@ export default class BadgesModal extends React.PureComponent<Props, State> {
                 type={selectedType}
                 updateOptions={this.handleUpdateOptions}
               />
-              <BadgeSnippet snippet={getBadgeUrl(selectedType, fullBadgeOptions)} />
+              <CodeSnippet
+                isOneLine={true}
+                snippet={getBadgeSnippet(selectedType, fullBadgeOptions)}
+              />
             </div>
             <footer className="modal-foot">
-              <button className="button-link js-modal-close" onClick={this.handleCancelClick}>
+              <ResetButtonLink className="js-modal-close" onClick={this.handleClose}>
                 {translate('close')}
-              </button>
+              </ResetButtonLink>
             </footer>
           </Modal>
         )}

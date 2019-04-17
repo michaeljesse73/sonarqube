@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,59 +20,66 @@
 import * as React from 'react';
 import { shallow } from 'enzyme';
 import { ComponentNavHeader } from '../ComponentNavHeader';
-import { Visibility } from '../../../../types';
+import { isSonarCloud } from '../../../../../helpers/system';
+
+jest.mock('../../../../../helpers/system', () => ({
+  isSonarCloud: jest.fn().mockReturnValue(false)
+}));
+
+const component: T.Component = {
+  breadcrumbs: [{ key: 'my-project', name: 'My Project', qualifier: 'TRK' }],
+  key: 'my-project',
+  name: 'My Project',
+  organization: 'foo',
+  qualifier: 'TRK',
+  visibility: 'public'
+};
+
+const organization: T.Organization = {
+  key: 'foo',
+  name: 'The Foo Organization',
+  projectVisibility: 'public'
+};
+
+beforeEach(() => {
+  (isSonarCloud as jest.Mock<any>).mockReturnValue(false);
+});
 
 it('should not render breadcrumbs with one element', () => {
-  const component = {
-    breadcrumbs: [{ key: 'my-project', name: 'My Project', qualifier: 'TRK' }],
-    key: 'my-project',
-    name: 'My Project',
-    organization: 'org',
-    qualifier: 'TRK',
-    visibility: 'public'
-  };
-  const result = shallow(
-    <ComponentNavHeader branches={[]} component={component} shouldOrganizationBeDisplayed={false} />
-  );
-  expect(result).toMatchSnapshot();
+  expect(
+    shallow(
+      <ComponentNavHeader branchLikes={[]} component={component} currentBranchLike={undefined} />
+    )
+  ).toMatchSnapshot();
 });
 
 it('should render organization', () => {
-  const component = {
-    breadcrumbs: [{ key: 'my-project', name: 'My Project', qualifier: 'TRK' }],
-    key: 'my-project',
-    name: 'My Project',
-    organization: 'foo',
-    qualifier: 'TRK',
-    visibility: 'public'
-  };
-  const organization = {
-    key: 'foo',
-    name: 'The Foo Organization',
-    projectVisibility: Visibility.Public
-  };
-  const result = shallow(
-    <ComponentNavHeader
-      branches={[]}
-      component={component}
-      organization={organization}
-      shouldOrganizationBeDisplayed={true}
-    />
-  );
-  expect(result).toMatchSnapshot();
+  (isSonarCloud as jest.Mock<any>).mockReturnValue(true);
+  expect(
+    shallow(
+      <ComponentNavHeader
+        branchLikes={[]}
+        component={component}
+        currentBranchLike={undefined}
+        organization={organization}
+      />
+    )
+  ).toMatchSnapshot();
 });
 
-it('renders private badge', () => {
-  const component = {
-    breadcrumbs: [{ key: 'my-project', name: 'My Project', qualifier: 'TRK' }],
-    key: 'my-project',
-    name: 'My Project',
-    organization: 'org',
-    qualifier: 'TRK',
-    visibility: 'private'
-  };
-  const result = shallow(
-    <ComponentNavHeader branches={[]} component={component} shouldOrganizationBeDisplayed={false} />
-  );
-  expect(result.find('PrivateBadge')).toHaveLength(1);
+it('should render alm links', () => {
+  (isSonarCloud as jest.Mock<any>).mockReturnValue(true);
+  expect(
+    shallow(
+      <ComponentNavHeader
+        branchLikes={[]}
+        component={{
+          ...component,
+          alm: { key: 'bitbucketcloud', url: 'https://bitbucket.org/foo' }
+        }}
+        currentBranchLike={undefined}
+        organization={organization}
+      />
+    )
+  ).toMatchSnapshot();
 });

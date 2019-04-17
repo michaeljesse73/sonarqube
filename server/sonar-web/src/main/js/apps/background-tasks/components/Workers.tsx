@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,12 +20,11 @@
 import * as React from 'react';
 import WorkersForm from './WorkersForm';
 import NoWorkersSupportPopup from './NoWorkersSupportPopup';
-import * as theme from '../../../app/theme';
+import AlertWarnIcon from '../../../components/icons-components/AlertWarnIcon';
+import HelpTooltip from '../../../components/controls/HelpTooltip';
 import Tooltip from '../../../components/controls/Tooltip';
 import { getWorkers } from '../../../api/ce';
 import { translate } from '../../../helpers/l10n';
-import HelpIcon from '../../../components/icons-components/HelpIcon';
-import BubblePopupHelper from '../../../components/common/BubblePopupHelper';
 import { EditButton } from '../../../components/ui/buttons';
 
 interface State {
@@ -102,13 +101,14 @@ export default class Workers extends React.PureComponent<{}, State> {
     const { canSetWorkerCount, formOpen, loading, workerCount } = this.state;
 
     return (
-      <div>
-        {!loading &&
-          workerCount > 1 && (
-            <Tooltip overlay={translate('background_tasks.number_of_workers.warning')}>
-              <i className="icon-alert-warn little-spacer-right bt-workers-warning-icon" />
-            </Tooltip>
-          )}
+      <div className="display-flex-center">
+        {!loading && workerCount > 1 && (
+          <Tooltip overlay={translate('background_tasks.number_of_workers.warning')}>
+            <span className="display-inline-flex-center little-spacer-right">
+              <AlertWarnIcon fill="#d3d3d3" />
+            </span>
+          </Tooltip>
+        )}
 
         <span className="text-middle">
           {translate('background_tasks.number_of_workers')}
@@ -120,30 +120,18 @@ export default class Workers extends React.PureComponent<{}, State> {
           )}
         </span>
 
-        {!loading &&
-          canSetWorkerCount && (
-            <Tooltip overlay={translate('background_tasks.change_number_of_workers')}>
-              <EditButton
-                className="js-edit button-small spacer-left"
-                onClick={this.handleChangeClick}
-              />
-            </Tooltip>
-          )}
+        {!loading && canSetWorkerCount && (
+          <Tooltip overlay={translate('background_tasks.change_number_of_workers')}>
+            <EditButton
+              className="js-edit button-small spacer-left"
+              onClick={this.handleChangeClick}
+            />
+          </Tooltip>
+        )}
 
-        {!loading &&
-          !canSetWorkerCount && (
-            <span className="spacer-left">
-              <a className="link-no-underline" href="#" onClick={this.handleHelpClick}>
-                <HelpIcon className="text-text-bottom" fill={theme.gray80} />
-              </a>
-              <BubblePopupHelper
-                isOpen={this.state.noSupportPopup}
-                position="bottomright"
-                popup={<NoWorkersSupportPopup />}
-                togglePopup={this.toggleNoSupportPopup}
-              />
-            </span>
-          )}
+        {!loading && !canSetWorkerCount && (
+          <HelpTooltip className="spacer-left" overlay={<NoWorkersSupportPopup />} />
+        )}
 
         {formOpen && <WorkersForm onClose={this.closeForm} workerCount={this.state.workerCount} />}
       </div>

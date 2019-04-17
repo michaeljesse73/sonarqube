@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -28,6 +28,7 @@ public class ProjectAnalysesWsParameters {
   public static final String PARAM_FROM = "from";
   public static final String PARAM_TO = "to";
   public static final String PARAM_BRANCH = "branch";
+  public static final String PARAM_PULL_REQUEST = "pullRequest";
 
   private ProjectAnalysesWsParameters() {
     // static access only

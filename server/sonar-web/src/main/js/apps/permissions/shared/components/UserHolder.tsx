@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,49 +18,78 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
+import { without } from 'lodash';
+import PermissionCell from './PermissionCell';
 import Avatar from '../../../../components/ui/Avatar';
-import Checkbox from '../../../../components/controls/Checkbox';
-import { PermissionUser } from '../../../../api/permissions';
 import { translate } from '../../../../helpers/l10n';
+import { isPermissionDefinitionGroup } from '../../utils';
+import { isSonarCloud } from '../../../../helpers/system';
 
 interface Props {
-  user: PermissionUser;
-  permissions: string[];
+  onToggle: (user: T.PermissionUser, permission: string) => Promise<void>;
+  permissions: T.PermissionDefinitions;
   selectedPermission?: string;
-  permissionsOrder: string[];
-  onToggle: (user: PermissionUser, permission: string) => void;
+  user: T.PermissionUser;
 }
 
-export default class UserHolder extends React.PureComponent<Props> {
-  handleCheck = (_checked: boolean, permission?: string) =>
-    permission && this.props.onToggle(this.props.user, permission);
+interface State {
+  loading: string[];
+}
+
+export default class UserHolder extends React.PureComponent<Props, State> {
+  mounted = false;
+  state: State = { loading: [] };
+
+  componentDidMount() {
+    this.mounted = true;
+  }
+
+  componentWillUnmount() {
+    this.mounted = false;
+  }
+
+  stopLoading = (permission: string) => {
+    if (this.mounted) {
+      this.setState(state => ({ loading: without(state.loading, permission) }));
+    }
+  };
+
+  handleCheck = (_checked: boolean, permission?: string) => {
+    if (permission !== undefined) {
+      this.setState(state => ({ loading: [...state.loading, permission] }));
+      this.props
+        .onToggle(this.props.user, permission)
+        .then(() => this.stopLoading(permission), () => this.stopLoading(permission));
+    }
+  };
 
   render() {
-    const { selectedPermission } = this.props;
-    const permissionCells = this.props.permissionsOrder.map(permission => (
-      <td
-        key={permission}
-        className="text-center text-middle"
-        style={{ backgroundColor: permission === selectedPermission ? '#d9edf7' : 'transparent' }}>
-        <Checkbox
-          checked={this.props.permissions.includes(permission)}
-          id={permission}
-          onCheck={this.handleCheck}
-        />
-      </td>
+    const { user } = this.props;
+    const permissionCells = this.props.permissions.map(permission => (
+      <PermissionCell
+        key={isPermissionDefinitionGroup(permission) ? permission.category : permission.key}
+        loading={this.state.loading}
+        onCheck={this.handleCheck}
+        permission={permission}
+        permissionItem={user}
+        selectedPermission={this.props.selectedPermission}
+      />
     ));
 
-    const { user } = this.props;
     if (user.login === '<creator>') {
       return (
         <tr>
-          <td className="nowrap">
+          <td className="nowrap text-middle">
             <div className="display-inline-block text-middle">
               <div>
                 <strong>{user.name}</strong>
               </div>
               <div className="little-spacer-top" style={{ whiteSpace: 'normal' }}>
-                {translate('permission_templates.project_creators.explanation')}
+                {translate(
+                  isSonarCloud()
+                    ? 'permission_templates.project_creators.explanation.sonarcloud'
+                    : 'permission_templates.project_creators.explanation'
+                )}
               </div>
             </div>
           </td>
@@ -71,12 +100,12 @@ export default class UserHolder extends React.PureComponent<Props> {
 
     return (
       <tr>
-        <td className="nowrap">
+        <td className="nowrap text-middle">
           <Avatar
+            className="text-middle big-spacer-right"
             hash={user.avatar}
             name={user.name}
             size={36}
-            className="text-middle big-spacer-right"
           />
           <div className="display-inline-block text-middle">
             <div>

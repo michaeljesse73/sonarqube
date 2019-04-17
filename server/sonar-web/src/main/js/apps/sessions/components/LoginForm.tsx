@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,22 +18,22 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import { Link } from 'react-router';
-import OAuthProviders from './OAuthProviders';
+import DeferredSpinner from '../../../components/common/DeferredSpinner';
 import GlobalMessagesContainer from '../../../app/components/GlobalMessagesContainer';
-import { IdentityProvider } from '../../../app/types';
+import { SubmitButton } from '../../../components/ui/buttons';
 import { translate } from '../../../helpers/l10n';
+import { getBaseUrl } from '../../../helpers/urls';
 import './LoginForm.css';
 
 interface Props {
-  onSonarCloud: boolean;
-  identityProviders: IdentityProvider[];
-  onSubmit: (login: string, password: string) => void;
+  collapsed?: boolean;
+  onSubmit: (login: string, password: string) => Promise<void>;
   returnTo: string;
 }
 
 interface State {
   collapsed: boolean;
+  loading: boolean;
   login: string;
   password: string;
 }
@@ -42,104 +42,99 @@ export default class LoginForm extends React.PureComponent<Props, State> {
   constructor(props: Props) {
     super(props);
     this.state = {
-      collapsed: props.identityProviders.length > 0,
+      collapsed: Boolean(props.collapsed),
+      loading: false,
       login: '',
       password: ''
     };
   }
 
-  handleSubmit = (event: React.SyntheticEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    this.props.onSubmit(this.state.login, this.state.password);
+  stopLoading = () => {
+    this.setState({ loading: false });
   };
 
-  handleMoreOptionsClick = (event: React.SyntheticEvent<HTMLAnchorElement>) => {
+  handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    this.setState({ loading: true });
+    this.props
+      .onSubmit(this.state.login, this.state.password)
+      .then(this.stopLoading, this.stopLoading);
+  };
+
+  handleMoreOptionsClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
     event.preventDefault();
     this.setState({ collapsed: false });
   };
 
-  handleLoginChange = (event: React.SyntheticEvent<HTMLInputElement>) =>
+  handleLoginChange = (event: React.ChangeEvent<HTMLInputElement>) =>
     this.setState({ login: event.currentTarget.value });
 
-  handlePwdChange = (event: React.SyntheticEvent<HTMLInputElement>) =>
+  handlePwdChange = (event: React.ChangeEvent<HTMLInputElement>) =>
     this.setState({ password: event.currentTarget.value });
 
   render() {
-    const loginTitle = this.props.onSonarCloud
-      ? translate('login.login_to_sonarcloud')
-      : translate('login.login_to_sonarqube');
-
+    if (this.state.collapsed) {
+      return (
+        <div className="text-center">
+          <a
+            className="small text-muted js-more-options"
+            href="#"
+            onClick={this.handleMoreOptionsClick}>
+            {translate('login.more_options')}
+          </a>
+        </div>
+      );
+    }
     return (
-      <div className="login-page" id="login_form">
-        <h1 className="login-title text-center">{loginTitle}</h1>
+      <form className="login-form" onSubmit={this.handleSubmit}>
+        <GlobalMessagesContainer />
 
-        {this.props.identityProviders.length > 0 && (
-          <OAuthProviders
-            identityProviders={this.props.identityProviders}
-            returnTo={this.props.returnTo}
+        <div className="big-spacer-bottom">
+          <label className="login-label" htmlFor="login">
+            {translate('login')}
+          </label>
+          <input
+            autoFocus={true}
+            className="login-input"
+            id="login"
+            maxLength={255}
+            name="login"
+            onChange={this.handleLoginChange}
+            placeholder={translate('login')}
+            required={true}
+            type="text"
+            value={this.state.login}
           />
-        )}
+        </div>
 
-        {this.state.collapsed ? (
-          <div className="text-center">
-            <a
-              className="small text-muted js-more-options"
-              href="#"
-              onClick={this.handleMoreOptionsClick}>
-              {translate('login.more_options')}
+        <div className="big-spacer-bottom">
+          <label className="login-label" htmlFor="password">
+            {translate('password')}
+          </label>
+          <input
+            className="login-input"
+            id="password"
+            name="password"
+            onChange={this.handlePwdChange}
+            placeholder={translate('password')}
+            required={true}
+            type="password"
+            value={this.state.password}
+          />
+        </div>
+
+        <div>
+          <div className="text-right overflow-hidden">
+            <DeferredSpinner className="spacer-right" loading={this.state.loading} />
+            <SubmitButton disabled={this.state.loading}>
+              {translate('sessions.log_in')}
+            </SubmitButton>
+            <a className="spacer-left" href={`${getBaseUrl()}/`}>
+              {translate('cancel')}
             </a>
           </div>
-        ) : (
-          <form className="login-form" onSubmit={this.handleSubmit}>
-            <GlobalMessagesContainer />
-
-            <div className="big-spacer-bottom">
-              <label htmlFor="login" className="login-label">
-                {translate('login')}
-              </label>
-              <input
-                type="text"
-                id="login"
-                name="login"
-                className="login-input"
-                maxLength={255}
-                required={true}
-                autoFocus={true}
-                placeholder={translate('login')}
-                value={this.state.login}
-                onChange={this.handleLoginChange}
-              />
-            </div>
-
-            <div className="big-spacer-bottom">
-              <label htmlFor="password" className="login-label">
-                {translate('password')}
-              </label>
-              <input
-                type="password"
-                id="password"
-                name="password"
-                className="login-input"
-                required={true}
-                placeholder={translate('password')}
-                value={this.state.password}
-                onChange={this.handlePwdChange}
-              />
-            </div>
-
-            <div>
-              <div className="text-right overflow-hidden">
-                <button name="commit" type="submit">
-                  {translate('sessions.log_in')}
-                </button>
-                <Link className="spacer-left" to="/">
-                  {translate('cancel')}
-                </Link>
-              </div>
-            </div>
-          </form>
-        )}
-      </div>
+        </div>
+      </form>
     );
   }
 }

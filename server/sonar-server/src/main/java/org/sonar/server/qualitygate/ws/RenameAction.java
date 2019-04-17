@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -27,26 +27,21 @@ import org.sonar.db.DbSession;
 import org.sonar.db.organization.OrganizationDto;
 import org.sonar.db.qualitygate.QGateWithOrgDto;
 import org.sonar.db.qualitygate.QualityGateDto;
-import org.sonar.server.qualitygate.QualityGateFinder;
 import org.sonarqube.ws.Qualitygates.QualityGate;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Strings.isNullOrEmpty;
 import static org.sonar.server.qualitygate.ws.CreateAction.NAME_MAXIMUM_LENGTH;
 import static org.sonar.server.qualitygate.ws.QualityGatesWsParameters.PARAM_ID;
 import static org.sonar.server.qualitygate.ws.QualityGatesWsParameters.PARAM_NAME;
-import static org.sonar.server.util.Validation.CANT_BE_EMPTY_MESSAGE;
 import static org.sonar.server.ws.WsUtils.writeProtobuf;
 
 public class RenameAction implements QualityGatesWsAction {
 
   private final DbClient dbClient;
-  private final QualityGateFinder qualityGateFinder;
   private final QualityGatesWsSupport wsSupport;
 
-  public RenameAction(DbClient dbClient, QualityGateFinder qualityGateFinder, QualityGatesWsSupport wsSupport) {
+  public RenameAction(DbClient dbClient, QualityGatesWsSupport wsSupport) {
     this.dbClient = dbClient;
-    this.qualityGateFinder = qualityGateFinder;
     this.wsSupport = wsSupport;
   }
 
@@ -87,9 +82,8 @@ public class RenameAction implements QualityGatesWsAction {
   }
 
   private QualityGateDto rename(DbSession dbSession, OrganizationDto organization, long id, String name) {
-    QGateWithOrgDto qualityGate = qualityGateFinder.getByOrganizationAndId(dbSession, organization, id);
+    QGateWithOrgDto qualityGate = wsSupport.getByOrganizationAndId(dbSession, organization, id);
     wsSupport.checkCanEdit(qualityGate);
-    checkArgument(!isNullOrEmpty(name), CANT_BE_EMPTY_MESSAGE, "Name");
     checkNotAlreadyExists(dbSession, organization, qualityGate, name);
     qualityGate.setName(name);
     dbClient.qualityGateDao().update(qualityGate, dbSession);

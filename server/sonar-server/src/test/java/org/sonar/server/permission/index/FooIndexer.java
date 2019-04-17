@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,29 +19,26 @@
  */
 package org.sonar.server.permission.index;
 
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import java.util.Collection;
 import java.util.Set;
-import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
 import org.sonar.db.es.EsQueueDto;
+import org.sonar.server.es.BaseDoc;
 import org.sonar.server.es.EsClient;
 import org.sonar.server.es.IndexType;
 import org.sonar.server.es.IndexingResult;
 import org.sonar.server.es.ProjectIndexer;
 
-import static org.sonar.server.permission.index.FooIndexDefinition.INDEX_TYPE_FOO;
+import static org.sonar.server.permission.index.FooIndexDefinition.TYPE_FOO;
 
 public class FooIndexer implements ProjectIndexer, NeedAuthorizationIndexer {
 
-  private static final AuthorizationScope AUTHORIZATION_SCOPE = new AuthorizationScope(INDEX_TYPE_FOO, p -> true);
+  private static final AuthorizationScope AUTHORIZATION_SCOPE = new AuthorizationScope(TYPE_FOO, p -> true);
 
-  private final DbClient dbClient;
   private final EsClient esClient;
 
-  public FooIndexer(DbClient dbClient, EsClient esClient) {
-    this.dbClient = dbClient;
+  public FooIndexer(EsClient esClient) {
     this.esClient = esClient;
   }
 
@@ -62,13 +59,32 @@ public class FooIndexer implements ProjectIndexer, NeedAuthorizationIndexer {
   }
 
   private void addToIndex(String projectUuid, String name) {
-    esClient.prepareIndex(INDEX_TYPE_FOO)
-      .setRouting(projectUuid)
-      .setParent(projectUuid)
-      .setSource(ImmutableMap.of(
-        FooIndexDefinition.FIELD_NAME, name,
-        FooIndexDefinition.FIELD_PROJECT_UUID, projectUuid))
+    FooDoc fooDoc = new FooDoc(projectUuid, name);
+    esClient.prepareIndex(TYPE_FOO)
+      .setId(fooDoc.getId())
+      .setRouting(fooDoc.getRouting().orElse(null))
+      .setSource(fooDoc.getFields())
       .get();
+  }
+
+  private static final class FooDoc extends BaseDoc {
+    private final String projectUuid;
+    private final String name;
+
+    private FooDoc(String projectUuid, String name) {
+      super(TYPE_FOO);
+      this.projectUuid = projectUuid;
+      this.name = name;
+      setField(FooIndexDefinition.FIELD_PROJECT_UUID, projectUuid);
+      setField(FooIndexDefinition.FIELD_NAME, name);
+      setParent(AuthorizationDoc.idOf(projectUuid));
+    }
+
+    @Override
+    public String getId() {
+      return projectUuid + "_" + name;
+    }
+
   }
 
   @Override
@@ -78,7 +94,7 @@ public class FooIndexer implements ProjectIndexer, NeedAuthorizationIndexer {
 
   @Override
   public Set<IndexType> getIndexTypes() {
-    return ImmutableSet.of(INDEX_TYPE_FOO);
+    return ImmutableSet.of(TYPE_FOO);
   }
 
   @Override

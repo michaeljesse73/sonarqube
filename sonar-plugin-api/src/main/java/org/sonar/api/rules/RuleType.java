@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,6 +21,7 @@ package org.sonar.api.rules;
 
 import java.util.LinkedHashSet;
 import java.util.Set;
+import javax.annotation.CheckForNull;
 
 import static java.lang.String.format;
 import static java.util.Arrays.stream;
@@ -28,7 +29,7 @@ import static java.util.Collections.unmodifiableSet;
 import static java.util.stream.Collectors.toList;
 
 public enum RuleType {
-  CODE_SMELL(1), BUG(2), VULNERABILITY(3);
+  CODE_SMELL(1), BUG(2), VULNERABILITY(3), SECURITY_HOTSPOT(4);
 
   private static final Set<String> ALL_NAMES = unmodifiableSet(new LinkedHashSet<>(stream(values())
     .map(Enum::name)
@@ -57,6 +58,20 @@ public enum RuleType {
       if (type.getDbConstant() == dbConstant) {
         return type;
       }
+    }
+    throw new IllegalArgumentException(format("Unsupported type value : %d", dbConstant));
+  }
+  
+  @CheckForNull
+  public static RuleType valueOfNullable(int dbConstant) {
+    // iterating the array is fast-enough as size is small. No need for a map.
+    for (RuleType type : values()) {
+      if (type.getDbConstant() == dbConstant) {
+        return type;
+      }
+    }
+    if (dbConstant == 0) {
+      return null;
     }
     throw new IllegalArgumentException(format("Unsupported type value : %d", dbConstant));
   }

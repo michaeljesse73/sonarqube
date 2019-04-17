@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -37,9 +37,9 @@ export default function Table(props: Props) {
   const profileRows = orderedProfiles.map(profile => (
     <ProfileRow
       key={profile.language}
-      profile={profile}
-      possibleProfiles={profilesByLanguage[profile.language]}
       onChangeProfile={props.onChangeProfile}
+      possibleProfiles={profilesByLanguage[profile.language]}
+      profile={profile}
     />
   ));
 

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,11 +18,12 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import { times } from 'lodash';
 import { setWorkerCount } from '../../../api/ce';
 import Modal from '../../../components/controls/Modal';
 import Select from '../../../components/controls/Select';
+import { SubmitButton, ResetButtonLink } from '../../../components/ui/buttons';
 import { translate } from '../../../helpers/l10n';
+import { Alert } from '../../../components/ui/Alert';
 
 const MAX_WORKERS = 10;
 
@@ -55,7 +56,9 @@ export default class WorkersForm extends React.PureComponent<Props, State> {
     this.mounted = false;
   }
 
-  handleClose = () => this.props.onClose();
+  handleClose = () => {
+    this.props.onClose();
+  };
 
   handleWorkerCountChange = (option: { value: number }) =>
     this.setState({ newWorkerCount: option.value });
@@ -79,7 +82,10 @@ export default class WorkersForm extends React.PureComponent<Props, State> {
   };
 
   render() {
-    const options = times(MAX_WORKERS).map((_, i) => ({ label: String(i + 1), value: i + 1 }));
+    const options = [];
+    for (let i = 1; i <= MAX_WORKERS; i++) {
+      options.push({ label: String(i), value: i });
+    }
 
     return (
       <Modal
@@ -98,19 +104,15 @@ export default class WorkersForm extends React.PureComponent<Props, State> {
               searchable={false}
               value={this.state.newWorkerCount}
             />
-            <div className="big-spacer-top alert alert-success markdown">
+            <Alert className="big-spacer-top" variant="info">
               {translate('background_tasks.change_number_of_workers.hint')}
-            </div>
+            </Alert>
           </div>
           <footer className="modal-foot">
             <div>
               {this.state.submitting && <i className="spinner spacer-right" />}
-              <button disabled={this.state.submitting} type="submit">
-                {translate('save')}
-              </button>
-              <button type="reset" className="button-link" onClick={this.handleClose}>
-                {translate('cancel')}
-              </button>
+              <SubmitButton disabled={this.state.submitting}>{translate('save')}</SubmitButton>
+              <ResetButtonLink onClick={this.handleClose}>{translate('cancel')}</ResetButtonLink>
             </div>
           </footer>
         </form>

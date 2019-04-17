@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -23,10 +23,11 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.Consumer;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.sonar.api.resources.Qualifiers;
 import org.sonar.api.resources.ResourceType;
@@ -41,6 +42,7 @@ import org.sonar.api.web.UserRole;
 import org.sonar.api.web.page.Page;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
+import org.sonar.db.alm.ProjectAlmBindingDto;
 import org.sonar.db.component.ComponentDto;
 import org.sonar.db.component.SnapshotDto;
 import org.sonar.db.measure.LiveMeasureDto;
@@ -49,7 +51,9 @@ import org.sonar.db.permission.OrganizationPermission;
 import org.sonar.db.property.PropertyDto;
 import org.sonar.db.property.PropertyQuery;
 import org.sonar.db.qualitygate.QualityGateDto;
+import org.sonar.db.qualityprofile.QProfileDto;
 import org.sonar.server.component.ComponentFinder;
+import org.sonar.server.exceptions.NotFoundException;
 import org.sonar.server.organization.BillingValidations;
 import org.sonar.server.organization.BillingValidationsProxy;
 import org.sonar.server.project.Visibility;
@@ -59,20 +63,26 @@ import org.sonar.server.qualityprofile.QualityProfile;
 import org.sonar.server.ui.PageRepository;
 import org.sonar.server.user.UserSession;
 
+import static java.lang.String.format;
+import static java.util.Collections.emptySortedSet;
 import static org.sonar.api.measures.CoreMetrics.QUALITY_PROFILES_KEY;
 import static org.sonar.api.utils.DateUtils.formatDateTime;
 import static org.sonar.api.web.UserRole.ADMIN;
 import static org.sonar.api.web.UserRole.USER;
+import static org.sonar.core.util.stream.MoreCollectors.uniqueIndex;
 import static org.sonar.db.permission.OrganizationPermission.ADMINISTER_QUALITY_GATES;
 import static org.sonar.db.permission.OrganizationPermission.ADMINISTER_QUALITY_PROFILES;
 import static org.sonar.server.user.AbstractUserSession.insufficientPrivilegesException;
 import static org.sonar.server.ws.KeyExamples.KEY_BRANCH_EXAMPLE_001;
 import static org.sonar.server.ws.KeyExamples.KEY_PROJECT_EXAMPLE_001;
+import static org.sonar.server.ws.KeyExamples.KEY_PULL_REQUEST_EXAMPLE_001;
+import static org.sonar.server.ws.WsUtils.checkComponentNotAModuleAndNotADirectory;
 
 public class ComponentAction implements NavigationWsAction {
 
   static final String PARAM_COMPONENT = "component";
-  static final String PARAM_BRANCH = "branch";
+  private static final String PARAM_BRANCH = "branch";
+  private static final String PARAM_PULL_REQUEST = "pullRequest";
 
   private static final String PROPERTY_CONFIGURABLE = "configurable";
   private static final String PROPERTY_HAS_ROLE_POLICY = "hasRolePolicy";
@@ -104,7 +114,7 @@ public class ComponentAction implements NavigationWsAction {
 
   @Override
   public void define(NewController context) {
-    NewAction projectNavigation = context.createAction("component")
+    NewAction action = context.createAction("component")
       .setDescription("Get information concerning component navigation for the current user. " +
         "Requires the 'Browse' permission on the component's project.")
       .setHandler(this)
@@ -112,18 +122,24 @@ public class ComponentAction implements NavigationWsAction {
       .setResponseExample(getClass().getResource("component-example.json"))
       .setSince("5.2")
       .setChangelog(
+        new Change("7.6", String.format("The use of module keys in parameter '%s' is deprecated", PARAM_COMPONENT)),
+        new Change("7.3", "The 'almRepoUrl' and 'almId' fields are added"),
         new Change("6.4", "The 'visibility' field is added"));
 
-    projectNavigation.createParam(PARAM_COMPONENT)
+    action.createParam(PARAM_COMPONENT)
       .setDescription("A component key.")
       .setDeprecatedKey("componentKey", "6.4")
       .setExampleValue(KEY_PROJECT_EXAMPLE_001);
 
-    projectNavigation
+    action
       .createParam(PARAM_BRANCH)
       .setDescription("Branch key")
-      .setInternal(true)
       .setExampleValue(KEY_BRANCH_EXAMPLE_001);
+
+    action
+      .createParam(PARAM_PULL_REQUEST)
+      .setDescription("Pull request id")
+      .setExampleValue(KEY_PULL_REQUEST_EXAMPLE_001);
   }
 
   @Override
@@ -131,7 +147,12 @@ public class ComponentAction implements NavigationWsAction {
     String componentKey = request.mandatoryParam(PARAM_COMPONENT);
     try (DbSession session = dbClient.openSession(false)) {
       String branch = request.param(PARAM_BRANCH);
-      ComponentDto component = componentFinder.getByKeyAndOptionalBranch(session, componentKey, branch);
+      String pullRequest = request.param(PARAM_PULL_REQUEST);
+      ComponentDto component = componentFinder.getByKeyAndOptionalBranchOrPullRequest(session, componentKey, branch, pullRequest);
+      checkComponentNotAModuleAndNotADirectory(component);
+      ComponentDto rootProjectOrBranch = getRootProjectOrBranch(component, session);
+      ComponentDto rootProject = rootProjectOrBranch.getMainBranchProjectUuid() == null ? rootProjectOrBranch
+        : componentFinder.getByUuid(session, rootProjectOrBranch.getMainBranchProjectUuid());
       if (!userSession.hasComponentPermission(USER, component) &&
         !userSession.hasComponentPermission(ADMIN, component) &&
         !userSession.isSystemAdministrator()) {
@@ -143,8 +164,9 @@ public class ComponentAction implements NavigationWsAction {
       JsonWriter json = response.newJsonWriter();
       json.beginObject();
       writeComponent(json, session, component, org, analysis.orElse(null));
+      writeAlmDetails(json, session, rootProject);
       writeProfiles(json, session, component);
-      writeQualityGate(json, session, org, component);
+      writeQualityGate(json, session, org, rootProject);
       if (userSession.hasComponentPermission(ADMIN, component) ||
         userSession.hasPermission(ADMINISTER_QUALITY_PROFILES, org) ||
         userSession.hasPermission(ADMINISTER_QUALITY_GATES, org)) {
@@ -155,11 +177,31 @@ public class ComponentAction implements NavigationWsAction {
     }
   }
 
-  private static Consumer<QualityProfile> writeToJson(JsonWriter json) {
-    return profile -> json.beginObject()
+  private ComponentDto getRootProjectOrBranch(ComponentDto component, DbSession session) {
+    if (!component.isRootProject()) {
+      return dbClient.componentDao().selectOrFailByUuid(session, component.projectUuid());
+    } else {
+      return component;
+    }
+  }
+
+  private void writeAlmDetails(JsonWriter json, DbSession session, ComponentDto component) {
+    Optional<ProjectAlmBindingDto> bindingOpt = dbClient.projectAlmBindingsDao().selectByProjectUuid(session, component.uuid());
+    bindingOpt.ifPresent(b -> {
+      String almId = String.valueOf(b.getAlm().getId());
+      json.name("alm").beginObject()
+        .prop("key", almId)
+        .prop("url", b.getUrl())
+        .endObject();
+    });
+  }
+
+  private static void writeToJson(JsonWriter json, QualityProfile profile, boolean deleted) {
+    json.beginObject()
       .prop("key", profile.getQpKey())
       .prop("name", profile.getQpName())
       .prop("language", profile.getLanguageKey())
+      .prop("deleted", deleted)
       .endObject();
   }
 
@@ -171,19 +213,23 @@ public class ComponentAction implements NavigationWsAction {
   }
 
   private void writeComponent(JsonWriter json, DbSession session, ComponentDto component, OrganizationDto organizationDto, @Nullable SnapshotDto analysis) {
-    json.prop("key", component.getDbKey())
+    json.prop("key", component.getKey())
       .prop("organization", organizationDto.getKey())
       .prop("id", component.uuid())
       .prop("name", component.name())
       .prop("description", component.description())
       .prop("isFavorite", isFavourite(session, component));
+    String branch = component.getBranch();
+    if (branch != null) {
+      json.prop("branch", branch);
+    }
     if (QUALIFIERS_WITH_VISIBILITY.contains(component.qualifier())) {
       json.prop("visibility", Visibility.getLabel(component.isPrivate()));
     }
     List<Page> pages = pageRepository.getComponentPages(false, component.qualifier());
     writeExtensions(json, component, pages);
     if (analysis != null) {
-      json.prop("version", analysis.getVersion())
+      json.prop("version", analysis.getProjectVersion())
         .prop("analysisDate", formatDateTime(new Date(analysis.getCreatedAt())));
     }
   }
@@ -199,15 +245,21 @@ public class ComponentAction implements NavigationWsAction {
   }
 
   private void writeProfiles(JsonWriter json, DbSession dbSession, ComponentDto component) {
-    json.name("qualityProfiles").beginArray();
-    dbClient.liveMeasureDao().selectMeasure(dbSession, component.projectUuid(), QUALITY_PROFILES_KEY)
+    Set<QualityProfile> qualityProfiles = dbClient.liveMeasureDao().selectMeasure(dbSession, component.projectUuid(), QUALITY_PROFILES_KEY)
       .map(LiveMeasureDto::getDataAsString)
-      .ifPresent(data -> QPMeasureData.fromJson(data).getProfiles().forEach(writeToJson(json)));
+      .map(data -> QPMeasureData.fromJson(data).getProfiles())
+      .orElse(emptySortedSet());
+    Map<String, QProfileDto> dtoByQPKey = dbClient.qualityProfileDao().selectByUuids(dbSession, qualityProfiles.stream().map(QualityProfile::getQpKey).collect(Collectors.toList()))
+      .stream()
+      .collect(uniqueIndex(QProfileDto::getKee));
+    json.name("qualityProfiles").beginArray();
+    qualityProfiles.forEach(qp -> writeToJson(json, qp, !dtoByQPKey.containsKey(qp.getQpKey())));
     json.endArray();
   }
 
   private void writeQualityGate(JsonWriter json, DbSession session, OrganizationDto organization, ComponentDto component) {
-    QualityGateFinder.QualityGateData qualityGateData = qualityGateFinder.getQualityGate(session, organization, component);
+    QualityGateFinder.QualityGateData qualityGateData = qualityGateFinder.getQualityGate(session, organization, component)
+      .orElseThrow(() -> new NotFoundException(format("Quality Gate not found for %s", component.getKey())));
     QualityGateDto qualityGateDto = qualityGateData.getQualityGate();
     json.name("qualityGate").beginObject()
       .prop("key", qualityGateDto.getId())
@@ -262,7 +314,7 @@ public class ComponentAction implements NavigationWsAction {
     json.prop("showBackgroundTasks", showBackgroundTasks);
     json.prop("canApplyPermissionTemplate", isOrganizationAdmin);
     json.prop("canUpdateProjectVisibilityToPrivate", isProjectAdmin &&
-      billingValidations.canUpdateProjectVisibilityToPrivate(new BillingValidations.Organization(organization.getKey(), organization.getUuid())));
+      billingValidations.canUpdateProjectVisibilityToPrivate(new BillingValidations.Organization(organization.getKey(), organization.getUuid(), organization.getName())));
   }
 
   private boolean componentTypeHasProperty(ComponentDto component, String resourceTypeProperty) {

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,6 +19,8 @@
  */
 package org.sonar.server.project.ws;
 
+import javax.annotation.CheckForNull;
+import javax.annotation.Nullable;
 import org.sonar.api.server.ws.Change;
 import org.sonar.api.server.ws.Request;
 import org.sonar.api.server.ws.Response;
@@ -32,9 +34,7 @@ import org.sonar.server.project.Visibility;
 import org.sonar.server.user.UserSession;
 import org.sonarqube.ws.Projects.CreateWsResponse;
 
-import javax.annotation.CheckForNull;
-import javax.annotation.Nullable;
-
+import static org.apache.commons.lang.StringUtils.abbreviate;
 import static org.sonar.api.resources.Qualifiers.PROJECT;
 import static org.sonar.core.component.ComponentKeys.MAX_COMPONENT_KEY_LENGTH;
 import static org.sonar.db.component.ComponentValidator.MAX_COMPONENT_NAME_LENGTH;
@@ -77,7 +77,8 @@ public class CreateAction implements ProjectsWsAction {
 
     action.setChangelog(
       new Change("6.3", "The response format has been updated and does not contain the database ID anymore"),
-      new Change("6.3", "The 'key' parameter has been renamed 'project'"));
+      new Change("6.3", "The 'key' parameter has been renamed 'project'"),
+      new Change("7.1", "The 'visibility' parameter is public"));
 
     action.createParam(PARAM_PROJECT)
       .setDescription("Key of the project")
@@ -87,9 +88,8 @@ public class CreateAction implements ProjectsWsAction {
       .setExampleValue(KEY_PROJECT_EXAMPLE_001);
 
     action.createParam(PARAM_NAME)
-      .setDescription("Name of the project")
+      .setDescription("Name of the project. If name is longer than %d, it is abbreviated.", MAX_COMPONENT_NAME_LENGTH)
       .setRequired(true)
-      .setMaximumLength(MAX_COMPONENT_NAME_LENGTH)
       .setExampleValue("SonarQube");
 
     action.createParam(PARAM_BRANCH)
@@ -100,7 +100,6 @@ public class CreateAction implements ProjectsWsAction {
       .setDescription("Whether the created project should be visible to everyone, or only specific user/groups.<br/>" +
         "If no visibility is specified, the default project visibility of the organization will be used.")
       .setRequired(false)
-      .setInternal(true)
       .setSince("6.4")
       .setPossibleValues(Visibility.getLabels());
 
@@ -118,14 +117,14 @@ public class CreateAction implements ProjectsWsAction {
       OrganizationDto organization = support.getOrganization(dbSession, request.getOrganization());
       userSession.checkPermission(PROVISION_PROJECTS, organization);
       String visibility = request.getVisibility();
-      Boolean changeToPrivate = visibility == null ? dbClient.organizationDao().getNewProjectPrivate(dbSession, organization) : "private".equals(visibility);
+      boolean changeToPrivate = visibility == null ? dbClient.organizationDao().getNewProjectPrivate(dbSession, organization) : "private".equals(visibility);
       support.checkCanUpdateProjectsVisibility(organization, changeToPrivate);
 
       ComponentDto componentDto = componentUpdater.create(dbSession, newComponentBuilder()
         .setOrganizationUuid(organization.getUuid())
         .setKey(request.getKey())
         .setName(request.getName())
-        .setBranch(request.getBranch())
+        .setDeprecatedBranch(request.getBranch())
         .setPrivate(changeToPrivate)
         .setQualifier(PROJECT)
         .build(),
@@ -138,7 +137,7 @@ public class CreateAction implements ProjectsWsAction {
     return CreateRequest.builder()
       .setOrganization(request.param(PARAM_ORGANIZATION))
       .setKey(request.mandatoryParam(PARAM_PROJECT))
-      .setName(request.mandatoryParam(PARAM_NAME))
+      .setName(abbreviate(request.mandatoryParam(PARAM_NAME), MAX_COMPONENT_NAME_LENGTH))
       .setBranch(request.param(PARAM_BRANCH))
       .setVisibility(request.param(PARAM_VISIBILITY))
       .build();

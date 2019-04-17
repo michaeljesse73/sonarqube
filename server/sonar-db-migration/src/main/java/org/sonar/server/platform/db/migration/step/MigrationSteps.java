@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,7 +19,7 @@
  */
 package org.sonar.server.platform.db.migration.step;
 
-import java.util.stream.Stream;
+import java.util.List;
 
 public interface MigrationSteps {
   /**
@@ -30,10 +30,10 @@ public interface MigrationSteps {
   /**
    * Reads all migration steps in order of increasing migration number.
    */
-  Stream<RegisteredMigrationStep> readAll();
+  List<RegisteredMigrationStep> readAll();
 
   /**
    * Reads migration steps, in order of increasing migration number, from the specified migration number <strong>included</strong>.
    */
-  Stream<RegisteredMigrationStep> readFrom(long migrationNumber);
+  List<RegisteredMigrationStep> readFrom(long migrationNumber);
 }

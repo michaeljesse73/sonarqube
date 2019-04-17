@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,13 +22,17 @@ package org.sonar.server.organization.ws;
 import javax.annotation.CheckForNull;
 import org.sonar.api.server.ws.Request;
 import org.sonar.api.server.ws.WebService;
+import org.sonar.db.DbClient;
+import org.sonar.db.DbSession;
 import org.sonar.db.organization.OrganizationDto;
 import org.sonar.server.organization.OrganizationValidation;
 import org.sonarqube.ws.Organizations.Organization;
 
-import static org.sonar.core.util.Protobuf.setNullable;
+import static com.google.common.base.Preconditions.checkArgument;
+import static java.util.Optional.ofNullable;
 import static org.sonar.server.organization.OrganizationValidation.DESCRIPTION_MAX_LENGTH;
 import static org.sonar.server.organization.OrganizationValidation.NAME_MAX_LENGTH;
+import static org.sonar.server.organization.OrganizationValidation.NAME_MIN_LENGTH;
 import static org.sonar.server.organization.OrganizationValidation.URL_MAX_LENGTH;
 
 /**
@@ -41,13 +45,14 @@ public class OrganizationsWsSupport {
   static final String PARAM_DESCRIPTION = "description";
   static final String PARAM_URL = "url";
   static final String PARAM_AVATAR_URL = "avatar";
-
   static final String PARAM_LOGIN = "login";
 
   private final OrganizationValidation organizationValidation;
+  private final DbClient dbClient;
 
-  public OrganizationsWsSupport(OrganizationValidation organizationValidation) {
+  public OrganizationsWsSupport(OrganizationValidation organizationValidation, DbClient dbClient) {
     this.organizationValidation = organizationValidation;
+    this.dbClient = dbClient;
   }
 
   String getAndCheckMandatoryName(Request request) {
@@ -83,9 +88,9 @@ public class OrganizationsWsSupport {
   void addOrganizationDetailsParams(WebService.NewAction action, boolean isNameRequired) {
     action.createParam(PARAM_NAME)
       .setRequired(isNameRequired)
+      .setMinimumLength(NAME_MIN_LENGTH)
       .setMaximumLength(NAME_MAX_LENGTH)
-      .setDescription("Name of the organization. <br />" +
-        "It must be between 2 and 64 chars longs.")
+      .setDescription("Name of the organization")
       .setExampleValue("Foo Company");
 
     action.createParam(PARAM_DESCRIPTION)
@@ -108,17 +113,20 @@ public class OrganizationsWsSupport {
   }
 
   Organization.Builder toOrganization(OrganizationDto dto) {
-    return toOrganization(Organization.newBuilder(), dto);
-  }
-
-  Organization.Builder toOrganization(Organization.Builder builder, OrganizationDto dto) {
+    Organization.Builder builder = Organization.newBuilder();
     builder
       .setName(dto.getName())
       .setKey(dto.getKey())
       .setGuarded(dto.isGuarded());
-    setNullable(dto.getDescription(), builder::setDescription);
-    setNullable(dto.getUrl(), builder::setUrl);
-    setNullable(dto.getAvatarUrl(), builder::setAvatar);
+    ofNullable(dto.getDescription()).ifPresent(builder::setDescription);
+    ofNullable(dto.getUrl()).ifPresent(builder::setUrl);
+    ofNullable(dto.getAvatarUrl()).ifPresent(builder::setAvatar);
     return builder;
+  }
+
+
+  void checkMemberSyncIsDisabled(DbSession dbSession, OrganizationDto organization) {
+    dbClient.organizationAlmBindingDao().selectByOrganization(dbSession, organization).ifPresent(orgAlmBindingDto ->
+      checkArgument(!orgAlmBindingDto.isMembersSyncEnable(), "You can't add or remove members when synchronization of organization with alm is enabled."));
   }
 }

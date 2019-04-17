@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,13 +19,10 @@
  */
 package org.sonar.server.projecttag.ws;
 
-import java.io.IOException;
 import javax.annotation.Nullable;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
-import org.sonar.api.config.internal.MapSettings;
-import org.sonar.api.resources.Qualifiers;
 import org.sonar.api.server.ws.WebService;
 import org.sonar.api.utils.System2;
 import org.sonar.db.component.ComponentDto;
@@ -35,27 +32,29 @@ import org.sonar.db.organization.OrganizationTesting;
 import org.sonar.server.es.EsTester;
 import org.sonar.server.measure.index.ProjectMeasuresDoc;
 import org.sonar.server.measure.index.ProjectMeasuresIndex;
-import org.sonar.server.measure.index.ProjectMeasuresIndexDefinition;
 import org.sonar.server.measure.index.ProjectMeasuresIndexer;
-import org.sonar.server.permission.index.AuthorizationTypeSupport;
-import org.sonar.server.permission.index.PermissionIndexerDao;
+import org.sonar.server.permission.index.IndexPermissions;
 import org.sonar.server.permission.index.PermissionIndexerTester;
+import org.sonar.server.permission.index.WebAuthorizationTypeSupport;
 import org.sonar.server.tester.UserSessionRule;
 import org.sonar.server.ws.TestRequest;
 import org.sonar.server.ws.WsActionTester;
 import org.sonarqube.ws.ProjectTags.SearchResponse;
 
 import static com.google.common.collect.Lists.newArrayList;
+import static java.util.Arrays.stream;
+import static java.util.Optional.ofNullable;
+import static java.util.stream.Collectors.toList;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.sonar.core.util.Protobuf.setNullable;
-import static org.sonar.server.measure.index.ProjectMeasuresIndexDefinition.INDEX_TYPE_PROJECT_MEASURES;
+import static org.sonar.api.resources.Qualifiers.PROJECT;
+import static org.sonar.server.measure.index.ProjectMeasuresIndexDefinition.TYPE_PROJECT_MEASURES;
 import static org.sonar.test.JsonAssert.assertJson;
 
 public class SearchActionTest {
   private static final OrganizationDto ORG = OrganizationTesting.newOrganizationDto();
 
   @Rule
-  public EsTester es = new EsTester(new ProjectMeasuresIndexDefinition(new MapSettings().asConfig()));
+  public EsTester es = EsTester.create();
 
   @Rule
   public ExpectedException expectedException = ExpectedException.none();
@@ -64,8 +63,8 @@ public class SearchActionTest {
   public UserSessionRule userSession = UserSessionRule.standalone();
 
   private ProjectMeasuresIndexer projectMeasureIndexer = new ProjectMeasuresIndexer(null, es.client());
-  private PermissionIndexerTester authorizationIndexerTester = new PermissionIndexerTester(es, projectMeasureIndexer);
-  private ProjectMeasuresIndex index = new ProjectMeasuresIndex(es.client(), new AuthorizationTypeSupport(userSession), System2.INSTANCE);
+  private PermissionIndexerTester authorizationIndexer = new PermissionIndexerTester(es, projectMeasureIndexer);
+  private ProjectMeasuresIndex index = new ProjectMeasuresIndex(es.client(), new WebAuthorizationTypeSupport(userSession), System2.INSTANCE);
 
   private WsActionTester ws = new WsActionTester(new SearchAction(index));
 
@@ -111,12 +110,8 @@ public class SearchActionTest {
   }
 
   private void index(ProjectMeasuresDoc... docs) {
-    es.putDocuments(INDEX_TYPE_PROJECT_MEASURES, docs);
-    for (ProjectMeasuresDoc doc : docs) {
-      PermissionIndexerDao.Dto access = new PermissionIndexerDao.Dto(doc.getId(), Qualifiers.PROJECT);
-      access.allowAnyone();
-      authorizationIndexerTester.allow(access);
-    }
+    es.putDocuments(TYPE_PROJECT_MEASURES, docs);
+    authorizationIndexer.allow(stream(docs).map(doc -> new IndexPermissions(doc.getId(), PROJECT).allowAnyone()).collect(toList()));
   }
 
   private static ProjectMeasuresDoc newDoc(ComponentDto project) {
@@ -133,8 +128,8 @@ public class SearchActionTest {
 
   private SearchResponse call(@Nullable String textQuery, @Nullable Integer pageSize) {
     TestRequest request = ws.newRequest();
-    setNullable(textQuery, s -> request.setParam("q", s));
-    setNullable(pageSize, ps -> request.setParam("ps", ps.toString()));
+    ofNullable(textQuery).ifPresent(s -> request.setParam("q", s));
+    ofNullable(pageSize).ifPresent(ps -> request.setParam("ps", ps.toString()));
 
     return request.executeProtobuf(SearchResponse.class);
   }

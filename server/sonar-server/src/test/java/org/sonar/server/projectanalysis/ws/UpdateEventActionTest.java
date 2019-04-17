@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -41,9 +41,9 @@ import org.sonar.server.ws.WsActionTester;
 import org.sonarqube.ws.ProjectAnalyses;
 import org.sonarqube.ws.ProjectAnalyses.UpdateEventResponse;
 
+import static java.util.Optional.ofNullable;
 import static org.apache.commons.lang.StringUtils.repeat;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.sonar.core.util.Protobuf.setNullable;
 import static org.sonar.db.component.SnapshotTesting.newAnalysis;
 import static org.sonar.db.event.EventTesting.newEvent;
 import static org.sonar.test.JsonAssert.assertJson;
@@ -121,7 +121,7 @@ public class UpdateEventActionTest {
     call("E1", "6.3");
 
     SnapshotDto updatedAnalysis = dbClient.snapshotDao().selectByUuid(dbSession, analysis.getUuid()).get();
-    assertThat(updatedAnalysis.getVersion()).isEqualTo("6.3");
+    assertThat(updatedAnalysis.getProjectVersion()).isEqualTo("6.3");
   }
 
   @Test
@@ -132,7 +132,7 @@ public class UpdateEventActionTest {
     call("E1", "6.3");
 
     SnapshotDto updatedAnalysis = dbClient.snapshotDao().selectByUuid(dbSession, analysis.getUuid()).get();
-    assertThat(updatedAnalysis.getVersion()).isEqualTo("5.6");
+    assertThat(updatedAnalysis.getProjectVersion()).isEqualTo("5.6");
   }
 
   @Test
@@ -156,6 +156,7 @@ public class UpdateEventActionTest {
     assertThat(definition.isPost()).isTrue();
     assertThat(definition.since()).isEqualTo("6.3");
     assertThat(definition.param(PARAM_EVENT).isRequired()).isTrue();
+    assertThat(definition.param(PARAM_NAME).isRequired()).isTrue();
   }
 
   @Test
@@ -185,8 +186,8 @@ public class UpdateEventActionTest {
     SnapshotDto analysis = createAnalysisAndLogInAsProjectAdministrator("5.6");
     db.events().insertEvent(newEvent(analysis).setUuid("E1"));
 
-    expectedException.expect(NullPointerException.class);
-
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("The 'name' parameter is missing");
     call("E1", null);
   }
 
@@ -235,7 +236,7 @@ public class UpdateEventActionTest {
     call("E2", repeat("a", 100));
 
     expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("Version length (101) is longer than the maximum authorized (100). 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' was provided");
+    expectedException.expectMessage("Event name length (101) is longer than the maximum authorized (100). 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' was provided");
 
     call("E2", repeat("a", 101));
   }
@@ -243,8 +244,8 @@ public class UpdateEventActionTest {
   private UpdateEventResponse call(@Nullable String eventUuid, @Nullable String name) {
     TestRequest request = ws.newRequest()
       .setMethod(POST.name());
-    setNullable(eventUuid, e -> request.setParam(PARAM_EVENT, e));
-    setNullable(name, n -> request.setParam(PARAM_NAME, n));
+    ofNullable(eventUuid).ifPresent(e -> request.setParam(PARAM_EVENT, e));
+    ofNullable(name).ifPresent(n -> request.setParam(PARAM_NAME, n));
 
     return request.executeProtobuf(UpdateEventResponse.class);
   }
@@ -255,7 +256,7 @@ public class UpdateEventActionTest {
 
   private SnapshotDto createAnalysisAndLogInAsProjectAdministrator(String version) {
     ComponentDto project = db.components().insertPrivateProject();
-    SnapshotDto analysis = db.components().insertSnapshot(newAnalysis(project).setVersion(version));
+    SnapshotDto analysis = db.components().insertSnapshot(newAnalysis(project).setProjectVersion(version));
     logInAsProjectAdministrator(project);
     return analysis;
   }

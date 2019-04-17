@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,10 +19,8 @@
  */
 package org.sonar.api.web;
 
-import java.io.IOException;
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
-import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import org.junit.Rule;
@@ -159,6 +157,17 @@ public class ServletFilterTest {
   }
 
   @Test
+  public void use_include_and_exclude_prefix() {
+    ServletFilter.UrlPattern pattern = ServletFilter.UrlPattern.builder()
+      .includes("/foo_2")
+      .excludes("/foo")
+      .build();
+    assertThat(pattern.matches("/")).isFalse();
+    assertThat(pattern.matches("/foo_2")).isTrue();
+    assertThat(pattern.matches("/foo")).isFalse();
+  }
+
+  @Test
   public void exclude_pattern_has_higher_priority_than_include_pattern() {
     ServletFilter.UrlPattern pattern = ServletFilter.UrlPattern.builder()
       .includes("/foo")
@@ -217,10 +226,18 @@ public class ServletFilterTest {
   @Test
   public void test_staticResourcePatterns() {
     assertThat(ServletFilter.UrlPattern.Builder.staticResourcePatterns()).containsOnly(
-      "/css/*",
-      "/fonts/*",
-      "/images/*",
-      "/js/*",
+      "*.css",
+      "*.css.map",
+      "*.ico",
+      "*.png",
+      "*.jpg",
+      "*.jpeg",
+      "*.gif",
+      "*.svg",
+      "*.js",
+      "*.js.map",
+      "*.pdf",
+      "/json/*",
       "/static/*",
       "/robots.txt",
       "/favicon.ico",
@@ -229,7 +246,7 @@ public class ServletFilterTest {
   }
 
   @Test
-  public void test_label() throws Exception {
+  public void test_label() {
     assertThat(ServletFilter.UrlPattern.builder().build().label()).isEqualTo("UrlPattern{inclusions=[], exclusions=[]}");
     assertThat(ServletFilter.UrlPattern.builder()
       .includes("/foo/*")
@@ -247,10 +264,10 @@ public class ServletFilterTest {
       return UrlPattern.create("/fake");
     }
 
-    public void init(FilterConfig filterConfig) throws ServletException {
+    public void init(FilterConfig filterConfig) {
     }
 
-    public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain) throws IOException, ServletException {
+    public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain) {
     }
 
     public void destroy() {
@@ -258,10 +275,10 @@ public class ServletFilterTest {
   }
 
   private static class DefaultFilter extends ServletFilter {
-    public void init(FilterConfig filterConfig) throws ServletException {
+    public void init(FilterConfig filterConfig) {
     }
 
-    public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain) throws IOException, ServletException {
+    public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain) {
     }
 
     public void destroy() {

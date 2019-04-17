@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -27,8 +27,9 @@ import javax.annotation.Nullable;
 import org.sonar.api.measures.Metric;
 
 import static com.google.common.base.Preconditions.checkState;
+import static java.lang.String.format;
+import static java.util.Arrays.stream;
 import static java.util.Objects.requireNonNull;
-import static org.sonar.server.component.ws.FilterParser.Operator;
 
 public class ProjectMeasuresQuery {
 
@@ -166,6 +167,27 @@ public class ProjectMeasuresQuery {
 
     private void checkDataAvailable() {
       checkState(!isNoData(), "The criterion for metric %s has no data", metricKey);
+    }
+  }
+
+  public enum Operator {
+    LT("<"), LTE("<="), GT(">"), GTE(">="), EQ("="), IN("in");
+
+    String value;
+
+    Operator(String value) {
+      this.value = value;
+    }
+
+    public String getValue() {
+      return value;
+    }
+
+    public static Operator getByValue(String value) {
+      return stream(Operator.values())
+        .filter(operator -> operator.getValue().equalsIgnoreCase(value))
+        .findFirst()
+        .orElseThrow(() -> new IllegalArgumentException(format("Unknown operator '%s'", value)));
     }
   }
 

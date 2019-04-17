@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -35,8 +35,10 @@ function shallowRender(props?: any) {
   return shallow(
     <ProjectsList
       cardType="overall"
+      currentUser={{ isLoggedIn: true }}
       isFavorite={false}
       isFiltered={false}
+      organization={undefined}
       projects={[{ key: 'foo', name: 'Foo' }, { key: 'bar', name: 'Bar' }]}
       {...props}
     />

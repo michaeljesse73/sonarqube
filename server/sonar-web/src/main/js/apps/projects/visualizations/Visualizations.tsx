@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -29,7 +29,7 @@ import { Project } from '../types';
 import { translate, translateWithParameters } from '../../../helpers/l10n';
 
 interface Props {
-  displayOrganizations: boolean;
+  displayOrganizations?: boolean;
   projects: Project[];
   sort?: string;
   total?: number;
@@ -38,7 +38,7 @@ interface Props {
 
 export default class Visualizations extends React.PureComponent<Props> {
   renderVisualization(projects: Project[]) {
-    const visualizationToComponent: { [x: string]: any } = {
+    const visualizationToComponent: T.Dict<any> = {
       risk: Risk,
       reliability: Reliability,
       security: Security,
@@ -49,7 +49,11 @@ export default class Visualizations extends React.PureComponent<Props> {
     const Component = visualizationToComponent[this.props.visualization];
 
     return Component ? (
-      <Component displayOrganizations={this.props.displayOrganizations} projects={projects} />
+      <Component
+        displayOrganizations={this.props.displayOrganizations}
+        helpText={translate('projects.visualization', this.props.visualization, 'description')}
+        projects={projects}
+      />
     ) : null;
   }
 
@@ -58,20 +62,17 @@ export default class Visualizations extends React.PureComponent<Props> {
 
     const limitReached = projects != null && total != null && projects.length < total;
 
-    return (
+    return limitReached ? (
       <footer className="projects-visualizations-footer">
-        <p>{translate('projects.visualization', this.props.visualization, 'description')}</p>
-        {limitReached && (
-          <p className="note spacer-top">
-            {translateWithParameters(
-              'projects.limited_set_of_projects',
-              projects!.length,
-              localizeSorting(sort)
-            )}
-          </p>
-        )}
+        <p className="note spacer-top">
+          {translateWithParameters(
+            'projects.limited_set_of_projects',
+            projects!.length,
+            localizeSorting(sort)
+          )}
+        </p>
       </footer>
-    );
+    ) : null;
   }
 
   render() {

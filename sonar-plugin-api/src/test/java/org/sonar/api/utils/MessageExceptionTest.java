@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -35,14 +35,14 @@ public class MessageExceptionTest {
 
   @Test
   public void should_create_exception_with_status_and_l10n_message_with_param(){
-    MessageException exception = MessageException.ofL10n("key", new String[]{"value"});
+    MessageException exception = MessageException.ofL10n("key", "value");
     assertThat(exception.l10nKey()).isEqualTo("key");
     assertThat(exception.l10nParams()).containsOnly("value");
   }
 
   @Test
   public void should_create_exception_with_status_and_l10n_message_without_param(){
-    MessageException exception = MessageException.ofL10n("key", null);
+    MessageException exception = MessageException.ofL10n("key", (Object[])null);
     assertThat(exception.l10nKey()).isEqualTo("key");
     assertThat(exception.l10nParams()).isEmpty();
   }

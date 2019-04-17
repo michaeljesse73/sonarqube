@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -27,6 +27,7 @@ import java.util.List;
 import javax.annotation.Nonnull;
 import org.sonar.api.rule.Severity;
 import org.sonar.db.issue.IssueDto;
+import org.sonar.server.issue.index.IssueQuery;
 
 /**
  * @since 3.6
@@ -51,9 +52,6 @@ class IssuesFinderSort {
   }
 
   private static IssueProcessor getIssueProcessor(String sort) {
-    if (IssueQuery.SORT_BY_ASSIGNEE.equals(sort)) {
-      return new AssigneeSortIssueProcessor();
-    }
     if (IssueQuery.SORT_BY_SEVERITY.equals(sort)) {
       return new SeveritySortIssueProcessor();
     }
@@ -103,13 +101,6 @@ class IssuesFinderSort {
         ordering = ordering.reverse();
       }
       return ordering;
-    }
-  }
-
-  static class AssigneeSortIssueProcessor extends TextSortIssueProcessor {
-    @Override
-    String sortField(IssueDto issueDto) {
-      return issueDto.getAssignee();
     }
   }
 

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,19 +19,28 @@
  */
 package org.sonar.server.project.ws;
 
+import java.util.List;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nullable;
+import org.sonar.api.server.ws.Change;
 import org.sonar.api.server.ws.Request;
 import org.sonar.api.server.ws.Response;
 import org.sonar.api.server.ws.WebService;
 import org.sonar.api.server.ws.WebService.Param;
+import org.sonar.core.util.stream.MoreCollectors;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
+import org.sonar.db.component.ComponentDto;
 import org.sonar.db.component.ComponentQuery;
 import org.sonar.db.organization.OrganizationDto;
 import org.sonar.db.permission.OrganizationPermission;
 import org.sonar.server.component.ComponentCleanerService;
+import org.sonar.server.project.Project;
+import org.sonar.server.project.ProjectLifeCycleListeners;
 import org.sonar.server.project.Visibility;
 import org.sonar.server.user.UserSession;
 
+import static java.lang.Math.min;
 import static org.sonar.api.resources.Qualifiers.APP;
 import static org.sonar.api.resources.Qualifiers.PROJECT;
 import static org.sonar.api.resources.Qualifiers.VIEW;
@@ -56,13 +65,15 @@ public class BulkDeleteAction implements ProjectsWsAction {
   private final DbClient dbClient;
   private final UserSession userSession;
   private final ProjectsWsSupport support;
+  private final ProjectLifeCycleListeners projectLifeCycleListeners;
 
   public BulkDeleteAction(ComponentCleanerService componentCleanerService, DbClient dbClient, UserSession userSession,
-    ProjectsWsSupport support) {
+                          ProjectsWsSupport support, ProjectLifeCycleListeners projectLifeCycleListeners) {
     this.componentCleanerService = componentCleanerService;
     this.dbClient = dbClient;
     this.userSession = userSession;
     this.support = support;
+    this.projectLifeCycleListeners = projectLifeCycleListeners;
   }
 
   @Override
@@ -73,7 +84,8 @@ public class BulkDeleteAction implements ProjectsWsAction {
       .setDescription("Delete one or several projects.<br />" +
         "Requires 'Administer System' permission.")
       .setSince("5.2")
-      .setHandler(this);
+      .setHandler(this)
+      .setChangelog(new Change("6.7.2", "Only the 1'000 first items in project filters are taken into account"));
 
     support.addOrganizationParam(action);
 
@@ -85,7 +97,7 @@ public class BulkDeleteAction implements ProjectsWsAction {
 
     action
       .createParam(PARAM_PROJECT_IDS)
-      .setDescription("Comma-separated list of project ids")
+      .setDescription("Comma-separated list of project ids. Only the 1'000 first ids are used. Others are silently ignored.")
       .setDeprecatedKey("ids", "6.4")
       .setDeprecatedSince("6.4")
       .setExampleValue(String.join(",", UUID_EXAMPLE_01, UUID_EXAMPLE_02));
@@ -133,8 +145,12 @@ public class BulkDeleteAction implements ProjectsWsAction {
       userSession.checkPermission(OrganizationPermission.ADMINISTER, organization);
 
       ComponentQuery query = buildDbQuery(searchRequest);
-      dbClient.componentDao().selectByQuery(dbSession, organization.getUuid(), query, 0, Integer.MAX_VALUE)
-        .forEach(p -> componentCleanerService.delete(dbSession, p));
+      List<ComponentDto> componentDtos = dbClient.componentDao().selectByQuery(dbSession, organization.getUuid(), query, 0, Integer.MAX_VALUE);
+      try {
+        componentDtos.forEach(p -> componentCleanerService.delete(dbSession, p));
+      } finally {
+        projectLifeCycleListeners.onProjectsDeleted(componentDtos.stream().map(Project::from).collect(MoreCollectors.toSet(componentDtos.size())));
+      }
     }
     response.noContent();
   }
@@ -147,8 +163,16 @@ public class BulkDeleteAction implements ProjectsWsAction {
       .setVisibility(request.param(PARAM_VISIBILITY))
       .setAnalyzedBefore(request.param(PARAM_ANALYZED_BEFORE))
       .setOnProvisionedOnly(request.mandatoryParamAsBoolean(PARAM_ON_PROVISIONED_ONLY))
-      .setProjects(request.paramAsStrings(PARAM_PROJECTS))
-      .setProjectIds(request.paramAsStrings(PARAM_PROJECT_IDS))
+      .setProjects(restrictTo1000Values(request.paramAsStrings(PARAM_PROJECTS)))
+      .setProjectIds(restrictTo1000Values(request.paramAsStrings(PARAM_PROJECT_IDS)))
       .build();
+  }
+
+  @CheckForNull
+  private static List<String> restrictTo1000Values(@Nullable List<String> values) {
+    if (values == null) {
+      return null;
+    }
+    return values.subList(0, min(values.size(), 1_000));
   }
 }

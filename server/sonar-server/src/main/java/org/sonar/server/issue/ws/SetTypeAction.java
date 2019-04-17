@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -106,9 +106,12 @@ public class SetTypeAction implements IssuesWsAction {
   private SearchResponseData setType(DbSession session, String issueKey, RuleType ruleType) {
     IssueDto issueDto = issueFinder.getByKey(session, issueKey);
     DefaultIssue issue = issueDto.toDefaultIssue();
+    if (issue.isFromHotspot()) {
+      throw new IllegalArgumentException("Changing type of a security hotspot is not permitted");
+    }
     userSession.checkComponentUuidPermission(ISSUE_ADMIN, issue.projectUuid());
 
-    IssueChangeContext context = IssueChangeContext.createUser(new Date(system2.now()), userSession.getLogin());
+    IssueChangeContext context = IssueChangeContext.createUser(new Date(system2.now()), userSession.getUuid());
     if (issueFieldsSetter.setType(issue, ruleType, context)) {
       return issueUpdater.saveIssueAndPreloadSearchResponseData(session, issue, context, null, true);
     }

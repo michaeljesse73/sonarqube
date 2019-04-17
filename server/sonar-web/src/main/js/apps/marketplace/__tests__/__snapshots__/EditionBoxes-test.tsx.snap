@@ -1,87 +1,94 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`should display an error message 1`] = `
-<div
-  className="spacer-bottom marketplace-editions"
->
-  <span
-    className="alert alert-info"
-  >
-    <FormattedMessage
-      defaultMessage="marketplace.editions_unavailable"
-      id="marketplace.editions_unavailable"
-      values={
-        Object {
-          "url": <a
-            href="https://redirect.sonarsource.com/editions/editions.html"
-            target="_blank"
-          >
-            SonarSource.com
-          </a>,
-        }
-      }
-    />
-  </span>
-</div>
-`;
-
-exports[`should display the edition boxes correctly 1`] = `
-<i
-  className="big-spacer-bottom spinner"
-/>
-`;
-
-exports[`should display the edition boxes correctly 2`] = `
+exports[`should display the available edition boxes correctly 1`] = `
 <div
   className="spacer-bottom marketplace-editions"
 >
   <EditionBox
-    actionLabel="marketplace.downgrade"
-    disableAction={false}
-    displayAction={true}
+    currentEdition="community"
     edition={
       Object {
-        "downloadUrl": "download_url",
-        "homeUrl": "more_url",
-        "key": "comunity",
-        "licenseRequestUrl": "license_url",
-        "name": "Comunity Edition",
-        "textDescription": "bar",
-      }
-    }
-    editionStatus={
-      Object {
-        "currentEditionKey": "developer",
-        "installationStatus": "NONE",
-        "nextEditionKey": "",
-      }
-    }
-    key="comunity"
-    onAction={[Function]}
-  />
-  <EditionBox
-    actionLabel="marketplace.upgrade"
-    disableAction={false}
-    displayAction={false}
-    edition={
-      Object {
-        "downloadUrl": "download_url",
-        "homeUrl": "more_url",
+        "downloadUrl": "https://binaries.sonarsource.com/CommercialDistribution/editions/developer-edition-7.0.0.717.zip",
+        "homeUrl": "https://redirect.sonarsource.com/editions/developer.html",
         "key": "developer",
-        "licenseRequestUrl": "license_url",
         "name": "Developer Edition",
-        "textDescription": "foo",
-      }
-    }
-    editionStatus={
-      Object {
-        "currentEditionKey": "developer",
-        "installationStatus": "NONE",
-        "nextEditionKey": "",
       }
     }
     key="developer"
-    onAction={[Function]}
+  />
+  <EditionBox
+    currentEdition="community"
+    edition={
+      Object {
+        "downloadUrl": "https://binaries.sonarsource.com/CommercialDistribution/editions/enterprise-edition-7.0.0.717.zip",
+        "homeUrl": "https://redirect.sonarsource.com/editions/enterprise.html",
+        "key": "enterprise",
+        "name": "Enterprise Edition",
+      }
+    }
+    key="enterprise"
+  />
+  <EditionBox
+    currentEdition="community"
+    edition={
+      Object {
+        "downloadUrl": "https://binaries.sonarsource.com/CommercialDistribution/editions/datacenter-edition-7.0.0.717.zip",
+        "homeUrl": "https://redirect.sonarsource.com/editions/datacenter.html",
+        "key": "datacenter",
+        "name": "Data Center Edition",
+      }
+    }
+    key="datacenter"
+  />
+</div>
+`;
+
+exports[`should display the datacenter edition box only 1`] = `
+<div
+  className="spacer-bottom marketplace-editions"
+>
+  <EditionBox
+    currentEdition="enterprise"
+    edition={
+      Object {
+        "downloadUrl": "https://binaries.sonarsource.com/CommercialDistribution/editions/datacenter-edition-7.0.0.717.zip",
+        "homeUrl": "https://redirect.sonarsource.com/editions/datacenter.html",
+        "key": "datacenter",
+        "name": "Data Center Edition",
+      }
+    }
+    key="datacenter"
+  />
+</div>
+`;
+
+exports[`should display the enterprise and datacenter edition boxes 1`] = `
+<div
+  className="spacer-bottom marketplace-editions"
+>
+  <EditionBox
+    currentEdition="developer"
+    edition={
+      Object {
+        "downloadUrl": "https://binaries.sonarsource.com/CommercialDistribution/editions/enterprise-edition-7.0.0.717.zip",
+        "homeUrl": "https://redirect.sonarsource.com/editions/enterprise.html",
+        "key": "enterprise",
+        "name": "Enterprise Edition",
+      }
+    }
+    key="enterprise"
+  />
+  <EditionBox
+    currentEdition="developer"
+    edition={
+      Object {
+        "downloadUrl": "https://binaries.sonarsource.com/CommercialDistribution/editions/datacenter-edition-7.0.0.717.zip",
+        "homeUrl": "https://redirect.sonarsource.com/editions/datacenter.html",
+        "key": "datacenter",
+        "name": "Data Center Edition",
+      }
+    }
+    key="datacenter"
   />
 </div>
 `;

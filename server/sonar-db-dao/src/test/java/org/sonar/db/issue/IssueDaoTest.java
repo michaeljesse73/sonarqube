@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,13 +19,12 @@
  */
 package org.sonar.db.issue;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import org.apache.ibatis.session.ResultContext;
-import org.apache.ibatis.session.ResultHandler;
+
+import java.util.stream.Stream;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -44,7 +43,9 @@ import org.sonar.db.rule.RuleDto;
 import org.sonar.db.rule.RuleTesting;
 
 import static java.util.Arrays.asList;
+import static org.apache.commons.lang.math.RandomUtils.nextInt;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.rules.ExpectedException.none;
 import static org.sonar.db.component.ComponentTesting.newFileDto;
 import static org.sonar.db.component.ComponentTesting.newModuleDto;
 
@@ -58,8 +59,12 @@ public class IssueDaoTest {
   private static final String ISSUE_KEY1 = "I1";
   private static final String ISSUE_KEY2 = "I2";
 
+  private static final RuleType[] RULE_TYPES_EXCEPT_HOTSPOT = Stream.of(RuleType.values())
+    .filter(r -> r != RuleType.SECURITY_HOTSPOT)
+    .toArray(RuleType[]::new);
+
   @Rule
-  public ExpectedException expectedException = ExpectedException.none();
+  public ExpectedException expectedException = none();
   @Rule
   public DbTester db = DbTester.create(System2.INSTANCE);
 
@@ -87,7 +92,7 @@ public class IssueDaoTest {
     assertThat(issue.getResolution()).isEqualTo("FIXED");
     assertThat(issue.getChecksum()).isEqualTo("123456789");
     assertThat(issue.getAuthorLogin()).isEqualTo("morgan");
-    assertThat(issue.getAssignee()).isEqualTo("karadoc");
+    assertThat(issue.getAssigneeUuid()).isEqualTo("karadoc");
     assertThat(issue.getIssueAttributes()).isEqualTo("JIRA=FOO-1234");
     assertThat(issue.getIssueCreationDate()).isNotNull();
     assertThat(issue.getIssueUpdateDate()).isNotNull();
@@ -100,6 +105,7 @@ public class IssueDaoTest {
     assertThat(issue.getProjectKey()).isEqualTo(PROJECT_KEY);
     assertThat(issue.getLocations()).isNull();
     assertThat(issue.parseLocations()).isNull();
+    assertThat(issue.isExternal()).isTrue();
   }
 
   @Test
@@ -127,22 +133,26 @@ public class IssueDaoTest {
     RuleDefinitionDto rule = db.rules().insert();
     ComponentDto project = db.components().insertPrivateProject();
     ComponentDto file = db.components().insertComponent(newFileDto(project));
-    IssueDto openIssue1OnFile = db.issues().insert(rule, project, file, i -> i.setStatus("OPEN").setResolution(null));
-    IssueDto openIssue2OnFile = db.issues().insert(rule, project, file, i -> i.setStatus("OPEN").setResolution(null));
-    IssueDto closedIssueOnFile = db.issues().insert(rule, project, file, i -> i.setStatus("CLOSED").setResolution("FIXED"));
-    IssueDto openIssueOnProject = db.issues().insert(rule, project, project, i -> i.setStatus("OPEN").setResolution(null));
+    IssueDto openIssue1OnFile = db.issues().insert(rule, project, file, i -> i.setStatus("OPEN").setResolution(null).setType(randomRuleTypeExceptHotspot()));
+    IssueDto openIssue2OnFile = db.issues().insert(rule, project, file, i -> i.setStatus("OPEN").setResolution(null).setType(randomRuleTypeExceptHotspot()));
+    IssueDto closedIssueOnFile = db.issues().insert(rule, project, file, i -> i.setStatus("CLOSED").setResolution("FIXED").setType(randomRuleTypeExceptHotspot()));
+    IssueDto openIssueOnProject = db.issues().insert(rule, project, project, i -> i.setStatus("OPEN").setResolution(null).setType(randomRuleTypeExceptHotspot()));
 
-    Accumulator accumulator = new Accumulator();
-    underTest.scrollNonClosedByComponentUuid(db.getSession(), file.uuid(), accumulator);
-    accumulator.assertThatContainsOnly(openIssue1OnFile, openIssue2OnFile);
+    IssueDto securityHotspot = db.issues().insert(rule, project, file, i -> i.setType(RuleType.SECURITY_HOTSPOT));
+    IssueDto manualVulnerability = db.issues().insert(rule, project, file, i -> i.setType(RuleType.VULNERABILITY).setIsFromHotspot(true));
 
-    accumulator.clear();
-    underTest.scrollNonClosedByComponentUuid(db.getSession(), project.uuid(), accumulator);
-    accumulator.assertThatContainsOnly(openIssueOnProject);
+    RuleDefinitionDto external = db.rules().insert(ruleDefinitionDto -> ruleDefinitionDto.setIsExternal(true));
+    IssueDto issueFromExteralruleOnFile = db.issues().insert(external, project, file, i -> i.setKee("ON_FILE_FROM_EXTERNAL").setType(randomRuleTypeExceptHotspot()));
 
-    accumulator.clear();
-    underTest.scrollNonClosedByComponentUuid(db.getSession(), "does_not_exist", accumulator);
-    assertThat(accumulator.list).isEmpty();
+    assertThat(underTest.selectNonClosedByComponentUuidExcludingExternalsAndSecurityHotspots(db.getSession(), file.uuid()))
+      .extracting(IssueDto::getKey)
+      .containsExactlyInAnyOrder(Arrays.stream(new IssueDto[] {openIssue1OnFile, openIssue2OnFile}).map(IssueDto::getKey).toArray(String[]::new));
+
+    assertThat(underTest.selectNonClosedByComponentUuidExcludingExternalsAndSecurityHotspots(db.getSession(), project.uuid()))
+      .extracting(IssueDto::getKey)
+      .containsExactlyInAnyOrder(Arrays.stream(new IssueDto[] {openIssueOnProject}).map(IssueDto::getKey).toArray(String[]::new));
+
+    assertThat(underTest.selectNonClosedByComponentUuidExcludingExternalsAndSecurityHotspots(db.getSession(), "does_not_exist")).isEmpty();
   }
 
   @Test
@@ -152,25 +162,29 @@ public class IssueDaoTest {
     ComponentDto anotherProject = db.components().insertPrivateProject();
     ComponentDto module = db.components().insertComponent(newModuleDto(project));
     ComponentDto file = db.components().insertComponent(newFileDto(module));
-    IssueDto openIssue1OnFile = db.issues().insert(rule, project, file, i -> i.setStatus("OPEN").setResolution(null));
-    IssueDto openIssue2OnFile = db.issues().insert(rule, project, file, i -> i.setStatus("OPEN").setResolution(null));
-    IssueDto closedIssueOnFile = db.issues().insert(rule, project, file, i -> i.setStatus("CLOSED").setResolution("FIXED"));
-    IssueDto openIssueOnModule = db.issues().insert(rule, project, module, i -> i.setStatus("OPEN").setResolution(null));
-    IssueDto openIssueOnProject = db.issues().insert(rule, project, project, i -> i.setStatus("OPEN").setResolution(null));
-    IssueDto openIssueOnAnotherProject = db.issues().insert(rule, anotherProject, anotherProject, i -> i.setStatus("OPEN").setResolution(null));
+    IssueDto openIssue1OnFile = db.issues().insert(rule, project, file, i -> i.setStatus("OPEN").setResolution(null).setType(randomRuleTypeExceptHotspot()));
+    IssueDto openIssue2OnFile = db.issues().insert(rule, project, file, i -> i.setStatus("OPEN").setResolution(null).setType(randomRuleTypeExceptHotspot()));
+    IssueDto closedIssueOnFile = db.issues().insert(rule, project, file, i -> i.setStatus("CLOSED").setResolution("FIXED").setType(randomRuleTypeExceptHotspot()));
+    IssueDto openIssueOnModule = db.issues().insert(rule, project, module, i -> i.setStatus("OPEN").setResolution(null).setType(randomRuleTypeExceptHotspot()));
+    IssueDto openIssueOnProject = db.issues().insert(rule, project, project, i -> i.setStatus("OPEN").setResolution(null).setType(randomRuleTypeExceptHotspot()));
+    IssueDto openIssueOnAnotherProject = db.issues().insert(rule, anotherProject, anotherProject, i -> i.setStatus("OPEN").setResolution(null).setType(randomRuleTypeExceptHotspot()));
 
-    Accumulator accumulator = new Accumulator();
-    underTest.scrollNonClosedByModuleOrProject(db.getSession(), project, accumulator);
-    accumulator.assertThatContainsOnly(openIssue1OnFile, openIssue2OnFile, openIssueOnModule, openIssueOnProject);
+    IssueDto securityHotspot = db.issues().insert(rule, project, file, i -> i.setType(RuleType.SECURITY_HOTSPOT));
+    IssueDto manualVulnerability = db.issues().insert(rule, project, file, i -> i.setType(RuleType.VULNERABILITY).setIsFromHotspot(true));
 
-    accumulator.clear();
-    underTest.scrollNonClosedByModuleOrProject(db.getSession(), module, accumulator);
-    accumulator.assertThatContainsOnly(openIssue1OnFile, openIssue2OnFile, openIssueOnModule);
+    RuleDefinitionDto external = db.rules().insert(ruleDefinitionDto -> ruleDefinitionDto.setIsExternal(true));
+    IssueDto issueFromExteralruleOnFile = db.issues().insert(external, project, file, i -> i.setKee("ON_FILE_FROM_EXTERNAL").setType(randomRuleTypeExceptHotspot()));
 
-    accumulator.clear();
+    assertThat(underTest.selectNonClosedByModuleOrProjectExcludingExternalsAndSecurityHotspots(db.getSession(), project))
+      .extracting(IssueDto::getKey)
+      .containsExactlyInAnyOrder(Arrays.stream(new IssueDto[] {openIssue1OnFile, openIssue2OnFile, openIssueOnModule, openIssueOnProject}).map(IssueDto::getKey).toArray(String[]::new));
+
+    assertThat(underTest.selectNonClosedByModuleOrProjectExcludingExternalsAndSecurityHotspots(db.getSession(), module))
+      .extracting(IssueDto::getKey)
+      .containsExactlyInAnyOrder(Arrays.stream(new IssueDto[] {openIssue1OnFile, openIssue2OnFile, openIssueOnModule}).map(IssueDto::getKey).toArray(String[]::new));
+
     ComponentDto notPersisted = ComponentTesting.newPrivateProjectDto(db.getDefaultOrganization());
-    underTest.scrollNonClosedByModuleOrProject(db.getSession(), notPersisted, accumulator);
-    assertThat(accumulator.list).isEmpty();
+    assertThat(underTest.selectNonClosedByModuleOrProjectExcludingExternalsAndSecurityHotspots(db.getSession(), notPersisted)).isEmpty();
   }
 
   @Test
@@ -291,7 +305,7 @@ public class IssueDaoTest {
     dto.setStatus("RESOLVED");
     dto.setSeverity("BLOCKER");
     dto.setAuthorLogin("morgan");
-    dto.setAssignee("karadoc");
+    dto.setAssigneeUuid("karadoc");
     dto.setIssueAttributes("JIRA=FOO-1234");
     dto.setChecksum("123456789");
     dto.setMessage("the message");
@@ -304,7 +318,7 @@ public class IssueDaoTest {
   }
 
   private void prepareTables() {
-    db.rules().insertRule(RULE);
+    db.rules().insertRule(RULE.setIsExternal(true));
     OrganizationDto organizationDto = db.organizations().insert();
     ComponentDto projectDto = db.components().insertPrivateProject(organizationDto, (t) -> t.setUuid(PROJECT_UUID).setDbKey(PROJECT_KEY));
     db.components().insertComponent(newFileDto(projectDto).setUuid(FILE_UUID).setDbKey(FILE_KEY));
@@ -320,22 +334,7 @@ public class IssueDaoTest {
     db.getSession().commit();
   }
 
-  private static class Accumulator implements ResultHandler<IssueDto> {
-    private final List<IssueDto> list = new ArrayList<>();
-
-    private void clear() {
-      list.clear();
-    }
-
-    @Override
-    public void handleResult(ResultContext<? extends IssueDto> resultContext) {
-      list.add(resultContext.getResultObject());
-    }
-
-    private void assertThatContainsOnly(IssueDto... issues) {
-      assertThat(list)
-        .extracting(IssueDto::getKey)
-        .containsExactlyInAnyOrder(Arrays.stream(issues).map(IssueDto::getKey).toArray(String[]::new));
-    }
+  private static RuleType randomRuleTypeExceptHotspot() {
+    return RULE_TYPES_EXCEPT_HOTSPOT[nextInt(RULE_TYPES_EXCEPT_HOTSPOT.length)];
   }
 }

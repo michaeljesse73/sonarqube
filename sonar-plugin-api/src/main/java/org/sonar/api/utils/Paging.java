@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -40,7 +40,7 @@ public class Paging {
   }
 
   /**
-   * @deprecated since 5.2 please use the forPageIndex(...) builder method
+   * @deprecated since 5.2 please use the #forPgeIndex(...) builder method
    */
   @Deprecated
   public static Paging create(int pageSize, int pageIndex, int totalItems) {

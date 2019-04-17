@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,23 +25,23 @@ import Tooltip from '../../../components/controls/Tooltip';
 import { translate, translateWithParameters } from '../../../helpers/l10n';
 import { getQualityProfileUrl } from '../../../helpers/urls';
 import { searchRules } from '../../../api/rules';
-import { getLanguages } from '../../../store/rootReducer';
+import { getLanguages, Store } from '../../../store/rootReducer';
 
 interface StateProps {
-  languages: { [key: string]: { name: string } };
+  languages: T.Languages;
 }
 
 interface OwnProps {
   headerClassName?: string;
   organization?: string;
-  profiles: { key: string; language: string; name: string }[];
+  profiles: T.ComponentQualityProfile[];
 }
 
 interface State {
-  deprecatedByKey: { [key: string]: number };
+  deprecatedByKey: T.Dict<number>;
 }
 
-class MetaQualityProfiles extends React.PureComponent<StateProps & OwnProps, State> {
+export class MetaQualityProfiles extends React.PureComponent<StateProps & OwnProps, State> {
   mounted = false;
   state: State = { deprecatedByKey: {} };
 
@@ -55,15 +55,16 @@ class MetaQualityProfiles extends React.PureComponent<StateProps & OwnProps, Sta
   }
 
   loadDeprecatedRules() {
-    const requests = this.props.profiles.map(profile =>
+    const existingProfiles = this.props.profiles.filter(p => !p.deleted);
+    const requests = existingProfiles.map(profile =>
       this.loadDeprecatedRulesForProfile(profile.key)
     );
     Promise.all(requests).then(
       responses => {
         if (this.mounted) {
-          const deprecatedByKey: { [key: string]: number } = {};
+          const deprecatedByKey: T.Dict<number> = {};
           responses.forEach((count, i) => {
-            const profileKey = this.props.profiles[i].key;
+            const profileKey = existingProfiles[i].key;
             deprecatedByKey[profileKey] = count;
           });
           this.setState({ deprecatedByKey });
@@ -89,18 +90,31 @@ class MetaQualityProfiles extends React.PureComponent<StateProps & OwnProps, Sta
     return count || 0;
   }
 
-  renderProfile(profile: { key: string; language: string; name: string }) {
+  renderProfile(profile: T.ComponentQualityProfile) {
     const languageFromStore = this.props.languages[profile.language];
     const languageName = languageFromStore ? languageFromStore.name : profile.language;
-
-    const path = getQualityProfileUrl(profile.name, profile.language, this.props.organization);
 
     const inner = (
       <div className="text-ellipsis">
         <span className="note spacer-right">{'(' + languageName + ')'}</span>
-        <Link to={path}>{profile.name}</Link>
+        {profile.deleted ? (
+          profile.name
+        ) : (
+          <Link to={getQualityProfileUrl(profile.name, profile.language, this.props.organization)}>
+            {profile.name}
+          </Link>
+        )}
       </div>
     );
+
+    if (profile.deleted) {
+      const tooltip = translateWithParameters('overview.deleted_profile', profile.name);
+      return (
+        <Tooltip key={profile.key} overlay={tooltip}>
+          <li className="overview-deleted-profile">{inner}</li>
+        </Tooltip>
+      );
+    }
 
     const count = this.getDeprecatedRulesCount(profile);
 
@@ -133,8 +147,8 @@ class MetaQualityProfiles extends React.PureComponent<StateProps & OwnProps, Sta
   }
 }
 
-const mapStateToProps = (state: any) => ({
+const mapStateToProps = (state: Store) => ({
   languages: getLanguages(state)
 });
 
-export default connect<StateProps, {}, OwnProps>(mapStateToProps)(MetaQualityProfiles);
+export default connect(mapStateToProps)(MetaQualityProfiles);

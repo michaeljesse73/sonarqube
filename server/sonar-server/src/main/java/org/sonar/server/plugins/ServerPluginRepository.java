@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -40,7 +40,6 @@ import org.apache.commons.io.FileUtils;
 import org.picocontainer.Startable;
 import org.sonar.api.Plugin;
 import org.sonar.api.SonarRuntime;
-import org.sonar.api.platform.ServerUpgradeStatus;
 import org.sonar.api.utils.MessageException;
 import org.sonar.api.utils.log.Logger;
 import org.sonar.api.utils.log.Loggers;
@@ -53,7 +52,6 @@ import org.sonar.updatecenter.common.Version;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static java.lang.String.format;
-import static org.apache.commons.io.FileUtils.copyFile;
 import static org.apache.commons.io.FileUtils.moveFile;
 import static org.apache.commons.io.FileUtils.moveFileToDirectory;
 import static org.sonar.core.util.FileUtils.deleteQuietly;
@@ -61,7 +59,6 @@ import static org.sonar.core.util.FileUtils.deleteQuietly;
 /**
  * Entry point to install and load plugins on server startup. It manages
  * <ul>
- *   <li>installation of bundled plugins on first server startup</li>
  *   <li>installation of new plugins (effective after server startup)</li>
  *   <li>un-installation of plugins (effective after server startup)</li>
  *   <li>cancel pending installations/un-installations</li>
@@ -81,7 +78,6 @@ public class ServerPluginRepository implements PluginRepository, Startable {
 
   private final SonarRuntime runtime;
   private final ServerFileSystem fs;
-  private final ServerUpgradeStatus upgradeStatus;
   private final PluginLoader loader;
   private final AtomicBoolean started = new AtomicBoolean(false);
   private Set<String> blacklistedPluginKeys = DEFAULT_BLACKLISTED_PLUGINS;
@@ -91,9 +87,8 @@ public class ServerPluginRepository implements PluginRepository, Startable {
   private final Map<String, Plugin> pluginInstancesByKeys = new HashMap<>();
   private final Map<ClassLoader, String> keysByClassLoader = new HashMap<>();
 
-  public ServerPluginRepository(SonarRuntime runtime, ServerUpgradeStatus upgradeStatus, ServerFileSystem fs, PluginLoader loader) {
+  public ServerPluginRepository(SonarRuntime runtime, ServerFileSystem fs, PluginLoader loader) {
     this.runtime = runtime;
-    this.upgradeStatus = upgradeStatus;
     this.fs = fs;
     this.loader = loader;
   }
@@ -106,9 +101,7 @@ public class ServerPluginRepository implements PluginRepository, Startable {
   @Override
   public void start() {
     loadPreInstalledPlugins();
-    copyBundledPlugins();
     moveDownloadedPlugins();
-    moveDownloadedEditionPlugins();
     unloadIncompatiblePlugins();
     logInstalledPlugins();
     loadInstances();
@@ -150,32 +143,7 @@ public class ServerPluginRepository implements PluginRepository, Startable {
   private void moveDownloadedPlugins() {
     if (fs.getDownloadedPluginsDir().exists()) {
       for (File sourceFile : listJarFiles(fs.getDownloadedPluginsDir())) {
-        overrideAndRegisterPlugin(sourceFile, true);
-      }
-    }
-  }
-
-  private void moveDownloadedEditionPlugins() {
-    if (fs.getEditionDownloadedPluginsDir().exists()) {
-      for (File sourceFile : listJarFiles(fs.getEditionDownloadedPluginsDir())) {
-        overrideAndRegisterPlugin(sourceFile, true);
-      }
-    }
-  }
-
-  /**
-   * Copies the plugins bundled with SonarQube distribution to directory extensions/plugins.
-   * Does nothing if not a fresh installation.
-   */
-  private void copyBundledPlugins() {
-    if (upgradeStatus.isFreshInstall()) {
-      for (File sourceFile : listJarFiles(fs.getBundledPluginsDir())) {
-        PluginInfo info = PluginInfo.create(sourceFile);
-        // lib/bundled-plugins should be copied only if the plugin is not already
-        // available in extensions/plugins
-        if (!pluginInfosByKeys.containsKey(info.getKey())) {
-          overrideAndRegisterPlugin(sourceFile, false);
-        }
+        overrideAndRegisterPlugin(sourceFile);
       }
     }
   }
@@ -183,17 +151,17 @@ public class ServerPluginRepository implements PluginRepository, Startable {
   private void registerPluginInfo(PluginInfo info) {
     String pluginKey = info.getKey();
     if (blacklistedPluginKeys.contains(pluginKey)) {
-      LOG.warn("Plugin {} [{}] is blacklisted and is being uninstalled.", info.getName(), pluginKey);
+      LOG.warn("Plugin {} [{}] is blacklisted and is being uninstalled", info.getName(), pluginKey);
       deleteQuietly(info.getNonNullJarFile());
       return;
     }
     if (FORBIDDEN_COMPATIBLE_PLUGINS.contains(pluginKey)) {
-      throw MessageException.of(String.format("Plugin '%s' is no more compatible with this version of SonarQube", pluginKey));
+      throw MessageException.of(String.format("Plugin '%s' is no longer compatible with this version of SonarQube", pluginKey));
     }
     PluginInfo existing = pluginInfosByKeys.put(pluginKey, info);
     if (existing != null) {
-      throw MessageException.of(format("Found two files for the same plugin [%s]: %s and %s",
-        pluginKey, info.getNonNullJarFile().getName(), existing.getNonNullJarFile().getName()));
+      throw MessageException.of(format("Found two versions of the plugin %s [%s] in the directory extensions/plugins. Please remove one of %s or %s.",
+        info.getName(), pluginKey, info.getNonNullJarFile().getName(), existing.getNonNullJarFile().getName()));
     }
 
   }
@@ -202,7 +170,7 @@ public class ServerPluginRepository implements PluginRepository, Startable {
    * Move or copy plugin to directory extensions/plugins. If a version of this plugin
    * already exists then it's deleted.
    */
-  private void overrideAndRegisterPlugin(File sourceFile, boolean deleteSource) {
+  private void overrideAndRegisterPlugin(File sourceFile) {
     File destDir = fs.getInstalledPluginsDir();
     File destFile = new File(destDir, sourceFile.getName());
     if (destFile.exists()) {
@@ -211,13 +179,10 @@ public class ServerPluginRepository implements PluginRepository, Startable {
     }
 
     try {
-      if (deleteSource) {
-        moveFile(sourceFile, destFile);
-      } else {
-        copyFile(sourceFile, destFile, true);
-      }
+      moveFile(sourceFile, destFile);
+
     } catch (IOException e) {
-      throw new IllegalStateException(format("Fail to move or copy plugin: %s to %s",
+      throw new IllegalStateException(format("Fail to move plugin: %s to %s",
         sourceFile.getAbsolutePath(), destFile.getAbsolutePath()), e);
     }
 

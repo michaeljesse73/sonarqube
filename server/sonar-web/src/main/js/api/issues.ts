@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,18 +19,22 @@
  */
 import { getJSON, post, postJSON, RequestData } from '../helpers/request';
 import { RawIssue } from '../helpers/issues';
+import throwGlobalError from '../app/utils/throwGlobalError';
 
 export interface IssueResponse {
-  components?: Array<{}>;
-  issue: {};
+  components?: Array<{ key: string; name: string }>;
+  issue: RawIssue;
   rules?: Array<{}>;
-  users?: Array<{}>;
+  users?: Array<{ login: string }>;
 }
 
 interface IssuesResponse {
-  components?: { key: string; name: string; uuid: string }[];
-  debtTotal?: number;
-  facets: Array<{}>;
+  components?: { key: string; organization: string; name: string }[];
+  effortTotal: number;
+  facets: Array<{
+    property: string;
+    values: { count: number; val: string }[];
+  }>;
   issues: RawIssue[];
   paging: {
     pageIndex: number;
@@ -41,11 +45,38 @@ interface IssuesResponse {
   users?: { login: string }[];
 }
 
+type FacetName =
+  | 'assigned_to_me'
+  | 'assignees'
+  | 'authors'
+  | 'createdAt'
+  | 'cwe'
+  | 'directories'
+  | 'files'
+  | 'languages'
+  | 'modules'
+  | 'owaspTop10'
+  | 'projects'
+  | 'reporters'
+  | 'resolutions'
+  | 'rules'
+  | 'sansTop25'
+  | 'severities'
+  | 'statuses'
+  | 'tags'
+  | 'types';
+
 export function searchIssues(query: RequestData): Promise<IssuesResponse> {
   return getJSON('/api/issues/search', query);
 }
 
-export function getFacets(query: RequestData, facets: string[]): Promise<any> {
+export function getFacets(
+  query: RequestData,
+  facets: FacetName[]
+): Promise<{
+  facets: Array<{ property: string; values: T.FacetValue[] }>;
+  response: IssuesResponse;
+}> {
   const data = {
     ...query,
     facets: facets.join(),
@@ -59,59 +90,26 @@ export function getFacets(query: RequestData, facets: string[]): Promise<any> {
 
 export function getFacet(
   query: RequestData,
-  facet: string
+  facet: FacetName
 ): Promise<{ facet: { count: number; val: string }[]; response: IssuesResponse }> {
   return getFacets(query, [facet]).then(r => {
     return { facet: r.facets[0].values, response: r.response };
   });
 }
 
-export function getSeverities(query: RequestData): Promise<any> {
-  return getFacet(query, 'severities').then(r => r.facet);
-}
-
-export function getTags(query: RequestData): Promise<any> {
-  return getFacet(query, 'tags').then(r => r.facet);
-}
-
-export function extractAssignees(facet: Array<{ val: string }>, response: IssuesResponse): any {
-  return facet.map(item => {
-    const user = response.users ? response.users.find(user => user.login === item.val) : null;
-    return { ...item, user };
-  });
-}
-
-export function getAssignees(query: RequestData): Promise<any> {
-  return getFacet(query, 'assignees').then(r => extractAssignees(r.facet, r.response));
-}
-
-export function extractProjects(facet: { val: string }[], response: IssuesResponse) {
-  return facet.map(item => {
-    const project =
-      response.components && response.components.find(component => component.uuid === item.val);
-    return { ...item, project };
-  });
-}
-
-export function getProjects(query: RequestData) {
-  return getFacet(query, 'projectUuids').then(r => extractProjects(r.facet, r.response));
-}
-
-export function getIssuesCount(query: RequestData): Promise<any> {
-  const data = { ...query, ps: 1, facetMode: 'effort' };
-  return searchIssues(data).then(r => {
-    return { issues: r.paging.total, debt: r.debtTotal };
-  });
-}
-
-export function searchIssueTags(
-  data: { organization?: string; ps?: number; q?: string } = { ps: 100 }
-): Promise<string[]> {
-  return getJSON('/api/issues/tags', data).then(r => r.tags);
+export function searchIssueTags(data: {
+  organization?: string;
+  project?: string;
+  ps?: number;
+  q?: string;
+}): Promise<string[]> {
+  return getJSON('/api/issues/tags', data)
+    .then(r => r.tags)
+    .catch(throwGlobalError);
 }
 
 export function getIssueChangelog(issue: string): Promise<any> {
-  return getJSON('/api/issues/changelog', { issue }).then(r => r.changelog);
+  return getJSON('/api/issues/changelog', { issue }).then(r => r.changelog, throwGlobalError);
 }
 
 export function getIssueFilters() {
@@ -158,4 +156,13 @@ export function setIssueType(data: { issue: string; type: string }): Promise<Iss
 
 export function bulkChangeIssues(issueKeys: string[], query: RequestData): Promise<void> {
   return post('/api/issues/bulk_change', { issues: issueKeys.join(), ...query });
+}
+
+export function searchIssueAuthors(data: {
+  organization?: string;
+  project?: string;
+  ps?: number;
+  q?: string;
+}): Promise<string[]> {
+  return getJSON('/api/issues/authors', data).then(r => r.authors, throwGlobalError);
 }

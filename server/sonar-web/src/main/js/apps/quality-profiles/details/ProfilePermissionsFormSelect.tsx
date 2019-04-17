@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -92,17 +92,17 @@ export default class ProfilePermissionsFormSelect extends React.PureComponent<Pr
 
     return (
       <Select
-        autofocus={true}
+        autoFocus={true}
         className="Select-big"
         clearable={false}
-        isLoading={this.state.loading}
         // disable default react-select filtering
         filterOptions={identity}
+        isLoading={this.state.loading}
         noResultsText={noResultsText}
-        optionRenderer={optionRenderer}
-        options={options}
         onChange={this.props.onChange}
         onInputChange={this.handleInputChange}
+        optionRenderer={optionRenderer}
+        options={options}
         placeholder=""
         searchable={true}
         value={this.props.selected && getStringValue(this.props.selected)}
@@ -122,15 +122,15 @@ function getStringValue(option: Option) {
 
 function optionRenderer(option: OptionWithValue) {
   return isUser(option) ? (
-    <div>
+    <>
       <Avatar hash={option.avatar} name={option.name} size={16} />
       <strong className="spacer-left">{option.name}</strong>
       <span className="note little-spacer-left">{option.login}</span>
-    </div>
+    </>
   ) : (
-    <div>
+    <>
       <GroupIcon size={16} />
       <strong className="spacer-left">{option.name}</strong>
-    </div>
+    </>
   );
 }

@@ -1,19 +1,26 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`Maintenance Page should render DB_MIGRATION_NEEDED status 1`] = `
-<div
-  className="page-wrapper-simple"
-  id="bd"
->
+<Fragment>
+  <HelmetWrapper
+    defaultTitle="maintenance.page"
+    defer={true}
+    encodeSpecialCharacters={true}
+  />
   <div
-    className="page-simple"
-    id="nonav"
+    className="page-wrapper-simple"
+    id="bd"
   >
-    <React.Fragment>
+    <div
+      className="page-simple"
+      id="nonav"
+    >
       <h1
         className="maintenance-title"
       >
-        maintenance.sonarqube_is_under_maintenance
+        <InstanceMessage
+          message="maintenance.is_under_maintenance"
+        />
       </h1>
       <p
         className="maintenance-text"
@@ -31,25 +38,32 @@ exports[`Maintenance Page should render DB_MIGRATION_NEEDED status 1`] = `
           }
         }
       />
-    </React.Fragment>
+    </div>
   </div>
-</div>
+</Fragment>
 `;
 
 exports[`Maintenance Page should render DB_MIGRATION_RUNNING status 1`] = `
-<div
-  className="page-wrapper-simple"
-  id="bd"
->
+<Fragment>
+  <HelmetWrapper
+    defaultTitle="maintenance.page"
+    defer={true}
+    encodeSpecialCharacters={true}
+  />
   <div
-    className="page-simple"
-    id="nonav"
+    className="page-wrapper-simple"
+    id="bd"
   >
-    <React.Fragment>
+    <div
+      className="page-simple"
+      id="nonav"
+    >
       <h1
         className="maintenance-title"
       >
-        maintenance.sonarqube_is_under_maintenance
+        <InstanceMessage
+          message="maintenance.is_under_maintenance"
+        />
       </h1>
       <p
         className="maintenance-text"
@@ -67,25 +81,32 @@ exports[`Maintenance Page should render DB_MIGRATION_RUNNING status 1`] = `
           }
         }
       />
-    </React.Fragment>
+    </div>
   </div>
-</div>
+</Fragment>
 `;
 
 exports[`Maintenance Page should render DOWN status 1`] = `
-<div
-  className="page-wrapper-simple"
-  id="bd"
->
+<Fragment>
+  <HelmetWrapper
+    defaultTitle="maintenance.page"
+    defer={true}
+    encodeSpecialCharacters={true}
+  />
   <div
-    className="page-simple"
-    id="nonav"
+    className="page-wrapper-simple"
+    id="bd"
   >
-    <React.Fragment>
+    <div
+      className="page-simple"
+      id="nonav"
+    >
       <h1
         className="maintenance-title text-danger"
       >
-        maintenance.sonarqube_is_down
+        <InstanceMessage
+          message="maintenance.is_down"
+        />
       </h1>
       <p
         className="maintenance-text"
@@ -101,25 +122,32 @@ exports[`Maintenance Page should render DOWN status 1`] = `
           maintenance.try_again
         </a>
       </p>
-    </React.Fragment>
+    </div>
   </div>
-</div>
+</Fragment>
 `;
 
 exports[`Maintenance Page should render OFFLINE status 1`] = `
-<div
-  className="page-wrapper-simple"
-  id="bd"
->
+<Fragment>
+  <HelmetWrapper
+    defaultTitle="maintenance.page"
+    defer={true}
+    encodeSpecialCharacters={true}
+  />
   <div
-    className="page-simple"
-    id="nonav"
+    className="page-wrapper-simple"
+    id="bd"
   >
-    <React.Fragment>
+    <div
+      className="page-simple"
+      id="nonav"
+    >
       <h1
         className="maintenance-title text-danger"
       >
-        maintenance.sonarqube_is_offline
+        <InstanceMessage
+          message="maintenance.is_offline"
+        />
       </h1>
       <p
         className="maintenance-text"
@@ -135,25 +163,32 @@ exports[`Maintenance Page should render OFFLINE status 1`] = `
           maintenance.try_again
         </a>
       </p>
-    </React.Fragment>
+    </div>
   </div>
-</div>
+</Fragment>
 `;
 
 exports[`Maintenance Page should render STARTING status 1`] = `
-<div
-  className="page-wrapper-simple"
-  id="bd"
->
+<Fragment>
+  <HelmetWrapper
+    defaultTitle="maintenance.page"
+    defer={true}
+    encodeSpecialCharacters={true}
+  />
   <div
-    className="page-simple"
-    id="nonav"
+    className="page-wrapper-simple"
+    id="bd"
   >
-    <React.Fragment>
+    <div
+      className="page-simple"
+      id="nonav"
+    >
       <h1
         className="maintenance-title"
       >
-        maintenance.sonarqube_is_starting
+        <InstanceMessage
+          message="maintenance.is_starting"
+        />
       </h1>
       <p
         className="maintenance-spinner"
@@ -162,25 +197,32 @@ exports[`Maintenance Page should render STARTING status 1`] = `
           className="spinner"
         />
       </p>
-    </React.Fragment>
+    </div>
   </div>
-</div>
+</Fragment>
 `;
 
 exports[`Maintenance Page should render UP status 1`] = `
-<div
-  className="page-wrapper-simple"
-  id="bd"
->
+<Fragment>
+  <HelmetWrapper
+    defaultTitle="maintenance.page"
+    defer={true}
+    encodeSpecialCharacters={true}
+  />
   <div
-    className="page-simple"
-    id="nonav"
+    className="page-wrapper-simple"
+    id="bd"
   >
-    <React.Fragment>
+    <div
+      className="page-simple"
+      id="nonav"
+    >
       <h1
         className="maintenance-title"
       >
-        maintenance.sonarqube_is_up
+        <InstanceMessage
+          message="maintenance.is_up"
+        />
       </h1>
       <p
         className="maintenance-text text-center"
@@ -196,21 +238,26 @@ exports[`Maintenance Page should render UP status 1`] = `
           layout.home
         </a>
       </p>
-    </React.Fragment>
+    </div>
   </div>
-</div>
+</Fragment>
 `;
 
 exports[`Setup Page should render MIGRATION_FAILED state 1`] = `
-<div
-  className="page-wrapper-simple"
-  id="bd"
->
+<Fragment>
+  <HelmetWrapper
+    defaultTitle="maintenance.page"
+    defer={true}
+    encodeSpecialCharacters={true}
+  />
   <div
-    className="page-simple"
-    id="nonav"
+    className="page-wrapper-simple"
+    id="bd"
   >
-    <React.Fragment>
+    <div
+      className="page-simple"
+      id="nonav"
+    >
       <h1
         className="maintenance-title text-danger"
       >
@@ -221,21 +268,26 @@ exports[`Setup Page should render MIGRATION_FAILED state 1`] = `
       >
         maintenance.upgrade_failed.text
       </p>
-    </React.Fragment>
+    </div>
   </div>
-</div>
+</Fragment>
 `;
 
 exports[`Setup Page should render MIGRATION_SUCCEEDED state 1`] = `
-<div
-  className="page-wrapper-simple"
-  id="bd"
->
+<Fragment>
+  <HelmetWrapper
+    defaultTitle="maintenance.page"
+    defer={true}
+    encodeSpecialCharacters={true}
+  />
   <div
-    className="page-simple"
-    id="nonav"
+    className="page-wrapper-simple"
+    id="bd"
   >
-    <React.Fragment>
+    <div
+      className="page-simple"
+      id="nonav"
+    >
       <h1
         className="maintenance-title text-success"
       >
@@ -250,21 +302,26 @@ exports[`Setup Page should render MIGRATION_SUCCEEDED state 1`] = `
           layout.home
         </a>
       </p>
-    </React.Fragment>
+    </div>
   </div>
-</div>
+</Fragment>
 `;
 
 exports[`Setup Page should render NO_MIGRATION state 1`] = `
-<div
-  className="page-wrapper-simple"
-  id="bd"
->
+<Fragment>
+  <HelmetWrapper
+    defaultTitle="maintenance.page"
+    defer={true}
+    encodeSpecialCharacters={true}
+  />
   <div
-    className="page-simple"
-    id="nonav"
+    className="page-wrapper-simple"
+    id="bd"
   >
-    <React.Fragment>
+    <div
+      className="page-simple"
+      id="nonav"
+    >
       <h1
         className="maintenance-title"
       >
@@ -279,21 +336,26 @@ exports[`Setup Page should render NO_MIGRATION state 1`] = `
           layout.home
         </a>
       </p>
-    </React.Fragment>
+    </div>
   </div>
-</div>
+</Fragment>
 `;
 
 exports[`Setup Page should render NOT_SUPPORTED state 1`] = `
-<div
-  className="page-wrapper-simple"
-  id="bd"
->
+<Fragment>
+  <HelmetWrapper
+    defaultTitle="maintenance.page"
+    defer={true}
+    encodeSpecialCharacters={true}
+  />
   <div
-    className="page-simple"
-    id="nonav"
+    className="page-wrapper-simple"
+    id="bd"
   >
-    <React.Fragment>
+    <div
+      className="page-simple"
+      id="nonav"
+    >
       <h1
         className="maintenance-title text-danger"
       >
@@ -302,21 +364,26 @@ exports[`Setup Page should render NOT_SUPPORTED state 1`] = `
       <p>
         maintenance.migration_not_supported.text
       </p>
-    </React.Fragment>
+    </div>
   </div>
-</div>
+</Fragment>
 `;
 
 exports[`Setup Page should start migration 1`] = `
-<div
-  className="page-wrapper-simple"
-  id="bd"
->
+<Fragment>
+  <HelmetWrapper
+    defaultTitle="maintenance.page"
+    defer={true}
+    encodeSpecialCharacters={true}
+  />
   <div
-    className="page-simple panel-warning"
-    id="nonav"
+    className="page-wrapper-simple"
+    id="bd"
   >
-    <React.Fragment>
+    <div
+      className="page-simple panel-warning"
+      id="nonav"
+    >
       <h1
         className="maintenance-title"
       >
@@ -340,29 +407,33 @@ exports[`Setup Page should start migration 1`] = `
       <div
         className="maintenance-spinner"
       >
-        <button
+        <Button
           id="start-migration"
           onClick={[Function]}
-          type="button"
         >
           maintenance.upgrade
-        </button>
+        </Button>
       </div>
-    </React.Fragment>
+    </div>
   </div>
-</div>
+</Fragment>
 `;
 
 exports[`Setup Page should start migration 2`] = `
-<div
-  className="page-wrapper-simple"
-  id="bd"
->
+<Fragment>
+  <HelmetWrapper
+    defaultTitle="maintenance.page"
+    defer={true}
+    encodeSpecialCharacters={true}
+  />
   <div
-    className="page-simple"
-    id="nonav"
+    className="page-wrapper-simple"
+    id="bd"
   >
-    <React.Fragment>
+    <div
+      className="page-simple"
+      id="nonav"
+    >
       <h1
         className="maintenance-title"
       >
@@ -393,7 +464,7 @@ exports[`Setup Page should start migration 2`] = `
           className="spinner"
         />
       </p>
-    </React.Fragment>
+    </div>
   </div>
-</div>
+</Fragment>
 `;

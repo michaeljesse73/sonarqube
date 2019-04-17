@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -36,7 +36,7 @@ export default class Search extends React.PureComponent<Props> {
     const { query } = this.props;
 
     return (
-      <div id="users-search" className="panel panel-vertical bordered-bottom spacer-bottom">
+      <div className="panel panel-vertical bordered-bottom spacer-bottom" id="users-search">
         <SearchBox
           minLength={2}
           onChange={this.handleSearch}

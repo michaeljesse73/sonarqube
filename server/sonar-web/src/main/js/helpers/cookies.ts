@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,15 +19,17 @@
  */
 import { memoize } from 'lodash';
 
-const parseCookies = memoize((documentCookie: string): { [key: string]: string } => {
-  const rawCookies = documentCookie.split('; ');
-  const cookies: { [key: string]: string } = {};
-  rawCookies.forEach(candidate => {
-    const [key, value] = candidate.split('=');
-    cookies[key] = value;
-  });
-  return cookies;
-});
+const parseCookies = memoize(
+  (documentCookie: string): T.Dict<string> => {
+    const rawCookies = documentCookie.split('; ');
+    const cookies: T.Dict<string> = {};
+    rawCookies.forEach(candidate => {
+      const [key, value] = candidate.split('=');
+      cookies[key] = value;
+    });
+    return cookies;
+  }
+);
 
 export function getCookie(name: string): string | undefined {
   return parseCookies(document.cookie)[name];

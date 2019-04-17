@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -38,12 +38,13 @@ public interface PropertiesMapper {
 
   List<PropertyDto> selectByKeysAndComponentIds(@Param("keys") List<String> keys, @Param("componentIds") List<Long> componentIds);
 
+  List<PropertyDto> selectByKeyAndUserIdAndComponentQualifier(@Param("key") String key, @Param("userId") int userId, @Param("qualifier") String qualifier);
+
   List<PropertyDto> selectByComponentIds(@Param("componentIds") List<Long> componentIds);
 
   List<PropertyDto> selectByQuery(@Param("query") PropertyQuery query);
 
-  List<PropertyDto> selectDescendantModuleProperties(@Param("moduleUuid") String moduleUuid, @Param(value = "scope") String scope,
-    @Param(value = "excludeDisabled") boolean excludeDisabled);
+  List<PropertyDto> selectByKeyAndMatchingValue(@Param("key") String key, @Param("value") String value);
 
   List<Long> selectIdsByOrganizationAndUser(@Param("organizationUuid") String organizationUuid, @Param("userId") int userId);
 

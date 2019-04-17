@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -34,6 +34,7 @@ import java.util.Set;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 import org.apache.commons.lang.StringUtils;
 import org.sonar.api.PropertyType;
@@ -58,11 +59,11 @@ import org.sonar.server.user.UserSession;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.lang.String.format;
-import static org.apache.commons.lang.StringUtils.isNotEmpty;
 import static org.sonar.server.setting.ws.SettingsWsParameters.PARAM_BRANCH;
 import static org.sonar.server.setting.ws.SettingsWsParameters.PARAM_COMPONENT;
 import static org.sonar.server.setting.ws.SettingsWsParameters.PARAM_FIELD_VALUES;
 import static org.sonar.server.setting.ws.SettingsWsParameters.PARAM_KEY;
+import static org.sonar.server.setting.ws.SettingsWsParameters.PARAM_PULL_REQUEST;
 import static org.sonar.server.setting.ws.SettingsWsParameters.PARAM_VALUE;
 import static org.sonar.server.setting.ws.SettingsWsParameters.PARAM_VALUES;
 import static org.sonar.server.ws.KeyExamples.KEY_PROJECT_EXAMPLE_001;
@@ -99,7 +100,7 @@ public class SetAction implements SettingsWsAction {
     WebService.NewAction action = context.createAction("set")
       .setDescription("Update a setting value.<br>" +
         "Either '%s' or '%s' must be provided.<br> " +
-          "The settings defined in config/sonar.properties are read-only and can't be changed.<br/>" +
+        "The settings defined in conf/sonar.properties are read-only and can't be changed.<br/>" +
         "Requires one of the following permissions: " +
         "<ul>" +
         "<li>'Administer System'</li>" +
@@ -107,7 +108,9 @@ public class SetAction implements SettingsWsAction {
         "</ul>",
         PARAM_VALUE, PARAM_VALUES)
       .setSince("6.1")
-      .setChangelog(new Change("7.1", "The settings defined in config/sonar.properties are read-only and can't be changed"))
+      .setChangelog(
+        new Change("7.6", String.format("The use of module keys in parameter '%s' is deprecated", PARAM_COMPONENT)),
+        new Change("7.1", "The settings defined in conf/sonar.properties are read-only and can't be changed"))
       .setPost(true)
       .setHandler(this);
 
@@ -133,7 +136,9 @@ public class SetAction implements SettingsWsAction {
       .setDescription("Component key")
       .setDeprecatedKey("componentKey", "6.3")
       .setExampleValue(KEY_PROJECT_EXAMPLE_001);
+
     settingsWsSupport.addBranchParam(action);
+    settingsWsSupport.addPullRequestParam(action);
   }
 
   @Override
@@ -293,8 +298,8 @@ public class SetAction implements SettingsWsAction {
       .setValues(request.multiParam(PARAM_VALUES))
       .setFieldValues(request.multiParam(PARAM_FIELD_VALUES))
       .setComponent(request.param(PARAM_COMPONENT))
-      .setBranch(request.param(PARAM_BRANCH));
-    checkArgument(isNotEmpty(set.getKey()), "Setting key is mandatory and must not be empty");
+      .setBranch(request.param(PARAM_BRANCH))
+      .setPullRequest(request.param(PARAM_PULL_REQUEST));
     checkArgument(set.getValues() != null, "Setting values must not be null");
     checkArgument(set.getFieldValues() != null, "Setting fields values must not be null");
     return set;
@@ -316,7 +321,7 @@ public class SetAction implements SettingsWsAction {
     if (componentKey == null) {
       return Optional.empty();
     }
-    return Optional.of(componentFinder.getByKeyAndOptionalBranch(dbSession, componentKey, request.getBranch()));
+    return Optional.of(componentFinder.getByKeyAndOptionalBranchOrPullRequest(dbSession, componentKey, request.getBranch(), request.getPullRequest()));
   }
 
   private PropertyDto toProperty(SetRequest request, Optional<ComponentDto> component) {
@@ -351,26 +356,39 @@ public class SetAction implements SettingsWsAction {
   private static class SetRequest {
 
     private String branch;
+    private String pullRequest;
     private String component;
     private List<String> fieldValues;
     private String key;
     private String value;
     private List<String> values;
 
-    public SetRequest setBranch(String branch) {
+    public SetRequest setBranch(@Nullable String branch) {
       this.branch = branch;
       return this;
     }
 
+    @CheckForNull
     public String getBranch() {
       return branch;
     }
 
-    public SetRequest setComponent(String component) {
+    public SetRequest setPullRequest(@Nullable String pullRequest) {
+      this.pullRequest = pullRequest;
+      return this;
+    }
+
+    @CheckForNull
+    public String getPullRequest() {
+      return pullRequest;
+    }
+
+    public SetRequest setComponent(@Nullable String component) {
       this.component = component;
       return this;
     }
 
+    @CheckForNull
     public String getComponent() {
       return component;
     }
@@ -393,16 +411,17 @@ public class SetAction implements SettingsWsAction {
       return key;
     }
 
-    public SetRequest setValue(String value) {
+    public SetRequest setValue(@Nullable String value) {
       this.value = value;
       return this;
     }
 
+    @CheckForNull
     public String getValue() {
       return value;
     }
 
-    public SetRequest setValues(List<String> values) {
+    public SetRequest setValues(@Nullable List<String> values) {
       this.values = values;
       return this;
     }

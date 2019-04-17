@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,44 +19,98 @@
  */
 package org.sonar.db.dialect;
 
+import java.sql.DatabaseMetaData;
+import java.sql.SQLException;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
+import org.mockito.Mockito;
+import org.sonar.api.utils.MessageException;
+import org.sonar.api.utils.log.LogTester;
+import org.sonar.api.utils.log.LoggerLevel;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class MySqlTest {
 
-  private MySql mySql = new MySql();
+  @Rule
+  public ExpectedException expectedException = ExpectedException.none();
+  @Rule
+  public LogTester logs = new LogTester();
+
+  private MySql underTest = new MySql();
 
   @Test
   public void matchesJdbcURL() {
-    assertThat(mySql.matchesJdbcURL("jdbc:mysql://localhost:3306/sonar?useUnicode=true&characterEncoding=utf8")).isTrue();
-    assertThat(mySql.matchesJdbcURL("JDBC:MYSQL://localhost:3306/sonar?useUnicode=true&characterEncoding=utf8")).isTrue();
+    assertThat(underTest.matchesJdbcUrl("jdbc:mysql://localhost:3306/sonar?useUnicode=true&characterEncoding=utf8")).isTrue();
+    assertThat(underTest.matchesJdbcUrl("JDBC:MYSQL://localhost:3306/sonar?useUnicode=true&characterEncoding=utf8")).isTrue();
 
-    assertThat(mySql.matchesJdbcURL("jdbc:hsql:foo")).isFalse();
-    assertThat(mySql.matchesJdbcURL("jdbc:oracle:foo")).isFalse();
+    assertThat(underTest.matchesJdbcUrl("jdbc:hsql:foo")).isFalse();
+    assertThat(underTest.matchesJdbcUrl("jdbc:oracle:foo")).isFalse();
   }
 
   @Test
   public void testBooleanSqlValues() {
-    assertThat(mySql.getTrueSqlValue()).isEqualTo("true");
-    assertThat(mySql.getFalseSqlValue()).isEqualTo("false");
+    assertThat(underTest.getTrueSqlValue()).isEqualTo("true");
+    assertThat(underTest.getFalseSqlValue()).isEqualTo("false");
   }
 
   @Test
   public void should_configure() {
-    assertThat(mySql.getId()).isEqualTo("mysql");
-    assertThat(mySql.getDefaultDriverClassName()).isEqualTo("com.mysql.jdbc.Driver");
-    assertThat(mySql.getValidationQuery()).isEqualTo("SELECT 1");
+    assertThat(underTest.getId()).isEqualTo("mysql");
+    assertThat(underTest.getDefaultDriverClassName()).isEqualTo("com.mysql.jdbc.Driver");
+    assertThat(underTest.getValidationQuery()).isEqualTo("SELECT 1");
   }
 
   @Test
   public void testFetchSizeForScrolling() {
-    assertThat(mySql.getScrollDefaultFetchSize()).isEqualTo(Integer.MIN_VALUE);
-    assertThat(mySql.getScrollSingleRowFetchSize()).isEqualTo(Integer.MIN_VALUE);
+    assertThat(underTest.getScrollDefaultFetchSize()).isEqualTo(Integer.MIN_VALUE);
+    assertThat(underTest.getScrollSingleRowFetchSize()).isEqualTo(Integer.MIN_VALUE);
   }
 
   @Test
   public void mysql_does_supportMigration() {
-    assertThat(mySql.supportsMigration()).isTrue();
+    assertThat(underTest.supportsMigration()).isTrue();
+  }
+
+  @Test
+  public void getSqlFromDual() {
+    assertThat(underTest.getSqlFromDual()).isEqualTo("from dual");
+  }
+
+  @Test
+  public void init_throws_MessageException_if_mysql_5_5() throws Exception {
+    expectedException.expect(MessageException.class);
+    expectedException.expectMessage("Unsupported mysql version: 5.5. Minimal supported version is 5.6.");
+
+    DatabaseMetaData metadata = newMetadata( 5, 5);
+    underTest.init(metadata);
+  }
+
+  @Test
+  public void init_does_not_fail_if_mysql_5_6() throws Exception {
+    DatabaseMetaData metadata = newMetadata( 5, 6);
+    underTest.init(metadata);
+  }
+
+  @Test
+  public void init_logs_warning() throws SQLException {
+    underTest.init(newMetadata(5, 6));
+
+    assertThat(logs.logs(LoggerLevel.WARN)).contains("MySQL support is deprecated and will be dropped soon.");
+  }
+
+  @Test
+  public void supportsUpsert_returns_false() {
+    assertThat(underTest.supportsUpsert()).isFalse();
+  }
+
+  private DatabaseMetaData newMetadata(int dbMajorVersion, int dbMinorVersion) throws SQLException {
+    DatabaseMetaData metadata = mock(DatabaseMetaData.class, Mockito.RETURNS_DEEP_STUBS);
+    when(metadata.getDatabaseMajorVersion()).thenReturn(dbMajorVersion);
+    when(metadata.getDatabaseMinorVersion()).thenReturn(dbMinorVersion);
+    return metadata;
   }
 }

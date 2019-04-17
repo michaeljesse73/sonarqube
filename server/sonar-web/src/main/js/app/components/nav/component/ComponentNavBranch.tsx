@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,49 +18,42 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import * as classNames from 'classnames';
-import * as PropTypes from 'prop-types';
+import { FormattedMessage } from 'react-intl';
+import { Link } from 'react-router';
 import ComponentNavBranchesMenu from './ComponentNavBranchesMenu';
-import SingleBranchHelperPopup from './SingleBranchHelperPopup';
-import NoBranchSupportPopup from './NoBranchSupportPopup';
-import { Branch, Component } from '../../../types';
+import DocTooltip from '../../../../components/docs/DocTooltip';
 import * as theme from '../../../theme';
 import BranchIcon from '../../../../components/icons-components/BranchIcon';
-import { isShortLivingBranch } from '../../../../helpers/branches';
+import {
+  isShortLivingBranch,
+  isSameBranchLike,
+  getBranchLikeDisplayName,
+  isPullRequest
+} from '../../../../helpers/branches';
 import { translate } from '../../../../helpers/l10n';
-import HelpIcon from '../../../../components/icons-components/HelpIcon';
-import BubblePopupHelper from '../../../../components/common/BubblePopupHelper';
-import Tooltip from '../../../../components/controls/Tooltip';
+import PlusCircleIcon from '../../../../components/icons-components/PlusCircleIcon';
+import HelpTooltip from '../../../../components/controls/HelpTooltip';
+import Toggler from '../../../../components/controls/Toggler';
+import DropdownIcon from '../../../../components/icons-components/DropdownIcon';
+import { isSonarCloud } from '../../../../helpers/system';
+import { getPortfolioAdminUrl } from '../../../../helpers/urls';
+import { withAppState } from '../../../../components/hoc/withAppState';
 
 interface Props {
-  branches: Branch[];
-  component: Component;
-  currentBranch: Branch;
+  appState: Pick<T.AppState, 'branchesEnabled'>;
+  branchLikes: T.BranchLike[];
+  component: T.Component;
+  currentBranchLike: T.BranchLike;
   location?: any;
 }
 
 interface State {
   dropdownOpen: boolean;
-  noBranchSupportPopupOpen: boolean;
-  singleBranchPopupOpen: boolean;
 }
 
-export default class ComponentNavBranch extends React.PureComponent<Props, State> {
+export class ComponentNavBranch extends React.PureComponent<Props, State> {
   mounted = false;
-
-  static contextTypes = {
-    branchesEnabled: PropTypes.bool.isRequired,
-    onSonarCloud: PropTypes.bool
-  };
-
-  constructor(props: Props) {
-    super(props);
-    this.state = {
-      dropdownOpen: false,
-      noBranchSupportPopupOpen: false,
-      singleBranchPopupOpen: false
-    };
-  }
+  state: State = { dropdownOpen: false };
 
   componentDidMount() {
     this.mounted = true;
@@ -69,20 +62,15 @@ export default class ComponentNavBranch extends React.PureComponent<Props, State
   componentWillReceiveProps(nextProps: Props) {
     if (
       nextProps.component !== this.props.component ||
-      this.differentBranches(nextProps.currentBranch, this.props.currentBranch) ||
+      !isSameBranchLike(nextProps.currentBranchLike, this.props.currentBranchLike) ||
       nextProps.location !== this.props.location
     ) {
-      this.setState({ dropdownOpen: false, singleBranchPopupOpen: false });
+      this.setState({ dropdownOpen: false });
     }
   }
 
   componentWillUnmount() {
     this.mounted = false;
-  }
-
-  differentBranches(a: Branch, b: Branch) {
-    // if main branch changes name, we should not close the dropdown
-    return a.isMain && b.isMain ? false : a.name !== b.name;
   }
 
   handleClick = (event: React.SyntheticEvent<HTMLElement>) => {
@@ -98,136 +86,146 @@ export default class ComponentNavBranch extends React.PureComponent<Props, State
     }
   };
 
-  toggleSingleBranchPopup = (show?: boolean) => {
-    if (show !== undefined) {
-      this.setState({ singleBranchPopupOpen: show });
-    } else {
-      this.setState(state => ({ singleBranchPopupOpen: !state.singleBranchPopupOpen }));
-    }
-  };
-
-  toggleNoBranchSupportPopup = (show?: boolean) => {
-    if (show !== undefined) {
-      this.setState({ noBranchSupportPopupOpen: show });
-    } else {
-      this.setState(state => ({ noBranchSupportPopupOpen: !state.noBranchSupportPopupOpen }));
-    }
-  };
-
-  handleSingleBranchClick = (event: React.SyntheticEvent<HTMLAnchorElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-    this.toggleSingleBranchPopup();
-  };
-
-  handleNoBranchSupportClick = (event: React.SyntheticEvent<HTMLAnchorElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-    this.toggleNoBranchSupportPopup();
-  };
-
-  renderDropdown = () => {
-    const { configuration } = this.props.component;
-    return this.state.dropdownOpen ? (
-      <ComponentNavBranchesMenu
-        branches={this.props.branches}
-        canAdmin={configuration && configuration.showSettings}
-        component={this.props.component}
-        currentBranch={this.props.currentBranch}
-        onClose={this.closeDropdown}
-      />
-    ) : null;
-  };
-
   renderMergeBranch = () => {
-    const { currentBranch } = this.props;
-    if (!isShortLivingBranch(currentBranch)) {
+    const { currentBranchLike } = this.props;
+    if (isShortLivingBranch(currentBranchLike)) {
+      return currentBranchLike.isOrphan ? (
+        <span className="note big-spacer-left text-ellipsis flex-shrink">
+          <span className="text-middle">{translate('branches.orphan_branch')}</span>
+          <HelpTooltip
+            className="spacer-left"
+            overlay={translate('branches.orphan_branches.tooltip')}
+          />
+        </span>
+      ) : (
+        <span className="note big-spacer-left">
+          {translate('from')} <strong>{currentBranchLike.mergeBranch}</strong>
+        </span>
+      );
+    } else if (isPullRequest(currentBranchLike)) {
+      return (
+        <span className="note big-spacer-left text-ellipsis flex-shrink">
+          <FormattedMessage
+            defaultMessage={translate('branches.pull_request.for_merge_into_x_from_y')}
+            id="branches.pull_request.for_merge_into_x_from_y"
+            values={{
+              base: <strong>{currentBranchLike.base}</strong>,
+              branch: <strong>{currentBranchLike.branch}</strong>
+            }}
+          />
+        </span>
+      );
+    } else {
       return null;
     }
-    return currentBranch.isOrphan ? (
-      <span className="note big-spacer-left text-lowercase">
-        {translate('branches.orphan_branch')}
-        <Tooltip overlay={translate('branches.orphan_branches.tooltip')}>
-          <i className="icon-help spacer-left" />
-        </Tooltip>
-      </span>
-    ) : (
-      <span className="note big-spacer-left text-lowercase">
-        {translate('from')} <strong>{currentBranch.mergeBranch}</strong>
-      </span>
+  };
+
+  renderOverlay = () => {
+    return (
+      <>
+        <p>{translate('application.branches.help')}</p>
+        <hr className="spacer-top spacer-bottom" />
+        <Link
+          className="spacer-left link-no-underline"
+          to={getPortfolioAdminUrl(this.props.component.breadcrumbs[0].key, 'APP')}>
+          {translate('application.branches.link')}
+        </Link>
+      </>
     );
   };
 
-  renderSingleBranchPopup = () => (
-    <div className="display-inline-block spacer-left">
-      <a className="link-no-underline" href="#" onClick={this.handleSingleBranchClick}>
-        <HelpIcon fill={theme.blue} />
-      </a>
-      <BubblePopupHelper
-        isOpen={this.state.singleBranchPopupOpen}
-        position="bottomleft"
-        popup={<SingleBranchHelperPopup />}
-        togglePopup={this.toggleSingleBranchPopup}
-      />
-    </div>
-  );
-
-  renderNoBranchSupportPopup = () => (
-    <div className="display-inline-block spacer-left">
-      <a className="link-no-underline" href="#" onClick={this.handleNoBranchSupportClick}>
-        <HelpIcon fill={theme.gray80} />
-      </a>
-      <BubblePopupHelper
-        isOpen={this.state.noBranchSupportPopupOpen}
-        position="bottomleft"
-        popup={<NoBranchSupportPopup />}
-        togglePopup={this.toggleNoBranchSupportPopup}
-      />
-    </div>
-  );
-
   render() {
-    const { branches, currentBranch } = this.props;
+    const { branchLikes, currentBranchLike } = this.props;
+    const { configuration, breadcrumbs } = this.props.component;
 
-    if (this.context.onSonarCloud && !this.context.branchesEnabled) {
+    if (isSonarCloud() && !this.props.appState.branchesEnabled) {
       return null;
     }
 
-    if (!this.context.branchesEnabled) {
-      return (
-        <div className="navbar-context-branches">
-          <BranchIcon branch={currentBranch} className="little-spacer-right" fill={theme.gray80} />
-          <span className="note">{currentBranch.name}</span>
-          {this.renderNoBranchSupportPopup()}
-        </div>
-      );
-    }
+    const displayName = getBranchLikeDisplayName(currentBranchLike);
+    const isApp = breadcrumbs && breadcrumbs[0] && breadcrumbs[0].qualifier === 'APP';
 
-    if (branches.length < 2) {
+    if (isApp && branchLikes.length < 2) {
       return (
         <div className="navbar-context-branches">
-          <BranchIcon branch={currentBranch} className="little-spacer-right" />
-          <span className="note">{currentBranch.name}</span>
-          {this.renderSingleBranchPopup()}
+          <BranchIcon
+            branchLike={currentBranchLike}
+            className="little-spacer-right"
+            fill={theme.gray80}
+          />
+          <span className="note">{displayName}</span>
+          {configuration && configuration.showSettings && (
+            <HelpTooltip className="spacer-left" overlay={this.renderOverlay()}>
+              <PlusCircleIcon className="vertical-middle" fill={theme.blue} size={12} />
+            </HelpTooltip>
+          )}
         </div>
       );
+    } else {
+      if (!this.props.appState.branchesEnabled) {
+        return (
+          <div className="navbar-context-branches">
+            <BranchIcon
+              branchLike={currentBranchLike}
+              className="little-spacer-right"
+              fill={theme.gray80}
+            />
+            <span className="note">{displayName}</span>
+            <DocTooltip
+              className="spacer-left"
+              doc={import(/* webpackMode: "eager" */ 'Docs/tooltips/branches/no-branch-support.md')}>
+              <PlusCircleIcon fill={theme.gray71} size={12} />
+            </DocTooltip>
+          </div>
+        );
+      }
+
+      if (branchLikes.length < 2) {
+        return (
+          <div className="navbar-context-branches">
+            <BranchIcon branchLike={currentBranchLike} className="little-spacer-right" />
+            <span className="note">{displayName}</span>
+            <DocTooltip
+              className="spacer-left"
+              doc={import(/* webpackMode: "eager" */ 'Docs/tooltips/branches/single-branch.md')}>
+              <PlusCircleIcon fill={theme.blue} size={12} />
+            </DocTooltip>
+          </div>
+        );
+      }
     }
 
     return (
-      <div
-        className={classNames('navbar-context-branches', 'dropdown', {
-          open: this.state.dropdownOpen
-        })}>
-        <a className="link-base-color link-no-underline" href="#" onClick={this.handleClick}>
-          <BranchIcon branch={currentBranch} className="little-spacer-right" />
-          <Tooltip overlay={currentBranch.name} mouseEnterDelay={1}>
-            <span className="text-limited text-top">{currentBranch.name}</span>
-          </Tooltip>
-          <i className="icon-dropdown little-spacer-left" />
-        </a>
-        {this.renderDropdown()}
+      <div className="navbar-context-branches">
+        <div className="dropdown">
+          <Toggler
+            onRequestClose={this.closeDropdown}
+            open={this.state.dropdownOpen}
+            overlay={
+              <ComponentNavBranchesMenu
+                branchLikes={this.props.branchLikes}
+                canAdmin={configuration && configuration.showSettings}
+                component={this.props.component}
+                currentBranchLike={this.props.currentBranchLike}
+                onClose={this.closeDropdown}
+              />
+            }>
+            <a
+              className="link-base-color link-no-underline nowrap"
+              href="#"
+              onClick={this.handleClick}>
+              <BranchIcon branchLike={currentBranchLike} className="little-spacer-right" />
+              <span className="text-limited text-top" title={displayName}>
+                {displayName}
+              </span>
+              <DropdownIcon className="little-spacer-left" />
+            </a>
+          </Toggler>
+        </div>
         {this.renderMergeBranch()}
       </div>
     );
   }
 }
+
+export default withAppState(ComponentNavBranch);

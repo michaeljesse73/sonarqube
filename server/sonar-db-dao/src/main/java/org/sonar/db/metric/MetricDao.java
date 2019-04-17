@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -141,11 +141,4 @@ public class MetricDao implements Dao {
     return mapper(session).selectById(id);
   }
 
-  public MetricDto selectOrFailById(DbSession session, long id) {
-    MetricDto metric = mapper(session).selectById(id);
-    if (metric == null) {
-      throw new RowNotFoundException(String.format("Metric id '%d' not found", id));
-    }
-    return metric;
-  }
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,7 +18,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import { SettingValue, setSimpleSettingValue, resetSettingValue } from '../../../api/settings';
+import { setSimpleSettingValue, resetSettingValue } from '../../../api/settings';
+import { Button, SubmitButton, ResetButtonLink } from '../../../components/ui/buttons';
 import { translate, translateWithParameters } from '../../../helpers/l10n';
 
 interface Props {
@@ -26,7 +27,7 @@ interface Props {
   onClose: () => void;
   onChange: () => void;
   project: string;
-  setting: SettingValue;
+  setting: T.SettingValue;
 }
 
 interface State {
@@ -50,6 +51,12 @@ export default class SettingForm extends React.PureComponent<Props, State> {
     this.mounted = false;
   }
 
+  stopLoading = () => {
+    if (this.mounted) {
+      this.setState({ submitting: false });
+    }
+  };
+
   handleSubmit = (event: React.SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -64,34 +71,20 @@ export default class SettingForm extends React.PureComponent<Props, State> {
       component: this.props.project,
       key: this.props.setting.key,
       value
-    }).then(this.props.onChange, () => {
-      if (this.mounted) {
-        this.setState({ submitting: false });
-      }
-    });
+    }).then(this.props.onChange, this.stopLoading);
   };
 
   handleValueChange = (event: React.SyntheticEvent<HTMLInputElement>) => {
     this.setState({ value: event.currentTarget.value });
   };
 
-  handleResetClick = (event: React.SyntheticEvent<HTMLButtonElement>) => {
-    event.preventDefault();
-    event.currentTarget.blur();
+  handleResetClick = () => {
     this.setState({ submitting: true });
-    resetSettingValue(this.props.setting.key, this.props.project, this.props.branch).then(
-      this.props.onChange,
-      () => {
-        if (this.mounted) {
-          this.setState({ submitting: false });
-        }
-      }
-    );
-  };
-
-  handleCancelClick = (event: React.SyntheticEvent<HTMLAnchorElement>) => {
-    event.preventDefault();
-    this.props.onClose();
+    resetSettingValue({
+      keys: this.props.setting.key,
+      component: this.props.project,
+      branch: this.props.branch
+    }).then(this.props.onChange, this.stopLoading);
   };
 
   render() {
@@ -105,7 +98,7 @@ export default class SettingForm extends React.PureComponent<Props, State> {
             className="big-spacer-bottom markdown"
             dangerouslySetInnerHTML={{ __html: translate(`property.${setting.key}.description`) }}
           />
-          <div className="big-spacer-bottom">
+          <div className="modal-field">
             <input
               autoFocus={true}
               className="input-super-large"
@@ -115,34 +108,28 @@ export default class SettingForm extends React.PureComponent<Props, State> {
               value={this.state.value}
             />
             {setting.inherited && (
-              <div className="note spacer-top">{translate('settings._default')}</div>
+              <div className="modal-field-description">{translate('settings._default')}</div>
             )}
-            {!setting.inherited &&
-              setting.parentValue && (
-                <div className="note spacer-top">
-                  {translateWithParameters('settings.default_x', setting.parentValue)}
-                </div>
-              )}
+            {!setting.inherited && setting.parentValue && (
+              <div className="modal-field-description">
+                {translateWithParameters('settings.default_x', setting.parentValue)}
+              </div>
+            )}
           </div>
         </div>
         <footer className="modal-foot">
-          {!setting.inherited &&
-            setting.parentValue && (
-              <button
-                className="pull-left"
-                disabled={this.state.submitting}
-                onClick={this.handleResetClick}
-                type="reset">
-                {translate('reset_to_default')}
-              </button>
-            )}
+          {!setting.inherited && setting.parentValue && (
+            <Button
+              className="pull-left"
+              disabled={this.state.submitting}
+              onClick={this.handleResetClick}
+              type="reset">
+              {translate('reset_to_default')}
+            </Button>
+          )}
           {this.state.submitting && <i className="spinner spacer-right" />}
-          <button disabled={submitDisabled} type="submit">
-            {translate('save')}
-          </button>
-          <a href="#" onClick={this.handleCancelClick}>
-            {translate('cancel')}
-          </a>
+          <SubmitButton disabled={submitDisabled}>{translate('save')}</SubmitButton>
+          <ResetButtonLink onClick={this.props.onClose}>{translate('cancel')}</ResetButtonLink>
         </footer>
       </form>
     );

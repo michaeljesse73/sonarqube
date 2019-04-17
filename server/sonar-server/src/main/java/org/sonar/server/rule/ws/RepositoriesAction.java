@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -56,7 +56,7 @@ public class RepositoriesAction implements RulesWsAction {
       .setDescription("List available rule repositories")
       .setSince("4.5")
       .setHandler(this)
-      .setResponseExample(Resources.getResource(getClass(), "example-repositories.json"));
+      .setResponseExample(Resources.getResource(getClass(), "repositories-example.json"));
 
     action.createParam(Param.TEXT_QUERY)
       .setDescription("A pattern to match repository keys/names against")

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,7 +19,6 @@
  */
 package org.sonar.db.permission.template;
 
-import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -32,6 +31,7 @@ import org.sonar.api.web.UserRole;
 import org.sonar.db.DbSession;
 import org.sonar.db.DbTester;
 import org.sonar.db.organization.OrganizationDto;
+import org.sonar.db.permission.PermissionQuery;
 import org.sonar.db.user.GroupDto;
 import org.sonar.db.user.UserDto;
 
@@ -307,25 +307,28 @@ public class PermissionTemplateDaoTest {
     PermissionTemplateDto template1 = templateDb.insertTemplate();
     PermissionTemplateDto template2 = templateDb.insertTemplate();
     PermissionTemplateDto template3 = templateDb.insertTemplate();
+    PermissionTemplateDto anotherTemplate = templateDb.insertTemplate();
 
     UserDto user1 = db.users().insertUser();
     UserDto user2 = db.users().insertUser();
     UserDto user3 = db.users().insertUser();
 
-    templateDb.addUserToTemplate(42L, user1.getId(), ISSUE_ADMIN);
     templateDb.addUserToTemplate(template1.getId(), user1.getId(), ADMIN);
     templateDb.addUserToTemplate(template1.getId(), user2.getId(), ADMIN);
     templateDb.addUserToTemplate(template1.getId(), user3.getId(), ADMIN);
     templateDb.addUserToTemplate(template1.getId(), user1.getId(), USER);
     templateDb.addUserToTemplate(template2.getId(), user1.getId(), USER);
+    templateDb.addUserToTemplate(anotherTemplate.getId(), user1.getId(), ISSUE_ADMIN);
 
     final List<CountByTemplateAndPermissionDto> result = new ArrayList<>();
     underTest.usersCountByTemplateIdAndPermission(dbSession, asList(template1.getId(), template2.getId(), template3.getId()),
       context -> result.add(context.getResultObject()));
-    assertThat(result).hasSize(3);
-    assertThat(result).extracting("permission").containsOnly(ADMIN, USER);
-    assertThat(result).extracting("templateId").containsOnly(template1.getId(), template2.getId());
-    assertThat(result).extracting("count").containsOnly(3, 1);
+    assertThat(result)
+      .extracting(CountByTemplateAndPermissionDto::getPermission, CountByTemplateAndPermissionDto::getTemplateId, CountByTemplateAndPermissionDto::getCount)
+      .containsExactlyInAnyOrder(
+        tuple(ADMIN, template1.getId(), 3),
+        tuple(USER, template1.getId(), 1),
+        tuple(USER, template2.getId(), 1));
   }
 
   @Test

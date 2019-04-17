@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,12 +19,13 @@
  */
 package org.sonar.db.dialect;
 
+import java.sql.DatabaseMetaData;
+import java.sql.SQLException;
 import java.util.Collections;
 import java.util.List;
+import org.sonar.api.utils.MessageException;
+import org.sonar.api.utils.Version;
 
-/**
- * @since 3.2
- */
 abstract class AbstractDialect implements Dialect {
   private final String id;
   private final String defaultDriverClassName;
@@ -62,6 +63,11 @@ abstract class AbstractDialect implements Dialect {
   }
 
   @Override
+  public String getSqlFromDual() {
+    return "";
+  }
+
+  @Override
   public final String getValidationQuery() {
     return validationQuery;
   }
@@ -79,5 +85,21 @@ abstract class AbstractDialect implements Dialect {
   @Override
   public int getScrollSingleRowFetchSize() {
     return 1;
+  }
+
+  @Override
+  public boolean supportsUpsert() {
+    return false;
+  }
+
+  Version checkDbVersion(DatabaseMetaData metaData, Version minSupported) throws SQLException {
+    int major = metaData.getDatabaseMajorVersion();
+    int minor = metaData.getDatabaseMinorVersion();
+    Version version = Version.create(major, minor, 0);
+    if (version.compareTo(minSupported) < 0) {
+      throw MessageException.of(String.format(
+        "Unsupported %s version: %s. Minimal supported version is %s.", getId(), version, minSupported));
+    }
+    return version;
   }
 }

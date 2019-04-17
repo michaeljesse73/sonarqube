@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -59,7 +59,7 @@ export default function ProfileRulesRowTotal(props: Props) {
       <td className="thin nowrap text-right">
         {inactiveCount != null &&
           (inactiveCount > 0 ? (
-            <Link to={inactiveRulesUrl} className="small text-muted">
+            <Link className="small text-muted" to={inactiveRulesUrl}>
               <strong>{formatMeasure(inactiveCount, 'SHORT_INT', null)}</strong>
             </Link>
           ) : (

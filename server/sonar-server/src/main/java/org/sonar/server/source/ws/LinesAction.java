@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -23,6 +23,7 @@ import com.google.common.base.MoreObjects;
 import com.google.common.io.Resources;
 import java.util.Date;
 import java.util.Optional;
+import java.util.function.Supplier;
 import org.sonar.api.server.ws.Change;
 import org.sonar.api.server.ws.Request;
 import org.sonar.api.server.ws.Response;
@@ -33,6 +34,8 @@ import org.sonar.api.web.UserRole;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
 import org.sonar.db.component.ComponentDto;
+import org.sonar.db.component.SnapshotDto;
+import org.sonar.db.organization.OrganizationDto;
 import org.sonar.db.protobuf.DbFileSources;
 import org.sonar.server.component.ComponentFinder;
 import org.sonar.server.source.HtmlSourceDecorator;
@@ -43,7 +46,9 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static org.sonar.server.component.ComponentFinder.ParamNames.UUID_AND_KEY;
 import static org.sonar.server.ws.KeyExamples.KEY_BRANCH_EXAMPLE_001;
 import static org.sonar.server.ws.KeyExamples.KEY_FILE_EXAMPLE_001;
+import static org.sonar.server.ws.KeyExamples.KEY_PULL_REQUEST_EXAMPLE_001;
 import static org.sonar.server.ws.WsUtils.checkFoundWithOptional;
+import static org.sonar.server.ws.WsUtils.checkRequest;
 
 public class LinesAction implements SourcesWsAction {
 
@@ -52,6 +57,7 @@ public class LinesAction implements SourcesWsAction {
   private static final String PARAM_FROM = "from";
   private static final String PARAM_TO = "to";
   private static final String PARAM_BRANCH = "branch";
+  private static final String PARAM_PULL_REQUEST = "pullRequest";
 
   private final ComponentFinder componentFinder;
   private final SourceService sourceService;
@@ -82,6 +88,7 @@ public class LinesAction implements SourcesWsAction {
         "<li>Line hits from coverage</li>" +
         "<li>Number of conditions to cover in tests</li>" +
         "<li>Number of conditions covered by tests</li>" +
+        "<li>Whether the line is new</li>" +
         "</ol>")
       .setSince("5.0")
       .setInternal(true)
@@ -91,7 +98,8 @@ public class LinesAction implements SourcesWsAction {
           "has been renamed \"lineHits\", \"conditions\" and \"coveredConditions\""),
         new Change("6.2", "fields \"itLineHits\", \"itConditions\" and \"itCoveredConditions\" " +
           "are no more returned"),
-        new Change("6.6", "fields \"branch\" added"))
+        new Change("6.6", "field \"branch\" added"),
+        new Change("7.4", "field \"isNew\" added"))
       .setHandler(this);
 
     action
@@ -111,6 +119,12 @@ public class LinesAction implements SourcesWsAction {
       .setExampleValue(KEY_BRANCH_EXAMPLE_001);
 
     action
+      .createParam(PARAM_PULL_REQUEST)
+      .setDescription("Pull request id")
+      .setInternal(true)
+      .setExampleValue(KEY_PULL_REQUEST_EXAMPLE_001);
+
+    action
       .createParam(PARAM_FROM)
       .setDescription("First line to return. Starts from 1")
       .setExampleValue("10")
@@ -128,39 +142,56 @@ public class LinesAction implements SourcesWsAction {
   public void handle(Request request, Response response) {
     try (DbSession dbSession = dbClient.openSession(false)) {
       ComponentDto file = loadComponent(dbSession, request);
-      userSession.checkComponentPermission(UserRole.CODEVIEWER, file);
+      Supplier<Optional<Long>> periodDateSupplier = () -> dbClient.snapshotDao()
+        .selectLastAnalysisByComponentUuid(dbSession, file.projectUuid())
+        .map(SnapshotDto::getPeriodDate);
 
+      userSession.checkComponentPermission(UserRole.CODEVIEWER, file);
       int from = request.mandatoryParamAsInt(PARAM_FROM);
       int to = MoreObjects.firstNonNull(request.paramAsInt(PARAM_TO), Integer.MAX_VALUE);
 
       Iterable<DbFileSources.Line> lines = checkFoundWithOptional(sourceService.getLines(dbSession, file.uuid(), from, to), "No source found for file '%s'", file.getDbKey());
       try (JsonWriter json = response.newJsonWriter()) {
         json.beginObject();
-        writeSource(lines, json);
+        writeSource(lines, json, isMemberOfOrganization(dbSession, file), periodDateSupplier);
         json.endObject();
       }
     }
+  }
+
+  private boolean isMemberOfOrganization(DbSession dbSession, ComponentDto file) {
+    OrganizationDto organizationDto = dbClient.organizationDao().selectByUuid(dbSession, file.getOrganizationUuid())
+      .orElseThrow(() -> new IllegalStateException(String.format("Organization with uuid '%s' not found", file.getOrganizationUuid())));
+    return !userSession.hasMembership(organizationDto);
   }
 
   private ComponentDto loadComponent(DbSession dbSession, Request wsRequest) {
     String componentKey = wsRequest.param(PARAM_KEY);
     String componentId = wsRequest.param(PARAM_UUID);
     String branch = wsRequest.param(PARAM_BRANCH);
-    checkArgument(componentId == null || branch == null, "'%s' and '%s' parameters cannot be used at the same time", PARAM_UUID,
-      PARAM_BRANCH);
-    return branch == null
-      ? componentFinder.getByUuidOrKey(dbSession, componentId, componentKey, UUID_AND_KEY)
-      : componentFinder.getByKeyAndBranch(dbSession, componentKey, branch);
+    String pullRequest = wsRequest.param(PARAM_PULL_REQUEST);
+    checkArgument(componentId == null || (branch == null && pullRequest == null), "Parameter '%s' cannot be used at the same time as '%s' or '%s'",
+      PARAM_UUID, PARAM_BRANCH, PARAM_PULL_REQUEST);
+    if (branch == null && pullRequest == null) {
+      return componentFinder.getByUuidOrKey(dbSession, componentId, componentKey, UUID_AND_KEY);
+    }
+
+    checkRequest(componentKey != null, "The '%s' parameter is missing", PARAM_KEY);
+    return componentFinder.getByKeyAndOptionalBranchOrPullRequest(dbSession, componentKey, branch, pullRequest);
   }
 
-  private void writeSource(Iterable<DbFileSources.Line> lines, JsonWriter json) {
+  private void writeSource(Iterable<DbFileSources.Line> lines, JsonWriter json, boolean filterScmAuthors, Supplier<Optional<Long>> periodDateSupplier) {
+    Optional<Long> periodDate = null;
+
     json.name("sources").beginArray();
     for (DbFileSources.Line line : lines) {
       json.beginObject()
         .prop("line", line.getLine())
         .prop("code", htmlSourceDecorator.getDecoratedSourceAsHtml(line.getSource(), line.getHighlighting(), line.getSymbols()))
-        .prop("scmAuthor", line.getScmAuthor())
         .prop("scmRevision", line.getScmRevision());
+      if (!filterScmAuthors) {
+        json.prop("scmAuthor", line.getScmAuthor());
+      }
       if (line.hasScmDate()) {
         json.prop("scmDate", DateUtils.formatDateTime(new Date(line.getScmDate())));
       }
@@ -180,6 +211,14 @@ public class LinesAction implements SourcesWsAction {
         json.prop("coveredConditions", coveredConditions.get());
       }
       json.prop("duplicated", line.getDuplicationCount() > 0);
+      if (line.hasIsNewLine()) {
+        json.prop("isNew", line.getIsNewLine());
+      } else {
+        if (periodDate == null) {
+          periodDate = periodDateSupplier.get();
+        }
+        json.prop("isNew", periodDate.isPresent() && line.getScmDate() > periodDate.get());
+      }
       json.endObject();
     }
     json.endArray();

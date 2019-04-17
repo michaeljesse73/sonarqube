@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,6 +22,7 @@ package org.sonar.server.qualityprofile;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -30,17 +31,21 @@ import org.sonar.api.utils.System2;
 import org.sonar.api.utils.internal.AlwaysIncreasingSystem2;
 import org.sonar.api.utils.log.LogTester;
 import org.sonar.api.utils.log.LoggerLevel;
+import org.sonar.core.util.UuidFactoryFast;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
 import org.sonar.db.DbTester;
 import org.sonar.db.organization.OrganizationDto;
 import org.sonar.db.qualityprofile.QProfileDto;
 import org.sonar.db.qualityprofile.RulesProfileDto;
+import org.sonar.db.rule.RuleDefinitionDto;
 import org.sonar.server.language.LanguageTesting;
 import org.sonar.server.tester.UserSessionRule;
 
+import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.sonar.db.qualityprofile.QualityProfileTesting.newQualityProfileDto;
 import static org.sonar.db.qualityprofile.QualityProfileTesting.newRuleProfileDto;
 
 public class RegisterQualityProfilesTest {
@@ -134,6 +139,55 @@ public class RegisterQualityProfilesTest {
     assertThat(logTester.logs(LoggerLevel.INFO)).contains("Update profile foo/Sonar way");
   }
 
+  @Test
+  public void update_default_built_in_quality_profile() {
+    String orgUuid = UuidFactoryFast.getInstance().create();
+
+    RulesProfileDto ruleProfileWithoutRule = newRuleProfileDto(rp -> rp.setIsBuiltIn(true).setName("Sonar way").setLanguage(FOO_LANGUAGE.getKey()));
+    RulesProfileDto ruleProfileWithOneRule = newRuleProfileDto(rp -> rp.setIsBuiltIn(true).setName("Sonar way 2").setLanguage(FOO_LANGUAGE.getKey()));
+
+    QProfileDto qProfileWithoutRule = newQualityProfileDto()
+      .setIsBuiltIn(true)
+      .setLanguage(FOO_LANGUAGE.getKey())
+      .setOrganizationUuid(orgUuid)
+      .setRulesProfileUuid(ruleProfileWithoutRule.getKee());
+    QProfileDto qProfileWithOneRule = newQualityProfileDto()
+      .setIsBuiltIn(true)
+      .setLanguage(FOO_LANGUAGE.getKey())
+      .setOrganizationUuid(orgUuid)
+      .setRulesProfileUuid(ruleProfileWithOneRule.getKee());
+
+    db.qualityProfiles().insert(qProfileWithoutRule, qProfileWithOneRule);
+    db.qualityProfiles().setAsDefault(qProfileWithoutRule);
+
+    RuleDefinitionDto ruleDefinition = db.rules().insert();
+    db.qualityProfiles().activateRule(qProfileWithOneRule, ruleDefinition);
+    db.commit();
+
+    builtInQProfileRepositoryRule.add(FOO_LANGUAGE, ruleProfileWithoutRule.getName(), true);
+    builtInQProfileRepositoryRule.add(FOO_LANGUAGE, ruleProfileWithOneRule.getName(), false);
+    builtInQProfileRepositoryRule.initialize();
+
+    underTest.start();
+
+    logTester.logs(LoggerLevel.INFO).contains(
+      format("Default built-in quality profile for language [foo] has been updated from [%s] to [%s] since previous default does not have active rules.",
+        qProfileWithoutRule.getName(), qProfileWithOneRule.getName()));
+
+    assertThat(selectUuidOfDefaultProfile(FOO_LANGUAGE.getKey()))
+      .isPresent().get()
+      .isEqualTo(qProfileWithOneRule.getKee());
+  }
+
+  private Optional<String> selectUuidOfDefaultProfile(String language) {
+    return db.select("select qprofile_uuid as \"profileUuid\" " +
+      " from default_qprofiles " +
+      " where language='" + language + "'")
+      .stream()
+      .findFirst()
+      .map(m -> (String) m.get("profileUuid"));
+  }
+
   private String selectPersistedName(QProfileDto profile) {
     return db.qualityProfiles().selectByUuid(profile.getKee()).get().getName();
   }
@@ -146,6 +200,8 @@ public class RegisterQualityProfilesTest {
     dbClient.qualityProfileDao().insert(db.getSession(), dto);
     db.commit();
   }
+
+
 
   private static class DummyBuiltInQProfileInsert implements BuiltInQProfileInsert {
     private final List<BuiltInQProfile> callLogs = new ArrayList<>();

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -17,9 +17,8 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import { getJSON, postJSON, post, RequestData } from '../helpers/request';
 import throwGlobalError from '../app/utils/throwGlobalError';
-import { Paging, Visibility } from '../app/types';
+import { getJSON, postJSON, post, RequestData } from '../helpers/request';
 
 export interface BaseSearchProjectsParameters {
   analyzedBefore?: string;
@@ -28,7 +27,20 @@ export interface BaseSearchProjectsParameters {
   projects?: string;
   q?: string;
   qualifiers?: string;
-  visibility?: Visibility;
+  visibility?: T.Visibility;
+}
+
+export interface ProjectBase {
+  key: string;
+  name: string;
+  qualifier: string;
+  visibility: T.Visibility;
+}
+
+export interface Project extends ProjectBase {
+  id: string;
+  lastAnalysisDate?: string;
+  organization: string;
 }
 
 export interface SearchProjectsParameters extends BaseSearchProjectsParameters {
@@ -36,29 +48,19 @@ export interface SearchProjectsParameters extends BaseSearchProjectsParameters {
   ps?: number;
 }
 
-export interface SearchProjectsResponseComponent {
-  id: string;
-  key: string;
-  lastAnalysisDate?: string;
-  name: string;
-  organization: string;
-  qualifier: string;
-  visibility: Visibility;
-}
-
-export interface SearchProjectsResponse {
-  components: SearchProjectsResponseComponent[];
-  paging: Paging;
-}
-
 export function getComponents(
   parameters: SearchProjectsParameters
-): Promise<SearchProjectsResponse> {
+): Promise<{
+  components: Project[];
+  paging: T.Paging;
+}> {
   return getJSON('/api/projects/search', parameters);
 }
 
-export function bulkDeleteProjects(parameters: BaseSearchProjectsParameters): Promise<void> {
-  return post('/api/projects/bulk_delete', parameters);
+export function bulkDeleteProjects(
+  parameters: BaseSearchProjectsParameters
+): Promise<void | Response> {
+  return post('/api/projects/bulk_delete', parameters).catch(throwGlobalError);
 }
 
 export function deleteProject(project: string): Promise<void | Response> {
@@ -70,11 +72,11 @@ export function deletePortfolio(portfolio: string): Promise<void | Response> {
 }
 
 export function createProject(data: {
-  branch?: string;
   name: string;
   project: string;
   organization?: string;
-}): Promise<any> {
+  visibility?: T.Visibility;
+}): Promise<{ project: ProjectBase }> {
   return postJSON('/api/projects/create', data).catch(throwGlobalError);
 }
 
@@ -88,70 +90,100 @@ export function setProjectTags(data: { project: string; tags: string }): Promise
 
 export function getComponentTree(
   strategy: string,
-  componentKey: string,
+  component: string,
   metrics: string[] = [],
   additional: RequestData = {}
-): Promise<any> {
+): Promise<{
+  baseComponent: T.ComponentMeasure;
+  components: T.ComponentMeasure[];
+  metrics: T.Metric[];
+  paging: T.Paging;
+}> {
   const url = '/api/measures/component_tree';
-  const data = Object.assign({}, additional, {
-    baseComponentKey: componentKey,
-    metricKeys: metrics.join(','),
-    strategy
-  });
-  return getJSON(url, data);
+  const data = { ...additional, component, metricKeys: metrics.join(','), strategy };
+  return getJSON(url, data).catch(throwGlobalError);
 }
 
 export function getChildren(
-  componentKey: string,
+  component: string,
   metrics: string[] = [],
   additional: RequestData = {}
-): Promise<any> {
-  return getComponentTree('children', componentKey, metrics, additional);
+) {
+  return getComponentTree('children', component, metrics, additional);
 }
 
 export function getComponentLeaves(
-  componentKey: string,
+  component: string,
   metrics: string[] = [],
   additional: RequestData = {}
-): Promise<any> {
-  return getComponentTree('leaves', componentKey, metrics, additional);
+) {
+  return getComponentTree('leaves', component, metrics, additional);
 }
 
 export function getComponent(
-  componentKey: string,
-  metrics: string[] = [],
-  branch?: string
+  data: { component: string; metricKeys: string } & T.BranchParameters
 ): Promise<any> {
-  const data = { branch, componentKey, metricKeys: metrics.join(',') };
-  return getJSON('/api/measures/component', data).then(r => r.component);
+  return getJSON('/api/measures/component', data).then(r => r.component, throwGlobalError);
 }
 
-export function getTree(component: string, options: RequestData = {}): Promise<any> {
-  return getJSON('/api/components/tree', { ...options, component });
+export interface TreeComponent extends T.LightComponent {
+  id: string;
+  name: string;
+  path?: string;
+  refId?: string;
+  refKey?: string;
+  tags?: string[];
+  visibility: T.Visibility;
 }
 
-export function getComponentShow(component: string, branch?: string): Promise<any> {
-  return getJSON('/api/components/show', { component, branch });
+export function getTree(data: {
+  asc?: boolean;
+  branch?: string;
+  component: string;
+  p?: number;
+  ps?: number;
+  pullRequest?: string;
+  q?: string;
+  qualifiers?: string;
+  s?: string;
+  strategy?: 'all' | 'leaves' | 'children';
+}): Promise<{ baseComponent: TreeComponent; components: TreeComponent[]; paging: T.Paging }> {
+  return getJSON('/api/components/tree', data).catch(throwGlobalError);
+}
+
+export function doesComponentExists(
+  data: { component: string } & T.BranchParameters
+): Promise<boolean> {
+  return getJSON('/api/components/show', data).then(
+    ({ component }) => component !== undefined,
+    () => false
+  );
+}
+
+export function getComponentShow(data: { component: string } & T.BranchParameters): Promise<any> {
+  return getJSON('/api/components/show', data).catch(throwGlobalError);
 }
 
 export function getParents(component: string): Promise<any> {
-  return getComponentShow(component).then(r => r.ancestors);
+  return getComponentShow({ component }).then(r => r.ancestors);
 }
 
-export function getBreadcrumbs(component: string, branch?: string): Promise<any> {
-  return getComponentShow(component, branch).then(r => {
+export function getBreadcrumbs(data: { component: string } & T.BranchParameters): Promise<any> {
+  return getComponentShow(data).then(r => {
     const reversedAncestors = [...r.ancestors].reverse();
     return [...reversedAncestors, r.component];
   });
 }
 
-export function getComponentData(component: string, branch?: string): Promise<any> {
-  return getComponentShow(component, branch).then(r => r.component);
+export function getComponentData(data: { component: string } & T.BranchParameters): Promise<any> {
+  return getComponentShow(data).then(r => r.component);
 }
 
-export function getMyProjects(data: RequestData): Promise<any> {
-  const url = '/api/projects/search_my_projects';
-  return getJSON(url, data);
+export function getMyProjects(data: {
+  p?: number;
+  ps?: number;
+}): Promise<{ paging: T.Paging; projects: T.MyProject[] }> {
+  return getJSON('/api/projects/search_my_projects', data);
 }
 
 export interface Component {
@@ -162,7 +194,7 @@ export interface Component {
   isFavorite?: boolean;
   analysisDate?: string;
   tags: string[];
-  visibility: string;
+  visibility: T.Visibility;
   leakPeriodDate?: string;
 }
 
@@ -173,7 +205,12 @@ export interface Facet {
 
 export function searchProjects(
   data: RequestData
-): Promise<{ components: Component[]; facets: Facet[]; paging: Paging }> {
+): Promise<{
+  components: Component[];
+  facets: Facet[];
+  organizations: Array<{ key: string; name: string }>;
+  paging: T.Paging;
+}> {
   const url = '/api/components/search_projects';
   return getJSON(url, data);
 }
@@ -186,27 +223,8 @@ export function searchComponents(data?: {
   return getJSON('/api/components/search', data);
 }
 
-/**
- * Change component's key
- */
-export function changeKey(from: string, to: string): Promise<void> {
-  const url = '/api/projects/update_key';
-  const data = { from, to };
-  return post(url, data);
-}
-
-/**
- * Bulk change component's key
- */
-export function bulkChangeKey(
-  project: string,
-  from: string,
-  to: string,
-  dryRun: boolean = false
-): Promise<any> {
-  const url = '/api/projects/bulk_update_key';
-  const data = { project, from, to, dryRun };
-  return postJSON(url, data);
+export function changeKey(data: { from: string; to: string }) {
+  return post('/api/projects/update_key', data).catch(throwGlobalError);
 }
 
 export interface SuggestionsResponse {
@@ -243,34 +261,27 @@ export function getSuggestions(
   if (more) {
     data.more = more;
   }
-  return getJSON('/api/components/suggestions', data);
+  return getJSON('/api/components/suggestions', data).catch(throwGlobalError);
 }
 
-export function getComponentForSourceViewer(component: string, branch?: string): Promise<any> {
-  return getJSON('/api/components/app', { component, branch });
+export function getComponentForSourceViewer(
+  data: { component: string } & T.BranchParameters
+): Promise<T.SourceViewerFile> {
+  return getJSON('/api/components/app', data);
 }
 
 export function getSources(
-  component: string,
-  from?: number,
-  to?: number,
-  branch?: string
-): Promise<any> {
-  const data: RequestData = { key: component, branch };
-  if (from) {
-    Object.assign(data, { from });
-  }
-  if (to) {
-    Object.assign(data, { to });
-  }
+  data: { key: string; from?: number; to?: number } & T.BranchParameters
+): Promise<T.SourceLine[]> {
   return getJSON('/api/sources/lines', data).then(r => r.sources);
 }
 
-export function getDuplications(component: string, branch?: string): Promise<any> {
-  return getJSON('/api/duplications/show', { key: component, branch });
+export function getDuplications(data: { key: string } & T.BranchParameters): Promise<any> {
+  return getJSON('/api/duplications/show', data);
 }
 
-export function getTests(component: string, line: number | string, branch?: string): Promise<any> {
-  const data = { sourceFileKey: component, sourceFileLineNumber: line, branch };
+export function getTests(
+  data: { sourceFileKey: string; sourceFileLineNumber: number | string } & T.BranchParameters
+): Promise<any> {
   return getJSON('/api/tests/list', data).then(r => r.tests);
 }

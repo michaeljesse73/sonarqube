@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -26,6 +26,7 @@ import org.junit.rules.ExpectedException;
 import org.sonar.api.resources.Qualifiers;
 import org.sonar.api.resources.Scopes;
 import org.sonar.api.utils.System2;
+import org.sonar.db.DbSession;
 import org.sonar.db.DbTester;
 import org.sonar.db.component.BranchDto;
 import org.sonar.db.component.BranchType;
@@ -36,12 +37,13 @@ import org.sonar.server.es.ProjectIndexer;
 import org.sonar.server.es.TestProjectIndexers;
 import org.sonar.server.exceptions.BadRequestException;
 import org.sonar.server.favorite.FavoriteUpdater;
-import org.sonar.server.i18n.I18nRule;
+import org.sonar.server.l18n.I18nRule;
 import org.sonar.server.permission.PermissionTemplateService;
 
+import static java.util.stream.IntStream.rangeClosed;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -82,7 +84,6 @@ public class ComponentUpdaterTest {
 
     ComponentDto loaded = db.getDbClient().componentDao().selectOrFailByUuid(db.getSession(), returned.uuid());
     assertThat(loaded.getDbKey()).isEqualTo(DEFAULT_PROJECT_KEY);
-    assertThat(loaded.deprecatedKey()).isEqualTo(DEFAULT_PROJECT_KEY);
     assertThat(loaded.name()).isEqualTo(DEFAULT_PROJECT_NAME);
     assertThat(loaded.longName()).isEqualTo(DEFAULT_PROJECT_NAME);
     assertThat(loaded.qualifier()).isEqualTo(Qualifiers.PROJECT);
@@ -136,12 +137,12 @@ public class ComponentUpdaterTest {
   }
 
   @Test
-  public void create_project_with_branch() {
+  public void create_project_with_deprecated_branch() {
     ComponentDto project = underTest.create(db.getSession(),
       NewComponent.newComponentBuilder()
         .setKey(DEFAULT_PROJECT_KEY)
         .setName(DEFAULT_PROJECT_NAME)
-        .setBranch("origin/master")
+        .setDeprecatedBranch("origin/master")
         .setOrganizationUuid(db.getDefaultOrganization().getUuid())
         .build(),
       null);
@@ -150,7 +151,7 @@ public class ComponentUpdaterTest {
   }
 
   @Test
-  public void persist_and_index_when_creating_view() {
+  public void create_view() {
     NewComponent view = NewComponent.newComponentBuilder()
       .setKey("view-key")
       .setName("view-name")
@@ -170,15 +171,15 @@ public class ComponentUpdaterTest {
   }
 
   @Test
-  public void persist_and_index_when_creating_application() {
-    NewComponent view = NewComponent.newComponentBuilder()
+  public void create_application() {
+    NewComponent application = NewComponent.newComponentBuilder()
       .setKey("app-key")
       .setName("app-name")
       .setQualifier(APP)
       .setOrganizationUuid(db.getDefaultOrganization().getUuid())
       .build();
 
-    ComponentDto returned = underTest.create(db.getSession(), view, null);
+    ComponentDto returned = underTest.create(db.getSession(), application, null);
 
     ComponentDto loaded = db.getDbClient().componentDao().selectOrFailByUuid(db.getSession(), returned.uuid());
     assertThat(loaded.getDbKey()).isEqualTo("app-key");
@@ -186,25 +187,12 @@ public class ComponentUpdaterTest {
     assertThat(loaded.qualifier()).isEqualTo("APP");
     assertThat(projectIndexers.hasBeenCalled(loaded.uuid(), ProjectIndexer.Cause.PROJECT_CREATION)).isTrue();
     Optional<BranchDto> branch = db.getDbClient().branchDao().selectByUuid(db.getSession(), returned.uuid());
-    assertThat(branch).isNotPresent();
-  }
-
-  @Test
-  public void create_application() {
-    NewComponent view = NewComponent.newComponentBuilder()
-      .setKey("app-key")
-      .setName("app-name")
-      .setQualifier(APP)
-      .setOrganizationUuid(db.getDefaultOrganization().getUuid())
-      .build();
-
-    ComponentDto returned = underTest.create(db.getSession(), view, null);
-
-    ComponentDto loaded = db.getDbClient().componentDao().selectByKey(db.getSession(), returned.getDbKey()).get();
-    assertThat(loaded.getDbKey()).isEqualTo("app-key");
-    assertThat(loaded.name()).isEqualTo("app-name");
-    assertThat(loaded.qualifier()).isEqualTo("APP");
-    assertThat(projectIndexers.hasBeenCalled(loaded.uuid(), ProjectIndexer.Cause.PROJECT_CREATION)).isTrue();
+    assertThat(branch).isPresent();
+    assertThat(branch.get().getKey()).isEqualTo(BranchDto.DEFAULT_MAIN_BRANCH_NAME);
+    assertThat(branch.get().getMergeBranchUuid()).isNull();
+    assertThat(branch.get().getBranchType()).isEqualTo(BranchType.LONG);
+    assertThat(branch.get().getUuid()).isEqualTo(returned.uuid());
+    assertThat(branch.get().getProjectUuid()).isEqualTo(returned.uuid());
   }
 
   @Test
@@ -217,7 +205,7 @@ public class ComponentUpdaterTest {
       .build();
     ComponentDto dto = underTest.create(db.getSession(), project, userId);
 
-    verify(permissionTemplateService).applyDefault(db.getSession(), dto.getOrganizationUuid(), dto, userId);
+    verify(permissionTemplateService).applyDefault(db.getSession(), dto, userId);
   }
 
   @Test
@@ -228,14 +216,31 @@ public class ComponentUpdaterTest {
       .setName(DEFAULT_PROJECT_NAME)
       .setOrganizationUuid(db.getDefaultOrganization().getUuid())
       .build();
-    when(permissionTemplateService.hasDefaultTemplateWithPermissionOnProjectCreator(eq(db.getSession()), eq(project.getOrganizationUuid()), any(ComponentDto.class)))
+    when(permissionTemplateService.hasDefaultTemplateWithPermissionOnProjectCreator(any(DbSession.class), any(ComponentDto.class)))
+      .thenReturn(true);
+
+    ComponentDto dto = underTest.create(db.getSession(), project, userDto.getId());
+
+    assertThat(db.favorites().hasFavorite(dto, userDto.getId())).isTrue();
+  }
+
+  @Test
+  public void do_not_add_project_to_user_favorites_if_project_creator_is_defined_in_permission_template_and_already_100_favorites() {
+    UserDto user = db.users().insertUser();
+    rangeClosed(1, 100).forEach(i -> db.favorites().add(db.components().insertPrivateProject(), user.getId()));
+    NewComponent project = NewComponent.newComponentBuilder()
+      .setKey(DEFAULT_PROJECT_KEY)
+      .setName(DEFAULT_PROJECT_NAME)
+      .setOrganizationUuid(db.getDefaultOrganization().getUuid())
+      .build();
+    when(permissionTemplateService.hasDefaultTemplateWithPermissionOnProjectCreator(eq(db.getSession()), any(ComponentDto.class)))
       .thenReturn(true);
 
     ComponentDto dto = underTest.create(db.getSession(),
       project,
-      userDto.getId());
+      user.getId());
 
-    assertThat(db.favorites().hasFavorite(dto, userDto.getId())).isTrue();
+    assertThat(db.favorites().hasFavorite(dto, user.getId())).isFalse();
   }
 
   @Test
@@ -333,7 +338,7 @@ public class ComponentUpdaterTest {
       NewComponent.newComponentBuilder()
         .setKey(DEFAULT_PROJECT_KEY)
         .setName(DEFAULT_PROJECT_NAME)
-        .setBranch("origin?branch")
+        .setDeprecatedBranch("origin?branch")
         .setOrganizationUuid(db.getDefaultOrganization().getUuid())
         .build(),
       null);

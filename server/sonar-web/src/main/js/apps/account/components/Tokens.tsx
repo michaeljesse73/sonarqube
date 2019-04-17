@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,6 +18,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
+import InstanceMessage from '../../../components/common/InstanceMessage';
 import TokenForm from '../../users/components/TokensForm';
 import { translate } from '../../../helpers/l10n';
 
@@ -31,7 +32,7 @@ export default function Tokens({ login }: Props) {
       <h2>{translate('users.tokens')}</h2>
       <div className="boxed-group-inner">
         <div className="big-spacer-bottom big-spacer-right markdown">
-          {translate('my_account.tokens_description')}
+          <InstanceMessage message={translate('my_account.tokens_description')} />
         </div>
 
         <TokenForm login={login} />

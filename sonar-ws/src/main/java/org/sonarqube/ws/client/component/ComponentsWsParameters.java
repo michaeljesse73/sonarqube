@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -39,6 +39,7 @@ public class ComponentsWsParameters {
   public static final String PARAM_COMPONENT_ID = "componentId";
   public static final String PARAM_COMPONENT = "component";
   public static final String PARAM_BRANCH = "branch";
+  public static final String PARAM_PULL_REQUEST = "pullRequest";
 
   private ComponentsWsParameters() {
     // static utility class

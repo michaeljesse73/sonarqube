@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -45,9 +45,9 @@ public class QualitygatesService extends BaseService {
   }
 
   /**
-   *
    * This is part of the internal API.
    * This is a POST request.
+   *
    * @see <a href="https://next.sonarqube.com/sonarqube/web_api/api/qualitygates/copy">Further information about this action online (including a response example)</a>
    * @since 4.3
    */
@@ -58,13 +58,13 @@ public class QualitygatesService extends BaseService {
         .setParam("name", request.getName())
         .setParam("organization", request.getOrganization())
         .setMediaType(MediaTypes.JSON)
-      ).content();
+    ).content();
   }
 
   /**
-   *
    * This is part of the internal API.
    * This is a POST request.
+   *
    * @see <a href="https://next.sonarqube.com/sonarqube/web_api/api/qualitygates/create">Further information about this action online (including a response example)</a>
    * @since 4.3
    */
@@ -77,9 +77,9 @@ public class QualitygatesService extends BaseService {
   }
 
   /**
-   *
    * This is part of the internal API.
    * This is a POST request.
+   *
    * @see <a href="https://next.sonarqube.com/sonarqube/web_api/api/qualitygates/create_condition">Further information about this action online (including a response example)</a>
    * @since 4.3
    */
@@ -90,16 +90,14 @@ public class QualitygatesService extends BaseService {
         .setParam("gateId", request.getGateId())
         .setParam("metric", request.getMetric())
         .setParam("op", request.getOp())
-        .setParam("organization", request.getOrganization())
-        .setParam("period", request.getPeriod())
-        .setParam("warning", request.getWarning()),
+        .setParam("organization", request.getOrganization()),
       CreateConditionResponse.parser());
   }
 
   /**
-   *
    * This is part of the internal API.
    * This is a POST request.
+   *
    * @see <a href="https://next.sonarqube.com/sonarqube/web_api/api/qualitygates/delete_condition">Further information about this action online (including a response example)</a>
    * @since 4.3
    */
@@ -109,13 +107,13 @@ public class QualitygatesService extends BaseService {
         .setParam("id", request.getId())
         .setParam("organization", request.getOrganization())
         .setMediaType(MediaTypes.JSON)
-      ).content();
+    ).content();
   }
 
   /**
-   *
    * This is part of the internal API.
    * This is a POST request.
+   *
    * @see <a href="https://next.sonarqube.com/sonarqube/web_api/api/qualitygates/deselect">Further information about this action online (including a response example)</a>
    * @since 4.3
    */
@@ -126,13 +124,13 @@ public class QualitygatesService extends BaseService {
         .setParam("projectId", request.getProjectId())
         .setParam("projectKey", request.getProjectKey())
         .setMediaType(MediaTypes.JSON)
-      ).content();
+    ).content();
   }
 
   /**
-   *
    * This is part of the internal API.
    * This is a POST request.
+   *
    * @see <a href="https://next.sonarqube.com/sonarqube/web_api/api/qualitygates/destroy">Further information about this action online (including a response example)</a>
    * @since 4.3
    */
@@ -142,13 +140,13 @@ public class QualitygatesService extends BaseService {
         .setParam("id", request.getId())
         .setParam("organization", request.getOrganization())
         .setMediaType(MediaTypes.JSON)
-      ).content();
+    ).content();
   }
 
   /**
-   *
    * This is part of the internal API.
    * This is a GET request.
+   *
    * @see <a href="https://next.sonarqube.com/sonarqube/web_api/api/qualitygates/get_by_project">Further information about this action online (including a response example)</a>
    * @since 6.1
    */
@@ -161,9 +159,9 @@ public class QualitygatesService extends BaseService {
   }
 
   /**
-   *
    * This is part of the internal API.
    * This is a GET request.
+   *
    * @see <a href="https://next.sonarqube.com/sonarqube/web_api/api/qualitygates/list">Further information about this action online (including a response example)</a>
    * @since 4.3
    */
@@ -175,9 +173,9 @@ public class QualitygatesService extends BaseService {
   }
 
   /**
-   *
    * This is part of the internal API.
    * This is a GET request.
+   *
    * @see <a href="https://next.sonarqube.com/sonarqube/web_api/api/qualitygates/project_status">Further information about this action online (including a response example)</a>
    * @since 5.3
    */
@@ -186,14 +184,16 @@ public class QualitygatesService extends BaseService {
       new GetRequest(path("project_status"))
         .setParam("analysisId", request.getAnalysisId())
         .setParam("projectId", request.getProjectId())
-        .setParam("projectKey", request.getProjectKey()),
+        .setParam("projectKey", request.getProjectKey())
+        .setParam("branch", request.getBranch())
+        .setParam("pullRequest", request.getPullRequest()),
       ProjectStatusResponse.parser());
   }
 
   /**
-   *
    * This is part of the internal API.
    * This is a POST request.
+   *
    * @see <a href="https://next.sonarqube.com/sonarqube/web_api/api/qualitygates/rename">Further information about this action online (including a response example)</a>
    * @since 4.3
    */
@@ -204,13 +204,13 @@ public class QualitygatesService extends BaseService {
         .setParam("name", request.getName())
         .setParam("organization", request.getOrganization())
         .setMediaType(MediaTypes.JSON)
-      ).content();
+    ).content();
   }
 
   /**
-   *
    * This is part of the internal API.
    * This is a GET request.
+   *
    * @see <a href="https://next.sonarqube.com/sonarqube/web_api/api/qualitygates/search">Further information about this action online (including a response example)</a>
    * @since 4.3
    */
@@ -227,9 +227,9 @@ public class QualitygatesService extends BaseService {
   }
 
   /**
-   *
    * This is part of the internal API.
    * This is a POST request.
+   *
    * @see <a href="https://next.sonarqube.com/sonarqube/web_api/api/qualitygates/select">Further information about this action online (including a response example)</a>
    * @since 4.3
    */
@@ -241,13 +241,13 @@ public class QualitygatesService extends BaseService {
         .setParam("projectId", request.getProjectId())
         .setParam("projectKey", request.getProjectKey())
         .setMediaType(MediaTypes.JSON)
-      ).content();
+    ).content();
   }
 
   /**
-   *
    * This is part of the internal API.
    * This is a POST request.
+   *
    * @see <a href="https://next.sonarqube.com/sonarqube/web_api/api/qualitygates/set_as_default">Further information about this action online (including a response example)</a>
    * @since 4.3
    */
@@ -257,13 +257,13 @@ public class QualitygatesService extends BaseService {
         .setParam("id", request.getId())
         .setParam("organization", request.getOrganization())
         .setMediaType(MediaTypes.JSON)
-      ).content();
+    ).content();
   }
 
   /**
-   *
    * This is part of the internal API.
    * This is a GET request.
+   *
    * @see <a href="https://next.sonarqube.com/sonarqube/web_api/api/qualitygates/show">Further information about this action online (including a response example)</a>
    * @since 4.3
    */
@@ -277,9 +277,9 @@ public class QualitygatesService extends BaseService {
   }
 
   /**
-   *
    * This is part of the internal API.
    * This is a POST request.
+   *
    * @see <a href="https://next.sonarqube.com/sonarqube/web_api/api/qualitygates/unset_default">Further information about this action online (including a response example)</a>
    * @since 4.3
    * @deprecated since 7.0
@@ -289,13 +289,13 @@ public class QualitygatesService extends BaseService {
     return call(
       new PostRequest(path("unset_default"))
         .setMediaType(MediaTypes.JSON)
-      ).content();
+    ).content();
   }
 
   /**
-   *
    * This is part of the internal API.
    * This is a POST request.
+   *
    * @see <a href="https://next.sonarqube.com/sonarqube/web_api/api/qualitygates/update_condition">Further information about this action online (including a response example)</a>
    * @since 4.3
    */
@@ -306,9 +306,7 @@ public class QualitygatesService extends BaseService {
         .setParam("id", request.getId())
         .setParam("metric", request.getMetric())
         .setParam("op", request.getOp())
-        .setParam("organization", request.getOrganization())
-        .setParam("period", request.getPeriod())
-        .setParam("warning", request.getWarning()),
+        .setParam("organization", request.getOrganization()),
       UpdateConditionResponse.parser());
   }
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,6 +19,9 @@
  */
 package org.sonar.ce.monitoring;
 
+import org.sonar.api.ce.ComputeEngineSide;
+
+@ComputeEngineSide
 public interface CEQueueStatus {
 
   /**
@@ -85,4 +88,6 @@ public interface CEQueueStatus {
    * Time spent processing batch reports since startup, in milliseconds.
    */
   long getProcessingTime();
+
+  boolean areWorkersPaused();
 }

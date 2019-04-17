@@ -1,7 +1,7 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`changes default visibility 1`] = `
-<ChangeVisibilityForm
+<ChangeDefaultVisibilityForm
   onClose={[Function]}
   onConfirm={[MockFunction]}
   organization={
@@ -43,12 +43,12 @@ exports[`renders 1`] = `
         onClick={[Function]}
       />
     </span>
-    <button
+    <Button
       id="create-project"
-      onClick={[Function]}
+      onClick={[MockFunction]}
     >
       qualifiers.create.TRK
-    </button>
+    </Button>
   </div>
   <p
     className="page-description"

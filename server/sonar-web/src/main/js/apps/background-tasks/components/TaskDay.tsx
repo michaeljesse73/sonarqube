@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -31,7 +31,7 @@ export default function TaskDay({ submittedAt, prevSubmittedAt }: Props) {
     !prevSubmittedAt || !isSameDay(parseDate(submittedAt), parseDate(prevSubmittedAt));
 
   return (
-    <td className="thin nowrap text-right">
+    <td className="thin nowrap text-right small">
       {shouldDisplay ? <DateFormatter date={submittedAt} long={true} /> : ''}
     </td>
   );

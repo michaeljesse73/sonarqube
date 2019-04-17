@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,9 +19,11 @@
  */
 /* eslint-disable import/order */
 import * as React from 'react';
-import { mount, shallow } from 'enzyme';
-import AllProjects, { Props } from '../AllProjects';
-import { getView, saveSort, saveView, saveVisualization } from '../../../../helpers/storage';
+import { shallow } from 'enzyme';
+import { AllProjects } from '../AllProjects';
+import { get, save } from '../../../../helpers/storage';
+import { isSonarCloud } from '../../../../helpers/system';
+import { waitAndUpdate } from '../../../../helpers/testUtils';
 
 jest.mock('../ProjectsList', () => ({
   // eslint-disable-next-line
@@ -51,21 +53,18 @@ jest.mock('../../utils', () => {
 });
 
 jest.mock('../../../../helpers/storage', () => ({
-  getSort: () => null,
-  getView: jest.fn(() => null),
-  getVisualization: () => null,
-  saveSort: jest.fn(),
-  saveView: jest.fn(),
-  saveVisualization: jest.fn()
+  get: jest.fn(() => null),
+  save: jest.fn()
 }));
 
-const fetchProjects = require('../../utils').fetchProjects as jest.Mock<any>;
+jest.mock('../../../../helpers/system', () => ({ isSonarCloud: jest.fn() }));
+
+const fetchProjects = require('../../utils').fetchProjects as jest.Mock;
 
 beforeEach(() => {
-  (getView as jest.Mock<any>).mockImplementation(() => null);
-  (saveSort as jest.Mock<any>).mockClear();
-  (saveView as jest.Mock<any>).mockClear();
-  (saveVisualization as jest.Mock<any>).mockClear();
+  (get as jest.Mock).mockImplementation(() => null);
+  (save as jest.Mock).mockClear();
+  (isSonarCloud as jest.Mock).mockReturnValue(false);
   fetchProjects.mockClear();
 });
 
@@ -77,7 +76,7 @@ it('renders', () => {
 });
 
 it('fetches projects', () => {
-  mountRender();
+  shallowRender();
   expect(fetchProjects).lastCalledWith(
     {
       coverage: undefined,
@@ -106,9 +105,11 @@ it('fetches projects', () => {
 });
 
 it('redirects to the saved search', () => {
-  (getView as jest.Mock<any>).mockImplementation(() => 'leak');
+  (get as jest.Mock).mockImplementation((key: string) =>
+    key === 'sonarqube.projects.view' ? 'leak' : null
+  );
   const replace = jest.fn();
-  mountRender({}, jest.fn(), replace);
+  shallowRender({}, jest.fn(), replace);
   expect(replace).lastCalledWith({ pathname: '/projects', query: { view: 'leak' } });
 });
 
@@ -117,7 +118,7 @@ it('changes sort', () => {
   const wrapper = shallowRender({}, push);
   wrapper.find('PageHeader').prop<Function>('onSortChange')('size', false);
   expect(push).lastCalledWith({ pathname: '/projects', query: { sort: 'size' } });
-  expect(saveSort).lastCalledWith('size');
+  expect(save).lastCalledWith('sonarqube.projects.sort', 'size', undefined);
 });
 
 it('changes perspective to leak', () => {
@@ -128,9 +129,9 @@ it('changes perspective to leak', () => {
     pathname: '/projects',
     query: { view: 'leak', visualization: undefined }
   });
-  expect(saveSort).lastCalledWith(undefined);
-  expect(saveView).lastCalledWith('leak');
-  expect(saveVisualization).lastCalledWith(undefined);
+  expect(save).toHaveBeenCalledWith('sonarqube.projects.sort', undefined, undefined);
+  expect(save).toHaveBeenCalledWith('sonarqube.projects.view', 'leak', undefined);
+  expect(save).toHaveBeenCalledWith('sonarqube.projects.visualization', undefined, undefined);
 });
 
 it('updates sorting when changing perspective from leak', () => {
@@ -144,9 +145,9 @@ it('updates sorting when changing perspective from leak', () => {
     pathname: '/projects',
     query: { sort: 'coverage', view: undefined, visualization: undefined }
   });
-  expect(saveSort).lastCalledWith('coverage');
-  expect(saveView).lastCalledWith(undefined);
-  expect(saveVisualization).lastCalledWith(undefined);
+  expect(save).toHaveBeenCalledWith('sonarqube.projects.sort', 'coverage', undefined);
+  expect(save).toHaveBeenCalledWith('sonarqube.projects.view', undefined, undefined);
+  expect(save).toHaveBeenCalledWith('sonarqube.projects.visualization', undefined, undefined);
 });
 
 it('changes perspective to risk visualization', () => {
@@ -160,39 +161,47 @@ it('changes perspective to risk visualization', () => {
     pathname: '/projects',
     query: { view: 'visualizations', visualization: 'risk' }
   });
-  expect(saveSort).lastCalledWith(undefined);
-  expect(saveView).lastCalledWith('visualizations');
-  expect(saveVisualization).lastCalledWith('risk');
+  expect(save).toHaveBeenCalledWith('sonarqube.projects.sort', undefined, undefined);
+  expect(save).toHaveBeenCalledWith('sonarqube.projects.view', 'visualizations', undefined);
+  expect(save).toHaveBeenCalledWith('sonarqube.projects.visualization', 'risk', undefined);
 });
 
-function mountRender(props: any = {}, push: Function = jest.fn(), replace: Function = jest.fn()) {
-  return mount(
+it('renders correctly empty organization', async () => {
+  (isSonarCloud as jest.Mock).mockReturnValue(true);
+  const wrapper = shallow(
     <AllProjects
       currentUser={{ isLoggedIn: true }}
-      fetchProjects={jest.fn()}
       isFavorite={false}
       location={{ pathname: '/projects', query: {} }}
-      {...props}
-    />,
-    { context: { router: { push, replace } } }
+      organization={{ key: 'foo', name: 'Foo' }}
+      router={{ push: jest.fn(), replace: jest.fn() }}
+    />
   );
-}
+  expect(wrapper).toMatchSnapshot();
+  await waitAndUpdate(wrapper);
+  expect(wrapper).toMatchSnapshot();
+  wrapper.setState({
+    loading: false,
+    projects: [{ key: 'foo', measures: {}, name: 'Foo' }],
+    total: 0
+  });
+  expect(wrapper).toMatchSnapshot();
+});
 
 function shallowRender(
-  props: Partial<Props> = {},
-  push: Function = jest.fn(),
-  replace: Function = jest.fn()
+  props: Partial<AllProjects['props']> = {},
+  push = jest.fn(),
+  replace = jest.fn()
 ) {
   const wrapper = shallow(
     <AllProjects
       currentUser={{ isLoggedIn: true }}
       isFavorite={false}
       location={{ pathname: '/projects', query: {} }}
-      onSonarCloud={false}
-      organizationsEnabled={false}
+      organization={undefined}
+      router={{ push, replace }}
       {...props}
-    />,
-    { context: { router: { push, replace } } }
+    />
   );
   wrapper.setState({
     loading: false,

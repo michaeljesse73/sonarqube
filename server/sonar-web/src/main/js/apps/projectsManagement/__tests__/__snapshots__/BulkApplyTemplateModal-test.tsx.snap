@@ -4,6 +4,7 @@ exports[`bulk applies template to all results 1`] = `
 <Modal
   contentLabel="permission_templates.bulk_apply_permission_template"
   onRequestClose={[MockFunction]}
+  size="small"
 >
   <header
     className="modal-head"
@@ -22,13 +23,12 @@ exports[`bulk applies template to all results 1`] = `
   <footer
     className="modal-foot"
   >
-    <a
+    <ResetButtonLink
       className="js-modal-close"
-      href="#"
-      onClick={[Function]}
+      onClick={[MockFunction]}
     >
       cancel
-    </a>
+    </ResetButtonLink>
   </footer>
 </Modal>
 `;
@@ -37,6 +37,7 @@ exports[`bulk applies template to all results 2`] = `
 <Modal
   contentLabel="permission_templates.bulk_apply_permission_template"
   onRequestClose={[MockFunction]}
+  size="small"
 >
   <header
     className="modal-head"
@@ -48,14 +49,11 @@ exports[`bulk applies template to all results 2`] = `
   <div
     className="modal-body"
   >
-    <div
-      className="alert alert-warning modal-alert"
+    <Alert
+      variant="warning"
     >
-      <AlertWarnIcon
-        className="spacer-right"
-      />
       permission_templates.bulk_apply_permission_template.apply_to_all.17
-    </div>
+    </Alert>
     <div
       className="modal-field"
     >
@@ -83,7 +81,6 @@ exports[`bulk applies template to all results 2`] = `
             },
           ]
         }
-        searchable={false}
         value="foo"
       />
     </div>
@@ -91,19 +88,18 @@ exports[`bulk applies template to all results 2`] = `
   <footer
     className="modal-foot"
   >
-    <button
+    <Button
       disabled={false}
       onClick={[Function]}
     >
       apply
-    </button>
-    <a
+    </Button>
+    <ResetButtonLink
       className="js-modal-close"
-      href="#"
-      onClick={[Function]}
+      onClick={[MockFunction]}
     >
       cancel
-    </a>
+    </ResetButtonLink>
   </footer>
 </Modal>
 `;
@@ -112,6 +108,7 @@ exports[`bulk applies template to all results 3`] = `
 <Modal
   contentLabel="permission_templates.bulk_apply_permission_template"
   onRequestClose={[MockFunction]}
+  size="small"
 >
   <header
     className="modal-head"
@@ -123,14 +120,11 @@ exports[`bulk applies template to all results 3`] = `
   <div
     className="modal-body"
   >
-    <div
-      className="alert alert-warning modal-alert"
+    <Alert
+      variant="warning"
     >
-      <AlertWarnIcon
-        className="spacer-right"
-      />
       permission_templates.bulk_apply_permission_template.apply_to_all.17
-    </div>
+    </Alert>
     <div
       className="modal-field"
     >
@@ -158,7 +152,6 @@ exports[`bulk applies template to all results 3`] = `
             },
           ]
         }
-        searchable={false}
         value="foo"
       />
     </div>
@@ -169,19 +162,18 @@ exports[`bulk applies template to all results 3`] = `
     <i
       className="spinner spacer-right"
     />
-    <button
+    <Button
       disabled={true}
       onClick={[Function]}
     >
       apply
-    </button>
-    <a
+    </Button>
+    <ResetButtonLink
       className="js-modal-close"
-      href="#"
-      onClick={[Function]}
+      onClick={[MockFunction]}
     >
       cancel
-    </a>
+    </ResetButtonLink>
   </footer>
 </Modal>
 `;
@@ -190,6 +182,7 @@ exports[`bulk applies template to all results 4`] = `
 <Modal
   contentLabel="permission_templates.bulk_apply_permission_template"
   onRequestClose={[MockFunction]}
+  size="small"
 >
   <header
     className="modal-head"
@@ -201,22 +194,21 @@ exports[`bulk applies template to all results 4`] = `
   <div
     className="modal-body"
   >
-    <div
-      className="alert alert-success"
+    <Alert
+      variant="success"
     >
       projects_role.apply_template.success
-    </div>
+    </Alert>
   </div>
   <footer
     className="modal-foot"
   >
-    <a
+    <ResetButtonLink
       className="js-modal-close"
-      href="#"
-      onClick={[Function]}
+      onClick={[MockFunction]}
     >
       close
-    </a>
+    </ResetButtonLink>
   </footer>
 </Modal>
 `;
@@ -225,6 +217,7 @@ exports[`bulk applies template to selected results 1`] = `
 <Modal
   contentLabel="permission_templates.bulk_apply_permission_template"
   onRequestClose={[MockFunction]}
+  size="small"
 >
   <header
     className="modal-head"
@@ -243,13 +236,12 @@ exports[`bulk applies template to selected results 1`] = `
   <footer
     className="modal-foot"
   >
-    <a
+    <ResetButtonLink
       className="js-modal-close"
-      href="#"
-      onClick={[Function]}
+      onClick={[MockFunction]}
     >
       cancel
-    </a>
+    </ResetButtonLink>
   </footer>
 </Modal>
 `;
@@ -258,6 +250,7 @@ exports[`bulk applies template to selected results 2`] = `
 <Modal
   contentLabel="permission_templates.bulk_apply_permission_template"
   onRequestClose={[MockFunction]}
+  size="small"
 >
   <header
     className="modal-head"
@@ -269,14 +262,11 @@ exports[`bulk applies template to selected results 2`] = `
   <div
     className="modal-body"
   >
-    <div
-      className="alert alert-warning modal-alert"
+    <Alert
+      variant="warning"
     >
-      <AlertWarnIcon
-        className="spacer-right"
-      />
       permission_templates.bulk_apply_permission_template.apply_to_selected.2
-    </div>
+    </Alert>
     <div
       className="modal-field"
     >
@@ -304,7 +294,6 @@ exports[`bulk applies template to selected results 2`] = `
             },
           ]
         }
-        searchable={false}
         value="foo"
       />
     </div>
@@ -312,19 +301,18 @@ exports[`bulk applies template to selected results 2`] = `
   <footer
     className="modal-foot"
   >
-    <button
+    <Button
       disabled={false}
       onClick={[Function]}
     >
       apply
-    </button>
-    <a
+    </Button>
+    <ResetButtonLink
       className="js-modal-close"
-      href="#"
-      onClick={[Function]}
+      onClick={[MockFunction]}
     >
       cancel
-    </a>
+    </ResetButtonLink>
   </footer>
 </Modal>
 `;
@@ -333,6 +321,7 @@ exports[`bulk applies template to selected results 3`] = `
 <Modal
   contentLabel="permission_templates.bulk_apply_permission_template"
   onRequestClose={[MockFunction]}
+  size="small"
 >
   <header
     className="modal-head"
@@ -344,14 +333,11 @@ exports[`bulk applies template to selected results 3`] = `
   <div
     className="modal-body"
   >
-    <div
-      className="alert alert-warning modal-alert"
+    <Alert
+      variant="warning"
     >
-      <AlertWarnIcon
-        className="spacer-right"
-      />
       permission_templates.bulk_apply_permission_template.apply_to_selected.2
-    </div>
+    </Alert>
     <div
       className="modal-field"
     >
@@ -379,7 +365,6 @@ exports[`bulk applies template to selected results 3`] = `
             },
           ]
         }
-        searchable={false}
         value="foo"
       />
     </div>
@@ -390,19 +375,18 @@ exports[`bulk applies template to selected results 3`] = `
     <i
       className="spinner spacer-right"
     />
-    <button
+    <Button
       disabled={true}
       onClick={[Function]}
     >
       apply
-    </button>
-    <a
+    </Button>
+    <ResetButtonLink
       className="js-modal-close"
-      href="#"
-      onClick={[Function]}
+      onClick={[MockFunction]}
     >
       cancel
-    </a>
+    </ResetButtonLink>
   </footer>
 </Modal>
 `;
@@ -411,6 +395,7 @@ exports[`bulk applies template to selected results 4`] = `
 <Modal
   contentLabel="permission_templates.bulk_apply_permission_template"
   onRequestClose={[MockFunction]}
+  size="small"
 >
   <header
     className="modal-head"
@@ -422,22 +407,21 @@ exports[`bulk applies template to selected results 4`] = `
   <div
     className="modal-body"
   >
-    <div
-      className="alert alert-success"
+    <Alert
+      variant="success"
     >
       projects_role.apply_template.success
-    </div>
+    </Alert>
   </div>
   <footer
     className="modal-foot"
   >
-    <a
+    <ResetButtonLink
       className="js-modal-close"
-      href="#"
-      onClick={[Function]}
+      onClick={[MockFunction]}
     >
       close
-    </a>
+    </ResetButtonLink>
   </footer>
 </Modal>
 `;

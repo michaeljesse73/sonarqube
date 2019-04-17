@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,6 +25,7 @@ import { formatMeasure } from '../../../helpers/measures';
 import { translate, translateWithParameters } from '../../../helpers/l10n';
 import { RATING_COLORS } from '../../../helpers/constants';
 import { getProjectUrl } from '../../../helpers/urls';
+import HelpTooltip from '../../../components/controls/HelpTooltip';
 
 const X_METRIC = 'sqale_index';
 const X_METRIC_TYPE = 'SHORT_WORK_DUR';
@@ -38,6 +39,7 @@ const COLOR_METRIC_TYPE = 'RATING';
 
 interface Props {
   displayOrganizations: boolean;
+  helpText: string;
   projects: Project[];
 }
 
@@ -45,7 +47,13 @@ export default class Risk extends React.PureComponent<Props> {
   getMetricTooltip(metric: { key: string; type: string }, value?: number) {
     const name = translate('metric', metric.key, 'name');
     const formattedValue = value != null ? formatMeasure(value, metric.type) : '–';
-    return `<div>${name}: ${formattedValue}</div>`;
+    return (
+      <div>
+        {name}
+        {': '}
+        {formattedValue}
+      </div>
+    );
   }
 
   getTooltip(
@@ -57,18 +65,26 @@ export default class Risk extends React.PureComponent<Props> {
     color2?: number
   ) {
     const fullProjectName =
-      this.props.displayOrganizations && project.organization
-        ? `${project.organization.name} / <strong>${project.name}</strong>`
-        : `<strong>${project.name}</strong>`;
-    const inner = [
-      `<div class="little-spacer-bottom">${fullProjectName}</div>`,
-      this.getMetricTooltip({ key: COLOR_METRIC_1, type: COLOR_METRIC_TYPE }, color1),
-      this.getMetricTooltip({ key: COLOR_METRIC_2, type: COLOR_METRIC_TYPE }, color2),
-      this.getMetricTooltip({ key: Y_METRIC, type: Y_METRIC_TYPE }, y),
-      this.getMetricTooltip({ key: X_METRIC, type: X_METRIC_TYPE }, x),
-      this.getMetricTooltip({ key: SIZE_METRIC, type: SIZE_METRIC_TYPE }, size)
-    ].join('');
-    return `<div class="text-left">${inner}</div>`;
+      this.props.displayOrganizations && project.organization ? (
+        <>
+          {project.organization.name}
+          {' / '}
+          <strong>{project.name}</strong>
+        </>
+      ) : (
+        <strong>{project.name}</strong>
+      );
+
+    return (
+      <div className="text-left">
+        <div className="little-spacer-bottom">{fullProjectName}</div>
+        {this.getMetricTooltip({ key: COLOR_METRIC_1, type: COLOR_METRIC_TYPE }, color1)}
+        {this.getMetricTooltip({ key: COLOR_METRIC_2, type: COLOR_METRIC_TYPE }, color2)}
+        {this.getMetricTooltip({ key: Y_METRIC, type: Y_METRIC_TYPE }, y)}
+        {this.getMetricTooltip({ key: X_METRIC, type: X_METRIC_TYPE }, x)}
+        {this.getMetricTooltip({ key: SIZE_METRIC, type: SIZE_METRIC_TYPE }, size)}
+      </div>
+    );
   }
 
   render() {
@@ -112,6 +128,7 @@ export default class Risk extends React.PureComponent<Props> {
           padding={[80, 20, 60, 100]}
           yDomain={[100, 0]}
         />
+
         <div className="measure-details-bubble-chart-axis x">
           {translate('metric', X_METRIC, 'name')}
         </div>
@@ -119,17 +136,23 @@ export default class Risk extends React.PureComponent<Props> {
           {translate('metric', Y_METRIC, 'name')}
         </div>
         <div className="measure-details-bubble-chart-axis size">
-          <span className="spacer-right">
-            {translateWithParameters(
-              'component_measures.legend.color_x',
-              translate('projects.worse_of_reliablity_and_security')
-            )}
+          <span className="measure-details-bubble-chart-title">
+            <span className="text-middle">{translate('projects.visualization.risk')}</span>
+            <HelpTooltip className="spacer-left" overlay={this.props.helpText} />
           </span>
-          {translateWithParameters(
-            'component_measures.legend.size_x',
-            translate('metric', SIZE_METRIC, 'name')
-          )}
-          <ColorRatingsLegend className="big-spacer-top" />
+          <div>
+            <span className="spacer-right">
+              {translateWithParameters(
+                'component_measures.legend.color_x',
+                translate('projects.worse_of_reliablity_and_security')
+              )}
+            </span>
+            {translateWithParameters(
+              'component_measures.legend.size_x',
+              translate('metric', SIZE_METRIC, 'name')
+            )}
+            <ColorRatingsLegend className="big-spacer-top" />
+          </div>
         </div>
       </div>
     );

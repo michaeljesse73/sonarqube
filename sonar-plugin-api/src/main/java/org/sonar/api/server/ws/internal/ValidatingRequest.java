@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -216,7 +216,7 @@ public abstract class ValidatingRequest extends Request {
     try {
       return Integer.parseInt(value);
     } catch (NumberFormatException exception) {
-      throw new IllegalStateException(format("'%s' value '%s' cannot be parsed as an integer", key, value), exception);
+      throw new IllegalArgumentException(format("'%s' value '%s' cannot be parsed as an integer", key, value), exception);
     }
   }
 

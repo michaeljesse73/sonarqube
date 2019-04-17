@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,12 +20,11 @@
 import * as React from 'react';
 import { getTask } from '../../../api/ce';
 import { translate } from '../../../helpers/l10n';
-import { Task } from '../types';
 import Modal from '../../../components/controls/Modal';
 
 interface Props {
   onClose: () => void;
-  task: Task;
+  task: Pick<T.Task, 'componentName' | 'id' | 'type'>;
 }
 
 interface State {
@@ -63,7 +62,7 @@ export default class ScannerContext extends React.PureComponent<Props, State> {
     const { scannerContext } = this.state;
 
     return (
-      <Modal contentLabel="scanner context" large={true} onRequestClose={this.props.onClose}>
+      <Modal contentLabel="scanner context" onRequestClose={this.props.onClose} size={'large'}>
         <div className="modal-head">
           <h2>
             {translate('background_tasks.scanner_context')}
@@ -84,7 +83,7 @@ export default class ScannerContext extends React.PureComponent<Props, State> {
         </div>
 
         <div className="modal-foot">
-          <a href="#" className="js-modal-close" onClick={this.handleCloseClick}>
+          <a className="js-modal-close" href="#" onClick={this.handleCloseClick}>
             {translate('close')}
           </a>
         </div>

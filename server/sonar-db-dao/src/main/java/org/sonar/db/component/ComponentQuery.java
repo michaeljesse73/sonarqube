@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,6 +19,7 @@
  */
 package org.sonar.db.component;
 
+import java.util.Date;
 import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -27,30 +28,34 @@ import javax.annotation.Nullable;
 import org.sonar.db.WildcardPosition;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static org.sonar.db.DaoDatabaseUtils.buildLikeValue;
+import static org.sonar.db.DaoUtils.buildLikeValue;
 
 public class ComponentQuery {
   private final String nameOrKeyQuery;
   private final boolean partialMatchOnKey;
   private final String[] qualifiers;
-  private final String language;
   private final Boolean isPrivate;
   private final Set<Long> componentIds;
   private final Set<String> componentUuids;
   private final Set<String> componentKeys;
   private final Long analyzedBefore;
+  private final Long anyBranchAnalyzedBefore;
+  private final Long anyBranchAnalyzedAfter;
+  private final Date createdAfter;
   private final boolean onProvisionedOnly;
 
   private ComponentQuery(Builder builder) {
     this.nameOrKeyQuery = builder.nameOrKeyQuery;
     this.partialMatchOnKey = builder.partialMatchOnKey == null ? false : builder.partialMatchOnKey;
     this.qualifiers = builder.qualifiers;
-    this.language = builder.language;
     this.componentIds = builder.componentIds;
     this.componentUuids = builder.componentUuids;
     this.componentKeys = builder.componentKeys;
     this.isPrivate = builder.isPrivate;
     this.analyzedBefore = builder.analyzedBefore;
+    this.anyBranchAnalyzedBefore = builder.anyBranchAnalyzedBefore;
+    this.anyBranchAnalyzedAfter = builder.anyBranchAnalyzedAfter;
+    this.createdAfter = builder.createdAfter;
     this.onProvisionedOnly = builder.onProvisionedOnly;
   }
 
@@ -79,11 +84,6 @@ public class ComponentQuery {
   }
 
   @CheckForNull
-  public String getLanguage() {
-    return language;
-  }
-
-  @CheckForNull
   public Set<Long> getComponentIds() {
     return componentIds;
   }
@@ -108,6 +108,21 @@ public class ComponentQuery {
     return analyzedBefore;
   }
 
+  @CheckForNull
+  public Long getAnyBranchAnalyzedBefore() {
+    return anyBranchAnalyzedBefore;
+  }
+
+  @CheckForNull
+  public Long getAnyBranchAnalyzedAfter() {
+    return anyBranchAnalyzedAfter;
+  }
+
+  @CheckForNull
+  public Date getCreatedAfter() {
+    return createdAfter;
+  }
+
   public boolean isOnProvisionedOnly() {
     return onProvisionedOnly;
   }
@@ -125,12 +140,14 @@ public class ComponentQuery {
     private String nameOrKeyQuery;
     private Boolean partialMatchOnKey;
     private String[] qualifiers;
-    private String language;
     private Boolean isPrivate;
     private Set<Long> componentIds;
     private Set<String> componentUuids;
     private Set<String> componentKeys;
     private Long analyzedBefore;
+    private Long anyBranchAnalyzedBefore;
+    private Long anyBranchAnalyzedAfter;
+    private Date createdAfter;
     private boolean onProvisionedOnly = false;
 
     public Builder setNameOrKeyQuery(@Nullable String nameOrKeyQuery) {
@@ -148,11 +165,6 @@ public class ComponentQuery {
 
     public Builder setQualifiers(String... qualifiers) {
       this.qualifiers = qualifiers;
-      return this;
-    }
-
-    public Builder setLanguage(@Nullable String language) {
-      this.language = language;
       return this;
     }
 
@@ -176,8 +188,28 @@ public class ComponentQuery {
       return this;
     }
 
-    public Builder setAnalyzedBefore(@Nullable Long analyzedBefore) {
-      this.analyzedBefore = analyzedBefore;
+    public Builder setAnalyzedBefore(@Nullable Long l) {
+      this.analyzedBefore = l;
+      return this;
+    }
+
+    public Builder setAnyBranchAnalyzedBefore(@Nullable Long l) {
+      this.anyBranchAnalyzedBefore = l;
+      return this;
+    }
+
+    /**
+     * Filter on date of last analysis. On projects, all branches and pull requests are taken into
+     * account. For example the analysis of a short-lived branch is included in the filter
+     * even if the main branch has never been analyzed.
+     */
+    public Builder setAnyBranchAnalyzedAfter(@Nullable Long l) {
+      this.anyBranchAnalyzedAfter = l;
+      return this;
+    }
+
+    public Builder setCreatedAfter(@Nullable Date l) {
+      this.createdAfter = l;
       return this;
     }
 

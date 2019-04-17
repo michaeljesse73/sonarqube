@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -26,7 +26,6 @@ import java.util.stream.Collectors;
 import org.assertj.core.api.ListAssert;
 import org.junit.Before;
 import org.junit.Rule;
-import org.sonar.api.config.internal.MapSettings;
 import org.sonar.api.utils.System2;
 import org.sonar.db.DbTester;
 import org.sonar.db.component.ComponentDto;
@@ -35,8 +34,8 @@ import org.sonar.db.organization.OrganizationDto;
 import org.sonar.db.organization.OrganizationTesting;
 import org.sonar.server.es.EsTester;
 import org.sonar.server.es.textsearch.ComponentTextSearchFeatureRule;
-import org.sonar.server.permission.index.AuthorizationTypeSupport;
 import org.sonar.server.permission.index.PermissionIndexerTester;
+import org.sonar.server.permission.index.WebAuthorizationTypeSupport;
 import org.sonar.server.tester.UserSessionRule;
 
 import static java.util.Arrays.asList;
@@ -48,11 +47,9 @@ import static org.sonar.api.resources.Qualifiers.PROJECT;
 public abstract class ComponentIndexTest {
 
   @Rule
-  public EsTester es = new EsTester(new ComponentIndexDefinition(new MapSettings().asConfig()));
-
+  public EsTester es = EsTester.create();
   @Rule
   public DbTester db = DbTester.create(System2.INSTANCE);
-
   @Rule
   public UserSessionRule userSession = UserSessionRule.standalone();
 
@@ -60,7 +57,7 @@ public abstract class ComponentIndexTest {
   public ComponentTextSearchFeatureRule features = new ComponentTextSearchFeatureRule();
 
   protected ComponentIndexer indexer = new ComponentIndexer(db.getDbClient(), es.client());
-  protected ComponentIndex index = new ComponentIndex(es.client(), new AuthorizationTypeSupport(userSession), System2.INSTANCE);
+  protected ComponentIndex index = new ComponentIndex(es.client(), new WebAuthorizationTypeSupport(userSession), System2.INSTANCE);
   protected PermissionIndexerTester authorizationIndexerTester = new PermissionIndexerTester(es, indexer);
   private OrganizationDto organization;
 

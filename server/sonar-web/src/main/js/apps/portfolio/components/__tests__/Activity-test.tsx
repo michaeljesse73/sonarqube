@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -17,37 +17,37 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-/* eslint-disable import/first, import/order */
-jest.mock('../../../../helpers/storage', () => ({
-  getCustomGraph: () => ['coverage'],
-  getGraph: () => 'custom'
-}));
-
-jest.mock('../../../../api/time-machine', () => ({
-  getAllTimeMachineData: jest.fn(() =>
-    Promise.resolve({
-      measures: [
-        {
-          metric: 'coverage',
-          history: [
-            { date: '2017-01-01T00:00:00.000Z', value: '73' },
-            { date: '2017-01-02T00:00:00.000Z', value: '82' }
-          ]
-        }
-      ]
-    })
-  )
-}));
-
 import * as React from 'react';
 import { mount, shallow } from 'enzyme';
 import Activity from '../Activity';
+import { getAllTimeMachineData } from '../../../../api/time-machine';
+import { getProjectActivityGraph } from '../../../projectActivity/utils';
 
-const getAllTimeMachineData = require('../../../../api/time-machine')
-  .getAllTimeMachineData as jest.Mock<any>;
+jest.mock('../../../projectActivity/utils', () => {
+  const utils = require.requireActual('../../../projectActivity/utils');
+  utils.getProjectActivityGraph = jest
+    .fn()
+    .mockReturnValue({ graph: 'custom', customGraphs: ['coverage'] });
+  return utils;
+});
+
+jest.mock('../../../../api/time-machine', () => ({
+  getAllTimeMachineData: jest.fn().mockResolvedValue({
+    measures: [
+      {
+        metric: 'coverage',
+        history: [
+          { date: '2017-01-01T00:00:00.000Z', value: '73' },
+          { date: '2017-01-02T00:00:00.000Z', value: '82' }
+        ]
+      }
+    ]
+  })
+}));
 
 beforeEach(() => {
-  getAllTimeMachineData.mockClear();
+  (getAllTimeMachineData as jest.Mock).mockClear();
+  (getProjectActivityGraph as jest.Mock).mockClear();
 });
 
 it('renders', () => {
@@ -63,9 +63,10 @@ it('renders', () => {
     metrics: [{ key: 'coverage' }]
   });
   expect(wrapper).toMatchSnapshot();
+  expect(getProjectActivityGraph).toBeCalledWith('foo');
 });
 
 it('fetches history', () => {
   mount(<Activity component="foo" metrics={{}} />);
-  expect(getAllTimeMachineData).toBeCalledWith('foo', ['coverage']);
+  expect(getAllTimeMachineData).toBeCalledWith({ component: 'foo', metrics: 'coverage' });
 });

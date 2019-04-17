@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -27,7 +27,7 @@ it('should create new group', () => {
   const wrapper = shallow(<Header loading={false} onCreate={onCreate} />);
   expect(wrapper).toMatchSnapshot();
 
-  click(wrapper.find('#groups-create'));
+  click(wrapper.find('[id="groups-create"]'));
   expect(wrapper).toMatchSnapshot();
 
   wrapper.find('Form').prop<Function>('onSubmit')({ name: 'foo', description: 'bar' });

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,44 +20,43 @@
 import { translate, translateWithParameters } from './l10n';
 import { parseDate } from './dates';
 
-export interface Period {
-  date: string;
-  index: number;
-  mode: string;
-  modeParam?: string;
-  parameter: string;
-}
-
-export function getPeriod(periods: Period[] | undefined, index: number): Period | undefined {
+function getPeriod<T extends T.Period | T.PeriodMeasure>(periods: T[] | undefined, index: number) {
   if (!Array.isArray(periods)) {
     return undefined;
   }
-
   return periods.find(period => period.index === index);
 }
 
-export function getLeakPeriod(periods: Period[] | undefined): Period | undefined {
+export function getLeakPeriod<T extends T.Period | T.PeriodMeasure>(periods: T[] | undefined) {
   return getPeriod(periods, 1);
 }
 
-export function getPeriodLabel(period: Period | undefined): string | undefined {
+export function getPeriodLabel(
+  period: T.Period | undefined,
+  dateFormatter: (date: string) => string
+) {
   if (!period) {
     return undefined;
   }
 
-  const parameter = period.modeParam || period.parameter;
-
+  let parameter = period.modeParam || period.parameter;
   if (period.mode === 'previous_version' && !parameter) {
     return translate('overview.period.previous_version_only_date');
   }
 
-  return translateWithParameters(`overview.period.${period.mode}`, parameter);
+  if (period.mode === 'date' && parameter) {
+    parameter = dateFormatter(parameter);
+  } else if (period.mode === 'manual_baseline') {
+    if (!parameter) {
+      parameter = dateFormatter(period.date);
+    } else {
+      return translateWithParameters('overview.period.previous_version', parameter);
+    }
+  }
+
+  return translateWithParameters(`overview.period.${period.mode}`, parameter || '');
 }
 
 export function getPeriodDate(period?: { date?: string }): Date | undefined {
   return period && period.date ? parseDate(period.date) : undefined;
-}
-
-export function getLeakPeriodLabel(periods: Period[]): string | undefined {
-  return getPeriodLabel(getLeakPeriod(periods));
 }

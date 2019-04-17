@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -31,11 +31,10 @@ it('should render items without the ones in the facet', () => {
   const wrapper = shallow(
     <SearchableFilterFooter
       onQueryChange={jest.fn()}
+      options={options}
       property="languages"
       query={{ languages: ['java'] }}
-      options={options}
-    />,
-    { context: { router: { push: jest.fn() } } }
+    />
   );
   expect(wrapper.find('Select').prop('options')).toMatchSnapshot();
 });
@@ -45,11 +44,10 @@ it('should render items without the ones in the facet', () => {
   const wrapper = shallow(
     <SearchableFilterFooter
       onQueryChange={onQueryChange}
+      options={options}
       property="languages"
       query={{ languages: ['java'] }}
-      options={options}
-    />,
-    { context: { router: { push: jest.fn() } } }
+    />
   );
   (wrapper.find('Select').prop('onChange') as Function)({ value: 'js' });
   expect(onQueryChange).toBeCalledWith({ languages: 'java,js' });

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,6 +21,8 @@ import * as React from 'react';
 import { max } from 'd3-array';
 import { scaleLinear, scaleBand, ScaleLinear, ScaleBand } from 'd3-scale';
 import Tooltip from '../controls/Tooltip';
+import './BarChart.css';
+import './Histogram.css';
 
 interface Props {
   alignTicks?: boolean;
@@ -40,17 +42,6 @@ type XScale = ScaleLinear<number, number>;
 type YScale = ScaleBand<number>;
 
 export default class Histogram extends React.PureComponent<Props> {
-  wrapWithTooltip(element: React.ReactNode, index: number) {
-    const tooltip = this.props.yTooltips && this.props.yTooltips[index];
-    return tooltip ? (
-      <Tooltip key={index} overlay={tooltip} placement="top">
-        {element}
-      </Tooltip>
-    ) : (
-      element
-    );
-  }
-
   renderBar(d: number, index: number, xScale: XScale, yScale: YScale) {
     const { alignTicks, padding = DEFAULT_PADDING } = this.props;
 
@@ -58,7 +49,7 @@ export default class Histogram extends React.PureComponent<Props> {
     const x = xScale.range()[0] + (alignTicks ? padding[3] : 0);
     const y = Math.round(yScale(index)! + yScale.bandwidth() / 2);
 
-    return <rect className="bar-chart-bar" x={x} y={y} width={width} height={BAR_HEIGHT} />;
+    return <rect className="bar-chart-bar" height={BAR_HEIGHT} width={width} x={x} y={y} />;
   }
 
   renderValue(d: number, index: number, xScale: XScale, yScale: YScale) {
@@ -73,11 +64,12 @@ export default class Histogram extends React.PureComponent<Props> {
     const x = xScale(d) + (alignTicks ? padding[3] : 0);
     const y = Math.round(yScale(index)! + yScale.bandwidth() / 2 + BAR_HEIGHT / 2);
 
-    return this.wrapWithTooltip(
-      <text className="bar-chart-tick histogram-value" x={x} y={y} dx="1em" dy="0.3em">
-        {value}
-      </text>,
-      index
+    return (
+      <Tooltip overlay={this.props.yTooltips && this.props.yTooltips[index]}>
+        <text className="bar-chart-tick histogram-value" dx="1em" dy="0.3em" x={x} y={y}>
+          {value}
+        </text>
+      </Tooltip>
     );
   }
 
@@ -97,10 +89,10 @@ export default class Histogram extends React.PureComponent<Props> {
     return (
       <text
         className={'bar-chart-tick ' + historyTickClass}
-        x={x}
-        y={y}
         dx={alignTicks ? 0 : '-1em'}
-        dy="0.3em">
+        dy="0.3em"
+        x={x}
+        y={y}>
         {tick}
       </text>
     );
@@ -136,7 +128,7 @@ export default class Histogram extends React.PureComponent<Props> {
       .rangeRound([0, availableHeight]);
 
     return (
-      <svg className="bar-chart" width={this.props.width} height={this.props.height}>
+      <svg className="bar-chart" height={this.props.height} width={this.props.width}>
         <g transform={`translate(${this.props.alignTicks ? 4 : padding[3]}, ${padding[0]})`}>
           {this.renderBars(xScale, yScale)}
         </g>

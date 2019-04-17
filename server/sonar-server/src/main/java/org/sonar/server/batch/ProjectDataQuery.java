@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,22 +24,13 @@ import javax.annotation.Nullable;
 
 public class ProjectDataQuery {
 
-  private String projectOrModuleKey;
+  private String projectKey;
   private String profileName;
-  private boolean issuesMode;
   private String branch;
+  private String pullRequest;
 
   private ProjectDataQuery() {
     // No direct call
-  }
-
-  public boolean isIssuesMode() {
-    return issuesMode;
-  }
-
-  public ProjectDataQuery setIssuesMode(boolean issuesMode) {
-    this.issuesMode = issuesMode;
-    return this;
   }
 
   @CheckForNull
@@ -52,12 +43,12 @@ public class ProjectDataQuery {
     return this;
   }
 
-  public String getModuleKey() {
-    return projectOrModuleKey;
+  public String getProjectKey() {
+    return projectKey;
   }
 
-  public ProjectDataQuery setModuleKey(String projectOrModuleKey) {
-    this.projectOrModuleKey = projectOrModuleKey;
+  public ProjectDataQuery setProjectKey(String projectKey) {
+    this.projectKey = projectKey;
     return this;
   }
 
@@ -68,6 +59,16 @@ public class ProjectDataQuery {
 
   public ProjectDataQuery setBranch(@Nullable String branch) {
     this.branch = branch;
+    return this;
+  }
+
+  @CheckForNull
+  public String getPullRequest() {
+    return pullRequest;
+  }
+
+  public ProjectDataQuery setPullRequest(@Nullable String pullRequest) {
+    this.pullRequest = pullRequest;
     return this;
   }
 

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -17,37 +17,22 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import { getJSON, post, RequestData } from '../helpers/request';
+import throwGlobalError from '../app/utils/throwGlobalError';
+import { getJSON, post } from '../helpers/request';
 
-export interface GetNotificationsResponse {
-  notifications: Array<{
-    channel: string;
-    type: string;
-    organization?: string;
-    project?: string;
-    projectName?: string;
-  }>;
-  channels: Array<string>;
-  globalTypes: Array<string>;
-  perProjectTypes: Array<string>;
+export function getNotifications(): Promise<{
+  channels: string[];
+  globalTypes: string[];
+  notifications: T.Notification[];
+  perProjectTypes: string[];
+}> {
+  return getJSON('/api/notifications/list').catch(throwGlobalError);
 }
 
-export function getNotifications(): Promise<GetNotificationsResponse> {
-  return getJSON('/api/notifications/list');
+export function addNotification(data: { channel: string; type: string; project?: string }) {
+  return post('/api/notifications/add', data).catch(throwGlobalError);
 }
 
-export function addNotification(channel: string, type: string, project?: string): Promise<void> {
-  const data: RequestData = { channel, type };
-  if (project) {
-    Object.assign(data, { project });
-  }
-  return post('/api/notifications/add', data);
-}
-
-export function removeNotification(channel: string, type: string, project?: string): Promise<void> {
-  const data: RequestData = { channel, type };
-  if (project) {
-    Object.assign(data, { project });
-  }
-  return post('/api/notifications/remove', data);
+export function removeNotification(data: { channel: string; type: string; project?: string }) {
+  return post('/api/notifications/remove', data).catch(throwGlobalError);
 }

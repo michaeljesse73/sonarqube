@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,21 +18,19 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import { without, uniq } from 'lodash';
+import { without, uniq, difference } from 'lodash';
 import TagsSelector from '../../../components/tags/TagsSelector';
 import { getRuleTags } from '../../../api/rules';
-import { BubblePopupPosition } from '../../../components/common/BubblePopup';
 
-interface Props {
+export interface Props {
   organization: string | undefined;
-  popupPosition?: BubblePopupPosition;
   setTags: (tags: string[]) => void;
   sysTags: string[];
   tags: string[];
 }
 
 interface State {
-  searchResult: any[];
+  searchResult: string[];
 }
 
 const LIST_SIZE = 10;
@@ -43,7 +41,6 @@ export default class RuleDetailsTagsPopup extends React.PureComponent<Props, Sta
 
   componentDidMount() {
     this.mounted = true;
-    this.onSearch('');
   }
 
   componentWillUnmount() {
@@ -51,7 +48,7 @@ export default class RuleDetailsTagsPopup extends React.PureComponent<Props, Sta
   }
 
   onSearch = (query: string) => {
-    getRuleTags({
+    return getRuleTags({
       q: query,
       ps: Math.min(this.props.tags.length + LIST_SIZE, 100),
       organization: this.props.organization
@@ -75,15 +72,15 @@ export default class RuleDetailsTagsPopup extends React.PureComponent<Props, Sta
   };
 
   render() {
+    const availableTags = difference(this.state.searchResult, this.props.tags);
     return (
       <TagsSelector
-        position={this.props.popupPosition || {}}
-        tags={this.state.searchResult}
-        selectedTags={this.props.tags}
         listSize={LIST_SIZE}
         onSearch={this.onSearch}
         onSelect={this.onSelect}
         onUnselect={this.onUnselect}
+        selectedTags={this.props.tags}
+        tags={availableTags}
       />
     );
   }

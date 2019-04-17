@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,18 +24,20 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
+import javax.annotation.Nullable;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
 import org.sonar.api.batch.fs.InputFile;
 import org.sonar.api.batch.sensor.Sensor;
 import org.sonar.api.batch.sensor.SensorContext;
 import org.sonar.api.batch.sensor.SensorDescriptor;
-import org.sonar.api.component.ResourcePerspectives;
-import org.sonar.api.source.Symbol;
-import org.sonar.api.source.Symbolizable;
+import org.sonar.api.batch.sensor.symbol.NewSymbol;
+import org.sonar.api.batch.sensor.symbol.NewSymbolTable;
 import org.sonar.api.utils.log.Logger;
 import org.sonar.api.utils.log.Loggers;
 import org.sonar.xoo.Xoo;
+
+import static java.lang.Integer.parseInt;
 
 /**
  * Parse files *.xoo.symbol
@@ -43,14 +45,7 @@ import org.sonar.xoo.Xoo;
 public class SymbolReferencesSensor implements Sensor {
 
   private static final Logger LOG = Loggers.get(SymbolReferencesSensor.class);
-
   private static final String SYMBOL_EXTENSION = ".symbol";
-
-  private ResourcePerspectives perspectives;
-
-  public SymbolReferencesSensor(ResourcePerspectives perspectives) {
-    this.perspectives = perspectives;
-  }
 
   private void processFileSymbol(InputFile inputFile, SensorContext context) {
     File ioFile = inputFile.file();
@@ -60,55 +55,77 @@ public class SymbolReferencesSensor implements Sensor {
       try {
         List<String> lines = FileUtils.readLines(symbolFile, context.fileSystem().encoding().name());
         int lineNumber = 0;
-        Symbolizable symbolizable = perspectives.as(Symbolizable.class, inputFile);
-        if (symbolizable != null) {
-          Symbolizable.SymbolTableBuilder symbolTableBuilder = symbolizable.newSymbolTableBuilder();
-          for (String line : lines) {
-            lineNumber++;
-            if (StringUtils.isBlank(line) || line.startsWith("#")) {
-              continue;
-            }
-            processLine(symbolFile, lineNumber, symbolTableBuilder, line);
+        NewSymbolTable symbolTable = context.newSymbolTable()
+          .onFile(inputFile);
+
+        for (String line : lines) {
+          lineNumber++;
+          if (StringUtils.isBlank(line) || line.startsWith("#")) {
+            continue;
           }
-          symbolizable.setSymbolTable(symbolTableBuilder.build());
+          processLine(symbolFile, lineNumber, symbolTable, line);
         }
+        symbolTable.save();
       } catch (IOException e) {
         throw new IllegalStateException(e);
       }
     }
   }
 
-  private static void processLine(File symbolFile, int lineNumber, Symbolizable.SymbolTableBuilder symbolTableBuilder, String line) {
+  private static void processLine(File symbolFile, int lineNumber, NewSymbolTable symbolTable, String line) {
     try {
       Iterator<String> split = Splitter.on(",").split(line).iterator();
+      String[] symbolOffsets = split.next().split(":");
 
-      Symbol s = addSymbol(symbolTableBuilder, split.next());
-      while (split.hasNext()) {
-        addReference(symbolTableBuilder, s, split.next());
+      if (symbolOffsets.length == 2) {
+        int startOffset = parseInt(symbolOffsets[0]);
+        int endOffset = parseInt(symbolOffsets[1]);
+        NewSymbol s = symbolTable.newSymbol(startOffset, endOffset);
+        parseReferences(s, split, endOffset - startOffset);
+      } else if (symbolOffsets.length == 4) {
+        int startLine = parseInt(symbolOffsets[0]);
+        int startLineOffset = parseInt(symbolOffsets[1]);
+        int endLine = parseInt(symbolOffsets[2]);
+        int endLineOffset = parseInt(symbolOffsets[3]);
+        NewSymbol s = symbolTable.newSymbol(startLine, startLineOffset, endLine, endLineOffset);
+        parseReferences(s, split, null);
+      } else {
+        throw new IllegalStateException("Illegal number of elements separated by ':'. " +
+          "Must either be startOffset:endOffset (offset in whole file) or startLine:startLineOffset:endLine:endLineOffset");
       }
     } catch (Exception e) {
       throw new IllegalStateException("Error processing line " + lineNumber + " of file " + symbolFile.getAbsolutePath(), e);
     }
   }
 
-  private static void addReference(Symbolizable.SymbolTableBuilder symbolTableBuilder, Symbol s, String str) {
-    if (str.contains(":")) {
-      Iterator<String> split = Splitter.on(":").split(str).iterator();
-      int startOffset = Integer.parseInt(split.next());
-      int toOffset = Integer.parseInt(split.next());
-      symbolTableBuilder.newReference(s, startOffset, toOffset);
-    } else {
-      symbolTableBuilder.newReference(s, Integer.parseInt(str));
+  private static void parseReferences(NewSymbol s, Iterator<String> split, @Nullable Integer defaultLen) {
+    while (split.hasNext()) {
+      addReference(s, split.next(), defaultLen);
     }
   }
 
-  private static Symbol addSymbol(Symbolizable.SymbolTableBuilder symbolTableBuilder, String str) {
-    Iterator<String> split = Splitter.on(":").split(str).iterator();
-
-    int startOffset = Integer.parseInt(split.next());
-    int endOffset = Integer.parseInt(split.next());
-
-    return symbolTableBuilder.newSymbol(startOffset, endOffset);
+  private static void addReference(NewSymbol s, String str, @Nullable Integer defaultLen) {
+    if (str.contains(":")) {
+      String[] split = str.split(":");
+      if (split.length == 2) {
+        int startOffset = parseInt(split[0]);
+        int endOffset = parseInt(split[1]);
+        s.newReference(startOffset, endOffset);
+      } else if (split.length == 4) {
+        int startLine = parseInt(split[0]);
+        int startLineOffset = parseInt(split[1]);
+        int endLine = parseInt(split[2]);
+        int endLineOffset = parseInt(split[3]);
+        s.newReference(startLine, startLineOffset, endLine, endLineOffset);
+      } else {
+        throw new IllegalStateException("Illegal number of elements separated by ':'");
+      }
+    } else if (defaultLen == null) {
+      throw new IllegalStateException("Mix of new and old format. Use startLine:startLineOffset:endLine:endLineOffset for references too");
+    } else {
+      int startOffset = parseInt(str);
+      s.newReference(startOffset, startOffset + defaultLen);
+    }
   }
 
   @Override

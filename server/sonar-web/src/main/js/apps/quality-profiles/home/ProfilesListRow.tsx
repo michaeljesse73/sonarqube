@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -28,9 +28,9 @@ import { getRulesUrl } from '../../../helpers/urls';
 import { isStagnant } from '../utils';
 import { Profile } from '../types';
 import Tooltip from '../../../components/controls/Tooltip';
+import DocTooltip from '../../../components/docs/DocTooltip';
 
 interface Props {
-  onRequestFail: (reason: any) => void;
   organization: string | null;
   profile: Profile;
   updateProfiles: () => Promise<void>;
@@ -41,13 +41,15 @@ export default class ProfilesListRow extends React.PureComponent<Props> {
     const { profile } = this.props;
     const offset = 25 * (profile.depth - 1);
     return (
-      <div style={{ paddingLeft: offset }}>
-        <ProfileLink
-          language={profile.language}
-          name={profile.name}
-          organization={this.props.organization}>
-          {profile.name}
-        </ProfileLink>
+      <div className="display-flex-center" style={{ paddingLeft: offset }}>
+        <div>
+          <ProfileLink
+            language={profile.language}
+            name={profile.name}
+            organization={this.props.organization}>
+            {profile.name}
+          </ProfileLink>
+        </div>
         {profile.isBuiltIn && <BuiltInQualityProfileBadge className="spacer-left" />}
       </div>
     );
@@ -57,7 +59,12 @@ export default class ProfilesListRow extends React.PureComponent<Props> {
     const { profile } = this.props;
 
     if (profile.isDefault) {
-      return <span className="badge">{translate('default')}</span>;
+      return (
+        <DocTooltip
+          doc={import(/* webpackMode: "eager" */ 'Docs/tooltips/quality-profiles/default-quality-profile.md')}>
+          <span className="badge">{translate('default')}</span>
+        </DocTooltip>
+      );
     }
 
     return <span>{profile.projectCount}</span>;
@@ -88,7 +95,7 @@ export default class ProfilesListRow extends React.PureComponent<Props> {
         {profile.activeDeprecatedRuleCount > 0 && (
           <span className="spacer-right">
             <Tooltip overlay={translate('quality_profiles.deprecated_rules')}>
-              <Link to={deprecatedRulesUrl} className="badge badge-normal-size badge-danger-light">
+              <Link className="badge badge-normal-size badge-danger-light" to={deprecatedRulesUrl}>
                 {profile.activeDeprecatedRuleCount}
               </Link>
             </Tooltip>
@@ -101,7 +108,7 @@ export default class ProfilesListRow extends React.PureComponent<Props> {
   }
 
   renderUpdateDate() {
-    const date = <ProfileDate date={this.props.profile.userUpdatedAt} />;
+    const date = <ProfileDate date={this.props.profile.rulesUpdatedAt} />;
     if (isStagnant(this.props.profile)) {
       return <span className="badge badge-normal-size badge-focus">{date}</span>;
     } else {
@@ -122,26 +129,25 @@ export default class ProfilesListRow extends React.PureComponent<Props> {
   render() {
     return (
       <tr
-        className="quality-profiles-table-row"
+        className="quality-profiles-table-row text-middle"
         data-key={this.props.profile.key}
         data-name={this.props.profile.name}>
-        <td className="quality-profiles-table-name">{this.renderName()}</td>
-        <td className="quality-profiles-table-projects thin nowrap text-right">
+        <td className="quality-profiles-table-name text-middle">{this.renderName()}</td>
+        <td className="quality-profiles-table-projects thin nowrap text-middle text-right">
           {this.renderProjects()}
         </td>
-        <td className="quality-profiles-table-rules thin nowrap text-right">
+        <td className="quality-profiles-table-rules thin nowrap text-middle text-right">
           {this.renderRules()}
         </td>
-        <td className="quality-profiles-table-date thin nowrap text-right">
+        <td className="quality-profiles-table-date thin nowrap text-middle text-right">
           {this.renderUpdateDate()}
         </td>
-        <td className="quality-profiles-table-date thin nowrap text-right">
+        <td className="quality-profiles-table-date thin nowrap text-middle text-right">
           {this.renderUsageDate()}
         </td>
-        <td className="quality-profiles-table-actions thin nowrap text-right">
+        <td className="quality-profiles-table-actions thin nowrap text-middle text-right">
           <ProfileActions
             fromList={true}
-            onRequestFail={this.props.onRequestFail}
             organization={this.props.organization}
             profile={this.props.profile}
             updateProfiles={this.props.updateProfiles}

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,16 +22,17 @@ package org.sonar.server.issue.ws;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import java.time.Clock;
+import java.util.Arrays;
+import java.util.Collections;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.sonar.api.config.internal.MapSettings;
-import org.sonar.api.issue.Issue;
 import org.sonar.api.resources.Languages;
 import org.sonar.api.rule.RuleStatus;
+import org.sonar.api.rules.RuleType;
 import org.sonar.api.server.ws.WebService;
-import org.sonar.api.utils.DateUtils;
 import org.sonar.api.utils.Durations;
 import org.sonar.api.utils.System2;
 import org.sonar.db.DbClient;
@@ -42,10 +43,11 @@ import org.sonar.db.component.ComponentTesting;
 import org.sonar.db.issue.IssueChangeDto;
 import org.sonar.db.issue.IssueDto;
 import org.sonar.db.issue.IssueTesting;
-import org.sonar.db.organization.OrganizationDao;
 import org.sonar.db.organization.OrganizationDto;
-import org.sonar.db.organization.OrganizationTesting;
 import org.sonar.db.permission.GroupPermissionDto;
+import org.sonar.db.protobuf.DbCommons;
+import org.sonar.db.protobuf.DbIssues;
+import org.sonar.db.rule.RuleDefinitionDto;
 import org.sonar.db.rule.RuleDto;
 import org.sonar.db.rule.RuleTesting;
 import org.sonar.db.user.UserDto;
@@ -53,30 +55,43 @@ import org.sonar.server.es.EsTester;
 import org.sonar.server.es.SearchOptions;
 import org.sonar.server.es.StartupIndexer;
 import org.sonar.server.issue.IssueFieldsSetter;
-import org.sonar.server.issue.IssueQuery;
-import org.sonar.server.issue.IssueQueryFactory;
 import org.sonar.server.issue.TransitionService;
 import org.sonar.server.issue.index.IssueIndex;
-import org.sonar.server.issue.index.IssueIndexDefinition;
 import org.sonar.server.issue.index.IssueIndexer;
 import org.sonar.server.issue.index.IssueIteratorFactory;
+import org.sonar.server.issue.index.IssueQuery;
+import org.sonar.server.issue.index.IssueQueryFactory;
 import org.sonar.server.issue.workflow.FunctionExecutor;
 import org.sonar.server.issue.workflow.IssueWorkflow;
-import org.sonar.server.permission.index.AuthorizationTypeSupport;
 import org.sonar.server.permission.index.PermissionIndexer;
+import org.sonar.server.permission.index.WebAuthorizationTypeSupport;
 import org.sonar.server.tester.UserSessionRule;
 import org.sonar.server.ws.TestResponse;
 import org.sonar.server.ws.WsActionTester;
 import org.sonar.server.ws.WsResponseCommonFormat;
+import org.sonarqube.ws.Common;
+import org.sonarqube.ws.Common.Severity;
+import org.sonarqube.ws.Issues;
+import org.sonarqube.ws.Issues.Issue;
+import org.sonarqube.ws.Issues.SearchWsResponse;
 
 import static java.util.Arrays.asList;
+import static java.util.Collections.singletonList;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.groups.Tuple.tuple;
+import static org.junit.rules.ExpectedException.none;
+import static org.sonar.api.issue.Issue.RESOLUTION_FIXED;
+import static org.sonar.api.issue.Issue.STATUS_RESOLVED;
+import static org.sonar.api.server.ws.WebService.Param.FACETS;
+import static org.sonar.api.utils.DateUtils.formatDateTime;
+import static org.sonar.api.utils.DateUtils.parseDate;
+import static org.sonar.api.utils.DateUtils.parseDateTime;
 import static org.sonar.api.web.UserRole.ISSUE_ADMIN;
+import static org.sonar.db.component.ComponentTesting.newFileDto;
+import static org.sonar.db.issue.IssueTesting.newDto;
+import static org.sonar.server.tester.UserSessionRule.standalone;
 import static org.sonarqube.ws.client.component.ComponentsWsParameters.PARAM_BRANCH;
-import static org.sonarqube.ws.client.issue.IssuesWsParameters.DEPRECATED_FACET_MODE_DEBT;
-import static org.sonarqube.ws.client.issue.IssuesWsParameters.FACET_MODE_EFFORT;
 import static org.sonarqube.ws.client.issue.IssuesWsParameters.PARAM_ADDITIONAL_FIELDS;
-import static org.sonarqube.ws.client.issue.IssuesWsParameters.PARAM_COMPONENTS;
 import static org.sonarqube.ws.client.issue.IssuesWsParameters.PARAM_COMPONENT_KEYS;
 import static org.sonarqube.ws.client.issue.IssuesWsParameters.PARAM_CREATED_AFTER;
 import static org.sonarqube.ws.client.issue.IssuesWsParameters.PARAM_HIDE_COMMENTS;
@@ -87,155 +102,188 @@ import static org.sonarqube.ws.client.issue.IssuesWsParameters.PARAM_RULES;
 public class SearchActionTest {
 
   @Rule
-  public UserSessionRule userSessionRule = UserSessionRule.standalone();
+  public UserSessionRule userSession = standalone();
   @Rule
   public DbTester db = DbTester.create();
   @Rule
-  public EsTester es = new EsTester(new IssueIndexDefinition(new MapSettings().asConfig()));
+  public EsTester es = EsTester.create();
   @Rule
-  public ExpectedException expectedException = ExpectedException.none();
+  public ExpectedException expectedException = none();
 
   private DbClient dbClient = db.getDbClient();
   private DbSession session = db.getSession();
-  private IssueIndex issueIndex = new IssueIndex(es.client(), System2.INSTANCE, userSessionRule, new AuthorizationTypeSupport(userSessionRule));
+  private IssueIndex issueIndex = new IssueIndex(es.client(), System2.INSTANCE, userSession, new WebAuthorizationTypeSupport(userSession));
   private IssueIndexer issueIndexer = new IssueIndexer(es.client(), dbClient, new IssueIteratorFactory(dbClient));
-  private IssueQueryFactory issueQueryFactory = new IssueQueryFactory(dbClient, Clock.systemUTC(), userSessionRule);
+  private IssueQueryFactory issueQueryFactory = new IssueQueryFactory(dbClient, Clock.systemUTC(), userSession);
   private IssueFieldsSetter issueFieldsSetter = new IssueFieldsSetter();
   private IssueWorkflow issueWorkflow = new IssueWorkflow(new FunctionExecutor(issueFieldsSetter), issueFieldsSetter);
-  private SearchResponseLoader searchResponseLoader = new SearchResponseLoader(userSessionRule, dbClient, new TransitionService(userSessionRule, issueWorkflow));
+  private SearchResponseLoader searchResponseLoader = new SearchResponseLoader(userSession, dbClient, new TransitionService(userSession, issueWorkflow));
   private Languages languages = new Languages();
   private SearchResponseFormat searchResponseFormat = new SearchResponseFormat(new Durations(), new WsResponseCommonFormat(languages), languages, new AvatarResolverImpl());
-  private WsActionTester ws = new WsActionTester(new SearchAction(userSessionRule, issueIndex, issueQueryFactory, searchResponseLoader, searchResponseFormat, System2.INSTANCE,
-    dbClient));
-  private OrganizationDto defaultOrganization;
-  private OrganizationDto otherOrganization1;
-  private OrganizationDto otherOrganization2;
+  private WsActionTester ws = new WsActionTester(new SearchAction(userSession, issueIndex, issueQueryFactory, searchResponseLoader, searchResponseFormat,
+    new MapSettings().asConfig(), System2.INSTANCE, dbClient));
   private StartupIndexer permissionIndexer = new PermissionIndexer(dbClient, es.client(), issueIndexer);
 
   @Before
   public void setUp() {
-    OrganizationDao organizationDao = dbClient.organizationDao();
-    this.defaultOrganization = db.getDefaultOrganization();
-    this.otherOrganization1 = OrganizationTesting.newOrganizationDto().setKey("my-org-1");
-    this.otherOrganization2 = OrganizationTesting.newOrganizationDto().setKey("my-org-2");
-    organizationDao.insert(session, this.otherOrganization1, false);
-    organizationDao.insert(session, this.otherOrganization2, false);
-    session.commit();
     issueWorkflow.start();
   }
 
   @Test
-  public void test_definition() {
-    WebService.Action def = ws.getDef();
-    assertThat(def.key()).isEqualTo("search");
-    assertThat(def.isInternal()).isFalse();
-    assertThat(def.isPost()).isFalse();
-    assertThat(def.since()).isEqualTo("3.6");
-    assertThat(def.responseExampleAsString()).isNotEmpty();
-
-    assertThat(def.params()).extracting("key").containsExactlyInAnyOrder(
-      "additionalFields", "asc", "assigned", "assignees", "authors", "componentKeys", "componentRootUuids", "componentRoots", "componentUuids", "components", "branch",
-      "organization",
-      "createdAfter", "createdAt", "createdBefore", "createdInLast", "directories", "facetMode", "facets", "fileUuids", "issues", "languages", "moduleUuids", "onComponentOnly",
-      "p", "projectUuids", "projects", "ps", "resolutions", "resolved", "rules", "s", "severities", "sinceLeakPeriod",
-      "statuses", "tags", "types");
-
-    assertThat(def.param("organization"))
-      .matches(WebService.Param::isInternal)
-      .matches(p -> p.since().equals("6.4"));
-
-    WebService.Param branch = def.param(PARAM_BRANCH);
-    assertThat(branch.isInternal()).isTrue();
-    assertThat(branch.isRequired()).isFalse();
-    assertThat(branch.since()).isEqualTo("6.6");
-
-    WebService.Param projectUuids = def.param("projectUuids");
-    assertThat(projectUuids.description()).isEqualTo("To retrieve issues associated to a specific list of projects (comma-separated list of project IDs). " +
-      "This parameter is mostly used by the Issues page, please prefer usage of the componentKeys parameter. " +
-      "Portfolios are not supported. If this parameter is set, 'projects' must not be set.");
-  }
-
-  //SONAR-10217
-  @Test
-  public void empty_search_with_unknown_branch() {
-    TestResponse result = ws.newRequest()
-      .setParam("onComponentOnly", "true")
-      .setParam("componentKeys", "foo")
-      .setParam("branch", "bar")
-      .execute();
-
-    assertThat(result).isNotNull();
-    result.assertJson(this.getClass(), "empty_result.json");
-  }
-
-  @Test
-  public void empty_search() {
-    TestResponse result = ws.newRequest()
-      .execute();
-
-    assertThat(result).isNotNull();
-    result.assertJson(this.getClass(), "empty_result.json");
-  }
-
-  @Test
   public void response_contains_all_fields_except_additional_fields() {
-    dbClient.userDao().insert(session, new UserDto().setLogin("simon").setName("Simon").setEmail("simon@email.com"));
-    dbClient.userDao().insert(session, new UserDto().setLogin("fabrice").setName("Fabrice").setEmail("fabrice@email.com"));
-
-    ComponentDto project = insertComponent(ComponentTesting.newPublicProjectDto(otherOrganization2, "PROJECT_ID").setDbKey("PROJECT_KEY"));
+    OrganizationDto organization = db.organizations().insert();
+    UserDto user = db.users().insertUser();
+    db.organizations().addMember(organization, user);
+    userSession.logIn(user);
+    ComponentDto project = db.components().insertPublicProject(organization);
     indexPermissions();
-    ComponentDto file = insertComponent(ComponentTesting.newFileDto(project, null, "FILE_ID").setDbKey("FILE_KEY"));
-    IssueDto issue = IssueTesting.newDto(newRule(), file, project)
-      .setKee("82fd47d4-b650-4037-80bc-7b112bd4eac2")
+    ComponentDto file = db.components().insertComponent(newFileDto(project));
+    UserDto simon = db.users().insertUser();
+    RuleDefinitionDto rule = newRule().getDefinition();
+    IssueDto issue = db.issues().insert(rule, project, file, i -> i
       .setEffort(10L)
       .setLine(42)
       .setChecksum("a227e508d6646b55a086ee11d63b21e9")
       .setMessage("the message")
-      .setStatus(Issue.STATUS_RESOLVED)
-      .setResolution(Issue.RESOLUTION_FIXED)
+      .setStatus(STATUS_RESOLVED)
+      .setResolution(RESOLUTION_FIXED)
       .setSeverity("MAJOR")
       .setAuthorLogin("John")
-      .setAssignee("simon")
+      .setAssigneeUuid(simon.getUuid())
       .setTags(asList("bug", "owasp"))
-      .setIssueCreationDate(DateUtils.parseDateTime("2014-09-04T00:00:00+0100"))
-      .setIssueUpdateDate(DateUtils.parseDateTime("2017-12-04T00:00:00+0100"));
-    dbClient.issueDao().insert(session, issue);
-    session.commit();
-    issueIndexer.indexOnStartup(issueIndexer.getIndexTypes());
+      .setIssueCreationDate(parseDate("2014-09-03"))
+      .setIssueUpdateDate(parseDate("2017-12-04")));
+    indexIssues();
 
-    ws.newRequest().execute().assertJson(this.getClass(), "response_contains_all_fields_except_additional_fields.json");
+    SearchWsResponse response = ws.newRequest()
+      .executeProtobuf(SearchWsResponse.class);
+
+    assertThat(response.getIssuesList())
+      .extracting(
+        Issue::getOrganization, Issue::getKey, Issue::getRule, Issue::getSeverity, Issue::getComponent, Issue::getResolution, Issue::getStatus, Issue::getMessage, Issue::getEffort,
+        Issue::getAssignee, Issue::getAuthor, Issue::getLine, Issue::getHash, Issue::getTagsList, Issue::getCreationDate, Issue::getUpdateDate)
+      .containsExactlyInAnyOrder(
+        tuple(organization.getKey(), issue.getKey(), rule.getKey().toString(), Severity.MAJOR, file.getKey(), RESOLUTION_FIXED, STATUS_RESOLVED, "the message", "10min",
+          simon.getLogin(), "John", 42, "a227e508d6646b55a086ee11d63b21e9", asList("bug", "owasp"), formatDateTime(issue.getIssueCreationDate()),
+          formatDateTime(issue.getIssueUpdateDate())));
+  }
+
+  @Test
+  public void issue_on_external_rule() {
+    OrganizationDto organization = db.organizations().insert();
+    ComponentDto project = db.components().insertPublicProject(organization);
+    indexPermissions();
+    ComponentDto file = db.components().insertComponent(newFileDto(project));
+    RuleDefinitionDto rule = db.rules().insert(RuleTesting.EXTERNAL_XOO, r -> r.setIsExternal(true).setLanguage("xoo"));
+    IssueDto issue = db.issues().insert(rule, project, file);
+    indexIssues();
+
+    SearchWsResponse response = ws.newRequest()
+      .executeProtobuf(SearchWsResponse.class);
+
+    assertThat(response.getIssuesList())
+      .extracting(Issue::getKey, Issue::getRule, Issue::getExternalRuleEngine)
+      .containsExactlyInAnyOrder(tuple(issue.getKey(), rule.getKey().toString(), "xoo"));
+  }
+
+  @Test
+  public void hide_author_if_not_member_of_organization() {
+    UserDto user = db.users().insertUser();
+    userSession.logIn(user);
+    OrganizationDto organization = db.organizations().insert();
+    ComponentDto project = db.components().insertPublicProject(organization);
+    indexPermissions();
+    ComponentDto file = db.components().insertComponent(newFileDto(project));
+    RuleDefinitionDto rule = newRule().getDefinition();
+    IssueDto issue = db.issues().insert(rule, project, file, i -> i.setAuthorLogin("John"));
+    indexIssues();
+
+    SearchWsResponse response = ws.newRequest()
+      .executeProtobuf(SearchWsResponse.class);
+
+    assertThat(response.getIssuesList())
+      .extracting(Issue::getKey, Issue::hasAuthor)
+      .containsExactlyInAnyOrder(tuple(issue.getKey(), false));
+  }
+
+  @Test
+  public void issue_with_cross_file_locations() {
+    ComponentDto project = db.components().insertPublicProject();
+    indexPermissions();
+    ComponentDto file = db.components().insertComponent(newFileDto(project));
+    ComponentDto anotherFile = db.components().insertComponent(newFileDto(project));
+    DbIssues.Locations.Builder locations = DbIssues.Locations.newBuilder().addFlow(DbIssues.Flow.newBuilder().addAllLocation(Arrays.asList(
+      DbIssues.Location.newBuilder()
+        .setComponentId(file.uuid())
+        .setMsg("FLOW MESSAGE")
+        .setTextRange(DbCommons.TextRange.newBuilder()
+          .setStartLine(1)
+          .setEndLine(1)
+          .setStartOffset(0)
+          .setEndOffset(12)
+          .build())
+        .build(),
+      DbIssues.Location.newBuilder()
+        .setComponentId(anotherFile.uuid())
+        .setMsg("ANOTHER FLOW MESSAGE")
+        .setTextRange(DbCommons.TextRange.newBuilder()
+          .setStartLine(1)
+          .setEndLine(1)
+          .setStartOffset(0)
+          .setEndOffset(12)
+          .build())
+        .build(),
+      DbIssues.Location.newBuilder()
+        // .setComponentId(no component id set)
+        .setMsg("FLOW MESSAGE WITHOUT FILE UUID")
+        .setTextRange(DbCommons.TextRange.newBuilder()
+          .setStartLine(1)
+          .setEndLine(1)
+          .setStartOffset(0)
+          .setEndOffset(12)
+          .build())
+        .build())));
+    RuleDefinitionDto rule = newRule().getDefinition();
+    db.issues().insert(rule, project, file, i -> i.setLocations(locations.build()));
+    indexIssues();
+
+    SearchWsResponse result = ws.newRequest().executeProtobuf(SearchWsResponse.class);
+
+    assertThat(result.getIssuesCount()).isEqualTo(1);
+    assertThat(result.getIssues(0).getFlows(0).getLocationsList()).extracting(Issues.Location::getComponent, Issues.Location::getMsg)
+      .containsExactlyInAnyOrder(
+        tuple(file.getKey(), "FLOW MESSAGE"),
+        tuple(anotherFile.getKey(), "ANOTHER FLOW MESSAGE"),
+        tuple(file.getKey(), "FLOW MESSAGE WITHOUT FILE UUID"));
   }
 
   @Test
   public void issue_with_comments() {
-    dbClient.userDao().insert(session, new UserDto().setLogin("john").setName("John"));
-    dbClient.userDao().insert(session, new UserDto().setLogin("fabrice").setName("Fabrice").setEmail("fabrice@email.com"));
-
-    ComponentDto project = insertComponent(ComponentTesting.newPublicProjectDto(otherOrganization2, "PROJECT_ID").setDbKey("PROJECT_KEY"));
+    UserDto john = db.users().insertUser(u -> u.setLogin("john").setName("John"));
+    UserDto fabrice = db.users().insertUser(u -> u.setLogin("fabrice").setName("Fabrice").setEmail("fabrice@email.com"));
+    ComponentDto project = db.components().insertPublicProject();
     indexPermissions();
-    ComponentDto file = insertComponent(ComponentTesting.newFileDto(project, null, "FILE_ID").setDbKey("FILE_KEY"));
-    IssueDto issue = IssueTesting.newDto(newRule(), file, project)
-      .setKee("82fd47d4-b650-4037-80bc-7b112bd4eac2");
-    dbClient.issueDao().insert(session, issue);
-
+    ComponentDto file = db.components().insertComponent(newFileDto(project));
+    RuleDefinitionDto rule = newRule().getDefinition();
+    IssueDto issue = db.issues().insert(rule, project, file, i -> i.setKee("82fd47d4-b650-4037-80bc-7b112bd4eac2"));
     dbClient.issueChangeDao().insert(session,
       new IssueChangeDto().setIssueKey(issue.getKey())
         .setKey("COMMENT-ABCD")
         .setChangeData("*My comment*")
         .setChangeType(IssueChangeDto.TYPE_COMMENT)
-        .setUserLogin("john")
-        .setIssueChangeCreationDate(DateUtils.parseDateTime("2014-09-09T12:00:00+0000").getTime()));
+        .setUserUuid(john.getUuid())
+        .setIssueChangeCreationDate(parseDateTime("2014-09-09T12:00:00+0000").getTime()));
     dbClient.issueChangeDao().insert(session,
       new IssueChangeDto().setIssueKey(issue.getKey())
         .setKey("COMMENT-ABCE")
         .setChangeData("Another comment")
         .setChangeType(IssueChangeDto.TYPE_COMMENT)
-        .setUserLogin("fabrice")
-        .setIssueChangeCreationDate(DateUtils.parseDateTime("2014-09-10T12:00:00+0000").getTime()));
+        .setUserUuid(fabrice.getUuid())
+        .setIssueChangeCreationDate(parseDateTime("2014-09-10T12:00:00+0000").getTime()));
     session.commit();
     indexIssues();
+    userSession.logIn(john);
 
-    userSessionRule.logIn("john");
     ws.newRequest()
       .setParam("additionalFields", "comments,users")
       .execute()
@@ -244,56 +292,51 @@ public class SearchActionTest {
 
   @Test
   public void issue_with_comment_hidden() {
-    dbClient.userDao().insert(session, new UserDto().setLogin("john").setName("John").setEmail("john@email.com"));
-    dbClient.userDao().insert(session, new UserDto().setLogin("fabrice").setName("Fabrice").setEmail("fabrice@email.com"));
-
-    ComponentDto project = insertComponent(ComponentTesting.newPublicProjectDto(otherOrganization1, "PROJECT_ID").setDbKey("PROJECT_KEY"));
+    UserDto john = db.users().insertUser(u -> u.setLogin("john").setName("John").setEmail("john@email.com"));
+    UserDto fabrice = db.users().insertUser(u -> u.setLogin("fabrice").setName("Fabrice").setEmail("fabrice@email.com"));
+    ComponentDto project = db.components().insertPublicProject();
     indexPermissions();
-    ComponentDto file = insertComponent(ComponentTesting.newFileDto(project, null, "FILE_ID").setDbKey("FILE_KEY"));
-    IssueDto issue = IssueTesting.newDto(newRule(), file, project)
-      .setKee("82fd47d4-b650-4037-80bc-7b112bd4eac2");
-    dbClient.issueDao().insert(session, issue);
-
+    ComponentDto file = db.components().insertComponent(newFileDto(project));
+    RuleDefinitionDto rule = newRule().getDefinition();
+    IssueDto issue = db.issues().insert(rule, project, file, i -> i.setKee("82fd47d4-b650-4037-80bc-7b112bd4eac2"));
     dbClient.issueChangeDao().insert(session,
       new IssueChangeDto().setIssueKey(issue.getKey())
         .setKey("COMMENT-ABCD")
         .setChangeData("*My comment*")
         .setChangeType(IssueChangeDto.TYPE_COMMENT)
-        .setUserLogin("john")
-        .setCreatedAt(DateUtils.parseDateTime("2014-09-09T12:00:00+0000").getTime()));
+        .setUserUuid(john.getUuid())
+        .setCreatedAt(parseDateTime("2014-09-09T12:00:00+0000").getTime()));
     dbClient.issueChangeDao().insert(session,
       new IssueChangeDto().setIssueKey(issue.getKey())
         .setKey("COMMENT-ABCE")
         .setChangeData("Another comment")
         .setChangeType(IssueChangeDto.TYPE_COMMENT)
-        .setUserLogin("fabrice")
-        .setCreatedAt(DateUtils.parseDateTime("2014-09-10T19:10:03+0000").getTime()));
+        .setUserUuid(fabrice.getUuid())
+        .setCreatedAt(parseDateTime("2014-09-10T19:10:03+0000").getTime()));
     session.commit();
     indexIssues();
+    userSession.logIn(john);
 
-    userSessionRule.logIn("john");
-    TestResponse result = ws.newRequest().setParam(PARAM_HIDE_COMMENTS, "true").execute();
-    result.assertJson(this.getClass(), "issue_with_comment_hidden.json");
-    assertThat(result.getInput()).doesNotContain("fabrice");
+    SearchWsResponse response = ws.newRequest()
+      .setParam(PARAM_HIDE_COMMENTS, "true")
+      .executeProtobuf(SearchWsResponse.class);
+
+    assertThat(response.getIssuesList())
+      .extracting(Issue::getKey, i -> i.getComments().getCommentsList())
+      .containsExactlyInAnyOrder(tuple(issue.getKey(), Collections.emptyList()));
   }
 
   @Test
   public void load_additional_fields() {
-    dbClient.userDao().insert(session, new UserDto().setLogin("simon").setName("Simon").setEmail("simon@email.com"));
-    dbClient.userDao().insert(session, new UserDto().setLogin("fabrice").setName("Fabrice").setEmail("fabrice@email.com"));
-    ComponentDto project = insertComponent(ComponentTesting.newPublicProjectDto(otherOrganization2, "PROJECT_ID").setDbKey("PROJECT_KEY").setLanguage("java"));
+    UserDto simon = db.users().insertUser(u -> u.setLogin("simon").setName("Simon").setEmail("simon@email.com"));
+    ComponentDto project = db.components().insertPublicProject();
     indexPermissions();
-    ComponentDto file = insertComponent(ComponentTesting.newFileDto(project, null, "FILE_ID").setDbKey("FILE_KEY").setLanguage("js"));
-
-    IssueDto issue = IssueTesting.newDto(newRule(), file, project)
-      .setKee("82fd47d4-b650-4037-80bc-7b112bd4eac2")
-      .setAuthorLogin("John")
-      .setAssignee("simon");
-    dbClient.issueDao().insert(session, issue);
-    session.commit();
+    ComponentDto file = db.components().insertComponent(newFileDto(project));
+    RuleDefinitionDto rule = newRule().getDefinition();
+    db.issues().insert(rule, project, file, i -> i.setAssigneeUuid(simon.getUuid()));
     indexIssues();
+    userSession.logIn("john");
 
-    userSessionRule.logIn("john");
     ws.newRequest()
       .setParam("additionalFields", "_all").execute()
       .assertJson(this.getClass(), "load_additional_fields.json");
@@ -301,22 +344,23 @@ public class SearchActionTest {
 
   @Test
   public void load_additional_fields_with_issue_admin_permission() {
-    dbClient.userDao().insert(session, new UserDto().setLogin("simon").setName("Simon").setEmail("simon@email.com"));
-    dbClient.userDao().insert(session, new UserDto().setLogin("fabrice").setName("Fabrice").setEmail("fabrice@email.com"));
-    ComponentDto project = insertComponent(ComponentTesting.newPublicProjectDto(otherOrganization1, "PROJECT_ID").setDbKey("PROJECT_KEY").setLanguage("java"));
+    UserDto simon = db.users().insertUser(u -> u.setLogin("simon").setName("Simon").setEmail("simon@email.com"));
+    UserDto fabrice = db.users().insertUser(u -> u.setLogin("fabrice").setName("Fabrice").setEmail("fabrice@email.com"));
+    OrganizationDto organization = db.organizations().insert(o -> o.setKey("my-org-1"));
+    ComponentDto project = db.components().insertComponent(ComponentTesting.newPublicProjectDto(organization, "PROJECT_ID").setDbKey("PROJECT_KEY").setLanguage("java"));
     grantPermissionToAnyone(project, ISSUE_ADMIN);
     indexPermissions();
-    ComponentDto file = insertComponent(ComponentTesting.newFileDto(project, null, "FILE_ID").setDbKey("FILE_KEY").setLanguage("js"));
+    ComponentDto file = db.components().insertComponent(newFileDto(project, null, "FILE_ID").setDbKey("FILE_KEY").setLanguage("js"));
 
-    IssueDto issue = IssueTesting.newDto(newRule(), file, project)
+    IssueDto issue = newDto(newRule(), file, project)
       .setKee("82fd47d4-b650-4037-80bc-7b112bd4eac2")
-      .setAuthorLogin("John")
-      .setAssignee("simon");
+      .setAuthorLogin(fabrice.getLogin())
+      .setAssigneeUuid(simon.getUuid());
     dbClient.issueDao().insert(session, issue);
     session.commit();
     indexIssues();
 
-    userSessionRule.logIn("john")
+    userSession.logIn("john")
       .addProjectPermission(ISSUE_ADMIN, project); // granted by Anyone
     ws.newRequest()
       .setParam("additionalFields", "_all").execute()
@@ -326,15 +370,16 @@ public class SearchActionTest {
   @Test
   public void search_by_rule_key() {
     RuleDto rule = newRule();
-    ComponentDto project = insertComponent(ComponentTesting.newPublicProjectDto(otherOrganization1, "PROJECT_ID").setDbKey("PROJECT_KEY").setLanguage("java"));
-    ComponentDto file = insertComponent(ComponentTesting.newFileDto(project, null, "FILE_ID").setDbKey("FILE_KEY").setLanguage("java"));
+    OrganizationDto organization = db.organizations().insert(o -> o.setKey("my-org-1"));
+    ComponentDto project = db.components().insertComponent(ComponentTesting.newPublicProjectDto(organization, "PROJECT_ID").setDbKey("PROJECT_KEY").setLanguage("java"));
+    ComponentDto file = db.components().insertComponent(newFileDto(project, null, "FILE_ID").setDbKey("FILE_KEY").setLanguage("java"));
 
     IssueDto issue = IssueTesting.newIssue(rule.getDefinition(), project, file);
     dbClient.issueDao().insert(session, issue);
     session.commit();
     indexIssues();
 
-    userSessionRule.logIn("john")
+    userSession.logIn("john")
       .addProjectPermission(ISSUE_ADMIN, project); // granted by Anyone
     indexPermissions();
 
@@ -348,19 +393,20 @@ public class SearchActionTest {
   @Test
   public void issue_on_removed_file() {
     RuleDto rule = newRule();
-    ComponentDto project = insertComponent(ComponentTesting.newPublicProjectDto(otherOrganization2, "PROJECT_ID").setDbKey("PROJECT_KEY"));
+    OrganizationDto organization = db.organizations().insert(o -> o.setKey("my-org-2"));
+    ComponentDto project = db.components().insertComponent(ComponentTesting.newPublicProjectDto(organization, "PROJECT_ID").setDbKey("PROJECT_KEY"));
     indexPermissions();
-    ComponentDto removedFile = insertComponent(ComponentTesting.newFileDto(project, null).setUuid("REMOVED_FILE_ID")
+    ComponentDto removedFile = db.components().insertComponent(newFileDto(project, null).setUuid("REMOVED_FILE_ID")
       .setDbKey("REMOVED_FILE_KEY")
       .setEnabled(false));
 
-    IssueDto issue = IssueTesting.newDto(rule, removedFile, project)
+    IssueDto issue = newDto(rule, removedFile, project)
       .setKee("82fd47d4-b650-4037-80bc-7b112bd4eac2")
       .setComponent(removedFile)
       .setStatus("OPEN").setResolution("OPEN")
       .setSeverity("MAJOR")
-      .setIssueCreationDate(DateUtils.parseDateTime("2014-09-04T00:00:00+0100"))
-      .setIssueUpdateDate(DateUtils.parseDateTime("2017-12-04T00:00:00+0100"));
+      .setIssueCreationDate(parseDateTime("2014-09-04T00:00:00+0100"))
+      .setIssueUpdateDate(parseDateTime("2017-12-04T00:00:00+0100"));
     dbClient.issueDao().insert(session, issue);
     session.commit();
     indexIssues();
@@ -373,27 +419,29 @@ public class SearchActionTest {
   @Test
   public void apply_paging_with_one_component() {
     RuleDto rule = newRule();
-    ComponentDto project = insertComponent(ComponentTesting.newPublicProjectDto(otherOrganization2, "PROJECT_ID").setDbKey("PROJECT_KEY"));
+    OrganizationDto organization = db.organizations().insert(o -> o.setKey("my-org-2"));
+    ComponentDto project = db.components().insertComponent(ComponentTesting.newPublicProjectDto(organization, "PROJECT_ID").setDbKey("PROJECT_KEY"));
     indexPermissions();
-    ComponentDto file = insertComponent(ComponentTesting.newFileDto(project, null, "FILE_ID").setDbKey("FILE_KEY"));
+    ComponentDto file = db.components().insertComponent(newFileDto(project, null, "FILE_ID").setDbKey("FILE_KEY"));
     for (int i = 0; i < SearchOptions.MAX_LIMIT + 1; i++) {
-      IssueDto issue = IssueTesting.newDto(rule, file, project);
+      IssueDto issue = newDto(rule, file, project).setAssigneeUuid(null);
       dbClient.issueDao().insert(session, issue);
     }
     session.commit();
     indexIssues();
 
-    ws.newRequest().setParam(PARAM_COMPONENTS, file.getDbKey()).execute()
+    ws.newRequest().setParam(PARAM_COMPONENT_KEYS, file.getKey()).execute()
       .assertJson(this.getClass(), "apply_paging_with_one_component.json");
   }
 
   @Test
   public void components_contains_sub_projects() {
-    ComponentDto project = insertComponent(ComponentTesting.newPublicProjectDto(otherOrganization1, "PROJECT_ID").setDbKey("ProjectHavingModule"));
+    OrganizationDto organization = db.organizations().insert(o -> o.setKey("my-org-1"));
+    ComponentDto project = db.components().insertComponent(ComponentTesting.newPublicProjectDto(organization, "PROJECT_ID").setDbKey("ProjectHavingModule"));
     indexPermissions();
-    ComponentDto module = insertComponent(ComponentTesting.newModuleDto(project).setDbKey("ModuleHavingFile"));
-    ComponentDto file = insertComponent(ComponentTesting.newFileDto(module, null, "BCDE").setDbKey("FileLinkedToModule"));
-    IssueDto issue = IssueTesting.newDto(newRule(), file, project);
+    ComponentDto module = db.components().insertComponent(ComponentTesting.newModuleDto(project).setDbKey("ModuleHavingFile"));
+    ComponentDto file = db.components().insertComponent(newFileDto(module, null, "BCDE").setDbKey("FileLinkedToModule"));
+    IssueDto issue = newDto(newRule(), file, project);
     dbClient.issueDao().insert(session, issue);
     session.commit();
     indexIssues();
@@ -403,159 +451,123 @@ public class SearchActionTest {
   }
 
   @Test
-  public void display_facets() {
-    ComponentDto project = insertComponent(ComponentTesting.newPublicProjectDto(otherOrganization1, "PROJECT_ID").setDbKey("PROJECT_KEY"));
-    indexPermissions();
-    ComponentDto file = insertComponent(ComponentTesting.newFileDto(project, null, "FILE_ID").setDbKey("FILE_KEY"));
-    IssueDto issue = IssueTesting.newDto(newRule(), file, project)
-      .setIssueCreationDate(DateUtils.parseDate("2014-09-04"))
-      .setIssueUpdateDate(DateUtils.parseDate("2017-12-04"))
-      .setEffort(10L)
-      .setStatus("OPEN")
-      .setKee("82fd47d4-b650-4037-80bc-7b112bd4eac2")
-      .setSeverity("MAJOR");
-    dbClient.issueDao().insert(session, issue);
-    session.commit();
-    indexIssues();
-
-    userSessionRule.logIn("john");
-    ws.newRequest()
-      .setParam("resolved", "false")
-      .setParam(PARAM_COMPONENT_KEYS, project.getKey())
-      .setParam(WebService.Param.FACETS, "statuses,severities,resolutions,projectUuids,rules,fileUuids,assignees,languages,actionPlans,types")
-      .execute()
-      .assertJson(this.getClass(), "display_facets.json");
-  }
-
-  @Test
-  public void display_facets_in_effort_mode() {
-    ComponentDto project = insertComponent(ComponentTesting.newPublicProjectDto(otherOrganization2, "PROJECT_ID").setDbKey("PROJECT_KEY"));
-    indexPermissions();
-    ComponentDto file = insertComponent(ComponentTesting.newFileDto(project, null, "FILE_ID").setDbKey("FILE_KEY"));
-    IssueDto issue = IssueTesting.newDto(newRule(), file, project)
-      .setIssueCreationDate(DateUtils.parseDate("2014-09-04"))
-      .setIssueUpdateDate(DateUtils.parseDate("2017-12-04"))
-      .setEffort(10L)
-      .setStatus("OPEN")
-      .setKee("82fd47d4-b650-4037-80bc-7b112bd4eac2")
-      .setSeverity("MAJOR");
-    dbClient.issueDao().insert(session, issue);
-    session.commit();
-    indexIssues();
-
-    userSessionRule.logIn("john");
-    ws.newRequest()
-      .setParam("resolved", "false")
-      .setParam(PARAM_COMPONENT_KEYS, project.getKey())
-      .setParam(WebService.Param.FACETS, "statuses,severities,resolutions,projectUuids,rules,fileUuids,assignees,languages,actionPlans")
-      .setParam("facetMode", FACET_MODE_EFFORT)
-      .execute()
-      .assertJson(this.getClass(), "display_facets_effort.json");
-  }
-
-  @Test
-  public void display_zero_valued_facets_for_selected_items() {
-    ComponentDto project = insertComponent(ComponentTesting.newPublicProjectDto(otherOrganization1, "PROJECT_ID").setDbKey("PROJECT_KEY"));
-    indexPermissions();
-    ComponentDto file = insertComponent(ComponentTesting.newFileDto(project, null, "FILE_ID").setDbKey("FILE_KEY"));
-    IssueDto issue = IssueTesting.newDto(newRule(), file, project)
-      .setIssueCreationDate(DateUtils.parseDate("2014-09-04"))
-      .setIssueUpdateDate(DateUtils.parseDate("2017-12-04"))
-      .setEffort(10L)
-      .setStatus("OPEN")
-      .setKee("82fd47d4-b650-4037-80bc-7b112bd4eac2")
-      .setSeverity("MAJOR");
-    dbClient.issueDao().insert(session, issue);
-    session.commit();
-    indexIssues();
-
-    userSessionRule.logIn("john");
-    ws.newRequest()
-      .setParam(PARAM_COMPONENT_KEYS, project.getKey())
-      .setParam("resolved", "false")
-      .setParam("severities", "MAJOR,MINOR")
-      .setParam("languages", "xoo,polop,palap")
-      .setParam(WebService.Param.FACETS, "statuses,severities,resolutions,projectUuids,rules,fileUuids,assignees,assigned_to_me,languages,actionPlans")
-      .execute()
-      .assertJson(this.getClass(), "display_zero_facets.json");
-  }
-
-  @Test
-  public void assignedToMe_facet_must_escape_login_of_authenticated_user() {
-    // login looks like an invalid regexp
-    userSessionRule.logIn("foo[");
-
-    // should not fail
-    ws.newRequest()
-      .setParam(WebService.Param.FACETS, "assigned_to_me")
-      .execute()
-      .assertJson(this.getClass(), "assignedToMe_facet_must_escape_login_of_authenticated_user.json");
-
-  }
-
-  @Test
   public void filter_by_assigned_to_me() {
-    dbClient.userDao().insert(session, new UserDto().setLogin("john").setName("John").setEmail("john@email.com"));
-
-    ComponentDto project = insertComponent(ComponentTesting.newPublicProjectDto(defaultOrganization, "PROJECT_ID").setDbKey("PROJECT_KEY"));
+    UserDto john = db.users().insertUser(u -> u.setLogin("john").setName("John").setEmail("john@email.com"));
+    UserDto alice = db.users().insertUser(u -> u.setLogin("alice").setName("Alice").setEmail("alice@email.com"));
+    OrganizationDto organization = db.organizations().insert();
+    ComponentDto project = db.components().insertComponent(ComponentTesting.newPublicProjectDto(organization, "PROJECT_ID").setDbKey("PROJECT_KEY"));
     indexPermissions();
-    ComponentDto file = insertComponent(ComponentTesting.newFileDto(project, null, "FILE_ID").setDbKey("FILE_KEY"));
+    ComponentDto file = db.components().insertComponent(newFileDto(project, null, "FILE_ID").setDbKey("FILE_KEY"));
     RuleDto rule = newRule();
-    IssueDto issue1 = IssueTesting.newDto(rule, file, project)
-      .setIssueCreationDate(DateUtils.parseDate("2014-09-04"))
-      .setIssueUpdateDate(DateUtils.parseDate("2017-12-04"))
+    IssueDto issue1 = newDto(rule, file, project)
+      .setIssueCreationDate(parseDate("2014-09-04"))
+      .setIssueUpdateDate(parseDate("2017-12-04"))
       .setEffort(10L)
       .setStatus("OPEN")
       .setKee("82fd47d4-b650-4037-80bc-7b112bd4eac2")
       .setSeverity("MAJOR")
-      .setAssignee("john");
-    IssueDto issue2 = IssueTesting.newDto(rule, file, project)
-      .setIssueCreationDate(DateUtils.parseDate("2014-09-04"))
-      .setIssueUpdateDate(DateUtils.parseDate("2017-12-04"))
+      .setAssigneeUuid(john.getUuid());
+    IssueDto issue2 = newDto(rule, file, project)
+      .setIssueCreationDate(parseDate("2014-09-04"))
+      .setIssueUpdateDate(parseDate("2017-12-04"))
       .setEffort(10L)
       .setStatus("OPEN")
       .setKee("7b112bd4-b650-4037-80bc-82fd47d4eac2")
       .setSeverity("MAJOR")
-      .setAssignee("alice");
-    IssueDto issue3 = IssueTesting.newDto(rule, file, project)
-      .setIssueCreationDate(DateUtils.parseDate("2014-09-04"))
-      .setIssueUpdateDate(DateUtils.parseDate("2017-12-04"))
+      .setAssigneeUuid(alice.getUuid());
+    IssueDto issue3 = newDto(rule, file, project)
+      .setIssueCreationDate(parseDate("2014-09-04"))
+      .setIssueUpdateDate(parseDate("2017-12-04"))
       .setEffort(10L)
       .setStatus("OPEN")
       .setKee("82fd47d4-4037-b650-80bc-7b112bd4eac2")
-      .setSeverity("MAJOR");
+      .setSeverity("MAJOR")
+      .setAssigneeUuid(null);
     dbClient.issueDao().insert(session, issue1, issue2, issue3);
     session.commit();
     indexIssues();
 
-    userSessionRule.logIn("john");
+    userSession.logIn(john);
+
     ws.newRequest()
       .setParam("resolved", "false")
       .setParam("assignees", "__me__")
-      .setParam(WebService.Param.FACETS, "assignees,assigned_to_me")
+      .setParam(FACETS, "assignees,assigned_to_me")
       .execute()
       .assertJson(this.getClass(), "filter_by_assigned_to_me.json");
   }
 
   @Test
-  public void filter_by_assigned_to_me_unauthenticated() {
-    userSessionRule.logIn();
-
-    ComponentDto project = insertComponent(ComponentTesting.newPublicProjectDto(otherOrganization1, "PROJECT_ID").setDbKey("PROJECT_KEY"));
+  public void return_empty_when_login_is_unknown() {
+    UserDto john = db.users().insertUser(u -> u.setLogin("john").setName("John").setEmail("john@email.com"));
+    UserDto alice = db.users().insertUser(u -> u.setLogin("alice").setName("Alice").setEmail("alice@email.com"));
+    OrganizationDto organization = db.organizations().insert();
+    ComponentDto project = db.components().insertComponent(ComponentTesting.newPublicProjectDto(organization, "PROJECT_ID").setDbKey("PROJECT_KEY"));
     indexPermissions();
-    ComponentDto file = insertComponent(ComponentTesting.newFileDto(project, null, "FILE_ID").setDbKey("FILE_KEY"));
+    ComponentDto file = db.components().insertComponent(newFileDto(project, null, "FILE_ID").setDbKey("FILE_KEY"));
     RuleDto rule = newRule();
-    IssueDto issue1 = IssueTesting.newDto(rule, file, project)
+    IssueDto issue1 = newDto(rule, file, project)
+      .setIssueCreationDate(parseDate("2014-09-04"))
+      .setIssueUpdateDate(parseDate("2017-12-04"))
+      .setEffort(10L)
       .setStatus("OPEN")
       .setKee("82fd47d4-b650-4037-80bc-7b112bd4eac2")
-      .setAssignee("john");
-    IssueDto issue2 = IssueTesting.newDto(rule, file, project)
+      .setSeverity("MAJOR")
+      .setAssigneeUuid(john.getUuid());
+    IssueDto issue2 = newDto(rule, file, project)
+      .setIssueCreationDate(parseDate("2014-09-04"))
+      .setIssueUpdateDate(parseDate("2017-12-04"))
+      .setEffort(10L)
       .setStatus("OPEN")
       .setKee("7b112bd4-b650-4037-80bc-82fd47d4eac2")
-      .setAssignee("alice");
-    IssueDto issue3 = IssueTesting.newDto(rule, file, project)
+      .setSeverity("MAJOR")
+      .setAssigneeUuid(alice.getUuid());
+    IssueDto issue3 = newDto(rule, file, project)
+      .setIssueCreationDate(parseDate("2014-09-04"))
+      .setIssueUpdateDate(parseDate("2017-12-04"))
+      .setEffort(10L)
       .setStatus("OPEN")
-      .setKee("82fd47d4-4037-b650-80bc-7b112bd4eac2");
+      .setKee("82fd47d4-4037-b650-80bc-7b112bd4eac2")
+      .setSeverity("MAJOR")
+      .setAssigneeUuid(null);
+    dbClient.issueDao().insert(session, issue1, issue2, issue3);
+    session.commit();
+    indexIssues();
+
+    userSession.logIn(john);
+
+    SearchWsResponse response = ws.newRequest()
+      .setParam("resolved", "false")
+      .setParam("assignees", "unknown")
+      .setParam(FACETS, "assignees")
+      .executeProtobuf(SearchWsResponse.class);
+
+    assertThat(response.getIssuesList()).isEmpty();
+  }
+
+  @Test
+  public void filter_by_assigned_to_me_when_not_authenticate() {
+    UserDto poy = db.users().insertUser(u -> u.setLogin("poy").setName("poypoy").setEmail("poypoy@email.com"));
+    userSession.logIn(poy);
+    UserDto alice = db.users().insertUser(u -> u.setLogin("alice").setName("Alice").setEmail("alice@email.com"));
+    UserDto john = db.users().insertUser(u -> u.setLogin("john").setName("John").setEmail("john@email.com"));
+    OrganizationDto organization = db.organizations().insert(o -> o.setKey("my-org-1"));
+    ComponentDto project = db.components().insertComponent(ComponentTesting.newPublicProjectDto(organization, "PROJECT_ID").setDbKey("PROJECT_KEY"));
+    indexPermissions();
+    ComponentDto file = db.components().insertComponent(newFileDto(project, null, "FILE_ID").setDbKey("FILE_KEY"));
+    RuleDto rule = newRule();
+    IssueDto issue1 = newDto(rule, file, project)
+      .setStatus("OPEN")
+      .setKee("82fd47d4-b650-4037-80bc-7b112bd4eac2")
+      .setAssigneeUuid(john.getUuid());
+    IssueDto issue2 = newDto(rule, file, project)
+      .setStatus("OPEN")
+      .setKee("7b112bd4-b650-4037-80bc-82fd47d4eac2")
+      .setAssigneeUuid(alice.getUuid());
+    IssueDto issue3 = newDto(rule, file, project)
+      .setStatus("OPEN")
+      .setKee("82fd47d4-4037-b650-80bc-7b112bd4eac2")
+      .setAssigneeUuid(null);
     dbClient.issueDao().insert(session, issue1, issue2, issue3);
     session.commit();
     indexIssues();
@@ -568,64 +580,87 @@ public class SearchActionTest {
   }
 
   @Test
-  public void assigned_to_me_facet_is_sticky_relative_to_assignees() {
-    dbClient.userDao().insert(session, new UserDto().setLogin("alice").setName("Alice").setEmail("alice@email.com"));
-
-    ComponentDto project = insertComponent(ComponentTesting.newPublicProjectDto(otherOrganization2, "PROJECT_ID").setDbKey("PROJECT_KEY"));
+  public void search_by_author() {
+    ComponentDto project = db.components().insertPublicProject();
+    ComponentDto file = db.components().insertComponent(newFileDto(project, null));
+    RuleDefinitionDto rule = db.rules().insert();
+    IssueDto issue1 = db.issues().insert(rule, project, file, i -> i.setAuthorLogin("leia"));
+    IssueDto issue2 = db.issues().insert(rule, project, file, i -> i.setAuthorLogin("luke"));
+    IssueDto issue3 = db.issues().insert(rule, project, file, i -> i.setAuthorLogin("han, solo"));
     indexPermissions();
-    ComponentDto file = insertComponent(ComponentTesting.newFileDto(project, null, "FILE_ID").setDbKey("FILE_KEY"));
-    RuleDto rule = newRule();
-    IssueDto issue1 = IssueTesting.newDto(rule, file, project)
-      .setIssueCreationDate(DateUtils.parseDate("2014-09-04"))
-      .setIssueUpdateDate(DateUtils.parseDate("2017-12-04"))
-      .setEffort(10L)
-      .setStatus("OPEN")
-      .setKee("82fd47d4-b650-4037-80bc-7b112bd4eac2")
-      .setSeverity("MAJOR")
-      .setAssignee("john-bob.polop");
-    IssueDto issue2 = IssueTesting.newDto(rule, file, project)
-      .setIssueCreationDate(DateUtils.parseDate("2014-09-04"))
-      .setIssueUpdateDate(DateUtils.parseDate("2017-12-04"))
-      .setEffort(10L)
-      .setStatus("OPEN")
-      .setKee("7b112bd4-b650-4037-80bc-82fd47d4eac2")
-      .setSeverity("MAJOR")
-      .setAssignee("alice");
-    IssueDto issue3 = IssueTesting.newDto(rule, file, project)
-      .setIssueCreationDate(DateUtils.parseDate("2014-09-04"))
-      .setIssueUpdateDate(DateUtils.parseDate("2017-12-04"))
-      .setEffort(10L)
-      .setStatus("OPEN")
-      .setKee("82fd47d4-4037-b650-80bc-7b112bd4eac2")
-      .setSeverity("MAJOR");
-    dbClient.issueDao().insert(session, issue1, issue2, issue3);
-    session.commit();
     indexIssues();
 
-    userSessionRule.logIn("john-bob.polop");
-    ws.newRequest()
-      .setParam("resolved", "false")
-      .setParam("assignees", "alice")
-      .setParam(WebService.Param.FACETS, "assignees,assigned_to_me")
-      .execute()
-      .assertJson(this.getClass(), "assigned_to_me_facet_sticky.json");
+    SearchWsResponse response = ws.newRequest()
+      .setMultiParam("author", asList("leia", "han, solo"))
+      .setParam(FACETS, "author")
+      .executeProtobuf(SearchWsResponse.class);
+    assertThat(response.getIssuesList())
+      .extracting(Issue::getKey)
+      .containsExactlyInAnyOrder(issue1.getKey(), issue3.getKey());
+    Common.Facet facet = response.getFacets().getFacetsList().get(0);
+    assertThat(facet.getProperty()).isEqualTo("author");
+    assertThat(facet.getValuesList())
+      .extracting(Common.FacetValue::getVal, Common.FacetValue::getCount)
+      .containsExactlyInAnyOrder(
+        tuple("leia", 1L),
+        tuple("luke", 1L),
+        tuple("han, solo", 1L));
+
+    assertThat(ws.newRequest()
+      .setMultiParam("author", singletonList("unknown"))
+      .executeProtobuf(SearchWsResponse.class).getIssuesList())
+        .isEmpty();
+  }
+
+  @Test
+  public void search_by_deprecated_authors_parameter() {
+    ComponentDto project = db.components().insertPublicProject();
+    ComponentDto file = db.components().insertComponent(newFileDto(project, null));
+    RuleDefinitionDto rule = db.rules().insert();
+    IssueDto issue1 = db.issues().insert(rule, project, file, i -> i.setAuthorLogin("leia"));
+    IssueDto issue2 = db.issues().insert(rule, project, file, i -> i.setAuthorLogin("luke"));
+    indexPermissions();
+    indexIssues();
+
+    SearchWsResponse response = ws.newRequest()
+      .setParam("authors", "leia")
+      .setParam(FACETS, "authors")
+      .executeProtobuf(SearchWsResponse.class);
+    assertThat(response.getIssuesList()).extracting(Issue::getKey).containsExactlyInAnyOrder(issue1.getKey());
+    Common.Facet facet = response.getFacets().getFacetsList().get(0);
+    assertThat(facet.getProperty()).isEqualTo("authors");
+    assertThat(facet.getValuesList())
+      .extracting(Common.FacetValue::getVal, Common.FacetValue::getCount)
+      .containsExactlyInAnyOrder(
+        tuple("leia", 1L),
+        tuple("luke", 1L));
+
+    // Deprecated parameter 'authors' will be ignored if new parameter 'author' is set
+    assertThat(ws.newRequest()
+      .setMultiParam("author", singletonList("luke"))
+      // This parameter will be ignored
+      .setParam("authors", "leia")
+      .executeProtobuf(SearchWsResponse.class).getIssuesList())
+        .extracting(Issue::getKey)
+        .containsExactlyInAnyOrder(issue2.getKey());
   }
 
   @Test
   public void sort_by_updated_at() {
     RuleDto rule = newRule();
-    ComponentDto project = insertComponent(ComponentTesting.newPublicProjectDto(otherOrganization2, "PROJECT_ID").setDbKey("PROJECT_KEY"));
+    OrganizationDto organization = db.organizations().insert(o -> o.setKey("my-org-2"));
+    ComponentDto project = db.components().insertComponent(ComponentTesting.newPublicProjectDto(organization, "PROJECT_ID").setDbKey("PROJECT_KEY"));
     indexPermissions();
-    ComponentDto file = insertComponent(ComponentTesting.newFileDto(project, null, "FILE_ID").setDbKey("FILE_KEY"));
-    dbClient.issueDao().insert(session, IssueTesting.newDto(rule, file, project)
+    ComponentDto file = db.components().insertComponent(newFileDto(project, null, "FILE_ID").setDbKey("FILE_KEY"));
+    dbClient.issueDao().insert(session, newDto(rule, file, project)
       .setKee("82fd47d4-b650-4037-80bc-7b112bd4eac1")
-      .setIssueUpdateDate(DateUtils.parseDateTime("2014-11-02T00:00:00+0100")));
-    dbClient.issueDao().insert(session, IssueTesting.newDto(rule, file, project)
+      .setIssueUpdateDate(parseDateTime("2014-11-02T00:00:00+0100")));
+    dbClient.issueDao().insert(session, newDto(rule, file, project)
       .setKee("82fd47d4-b650-4037-80bc-7b112bd4eac2")
-      .setIssueUpdateDate(DateUtils.parseDateTime("2014-11-01T00:00:00+0100")));
-    dbClient.issueDao().insert(session, IssueTesting.newDto(rule, file, project)
+      .setIssueUpdateDate(parseDateTime("2014-11-01T00:00:00+0100")));
+    dbClient.issueDao().insert(session, newDto(rule, file, project)
       .setKee("82fd47d4-b650-4037-80bc-7b112bd4eac3")
-      .setIssueUpdateDate(DateUtils.parseDateTime("2014-11-03T00:00:00+0100")));
+      .setIssueUpdateDate(parseDateTime("2014-11-03T00:00:00+0100")));
     session.commit();
     indexIssues();
 
@@ -642,13 +677,75 @@ public class SearchActionTest {
   }
 
   @Test
+  public void security_hotspot_type_excluded_by_default() {
+    ComponentDto project = db.components().insertPublicProject();
+    ComponentDto file = db.components().insertComponent(newFileDto(project));
+    RuleDefinitionDto rule = db.rules().insert();
+    db.issues().insert(rule, project, file, i -> i.setType(RuleType.BUG));
+    db.issues().insert(rule, project, file, i -> i.setType(RuleType.VULNERABILITY));
+    db.issues().insert(rule, project, file, i -> i.setType(RuleType.CODE_SMELL));
+    db.issues().insert(rule, project, file, i -> i.setType(RuleType.SECURITY_HOTSPOT));
+    indexPermissions();
+    indexIssues();
+
+    SearchWsResponse result = ws.newRequest().executeProtobuf(SearchWsResponse.class);
+
+    assertThat(result.getIssuesList())
+      .extracting(Issue::getType)
+      .containsExactlyInAnyOrder(Common.RuleType.BUG, Common.RuleType.VULNERABILITY, Common.RuleType.CODE_SMELL);
+  }
+
+  @Test
+  public void security_hotspot_type_included_when_explicitly_selected() {
+    ComponentDto project = db.components().insertPublicProject();
+    ComponentDto file = db.components().insertComponent(newFileDto(project));
+    RuleDefinitionDto rule = newRule().getDefinition();
+    db.issues().insert(rule, project, file, i -> i.setType(RuleType.BUG));
+    db.issues().insert(rule, project, file, i -> i.setType(RuleType.VULNERABILITY));
+    db.issues().insert(rule, project, file, i -> i.setType(RuleType.CODE_SMELL));
+    db.issues().insert(rule, project, file, i -> i.setType(RuleType.SECURITY_HOTSPOT));
+    indexPermissions();
+    indexIssues();
+
+    assertThat(ws.newRequest()
+      .setParam("types", RuleType.SECURITY_HOTSPOT.toString())
+      .executeProtobuf(SearchWsResponse.class).getIssuesList())
+        .extracting(Issue::getType)
+        .containsExactlyInAnyOrder(Common.RuleType.SECURITY_HOTSPOT);
+
+    assertThat(ws.newRequest()
+      .setParam("types", String.format("%s,%s", RuleType.BUG, RuleType.SECURITY_HOTSPOT))
+      .executeProtobuf(SearchWsResponse.class).getIssuesList())
+        .extracting(Issue::getType)
+        .containsExactlyInAnyOrder(Common.RuleType.BUG, Common.RuleType.SECURITY_HOTSPOT);
+  }
+
+  @Test
+  public void return_total_effort() {
+    UserDto john = db.users().insertUser();
+    userSession.logIn(john);
+    RuleDefinitionDto rule = db.rules().insert();
+    ComponentDto project = db.components().insertPublicProject();
+    ComponentDto file = db.components().insertComponent(newFileDto(project));
+    IssueDto issue1 = db.issues().insert(rule, project, file, i -> i.setEffort(10L));
+    IssueDto issue2 = db.issues().insert(rule, project, file, i -> i.setEffort(15L));
+    indexPermissions();
+    indexIssues();
+
+    SearchWsResponse response = ws.newRequest().executeProtobuf(SearchWsResponse.class);
+
+    assertThat(response.getEffortTotal()).isEqualTo(25L);
+  }
+
+  @Test
   public void paging() {
     RuleDto rule = newRule();
-    ComponentDto project = insertComponent(ComponentTesting.newPublicProjectDto(otherOrganization1, "PROJECT_ID").setDbKey("PROJECT_KEY"));
+    OrganizationDto organization = db.organizations().insert(o -> o.setKey("my-org-1"));
+    ComponentDto project = db.components().insertComponent(ComponentTesting.newPublicProjectDto(organization, "PROJECT_ID").setDbKey("PROJECT_KEY"));
     indexPermissions();
-    ComponentDto file = insertComponent(ComponentTesting.newFileDto(project, null, "FILE_ID").setDbKey("FILE_KEY"));
+    ComponentDto file = db.components().insertComponent(newFileDto(project, null, "FILE_ID").setDbKey("FILE_KEY"));
     for (int i = 0; i < 12; i++) {
-      IssueDto issue = IssueTesting.newDto(rule, file, project);
+      IssueDto issue = newDto(rule, file, project);
       dbClient.issueDao().insert(session, issue);
     }
     session.commit();
@@ -664,11 +761,12 @@ public class SearchActionTest {
   @Test
   public void paging_with_page_size_to_minus_one() {
     RuleDto rule = newRule();
-    ComponentDto project = insertComponent(ComponentTesting.newPublicProjectDto(otherOrganization2, "PROJECT_ID").setDbKey("PROJECT_KEY"));
+    OrganizationDto organization = db.organizations().insert(o -> o.setKey("my-org-1"));
+    ComponentDto project = db.components().insertComponent(ComponentTesting.newPublicProjectDto(organization, "PROJECT_ID").setDbKey("PROJECT_KEY"));
     indexPermissions();
-    ComponentDto file = insertComponent(ComponentTesting.newFileDto(project, null, "FILE_ID").setDbKey("FILE_KEY"));
+    ComponentDto file = db.components().insertComponent(newFileDto(project, null, "FILE_ID").setDbKey("FILE_KEY"));
     for (int i = 0; i < 12; i++) {
-      IssueDto issue = IssueTesting.newDto(rule, file, project);
+      IssueDto issue = newDto(rule, file, project);
       dbClient.issueDao().insert(session, issue);
     }
     session.commit();
@@ -684,11 +782,12 @@ public class SearchActionTest {
   @Test
   public void deprecated_paging() {
     RuleDto rule = newRule();
-    ComponentDto project = insertComponent(ComponentTesting.newPublicProjectDto(defaultOrganization, "PROJECT_ID").setDbKey("PROJECT_KEY"));
+    OrganizationDto organization = db.organizations().insert(o -> o.setKey("my-org-1"));
+    ComponentDto project = db.components().insertComponent(ComponentTesting.newPublicProjectDto(organization, "PROJECT_ID").setDbKey("PROJECT_KEY"));
     indexPermissions();
-    ComponentDto file = insertComponent(ComponentTesting.newFileDto(project, null, "FILE_ID").setDbKey("FILE_KEY"));
+    ComponentDto file = db.components().insertComponent(newFileDto(project, null, "FILE_ID").setDbKey("FILE_KEY"));
     for (int i = 0; i < 12; i++) {
-      IssueDto issue = IssueTesting.newDto(rule, file, project);
+      IssueDto issue = newDto(rule, file, project).setAssigneeUuid(null);
       dbClient.issueDao().insert(session, issue);
     }
     session.commit();
@@ -708,29 +807,27 @@ public class SearchActionTest {
       .assertJson(this.getClass(), "default_page_size_is_100.json");
   }
 
+  // SONAR-10217
   @Test
-  public void display_deprecated_debt_fields() {
-    ComponentDto project = insertComponent(ComponentTesting.newPublicProjectDto(otherOrganization1, "PROJECT_ID").setDbKey("PROJECT_KEY"));
-    indexPermissions();
-    ComponentDto file = insertComponent(ComponentTesting.newFileDto(project, null, "FILE_ID").setDbKey("FILE_KEY"));
-    IssueDto issue = IssueTesting.newDto(newRule(), file, project)
-      .setIssueCreationDate(DateUtils.parseDate("2014-09-04"))
-      .setIssueUpdateDate(DateUtils.parseDate("2017-12-04"))
-      .setEffort(10L)
-      .setStatus("OPEN")
-      .setKee("82fd47d4-b650-4037-80bc-7b112bd4eac2")
-      .setSeverity("MAJOR");
-    dbClient.issueDao().insert(session, issue);
-    session.commit();
-    indexIssues();
+  public void empty_search_with_unknown_branch() {
+    SearchWsResponse response = ws.newRequest()
+      .setParam("onComponentOnly", "true")
+      .setParam("componentKeys", "foo")
+      .setParam("branch", "bar")
+      .executeProtobuf(SearchWsResponse.class);
 
-    userSessionRule.logIn("john");
-    ws.newRequest()
-      .setParam("resolved", "false")
-      .setParam(WebService.Param.FACETS, "severities")
-      .setParam("facetMode", DEPRECATED_FACET_MODE_DEBT)
-      .execute()
-      .assertJson(this.getClass(), "display_deprecated_debt_fields.json");
+    assertThat(response)
+      .extracting(SearchWsResponse::getIssuesList, r -> r.getPaging().getTotal())
+      .containsExactlyInAnyOrder(Collections.emptyList(), 0);
+  }
+
+  @Test
+  public void empty_search() {
+    SearchWsResponse response = ws.newRequest().executeProtobuf(SearchWsResponse.class);
+
+    assertThat(response)
+      .extracting(SearchWsResponse::getIssuesList, r -> r.getPaging().getTotal())
+      .containsExactlyInAnyOrder(Collections.emptyList(), 0);
   }
 
   @Test
@@ -741,6 +838,36 @@ public class SearchActionTest {
     ws.newRequest()
       .setParam(PARAM_CREATED_AFTER, "wrong-date-input")
       .execute();
+  }
+
+  @Test
+  public void test_definition() {
+    WebService.Action def = ws.getDef();
+    assertThat(def.key()).isEqualTo("search");
+    assertThat(def.isInternal()).isFalse();
+    assertThat(def.isPost()).isFalse();
+    assertThat(def.since()).isEqualTo("3.6");
+    assertThat(def.responseExampleAsString()).isNotEmpty();
+
+    assertThat(def.params()).extracting("key").containsExactlyInAnyOrder(
+      "additionalFields", "asc", "assigned", "assignees", "authors", "author", "componentKeys", "componentUuids", "branch",
+      "pullRequest", "organization",
+      "createdAfter", "createdAt", "createdBefore", "createdInLast", "directories", "facetMode", "facets", "fileUuids", "issues", "languages", "moduleUuids", "onComponentOnly",
+      "p", "projects", "ps", "resolutions", "resolved", "rules", "s", "severities", "sinceLeakPeriod",
+      "statuses", "tags", "types", "owaspTop10", "sansTop25", "cwe");
+
+    assertThat(def.param("organization"))
+      .matches(WebService.Param::isInternal)
+      .matches(p -> p.since().equals("6.4"));
+
+    WebService.Param branch = def.param(PARAM_BRANCH);
+    assertThat(branch.isInternal()).isTrue();
+    assertThat(branch.isRequired()).isFalse();
+    assertThat(branch.since()).isEqualTo("6.6");
+
+    WebService.Param projectUuids = def.param("projects");
+    assertThat(projectUuids.description()).isEqualTo("To retrieve issues associated to a specific list of projects (comma-separated list of project keys). " +
+      "This parameter is mostly used by the Issues page, please prefer usage of the componentKeys parameter. If this parameter is set, projectUuids must not be set.");
   }
 
   private RuleDto newRule() {
@@ -768,12 +895,7 @@ public class SearchActionTest {
         .setResourceId(project.getId())
         .setRole(permission));
     session.commit();
-    userSessionRule.logIn().addProjectPermission(permission, project);
+    userSession.logIn().addProjectPermission(permission, project);
   }
 
-  private ComponentDto insertComponent(ComponentDto component) {
-    dbClient.componentDao().insert(session, component);
-    session.commit();
-    return component;
-  }
 }

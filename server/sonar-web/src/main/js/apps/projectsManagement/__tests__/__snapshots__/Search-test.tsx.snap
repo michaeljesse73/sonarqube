@@ -84,12 +84,39 @@ exports[`render qualifiers filter 1`] = `
           className="thin nowrap text-middle"
         >
           <DateInput
-            format="yy-mm-dd"
             inputClassName="input-medium"
-            maxDate="+0"
             name="analyzed-before"
             onChange={[MockFunction]}
             placeholder="last_analysis_before"
+          />
+        </td>
+        <td
+          className="thin nowrap text-middle"
+        >
+          <Select
+            className="input-small"
+            clearable={false}
+            disabled={false}
+            name="projects-visibility"
+            onChange={[Function]}
+            options={
+              Array [
+                Object {
+                  "label": "visibility.both",
+                  "value": "all",
+                },
+                Object {
+                  "label": "visibility.public",
+                  "value": "public",
+                },
+                Object {
+                  "label": "visibility.private",
+                  "value": "private",
+                },
+              ]
+            }
+            searchable={false}
+            value="all"
           />
         </td>
         <td
@@ -103,19 +130,15 @@ exports[`render qualifiers filter 1`] = `
             thirdState={false}
           >
             <span
-              className="little-spacer-left"
+              className="text-middle little-spacer-left"
             >
               provisioning.only_provisioned
-              <Tooltip
-                overlay="provisioning.only_provisioned.tooltip"
-                placement="bottom"
-              >
-                <i
-                  className="spacer-left icon-help"
-                />
-              </Tooltip>
             </span>
           </Checkbox>
+          <HelpTooltip
+            className="spacer-left"
+            overlay="provisioning.only_provisioned.tooltip"
+          />
         </td>
         <td
           className="text-middle"
@@ -130,20 +153,20 @@ exports[`render qualifiers filter 1`] = `
         <td
           className="thin nowrap text-middle"
         >
-          <button
+          <Button
             className="js-bulk-apply-permission-template"
             disabled={false}
             onClick={[Function]}
           >
             permission_templates.bulk_apply_permission_template
-          </button>
-          <button
+          </Button>
+          <Button
             className="js-delete spacer-left button-red"
             disabled={false}
             onClick={[Function]}
           >
             delete
-          </button>
+          </Button>
         </td>
       </tr>
     </tbody>
@@ -174,12 +197,39 @@ exports[`renders 1`] = `
           className="thin nowrap text-middle"
         >
           <DateInput
-            format="yy-mm-dd"
             inputClassName="input-medium"
-            maxDate="+0"
             name="analyzed-before"
             onChange={[MockFunction]}
             placeholder="last_analysis_before"
+          />
+        </td>
+        <td
+          className="thin nowrap text-middle"
+        >
+          <Select
+            className="input-small"
+            clearable={false}
+            disabled={false}
+            name="projects-visibility"
+            onChange={[Function]}
+            options={
+              Array [
+                Object {
+                  "label": "visibility.both",
+                  "value": "all",
+                },
+                Object {
+                  "label": "visibility.public",
+                  "value": "public",
+                },
+                Object {
+                  "label": "visibility.private",
+                  "value": "private",
+                },
+              ]
+            }
+            searchable={false}
+            value="all"
           />
         </td>
         <td
@@ -193,19 +243,15 @@ exports[`renders 1`] = `
             thirdState={false}
           >
             <span
-              className="little-spacer-left"
+              className="text-middle little-spacer-left"
             >
               provisioning.only_provisioned
-              <Tooltip
-                overlay="provisioning.only_provisioned.tooltip"
-                placement="bottom"
-              >
-                <i
-                  className="spacer-left icon-help"
-                />
-              </Tooltip>
             </span>
           </Checkbox>
+          <HelpTooltip
+            className="spacer-left"
+            overlay="provisioning.only_provisioned.tooltip"
+          />
         </td>
         <td
           className="text-middle"
@@ -220,20 +266,20 @@ exports[`renders 1`] = `
         <td
           className="thin nowrap text-middle"
         >
-          <button
+          <Button
             className="js-bulk-apply-permission-template"
             disabled={false}
             onClick={[Function]}
           >
             permission_templates.bulk_apply_permission_template
-          </button>
-          <button
+          </Button>
+          <Button
             className="js-delete spacer-left button-red"
             disabled={false}
             onClick={[Function]}
           >
             delete
-          </button>
+          </Button>
         </td>
       </tr>
     </tbody>

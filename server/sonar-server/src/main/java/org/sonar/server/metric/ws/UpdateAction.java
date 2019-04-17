@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -68,8 +68,10 @@ public class UpdateAction implements MetricsWsAction {
   public void define(WebService.NewController context) {
     WebService.NewAction action = context.createAction(ACTION)
       .setPost(true)
-      .setDescription("Update a custom metric.<br /> Requires 'Administer System' permission.")
+      .setDescription("Update a custom metric.<br/>" +
+        "Requires 'Administer System' permission.")
       .setSince("5.2")
+      .setDeprecatedSince("7.7")
       .setHandler(this);
 
     action.createParam(PARAM_ID)

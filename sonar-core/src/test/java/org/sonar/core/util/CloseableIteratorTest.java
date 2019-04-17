@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,7 +19,6 @@
  */
 package org.sonar.core.util;
 
-import java.io.IOException;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
@@ -167,7 +166,7 @@ public class CloseableIteratorTest {
 
   @Test(expected = NullPointerException.class)
   public void wrap_fails_if_null_closeable() {
-    CloseableIterator.wrap(new SimpleCloseableIterator(), null);
+    CloseableIterator.wrap(new SimpleCloseableIterator(), (AutoCloseable)null);
   }
 
   private static class CloseableIt implements Iterator<String>, AutoCloseable {
@@ -204,7 +203,7 @@ public class CloseableIteratorTest {
     CloseableIterator.from(Collections.<String>emptyList().iterator()).next();
   }
 
-  static class SimpleCloseableIterator extends CloseableIterator {
+  static class SimpleCloseableIterator extends CloseableIterator<Object> {
     int count = 0;
     boolean isClosed = false;
 

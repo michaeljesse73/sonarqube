@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,156 +19,229 @@
  */
 import * as React from 'react';
 import { connect } from 'react-redux';
-import GlobalNavBranding from './GlobalNavBranding';
+import GlobalNavBranding, { SonarCloudNavBranding } from './GlobalNavBranding';
 import GlobalNavMenu from './GlobalNavMenu';
 import GlobalNavExplore from './GlobalNavExplore';
 import GlobalNavUserContainer from './GlobalNavUserContainer';
-import GlobalNavPlus from './GlobalNavPlus';
 import Search from '../../search/Search';
-import GlobalHelp from '../../help/GlobalHelp';
+import EmbedDocsPopupHelper from '../../embed-docs-modal/EmbedDocsPopupHelper';
 import * as theme from '../../../theme';
-import { isLoggedIn, CurrentUser, AppState } from '../../../types';
-import OnboardingModal from '../../../../apps/tutorials/onboarding/OnboardingModal';
 import NavBar from '../../../../components/nav/NavBar';
-import Tooltip from '../../../../components/controls/Tooltip';
-import HelpIcon from '../../../../components/icons-components/HelpIcon';
-import { translate } from '../../../../helpers/l10n';
-import { getCurrentUser, getAppState, getGlobalSettingValue } from '../../../../store/rootReducer';
-import { skipOnboarding } from '../../../../store/users/actions';
+import { lazyLoad } from '../../../../components/lazyLoad';
+import {
+  fetchPrismicRefs,
+  fetchPrismicFeatureNews,
+  PrismicFeatureNews
+} from '../../../../api/news';
+import {
+  getCurrentUser,
+  getCurrentUserSetting,
+  getAppState,
+  getGlobalSettingValue,
+  Store
+} from '../../../../store/rootReducer';
+import { isSonarCloud } from '../../../../helpers/system';
+import { isLoggedIn } from '../../../../helpers/users';
+import { OnboardingContext } from '../../OnboardingContext';
+import { setCurrentUserSetting } from '../../../../store/users';
+import { parseDate } from '../../../../helpers/dates';
 import './GlobalNav.css';
 
-interface StateProps {
-  appState: AppState;
-  currentUser: CurrentUser;
-  onSonarCloud: boolean;
-}
+const GlobalNavPlus = lazyLoad(() => import('./GlobalNavPlus'), 'GlobalNavPlus');
+const NotificationsSidebar = lazyLoad(
+  () => import('../../notifications/NotificationsSidebar'),
+  'NotificationsSidebar'
+);
+const NavLatestNotification = lazyLoad(
+  () => import('../../notifications/NavLatestNotification'),
+  'NavLatestNotification'
+);
 
-interface DispatchProps {
-  skipOnboarding: () => void;
-}
-
-interface Props extends StateProps, DispatchProps {
-  closeOnboardingTutorial: () => void;
-  isOnboardingTutorialOpen: boolean;
+interface Props {
+  accessToken?: string;
+  appState: Pick<T.AppState, 'canAdmin' | 'globalPages' | 'organizationsEnabled' | 'qualifiers'>;
+  currentUser: T.CurrentUser;
   location: { pathname: string };
-  openOnboardingTutorial: () => void;
+  notificationsLastReadDate?: Date;
+  notificationsOptOut?: boolean;
+  setCurrentUserSetting: (setting: T.CurrentUserSetting) => void;
 }
 
 interface State {
-  helpOpen: boolean;
-  onboardingTutorialTooltip: boolean;
+  notificationSidebar?: boolean;
+  loadingNews: boolean;
+  loadingMoreNews: boolean;
+  news: PrismicFeatureNews[];
+  newsPaging?: T.Paging;
+  newsRef?: string;
 }
 
-class GlobalNav extends React.PureComponent<Props, State> {
-  interval?: number;
-  state: State = { helpOpen: false, onboardingTutorialTooltip: false };
+const PAGE_SIZE = 5;
+
+export class GlobalNav extends React.PureComponent<Props, State> {
+  mounted = false;
+  state: State = {
+    loadingNews: false,
+    loadingMoreNews: false,
+    news: [],
+    notificationSidebar: false
+  };
 
   componentDidMount() {
-    window.addEventListener('keypress', this.onKeyPress);
-    if (this.props.currentUser.showOnboardingTutorial) {
-      this.openOnboardingTutorial();
+    this.mounted = true;
+    if (isSonarCloud()) {
+      this.fetchFeatureNews();
     }
   }
 
   componentWillUnmount() {
-    if (this.interval) {
-      clearInterval(this.interval);
-    }
-    window.removeEventListener('keypress', this.onKeyPress);
+    this.mounted = false;
   }
 
-  onKeyPress = (event: KeyboardEvent) => {
-    const { tagName } = event.target as HTMLElement;
-    const code = event.keyCode || event.which;
-    const isInput = tagName === 'INPUT' || tagName === 'SELECT' || tagName === 'TEXTAREA';
-    const isTriggerKey = code === 63;
-    if (!isInput && isTriggerKey) {
-      this.openHelp();
+  fetchFeatureNews = () => {
+    const { accessToken } = this.props;
+    if (accessToken) {
+      this.setState({ loadingNews: true });
+      fetchPrismicRefs()
+        .then(({ ref }) => {
+          if (this.mounted) {
+            this.setState({ newsRef: ref });
+          }
+          return ref;
+        })
+        .then(ref => fetchPrismicFeatureNews({ accessToken, ref, ps: PAGE_SIZE }))
+        .then(
+          ({ news, paging }) => {
+            if (this.mounted) {
+              this.setState({
+                loadingNews: false,
+                news,
+                newsPaging: paging
+              });
+            }
+          },
+          () => {
+            if (this.mounted) {
+              this.setState({ loadingNews: false });
+            }
+          }
+        );
     }
   };
 
-  handleHelpClick = (event: React.SyntheticEvent<HTMLAnchorElement>) => {
-    event.preventDefault();
-    this.openHelp();
+  fetchMoreFeatureNews = () => {
+    const { accessToken } = this.props;
+    const { newsPaging, newsRef } = this.state;
+    if (accessToken && newsPaging && newsRef) {
+      this.setState({ loadingMoreNews: true });
+      fetchPrismicFeatureNews({
+        accessToken,
+        ref: newsRef,
+        p: newsPaging.pageIndex + 1,
+        ps: PAGE_SIZE
+      }).then(
+        ({ news, paging }) => {
+          if (this.mounted) {
+            this.setState(state => ({
+              loadingMoreNews: false,
+              news: [...state.news, ...news],
+              newsPaging: paging
+            }));
+          }
+        },
+        () => {
+          if (this.mounted) {
+            this.setState({ loadingMoreNews: false });
+          }
+        }
+      );
+    }
   };
 
-  openHelp = () => this.setState({ helpOpen: true });
-
-  closeHelp = () => this.setState({ helpOpen: false });
-
-  openOnboardingTutorial = () => {
-    this.setState({ helpOpen: false });
-    this.props.openOnboardingTutorial();
+  handleOpenNotificationSidebar = () => {
+    this.setState({ notificationSidebar: true });
+    this.fetchFeatureNews();
   };
 
-  closeOnboardingTutorial = () => {
-    this.setState({ onboardingTutorialTooltip: true });
-    this.props.skipOnboarding();
-    this.props.closeOnboardingTutorial();
-    this.interval = window.setInterval(() => {
-      this.setState({ onboardingTutorialTooltip: false });
-    }, 3000);
+  handleCloseNotificationSidebar = () => {
+    this.setState({ notificationSidebar: false });
+    const lastNews = this.state.news[0];
+    const readDate = lastNews ? parseDate(lastNews.publicationDate).getTime() : Date.now();
+    this.props.setCurrentUserSetting({ key: 'notifications.readDate', value: readDate.toString() });
   };
-
-  withTutorialTooltip = (element: React.ReactNode) =>
-    this.state.onboardingTutorialTooltip ? (
-      <Tooltip defaultVisible={true} overlay={translate('tutorials.follow_later')} trigger="manual">
-        {element}
-      </Tooltip>
-    ) : (
-      element
-    );
 
   render() {
+    const { appState, currentUser } = this.props;
+    const { news } = this.state;
     return (
-      <NavBar className="navbar-global" id="global-navigation" height={theme.globalNavHeightRaw}>
-        <GlobalNavBranding />
+      <NavBar className="navbar-global" height={theme.globalNavHeightRaw} id="global-navigation">
+        {isSonarCloud() ? <SonarCloudNavBranding /> : <GlobalNavBranding />}
 
         <GlobalNavMenu {...this.props} />
 
-        <ul className="global-navbar-menu pull-right">
-          <GlobalNavExplore location={this.props.location} onSonarCloud={this.props.onSonarCloud} />
-          <li>
-            <a className="navbar-help" onClick={this.handleHelpClick} href="#">
-              {this.props.onSonarCloud ? <HelpIcon /> : this.withTutorialTooltip(<HelpIcon />)}
-            </a>
-          </li>
-          <Search appState={this.props.appState} currentUser={this.props.currentUser} />
-          {isLoggedIn(this.props.currentUser) &&
-            this.props.onSonarCloud &&
-            this.withTutorialTooltip(
-              <GlobalNavPlus openOnboardingTutorial={this.openOnboardingTutorial} />
-            )}
-          <GlobalNavUserContainer {...this.props} />
+        <ul className="global-navbar-menu global-navbar-menu-right">
+          {isSonarCloud() && isLoggedIn(currentUser) && news.length > 0 && (
+            <NavLatestNotification
+              lastNews={news[0]}
+              notificationsLastReadDate={this.props.notificationsLastReadDate}
+              notificationsOptOut={this.props.notificationsOptOut}
+              onClick={this.handleOpenNotificationSidebar}
+              setCurrentUserSetting={this.props.setCurrentUserSetting}
+            />
+          )}
+          {isSonarCloud() && <GlobalNavExplore location={this.props.location} />}
+          <EmbedDocsPopupHelper />
+          <Search appState={appState} currentUser={currentUser} />
+          {isLoggedIn(currentUser) && (
+            <OnboardingContext.Consumer data-test="global-nav-plus">
+              {openProjectOnboarding => (
+                <GlobalNavPlus
+                  appState={appState}
+                  currentUser={currentUser}
+                  openProjectOnboarding={openProjectOnboarding}
+                />
+              )}
+            </OnboardingContext.Consumer>
+          )}
+          <GlobalNavUserContainer appState={appState} currentUser={currentUser} />
         </ul>
-
-        {this.state.helpOpen && (
-          <GlobalHelp
-            currentUser={this.props.currentUser}
-            onClose={this.closeHelp}
-            onTutorialSelect={this.openOnboardingTutorial}
-            onSonarCloud={this.props.onSonarCloud}
+        {isSonarCloud() && isLoggedIn(currentUser) && this.state.notificationSidebar && (
+          <NotificationsSidebar
+            fetchMoreFeatureNews={this.fetchMoreFeatureNews}
+            loading={this.state.loadingNews}
+            loadingMore={this.state.loadingMoreNews}
+            news={news}
+            notificationsLastReadDate={this.props.notificationsLastReadDate}
+            onClose={this.handleCloseNotificationSidebar}
+            paging={this.state.newsPaging}
           />
-        )}
-
-        {this.props.isOnboardingTutorialOpen && (
-          <OnboardingModal onFinish={this.closeOnboardingTutorial} />
         )}
       </NavBar>
     );
   }
 }
 
-const mapStateToProps = (state: any): StateProps => {
-  const sonarCloudSetting = getGlobalSettingValue(state, 'sonar.sonarcloud.enabled');
+const mapStateToProps = (state: Store) => {
+  const accessToken = getGlobalSettingValue(state, 'sonar.prismic.accessToken');
+  const notificationsLastReadDate = getCurrentUserSetting(state, 'notifications.readDate');
+  const notificationsOptOut = getCurrentUserSetting(state, 'notifications.optOut') === 'true';
 
   return {
     currentUser: getCurrentUser(state),
     appState: getAppState(state),
-    onSonarCloud: Boolean(sonarCloudSetting && sonarCloudSetting.value === 'true')
+    accessToken: accessToken && accessToken.value,
+    notificationsLastReadDate: notificationsLastReadDate
+      ? parseDate(Number(notificationsLastReadDate))
+      : undefined,
+    notificationsOptOut
   };
 };
 
-const mapDispatchToProps: DispatchProps = { skipOnboarding };
+const mapDispatchToProps = {
+  setCurrentUserSetting
+};
 
-export default connect(mapStateToProps, mapDispatchToProps)(GlobalNav);
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(GlobalNav);

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -56,9 +56,12 @@ public enum Visibility {
   }
 
   public static boolean isPrivate(String label) {
+    return parseVisibility(label).isPrivate();
+  }
+
+  public static Visibility parseVisibility(String label) {
     return stream(values())
       .filter(v -> v.label.equals(label))
-      .map(Visibility::isPrivate)
       .findAny()
       .orElseThrow(() -> new IllegalStateException("Invalid visibility label '" + label + "'"));
   }

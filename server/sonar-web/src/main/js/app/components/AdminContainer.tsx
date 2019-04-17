@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,59 +18,69 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import * as PropTypes from 'prop-types';
 import Helmet from 'react-helmet';
 import { connect } from 'react-redux';
+import MarketplaceContext, { defaultPendingPlugins } from './MarketplaceContext';
 import SettingsNav from './nav/settings/SettingsNav';
-import {
-  getAppState,
-  getGlobalSettingValue,
-  getMarketplaceEditionStatus
-} from '../../store/rootReducer';
+import { getAppState, Store } from '../../store/rootReducer';
 import { getSettingsNavigation } from '../../api/nav';
-import { EditionStatus, getEditionStatus } from '../../api/marketplace';
-import { setAdminPages } from '../../store/appState/duck';
-import { fetchEditions, setEditionStatus } from '../../store/marketplace/actions';
+import { setAdminPages } from '../../store/appState';
 import { translate } from '../../helpers/l10n';
-import { Extension } from '../types';
+import { PluginPendingResult, getPendingPlugins } from '../../api/plugins';
+import handleRequiredAuthorization from '../utils/handleRequiredAuthorization';
 
-interface Props {
-  appState: {
-    adminPages: Extension[];
-    organizationsEnabled: boolean;
-    version: string;
-  };
-  editionsUrl: string;
-  editionStatus?: EditionStatus;
-  fetchEditions: (url: string, version: string) => void;
-  location: {};
-  setAdminPages: (adminPages: Extension[]) => void;
-  setEditionStatus: (editionStatus: EditionStatus) => void;
+interface StateProps {
+  appState: Pick<T.AppState, 'adminPages' | 'canAdmin' | 'organizationsEnabled'>;
 }
 
-class AdminContainer extends React.PureComponent<Props> {
-  static contextTypes = {
-    canAdmin: PropTypes.bool.isRequired
+interface DispatchToProps {
+  setAdminPages: (adminPages: T.Extension[]) => void;
+}
+
+interface OwnProps {
+  location: {};
+}
+
+type Props = StateProps & DispatchToProps & OwnProps;
+
+interface State {
+  pendingPlugins: PluginPendingResult;
+}
+
+class AdminContainer extends React.PureComponent<Props, State> {
+  mounted = false;
+  state: State = {
+    pendingPlugins: defaultPendingPlugins
   };
 
   componentDidMount() {
-    if (!this.context.canAdmin) {
-      // workaround cyclic dependencies
-      import('../utils/handleRequiredAuthorization').then(handleRequredAuthorization =>
-        handleRequredAuthorization.default()
-      );
+    this.mounted = true;
+    if (!this.props.appState.canAdmin) {
+      handleRequiredAuthorization();
     } else {
       this.fetchNavigationSettings();
-      this.props.fetchEditions(this.props.editionsUrl, this.props.appState.version);
-      this.fetchEditionStatus();
+      this.fetchPendingPlugins();
     }
   }
 
-  fetchNavigationSettings = () =>
-    getSettingsNavigation().then(r => this.props.setAdminPages(r.extensions), () => {});
+  componentWillUnmount() {
+    this.mounted = false;
+  }
 
-  fetchEditionStatus = () =>
-    getEditionStatus().then(editionStatus => this.props.setEditionStatus(editionStatus), () => {});
+  fetchNavigationSettings = () => {
+    getSettingsNavigation().then(r => this.props.setAdminPages(r.extensions), () => {});
+  };
+
+  fetchPendingPlugins = () => {
+    getPendingPlugins().then(
+      pendingPlugins => {
+        if (this.mounted) {
+          this.setState({ pendingPlugins });
+        }
+      },
+      () => {}
+    );
+  };
 
   render() {
     const { adminPages, organizationsEnabled } = this.props.appState;
@@ -86,23 +96,33 @@ class AdminContainer extends React.PureComponent<Props> {
       <div>
         <Helmet defaultTitle={defaultTitle} titleTemplate={'%s - ' + defaultTitle} />
         <SettingsNav
-          customOrganizations={organizationsEnabled}
-          editionStatus={this.props.editionStatus}
           extensions={adminPages}
+          fetchPendingPlugins={this.fetchPendingPlugins}
           location={this.props.location}
+          organizationsEnabled={organizationsEnabled}
+          pendingPlugins={this.state.pendingPlugins}
         />
-        {this.props.children}
+        <MarketplaceContext.Provider
+          value={{
+            fetchPendingPlugins: this.fetchPendingPlugins,
+            pendingPlugins: this.state.pendingPlugins
+          }}>
+          {this.props.children}
+        </MarketplaceContext.Provider>
       </div>
     );
   }
 }
 
-const mapStateToProps = (state: any) => ({
-  appState: getAppState(state),
-  editionStatus: getMarketplaceEditionStatus(state),
-  editionsUrl: (getGlobalSettingValue(state, 'sonar.editions.jsonUrl') || {}).value
+const mapStateToProps = (state: Store): StateProps => ({
+  appState: getAppState(state)
 });
 
-const mapDispatchToProps = { setAdminPages, setEditionStatus, fetchEditions };
+const mapDispatchToProps: DispatchToProps = {
+  setAdminPages
+};
 
-export default connect(mapStateToProps, mapDispatchToProps)(AdminContainer as any);
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(AdminContainer);

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -29,7 +29,14 @@ import org.sonar.db.organization.OrganizationDto;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.commons.lang.RandomStringUtils.randomAlphanumeric;
+import static org.sonar.db.component.BranchType.PULL_REQUEST;
+import static org.sonar.db.component.ComponentDto.BRANCH_KEY_SEPARATOR;
+import static org.sonar.db.component.ComponentDto.PULL_REQUEST_SEPARATOR;
+import static org.sonar.db.component.ComponentDto.UUID_PATH_OF_ROOT;
 import static org.sonar.db.component.ComponentDto.UUID_PATH_SEPARATOR;
+import static org.sonar.db.component.ComponentDto.formatUuidPathFromParent;
+import static org.sonar.db.component.ComponentDto.generateBranchKey;
+import static org.sonar.db.component.ComponentDto.generatePullRequestKey;
 
 public class ComponentTesting {
 
@@ -99,7 +106,15 @@ public class ComponentTesting {
 
   private static String generateKey(String key, ComponentDto parentModuleOrProject) {
     String branch = parentModuleOrProject.getBranch();
-    return branch == null ? key : ComponentDto.generateBranchKey(key, branch);
+    if (branch != null) {
+      return generateBranchKey(key, branch);
+    }
+    String pullRequest = parentModuleOrProject.getPullRequest();
+    if (pullRequest != null) {
+      return generatePullRequestKey(key, pullRequest);
+    }
+
+    return key;
   }
 
   public static ComponentDto newModuleDto(ComponentDto subProjectOrProject) {
@@ -126,7 +141,7 @@ public class ComponentTesting {
     return new ComponentDto()
       .setOrganizationUuid(organizationUuid)
       .setUuid(uuid)
-      .setUuidPath(ComponentDto.UUID_PATH_OF_ROOT)
+      .setUuidPath(UUID_PATH_OF_ROOT)
       .setProjectUuid(uuid)
       .setModuleUuidPath(UUID_PATH_SEPARATOR + uuid + UUID_PATH_SEPARATOR)
       .setRootUuid(uuid)
@@ -190,7 +205,7 @@ public class ComponentTesting {
     return new ComponentDto()
       .setOrganizationUuid(parent.getOrganizationUuid())
       .setUuid(uuid)
-      .setUuidPath(ComponentDto.formatUuidPathFromParent(parent))
+      .setUuidPath(formatUuidPathFromParent(parent))
       .setProjectUuid(moduleOrProject.projectUuid())
       .setRootUuid(moduleOrProject.uuid())
       .setModuleUuid(moduleOrProject.uuid())
@@ -228,19 +243,20 @@ public class ComponentTesting {
   }
 
   public static ComponentDto newProjectBranch(ComponentDto project, BranchDto branchDto) {
-    checkArgument(project.qualifier().equals(Qualifiers.PROJECT));
+    checkArgument(project.qualifier().equals(Qualifiers.PROJECT) || project.qualifier().equals(Qualifiers.APP));
     checkArgument(project.getMainBranchProjectUuid() == null);
     String branchName = branchDto.getKey();
+    String branchSeparator = branchDto.getBranchType() == PULL_REQUEST ? PULL_REQUEST_SEPARATOR : BRANCH_KEY_SEPARATOR;
     String uuid = branchDto.getUuid();
     return new ComponentDto()
       .setUuid(uuid)
       .setOrganizationUuid(project.getOrganizationUuid())
-      .setUuidPath(ComponentDto.UUID_PATH_OF_ROOT)
+      .setUuidPath(UUID_PATH_OF_ROOT)
       .setProjectUuid(uuid)
       .setModuleUuidPath(UUID_PATH_SEPARATOR + uuid + UUID_PATH_SEPARATOR)
       .setRootUuid(uuid)
       // name of the branch is not mandatory on the main branch
-      .setDbKey(branchName != null ? project.getDbKey() + ":BRANCH:" + branchName : project.getKey())
+      .setDbKey(branchName != null ? project.getDbKey() + branchSeparator + branchName : project.getKey())
       .setMainBranchProjectUuid(project.uuid())
       .setName(project.name())
       .setLongName(project.longName())

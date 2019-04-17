@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -27,7 +27,9 @@ jest.mock('../../utils', () => ({
 }));
 
 it('should render correctly', () => {
-  expect(getWrapper({ serverId: 'MyServerId' })).toMatchSnapshot();
+  const wrapper = getWrapper({ serverId: 'MyServerId' });
+  expect(wrapper).toMatchSnapshot();
+  expect(wrapper.find('Dropdown')).toMatchSnapshot();
 });
 
 it('should render without restart and log download', () => {

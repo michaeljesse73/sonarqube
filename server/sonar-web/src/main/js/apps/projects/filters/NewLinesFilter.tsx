@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -32,7 +32,7 @@ export interface Props {
   onQueryChange: (change: RawQuery) => void;
   organization?: { key: string };
   property?: string;
-  query: { [x: string]: any };
+  query: T.Dict<any>;
   value?: any;
 }
 
@@ -41,19 +41,19 @@ export default function NewLinesFilter(props: Props) {
 
   return (
     <Filter
+      className="leak-facet-box"
       facet={props.facet}
+      getFacetValueForOption={getFacetValueForOption}
+      header={<FilterHeader name={translate('projects.facets.new_lines')} />}
+      highlightUnder={1}
       maxFacetValue={props.maxFacetValue}
       onQueryChange={props.onQueryChange}
-      value={props.value}
-      property={property}
-      className="leak-facet-box"
       options={[1, 2, 3, 4, 5]}
+      organization={props.organization}
+      property={property}
       query={props.query}
       renderOption={renderOption}
-      organization={props.organization}
-      getFacetValueForOption={getFacetValueForOption}
-      highlightUnder={1}
-      header={<FilterHeader name={translate('projects.facets.new_lines')} />}
+      value={props.value}
     />
   );
 }

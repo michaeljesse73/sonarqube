@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -51,8 +51,8 @@ import org.sonar.server.qualityprofile.index.ActiveRuleIndexer;
 
 import static java.util.Arrays.asList;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyCollection;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -319,7 +319,7 @@ public class QProfileFactoryImplTest {
   }
 
   private void assertThatRulesProfileExists(RulesProfileDto rulesProfile) {
-    assertThat(db.getDbClient().qualityProfileDao().selectBuiltInRulesProfiles(dbSession))
+    assertThat(db.getDbClient().qualityProfileDao().selectBuiltInRuleProfiles(dbSession))
       .extracting(RulesProfileDto::getKee)
       .containsExactly(rulesProfile.getKee());
     assertThat(db.countRowsOfTable(dbSession, "active_rules")).isGreaterThan(0);

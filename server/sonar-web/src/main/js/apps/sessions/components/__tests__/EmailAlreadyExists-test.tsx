@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -30,7 +30,7 @@ jest.mock('../../../../api/users', () => ({
           key: 'bitbucket',
           name: 'Bitbucket',
           iconPath: '/static/authbitbucket/bitbucket.svg',
-          backgroundColor: '#205081'
+          backgroundColor: '#0052cc'
         },
         {
           key: 'github',

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,32 +19,23 @@
  */
 import * as React from 'react';
 import { shallow } from 'enzyme';
-import { click } from '../../../../helpers/testUtils';
 import MetaTags from '../MetaTags';
+import { mockComponent } from '../../../../helpers/testMocks';
 
-const component = {
-  key: 'my-project',
-  tags: [],
+const component = mockComponent({
   configuration: {
     showSettings: false
-  },
-  organization: 'foo',
-  qualifier: 'TRK',
-  name: 'MyProject',
-  breadcrumbs: []
-};
+  }
+});
 
-const componentWithTags = {
+const componentWithTags = mockComponent({
   key: 'my-second-project',
   tags: ['foo', 'bar'],
   configuration: {
     showSettings: true
   },
-  organization: 'foo',
-  qualifier: 'TRK',
-  name: 'MySecondProject',
-  breadcrumbs: []
-};
+  name: 'MySecondProject'
+});
 
 it('should render without tags and admin rights', () => {
   expect(
@@ -60,22 +51,4 @@ it('should render with tags and admin rights', () => {
       disableLifecycleMethods: true
     })
   ).toMatchSnapshot();
-});
-
-it('should open the tag selector on click', () => {
-  const wrapper = shallow(
-    <MetaTags component={componentWithTags} onComponentChange={jest.fn()} />,
-    {
-      disableLifecycleMethods: true
-    }
-  );
-  expect(wrapper).toMatchSnapshot();
-
-  // open
-  click(wrapper.find('button'));
-  expect(wrapper).toMatchSnapshot();
-
-  // close
-  click(wrapper.find('button'));
-  expect(wrapper).toMatchSnapshot();
 });

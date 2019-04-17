@@ -1,26 +1,7 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 3 of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- */
-/*
-builder * SonarQube
- * Copyright (C) 2009-2016 SonarSource SA
- * mailto:contact AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -40,6 +21,7 @@ package org.sonar.xoo.lang;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import org.apache.commons.io.FileUtils;
 import org.junit.Before;
 import org.junit.Rule;
@@ -95,7 +77,7 @@ public class MeasureSensorTest {
   @Test
   public void testExecution() throws IOException {
     File measures = new File(baseDir, "src/foo.xoo.measures");
-    FileUtils.write(measures, "ncloc:12\nbranch_coverage:5.3\nsqale_index:300\nbool:true\n\n#comment");
+    FileUtils.write(measures, "ncloc:12\nbranch_coverage:5.3\nsqale_index:300\nbool:true\n\n#comment", StandardCharsets.UTF_8);
     InputFile inputFile = new TestInputFileBuilder("foo", "src/foo.xoo").setLanguage("xoo").setModuleBaseDir(baseDir.toPath()).build();
     context.fileSystem().add(inputFile);
 
@@ -113,6 +95,26 @@ public class MeasureSensorTest {
     assertThat(context.measure("foo:src/foo.xoo", CoreMetrics.BRANCH_COVERAGE).value()).isEqualTo(5.3);
     assertThat(context.measure("foo:src/foo.xoo", CoreMetrics.TECHNICAL_DEBT).value()).isEqualTo(300L);
     assertThat(context.measure("foo:src/foo.xoo", booleanMetric).value()).isTrue();
+  }
+
+  @Test
+  public void testExecutionForFoldersMeasures_no_measures() throws IOException {
+    File measures = new File(baseDir, "src/folder.measures");
+    FileUtils.write(measures, "ncloc:12\nbranch_coverage:5.3\nsqale_index:300\nbool:true\n\n#comment", StandardCharsets.UTF_8);
+    InputFile inputFile = new TestInputFileBuilder("foo", "src/foo.xoo").setLanguage("xoo").setModuleBaseDir(baseDir.toPath()).build();
+    context.fileSystem().add(inputFile);
+
+    Metric<Boolean> booleanMetric = new Metric.Builder("bool", "Bool", Metric.ValueType.BOOL)
+      .create();
+
+    when(metricFinder.<Integer>findByKey("ncloc")).thenReturn(CoreMetrics.NCLOC);
+    when(metricFinder.<Double>findByKey("branch_coverage")).thenReturn(CoreMetrics.BRANCH_COVERAGE);
+    when(metricFinder.<Long>findByKey("sqale_index")).thenReturn(CoreMetrics.TECHNICAL_DEBT);
+    when(metricFinder.<Boolean>findByKey("bool")).thenReturn(booleanMetric);
+
+    sensor.execute(context);
+
+    assertThat(context.measure("foo:src", CoreMetrics.NCLOC)).isNull();
   }
 
   @Test

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,6 +20,7 @@
 package org.sonar.db.plugin;
 
 import javax.annotation.CheckForNull;
+import javax.annotation.Nullable;
 import org.apache.commons.lang.builder.ToStringBuilder;
 
 public class PluginDto {
@@ -59,7 +60,7 @@ public class PluginDto {
     return basePluginKey;
   }
 
-  public PluginDto setBasePluginKey(String s) {
+  public PluginDto setBasePluginKey(@Nullable String s) {
     this.basePluginKey = s;
     return this;
   }

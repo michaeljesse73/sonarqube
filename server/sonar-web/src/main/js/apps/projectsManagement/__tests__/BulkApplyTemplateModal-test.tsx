@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,8 +22,7 @@ import * as React from 'react';
 import { mount, shallow } from 'enzyme';
 import BulkApplyTemplateModal, { Props } from '../BulkApplyTemplateModal';
 import { click, waitAndUpdate } from '../../../helpers/testUtils';
-
-jest.mock('react-dom');
+import { parseDate } from '../../../helpers/dates';
 
 jest.mock('../../../api/permissions', () => ({
   bulkApplyTemplate: jest.fn(() => Promise.resolve()),
@@ -56,9 +55,9 @@ it('bulk applies template to all results', async () => {
   });
   expect(wrapper).toMatchSnapshot();
 
-  click(wrapper.find('button'));
+  click(wrapper.find('Button'));
   expect(bulkApplyTemplate).toBeCalledWith({
-    analyzedBefore: '2017-04-08T00:00:00.000Z',
+    analyzedBefore: '2017-04-08T00:00:00+0000',
     onProvisionedOnly: true,
     organization: 'org',
     q: 'bla',
@@ -83,7 +82,7 @@ it('bulk applies template to selected results', async () => {
   });
   expect(wrapper).toMatchSnapshot();
 
-  click(wrapper.find('button'));
+  click(wrapper.find('Button'));
   expect(wrapper).toMatchSnapshot();
   await new Promise(setImmediate);
   expect(bulkApplyTemplate).toBeCalledWith({
@@ -106,7 +105,7 @@ it('closes', () => {
 function render(props?: { [P in keyof Props]?: Props[P] }) {
   return (
     <BulkApplyTemplateModal
-      analyzedBefore="2017-04-08T00:00:00.000Z"
+      analyzedBefore={parseDate('2017-04-08T00:00:00.000Z')}
       onClose={jest.fn()}
       organization="org"
       provisioned={true}

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -26,29 +26,29 @@ import org.elasticsearch.search.SearchHits;
 import org.sonar.core.util.stream.MoreCollectors;
 import org.sonar.server.es.EsClient;
 
-import static org.sonar.server.permission.index.FooIndexDefinition.FOO_INDEX;
-import static org.sonar.server.permission.index.FooIndexDefinition.FOO_TYPE;
+import static org.sonar.server.permission.index.FooIndexDefinition.DESCRIPTOR;
+import static org.sonar.server.permission.index.FooIndexDefinition.TYPE_AUTHORIZATION;
 
 public class FooIndex {
 
   private final EsClient esClient;
-  private final AuthorizationTypeSupport authorizationTypeSupport;
+  private final WebAuthorizationTypeSupport authorizationTypeSupport;
 
-  public FooIndex(EsClient esClient, AuthorizationTypeSupport authorizationTypeSupport) {
+  public FooIndex(EsClient esClient, WebAuthorizationTypeSupport authorizationTypeSupport) {
     this.esClient = esClient;
     this.authorizationTypeSupport = authorizationTypeSupport;
   }
 
   public boolean hasAccessToProject(String projectUuid) {
-    SearchHits hits = esClient.prepareSearch(FOO_INDEX)
-      .setTypes(FOO_TYPE)
+    SearchHits hits = esClient.prepareSearch(DESCRIPTOR)
+      .setTypes(TYPE_AUTHORIZATION.getType())
       .setQuery(QueryBuilders.boolQuery()
         .must(QueryBuilders.termQuery(FooIndexDefinition.FIELD_PROJECT_UUID, projectUuid))
         .filter(authorizationTypeSupport.createQueryFilter()))
       .get()
       .getHits();
-    List<String> names = Arrays.stream(hits.hits())
-      .map(h -> h.getSource().get(FooIndexDefinition.FIELD_NAME).toString())
+    List<String> names = Arrays.stream(hits.getHits())
+      .map(h -> h.getSourceAsMap().get(FooIndexDefinition.FIELD_NAME).toString())
       .collect(MoreCollectors.toList());
     return names.size() == 2 && names.contains("bar") && names.contains("baz");
   }

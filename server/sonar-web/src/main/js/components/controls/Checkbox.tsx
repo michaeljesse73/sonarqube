@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,13 +19,17 @@
  */
 import * as React from 'react';
 import * as classNames from 'classnames';
+import DeferredSpinner from '../common/DeferredSpinner';
 
 interface Props {
   checked: boolean;
+  disabled?: boolean;
   children?: React.ReactNode;
   className?: string;
   id?: string;
+  loading?: boolean;
   onCheck: (checked: boolean, id?: string) => void;
+  right?: boolean;
   thirdState?: boolean;
 }
 
@@ -34,36 +38,50 @@ export default class Checkbox extends React.PureComponent<Props> {
     thirdState: false
   };
 
-  handleClick = (e: React.SyntheticEvent<HTMLElement>) => {
-    e.preventDefault();
-    e.currentTarget.blur();
-    this.props.onCheck(!this.props.checked, this.props.id);
+  handleClick = (event: React.SyntheticEvent<HTMLElement>) => {
+    event.preventDefault();
+    event.currentTarget.blur();
+    if (!this.props.disabled) {
+      this.props.onCheck(!this.props.checked, this.props.id);
+    }
   };
 
   render() {
+    const { children, disabled, loading, right } = this.props;
     const className = classNames('icon-checkbox', {
       'icon-checkbox-checked': this.props.checked,
-      'icon-checkbox-single': this.props.thirdState
+      'icon-checkbox-single': this.props.thirdState,
+      'icon-checkbox-disabled': disabled
     });
 
-    if (this.props.children) {
+    if (children) {
       return (
         <a
-          id={this.props.id}
-          className={classNames('link-checkbox', this.props.className)}
+          className={classNames('link-checkbox', this.props.className, {
+            note: disabled,
+            disabled
+          })}
           href="#"
+          id={this.props.id}
           onClick={this.handleClick}>
-          <i className={className} />
-          {this.props.children}
+          {right && children}
+          <DeferredSpinner loading={Boolean(loading)}>
+            <i className={className} />
+          </DeferredSpinner>
+          {!right && children}
         </a>
       );
     }
 
+    if (loading) {
+      return <DeferredSpinner />;
+    }
+
     return (
       <a
-        id={this.props.id}
         className={classNames(className, this.props.className)}
         href="#"
+        id={this.props.id}
         onClick={this.handleClick}
       />
     );

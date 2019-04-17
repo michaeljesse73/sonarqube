@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,17 +18,18 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import * as classNames from 'classnames';
 import BulkChangeModal from './BulkChangeModal';
 import { Query } from '../query';
 import { Profile } from '../../../api/quality-profiles';
 import Dropdown from '../../../components/controls/Dropdown';
+import { Button } from '../../../components/ui/buttons';
 import { translate } from '../../../helpers/l10n';
 
 interface Props {
+  languages: T.Languages;
   organization: string | undefined;
   query: Query;
-  referencedProfiles: { [profile: string]: Profile };
+  referencedProfiles: T.Dict<Profile>;
   total: number;
 }
 
@@ -39,7 +40,6 @@ interface State {
 }
 
 export default class BulkChange extends React.PureComponent<Props, State> {
-  closeDropdown?: () => void;
   state: State = { modal: false };
 
   getSelectedProfile = () => {
@@ -52,36 +52,24 @@ export default class BulkChange extends React.PureComponent<Props, State> {
   handleActivateClick = (event: React.SyntheticEvent<HTMLAnchorElement>) => {
     event.preventDefault();
     event.currentTarget.blur();
-    if (this.closeDropdown) {
-      this.closeDropdown();
-    }
     this.setState({ action: 'activate', modal: true, profile: undefined });
   };
 
   handleActivateInProfileClick = (event: React.SyntheticEvent<HTMLAnchorElement>) => {
     event.preventDefault();
     event.currentTarget.blur();
-    if (this.closeDropdown) {
-      this.closeDropdown();
-    }
     this.setState({ action: 'activate', modal: true, profile: this.getSelectedProfile() });
   };
 
   handleDeactivateClick = (event: React.SyntheticEvent<HTMLAnchorElement>) => {
     event.preventDefault();
     event.currentTarget.blur();
-    if (this.closeDropdown) {
-      this.closeDropdown();
-    }
     this.setState({ action: 'deactivate', modal: true, profile: undefined });
   };
 
   handleDeactivateInProfileClick = (event: React.SyntheticEvent<HTMLAnchorElement>) => {
     event.preventDefault();
     event.currentTarget.blur();
-    if (this.closeDropdown) {
-      this.closeDropdown();
-    }
     this.setState({ action: 'deactivate', modal: true, profile: this.getSelectedProfile() });
   };
 
@@ -104,58 +92,50 @@ export default class BulkChange extends React.PureComponent<Props, State> {
 
     return (
       <>
-        <Dropdown>
-          {({ closeDropdown, onToggleClick, open }) => {
-            this.closeDropdown = closeDropdown;
-            return (
-              <div className={classNames('pull-left dropdown', { open })}>
-                <button className="js-bulk-change" onClick={onToggleClick}>
-                  {translate('bulk_change')}
-                </button>
-                <ul className="dropdown-menu">
-                  <li>
-                    <a href="#" onClick={this.handleActivateClick}>
-                      {translate('coding_rules.activate_in')}…
-                    </a>
-                  </li>
-                  {allowActivateOnProfile &&
-                    profile && (
-                      <li>
-                        <a href="#" onClick={this.handleActivateInProfileClick}>
-                          {translate('coding_rules.activate_in')} <strong>{profile.name}</strong>
-                        </a>
-                      </li>
-                    )}
-                  <li>
-                    <a href="#" onClick={this.handleDeactivateClick}>
-                      {translate('coding_rules.deactivate_in')}…
-                    </a>
-                  </li>
-                  {allowDeactivateOnProfile &&
-                    profile && (
-                      <li>
-                        <a href="#" onClick={this.handleDeactivateInProfileClick}>
-                          {translate('coding_rules.deactivate_in')} <strong>{profile.name}</strong>
-                        </a>
-                      </li>
-                    )}
-                </ul>
-              </div>
-            );
-          }}
+        <Dropdown
+          className="pull-left"
+          overlay={
+            <ul className="menu">
+              <li>
+                <a href="#" onClick={this.handleActivateClick}>
+                  {translate('coding_rules.activate_in')}…
+                </a>
+              </li>
+              {allowActivateOnProfile && profile && (
+                <li>
+                  <a href="#" onClick={this.handleActivateInProfileClick}>
+                    {translate('coding_rules.activate_in')} <strong>{profile.name}</strong>
+                  </a>
+                </li>
+              )}
+              <li>
+                <a href="#" onClick={this.handleDeactivateClick}>
+                  {translate('coding_rules.deactivate_in')}…
+                </a>
+              </li>
+              {allowDeactivateOnProfile && profile && (
+                <li>
+                  <a href="#" onClick={this.handleDeactivateInProfileClick}>
+                    {translate('coding_rules.deactivate_in')} <strong>{profile.name}</strong>
+                  </a>
+                </li>
+              )}
+            </ul>
+          }>
+          <Button className="js-bulk-change">{translate('bulk_change')}</Button>
         </Dropdown>
-        {this.state.modal &&
-          this.state.action && (
-            <BulkChangeModal
-              action={this.state.action}
-              onClose={this.closeModal}
-              organization={this.props.organization}
-              profile={this.state.profile}
-              query={this.props.query}
-              referencedProfiles={this.props.referencedProfiles}
-              total={this.props.total}
-            />
-          )}
+        {this.state.modal && this.state.action && (
+          <BulkChangeModal
+            action={this.state.action}
+            languages={this.props.languages}
+            onClose={this.closeModal}
+            organization={this.props.organization}
+            profile={this.state.profile}
+            query={this.props.query}
+            referencedProfiles={this.props.referencedProfiles}
+            total={this.props.total}
+          />
+        )}
       </>
     );
   }

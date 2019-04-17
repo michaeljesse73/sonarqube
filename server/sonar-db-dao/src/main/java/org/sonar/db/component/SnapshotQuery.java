@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -46,7 +46,7 @@ public final class SnapshotQuery {
   private Long createdAfter;
   private Long createdBefore;
   private String status;
-  private String version;
+  private String projectVersion;
   private Boolean isLast;
   private String sortField;
   private String sortOrder;
@@ -108,12 +108,12 @@ public final class SnapshotQuery {
   }
 
   @CheckForNull
-  public String getVersion() {
-    return version;
+  public String getProjectVersion() {
+    return projectVersion;
   }
 
-  public SnapshotQuery setVersion(@Nullable String version) {
-    this.version = version;
+  public SnapshotQuery setProjectVersion(@Nullable String projectVersion) {
+    this.projectVersion = projectVersion;
     return this;
   }
 

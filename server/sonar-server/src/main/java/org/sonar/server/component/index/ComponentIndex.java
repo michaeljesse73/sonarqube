@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -33,10 +33,10 @@ import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
 import org.elasticsearch.search.aggregations.AggregationBuilders;
-import org.elasticsearch.search.aggregations.bucket.filters.FiltersAggregationBuilder;
-import org.elasticsearch.search.aggregations.bucket.filters.FiltersAggregator.KeyedFilter;
-import org.elasticsearch.search.aggregations.bucket.filters.InternalFilters;
-import org.elasticsearch.search.aggregations.bucket.filters.InternalFilters.InternalBucket;
+import org.elasticsearch.search.aggregations.bucket.filter.FiltersAggregationBuilder;
+import org.elasticsearch.search.aggregations.bucket.filter.FiltersAggregator.KeyedFilter;
+import org.elasticsearch.search.aggregations.bucket.filter.InternalFilters;
+import org.elasticsearch.search.aggregations.bucket.filter.InternalFilters.InternalBucket;
 import org.elasticsearch.search.aggregations.metrics.tophits.InternalTopHits;
 import org.elasticsearch.search.aggregations.metrics.tophits.TopHitsAggregationBuilder;
 import org.elasticsearch.search.fetch.subphase.highlight.HighlightBuilder;
@@ -51,7 +51,7 @@ import org.sonar.server.es.textsearch.ComponentTextSearchFeature;
 import org.sonar.server.es.textsearch.ComponentTextSearchFeatureRepertoire;
 import org.sonar.server.es.textsearch.ComponentTextSearchQueryFactory;
 import org.sonar.server.es.textsearch.ComponentTextSearchQueryFactory.ComponentTextSearchQuery;
-import org.sonar.server.permission.index.AuthorizationTypeSupport;
+import org.sonar.server.permission.index.WebAuthorizationTypeSupport;
 
 import static org.elasticsearch.index.query.QueryBuilders.boolQuery;
 import static org.elasticsearch.index.query.QueryBuilders.termQuery;
@@ -61,9 +61,10 @@ import static org.sonar.server.component.index.ComponentIndexDefinition.FIELD_LA
 import static org.sonar.server.component.index.ComponentIndexDefinition.FIELD_NAME;
 import static org.sonar.server.component.index.ComponentIndexDefinition.FIELD_ORGANIZATION_UUID;
 import static org.sonar.server.component.index.ComponentIndexDefinition.FIELD_QUALIFIER;
-import static org.sonar.server.component.index.ComponentIndexDefinition.INDEX_TYPE_COMPONENT;
 import static org.sonar.server.component.index.ComponentIndexDefinition.NAME_ANALYZERS;
-import static org.sonar.server.es.DefaultIndexSettingsElement.SORTABLE_ANALYZER;
+import static org.sonar.server.component.index.ComponentIndexDefinition.TYPE_COMPONENT;
+import static org.sonar.server.es.IndexType.FIELD_INDEX_TYPE;
+import static org.sonar.server.es.newindex.DefaultIndexSettingsElement.SORTABLE_ANALYZER;
 
 public class ComponentIndex {
 
@@ -71,10 +72,10 @@ public class ComponentIndex {
   private static final String DOCS_AGGREGATION_NAME = "docs";
 
   private final EsClient client;
-  private final AuthorizationTypeSupport authorizationTypeSupport;
+  private final WebAuthorizationTypeSupport authorizationTypeSupport;
   private final System2 system2;
 
-  public ComponentIndex(EsClient client, AuthorizationTypeSupport authorizationTypeSupport, System2 system2) {
+  public ComponentIndex(EsClient client, WebAuthorizationTypeSupport authorizationTypeSupport, System2 system2) {
     this.client = client;
     this.authorizationTypeSupport = authorizationTypeSupport;
     this.system2 = system2;
@@ -82,7 +83,7 @@ public class ComponentIndex {
 
   public SearchIdResult<String> search(ComponentQuery query, SearchOptions searchOptions) {
     SearchRequestBuilder requestBuilder = client
-      .prepareSearch(INDEX_TYPE_COMPONENT)
+      .prepareSearch(TYPE_COMPONENT.getMainType())
       .setFetchSource(false)
       .setFrom(searchOptions.getOffset())
       .setSize(searchOptions.getLimit());
@@ -118,7 +119,7 @@ public class ComponentIndex {
     }
 
     SearchRequestBuilder request = client
-      .prepareSearch(INDEX_TYPE_COMPONENT)
+      .prepareSearch(TYPE_COMPONENT.getMainType())
       .setQuery(createQuery(query, features))
       .addAggregation(createAggregation(query))
 
@@ -166,6 +167,7 @@ public class ComponentIndex {
 
   private QueryBuilder createQuery(SuggestionQuery query, ComponentTextSearchFeature... features) {
     BoolQueryBuilder esQuery = boolQuery();
+    esQuery.filter(termQuery(FIELD_INDEX_TYPE, TYPE_COMPONENT.getName()));
     esQuery.filter(authorizationTypeSupport.createQueryFilter());
     ComponentTextSearchQuery componentTextSearchQuery = ComponentTextSearchQuery.builder()
       .setQueryText(query.getQuery())

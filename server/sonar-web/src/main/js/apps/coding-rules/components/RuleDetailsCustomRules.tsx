@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,22 +22,22 @@ import { Link } from 'react-router';
 import { sortBy } from 'lodash';
 import CustomRuleButton from './CustomRuleButton';
 import { searchRules, deleteRule } from '../../../api/rules';
-import { Rule, RuleDetails } from '../../../app/types';
 import DeferredSpinner from '../../../components/common/DeferredSpinner';
 import ConfirmButton from '../../../components/controls/ConfirmButton';
 import SeverityHelper from '../../../components/shared/SeverityHelper';
+import { Button } from '../../../components/ui/buttons';
 import { translate, translateWithParameters } from '../../../helpers/l10n';
 import { getRuleUrl } from '../../../helpers/urls';
 
 interface Props {
   canChange?: boolean;
   organization: string | undefined;
-  ruleDetails: RuleDetails;
+  ruleDetails: T.RuleDetails;
 }
 
 interface State {
   loading: boolean;
-  rules?: Rule[];
+  rules?: T.Rule[];
 }
 
 export default class RuleDetailsCustomRules extends React.PureComponent<Props, State> {
@@ -64,9 +64,7 @@ export default class RuleDetailsCustomRules extends React.PureComponent<Props, S
     searchRules({
       f: 'name,severity,params',
       organization: this.props.organization,
-      /* eslint-disable camelcase */
       template_key: this.props.ruleDetails.key
-      /* eslint-enable camelcase */
     }).then(
       ({ rules }) => {
         if (this.mounted) {
@@ -81,7 +79,7 @@ export default class RuleDetailsCustomRules extends React.PureComponent<Props, S
     );
   };
 
-  handleRuleCreate = (newRuleDetails: RuleDetails) => {
+  handleRuleCreate = (newRuleDetails: T.RuleDetails) => {
     if (this.mounted) {
       this.setState(({ rules = [] }: State) => ({
         rules: [...rules, newRuleDetails]
@@ -99,27 +97,29 @@ export default class RuleDetailsCustomRules extends React.PureComponent<Props, S
     });
   };
 
-  renderRule = (rule: Rule) => (
-    <tr key={rule.key} data-rule={rule.key}>
+  renderRule = (rule: T.Rule) => (
+    <tr data-rule={rule.key} key={rule.key}>
       <td className="coding-rules-detail-list-name">
         <Link to={getRuleUrl(rule.key, this.props.organization)}>{rule.name}</Link>
       </td>
 
       <td className="coding-rules-detail-list-severity">
-        <SeverityHelper severity={rule.severity} />
+        <SeverityHelper className="display-flex-center" severity={rule.severity} />
       </td>
 
       <td className="coding-rules-detail-list-parameters">
         {rule.params &&
-          rule.params.filter(param => param.defaultValue).map(param => (
-            <div className="coding-rules-detail-list-parameter" key={param.key}>
-              <span className="key">{param.key}</span>
-              <span className="sep">:&nbsp;</span>
-              <span className="value" title={param.defaultValue}>
-                {param.defaultValue}
-              </span>
-            </div>
-          ))}
+          rule.params
+            .filter(param => param.defaultValue)
+            .map(param => (
+              <div className="coding-rules-detail-list-parameter" key={param.key}>
+                <span className="key">{param.key}</span>
+                <span className="sep">:&nbsp;</span>
+                <span className="value" title={param.defaultValue}>
+                  {param.defaultValue}
+                </span>
+              </div>
+            ))}
       </td>
 
       {this.props.canChange && (
@@ -132,9 +132,9 @@ export default class RuleDetailsCustomRules extends React.PureComponent<Props, S
             modalHeader={translate('coding_rules.delete_rule')}
             onConfirm={this.handleRuleDelete}>
             {({ onClick }) => (
-              <button className="button-red js-delete-custom-rule" onClick={onClick}>
+              <Button className="button-red js-delete-custom-rule" onClick={onClick}>
                 {translate('delete')}
-              </button>
+              </Button>
             )}
           </ConfirmButton>
         </td>
@@ -158,16 +158,16 @@ export default class RuleDetailsCustomRules extends React.PureComponent<Props, S
               organization={this.props.organization}
               templateRule={this.props.ruleDetails}>
               {({ onClick }) => (
-                <button className="js-create-custom-rule spacer-left" onClick={onClick}>
+                <Button className="js-create-custom-rule spacer-left" onClick={onClick}>
                   {translate('coding_rules.create')}
-                </button>
+                </Button>
               )}
             </CustomRuleButton>
           )}
 
-          <DeferredSpinner loading={loading}>
+          <DeferredSpinner className="spacer-left" loading={loading}>
             {rules.length > 0 && (
-              <table id="coding-rules-detail-custom-rules" className="coding-rules-detail-list">
+              <table className="coding-rules-detail-list" id="coding-rules-detail-custom-rules">
                 <tbody>{sortBy(rules, rule => rule.name).map(this.renderRule)}</tbody>
               </table>
             )}

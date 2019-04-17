@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -87,6 +87,10 @@ public class InternalPropertiesDao implements Dao {
     InternalPropertiesMapper mapper = getMapper(dbSession);
     mapper.deleteByKey(key);
     mapper.insertAsEmpty(key, system2.now());
+  }
+
+  public void delete(DbSession dbSession, String key) {
+    getMapper(dbSession).deleteByKey(key);
   }
 
   /**

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,6 +20,7 @@
 package org.sonar.server.rule.ws;
 
 import com.google.common.base.Splitter;
+import com.google.common.io.Resources;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -40,18 +41,15 @@ import org.sonar.db.rule.RuleDefinitionDto;
 import org.sonar.db.rule.RuleDto;
 import org.sonar.db.rule.RuleParamDto;
 import org.sonar.server.exceptions.NotFoundException;
-import org.sonar.server.organization.DefaultOrganizationProvider;
 import org.sonar.server.rule.RuleUpdate;
 import org.sonar.server.rule.RuleUpdater;
 import org.sonar.server.user.UserSession;
-import org.sonar.server.ws.WsUtils;
 import org.sonarqube.ws.Rules.UpdateResponse;
 
 import static com.google.common.collect.Sets.newHashSet;
 import static java.lang.String.format;
 import static java.util.Collections.singletonList;
 import static java.util.Optional.ofNullable;
-import static org.apache.commons.lang.StringUtils.defaultIfEmpty;
 import static org.sonar.db.permission.OrganizationPermission.ADMINISTER_QUALITY_PROFILES;
 import static org.sonar.server.rule.ws.CreateAction.KEY_MAXIMUM_LENGTH;
 import static org.sonar.server.rule.ws.CreateAction.NAME_MAXIMUM_LENGTH;
@@ -63,11 +61,8 @@ public class UpdateAction implements RulesWsAction {
   public static final String PARAM_TAGS = "tags";
   public static final String PARAM_MARKDOWN_NOTE = "markdown_note";
   public static final String PARAM_REMEDIATION_FN_TYPE = "remediation_fn_type";
-  public static final String DEPRECATED_PARAM_REMEDIATION_FN_TYPE = "debt_remediation_fn_type";
   public static final String PARAM_REMEDIATION_FN_BASE_EFFORT = "remediation_fn_base_effort";
-  public static final String DEPRECATED_PARAM_REMEDIATION_FN_OFFSET = "debt_remediation_fn_offset";
   public static final String PARAM_REMEDIATION_FN_GAP_MULTIPLIER = "remediation_fy_gap_multiplier";
-  public static final String DEPRECATED_PARAM_REMEDIATION_FN_COEFF = "debt_remediation_fy_coeff";
   public static final String PARAM_NAME = "name";
   public static final String PARAM_DESCRIPTION = "markdown_description";
   public static final String PARAM_SEVERITY = "severity";
@@ -79,15 +74,14 @@ public class UpdateAction implements RulesWsAction {
   private final RuleUpdater ruleUpdater;
   private final RuleMapper mapper;
   private final UserSession userSession;
-  private final DefaultOrganizationProvider defaultOrganizationProvider;
+  private final RuleWsSupport ruleWsSupport;
 
-  public UpdateAction(DbClient dbClient, RuleUpdater ruleUpdater, RuleMapper mapper, UserSession userSession,
-    DefaultOrganizationProvider defaultOrganizationProvider) {
+  public UpdateAction(DbClient dbClient, RuleUpdater ruleUpdater, RuleMapper mapper, UserSession userSession, RuleWsSupport ruleWsSupport) {
     this.dbClient = dbClient;
     this.ruleUpdater = ruleUpdater;
     this.mapper = mapper;
     this.userSession = userSession;
-    this.defaultOrganizationProvider = defaultOrganizationProvider;
+    this.ruleWsSupport = ruleWsSupport;
   }
 
   @Override
@@ -95,6 +89,7 @@ public class UpdateAction implements RulesWsAction {
     WebService.NewAction action = controller
       .createAction("update")
       .setPost(true)
+      .setResponseExample(Resources.getResource(getClass(), "update-example.json"))
       .setDescription("Update an existing rule.<br>" +
         "Requires the 'Administer Quality Profiles' permission")
       .setSince("4.4")
@@ -112,7 +107,7 @@ public class UpdateAction implements RulesWsAction {
       .setExampleValue("java8,security");
 
     action.createParam(PARAM_MARKDOWN_NOTE)
-      .setDescription("Optional note in markdown format. Use empty value to remove current note. Note is not changed" +
+      .setDescription("Optional note in markdown format. Use empty value to remove current note. Note is not changed " +
         "if the parameter is not set.")
       .setExampleValue("my *note*");
 
@@ -125,25 +120,15 @@ public class UpdateAction implements RulesWsAction {
       .setPossibleValues(DebtRemediationFunction.Type.values())
       .setSince("5.5");
 
-    action.createParam(DEPRECATED_PARAM_REMEDIATION_FN_TYPE)
-      .setDeprecatedSince("5.5")
-      .setPossibleValues(DebtRemediationFunction.Type.values());
-
     action.createParam(PARAM_REMEDIATION_FN_BASE_EFFORT)
       .setDescription("Base effort of the remediation function of the rule")
       .setExampleValue("1d")
       .setSince("5.5");
 
-    action.createParam(DEPRECATED_PARAM_REMEDIATION_FN_OFFSET)
-      .setDeprecatedSince("5.5");
-
     action.createParam(PARAM_REMEDIATION_FN_GAP_MULTIPLIER)
       .setDescription("Gap multiplier of the remediation function of the rule")
       .setExampleValue("3min")
       .setSince("5.5");
-
-    action.createParam(DEPRECATED_PARAM_REMEDIATION_FN_COEFF)
-      .setDeprecatedSince("5.5");
 
     action
       .createParam(PARAM_NAME)
@@ -181,7 +166,7 @@ public class UpdateAction implements RulesWsAction {
   public void handle(Request request, Response response) throws Exception {
     userSession.checkLoggedIn();
     try (DbSession dbSession = dbClient.openSession(false)) {
-      OrganizationDto organization = getOrganization(request, dbSession);
+      OrganizationDto organization = ruleWsSupport.getOrganizationByKey(dbSession, request.param(PARAM_ORGANIZATION));
       userSession.checkPermission(ADMINISTER_QUALITY_PROFILES, organization);
       RuleUpdate update = readRequest(dbSession, request, organization);
       ruleUpdater.update(dbSession, update, organization, userSession);
@@ -189,14 +174,6 @@ public class UpdateAction implements RulesWsAction {
 
       writeProtobuf(updateResponse, request, response);
     }
-  }
-
-  private OrganizationDto getOrganization(Request request, DbSession dbSession) {
-    String organizationKey = ofNullable(request.param(PARAM_ORGANIZATION))
-      .orElseGet(() -> defaultOrganizationProvider.get().getKey());
-    return WsUtils.checkFoundWithOptional(
-      dbClient.organizationDao().selectByKey(dbSession, organizationKey),
-      "No organization with key '%s'", organizationKey);
   }
 
   private RuleUpdate readRequest(DbSession dbSession, Request request, OrganizationDto organization) {
@@ -260,15 +237,15 @@ public class UpdateAction implements RulesWsAction {
   }
 
   private static void readDebt(Request request, RuleUpdate update) {
-    String value = defaultIfEmpty(request.param(PARAM_REMEDIATION_FN_TYPE), request.param(DEPRECATED_PARAM_REMEDIATION_FN_TYPE));
+    String value = request.param(PARAM_REMEDIATION_FN_TYPE);
     if (value != null) {
       if (StringUtils.isBlank(value)) {
         update.setDebtRemediationFunction(null);
       } else {
         DebtRemediationFunction fn = new DefaultDebtRemediationFunction(
           DebtRemediationFunction.Type.valueOf(value),
-          defaultIfEmpty(request.param(PARAM_REMEDIATION_FN_GAP_MULTIPLIER), request.param(DEPRECATED_PARAM_REMEDIATION_FN_COEFF)),
-          defaultIfEmpty(request.param(PARAM_REMEDIATION_FN_BASE_EFFORT), request.param(DEPRECATED_PARAM_REMEDIATION_FN_OFFSET)));
+          request.param(PARAM_REMEDIATION_FN_GAP_MULTIPLIER),
+          request.param(PARAM_REMEDIATION_FN_BASE_EFFORT));
         update.setDebtRemediationFunction(fn);
       }
     }
@@ -289,7 +266,8 @@ public class UpdateAction implements RulesWsAction {
       .setTemplateRules(templateRules)
       .setRuleParameters(ruleParameters)
       .setTotal(1L);
-    responseBuilder.setRule(mapper.toWsRule(rule.getDefinition(), searchResult, Collections.emptySet(), rule.getMetadata()));
+    responseBuilder
+      .setRule(mapper.toWsRule(rule.getDefinition(), searchResult, Collections.emptySet(), rule.getMetadata(), ruleWsSupport.getUsersByUuid(dbSession, singletonList(rule))));
 
     return responseBuilder.build();
   }

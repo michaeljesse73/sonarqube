@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,10 +19,11 @@
  */
 import * as React from 'react';
 import PluginUpdateButton from './PluginUpdateButton';
+import { isPluginAvailable, isPluginInstalled } from '../utils';
+import { Plugin, installPlugin, updatePlugin, uninstallPlugin } from '../../../api/plugins';
 import Checkbox from '../../../components/controls/Checkbox';
 import CheckIcon from '../../../components/icons-components/CheckIcon';
-import { Plugin, installPlugin, updatePlugin, uninstallPlugin } from '../../../api/plugins';
-import { isPluginAvailable, isPluginInstalled } from '../utils';
+import { Button } from '../../../components/ui/buttons';
 import { translate } from '../../../helpers/l10n';
 
 interface Props {
@@ -90,20 +91,18 @@ export default class PluginActions extends React.PureComponent<Props, State> {
             {translate('marketplace.installed')}
           </p>
         )}
-        {isPluginInstalled(plugin) &&
-          plugin.updates &&
-          plugin.updates.length > 0 && (
-            <div className="spacer-top">
-              {plugin.updates.map((update, idx) => (
-                <PluginUpdateButton
-                  disabled={this.state.loading}
-                  key={idx}
-                  onClick={this.handleUpdate}
-                  update={update}
-                />
-              ))}
-            </div>
-          )}
+        {isPluginInstalled(plugin) && plugin.updates && plugin.updates.length > 0 && (
+          <div className="spacer-top">
+            {plugin.updates.map((update, idx) => (
+              <PluginUpdateButton
+                disabled={this.state.loading}
+                key={idx}
+                onClick={this.handleUpdate}
+                update={update}
+              />
+            ))}
+          </div>
+        )}
       </div>
     );
   }
@@ -118,26 +117,25 @@ export default class PluginActions extends React.PureComponent<Props, State> {
     const { loading } = this.state;
     return (
       <div className="js-actions">
-        {isPluginAvailable(plugin) &&
-          plugin.termsAndConditionsUrl && (
-            <p className="little-spacer-bottom">
-              <Checkbox
-                checked={this.state.acceptTerms}
-                className="js-terms"
-                id={'plugin-terms-' + plugin.key}
-                onCheck={this.handleTermsCheck}>
-                <label className="little-spacer-left" htmlFor={'plugin-terms-' + plugin.key}>
-                  {translate('marketplace.i_accept_the')}
-                </label>
-              </Checkbox>
-              <a
-                className="js-plugin-terms nowrap little-spacer-left"
-                href={plugin.termsAndConditionsUrl}
-                target="_blank">
-                {translate('marketplace.terms_and_conditions')}
-              </a>
-            </p>
-          )}
+        {isPluginAvailable(plugin) && plugin.termsAndConditionsUrl && (
+          <p className="little-spacer-bottom">
+            <Checkbox
+              checked={this.state.acceptTerms}
+              className="js-terms"
+              id={'plugin-terms-' + plugin.key}
+              onCheck={this.handleTermsCheck}>
+              <label className="little-spacer-left" htmlFor={'plugin-terms-' + plugin.key}>
+                {translate('marketplace.i_accept_the')}
+              </label>
+            </Checkbox>
+            <a
+              className="js-plugin-terms nowrap little-spacer-left"
+              href={plugin.termsAndConditionsUrl}
+              target="_blank">
+              {translate('marketplace.terms_and_conditions')}
+            </a>
+          </p>
+        )}
         {loading && <i className="spinner spacer-right little-spacer-top little-spacer-bottom" />}
         {isPluginInstalled(plugin) && (
           <div className="display-inlin-block">
@@ -150,23 +148,21 @@ export default class PluginActions extends React.PureComponent<Props, State> {
                   update={update}
                 />
               ))}
-            <button
+            <Button
               className="js-uninstall button-red little-spacer-left"
               disabled={loading}
-              onClick={this.handleUninstall}
-              type="button">
+              onClick={this.handleUninstall}>
               {translate('marketplace.uninstall')}
-            </button>
+            </Button>
           </div>
         )}
         {isPluginAvailable(plugin) && (
-          <button
+          <Button
             className="js-install"
             disabled={loading || (plugin.termsAndConditionsUrl != null && !this.state.acceptTerms)}
-            onClick={this.handleInstall}
-            type="button">
+            onClick={this.handleInstall}>
             {translate('marketplace.install')}
-          </button>
+          </Button>
         )}
       </div>
     );

@@ -17,7 +17,6 @@ exports[`renders 1`] = `
       Object {
         "pathname": "/component_measures",
         "query": Object {
-          "branch": undefined,
           "id": "foo",
           "metric": "alert_status",
         },
@@ -30,6 +29,7 @@ exports[`renders 1`] = `
   </Link>
   <RatingFreshness
     lastChange="{\\"date\\":\\"2017-01-02T00:00:00.000Z\\",\\"value\\":2}"
+    rating="3"
   />
   <div
     className="portfolio-effort"
@@ -41,7 +41,6 @@ exports[`renders 1`] = `
         Object {
           "pathname": "/component_measures",
           "query": Object {
-            "branch": undefined,
             "id": "foo",
             "metric": "alert_status",
           },
@@ -59,11 +58,10 @@ exports[`renders 1`] = `
       </span>
     </Link>
      
-    <span
-      className="level level-ERROR level-small"
-    >
-      metric.level.ERROR
-    </span>
+    <Level
+      level="ERROR"
+      small={true}
+    />
   </div>
 </div>
 `;

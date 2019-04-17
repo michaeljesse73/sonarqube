@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -46,10 +46,13 @@ public class DeleteAction implements MetricsWsAction {
   @Override
   public void define(WebService.NewController context) {
     WebService.NewAction action = context.createAction("delete")
+      .setDescription("Delete metrics and associated measures. Delete only custom metrics.<br/>" +
+        "Ids or keys must be provided.<br/>" +
+        "Requires 'Administer System' permission.")
       .setHandler(this)
       .setSince("5.2")
-      .setPost(true)
-      .setDescription("Delete metrics and associated measures. Delete only custom metrics.<br />Ids or keys must be provided. <br />Requires 'Administer System' permission.");
+      .setDeprecatedSince("7.7")
+      .setPost(true);
 
     action.createParam(PARAM_IDS)
       .setDescription("Metrics ids to delete.")

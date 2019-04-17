@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,16 +19,18 @@
  */
 package org.sonarqube.ws.client;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import org.sonar.api.server.ws.LocalConnector;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.function.Function.identity;
 
 class LocalWsConnector implements WsConnector {
 
@@ -38,7 +40,6 @@ class LocalWsConnector implements WsConnector {
     this.localConnector = localConnector;
   }
 
-  @VisibleForTesting
   LocalConnector localConnector() {
     return localConnector;
   }
@@ -96,6 +97,16 @@ class LocalWsConnector implements WsConnector {
     public Optional<String> getHeader(String name) {
       return wsRequest.getHeaders().getValue(name);
     }
+
+    @Override
+    public Map<String, String[]> getParameterMap() {
+      return wsRequest.getParameters()
+          .getKeys()
+          .stream()
+          .collect(Collectors.toMap(
+              identity(),
+              k -> wsRequest.getParameters().getValues(k).toArray(new String[0])));
+    }
   }
 
   private static class ByteArrayResponse extends BaseResponse {
@@ -139,6 +150,14 @@ class LocalWsConnector implements WsConnector {
     @Override
     public String content() {
       return new String(bytes, UTF_8);
+    }
+
+    /**
+     * Not implemented yet
+     */
+    @Override
+    public Optional<String> header(String name) {
+      return Optional.empty();
     }
   }
 }

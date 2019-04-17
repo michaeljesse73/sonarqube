@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -49,6 +49,7 @@ public class PageTest {
       .build();
 
     assertThat(result.getKey()).isEqualTo("governance/project_dump");
+    assertThat(result.getPluginKey()).isEqualTo("governance");
     assertThat(result.getName()).isEqualTo("Project Dump");
     assertThat(result.getComponentQualifiers()).containsOnly(PROJECT, MODULE);
     assertThat(result.getScope()).isEqualTo(COMPONENT);
@@ -94,10 +95,10 @@ public class PageTest {
   }
 
   @Test
-  public void fail_if_no_qualifier() {
+  public void fail_if_null_qualifiers() {
     expectedException.expect(NullPointerException.class);
 
-    underTest.setComponentQualifiers(null).build();
+    underTest.setComponentQualifiers((Qualifier[])null).build();
   }
 
   @Test
@@ -133,5 +134,21 @@ public class PageTest {
     expectedException.expect(IllegalArgumentException.class);
 
     underTest.setComponentQualifiers(PROJECT).build();
+  }
+
+  @Test
+  public void fail_if_key_does_not_contain_a_slash() {
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("Page key [project_dump] is not valid. It must contain a single slash, for example my_plugin/my_page.");
+
+    Page.builder("project_dump").setName("Project Dump").build();
+  }
+
+  @Test
+  public void fail_if_key_contains_more_than_one_slash() {
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("Page key [governance/project/dump] is not valid. It must contain a single slash, for example my_plugin/my_page.");
+
+    Page.builder("governance/project/dump").setName("Project Dump").build();
   }
 }

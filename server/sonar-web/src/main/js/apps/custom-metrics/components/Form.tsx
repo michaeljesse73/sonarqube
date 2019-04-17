@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,11 +18,11 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import { Metric } from '../../../app/types';
 import DeferredSpinner from '../../../components/common/DeferredSpinner';
 import SimpleModal from '../../../components/controls/SimpleModal';
-import { translate } from '../../../helpers/l10n';
 import Select, { Creatable } from '../../../components/controls/Select';
+import { SubmitButton, ResetButtonLink } from '../../../components/ui/buttons';
+import { translate } from '../../../helpers/l10n';
 
 export interface MetricProps {
   description: string;
@@ -35,7 +35,7 @@ export interface MetricProps {
 interface Props {
   confirmButtonText: string;
   domains: string[];
-  metric?: Metric;
+  metric?: T.Metric;
   header: string;
   onClose: () => void;
   onSubmit: (data: MetricProps) => Promise<void>;
@@ -89,11 +89,17 @@ export default class Form extends React.PureComponent<Props, State> {
   };
 
   render() {
+    const domains = [...this.props.domains];
+    if (this.state.domain) {
+      domains.push(this.state.domain);
+    }
+
     return (
       <SimpleModal
         header={this.props.header}
         onClose={this.props.onClose}
-        onSubmit={this.handleSubmit}>
+        onSubmit={this.handleSubmit}
+        size="small">
         {({ onCloseClick, onFormSubmit, submitting }) => (
           <form onSubmit={onFormSubmit}>
             <header className="modal-head">
@@ -144,8 +150,9 @@ export default class Form extends React.PureComponent<Props, State> {
               <div className="modal-field">
                 <label htmlFor="create-metric-domain">{translate('custom_metrics.domain')}</label>
                 <Creatable
+                  id="create-metric-domain"
                   onChange={this.handleDomainChange}
-                  options={this.props.domains.map(domain => ({ label: domain, value: domain }))}
+                  options={domains.map(domain => ({ label: domain, value: domain }))}
                   value={this.state.domain}
                 />
               </div>
@@ -156,6 +163,7 @@ export default class Form extends React.PureComponent<Props, State> {
                 </label>
                 <Select
                   clearable={false}
+                  id="create-metric-type"
                   onChange={this.handleTypeChange}
                   options={this.props.types.map(type => ({
                     label: translate('metric.type', type),
@@ -168,17 +176,15 @@ export default class Form extends React.PureComponent<Props, State> {
 
             <footer className="modal-foot">
               <DeferredSpinner className="spacer-right" loading={submitting} />
-              <button disabled={submitting} id="create-metric-submit" type="submit">
+              <SubmitButton disabled={submitting} id="create-metric-submit">
                 {this.props.confirmButtonText}
-              </button>
-              <button
-                className="button-link"
+              </SubmitButton>
+              <ResetButtonLink
                 disabled={submitting}
                 id="create-metric-cancel"
-                onClick={onCloseClick}
-                type="reset">
+                onClick={onCloseClick}>
                 {translate('cancel')}
-              </button>
+              </ResetButtonLink>
             </footer>
           </form>
         )}

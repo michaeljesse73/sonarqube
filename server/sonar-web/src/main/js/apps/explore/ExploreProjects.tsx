@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -26,5 +26,12 @@ interface Props {
 }
 
 export default function ExploreProjects(props: Props) {
-  return <AllProjectsContainer isFavorite={false} {...props} />;
+  return (
+    <AllProjectsContainer
+      isFavorite={false}
+      organization={undefined}
+      storageOptionsSuffix="explore"
+      {...props}
+    />
+  );
 }

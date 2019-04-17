@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,6 +19,7 @@
  */
 package org.sonar.db.organization;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -26,11 +27,16 @@ import org.sonar.api.utils.System2;
 import org.sonar.db.Dao;
 import org.sonar.db.DbSession;
 import org.sonar.db.Pagination;
+import org.sonar.db.alm.ALM;
+import org.sonar.db.component.BranchType;
+import org.sonar.db.component.KeyType;
 import org.sonar.db.qualitygate.QGateWithOrgDto;
 import org.sonar.db.user.GroupDto;
 
 import static java.util.Objects.requireNonNull;
+import static org.sonar.api.measures.CoreMetrics.NCLOC_KEY;
 import static org.sonar.db.DatabaseUtils.executeLargeInputs;
+import static org.sonar.db.DatabaseUtils.executeLargeUpdates;
 
 public class OrganizationDao implements Dao {
 
@@ -74,6 +80,10 @@ public class OrganizationDao implements Dao {
 
   public List<OrganizationDto> selectByPermission(DbSession dbSession, Integer userId, String permission) {
     return getMapper(dbSession).selectByPermission(userId, permission);
+  }
+
+  public Optional<OrganizationDto> selectByOrganizationAlmId(DbSession dbSession, ALM alm, String organizationAlmId) {
+    return Optional.ofNullable(getMapper(dbSession).selectByOrganizationAlmId(alm.getId(), organizationAlmId));
   }
 
   public List<String> selectAllUuids(DbSession dbSession) {
@@ -132,6 +142,14 @@ public class OrganizationDao implements Dao {
     return getMapper(dbSession).deleteByUuid(uuid);
   }
 
+  public List<OrganizationWithNclocDto> selectOrganizationsWithNcloc(DbSession dbSession, List<String> organizationUuids) {
+    List<OrganizationWithNclocDto> result = new ArrayList<>();
+    executeLargeUpdates(organizationUuids, chunk ->
+      result.addAll(getMapper(dbSession).selectOrganizationsWithNcloc(NCLOC_KEY, chunk, KeyType.BRANCH, BranchType.LONG))
+    );
+    return result;
+  }
+
   private static void checkDto(OrganizationDto organization) {
     requireNonNull(organization, "OrganizationDto can't be null");
   }
@@ -148,4 +166,5 @@ public class OrganizationDao implements Dao {
     requireNonNull(defaultTemplates, "defaultTemplates can't be null");
     requireNonNull(defaultTemplates.getProjectUuid());
   }
+
 }

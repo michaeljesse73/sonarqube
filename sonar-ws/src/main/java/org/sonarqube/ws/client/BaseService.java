@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,11 +25,10 @@ import java.io.InputStream;
 import java.util.Collection;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
-import org.apache.commons.io.IOUtils;
 import org.sonarqube.ws.MediaTypes;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Strings.isNullOrEmpty;
+import static org.sonarqube.ws.WsUtils.checkArgument;
+import static org.sonarqube.ws.WsUtils.isNullOrEmpty;
 
 public abstract class BaseService {
 
@@ -37,7 +36,7 @@ public abstract class BaseService {
   protected final String controller;
 
   public BaseService(WsConnector wsConnector, String controllerPath) {
-    checkArgument(!isNullOrEmpty(controllerPath));
+    checkArgument(!isNullOrEmpty(controllerPath), "Controller path cannot be empty");
     this.wsConnector = wsConnector;
     this.controller = controllerPath;
   }
@@ -54,9 +53,8 @@ public abstract class BaseService {
 
   public static <T extends Message> T convert(WsResponse response, Parser<T> parser) {
     try (InputStream byteStream = response.contentStream()) {
-      byte[] bytes = IOUtils.toByteArray(byteStream);
       // HTTP header "Content-Type" is not verified. It may be different than protobuf.
-      return parser.parseFrom(bytes);
+      return parser.parseFrom(byteStream);
     } catch (Exception e) {
       throw new IllegalStateException("Fail to parse protobuf response of " + response.requestUrl(), e);
     }

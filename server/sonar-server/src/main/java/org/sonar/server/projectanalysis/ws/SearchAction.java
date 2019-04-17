@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,12 +25,12 @@ import java.util.List;
 import java.util.Set;
 import org.sonar.api.resources.Qualifiers;
 import org.sonar.api.resources.Scopes;
+import org.sonar.api.server.ws.Change;
 import org.sonar.api.server.ws.Request;
 import org.sonar.api.server.ws.Response;
 import org.sonar.api.server.ws.WebService;
 import org.sonar.api.server.ws.WebService.Param;
 import org.sonar.api.web.UserRole;
-import org.sonar.core.util.stream.MoreCollectors;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
 import org.sonar.db.component.ComponentDto;
@@ -42,20 +42,23 @@ import org.sonar.server.ws.KeyExamples;
 import org.sonarqube.ws.ProjectAnalyses;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static java.util.Optional.ofNullable;
 import static org.sonar.api.utils.DateUtils.parseEndingDateOrDateTime;
 import static org.sonar.api.utils.DateUtils.parseStartingDateOrDateTime;
-import static org.sonar.core.util.Protobuf.setNullable;
+import static org.sonar.core.util.stream.MoreCollectors.toList;
 import static org.sonar.db.component.SnapshotQuery.SORT_FIELD.BY_DATE;
 import static org.sonar.db.component.SnapshotQuery.SORT_ORDER.DESC;
-import static org.sonar.server.ws.KeyExamples.KEY_BRANCH_EXAMPLE_001;
-import static org.sonar.server.ws.WsUtils.writeProtobuf;
 import static org.sonar.server.projectanalysis.ws.EventCategory.OTHER;
 import static org.sonar.server.projectanalysis.ws.ProjectAnalysesWsParameters.PARAM_BRANCH;
 import static org.sonar.server.projectanalysis.ws.ProjectAnalysesWsParameters.PARAM_CATEGORY;
 import static org.sonar.server.projectanalysis.ws.ProjectAnalysesWsParameters.PARAM_FROM;
 import static org.sonar.server.projectanalysis.ws.ProjectAnalysesWsParameters.PARAM_PROJECT;
+import static org.sonar.server.projectanalysis.ws.ProjectAnalysesWsParameters.PARAM_PULL_REQUEST;
 import static org.sonar.server.projectanalysis.ws.ProjectAnalysesWsParameters.PARAM_TO;
 import static org.sonar.server.projectanalysis.ws.SearchRequest.DEFAULT_PAGE_SIZE;
+import static org.sonar.server.ws.KeyExamples.KEY_BRANCH_EXAMPLE_001;
+import static org.sonar.server.ws.KeyExamples.KEY_PULL_REQUEST_EXAMPLE_001;
+import static org.sonar.server.ws.WsUtils.writeProtobuf;
 
 public class SearchAction implements ProjectAnalysesWsAction {
   private static final Set<String> ALLOWED_QUALIFIERS = ImmutableSet.of(Qualifiers.PROJECT, Qualifiers.APP, Qualifiers.VIEW);
@@ -77,6 +80,9 @@ public class SearchAction implements ProjectAnalysesWsAction {
         "Requires the following permission: 'Browse' on the specified project")
       .setSince("6.3")
       .setResponseExample(getClass().getResource("search-example.json"))
+      .setChangelog(
+        new Change("7.5", "Add QualityGate information on Applications")
+      )
       .setHandler(this);
 
     action.addPagingParams(DEFAULT_PAGE_SIZE, 500);
@@ -91,6 +97,12 @@ public class SearchAction implements ProjectAnalysesWsAction {
       .setSince("6.6")
       .setInternal(true)
       .setExampleValue(KEY_BRANCH_EXAMPLE_001);
+
+    action.createParam(PARAM_PULL_REQUEST)
+      .setDescription("Pull request id")
+      .setSince("7.1")
+      .setInternal(true)
+      .setExampleValue(KEY_PULL_REQUEST_EXAMPLE_001);
 
     action.createParam(PARAM_CATEGORY)
       .setDescription("Event category. Filter analyses that have at least one event of the category specified.")
@@ -123,6 +135,7 @@ public class SearchAction implements ProjectAnalysesWsAction {
     return SearchRequest.builder()
       .setProject(request.mandatoryParam(PARAM_PROJECT))
       .setBranch(request.param(PARAM_BRANCH))
+      .setPullRequest(request.param(PARAM_PULL_REQUEST))
       .setCategory(category == null ? null : EventCategory.valueOf(category))
       .setPage(request.mandatoryParamAsInt(Param.PAGE))
       .setPageSize(request.mandatoryParamAsInt(Param.PAGE_SIZE))
@@ -136,10 +149,16 @@ public class SearchAction implements ProjectAnalysesWsAction {
       SearchData.Builder searchResults = SearchData.builder(dbSession, request);
       addProject(searchResults);
       checkPermission(searchResults.getProject());
+      addManualBaseline(searchResults);
       addAnalyses(searchResults);
       addEvents(searchResults);
       return searchResults.build();
     }
+  }
+
+  private void addManualBaseline(SearchData.Builder data) {
+    dbClient.branchDao().selectByUuid(data.getDbSession(), data.getProject().uuid())
+      .ifPresent(branchDto -> data.setManualBaseline(branchDto.getManualBaseline()));
   }
 
   private void addAnalyses(SearchData.Builder data) {
@@ -147,14 +166,15 @@ public class SearchAction implements ProjectAnalysesWsAction {
       .setComponentUuid(data.getProject().uuid())
       .setStatus(SnapshotDto.STATUS_PROCESSED)
       .setSort(BY_DATE, DESC);
-    setNullable(data.getRequest().getFrom(), from -> dbQuery.setCreatedAfter(parseStartingDateOrDateTime(from).getTime()));
-    setNullable(data.getRequest().getTo(), to -> dbQuery.setCreatedBefore(parseEndingDateOrDateTime(to).getTime() + 1_000L));
+    ofNullable(data.getRequest().getFrom()).ifPresent(from -> dbQuery.setCreatedAfter(parseStartingDateOrDateTime(from).getTime()));
+    ofNullable(data.getRequest().getTo()).ifPresent(to -> dbQuery.setCreatedBefore(parseEndingDateOrDateTime(to).getTime() + 1_000L));
     data.setAnalyses(dbClient.snapshotDao().selectAnalysesByQuery(data.getDbSession(), dbQuery));
   }
 
   private void addEvents(SearchData.Builder data) {
-    List<String> analyses = data.getAnalyses().stream().map(SnapshotDto::getUuid).collect(MoreCollectors.toList());
+    List<String> analyses = data.getAnalyses().stream().map(SnapshotDto::getUuid).collect(toList());
     data.setEvents(dbClient.eventDao().selectByAnalysisUuids(data.getDbSession(), analyses));
+    data.setComponentChanges(dbClient.eventComponentChangeDao().selectByAnalysisUuids(data.getDbSession(), analyses));
   }
 
   private void checkPermission(ComponentDto project) {
@@ -170,10 +190,8 @@ public class SearchAction implements ProjectAnalysesWsAction {
   private ComponentDto loadComponent(DbSession dbSession, SearchRequest request) {
     String project = request.getProject();
     String branch = request.getBranch();
-    if (branch != null) {
-      return componentFinder.getByKeyAndBranch(dbSession, project, branch);
-    }
-    return componentFinder.getByKey(dbSession, project);
+    String pullRequest = request.getPullRequest();
+    return componentFinder.getByKeyAndOptionalBranchOrPullRequest(dbSession, project, branch, pullRequest);
   }
 
 }

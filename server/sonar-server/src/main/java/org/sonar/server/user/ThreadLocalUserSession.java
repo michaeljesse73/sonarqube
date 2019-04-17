@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,12 +21,13 @@ package org.sonar.server.user;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import javax.annotation.CheckForNull;
 import org.sonar.db.component.ComponentDto;
 import org.sonar.db.organization.OrganizationDto;
+import org.sonar.db.permission.OrganizationPermission;
 import org.sonar.db.user.GroupDto;
 import org.sonar.server.exceptions.UnauthorizedException;
-import org.sonar.db.permission.OrganizationPermission;
 
 /**
  * Part of the current HTTP session
@@ -63,6 +64,12 @@ public class ThreadLocalUserSession implements UserSession {
 
   @Override
   @CheckForNull
+  public String getUuid() {
+    return get().getUuid();
+  }
+
+  @Override
+  @CheckForNull
   public String getName() {
     return get().getName();
   }
@@ -76,6 +83,21 @@ public class ThreadLocalUserSession implements UserSession {
   @Override
   public Collection<GroupDto> getGroups() {
     return get().getGroups();
+  }
+
+  @Override
+  public Optional<IdentityProvider> getIdentityProvider() {
+    return get().getIdentityProvider();
+  }
+
+  @Override
+  public Optional<ExternalIdentity> getExternalIdentity() {
+    return get().getExternalIdentity();
+  }
+
+  @Override
+  public Optional<String> getPersonalOrganizationUuid() {
+    return get().getPersonalOrganizationUuid();
   }
 
   @Override
@@ -157,5 +179,16 @@ public class ThreadLocalUserSession implements UserSession {
   @Override
   public List<ComponentDto> keepAuthorizedComponents(String permission, Collection<ComponentDto> components) {
     return get().keepAuthorizedComponents(permission, components);
+  }
+
+  @Override
+  public boolean hasMembership(OrganizationDto organizationDto) {
+    return get().hasMembership(organizationDto);
+  }
+
+  @Override
+  public UserSession checkMembership(OrganizationDto organization) {
+    get().checkMembership(organization);
+    return this;
   }
 }

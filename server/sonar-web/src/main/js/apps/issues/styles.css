@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -23,13 +23,6 @@
 
 .issues-main-header-spinner {
   margin-right: 2px;
-}
-
-.concise-issues-list-header,
-.concise-issues-list-header-inner {
-}
-
-.concise-issues-list-header {
 }
 
 .concise-issues-list-header-inner {
@@ -95,6 +88,14 @@
   font-weight: bold;
 }
 
+.concise-issue-box-message:focus {
+  outline: none;
+}
+
+.concise-issue-box.selected .concise-issue-box-message {
+  cursor: pointer;
+}
+
 .concise-issue-box-attributes {
   margin-top: 8px;
   line-height: 16px;
@@ -115,10 +116,93 @@
   margin-bottom: 4px;
 }
 
-.consice-issue-locations-navigator-location {
-  display: flex;
+.concise-issue-locations-navigator-location {
+  position: relative;
+  z-index: var(--aboveNormalZIndex);
+  display: inline-flex;
   align-items: flex-start;
+  max-width: 100%;
   border: none;
+}
+
+.concise-issue-locations-navigator-file {
+  position: relative;
+}
+
+.concise-issue-locations-navigator-file + .concise-issue-locations-navigator-file {
+  margin-top: calc(1.5 * var(--gridSize));
+}
+
+.concise-issue-locations-navigator-file:not(:last-child)::before {
+  position: absolute;
+  display: block;
+  width: 0;
+  top: 13px;
+  bottom: calc(-2 * var(--gridSize));
+  left: 4px;
+  border-left: 1px dotted #d18582;
+  content: '';
+}
+
+.concise-issue-location-file {
+  height: calc(2 * var(--gridSize));
+  padding-bottom: calc(0.5 * var(--gridSize));
+  font-size: var(--smallFontSize);
+  font-weight: bold;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.concise-issue-location-file-circle,
+.concise-issue-location-file-circle-multiple,
+.concise-issue-location-file-circle-multiple::before,
+.concise-issue-location-file-circle-multiple::after {
+  position: relative;
+  top: 1px;
+  display: inline-block;
+  width: calc(1px + var(--gridSize));
+  height: calc(1px + var(--gridSize));
+  border: 1px solid #d18582;
+  border-radius: 100%;
+  box-sizing: border-box;
+  background-color: #ffeaea;
+}
+
+.concise-issue-location-file-circle-multiple {
+  top: -2px;
+}
+
+.concise-issue-location-file-circle-multiple::before {
+  position: absolute;
+  z-index: calc(5 + var(--normalZIndex));
+  top: 2px;
+  left: -1px;
+  content: '';
+}
+
+.concise-issue-location-file-circle-multiple::after {
+  position: absolute;
+  z-index: calc(5 + var(--aboveNormalZIndex));
+  top: 5px;
+  left: -1px;
+  content: '';
+}
+
+.concise-issue-location-file-locations {
+  padding-left: calc(2 * var(--gridSize));
+}
+
+.concise-issue-location-file-more {
+  border-color: rgba(209, 133, 130, 0.2);
+  color: rgb(209, 133, 130) !important;
+  font-style: italic;
+  font-weight: normal;
+}
+
+.concise-issue-location-file-more:hover,
+.concise-issue-location-file-more:focus {
+  border-color: rgba(209, 133, 130, 0.6);
 }
 
 .issues-my-issues-filter {
@@ -139,12 +223,17 @@
 }
 
 .issues .issue {
-  outline: 1px dashed transparent;
+  border: 1px solid transparent;
   cursor: pointer;
 }
 
 .issues .issue:hover {
-  outline-color: #dd4040;
+  border: 1px dashed #dd4040;
+  transition: all 0.3s ease;
+}
+
+.issues .issue:focus {
+  outline: none;
 }
 
 @media (max-width: 1320px) {
@@ -180,4 +269,13 @@
 .issues-predefined-periods .search-navigator-facet {
   width: auto;
   margin-right: 4px;
+}
+
+.bulk-change-radio-button {
+  margin: 0 calc(- var(--gridSize) / 2);
+  padding: 0 calc(var(--gridSize) / 2);
+}
+
+.bulk-change-radio-button:hover {
+  background-color: var(--barBackgroundColor);
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,10 +21,12 @@ import * as React from 'react';
 import { Link } from 'react-router';
 import Truncated from './Truncated';
 import * as theme from '../../../app/theme';
-import QualifierIcon from '../../../components/shared/QualifierIcon';
-import { Component } from '../types';
+import QualifierIcon from '../../../components/icons-components/QualifierIcon';
+import { getBranchLikeQuery } from '../../../helpers/branches';
+import LongLivingBranchIcon from '../../../components/icons-components/LongLivingBranchIcon';
+import { translate } from '../../../helpers/l10n';
 
-function getTooltip(component: Component) {
+function getTooltip(component: T.ComponentMeasure) {
   const isFile = component.qualifier === 'FIL' || component.qualifier === 'UTS';
   if (isFile && component.path) {
     return component.path + '\n\n' + component.key;
@@ -49,56 +51,75 @@ function mostCommitPrefix(strings: string[]) {
 }
 
 interface Props {
-  branch?: string;
+  branchLike?: T.BranchLike;
   canBrowse?: boolean;
-  component: Component;
-  previous?: Component;
-  rootComponent: Component;
+  component: T.ComponentMeasure;
+  previous?: T.ComponentMeasure;
+  rootComponent: T.ComponentMeasure;
 }
 
-export default function ComponentName(props: Props) {
-  const { branch, component, rootComponent, previous, canBrowse = false } = props;
-  const areBothDirs = component.qualifier === 'DIR' && previous && previous.qualifier === 'DIR';
-  const prefix =
-    areBothDirs && previous !== undefined
-      ? mostCommitPrefix([component.name + '/', previous.name + '/'])
-      : '';
-  const name = prefix ? (
-    <span>
-      <span style={{ color: theme.secondFontColor }}>{prefix}</span>
-      <span>{component.name.substr(prefix.length)}</span>
-    </span>
-  ) : (
-    component.name
-  );
-
-  let inner = null;
-
-  if (component.refKey && component.qualifier !== 'SVW') {
-    inner = (
-      <Link
-        to={{ pathname: '/dashboard', query: { id: component.refKey } }}
-        className="link-with-icon">
-        <QualifierIcon qualifier={component.qualifier} /> <span>{name}</span>
-      </Link>
-    );
-  } else if (canBrowse) {
-    const query = { id: rootComponent.key, branch };
-    if (component.key !== rootComponent.key) {
-      Object.assign(query, { selected: component.key });
-    }
-    inner = (
-      <Link to={{ pathname: '/code', query }} className="link-with-icon">
-        <QualifierIcon qualifier={component.qualifier} /> <span>{name}</span>
-      </Link>
-    );
-  } else {
-    inner = (
+export default class ComponentName extends React.PureComponent<Props> {
+  render() {
+    const { branchLike, component, rootComponent, previous, canBrowse = false } = this.props;
+    const areBothDirs = component.qualifier === 'DIR' && previous && previous.qualifier === 'DIR';
+    const prefix =
+      areBothDirs && previous !== undefined
+        ? mostCommitPrefix([component.name + '/', previous.name + '/'])
+        : '';
+    const name = prefix ? (
       <span>
-        <QualifierIcon qualifier={component.qualifier} /> {name}
+        <span style={{ color: theme.secondFontColor }}>{prefix}</span>
+        <span>{component.name.substr(prefix.length)}</span>
       </span>
+    ) : (
+      component.name
     );
-  }
 
-  return <Truncated title={getTooltip(component)}>{inner}</Truncated>;
+    let inner = null;
+
+    if (component.refKey && component.qualifier !== 'SVW') {
+      const branch = rootComponent.qualifier === 'APP' ? { branch: component.branch } : {};
+      inner = (
+        <Link
+          className="link-with-icon"
+          to={{ pathname: '/dashboard', query: { id: component.refKey, ...branch } }}>
+          <QualifierIcon qualifier={component.qualifier} /> <span>{name}</span>
+        </Link>
+      );
+    } else if (canBrowse) {
+      const query = { id: rootComponent.key, ...getBranchLikeQuery(branchLike) };
+      if (component.key !== rootComponent.key) {
+        Object.assign(query, { selected: component.key });
+      }
+      inner = (
+        <Link className="link-with-icon" to={{ pathname: '/code', query }}>
+          <QualifierIcon qualifier={component.qualifier} /> <span>{name}</span>
+        </Link>
+      );
+    } else {
+      inner = (
+        <span>
+          <QualifierIcon qualifier={component.qualifier} /> {name}
+        </span>
+      );
+    }
+
+    if (rootComponent.qualifier === 'APP') {
+      inner = (
+        <>
+          {inner}
+          {component.branch ? (
+            <>
+              <LongLivingBranchIcon className="spacer-left little-spacer-right" />
+              <span className="note">{component.branch}</span>
+            </>
+          ) : (
+            <span className="spacer-left outline-badge">{translate('branches.main_branch')}</span>
+          )}
+        </>
+      );
+    }
+
+    return <Truncated title={getTooltip(component)}>{inner}</Truncated>;
+  }
 }

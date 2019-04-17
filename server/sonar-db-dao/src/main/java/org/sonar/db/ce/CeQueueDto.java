@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,8 +21,11 @@ package org.sonar.db.ce;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
+import org.sonar.db.component.ComponentDto;
 
+import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkArgument;
+import static java.util.Objects.requireNonNull;
 
 public class CeQueueDto {
 
@@ -32,17 +35,27 @@ public class CeQueueDto {
 
   private String uuid;
   private String taskType;
+  /**
+   * Can be {@code null} when task is not associated to any data in table PROJECTS, but must always be non {@code null}
+   * at the same time as {@link #mainComponentUuid}.
+   * <p>
+   * The component uuid of a any component (project or not) is its own UUID.
+   */
   private String componentUuid;
+  /**
+   * Can be {@code null} when task is not associated to any data in table PROJECTS, but must always be non {@code null}
+   * at the same time as {@link #componentUuid}.
+   * <p>
+   * The main component uuid of the main branch of project is its own UUID. For other branches of a project, it is the
+   * project UUID of the main branch of that project ({@link ComponentDto#getMainBranchProjectUuid()}).
+   */
+  private String mainComponentUuid;
   private Status status;
-  private String submitterLogin;
+  private String submitterUuid;
   /**
    * UUID of the worker that is executing, or of the last worker that executed, the current task.
    */
   private String workerUuid;
-  /**
-   * This counter is incremented by 1 each time the tasks switches to status {@link Status#IN_PROGRESS IN_PROGRESS}.
-   */
-  private int executionCount = 0;
   private Long startedAt;
   private long createdAt;
   private long updatedAt;
@@ -52,8 +65,23 @@ public class CeQueueDto {
   }
 
   public CeQueueDto setUuid(String s) {
-    checkArgument(s.length() <= 40, "Value of UUID is too long: %s", s);
+    checkUuid(s, "UUID");
     this.uuid = s;
+    return this;
+  }
+
+  /**
+   * Helper methods which sets both {@link #componentUuid} and {@link #mainComponentUuid} from the specified
+   * {@link ComponentDto}.
+   */
+  public CeQueueDto setComponent(@Nullable ComponentDto component) {
+    if (component == null) {
+      this.componentUuid = null;
+      this.mainComponentUuid = null;
+    } else {
+      this.componentUuid = requireNonNull(component.uuid());
+      this.mainComponentUuid = firstNonNull(component.getMainBranchProjectUuid(), component.uuid());
+    }
     return this;
   }
 
@@ -63,9 +91,24 @@ public class CeQueueDto {
   }
 
   public CeQueueDto setComponentUuid(@Nullable String s) {
-    checkArgument(s == null || s.length() <= 40, "Value of component UUID is too long: %s", s);
+    checkUuid(s, "COMPONENT_UUID");
     this.componentUuid = s;
     return this;
+  }
+
+  @CheckForNull
+  public String getMainComponentUuid() {
+    return mainComponentUuid;
+  }
+
+  public CeQueueDto setMainComponentUuid(@Nullable String s) {
+    checkUuid(s, "MAIN_COMPONENT_UUID");
+    this.mainComponentUuid = s;
+    return this;
+  }
+
+  private static void checkUuid(@Nullable String s, String columnName) {
+    checkArgument(s == null || s.length() <= 40, "Value is too long for column CE_QUEUE.%s: %s", columnName, s);
   }
 
   public Status getStatus() {
@@ -88,13 +131,13 @@ public class CeQueueDto {
   }
 
   @CheckForNull
-  public String getSubmitterLogin() {
-    return submitterLogin;
+  public String getSubmitterUuid() {
+    return submitterUuid;
   }
 
-  public CeQueueDto setSubmitterLogin(@Nullable String s) {
-    checkArgument(s == null || s.length() <= 255, "Value of submitter login is too long: %s", s);
-    this.submitterLogin = s;
+  public CeQueueDto setSubmitterUuid(@Nullable String s) {
+    checkArgument(s == null || s.length() <= 255, "Value of submitter uuid is too long: %s", s);
+    this.submitterUuid = s;
     return this;
   }
 
@@ -103,18 +146,7 @@ public class CeQueueDto {
   }
 
   public CeQueueDto setWorkerUuid(@Nullable String workerUuid) {
-    checkArgument(workerUuid == null || workerUuid.length() <= 40, "worker uuid is too long: %s", workerUuid);
     this.workerUuid = workerUuid;
-    return this;
-  }
-
-  public int getExecutionCount() {
-    return executionCount;
-  }
-
-  public CeQueueDto setExecutionCount(int executionCount) {
-    checkArgument(executionCount >= 0, "execution count can't be < 0");
-    this.executionCount = executionCount;
     return this;
   }
 
@@ -152,10 +184,10 @@ public class CeQueueDto {
       "uuid='" + uuid + '\'' +
       ", taskType='" + taskType + '\'' +
       ", componentUuid='" + componentUuid + '\'' +
+      ", mainComponentUuid='" + mainComponentUuid + '\'' +
       ", status=" + status +
-      ", submitterLogin='" + submitterLogin + '\'' +
+      ", submitterLogin='" + submitterUuid + '\'' +
       ", workerUuid='" + workerUuid + '\'' +
-      ", executionCount=" + executionCount +
       ", startedAt=" + startedAt +
       ", createdAt=" + createdAt +
       ", updatedAt=" + updatedAt +

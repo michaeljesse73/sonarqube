@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,16 +18,15 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import { find, sortBy } from 'lodash';
+import { sortBy } from 'lodash';
 import Histogram from './Histogram';
 import { formatMeasure } from '../../helpers/measures';
-import { Language } from '../../api/languages';
 import { translate } from '../../helpers/l10n';
 
 interface Props {
   alignTicks?: boolean;
   distribution: string;
-  languages?: Language[];
+  languages: T.Languages;
   width: number;
 }
 
@@ -50,10 +49,10 @@ export default function LanguageDistribution(props: Props) {
       bars={data}
       height={distribution.length * 25}
       padding={[0, 60, 0, 80]}
+      width={props.width}
       yTicks={yTicks}
       yTooltips={yTooltips}
       yValues={yValues}
-      width={props.width}
     />
   );
 
@@ -61,7 +60,7 @@ export default function LanguageDistribution(props: Props) {
     if (langKey === '<null>') {
       return translate('unknown');
     }
-    const lang = find(props.languages, { key: langKey });
+    const lang = props.languages[langKey];
     return lang ? lang.name : langKey;
   }
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -77,7 +77,7 @@ public class RenameAction implements BranchWsAction {
       ComponentDto project = componentFinder.getRootComponentByUuidOrKey(dbSession, null, projectKey);
       checkPermission(project);
 
-      Optional<BranchDto> existingBranch = dbClient.branchDao().selectByKey(dbSession, project.uuid(), newBranchName);
+      Optional<BranchDto> existingBranch = dbClient.branchDao().selectByBranchKey(dbSession, project.uuid(), newBranchName);
       checkArgument(!existingBranch.filter(b -> !b.isMain()).isPresent(),
         "Impossible to update branch name: a branch with name \"%s\" already exists in the project.", newBranchName);
 

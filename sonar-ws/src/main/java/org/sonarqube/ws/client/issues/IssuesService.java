@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,11 +21,6 @@ package org.sonarqube.ws.client.issues;
 
 import java.util.stream.Collectors;
 import javax.annotation.Generated;
-import org.sonarqube.ws.MediaTypes;
-import org.sonarqube.ws.client.BaseService;
-import org.sonarqube.ws.client.GetRequest;
-import org.sonarqube.ws.client.PostRequest;
-import org.sonarqube.ws.client.WsConnector;
 import org.sonarqube.ws.Issues.AddCommentResponse;
 import org.sonarqube.ws.Issues.AssignResponse;
 import org.sonarqube.ws.Issues.AuthorsResponse;
@@ -38,6 +33,11 @@ import org.sonarqube.ws.Issues.SetSeverityResponse;
 import org.sonarqube.ws.Issues.SetTagsResponse;
 import org.sonarqube.ws.Issues.SetTypeResponse;
 import org.sonarqube.ws.Issues.TagsResponse;
+import org.sonarqube.ws.MediaTypes;
+import org.sonarqube.ws.client.BaseService;
+import org.sonarqube.ws.client.GetRequest;
+import org.sonarqube.ws.client.PostRequest;
+import org.sonarqube.ws.client.WsConnector;
 
 /**
  * @see <a href="https://next.sonarqube.com/sonarqube/web_api/api/issues">Further information about this web service online</a>
@@ -75,8 +75,7 @@ public class IssuesService extends BaseService {
     return call(
       new PostRequest(path("assign"))
         .setParam("assignee", request.getAssignee())
-        .setParam("issue", request.getIssue())
-        .setParam("me", request.getMe()),
+        .setParam("issue", request.getIssue()),
       AssignResponse.parser());
   }
 
@@ -90,6 +89,8 @@ public class IssuesService extends BaseService {
   public AuthorsResponse authors(AuthorsRequest request) {
     return call(
       new GetRequest(path("authors"))
+        .setParam("organization", request.getOrganization())
+        .setParam("project", request.getProject())
         .setParam("ps", request.getPs())
         .setParam("q", request.getQ()),
       AuthorsResponse.parser());
@@ -110,7 +111,6 @@ public class IssuesService extends BaseService {
         .setParam("comment", request.getComment() == null ? null : request.getComment().stream().collect(Collectors.joining(",")))
         .setParam("do_transition", request.getDoTransition())
         .setParam("issues", request.getIssues() == null ? null : request.getIssues().stream().collect(Collectors.joining(",")))
-        .setParam("plan", request.getPlan() == null ? null : request.getPlan().stream().collect(Collectors.joining(",")))
         .setParam("remove_tags", request.getRemoveTags())
         .setParam("sendNotifications", request.getSendNotifications())
         .setParam("set_severity", request.getSetSeverity() == null ? null : request.getSetSeverity().stream().collect(Collectors.joining(",")))
@@ -208,17 +208,16 @@ public class IssuesService extends BaseService {
         .setParam("asc", request.getAsc())
         .setParam("assigned", request.getAssigned())
         .setParam("assignees", request.getAssignees() == null ? null : request.getAssignees().stream().collect(Collectors.joining(",")))
+        .setParam("author", request.getAuthor())
         .setParam("authors", request.getAuthors() == null ? null : request.getAuthors().stream().collect(Collectors.joining(",")))
         .setParam("branch", request.getBranch())
         .setParam("componentKeys", request.getComponentKeys() == null ? null : request.getComponentKeys().stream().collect(Collectors.joining(",")))
-        .setParam("componentRootUuids", request.getComponentRootUuids())
-        .setParam("componentRoots", request.getComponentRoots())
         .setParam("componentUuids", request.getComponentUuids() == null ? null : request.getComponentUuids().stream().collect(Collectors.joining(",")))
-        .setParam("components", request.getComponents())
         .setParam("createdAfter", request.getCreatedAfter())
         .setParam("createdAt", request.getCreatedAt())
         .setParam("createdBefore", request.getCreatedBefore())
         .setParam("createdInLast", request.getCreatedInLast())
+        .setParam("cwe", request.getCwe() == null ? null : request.getCwe().stream().collect(Collectors.joining(",")))
         .setParam("directories", request.getDirectories() == null ? null : request.getDirectories().stream().collect(Collectors.joining(",")))
         .setParam("facetMode", request.getFacetMode())
         .setParam("facets", request.getFacets() == null ? null : request.getFacets().stream().collect(Collectors.joining(",")))
@@ -228,14 +227,16 @@ public class IssuesService extends BaseService {
         .setParam("moduleUuids", request.getModuleUuids() == null ? null : request.getModuleUuids().stream().collect(Collectors.joining(",")))
         .setParam("onComponentOnly", request.getOnComponentOnly())
         .setParam("organization", request.getOrganization())
+        .setParam("owaspTop10", request.getOwaspTop10() == null ? null : request.getOwaspTop10().stream().collect(Collectors.joining(",")))
         .setParam("p", request.getP())
-        .setParam("projectUuids", request.getProjectUuids() == null ? null : request.getProjectUuids().stream().collect(Collectors.joining(",")))
         .setParam("projects", request.getProjects() == null ? null : request.getProjects().stream().collect(Collectors.joining(",")))
         .setParam("ps", request.getPs())
+        .setParam("pullRequest", request.getPullRequest())
         .setParam("resolutions", request.getResolutions() == null ? null : request.getResolutions().stream().collect(Collectors.joining(",")))
         .setParam("resolved", request.getResolved())
         .setParam("rules", request.getRules() == null ? null : request.getRules().stream().collect(Collectors.joining(",")))
         .setParam("s", request.getS())
+        .setParam("sansTop25", request.getSansTop25() == null ? null : request.getSansTop25().stream().collect(Collectors.joining(",")))
         .setParam("severities", request.getSeverities() == null ? null : request.getSeverities().stream().collect(Collectors.joining(",")))
         .setParam("sinceLeakPeriod", request.getSinceLeakPeriod())
         .setParam("statuses", request.getStatuses() == null ? null : request.getStatuses().stream().collect(Collectors.joining(",")))
@@ -300,6 +301,7 @@ public class IssuesService extends BaseService {
     return call(
       new GetRequest(path("tags"))
         .setParam("organization", request.getOrganization())
+        .setParam("project", request.getProject())
         .setParam("ps", request.getPs())
         .setParam("q", request.getQ()),
       TagsResponse.parser());

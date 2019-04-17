@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,26 +21,25 @@ import * as React from 'react';
 import Modal from '../../../components/controls/Modal';
 import Select from '../../../components/controls/Select';
 import SeverityHelper from '../../../components/shared/SeverityHelper';
-import Tooltip from '../../../components/controls/Tooltip';
-import { activateRule, Profile as BaseProfile } from '../../../api/quality-profiles';
-import { Rule, RuleDetails, RuleActivation } from '../../../app/types';
+import { activateRule, Profile } from '../../../api/quality-profiles';
 import { SEVERITIES } from '../../../helpers/constants';
 import { translate } from '../../../helpers/l10n';
 import { sortProfiles } from '../../quality-profiles/utils';
+import { SubmitButton, ResetButtonLink } from '../../../components/ui/buttons';
+import { Alert } from '../../../components/ui/Alert';
 
 interface Props {
-  activation?: RuleActivation;
+  activation?: T.RuleActivation;
   modalHeader: string;
   onClose: () => void;
   onDone: (severity: string) => Promise<void>;
   organization: string | undefined;
-  profiles: BaseProfile[];
-  rule: Rule | RuleDetails;
-  updateMode?: boolean;
+  profiles: Profile[];
+  rule: T.Rule | T.RuleDetails;
 }
 
 interface State {
-  params: { [p: string]: string };
+  params: T.Dict<string>;
   profile: string;
   severity: string;
   submitting: boolean;
@@ -69,7 +68,7 @@ export default class ActivationFormModal extends React.PureComponent<Props, Stat
   }
 
   getParams = ({ activation, rule } = this.props) => {
-    const params: { [p: string]: string } = {};
+    const params: T.Dict<string> = {};
     if (rule && rule.params) {
       for (const param of rule.params) {
         params[param.key] = param.defaultValue || '';
@@ -84,8 +83,8 @@ export default class ActivationFormModal extends React.PureComponent<Props, Stat
   };
 
   // Choose QP which a user can administrate, which are the same language and which are not built-in
-  getQualityProfilesWithDepth = ({ profiles } = this.props) =>
-    sortProfiles(
+  getQualityProfilesWithDepth = ({ profiles } = this.props) => {
+    return sortProfiles(
       profiles.filter(
         profile =>
           !profile.isBuiltIn &&
@@ -98,11 +97,6 @@ export default class ActivationFormModal extends React.PureComponent<Props, Stat
       // Decrease depth by 1, so the top level starts at 0
       depth: profile.depth - 1
     }));
-
-  handleCancelClick = (event: React.SyntheticEvent<HTMLButtonElement>) => {
-    event.preventDefault();
-    event.currentTarget.blur();
-    this.props.onClose();
   };
 
   handleFormSubmit = (event: React.SyntheticEvent<HTMLFormElement>) => {
@@ -137,35 +131,38 @@ export default class ActivationFormModal extends React.PureComponent<Props, Stat
     this.setState((state: State) => ({ params: { ...state.params, [name]: value } }));
   };
 
-  handleProfileChange = ({ value }: { value: string }) => this.setState({ profile: value });
+  handleProfileChange = ({ value }: { value: string }) => {
+    this.setState({ profile: value });
+  };
 
-  handleSeverityChange = ({ value }: { value: string }) => this.setState({ severity: value });
+  handleSeverityChange = ({ value }: { value: string }) => {
+    this.setState({ severity: value });
+  };
 
-  renderSeverityOption = ({ value }: { value: string }) => <SeverityHelper severity={value} />;
+  renderSeverityOption = ({ value }: { value: string }) => {
+    return <SeverityHelper severity={value} />;
+  };
 
   render() {
     const { activation, rule } = this.props;
     const { profile, severity, submitting } = this.state;
     const { params = [] } = rule;
     const profilesWithDepth = this.getQualityProfilesWithDepth();
-    const isCustomRule = !!(rule as RuleDetails).templateKey;
+    const isCustomRule = !!(rule as T.RuleDetails).templateKey;
     const activeInAllProfiles = profilesWithDepth.length <= 0;
     const isUpdateMode = !!activation;
 
     return (
-      <Modal contentLabel={this.props.modalHeader} onRequestClose={this.props.onClose}>
+      <Modal contentLabel={this.props.modalHeader} onRequestClose={this.props.onClose} size="small">
         <form onSubmit={this.handleFormSubmit}>
           <div className="modal-head">
             <h2>{this.props.modalHeader}</h2>
           </div>
 
           <div className="modal-body">
-            {!isUpdateMode &&
-              activeInAllProfiles && (
-                <div className="alert alert-info">
-                  {translate('coding_rules.active_in_all_profiles')}
-                </div>
-              )}
+            {!isUpdateMode && activeInAllProfiles && (
+              <Alert variant="info">{translate('coding_rules.active_in_all_profiles')}</Alert>
+            )}
 
             <div className="modal-field">
               <label>{translate('coding_rules.quality_profile')}</label>
@@ -188,11 +185,11 @@ export default class ActivationFormModal extends React.PureComponent<Props, Stat
                 clearable={false}
                 disabled={submitting}
                 onChange={this.handleSeverityChange}
+                optionRenderer={this.renderSeverityOption}
                 options={SEVERITIES.map(severity => ({
                   label: translate('severity', severity),
                   value: severity
                 }))}
-                optionRenderer={this.renderSeverityOption}
                 searchable={false}
                 value={severity}
                 valueRenderer={this.renderSeverityOption}
@@ -205,12 +202,9 @@ export default class ActivationFormModal extends React.PureComponent<Props, Stat
             ) : (
               params.map(param => (
                 <div className="modal-field" key={param.key}>
-                  <Tooltip overlay={param.key} placement="left">
-                    <label>{param.key}</label>
-                  </Tooltip>
+                  <label title={param.key}>{param.key}</label>
                   {param.type === 'TEXT' ? (
                     <textarea
-                      className="width100"
                       disabled={submitting}
                       name={param.key}
                       onChange={this.handleParameterChange}
@@ -220,7 +214,6 @@ export default class ActivationFormModal extends React.PureComponent<Props, Stat
                     />
                   ) : (
                     <input
-                      className="input-super-large"
                       disabled={submitting}
                       name={param.key}
                       onChange={this.handleParameterChange}
@@ -233,7 +226,6 @@ export default class ActivationFormModal extends React.PureComponent<Props, Stat
                     className="note"
                     dangerouslySetInnerHTML={{ __html: param.htmlDesc || '' }}
                   />
-                  {param.extra && <div className="note">{param.extra}</div>}
                 </div>
               ))
             )}
@@ -241,16 +233,12 @@ export default class ActivationFormModal extends React.PureComponent<Props, Stat
 
           <footer className="modal-foot">
             {submitting && <i className="spinner spacer-right" />}
-            <button disabled={submitting || activeInAllProfiles} type="submit">
+            <SubmitButton disabled={submitting || activeInAllProfiles}>
               {isUpdateMode ? translate('save') : translate('coding_rules.activate')}
-            </button>
-            <button
-              className="button-link"
-              disabled={submitting}
-              onClick={this.handleCancelClick}
-              type="reset">
+            </SubmitButton>
+            <ResetButtonLink disabled={submitting} onClick={this.props.onClose}>
               {translate('cancel')}
-            </button>
+            </ResetButtonLink>
           </footer>
         </form>
       </Modal>

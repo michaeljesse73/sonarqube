@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,14 +19,15 @@
  */
 import * as React from 'react';
 import { getPermissionTemplates, bulkApplyTemplate } from '../../api/permissions';
-import { PermissionTemplate } from '../../app/types';
 import { translate, translateWithParameters } from '../../helpers/l10n';
-import AlertWarnIcon from '../../components/icons-components/AlertWarnIcon';
 import Modal from '../../components/controls/Modal';
 import Select from '../../components/controls/Select';
+import { Button, ResetButtonLink } from '../../components/ui/buttons';
+import { toNotSoISOString } from '../../helpers/dates';
+import { Alert } from '../../components/ui/Alert';
 
 export interface Props {
-  analyzedBefore?: string;
+  analyzedBefore: Date | undefined;
   onClose: () => void;
   organization: string;
   provisioned: boolean;
@@ -40,7 +41,7 @@ interface State {
   done: boolean;
   loading: boolean;
   permissionTemplate?: string;
-  permissionTemplates?: PermissionTemplate[];
+  permissionTemplates?: T.PermissionTemplate[];
   submitting: boolean;
 }
 
@@ -78,12 +79,8 @@ export default class BulkApplyTemplateModal extends React.PureComponent<Props, S
     );
   }
 
-  handleCancelClick = (event: React.SyntheticEvent<HTMLAnchorElement>) => {
-    event.preventDefault();
-    this.props.onClose();
-  };
-
   handleConfirmClick = () => {
+    const { analyzedBefore } = this.props;
     const { permissionTemplate } = this.state;
     if (permissionTemplate) {
       this.setState({ submitting: true });
@@ -94,7 +91,7 @@ export default class BulkApplyTemplateModal extends React.PureComponent<Props, S
             templateId: permissionTemplate
           }
         : {
-            analyzedBefore: this.props.analyzedBefore,
+            analyzedBefore: analyzedBefore && toNotSoISOString(analyzedBefore),
             onProvisionedOnly: this.props.provisioned || undefined,
             organization: this.props.organization,
             qualifiers: this.props.qualifier,
@@ -121,8 +118,7 @@ export default class BulkApplyTemplateModal extends React.PureComponent<Props, S
   };
 
   renderWarning = () => (
-    <div className="alert alert-warning modal-alert">
-      <AlertWarnIcon className="spacer-right" />
+    <Alert variant="warning">
       {this.props.selection.length
         ? translateWithParameters(
             'permission_templates.bulk_apply_permission_template.apply_to_selected',
@@ -132,7 +128,7 @@ export default class BulkApplyTemplateModal extends React.PureComponent<Props, S
             'permission_templates.bulk_apply_permission_template.apply_to_all',
             this.props.total
           )}
-    </div>
+    </Alert>
   );
 
   renderSelect = () => (
@@ -146,7 +142,6 @@ export default class BulkApplyTemplateModal extends React.PureComponent<Props, S
         disabled={this.state.submitting}
         onChange={this.handlePermissionTemplateChange}
         options={this.state.permissionTemplates!.map(t => ({ label: t.name, value: t.id }))}
-        searchable={false}
         value={this.state.permissionTemplate}
       />
     </div>
@@ -157,16 +152,14 @@ export default class BulkApplyTemplateModal extends React.PureComponent<Props, S
     const header = translate('permission_templates.bulk_apply_permission_template');
 
     return (
-      <Modal contentLabel={header} onRequestClose={this.props.onClose}>
+      <Modal contentLabel={header} onRequestClose={this.props.onClose} size="small">
         <header className="modal-head">
           <h2>{header}</h2>
         </header>
 
         <div className="modal-body">
           {done && (
-            <div className="alert alert-success">
-              {translate('projects_role.apply_template.success')}
-            </div>
+            <Alert variant="success">{translate('projects_role.apply_template.success')}</Alert>
           )}
 
           {loading && <i className="spinner" />}
@@ -177,16 +170,14 @@ export default class BulkApplyTemplateModal extends React.PureComponent<Props, S
 
         <footer className="modal-foot">
           {submitting && <i className="spinner spacer-right" />}
-          {!loading &&
-            !done &&
-            permissionTemplates && (
-              <button disabled={submitting} onClick={this.handleConfirmClick}>
-                {translate('apply')}
-              </button>
-            )}
-          <a className="js-modal-close" href="#" onClick={this.handleCancelClick}>
+          {!loading && !done && permissionTemplates && (
+            <Button disabled={submitting} onClick={this.handleConfirmClick}>
+              {translate('apply')}
+            </Button>
+          )}
+          <ResetButtonLink className="js-modal-close" onClick={this.props.onClose}>
             {done ? translate('close') : translate('cancel')}
-          </a>
+          </ResetButtonLink>
         </footer>
       </Modal>
     );

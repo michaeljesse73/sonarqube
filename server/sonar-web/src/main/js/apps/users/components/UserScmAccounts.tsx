@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -42,16 +42,16 @@ export default class UserScmAccounts extends React.PureComponent<Props, State> {
     const { scmAccounts } = this.props;
     const limit = scmAccounts.length > SCM_LIMIT ? SCM_LIMIT - 1 : SCM_LIMIT;
     return (
-      <ul>
+      <ul className="js-scm-accounts">
         {scmAccounts.slice(0, limit).map((scmAccount, idx) => (
-          <li key={idx} className="little-spacer-bottom">
+          <li className="little-spacer-bottom" key={idx}>
             {scmAccount}
           </li>
         ))}
         {scmAccounts.length > SCM_LIMIT &&
           (this.state.showMore ? (
             scmAccounts.slice(limit).map((scmAccount, idx) => (
-              <li key={idx + limit} className="little-spacer-bottom">
+              <li className="little-spacer-bottom" key={idx + limit}>
                 {scmAccount}
               </li>
             ))

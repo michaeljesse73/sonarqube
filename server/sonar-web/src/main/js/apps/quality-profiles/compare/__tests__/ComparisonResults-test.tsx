@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,17 +22,18 @@ import * as React from 'react';
 import { Link } from 'react-router';
 import ComparisonResults from '../ComparisonResults';
 import ComparisonEmpty from '../ComparisonEmpty';
-import SeverityIcon from '../../../../components/shared/SeverityIcon';
+import { Profile } from '../../../../api/quality-profiles';
 
 it('should render ComparisonEmpty', () => {
   const output = shallow(
     <ComparisonResults
-      left={{ name: 'left' }}
-      right={{ name: 'right' }}
       inLeft={[]}
       inRight={[]}
+      left={{ name: 'left' }}
+      leftProfile={{} as Profile}
       modified={[]}
-      organization={null}
+      refresh={jest.fn()}
+      right={{ name: 'right' }}
     />
   );
   expect(output.is(ComparisonEmpty)).toBe(true);
@@ -61,22 +62,26 @@ it('should compare', () => {
 
   const output = shallow(
     <ComparisonResults
-      left={{ name: 'left' }}
-      right={{ name: 'right' }}
       inLeft={inLeft}
       inRight={inRight}
+      left={{ name: 'left' }}
+      leftProfile={{} as Profile}
       modified={modified}
-      organization={null}
+      refresh={jest.fn()}
+      right={{ name: 'right' }}
     />
   );
 
   const leftDiffs = output.find('.js-comparison-in-left');
   expect(leftDiffs.length).toBe(1);
   expect(leftDiffs.find(Link).length).toBe(1);
-  expect(leftDiffs.find(Link).prop('to')).toHaveProperty('query', { rule_key: 'rule1' });
+  expect(leftDiffs.find(Link).prop('to')).toHaveProperty('query', {
+    rule_key: 'rule1',
+    open: 'rule1'
+  });
   expect(leftDiffs.find(Link).prop('children')).toContain('rule1');
-  expect(leftDiffs.find(SeverityIcon).length).toBe(1);
-  expect(leftDiffs.find(SeverityIcon).prop('severity')).toBe('BLOCKER');
+  expect(leftDiffs.find('SeverityIcon').length).toBe(1);
+  expect(leftDiffs.find('SeverityIcon').prop('severity')).toBe('BLOCKER');
 
   const rightDiffs = output.find('.js-comparison-in-right');
   expect(rightDiffs.length).toBe(2);
@@ -86,18 +91,18 @@ it('should compare', () => {
       .at(0)
       .find(Link)
       .prop('to')
-  ).toHaveProperty('query', { rule_key: 'rule2' });
+  ).toHaveProperty('query', { rule_key: 'rule2', open: 'rule2' });
   expect(
     rightDiffs
       .at(0)
       .find(Link)
       .prop('children')
   ).toContain('rule2');
-  expect(rightDiffs.at(0).find(SeverityIcon).length).toBe(1);
+  expect(rightDiffs.at(0).find('SeverityIcon').length).toBe(1);
   expect(
     rightDiffs
       .at(0)
-      .find(SeverityIcon)
+      .find('SeverityIcon')
       .prop('severity')
   ).toBe('CRITICAL');
 
@@ -108,14 +113,14 @@ it('should compare', () => {
       .find(Link)
       .at(0)
       .prop('to')
-  ).toHaveProperty('query', { rule_key: 'rule4' });
+  ).toHaveProperty('query', { rule_key: 'rule4', open: 'rule4' });
   expect(
     modifiedDiffs
       .find(Link)
       .at(0)
       .prop('children')
   ).toContain('rule4');
-  expect(modifiedDiffs.find(SeverityIcon).length).toBe(2);
+  expect(modifiedDiffs.find('SeverityIcon').length).toBe(2);
   expect(modifiedDiffs.text()).toContain('bar');
   expect(modifiedDiffs.text()).toContain('qwe');
 });

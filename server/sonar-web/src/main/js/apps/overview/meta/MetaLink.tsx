@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,12 +18,15 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import { isProvided, isClickable } from '../../project-admin/links/utils';
-import BugTrackerIcon from '../../../components/ui/BugTrackerIcon';
-import { ProjectLink } from '../../../api/projectLinks';
+import { getLinkName } from '../../projectLinks/utils';
+import ProjectLinkIcon from '../../../components/icons-components/ProjectLinkIcon';
+import isValidUri from '../../../app/utils/isValidUri';
+import ClearIcon from '../../../components/icons-components/ClearIcon';
+import './MetaLink.css';
 
 interface Props {
-  link: ProjectLink;
+  iconOnly?: boolean;
+  link: T.ProjectLink;
 }
 
 interface State {
@@ -31,53 +34,42 @@ interface State {
 }
 
 export default class MetaLink extends React.PureComponent<Props, State> {
-  state: State = { expanded: false };
-
-  handleClick = (e: React.SyntheticEvent<HTMLAnchorElement>) => {
-    e.preventDefault();
-    e.currentTarget.blur();
-    this.setState((s: State) => ({ expanded: !s.expanded }));
+  state = {
+    expanded: false
   };
 
-  handleInputClick = (e: React.SyntheticEvent<HTMLInputElement>) => {
-    e.currentTarget.select();
-  };
-
-  renderLinkIcon = (link: ProjectLink) => {
-    if (link.type === 'issue') {
-      return <BugTrackerIcon />;
-    }
-
-    return isProvided(link) ? (
-      <i className={`icon-color-link icon-${link.type}`} />
-    ) : (
-      <i className="icon-color-link icon-detach" />
-    );
+  handleClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    event.preventDefault();
+    this.setState(s => ({ expanded: !s.expanded }));
   };
 
   render() {
-    const { link } = this.props;
-
+    const { iconOnly, link } = this.props;
+    const linkTitle = getLinkName(link);
     return (
       <li>
         <a
           className="link-with-icon"
           href={link.url}
+          onClick={!isValidUri(link.url) ? this.handleClick : undefined}
+          rel="nofollow noreferrer noopener"
           target="_blank"
-          onClick={!isClickable(link) ? this.handleClick : undefined}>
-          {this.renderLinkIcon(link)}
-          &nbsp;
-          {link.name}
+          title={linkTitle}>
+          <ProjectLinkIcon className="little-spacer-right" type={link.type} />
+          {!iconOnly && linkTitle}
         </a>
         {this.state.expanded && (
-          <div className="little-spacer-top">
+          <div className="little-spacer-top copy-paste-link">
             <input
-              type="text"
               className="overview-key"
-              value={link.url}
+              onClick={(event: React.MouseEvent<HTMLInputElement>) => event.currentTarget.select()}
               readOnly={true}
-              onClick={this.handleInputClick}
+              type="text"
+              value={link.url}
             />
+            <a className="close" href="#" onClick={this.handleClick}>
+              <ClearIcon />
+            </a>
           </div>
         )}
       </li>

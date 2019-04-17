@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,9 +19,14 @@
  */
 package org.sonar.server.qualitygate.ws;
 
+import com.tngtech.java.junit.dataprovider.DataProvider;
+import com.tngtech.java.junit.dataprovider.DataProviderRunner;
+import com.tngtech.java.junit.dataprovider.UseDataProvider;
+import javax.annotation.Nullable;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.junit.runner.RunWith;
 import org.sonar.api.server.ws.WebService;
 import org.sonar.api.utils.System2;
 import org.sonar.core.util.UuidFactoryFast;
@@ -36,13 +41,14 @@ import org.sonar.db.qualitygate.QualityGateDto;
 import org.sonar.server.exceptions.ForbiddenException;
 import org.sonar.server.exceptions.NotFoundException;
 import org.sonar.server.organization.TestDefaultOrganizationProvider;
-import org.sonar.server.qualitygate.QualityGateFinder;
 import org.sonar.server.qualitygate.QualityGateUpdater;
 import org.sonar.server.tester.UserSessionRule;
+import org.sonar.server.ws.TestRequest;
 import org.sonar.server.ws.WsActionTester;
 import org.sonarqube.ws.Qualitygates.QualityGate;
 
 import static java.lang.String.format;
+import static java.util.Optional.ofNullable;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.tuple;
 import static org.sonar.db.permission.OrganizationPermission.ADMINISTER_QUALITY_GATES;
@@ -51,6 +57,7 @@ import static org.sonar.server.qualitygate.ws.QualityGatesWsParameters.PARAM_ID;
 import static org.sonar.server.qualitygate.ws.QualityGatesWsParameters.PARAM_NAME;
 import static org.sonar.server.qualitygate.ws.QualityGatesWsParameters.PARAM_ORGANIZATION;
 
+@RunWith(DataProviderRunner.class)
 public class CopyActionTest {
 
   @Rule
@@ -66,10 +73,9 @@ public class CopyActionTest {
   private DbSession dbSession = db.getSession();
   private TestDefaultOrganizationProvider defaultOrganizationProvider = TestDefaultOrganizationProvider.from(db);
   private QualityGateUpdater qualityGateUpdater = new QualityGateUpdater(dbClient, UuidFactoryFast.getInstance());
-  private QualityGateFinder qualityGateFinder = new QualityGateFinder(dbClient);
   private QualityGatesWsSupport wsSupport = new QualityGatesWsSupport(dbClient, userSession, defaultOrganizationProvider);
 
-  private CopyAction underTest = new CopyAction(dbClient, userSession, qualityGateUpdater, qualityGateFinder, wsSupport);
+  private CopyAction underTest = new CopyAction(dbClient, userSession, qualityGateUpdater, wsSupport);
   private WsActionTester ws = new WsActionTester(underTest);
 
   @Test
@@ -111,8 +117,8 @@ public class CopyActionTest {
     assertThat(actual.getUuid()).isNotEqualTo(qualityGate.getUuid());
 
     assertThat(db.getDbClient().gateConditionDao().selectForQualityGate(dbSession, qualityGate.getId()))
-      .extracting(c-> (int) c.getMetricId(), QualityGateConditionDto::getPeriod, QualityGateConditionDto::getWarningThreshold, QualityGateConditionDto::getErrorThreshold)
-      .containsExactlyInAnyOrder(tuple(metric.getId(), condition.getPeriod(), condition.getWarningThreshold(), condition.getErrorThreshold()));
+      .extracting(c-> (int) c.getMetricId(), QualityGateConditionDto::getErrorThreshold)
+      .containsExactlyInAnyOrder(tuple(metric.getId(), condition.getErrorThreshold()));
   }
 
   @Test
@@ -250,34 +256,31 @@ public class CopyActionTest {
   }
 
   @Test
-  public void fail_when_name_parameter_is_missing() {
+  @UseDataProvider("nullOrEmpty")
+  public void fail_when_name_parameter_is_missing(@Nullable String nameParameter) {
     OrganizationDto organization = db.organizations().insert();
     userSession.addPermission(ADMINISTER_QUALITY_GATES, organization);
     QualityGateDto qualityGate = db.qualityGates().insertQualityGate(organization);
+
+
+    TestRequest request = ws.newRequest()
+      .setParam(PARAM_ID, qualityGate.getId().toString())
+      .setParam(PARAM_ORGANIZATION, organization.getKey());
+    ofNullable(nameParameter).ifPresent(t -> request.setParam(PARAM_NAME, t));
 
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("The 'name' parameter is missing");
 
-    ws.newRequest()
-      .setParam(PARAM_ID, qualityGate.getId().toString())
-      .setParam(PARAM_ORGANIZATION, organization.getKey())
-      .execute();
+    request.execute();
   }
 
-  @Test
-  public void fail_when_name_parameter_is_empty() {
-    OrganizationDto organization = db.organizations().insert();
-    userSession.addPermission(ADMINISTER_QUALITY_GATES, organization);
-    QualityGateDto qualityGate = db.qualityGates().insertQualityGate(organization);
-
-    expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("The 'name' parameter is empty");
-
-    ws.newRequest()
-      .setParam(PARAM_ID, qualityGate.getId().toString())
-      .setParam(PARAM_NAME, "")
-      .setParam(PARAM_ORGANIZATION, organization.getKey())
-      .execute();
+  @DataProvider
+  public static Object[][] nullOrEmpty() {
+    return new Object[][] {
+      {null},
+      {""},
+      {"  "}
+    };
   }
 
   @Test

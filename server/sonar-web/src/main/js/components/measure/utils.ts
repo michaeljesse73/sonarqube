@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -17,20 +17,17 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import {
-  getRatingTooltip as nextGetRatingTooltip,
-  isDiffMetric,
-  Measure,
-  MeasureEnhanced
-} from '../../helpers/measures';
-import { Metric } from '../../app/types';
+import { getRatingTooltip as nextGetRatingTooltip, isDiffMetric } from '../../helpers/measures';
+import { getLeakPeriod } from '../../helpers/periods';
 
-const KNOWN_RATINGS = ['sqale_rating', 'reliability_rating', 'security_rating'];
+const KNOWN_RATINGS = [
+  'sqale_rating',
+  'maintainability_rating', // Needed to provide the label for "new_maintainability_rating"
+  'reliability_rating',
+  'security_rating'
+];
 
-export function enhanceMeasure(
-  measure: Measure,
-  metrics: { [key: string]: Metric }
-): MeasureEnhanced {
+export function enhanceMeasure(measure: T.Measure, metrics: T.Dict<T.Metric>): T.MeasureEnhanced {
   return {
     ...measure,
     metric: metrics[measure.metric],
@@ -38,11 +35,11 @@ export function enhanceMeasure(
   };
 }
 
-export function getLeakValue(measure: Measure | undefined): string | undefined {
+export function getLeakValue(measure: T.Measure | undefined): string | undefined {
   if (!measure || !measure.periods) {
     return undefined;
   }
-  const period = measure.periods.find(period => period.index === 1);
+  const period = getLeakPeriod(measure.periods);
   return period && period.value;
 }
 

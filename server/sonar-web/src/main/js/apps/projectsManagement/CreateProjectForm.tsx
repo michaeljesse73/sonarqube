@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,28 +20,28 @@
 import * as React from 'react';
 import { Link } from 'react-router';
 import { FormattedMessage } from 'react-intl';
-import { Organization } from '../../app/types';
-import UpgradeOrganizationBox from '../../components/common/UpgradeOrganizationBox';
-import VisibilitySelector from '../../components/common/VisibilitySelector';
 import { createProject } from '../../api/components';
+import UpgradeOrganizationBox from '../create/components/UpgradeOrganizationBox';
+import VisibilitySelector from '../../components/common/VisibilitySelector';
+import Modal from '../../components/controls/Modal';
+import { SubmitButton, ResetButtonLink } from '../../components/ui/buttons';
 import { translate } from '../../helpers/l10n';
 import { getProjectUrl } from '../../helpers/urls';
-import Modal from '../../components/controls/Modal';
+import { Alert } from '../../components/ui/Alert';
 
 interface Props {
   onClose: () => void;
   onProjectCreated: () => void;
-  organization: Organization;
+  onOrganizationUpgrade: () => void;
+  organization: T.Organization;
 }
 
 interface State {
-  advanced: boolean;
-  branch: string;
   createdProject?: { key: string; name: string };
   key: string;
   loading: boolean;
   name: string;
-  visibility: string;
+  visibility?: T.Visibility;
   // add index declaration to be able to do `this.setState({ [name]: value });`
   [x: string]: any;
 }
@@ -53,8 +53,6 @@ export default class CreateProjectForm extends React.PureComponent<Props, State>
   constructor(props: Props) {
     super(props);
     this.state = {
-      advanced: false,
-      branch: '',
       key: '',
       loading: false,
       name: '',
@@ -79,23 +77,12 @@ export default class CreateProjectForm extends React.PureComponent<Props, State>
     this.mounted = false;
   }
 
-  handleCancelClick = (event: React.SyntheticEvent<HTMLAnchorElement>) => {
-    event.preventDefault();
-    this.props.onClose();
-  };
-
-  handleAdvancedClick = (event: React.SyntheticEvent<HTMLAnchorElement>) => {
-    event.preventDefault();
-    event.currentTarget.blur();
-    this.setState(state => ({ advanced: !state.advanced }));
-  };
-
   handleInputChange = (event: React.SyntheticEvent<HTMLInputElement>) => {
     const { name, value } = event.currentTarget;
     this.setState({ [name]: value });
   };
 
-  handleVisibilityChange = (visibility: string) => {
+  handleVisibilityChange = (visibility: T.Visibility) => {
     this.setState({ visibility });
   };
 
@@ -104,7 +91,6 @@ export default class CreateProjectForm extends React.PureComponent<Props, State>
 
     const data = {
       name: this.state.name,
-      branch: this.state.branch,
       organization: this.props.organization && this.props.organization.key,
       project: this.state.key,
       visibility: this.state.visibility
@@ -139,7 +125,7 @@ export default class CreateProjectForm extends React.PureComponent<Props, State>
             </header>
 
             <div className="modal-body">
-              <div className="alert alert-success">
+              <Alert variant="success">
                 <FormattedMessage
                   defaultMessage={translate(
                     'projects_management.project_has_been_successfully_created'
@@ -151,17 +137,16 @@ export default class CreateProjectForm extends React.PureComponent<Props, State>
                     )
                   }}
                 />
-              </div>
+              </Alert>
             </div>
 
             <footer className="modal-foot">
-              <a
-                href="#"
+              <ResetButtonLink
                 id="create-project-close"
-                onClick={this.handleCancelClick}
-                ref={node => (this.closeButton = node)}>
+                innerRef={node => (this.closeButton = node)}
+                onClick={this.props.onClose}>
                 {translate('close')}
-              </a>
+              </ResetButtonLink>
             </footer>
           </div>
         ) : (
@@ -210,45 +195,29 @@ export default class CreateProjectForm extends React.PureComponent<Props, State>
                   onChange={this.handleVisibilityChange}
                   visibility={this.state.visibility}
                 />
-                {!organization.canUpdateProjectsVisibilityToPrivate && (
+              </div>
+              {organization.actions &&
+                organization.actions.admin &&
+                !organization.canUpdateProjectsVisibilityToPrivate && (
                   <div className="spacer-top">
-                    <UpgradeOrganizationBox organization={organization.key} />
+                    <UpgradeOrganizationBox
+                      className="width-100"
+                      insideModal={true}
+                      onOrganizationUpgrade={this.props.onOrganizationUpgrade}
+                      organization={organization}
+                    />
                   </div>
                 )}
-              </div>
-              {this.state.advanced ? (
-                <div className="modal-field big-spacer-top">
-                  <label htmlFor="create-project-branch">{translate('branch')}</label>
-                  <input
-                    autoFocus={true}
-                    id="create-project-branch"
-                    maxLength={200}
-                    name="branch"
-                    onChange={this.handleInputChange}
-                    type="text"
-                    value={this.state.branch}
-                  />
-                </div>
-              ) : (
-                <div className="modal-field big-spacer-top">
-                  <a
-                    className="js-more text-muted note"
-                    href="#"
-                    onClick={this.handleAdvancedClick}>
-                    {translate('more')}
-                  </a>
-                </div>
-              )}
             </div>
 
             <footer className="modal-foot">
               {this.state.loading && <i className="spinner spacer-right" />}
-              <button disabled={this.state.loading} id="create-project-submit" type="submit">
+              <SubmitButton disabled={this.state.loading} id="create-project-submit">
                 {translate('create')}
-              </button>
-              <a href="#" id="create-project-cancel" onClick={this.handleCancelClick}>
+              </SubmitButton>
+              <ResetButtonLink id="create-project-cancel" onClick={this.props.onClose}>
                 {translate('cancel')}
-              </a>
+              </ResetButtonLink>
             </footer>
           </form>
         )}

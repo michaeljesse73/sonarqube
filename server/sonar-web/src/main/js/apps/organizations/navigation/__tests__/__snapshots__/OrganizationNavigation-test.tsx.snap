@@ -5,25 +5,41 @@ exports[`render 1`] = `
   height={72}
   id="context-navigation"
 >
-  <Connect(OrganizationNavigationHeader)
-    organization={
-      Object {
-        "key": "foo",
-        "name": "Foo",
-        "projectVisibility": "public",
+  <div
+    className="navbar-context-justified"
+  >
+    <OrganizationNavigationHeader
+      currentUser={
+        Object {
+          "isLoggedIn": false,
+        }
       }
-    }
-  />
-  <Connect(OrganizationNavigationMeta)
-    organization={
-      Object {
-        "key": "foo",
-        "name": "Foo",
-        "projectVisibility": "public",
+      organization={
+        Object {
+          "key": "foo",
+          "name": "Foo",
+          "projectVisibility": "public",
+        }
       }
-    }
-  />
-  <OrganizationNavigationMenu
+      organizations={Array []}
+    />
+    <OrganizationNavigationMeta
+      currentUser={
+        Object {
+          "isLoggedIn": false,
+        }
+      }
+      organization={
+        Object {
+          "key": "foo",
+          "name": "Foo",
+          "projectVisibility": "public",
+        }
+      }
+      userOrganizations={Array []}
+    />
+  </div>
+  <Connect(OrganizationNavigationMenu)
     location={
       Object {
         "pathname": "/organizations/foo",

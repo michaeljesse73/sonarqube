@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -63,24 +63,6 @@
   height: 0;
   margin: 40px 0;
   border-top: 1px solid var(--barBorderColor);
-}
-
-.account-bar-chart .bar-chart-bar {
-  fill: var(--blue);
-}
-
-.account-bar-chart .bar-chart-tick {
-  fill: var(--secondFontColor);
-  font-size: var(--smallFontSize);
-  text-anchor: middle;
-}
-
-.account-bar-chart .histogram-tick {
-  text-anchor: end;
-}
-
-.account-bar-chart .histogram-value {
-  text-anchor: start;
 }
 
 .account-projects-list {

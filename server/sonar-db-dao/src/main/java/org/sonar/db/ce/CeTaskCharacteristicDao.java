@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,25 +21,31 @@ package org.sonar.db.ce;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 import org.sonar.db.Dao;
 import org.sonar.db.DbSession;
 
 import static org.sonar.db.DatabaseUtils.executeLargeInputs;
+import static org.sonar.db.DatabaseUtils.executeLargeUpdates;
 
 public class CeTaskCharacteristicDao implements Dao {
 
   public void insert(DbSession dbSession, Collection<CeTaskCharacteristicDto> characteristics) {
     for (CeTaskCharacteristicDto dto : characteristics) {
-      mapper(dbSession).insert(dto);
+      insert(dbSession, dto);
     }
   }
 
-  public List<CeTaskCharacteristicDto> selectByTaskUuid(DbSession dbSession, String taskUuid) {
-    return mapper(dbSession).selectByTaskUuid(taskUuid);
+  public void insert(DbSession dbSession, CeTaskCharacteristicDto dto) {
+    mapper(dbSession).insert(dto);
   }
 
-  public List<CeTaskCharacteristicDto> selectByTaskUuids(DbSession dbSession, List<String> taskUuids) {
+  public List<CeTaskCharacteristicDto> selectByTaskUuids(DbSession dbSession, Collection<String> taskUuids) {
     return executeLargeInputs(taskUuids, uuid -> mapper(dbSession).selectByTaskUuids(uuid));
+  }
+
+  public void deleteByTaskUuids(DbSession dbSession, Set<String> taskUuids) {
+    executeLargeUpdates(taskUuids, mapper(dbSession)::deleteByTaskUuids);
   }
 
   private static CeTaskCharacteristicMapper mapper(DbSession session) {

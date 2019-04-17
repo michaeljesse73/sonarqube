@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,18 +19,18 @@
  */
 package org.sonar.server.platform.web;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
-import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import org.apache.commons.io.IOUtils;
 import org.sonar.api.web.ServletFilter;
+import org.sonar.server.platform.Platform;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Locale.ENGLISH;
@@ -48,14 +48,26 @@ public class WebPagesFilter implements Filter {
   private static final String CACHE_CONTROL_HEADER = "Cache-Control";
   private static final String CACHE_CONTROL_VALUE = "no-cache, no-store, must-revalidate";
 
-  private static final String CONTEXT_PLACEHOLDER = "%WEB_CONTEXT%";
-
   private static final ServletFilter.UrlPattern URL_PATTERN = ServletFilter.UrlPattern
     .builder()
     .excludes(staticResourcePatterns())
     .build();
 
-  private String indexDotHtml;
+  private WebPagesCache webPagesCache;
+
+  public WebPagesFilter() {
+    this(Platform.getInstance().getContainer().getComponentByType(WebPagesCache.class));
+  }
+
+  @VisibleForTesting
+  WebPagesFilter(WebPagesCache webPagesCache) {
+    this.webPagesCache = webPagesCache;
+  }
+
+  @Override
+  public void init(FilterConfig filterConfig) {
+    webPagesCache.init(filterConfig.getServletContext());
+  }
 
   @Override
   public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
@@ -69,22 +81,9 @@ public class WebPagesFilter implements Filter {
     httpServletResponse.setContentType(HTML);
     httpServletResponse.setCharacterEncoding(UTF_8.name().toLowerCase(ENGLISH));
     httpServletResponse.setHeader(CACHE_CONTROL_HEADER, CACHE_CONTROL_VALUE);
-    write(indexDotHtml, httpServletResponse.getOutputStream(), UTF_8);
-  }
 
-  @Override
-  public void init(FilterConfig filterConfig) {
-    String context = filterConfig.getServletContext().getContextPath();
-    String indexFile = readIndexFile(filterConfig.getServletContext());
-    this.indexDotHtml = indexFile.replaceAll(CONTEXT_PLACEHOLDER, context);
-  }
-
-  private static String readIndexFile(ServletContext servletContext) {
-    try {
-      return IOUtils.toString(requireNonNull(servletContext.getResource("/index.html")), UTF_8);
-    } catch (Exception e) {
-      throw new IllegalStateException("Fail to provide index file", e);
-    }
+    String htmlContent = requireNonNull(webPagesCache.getContent(path));
+    write(htmlContent, httpServletResponse.getOutputStream(), UTF_8);
   }
 
   @Override

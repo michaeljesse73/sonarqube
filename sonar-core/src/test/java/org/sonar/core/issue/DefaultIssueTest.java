@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,7 +25,6 @@ import java.util.List;
 import org.apache.commons.lang.StringUtils;
 import org.junit.Test;
 import org.sonar.api.issue.Issue;
-import org.sonar.api.issue.IssueComment;
 import org.sonar.api.rule.RuleKey;
 import org.sonar.api.utils.Duration;
 
@@ -53,7 +52,7 @@ public class DefaultIssueTest {
       .setEffort(Duration.create(28800L))
       .setStatus(Issue.STATUS_CLOSED)
       .setResolution(Issue.RESOLUTION_FIXED)
-      .setAssignee("julien")
+      .setAssigneeUuid("julien")
       .setAuthorLogin("steph")
       .setChecksum("c7b5db46591806455cf082bb348631e8")
       .setNew(true)
@@ -110,7 +109,7 @@ public class DefaultIssueTest {
   }
 
   @Test
-  public void test_attributes() throws Exception {
+  public void test_attributes() {
     assertThat(issue.attribute("foo")).isNull();
     issue.setAttribute("foo", "bar");
     assertThat(issue.attribute("foo")).isEqualTo("bar");
@@ -171,7 +170,7 @@ public class DefaultIssueTest {
   }
 
   @Test
-  public void test_nullable_fields() throws Exception {
+  public void test_nullable_fields() {
     issue.setGap(null).setSeverity(null).setLine(null);
     assertThat(issue.gap()).isNull();
     assertThat(issue.severity()).isNull();
@@ -179,7 +178,7 @@ public class DefaultIssueTest {
   }
 
   @Test
-  public void test_equals_and_hashCode() throws Exception {
+  public void test_equals_and_hashCode() {
     DefaultIssue a1 = new DefaultIssue().setKey("AAA");
     DefaultIssue a2 = new DefaultIssue().setKey("AAA");
     DefaultIssue b = new DefaultIssue().setKey("BBB");
@@ -193,7 +192,7 @@ public class DefaultIssueTest {
   public void comments_should_not_be_modifiable() {
     DefaultIssue issue = new DefaultIssue().setKey("AAA");
 
-    List<IssueComment> comments = issue.comments();
+    List<DefaultIssueComment> comments = issue.defaultIssueComments();
     assertThat(comments).isEmpty();
 
     try {
@@ -212,5 +211,14 @@ public class DefaultIssueTest {
     DefaultIssue issue = new DefaultIssue().setKey("AAA").setFieldChange(issueChangeContext, "actionPlan", "1.0", "1.1");
 
     assertThat(issue.changes()).hasSize(1);
+  }
+
+  @Test
+  public void adding_null_change_has_no_effect() {
+    DefaultIssue issue = new DefaultIssue();
+
+    issue.addChange(null);
+
+    assertThat(issue.changes()).hasSize(0);
   }
 }

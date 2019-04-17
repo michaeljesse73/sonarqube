@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -32,6 +32,7 @@ public class MockUserSessionTest {
     MockUserSession mock = new MockUserSession("foo").setGroups(group);
 
     assertThat(mock.getLogin()).isEqualTo("foo");
+    assertThat(mock.getUuid()).isEqualTo("foouuid");
     assertThat(mock.getGroups()).extracting(GroupDto::getId).containsOnly(group.getId());
     assertThat(mock.isLoggedIn()).isTrue();
   }

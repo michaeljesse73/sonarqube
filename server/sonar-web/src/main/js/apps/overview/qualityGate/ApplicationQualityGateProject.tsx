@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,11 +24,10 @@ import { getLocalizedMetricName, translate } from '../../../helpers/l10n';
 import { formatMeasure, isDiffMetric } from '../../../helpers/measures';
 import { getProjectUrl } from '../../../helpers/urls';
 import './ApplicationQualityGateProject.css';
-import { Metric } from '../../../app/types';
 import { ApplicationProject, ConditionAnalysis } from '../../../api/quality-gates';
 
 interface Props {
-  metrics: { [key: string]: Metric };
+  metrics: T.Dict<T.Metric>;
   project: ApplicationProject;
 }
 
@@ -43,14 +42,16 @@ export default class ApplicationQualityGateProject extends React.PureComponent<P
       <li className={classNames({ 'is-on-leak': isDiff })} key={condition.metric}>
         <span className="text-limited">
           <strong>{formatMeasure(condition.value, metric.type)}</strong> {metricName}
-          {!isDiff && condition.onLeak && ' ' + translate('quality_gates.conditions.leak')}
+          {!isDiff && condition.onLeak && ' ' + translate('quality_gates.conditions.new_code')}
         </span>
         <span
           className={classNames('big-spacer-left', {
             'text-danger': condition.status === 'ERROR',
             'text-warning': condition.status === 'WARN'
           })}>
-          {translate('quality_gates.operator', condition.comparator, 'short')}{' '}
+          {metric.type === 'RATING'
+            ? translate('quality_gates.operator', condition.comparator, 'rating')
+            : translate('quality_gates.operator', condition.comparator)}{' '}
           {formatMeasure(threshold, metric.type)}
         </span>
       </li>

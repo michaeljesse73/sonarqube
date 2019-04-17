@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,16 +19,13 @@
  */
 import * as React from 'react';
 import CustomRuleFormModal from './CustomRuleFormModal';
-import { RuleDetails } from '../../../app/types';
 
 interface Props {
-  children: (
-    props: { onClick: (event: React.SyntheticEvent<HTMLButtonElement>) => void }
-  ) => React.ReactNode;
-  customRule?: RuleDetails;
-  onDone: (newRuleDetails: RuleDetails) => void;
+  children: (props: { onClick: () => void }) => React.ReactNode;
+  customRule?: T.RuleDetails;
+  onDone: (newRuleDetails: T.RuleDetails) => void;
   organization: string | undefined;
-  templateRule: RuleDetails;
+  templateRule: T.RuleDetails;
 }
 
 interface State {
@@ -47,9 +44,7 @@ export default class CustomRuleButton extends React.PureComponent<Props, State> 
     this.mounted = false;
   }
 
-  handleClick = (event: React.SyntheticEvent<HTMLButtonElement>) => {
-    event.preventDefault();
-    event.currentTarget.blur();
+  handleClick = () => {
     this.setState({ modal: true });
   };
 
@@ -59,7 +54,7 @@ export default class CustomRuleButton extends React.PureComponent<Props, State> 
     }
   };
 
-  handleDone = (newRuleDetails: RuleDetails) => {
+  handleDone = (newRuleDetails: T.RuleDetails) => {
     this.handleModalClose();
     this.props.onDone(newRuleDetails);
   };

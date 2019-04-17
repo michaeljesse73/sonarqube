@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,14 +20,15 @@
 package org.sonar.server.tester;
 
 import com.google.common.collect.HashMultimap;
+import com.google.common.collect.ImmutableSet;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import org.sonar.api.web.UserRole;
-import org.sonar.core.permission.ProjectPermissions;
 import org.sonar.db.component.ComponentDto;
+import org.sonar.db.organization.OrganizationDto;
 import org.sonar.db.permission.OrganizationPermission;
 import org.sonar.server.user.AbstractUserSession;
 
@@ -35,11 +36,14 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.Maps.newHashMap;
 
 public abstract class AbstractMockUserSession<T extends AbstractMockUserSession> extends AbstractUserSession {
+  private static final Set<String> PUBLIC_PERMISSIONS = ImmutableSet.of(UserRole.USER, UserRole.CODEVIEWER); // FIXME to check with Simon
+
   private final Class<T> clazz;
   private HashMultimap<String, String> projectUuidByPermission = HashMultimap.create();
   private final HashMultimap<String, OrganizationPermission> permissionsByOrganizationUuid = HashMultimap.create();
   private Map<String, String> projectUuidByComponentUuid = newHashMap();
-  private Set<String> projectPermissionsCheckedByUuid = new HashSet<>();
+  private Set<String> projectPermissions = new HashSet<>();
+  private Set<String> organizationMembership = new HashSet<>();
   private boolean systemAdministrator = false;
 
   protected AbstractMockUserSession(Class<T> clazz) {
@@ -66,8 +70,8 @@ public abstract class AbstractMockUserSession<T extends AbstractMockUserSession>
         if (component.projectUuid().equals(component.uuid()) && !component.isPrivate()) {
           this.projectUuidByPermission.put(UserRole.USER, component.uuid());
           this.projectUuidByPermission.put(UserRole.CODEVIEWER, component.uuid());
-          this.projectPermissionsCheckedByUuid.add(UserRole.USER);
-          this.projectPermissionsCheckedByUuid.add(UserRole.CODEVIEWER);
+          this.projectPermissions.add(UserRole.USER);
+          this.projectPermissions.add(UserRole.CODEVIEWER);
         }
         this.projectUuidByComponentUuid.put(component.uuid(), component.projectUuid());
       });
@@ -77,11 +81,11 @@ public abstract class AbstractMockUserSession<T extends AbstractMockUserSession>
   public T addProjectPermission(String permission, ComponentDto... components) {
     Arrays.stream(components).forEach(component -> {
       checkArgument(
-        component.isPrivate() || !ProjectPermissions.PUBLIC_PERMISSIONS.contains(permission),
+        component.isPrivate() || !PUBLIC_PERMISSIONS.contains(permission),
         "public component %s can't be granted public permission %s", component.uuid(), permission);
     });
     registerComponents(components);
-    this.projectPermissionsCheckedByUuid.add(permission);
+    this.projectPermissions.add(permission);
     Arrays.stream(components)
       .forEach(component -> this.projectUuidByPermission.put(permission, component.projectUuid()));
     return clazz.cast(this);
@@ -94,7 +98,7 @@ public abstract class AbstractMockUserSession<T extends AbstractMockUserSession>
 
   @Override
   protected boolean hasProjectUuidPermission(String permission, String projectUuid) {
-    return projectPermissionsCheckedByUuid.contains(permission) && projectUuidByPermission.get(permission).contains(projectUuid);
+    return projectPermissions.contains(permission) && projectUuidByPermission.get(permission).contains(projectUuid);
   }
 
   public T setSystemAdministrator(boolean b) {
@@ -106,4 +110,14 @@ public abstract class AbstractMockUserSession<T extends AbstractMockUserSession>
   public boolean isSystemAdministrator() {
     return isRoot() || systemAdministrator;
   }
+
+  @Override
+  protected boolean hasMembershipImpl(OrganizationDto organizationDto) {
+    return organizationMembership.contains(organizationDto.getUuid());
+  }
+
+  public void addOrganizationMembership(OrganizationDto organization) {
+    this.organizationMembership.add(organization.getUuid());
+  }
+
 }

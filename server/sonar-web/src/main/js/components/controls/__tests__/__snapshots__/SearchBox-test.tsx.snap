@@ -3,8 +3,10 @@
 exports[`renders 1`] = `
 <div
   className="search-box"
+  title=""
 >
   <input
+    aria-label="search_verb"
     autoComplete="off"
     className="search-box-input"
     maxLength={100}
@@ -14,9 +16,14 @@ exports[`renders 1`] = `
     type="search"
     value="foo"
   />
-  <SearchIcon
-    className="search-box-magnifier"
-  />
+  <DeferredSpinner
+    loading={false}
+    timeout={100}
+  >
+    <SearchIcon
+      className="search-box-magnifier"
+    />
+  </DeferredSpinner>
   <ButtonIcon
     className="button-tiny search-box-clear"
     color="#999"

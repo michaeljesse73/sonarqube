@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -91,6 +91,8 @@ public abstract class Profiler {
    * Context information is removed if value is <code>null</code>.
    */
   public abstract Profiler addContext(String key, @Nullable Object value);
+
+  public abstract boolean hasContext(String key);
 
   /**
    * Defines whether time is added to stop messages before or after context (if any).

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -30,7 +30,6 @@ import org.sonar.db.DbTester;
 import org.sonar.db.component.ComponentDto;
 import org.sonar.db.organization.OrganizationDto;
 import org.sonar.server.component.TestComponentFinder;
-import org.sonar.server.exceptions.BadRequestException;
 import org.sonar.server.exceptions.NotFoundException;
 import org.sonar.server.exceptions.UnauthorizedException;
 import org.sonar.server.favorite.FavoriteUpdater;
@@ -41,8 +40,8 @@ import org.sonar.server.ws.WsActionTester;
 
 import static java.lang.String.format;
 import static java.net.HttpURLConnection.HTTP_NO_CONTENT;
+import static java.util.Optional.ofNullable;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.sonar.core.util.Protobuf.setNullable;
 import static org.sonar.db.component.ComponentTesting.newFileDto;
 import static org.sonar.db.component.ComponentTesting.newPrivateProjectDto;
 import static org.sonar.server.favorite.ws.FavoritesWsParameters.PARAM_COMPONENT;
@@ -82,7 +81,7 @@ public class RemoveActionTest {
   public void fail_if_not_already_a_favorite() {
     insertProjectAndPermissions();
 
-    expectedException.expect(BadRequestException.class);
+    expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("Component '" + PROJECT_KEY + "' is not a favorite");
 
     call(PROJECT_KEY);
@@ -140,7 +139,7 @@ public class RemoveActionTest {
 
   private TestResponse call(@Nullable String componentKey) {
     TestRequest request = ws.newRequest();
-    setNullable(componentKey, c -> request.setParam(PARAM_COMPONENT, c));
+    ofNullable(componentKey).ifPresent(c -> request.setParam(PARAM_COMPONENT, c));
 
     return request.execute();
   }

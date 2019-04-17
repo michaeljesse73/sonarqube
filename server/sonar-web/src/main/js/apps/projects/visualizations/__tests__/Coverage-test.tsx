@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,5 +22,7 @@ import { shallow } from 'enzyme';
 import Coverage from '../Coverage';
 
 it('renders', () => {
-  expect(shallow(<Coverage displayOrganizations={false} projects={[]} />)).toMatchSnapshot();
+  expect(
+    shallow(<Coverage displayOrganizations={false} helpText="foobar" projects={[]} />)
+  ).toMatchSnapshot();
 });

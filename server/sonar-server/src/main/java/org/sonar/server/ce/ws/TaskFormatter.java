@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -40,14 +40,18 @@ import org.sonar.db.ce.CeQueueDto;
 import org.sonar.db.ce.CeTaskCharacteristicDto;
 import org.sonar.db.component.ComponentDto;
 import org.sonar.db.organization.OrganizationDto;
+import org.sonar.db.user.UserDto;
 import org.sonarqube.ws.Ce;
 import org.sonarqube.ws.Common;
 
 import static com.google.common.base.Preconditions.checkState;
 import static java.lang.String.format;
+import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
+import static java.util.Optional.ofNullable;
 import static org.sonar.api.utils.DateUtils.formatDateTime;
-import static org.sonar.core.util.Protobuf.setNullable;
+import static org.sonar.core.util.stream.MoreCollectors.toSet;
+import static org.sonar.core.util.stream.MoreCollectors.uniqueIndex;
 
 /**
  * Converts {@link CeActivityDto} and {@link CeQueueDto} to the protobuf objects
@@ -72,64 +76,63 @@ public class TaskFormatter {
     return formatQueue(queue, DtoCache.forQueueDtos(dbClient, dbSession, singletonList(queue)));
   }
 
-  private Ce.Task formatQueue(CeQueueDto dto, DtoCache componentDtoCache) {
+  private Ce.Task formatQueue(CeQueueDto dto, DtoCache cache) {
     Ce.Task.Builder builder = Ce.Task.newBuilder();
-    String organizationKey = componentDtoCache.getOrganizationKey(dto.getComponentUuid());
-    // FIXME organization field should be set from the CeQueueDto rather than from the ComponentDto
-    setNullable(organizationKey, builder::setOrganization);
+    String organizationKey = cache.getOrganizationKey(dto.getComponentUuid());
+    ofNullable(organizationKey).ifPresent(builder::setOrganization);
     if (dto.getComponentUuid() != null) {
       builder.setComponentId(dto.getComponentUuid());
-      setComponent(builder, dto.getComponentUuid(), componentDtoCache);
+      setComponent(builder, dto.getComponentUuid(), cache);
     }
     builder.setId(dto.getUuid());
     builder.setStatus(Ce.TaskStatus.valueOf(dto.getStatus().name()));
     builder.setType(dto.getTaskType());
     builder.setLogs(false);
-    setNullable(dto.getSubmitterLogin(), builder::setSubmitterLogin);
+    cache.getUser(dto.getSubmitterUuid()).ifPresent(user -> builder.setSubmitterLogin(user.getLogin()));
     builder.setSubmittedAt(formatDateTime(new Date(dto.getCreatedAt())));
-    setNullable(dto.getStartedAt(), builder::setStartedAt, DateUtils::formatDateTime);
-    setNullable(computeExecutionTimeMs(dto), builder::setExecutionTimeMs);
-    setBranch(builder, dto.getUuid(), componentDtoCache);
+    ofNullable(dto.getStartedAt()).map(DateUtils::formatDateTime).ifPresent(builder::setStartedAt);
+    ofNullable(computeExecutionTimeMs(dto)).ifPresent(builder::setExecutionTimeMs);
+    setBranchOrPullRequest(builder, dto.getUuid(), cache);
     return builder.build();
   }
 
-  public Ce.Task formatActivity(DbSession dbSession, CeActivityDto dto, @Nullable String scannerContext) {
-    return formatActivity(dto, DtoCache.forActivityDtos(dbClient, dbSession, singletonList(dto)), scannerContext);
+  public Ce.Task formatActivity(DbSession dbSession, CeActivityDto dto, @Nullable String scannerContext, List<String> warnings) {
+    return formatActivity(dto, DtoCache.forActivityDtos(dbClient, dbSession, singletonList(dto)), scannerContext, warnings);
   }
 
   public List<Ce.Task> formatActivity(DbSession dbSession, List<CeActivityDto> dtos) {
     DtoCache cache = DtoCache.forActivityDtos(dbClient, dbSession, dtos);
     return dtos.stream()
-      .map(input -> formatActivity(input, cache, null))
+      .map(input -> formatActivity(input, cache, null, emptyList()))
       .collect(MoreCollectors.toList(dtos.size()));
   }
 
-  private static Ce.Task formatActivity(CeActivityDto dto, DtoCache componentDtoCache, @Nullable String scannerContext) {
+  private static Ce.Task formatActivity(CeActivityDto dto, DtoCache cache, @Nullable String scannerContext, List<String> warnings) {
     Ce.Task.Builder builder = Ce.Task.newBuilder();
-    String organizationKey = componentDtoCache.getOrganizationKey(dto.getComponentUuid());
-    // FIXME organization field should be set from the CeActivityDto rather than from the ComponentDto
-    setNullable(organizationKey, builder::setOrganization);
+    String organizationKey = cache.getOrganizationKey(dto.getComponentUuid());
+    ofNullable(organizationKey).ifPresent(builder::setOrganization);
     builder.setId(dto.getUuid());
     builder.setStatus(Ce.TaskStatus.valueOf(dto.getStatus().name()));
     builder.setType(dto.getTaskType());
     builder.setLogs(false);
-    setNullable(dto.getComponentUuid(), uuid -> setComponent(builder, uuid, componentDtoCache).setComponentId(uuid));
+    ofNullable(dto.getComponentUuid()).ifPresent(uuid -> setComponent(builder, uuid, cache).setComponentId(uuid));
     String analysisUuid = dto.getAnalysisUuid();
-    if (analysisUuid != null) {
-      builder.setAnalysisId(analysisUuid);
-    }
-    setBranch(builder, dto.getUuid(), componentDtoCache);
-    setNullable(analysisUuid, builder::setAnalysisId);
-    setNullable(dto.getSubmitterLogin(), builder::setSubmitterLogin);
+    ofNullable(analysisUuid).ifPresent(builder::setAnalysisId);
+    setBranchOrPullRequest(builder, dto.getUuid(), cache);
+    ofNullable(analysisUuid).ifPresent(builder::setAnalysisId);
+    cache.getUser(dto.getSubmitterUuid()).ifPresent(user -> builder.setSubmitterLogin(user.getLogin()));
     builder.setSubmittedAt(formatDateTime(new Date(dto.getSubmittedAt())));
-    setNullable(dto.getStartedAt(), builder::setStartedAt, DateUtils::formatDateTime);
-    setNullable(dto.getExecutedAt(), builder::setExecutedAt, DateUtils::formatDateTime);
-    setNullable(dto.getExecutionTimeMs(), builder::setExecutionTimeMs);
-    setNullable(dto.getErrorMessage(), builder::setErrorMessage);
-    setNullable(dto.getErrorStacktrace(), builder::setErrorStacktrace);
-    setNullable(dto.getErrorType(), builder::setErrorType);
-    setNullable(scannerContext, builder::setScannerContext);
+    ofNullable(dto.getStartedAt()).map(DateUtils::formatDateTime).ifPresent(builder::setStartedAt);
+    ofNullable(dto.getExecutedAt()).map(DateUtils::formatDateTime).ifPresent(builder::setExecutedAt);
+    ofNullable(dto.getExecutionTimeMs()).ifPresent(builder::setExecutionTimeMs);
+    ofNullable(dto.getErrorMessage()).ifPresent(builder::setErrorMessage);
+    ofNullable(dto.getErrorStacktrace()).ifPresent(builder::setErrorStacktrace);
+    ofNullable(dto.getErrorType()).ifPresent(builder::setErrorType);
+    ofNullable(scannerContext).ifPresent(builder::setScannerContext);
     builder.setHasScannerContext(dto.isHasScannerContext());
+    builder.setWarningCount(dto.getWarningCount());
+    warnings.forEach(builder::addWarnings);
+
     return builder.build();
   }
 
@@ -144,13 +147,22 @@ public class TaskFormatter {
     return builder;
   }
 
-  private static Ce.Task.Builder setBranch(Ce.Task.Builder builder, String taskUuid, DtoCache componentDtoCache) {
-    componentDtoCache.getBranchName(taskUuid).ifPresent(
+  private static Ce.Task.Builder setBranchOrPullRequest(Ce.Task.Builder builder, String taskUuid, DtoCache componentDtoCache) {
+    componentDtoCache.getBranchKey(taskUuid).ifPresent(
       b -> {
-        builder.setBranch(b);
-        builder.setBranchType(componentDtoCache.getBranchType(taskUuid)
-          .orElseThrow(() -> new IllegalStateException(format("Could not find branch type of task '%s'", taskUuid))));
+        Common.BranchType branchType = componentDtoCache.getBranchType(taskUuid)
+          .orElseThrow(() -> new IllegalStateException(format("Could not find branch type of task '%s'", taskUuid)));
+        switch (branchType) {
+          case LONG:
+          case SHORT:
+            builder.setBranchType(branchType);
+            builder.setBranch(b);
+            break;
+          default:
+            throw new IllegalStateException(String.format("Unknown branch type '%s'", branchType));
+        }
       });
+    componentDtoCache.getPullRequest(taskUuid).ifPresent(builder::setPullRequest);
     return builder;
   }
 
@@ -158,50 +170,56 @@ public class TaskFormatter {
     private final Map<String, ComponentDto> componentsByUuid;
     private final Map<String, OrganizationDto> organizationsByUuid;
     private final Multimap<String, CeTaskCharacteristicDto> characteristicsByTaskUuid;
+    private final Map<String, UserDto> usersByUuid;
 
     private DtoCache(Map<String, ComponentDto> componentsByUuid, Map<String, OrganizationDto> organizationsByUuid,
-      Multimap<String, CeTaskCharacteristicDto> characteristicsByTaskUuid) {
+      Multimap<String, CeTaskCharacteristicDto> characteristicsByTaskUuid, Map<String, UserDto> usersByUuid) {
       this.componentsByUuid = componentsByUuid;
       this.organizationsByUuid = organizationsByUuid;
       this.characteristicsByTaskUuid = characteristicsByTaskUuid;
+      this.usersByUuid = usersByUuid;
     }
 
     static DtoCache forQueueDtos(DbClient dbClient, DbSession dbSession, Collection<CeQueueDto> ceQueueDtos) {
-      Map<String, ComponentDto> componentsByUuid = dbClient.componentDao().selectByUuids(dbSession, uuidOfCeQueueDtos(ceQueueDtos))
+      Map<String, ComponentDto> componentsByUuid = dbClient.componentDao().selectByUuids(dbSession, componentUuidsOfCeQueues(ceQueueDtos))
         .stream()
-        .collect(MoreCollectors.uniqueIndex(ComponentDto::uuid));
+        .collect(uniqueIndex(ComponentDto::uuid));
       Multimap<String, CeTaskCharacteristicDto> characteristicsByTaskUuid = dbClient.ceTaskCharacteristicsDao()
         .selectByTaskUuids(dbSession, ceQueueDtos.stream().map(CeQueueDto::getUuid).collect(Collectors.toList()))
         .stream().collect(MoreCollectors.index(CeTaskCharacteristicDto::getTaskUuid));
-      return new DtoCache(componentsByUuid, buildOrganizationsByUuid(dbClient, dbSession, componentsByUuid), characteristicsByTaskUuid);
+      Set<String> submitterUuids = ceQueueDtos.stream().map(CeQueueDto::getSubmitterUuid).filter(Objects::nonNull).collect(toSet());
+      Map<String, UserDto> usersByUuid = dbClient.userDao().selectByUuids(dbSession, submitterUuids).stream().collect(uniqueIndex(UserDto::getUuid));
+      return new DtoCache(componentsByUuid, buildOrganizationsByUuid(dbClient, dbSession, componentsByUuid), characteristicsByTaskUuid, usersByUuid);
     }
 
-    private static Set<String> uuidOfCeQueueDtos(Collection<CeQueueDto> ceQueueDtos) {
+    private static Set<String> componentUuidsOfCeQueues(Collection<CeQueueDto> ceQueueDtos) {
       return ceQueueDtos.stream()
         .filter(Objects::nonNull)
         .map(CeQueueDto::getComponentUuid)
         .filter(Objects::nonNull)
-        .collect(MoreCollectors.toSet(ceQueueDtos.size()));
+        .collect(toSet(ceQueueDtos.size()));
     }
 
     static DtoCache forActivityDtos(DbClient dbClient, DbSession dbSession, Collection<CeActivityDto> ceActivityDtos) {
       Map<String, ComponentDto> componentsByUuid = dbClient.componentDao().selectByUuids(
         dbSession,
-        uuidOfCeActivityDtos(ceActivityDtos))
+        getComponentUuidsOfCeActivities(ceActivityDtos))
         .stream()
-        .collect(MoreCollectors.uniqueIndex(ComponentDto::uuid));
+        .collect(uniqueIndex(ComponentDto::uuid));
       Multimap<String, CeTaskCharacteristicDto> characteristicsByTaskUuid = dbClient.ceTaskCharacteristicsDao()
         .selectByTaskUuids(dbSession, ceActivityDtos.stream().map(CeActivityDto::getUuid).collect(Collectors.toList()))
         .stream().collect(MoreCollectors.index(CeTaskCharacteristicDto::getTaskUuid));
-      return new DtoCache(componentsByUuid, buildOrganizationsByUuid(dbClient, dbSession, componentsByUuid), characteristicsByTaskUuid);
+      Set<String> submitterUuids = ceActivityDtos.stream().map(CeActivityDto::getSubmitterUuid).filter(Objects::nonNull).collect(toSet());
+      Map<String, UserDto> usersByUuid = dbClient.userDao().selectByUuids(dbSession, submitterUuids).stream().collect(uniqueIndex(UserDto::getUuid));
+      return new DtoCache(componentsByUuid, buildOrganizationsByUuid(dbClient, dbSession, componentsByUuid), characteristicsByTaskUuid, usersByUuid);
     }
 
-    private static Set<String> uuidOfCeActivityDtos(Collection<CeActivityDto> ceActivityDtos) {
+    private static Set<String> getComponentUuidsOfCeActivities(Collection<CeActivityDto> ceActivityDtos) {
       return ceActivityDtos.stream()
         .filter(Objects::nonNull)
         .map(CeActivityDto::getComponentUuid)
         .filter(Objects::nonNull)
-        .collect(MoreCollectors.toSet(ceActivityDtos.size()));
+        .collect(toSet(ceActivityDtos.size()));
     }
 
     private static Map<String, OrganizationDto> buildOrganizationsByUuid(DbClient dbClient, DbSession dbSession, Map<String, ComponentDto> componentsByUuid) {
@@ -209,9 +227,9 @@ public class TaskFormatter {
         dbSession,
         componentsByUuid.values().stream()
           .map(ComponentDto::getOrganizationUuid)
-          .collect(MoreCollectors.toSet(componentsByUuid.size())))
+          .collect(toSet(componentsByUuid.size())))
         .stream()
-        .collect(MoreCollectors.uniqueIndex(OrganizationDto::getUuid));
+        .collect(uniqueIndex(OrganizationDto::getUuid));
     }
 
     @CheckForNull
@@ -237,7 +255,7 @@ public class TaskFormatter {
       return organizationDto.getKey();
     }
 
-    Optional<String> getBranchName(String taskUuid) {
+    Optional<String> getBranchKey(String taskUuid) {
       return characteristicsByTaskUuid.get(taskUuid).stream()
         .filter(c -> c.getKey().equals(CeTaskCharacteristicDto.BRANCH_KEY))
         .map(CeTaskCharacteristicDto::getValue)
@@ -249,6 +267,20 @@ public class TaskFormatter {
         .filter(c -> c.getKey().equals(CeTaskCharacteristicDto.BRANCH_TYPE_KEY))
         .map(c -> Common.BranchType.valueOf(c.getValue()))
         .findAny();
+    }
+
+    Optional<String> getPullRequest(String taskUuid) {
+      return characteristicsByTaskUuid.get(taskUuid).stream()
+        .filter(c -> c.getKey().equals(CeTaskCharacteristicDto.PULL_REQUEST))
+        .map(CeTaskCharacteristicDto::getValue)
+        .findAny();
+    }
+
+    Optional<UserDto> getUser(@Nullable String userUuid) {
+      if (userUuid == null) {
+        return Optional.empty();
+      }
+      return Optional.ofNullable(usersByUuid.get(userUuid));
     }
   }
 

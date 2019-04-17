@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -66,11 +66,12 @@ public class NewUserTest {
       .setLogin("login")
       .setName("name")
       .setEmail("email")
-      .setExternalIdentity(new ExternalIdentity("github", "github_login"))
+      .setExternalIdentity(new ExternalIdentity("github", "github_login", "ABCD"))
       .build();
 
     assertThat(newUser.externalIdentity().getProvider()).isEqualTo("github");
-    assertThat(newUser.externalIdentity().getId()).isEqualTo("github_login");
+    assertThat(newUser.externalIdentity().getLogin()).isEqualTo("github_login");
+    assertThat(newUser.externalIdentity().getId()).isEqualTo("ABCD");
   }
 
   @Test
@@ -83,7 +84,7 @@ public class NewUserTest {
       .setName("name")
       .setEmail("email")
       .setPassword("password")
-      .setExternalIdentity(new ExternalIdentity("github", "github_login"))
+      .setExternalIdentity(new ExternalIdentity("github", "github_login", "ABCD"))
       .build();
   }
 }

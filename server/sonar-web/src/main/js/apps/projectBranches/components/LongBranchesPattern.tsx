@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,7 +19,7 @@
  */
 import * as React from 'react';
 import LongBranchesPatternForm from './LongBranchesPatternForm';
-import { getValues, SettingValue } from '../../../api/settings';
+import { getValues } from '../../../api/settings';
 import { EditButton } from '../../../components/ui/buttons';
 import { translate } from '../../../helpers/l10n';
 
@@ -29,7 +29,7 @@ interface Props {
 
 interface State {
   formOpen: boolean;
-  setting?: SettingValue;
+  setting?: T.SettingValue;
 }
 
 export const LONG_BRANCH_PATTERN = 'sonar.branch.longLivedBranches.regex';
@@ -48,7 +48,7 @@ export default class LongBranchesPattern extends React.PureComponent<Props, Stat
   }
 
   fetchSetting() {
-    return getValues(LONG_BRANCH_PATTERN, this.props.project).then(
+    return getValues({ keys: LONG_BRANCH_PATTERN, component: this.props.project }).then(
       settings => {
         if (this.mounted) {
           this.setState({ setting: settings[0] });
@@ -89,8 +89,8 @@ export default class LongBranchesPattern extends React.PureComponent<Props, Stat
         <EditButton className="button-small spacer-left" onClick={this.handleChangeClick} />
         {this.state.formOpen && (
           <LongBranchesPatternForm
-            onClose={this.closeForm}
             onChange={this.handleChange}
+            onClose={this.closeForm}
             project={this.props.project}
             setting={setting}
           />

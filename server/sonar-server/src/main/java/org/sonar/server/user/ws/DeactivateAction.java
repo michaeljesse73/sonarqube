@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -94,7 +94,7 @@ public class DeactivateAction implements UsersWsAction {
       ensureNotLastAdministrator(dbSession, user);
 
       Integer userId = user.getId();
-      dbClient.userTokenDao().deleteByLogin(dbSession, login);
+      dbClient.userTokenDao().deleteByUser(dbSession, user);
       dbClient.propertiesDao().deleteByKeyAndValue(dbSession, DEFAULT_ISSUE_ASSIGNEE, user.getLogin());
       dbClient.propertiesDao().deleteByQuery(dbSession, PropertyQuery.builder().setUserId(userId).build());
       dbClient.userGroupDao().deleteByUserId(dbSession, userId);
@@ -102,6 +102,7 @@ public class DeactivateAction implements UsersWsAction {
       dbClient.permissionTemplateDao().deleteUserPermissionsByUserId(dbSession, userId);
       dbClient.qProfileEditUsersDao().deleteByUser(dbSession, user);
       dbClient.organizationMemberDao().deleteByUserId(dbSession, userId);
+      dbClient.userPropertiesDao().deleteByUser(dbSession, user);
       dbClient.userDao().deactivateUser(dbSession, user);
       userIndexer.commitAndIndex(dbSession, user);
     }

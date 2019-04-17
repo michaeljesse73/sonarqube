@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -28,10 +28,14 @@ public class CeWsModule extends Module {
       CeWs.class,
       ActivityAction.class,
       ActivityStatusAction.class,
+      AnalysisStatusAction.class,
       CancelAction.class,
       CancelAllAction.class,
-      IsQueueEmptyWs.class,
       ComponentAction.class,
+      InfoAction.class,
+      IsQueueEmptyWs.class,
+      PauseAction.class,
+      ResumeAction.class,
       SubmitAction.class,
       TaskFormatter.class,
       TaskAction.class,

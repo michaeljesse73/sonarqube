@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,10 +19,14 @@
  */
 package org.sonar.ce;
 
+import com.hazelcast.spi.exception.RetryableHazelcastException;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.locks.Lock;
 import org.picocontainer.Startable;
+import org.sonar.api.utils.log.Logger;
+import org.sonar.api.utils.log.Loggers;
+import org.sonar.ce.taskprocessor.CeWorker;
 import org.sonar.ce.taskprocessor.CeWorkerFactory;
 import org.sonar.process.cluster.hz.HazelcastMember;
 import org.sonar.process.cluster.hz.HazelcastObjects;
@@ -34,16 +38,14 @@ import static org.sonar.process.cluster.hz.HazelcastObjects.WORKER_UUIDS;
  * Provide the set of worker's UUID in a clustered SonarQube instance
  */
 public class CeDistributedInformationImpl implements CeDistributedInformation, Startable {
+  private static final Logger LOGGER = Loggers.get(CeDistributedInformationImpl.class);
+
   private final HazelcastMember hazelcastMember;
   private final CeWorkerFactory ceCeWorkerFactory;
 
   public CeDistributedInformationImpl(HazelcastMember hazelcastMember, CeWorkerFactory ceCeWorkerFactory) {
     this.hazelcastMember = hazelcastMember;
     this.ceCeWorkerFactory = ceCeWorkerFactory;
-  }
-
-  public CeDistributedInformationImpl(CeWorkerFactory ceCeWorkerFactory) {
-    this(null, ceCeWorkerFactory);
   }
 
   @Override
@@ -59,7 +61,9 @@ public class CeDistributedInformationImpl implements CeDistributedInformation, S
 
   @Override
   public void broadcastWorkerUUIDs() {
-    getClusteredWorkerUUIDs().put(hazelcastMember.getUuid(), ceCeWorkerFactory.getWorkerUUIDs());
+    Set<CeWorker> workers = ceCeWorkerFactory.getWorkers();
+    Set<String> workerUuids = workers.stream().map(CeWorker::getUUID).collect(toSet(workers.size()));
+    getClusteredWorkerUUIDs().put(hazelcastMember.getUuid(), workerUuids);
   }
 
   @Override
@@ -74,8 +78,12 @@ public class CeDistributedInformationImpl implements CeDistributedInformation, S
 
   @Override
   public void stop() {
-    // Removing the worker UUIDs
-    getClusteredWorkerUUIDs().remove(hazelcastMember.getUuid());
+    try {
+      // Removing the worker UUIDs
+      getClusteredWorkerUUIDs().remove(hazelcastMember.getUuid());
+    } catch (RetryableHazelcastException e) {
+      LOGGER.debug("Unable to remove worker UUID from the list of active workers", e.getMessage());
+    }
   }
 
   private Map<String, Set<String>> getClusteredWorkerUUIDs() {

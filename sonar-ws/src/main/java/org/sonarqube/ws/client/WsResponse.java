@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,6 +22,7 @@ package org.sonarqube.ws.client;
 import java.io.Closeable;
 import java.io.InputStream;
 import java.io.Reader;
+import java.util.Optional;
 
 /**
  * @since 5.3
@@ -50,6 +51,8 @@ public interface WsResponse extends Closeable {
   WsResponse failIfNotSuccessful();
 
   String contentType();
+
+  Optional<String> header(String name);
 
   boolean hasContent();
 

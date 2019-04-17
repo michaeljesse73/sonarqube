@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,6 +22,7 @@ package org.sonar.server.tester;
 import com.google.common.base.Preconditions;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 import org.junit.rules.TestRule;
@@ -138,6 +139,16 @@ public class UserSessionRule implements TestRule, UserSession {
     return this;
   }
 
+  public UserSessionRule setExternalIdentity(IdentityProvider identityProvider, ExternalIdentity externalIdentity) {
+    ensureMockUserSession().setExternalIdentity(identityProvider, externalIdentity);
+    return this;
+  }
+
+  public UserSessionRule setInternalIdentity() {
+    ensureMockUserSession().setInternalIdentity();
+    return this;
+  }
+
   @Override
   public Statement apply(Statement statement, Description description) {
     return this.statement(statement);
@@ -247,6 +258,12 @@ public class UserSessionRule implements TestRule, UserSession {
 
   @Override
   @CheckForNull
+  public String getUuid() {
+    return currentUserSession.getUuid();
+  }
+
+  @Override
+  @CheckForNull
   public String getName() {
     return currentUserSession.getName();
   }
@@ -260,6 +277,21 @@ public class UserSessionRule implements TestRule, UserSession {
   @Override
   public Collection<GroupDto> getGroups() {
     return currentUserSession.getGroups();
+  }
+
+  @Override
+  public Optional<IdentityProvider> getIdentityProvider() {
+    return currentUserSession.getIdentityProvider();
+  }
+
+  @Override
+  public Optional<ExternalIdentity> getExternalIdentity() {
+    return currentUserSession.getExternalIdentity();
+  }
+
+  @Override
+  public Optional<String> getPersonalOrganizationUuid() {
+    return currentUserSession.getPersonalOrganizationUuid();
   }
 
   @Override
@@ -327,4 +359,21 @@ public class UserSessionRule implements TestRule, UserSession {
     currentUserSession.checkIsSystemAdministrator();
     return this;
   }
+
+  @Override
+  public boolean hasMembership(OrganizationDto organization) {
+    return currentUserSession.hasMembership(organization);
+  }
+
+  @Override
+  public UserSession checkMembership(OrganizationDto organization) {
+    currentUserSession.checkMembership(organization);
+    return this;
+  }
+
+  public UserSessionRule addMembership(OrganizationDto organization) {
+    ensureAbstractMockUserSession().addOrganizationMembership(organization);
+    return this;
+  }
+
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,11 +19,9 @@
  */
 /* eslint-disable import/order */
 import * as React from 'react';
-import { mount, shallow } from 'enzyme';
+import { shallow } from 'enzyme';
 import Stacktrace from '../Stacktrace';
 import { click } from '../../../../helpers/testUtils';
-
-jest.mock('react-dom');
 
 jest.mock('../../../../api/ce', () => ({
   getTask: jest.fn(() => Promise.resolve({ errorStacktrace: 'stacktrace' }))
@@ -33,9 +31,7 @@ const getTask = require('../../../../api/ce').getTask as jest.Mock<any>;
 
 const task = {
   componentName: 'foo',
-  status: 'PENDING',
   id: '123',
-  submittedAt: '2017-01-01',
   type: 'REPORT'
 };
 
@@ -57,7 +53,7 @@ it('closes', () => {
 });
 
 it('fetches scanner context on mount', async () => {
-  const wrapper = mount(<Stacktrace onClose={jest.fn()} task={task} />);
+  const wrapper = shallow(<Stacktrace onClose={jest.fn()} task={task} />);
   expect(wrapper.state()).toEqual({ loading: true });
   expect(getTask).toBeCalledWith('123', ['stacktrace']);
   await new Promise(setImmediate);

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -48,7 +48,7 @@ import { App } from '../App';
 const getMeasures = require('../../../../api/measures').getMeasures as jest.Mock<any>;
 const getChildren = require('../../../../api/components').getChildren as jest.Mock<any>;
 
-const component = { key: 'foo', name: 'Foo' };
+const component = { key: 'foo', name: 'Foo', qualifier: 'TRK' } as T.Component;
 
 it('renders', () => {
   const wrapper = shallow(<App component={component} fetchMetrics={jest.fn()} metrics={{}} />);
@@ -77,23 +77,11 @@ it('fetches measures and children components', () => {
   getMeasures.mockClear();
   getChildren.mockClear();
   mount(<App component={component} fetchMetrics={jest.fn()} metrics={{}} />);
-  expect(getMeasures).toBeCalledWith('foo', [
-    'projects',
-    'ncloc',
-    'ncloc_language_distribution',
-    'releasability_rating',
-    'releasability_effort',
-    'sqale_rating',
-    'maintainability_rating_effort',
-    'reliability_rating',
-    'reliability_rating_effort',
-    'security_rating',
-    'security_rating_effort',
-    'last_change_on_releasability_rating',
-    'last_change_on_maintainability_rating',
-    'last_change_on_security_rating',
-    'last_change_on_reliability_rating'
-  ]);
+  expect(getMeasures).toBeCalledWith({
+    component: 'foo',
+    metricKeys:
+      'projects,ncloc,ncloc_language_distribution,releasability_rating,releasability_effort,sqale_rating,maintainability_rating_effort,reliability_rating,reliability_rating_effort,security_rating,security_rating_effort,last_change_on_releasability_rating,last_change_on_maintainability_rating,last_change_on_security_rating,last_change_on_reliability_rating'
+  });
   expect(getChildren).toBeCalledWith(
     'foo',
     [

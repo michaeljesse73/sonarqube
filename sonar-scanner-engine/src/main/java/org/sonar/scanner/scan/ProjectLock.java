@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,15 +24,13 @@ import java.nio.channels.OverlappingFileLockException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.picocontainer.Startable;
-import org.sonar.api.batch.fs.internal.InputModuleHierarchy;
-import org.sonar.home.cache.DirectoryLock;
-import org.sonar.scanner.bootstrap.Slf4jLogger;
+import org.sonar.api.batch.fs.internal.AbstractProjectOrModule;
 
 public class ProjectLock implements Startable {
   private final DirectoryLock lock;
 
-  public ProjectLock(InputModuleHierarchy moduleHierarchy) {
-    Path directory = moduleHierarchy.root().getWorkDir();
+  public ProjectLock(AbstractProjectOrModule project) {
+    Path directory = project.getWorkDir();
     try {
       if (!directory.toFile().exists()) {
         Files.createDirectories(directory);
@@ -40,7 +38,7 @@ public class ProjectLock implements Startable {
     } catch (IOException e) {
       throw new IllegalStateException("Failed to create work directory", e);
     }
-    this.lock = new DirectoryLock(directory.toAbsolutePath(), new Slf4jLogger());
+    this.lock = new DirectoryLock(directory.toAbsolutePath());
   }
 
   public void tryLock() {

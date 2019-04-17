@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -108,7 +108,9 @@ class SearchHistoryResponseFactory {
       String measureValue = dbMetric.getKey().startsWith("new_")
         ? formatNumericalValue(dbMeasure.getVariation(), dbMetric)
         : formatMeasureValue(dbMeasure, dbMetric);
-      value.setValue(measureValue);
+      if (measureValue != null) {
+        value.setValue(measureValue);
+      }
     }
 
     return analysis;

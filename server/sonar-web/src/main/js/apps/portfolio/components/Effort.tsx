@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -39,7 +39,7 @@ export default function Effort({ component, effort, metricKey }: Props) {
         id="portfolio.x_in_y"
         values={{
           projects: (
-            <Link to={getComponentDrilldownUrl(component, metricKey)}>
+            <Link to={getComponentDrilldownUrl({ componentKey: component, metric: metricKey })}>
               <span>
                 <Measure
                   className="little-spacer-right"

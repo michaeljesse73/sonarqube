@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -26,7 +26,7 @@ import com.google.common.base.Strings;
 import java.util.List;
 import java.util.Set;
 
-import org.sonar.core.hash.SourceLinesHashesComputer;
+import org.sonar.core.hash.SourceLineHashesComputer;
 
 /**
  * Sequence of hash of lines for a given file
@@ -88,7 +88,7 @@ public class LineHashSequence {
   }
 
   public static LineHashSequence createForLines(List<String> lines) {
-    SourceLinesHashesComputer hashesComputer = new SourceLinesHashesComputer(lines.size());
+    SourceLineHashesComputer hashesComputer = new SourceLineHashesComputer(lines.size());
     for (String line : lines) {
       hashesComputer.addLine(line);
     }

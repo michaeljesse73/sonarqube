@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -41,7 +41,7 @@ class ProfilingStatementHandler implements InvocationHandler {
         result = InvocationUtils.invokeQuietly(statement, method, args);
       } finally {
         String sql = (String) args[0];
-        profiler.addContext("sql", SqlLogFormatter.formatSql(sql));
+        profiler.addContext("sql", SqlLogFormatter.reformatSql(sql));
         profiler.stopTrace("");
       }
       return result;

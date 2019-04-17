@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,7 +18,6 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import * as PropTypes from 'prop-types';
 import { Link } from 'react-router';
 import DeferredSpinner from '../../../components/common/DeferredSpinner';
 import Tooltip from '../../../components/controls/Tooltip';
@@ -26,15 +25,16 @@ import { getFacet } from '../../../api/issues';
 import { getIssuesUrl } from '../../../helpers/urls';
 import { formatMeasure } from '../../../helpers/measures';
 import { translate } from '../../../helpers/l10n';
+import { withAppState } from '../../../components/hoc/withAppState';
 
 interface Props {
+  appState: Pick<T.AppState, 'branchesEnabled'>;
   organization: string | undefined;
-  ruleKey: string;
+  ruleDetails: Pick<T.RuleDetails, 'key' | 'type'>;
 }
 
 interface Project {
   count: number;
-  id: string;
   key: string;
   name: string;
 }
@@ -45,13 +45,8 @@ interface State {
   total?: number;
 }
 
-export default class RuleDetailsIssues extends React.PureComponent<Props, State> {
+export class RuleDetailsIssues extends React.PureComponent<Props, State> {
   mounted = false;
-
-  static contextTypes = {
-    branchesEnabled: PropTypes.bool
-  };
-
   state: State = { loading: true };
 
   componentDidMount() {
@@ -60,7 +55,7 @@ export default class RuleDetailsIssues extends React.PureComponent<Props, State>
   }
 
   componentDidUpdate(prevProps: Props) {
-    if (prevProps.ruleKey !== this.props.ruleKey) {
+    if (prevProps.ruleDetails !== this.props.ruleDetails) {
       this.fetchIssues();
     }
   }
@@ -69,25 +64,29 @@ export default class RuleDetailsIssues extends React.PureComponent<Props, State>
     this.mounted = false;
   }
 
+  getBaseIssuesQuery = () => ({
+    resolved: 'false',
+    rules: this.props.ruleDetails.key,
+    types:
+      this.props.ruleDetails.type === 'SECURITY_HOTSPOT'
+        ? ['VULNERABILITY', 'SECURITY_HOTSPOT'].join()
+        : undefined
+  });
+
   fetchIssues = () => {
     this.setState({ loading: true });
     getFacet(
-      { organization: this.props.organization, rules: this.props.ruleKey, resolved: false },
-      'projectUuids'
+      { ...this.getBaseIssuesQuery(), organization: this.props.organization },
+      'projects'
     ).then(
       ({ facet, response }) => {
         if (this.mounted) {
           const { components = [], paging } = response;
           const projects = [];
           for (const item of facet) {
-            const project = components.find(component => component.uuid === item.val);
+            const project = components.find(component => component.key === item.val);
             if (project) {
-              projects.push({
-                count: item.count,
-                id: item.val,
-                key: project.key,
-                name: project.name
-              });
+              projects.push({ count: item.count, key: project.key, name: project.name });
             }
           }
           this.setState({ projects, loading: false, total: paging.total });
@@ -106,10 +105,7 @@ export default class RuleDetailsIssues extends React.PureComponent<Props, State>
     if (total === undefined) {
       return null;
     }
-    const path = getIssuesUrl(
-      { resolved: 'false', rules: this.props.ruleKey },
-      this.props.organization
-    );
+    const path = getIssuesUrl(this.getBaseIssuesQuery(), this.props.organization);
 
     const totalItem = (
       <span className="little-spacer-left">
@@ -119,20 +115,18 @@ export default class RuleDetailsIssues extends React.PureComponent<Props, State>
       </span>
     );
 
-    if (!this.context.branchesEnabled) {
+    if (!this.props.appState.branchesEnabled) {
       return totalItem;
     }
 
     return (
-      <Tooltip overlay={translate('coding_rules.issues.only_main_branches')} placement="right">
-        {totalItem}
-      </Tooltip>
+      <Tooltip overlay={translate('coding_rules.issues.only_main_branches')}>{totalItem}</Tooltip>
     );
   };
 
   renderProject = (project: Project) => {
     const path = getIssuesUrl(
-      { projectUuids: project.id, resolved: 'false', rules: this.props.ruleKey },
+      { ...this.getBaseIssuesQuery(), projects: project.key },
       this.props.organization
     );
     return (
@@ -175,3 +169,5 @@ export default class RuleDetailsIssues extends React.PureComponent<Props, State>
     );
   }
 }
+
+export default withAppState(RuleDetailsIssues);

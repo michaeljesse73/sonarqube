@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -34,6 +34,7 @@ public class ValuesRequest {
   private String branch;
   private String component;
   private List<String> keys;
+  private String pullRequest;
 
   /**
    * This is part of the internal API.
@@ -61,7 +62,7 @@ public class ValuesRequest {
   }
 
   /**
-   * Example value: "sonar.test.inclusions,sonar.dbcleaner.cleanDirectory"
+   * Example value: "sonar.test.inclusions,sonar.cpd.cross_project"
    */
   public ValuesRequest setKeys(List<String> keys) {
     this.keys = keys;
@@ -70,5 +71,18 @@ public class ValuesRequest {
 
   public List<String> getKeys() {
     return keys;
+  }
+
+  /**
+   * This is part of the internal API.
+   * Example value: "5461"
+   */
+  public ValuesRequest setPullRequest(String pullRequest) {
+    this.pullRequest = pullRequest;
+    return this;
+  }
+
+  public String getPullRequest() {
+    return pullRequest;
   }
 }

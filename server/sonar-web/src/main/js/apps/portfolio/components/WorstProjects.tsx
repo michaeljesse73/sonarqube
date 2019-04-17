@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,7 +22,7 @@ import { Link } from 'react-router';
 import { max } from 'lodash';
 import { SubComponent } from '../types';
 import Measure from '../../../components/measure/Measure';
-import QualifierIcon from '../../../components/shared/QualifierIcon';
+import QualifierIcon from '../../../components/icons-components/QualifierIcon';
 import { translate, translateWithParameters } from '../../../helpers/l10n';
 import { formatMeasure } from '../../../helpers/measures';
 import { getProjectUrl } from '../../../helpers/urls';
@@ -74,8 +74,8 @@ export default function WorstProjects({ component, subComponents, total }: Props
             <tr key={component.key}>
               <td>
                 <Link
-                  to={getProjectUrl(component.refKey || component.key)}
-                  className="link-with-icon">
+                  className="link-with-icon"
+                  to={getProjectUrl(component.refKey || component.key)}>
                   <QualifierIcon qualifier={component.qualifier} /> {component.name}
                 </Link>
               </td>
@@ -98,7 +98,7 @@ export default function WorstProjects({ component, subComponents, total }: Props
             formatMeasure(count, 'INT'),
             formatMeasure(total, 'INT')
           )}
-          <Link to={projectsPageUrl} className="spacer-left">
+          <Link className="spacer-left" to={projectsPageUrl}>
             {translate('show_more')}
           </Link>
         </footer>
@@ -107,7 +107,7 @@ export default function WorstProjects({ component, subComponents, total }: Props
   );
 }
 
-function renderCell(measures: { [key: string]: string | undefined }, metric: string, type: string) {
+function renderCell(measures: T.Dict<string | undefined>, metric: string, type: string) {
   return (
     <td className="text-center">
       <Measure metricKey={metric} metricType={type} value={measures[metric]} />
@@ -115,17 +115,17 @@ function renderCell(measures: { [key: string]: string | undefined }, metric: str
   );
 }
 
-function renderNcloc(measures: { [key: string]: string | undefined }, maxLoc: number) {
+function renderNcloc(measures: T.Dict<string | undefined>, maxLoc: number) {
   const ncloc = Number(measures['ncloc'] || 0);
-  const barWidth = maxLoc > 0 ? Math.max(1, Math.round(ncloc / maxLoc * 50)) : 0;
+  const barWidth = maxLoc > 0 ? Math.max(1, Math.round((ncloc / maxLoc) * 50)) : 0;
   return (
     <td className="text-right">
       <span className="note">
         <Measure metricKey="ncloc" metricType="SHORT_INT" value={measures['ncloc']} />
       </span>
       {maxLoc > 0 && (
-        <svg width="50" height="16" className="spacer-left">
-          <rect className="bar-chart-bar" x="0" y="3" width={barWidth} height="10" />
+        <svg className="spacer-left" height="16" width="50">
+          <rect className="bar-chart-bar" height="10" width={barWidth} x="0" y="3" />
         </svg>
       )}
     </td>

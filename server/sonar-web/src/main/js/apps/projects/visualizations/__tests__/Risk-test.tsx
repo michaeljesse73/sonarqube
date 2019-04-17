@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,14 +20,17 @@
 import * as React from 'react';
 import { shallow } from 'enzyme';
 import Risk from '../Risk';
+import { Project } from '../../types';
 
 it('renders', () => {
-  const project1 = {
+  const project1: Project = {
     key: 'foo',
     measures: { complexity: '17.2', coverage: '53.5', ncloc: '1734' },
     name: 'Foo',
     tags: [],
     visibility: 'public'
   };
-  expect(shallow(<Risk displayOrganizations={false} projects={[project1]} />)).toMatchSnapshot();
+  expect(
+    shallow(<Risk displayOrganizations={false} helpText="foobar" projects={[project1]} />)
+  ).toMatchSnapshot();
 });

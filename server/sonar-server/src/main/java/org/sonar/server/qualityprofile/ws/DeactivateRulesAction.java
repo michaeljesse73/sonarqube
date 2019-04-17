@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -28,17 +28,17 @@ import org.sonar.db.organization.OrganizationDto;
 import org.sonar.db.qualityprofile.QProfileDto;
 import org.sonar.server.qualityprofile.BulkChangeResult;
 import org.sonar.server.qualityprofile.QProfileRules;
+import org.sonar.server.rule.index.RuleQuery;
 import org.sonar.server.rule.ws.RuleQueryFactory;
 import org.sonar.server.user.UserSession;
 
 import static org.sonar.core.util.Uuids.UUID_EXAMPLE_04;
 import static org.sonar.server.qualityprofile.ws.BulkChangeWsResponse.writeResponse;
-import static org.sonar.server.rule.ws.SearchAction.defineRuleSearchParameters;
+import static org.sonar.server.rule.ws.RuleWsSupport.defineGenericRuleSearchParameters;
 import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.ACTION_DEACTIVATE_RULES;
 import static org.sonarqube.ws.client.qualityprofile.QualityProfileWsParameters.PARAM_TARGET_KEY;
 
 public class DeactivateRulesAction implements QProfileWsAction {
-  public static final String SEVERITY = "activation_severity";
 
   private final RuleQueryFactory ruleQueryFactory;
   private final UserSession userSession;
@@ -67,7 +67,7 @@ public class DeactivateRulesAction implements QProfileWsAction {
       .setSince("4.4")
       .setHandler(this);
 
-    defineRuleSearchParameters(deactivate);
+    defineGenericRuleSearchParameters(deactivate);
 
     deactivate.createParam(PARAM_TARGET_KEY)
       .setDescription("Quality Profile key on which the rule deactivation is done. To retrieve a profile key please see <code>api/qualityprofiles/search</code>")
@@ -85,7 +85,9 @@ public class DeactivateRulesAction implements QProfileWsAction {
       QProfileDto profile = wsSupport.getProfile(dbSession, QProfileReference.fromKey(qualityProfileKey));
       OrganizationDto organization = wsSupport.getOrganization(dbSession, profile);
       wsSupport.checkCanEdit(dbSession, organization, profile);
-      result = ruleActivator.bulkDeactivateAndCommit(dbSession, profile, ruleQueryFactory.createRuleQuery(dbSession, request));
+      RuleQuery ruleQuery = ruleQueryFactory.createRuleQuery(dbSession, request);
+      ruleQuery.setIncludeExternal(false);
+      result = ruleActivator.bulkDeactivateAndCommit(dbSession, profile, ruleQuery);
     }
     writeResponse(result, response);
   }

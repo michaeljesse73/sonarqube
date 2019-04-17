@@ -12,6 +12,11 @@ exports[`should display the sq version 1`] = `
     <li
       className="page-footer-menu-item"
     >
+      Enterprise Edition
+    </li>
+    <li
+      className="page-footer-menu-item"
+    >
       footer.version_x.6.4-SNAPSHOT
     </li>
     <li
@@ -157,6 +162,11 @@ exports[`should render the only logged in information 1`] = `
     <li
       className="page-footer-menu-item"
     >
+      Community Edition
+    </li>
+    <li
+      className="page-footer-menu-item"
+    >
       <a
         href="http://www.gnu.org/licenses/lgpl-3.0.txt"
       >
@@ -226,17 +236,20 @@ exports[`should render the only logged in information 1`] = `
 `;
 
 exports[`should show the db warning message 1`] = `
-<div
-  className="alert alert-danger"
+<Alert
+  display="inline"
+  id="evaluation_warning"
+  variant="warning"
 >
   <p
     className="big"
-    id="evaluation_warning"
   >
     footer.production_database_warning
   </p>
   <p>
-    footer.production_database_explanation
+    <InstanceMessage
+      message="footer.production_database_explanation"
+    />
   </p>
-</div>
+</Alert>
 `;

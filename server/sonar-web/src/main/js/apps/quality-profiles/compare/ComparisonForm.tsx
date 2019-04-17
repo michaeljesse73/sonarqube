@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -30,9 +30,9 @@ interface Props {
 }
 
 export default class ComparisonForm extends React.PureComponent<Props> {
-  handleChange(option: { value: string }) {
+  handleChange = (option: { value: string }) => {
     this.props.onCompare(option.value);
-  }
+  };
 
   render() {
     const { profile, profiles, withKey } = this.props;
@@ -44,12 +44,12 @@ export default class ComparisonForm extends React.PureComponent<Props> {
       <div className="display-inline-block">
         <label className="spacer-right">{translate('quality_profiles.compare_with')}</label>
         <Select
-          value={withKey}
+          className="input-large"
+          clearable={false}
+          onChange={this.handleChange}
           options={options}
           placeholder={translate('select_verb')}
-          clearable={false}
-          className="input-large"
-          onChange={this.handleChange.bind(this)}
+          value={withKey}
         />
       </div>
     );

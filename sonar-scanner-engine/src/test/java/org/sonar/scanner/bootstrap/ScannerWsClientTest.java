@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,6 +21,7 @@ package org.sonar.scanner.bootstrap;
 
 import java.util.Collections;
 import java.util.List;
+import org.apache.commons.lang.StringUtils;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -29,6 +30,7 @@ import org.sonar.api.utils.MessageException;
 import org.sonar.api.utils.log.LogTester;
 import org.sonar.api.utils.log.LoggerLevel;
 import org.sonarqube.ws.client.GetRequest;
+import org.sonarqube.ws.client.HttpException;
 import org.sonarqube.ws.client.MockWsResponse;
 import org.sonarqube.ws.client.WsClient;
 import org.sonarqube.ws.client.WsRequest;
@@ -49,13 +51,14 @@ public class ScannerWsClientTest {
   WsClient wsClient = mock(WsClient.class, Mockito.RETURNS_DEEP_STUBS);
 
   @Test
-  public void log_and_profile_request_if_debug_level() throws Exception {
+  public void log_and_profile_request_if_debug_level() {
     WsRequest request = newRequest();
     WsResponse response = newResponse().setRequestUrl("https://local/api/issues/search");
     when(wsClient.wsConnector().call(request)).thenReturn(response);
 
     logTester.setLevel(LoggerLevel.DEBUG);
-    ScannerWsClient underTest = new ScannerWsClient(wsClient, false, new GlobalAnalysisMode(new GlobalProperties(Collections.emptyMap())));
+    ScannerWsClient underTest = new ScannerWsClient(wsClient, false, new GlobalAnalysisMode(
+      new RawScannerProperties(Collections.emptyMap())));
 
     WsResponse result = underTest.call(request);
 
@@ -69,7 +72,25 @@ public class ScannerWsClientTest {
   }
 
   @Test
-  public void fail_if_requires_credentials() throws Exception {
+  public void create_error_msg_from_json() {
+    String content = "{\"errors\":[{\"msg\":\"missing scan permission\"}, {\"msg\":\"missing another permission\"}]}";
+    assertThat(ScannerWsClient.createErrorMessage(new HttpException("url", 400, content))).isEqualTo("missing scan permission, missing another permission");
+  }
+
+  @Test
+  public void create_error_msg_from_html() {
+    String content = "<!DOCTYPE html><html>something</html>";
+    assertThat(ScannerWsClient.createErrorMessage(new HttpException("url", 400, content))).isEqualTo("HTTP code 400");
+  }
+
+  @Test
+  public void create_error_msg_from_long_content() {
+    String content = StringUtils.repeat("mystring", 1000);
+    assertThat(ScannerWsClient.createErrorMessage(new HttpException("url", 400, content))).hasSize(15 + 128);
+  }
+
+  @Test
+  public void fail_if_requires_credentials() {
     expectedException.expect(MessageException.class);
     expectedException
       .expectMessage("Not authorized. Analyzing this project requires to be authenticated. Please provide the values of the properties sonar.login and sonar.password.");
@@ -78,11 +99,11 @@ public class ScannerWsClientTest {
     WsResponse response = newResponse().setCode(401);
     when(wsClient.wsConnector().call(request)).thenReturn(response);
 
-    new ScannerWsClient(wsClient, false, new GlobalAnalysisMode(new GlobalProperties(Collections.emptyMap()))).call(request);
+    new ScannerWsClient(wsClient, false, new GlobalAnalysisMode(new RawScannerProperties(Collections.emptyMap()))).call(request);
   }
 
   @Test
-  public void fail_if_credentials_are_not_valid() throws Exception {
+  public void fail_if_credentials_are_not_valid() {
     expectedException.expect(MessageException.class);
     expectedException.expectMessage("Not authorized. Please check the properties sonar.login and sonar.password.");
 
@@ -90,25 +111,24 @@ public class ScannerWsClientTest {
     WsResponse response = newResponse().setCode(401);
     when(wsClient.wsConnector().call(request)).thenReturn(response);
 
-    new ScannerWsClient(wsClient, /* credentials are configured */true, new GlobalAnalysisMode(new GlobalProperties(Collections.emptyMap()))).call(request);
+    new ScannerWsClient(wsClient, /* credentials are configured */true, new GlobalAnalysisMode(new RawScannerProperties(Collections.emptyMap()))).call(request);
   }
 
   @Test
-  public void fail_if_requires_permission() throws Exception {
+  public void fail_if_requires_permission() {
     expectedException.expect(MessageException.class);
-    expectedException.expectMessage("missing scan permission, missing another permission");
+    expectedException.expectMessage("You're not authorized to run analysis. Please contact the project administrator.");
 
     WsRequest request = newRequest();
     WsResponse response = newResponse()
-      .setCode(403)
-      .setContent("{\"errors\":[{\"msg\":\"missing scan permission\"}, {\"msg\":\"missing another permission\"}]}");
+      .setCode(403);
     when(wsClient.wsConnector().call(request)).thenReturn(response);
 
-    new ScannerWsClient(wsClient, true, new GlobalAnalysisMode(new GlobalProperties(Collections.emptyMap()))).call(request);
+    new ScannerWsClient(wsClient, true, new GlobalAnalysisMode(new RawScannerProperties(Collections.emptyMap()))).call(request);
   }
 
   @Test
-  public void fail_if_bad_request() throws Exception {
+  public void fail_if_bad_request() {
     expectedException.expect(MessageException.class);
     expectedException.expectMessage("Boo! bad request! bad!");
 
@@ -118,7 +138,7 @@ public class ScannerWsClientTest {
       .setContent("{\"errors\":[{\"msg\":\"Boo! bad request! bad!\"}]}");
     when(wsClient.wsConnector().call(request)).thenReturn(response);
 
-    new ScannerWsClient(wsClient, true, new GlobalAnalysisMode(new GlobalProperties(Collections.emptyMap()))).call(request);
+    new ScannerWsClient(wsClient, true, new GlobalAnalysisMode(new RawScannerProperties(Collections.emptyMap()))).call(request);
   }
 
   private MockWsResponse newResponse() {

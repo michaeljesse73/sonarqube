@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -56,32 +56,32 @@ public class CeCleaningSchedulerImpl implements CeCleaningScheduler {
     Lock ceCleaningJobLock = ceDistributedInformation.acquireCleanJobLock();
 
     // If we cannot lock that means that another job is running
-    // So we skip the cancelWornOuts() method
+    // So we skip resetting and cancelling tasks in queue
     if (ceCleaningJobLock.tryLock()) {
       try {
-        cancelWornOuts();
         resetTasksWithUnknownWorkerUUIDs();
+        cancelWornOuts();
       } finally {
         ceCleaningJobLock.unlock();
       }
     }
   }
 
-  private void cancelWornOuts() {
-    try {
-      LOG.debug("Deleting any worn out task");
-      internalCeQueue.cancelWornOuts();
-    } catch (Exception e) {
-      LOG.warn("Failed to cancel worn out tasks", e);
-    }
-  }
-
   private void resetTasksWithUnknownWorkerUUIDs() {
     try {
-      LOG.debug("Resetting state of tasks with unknown worker UUIDs");
+      LOG.trace("Resetting state of tasks with unknown worker UUIDs");
       internalCeQueue.resetTasksWithUnknownWorkerUUIDs(ceDistributedInformation.getWorkerUUIDs());
     } catch (Exception e) {
       LOG.warn("Failed to reset tasks with unknown worker UUIDs", e);
+    }
+  }
+
+  private void cancelWornOuts() {
+    try {
+      LOG.trace("Cancelling any worn out task");
+      internalCeQueue.cancelWornOuts();
+    } catch (Exception e) {
+      LOG.warn("Failed to cancel worn out tasks", e);
     }
   }
 }

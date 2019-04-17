@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,16 +24,27 @@ import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.session.ResultHandler;
+import org.sonar.db.component.BranchType;
+import org.sonar.db.component.KeyType;
 
 public interface LiveMeasureMapper {
 
   List<LiveMeasureDto> selectByComponentUuidsAndMetricIds(
-    @Param("componentUuids") List<String> componentUuids,
+    @Param("componentUuids") Collection<String> componentUuids,
     @Param("metricIds") Collection<Integer> metricIds);
 
   List<LiveMeasureDto> selectByComponentUuidsAndMetricKeys(
-    @Param("componentUuids") List<String> componentUuids,
+    @Param("componentUuids") Collection<String> componentUuids,
     @Param("metricKeys") Collection<String> metricKeys);
+
+  void scrollSelectByComponentUuidAndMetricKeys(
+    @Param("componentUuid") String componentUuid,
+    @Param("metricKeys") Collection<String> metricKeys,
+    ResultHandler<LiveMeasureDto> handler);
+
+  LiveMeasureDto selectByComponentUuidAndMetricKey(
+    @Param("componentUuid") String componentUuid,
+    @Param("metricKey") String metricKey);
 
   void selectTreeByQuery(
     @Param("query") MeasureTreeQuery measureQuery,
@@ -41,18 +52,28 @@ public interface LiveMeasureMapper {
     @Param("baseUuidPath") String baseUuidPath,
     ResultHandler<LiveMeasureDto> resultHandler);
 
+  Long sumNclocOfBiggestLongLivingBranch(
+    @Param("ncloc") String nclocKey,
+    @Param("branch") KeyType branchOrPullRequest,
+    @Param("branchType") BranchType branchType,
+    @Param("organizationUuid") String organizationUuid,
+    @Param("private") Boolean privateProject,
+    @Nullable @Param("projectUuidToExclude") String projectUuidToExclude);
+
   void insert(
     @Param("dto") LiveMeasureDto dto,
     @Param("uuid") String uuid,
-    @Nullable @Param("marker") String marker,
     @Param("now") long now);
 
   int update(
     @Param("dto") LiveMeasureDto dto,
-    @Nullable @Param("marker") String marker,
     @Param("now") long now);
 
-  void deleteByProjectUuidExcludingMarker(
-    @Param("projectUuid") String projectUuid,
-    @Param("marker") String marker);
+  int upsert(
+    @Param("dtos") List<LiveMeasureDto> dtos,
+    @Param("now") long now);
+
+  int deleteByComponentUuidExcludingMetricIds(
+    @Param("componentUuid") String componentUuid,
+    @Param("excludedMetricIds") List<Integer> excludedMetricIds);
 }

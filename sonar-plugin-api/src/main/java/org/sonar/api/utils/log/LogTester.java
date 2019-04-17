@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -96,6 +96,21 @@ public class LogTester extends ExternalResource {
    */
   public List<String> logs(LoggerLevel level) {
     return ((ListInterceptor) LogInterceptors.get()).logs(level);
+  }
+
+  /**
+   * Logs with arguments in chronological order (item at index 0 is the oldest one)
+   */
+  public List<LogAndArguments> getLogs() {
+    return ((ListInterceptor) LogInterceptors.get()).getLogs();
+  }
+
+  /**
+   * Logs with arguments in chronological order (item at index 0 is the oldest one) for
+   * a given level
+   */
+  public List<LogAndArguments> getLogs(LoggerLevel level) {
+    return ((ListInterceptor) LogInterceptors.get()).getLogs(level);
   }
 
   public LogTester clear() {

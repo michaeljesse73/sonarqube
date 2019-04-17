@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,26 +24,27 @@ import org.sonar.api.server.ws.Response;
 import org.sonar.api.server.ws.WebService;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
-import org.sonar.server.user.UserSession;
+import org.sonar.db.user.UserDto;
 
-import static org.sonar.server.usertoken.ws.UserTokensWsParameters.ACTION_REVOKE;
-import static org.sonar.server.usertoken.ws.UserTokensWsParameters.PARAM_LOGIN;
-import static org.sonar.server.usertoken.ws.UserTokensWsParameters.PARAM_NAME;
+import static org.sonar.server.usertoken.ws.UserTokenSupport.ACTION_REVOKE;
+import static org.sonar.server.usertoken.ws.UserTokenSupport.PARAM_LOGIN;
+import static org.sonar.server.usertoken.ws.UserTokenSupport.PARAM_NAME;
 
 public class RevokeAction implements UserTokensWsAction {
-  private final DbClient dbClient;
-  private final UserSession userSession;
 
-  public RevokeAction(DbClient dbClient, UserSession userSession) {
+  private final DbClient dbClient;
+  private final UserTokenSupport userTokenSupport;
+
+  public RevokeAction(DbClient dbClient, UserTokenSupport userTokenSupport) {
     this.dbClient = dbClient;
-    this.userSession = userSession;
+    this.userTokenSupport = userTokenSupport;
   }
 
   @Override
   public void define(WebService.NewController context) {
     WebService.NewAction action = context.createAction(ACTION_REVOKE)
-      .setDescription("Revoke a user access token. <br/>"+
-        "If the login is set, it requires administration permissions. Otherwise, a token is generated for the authenticated user.")
+      .setDescription("Revoke a user access token. <br/>" +
+        "It requires administration permissions to specify a 'login' and revoke a token for another user. Otherwise, the token for the current user is revoked.")
       .setSince("5.3")
       .setPost(true)
       .setHandler(this);
@@ -60,16 +61,10 @@ public class RevokeAction implements UserTokensWsAction {
 
   @Override
   public void handle(Request request, Response response) throws Exception {
-    String login = request.param(PARAM_LOGIN);
-    if (login == null) {
-      login = userSession.getLogin();
-    }
     String name = request.mandatoryParam(PARAM_NAME);
-
-    TokenPermissionsValidator.validate(userSession, login);
-
     try (DbSession dbSession = dbClient.openSession(false)) {
-      dbClient.userTokenDao().deleteByLoginAndName(dbSession, login, name);
+      UserDto user = userTokenSupport.getUser(dbSession, request);
+      dbClient.userTokenDao().deleteByUserAndName(dbSession, user, name);
       dbSession.commit();
     }
     response.noContent();

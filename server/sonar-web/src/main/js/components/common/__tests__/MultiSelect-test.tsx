@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,13 +24,18 @@ import MultiSelect from '../MultiSelect';
 const props = {
   selectedElements: ['bar'],
   elements: [],
-  onSearch: () => {},
+  onSearch: () => Promise.resolve(),
   onSelect: () => {},
   onUnselect: () => {},
+  renderLabel: (element: string) => element,
   placeholder: ''
 };
 
-const elements = ['foo', 'bar', 'baz'];
+const elements = [
+  { key: 'foo', label: 'foo' },
+  { key: 'bar', label: 'bar' },
+  { key: 'baz', label: 'baz' }
+];
 
 it('should render multiselect with selected elements', () => {
   const multiselect = shallow(<MultiSelect {...props} />);

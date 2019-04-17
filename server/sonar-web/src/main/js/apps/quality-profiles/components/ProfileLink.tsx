@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -32,8 +32,8 @@ interface Props {
 export default function ProfileLink({ name, language, organization, children, ...other }: Props) {
   return (
     <Link
-      to={getProfilePath(name, language, organization)}
       activeClassName="link-no-underline"
+      to={getProfilePath(name, language, organization)}
       {...other}>
       {children}
     </Link>

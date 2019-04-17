@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -28,7 +28,7 @@ import java.util.List;
 import org.apache.commons.dbutils.DbUtils;
 import org.sonar.db.Database;
 
-public class SelectImpl extends BaseSqlStatement<Select>implements Select {
+public class SelectImpl extends BaseSqlStatement<Select> implements Select {
 
   private SelectImpl(PreparedStatement pstmt) {
     super(pstmt);

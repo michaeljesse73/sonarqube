@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,9 +19,9 @@
  */
 package org.sonar.server.telemetry;
 
+import java.util.Locale;
 import org.sonar.api.utils.text.JsonWriter;
 
-import static org.sonar.api.measures.CoreMetrics.LINES_KEY;
 import static org.sonar.api.measures.CoreMetrics.NCLOC_KEY;
 
 public class TelemetryDataJsonWriter {
@@ -33,6 +33,8 @@ public class TelemetryDataJsonWriter {
     json.beginObject();
     json.prop("id", statistics.getServerId());
     json.prop("version", statistics.getVersion());
+    statistics.getEdition().ifPresent(e -> json.prop("edition", e.name().toLowerCase(Locale.ENGLISH)));
+    statistics.getLicenseType().ifPresent(e -> json.prop("licenseType", e));
     json.name("database");
     json.beginObject();
     json.prop("name", statistics.getDatabase().getName());
@@ -50,7 +52,6 @@ public class TelemetryDataJsonWriter {
     json.prop("userCount", statistics.getUserCount());
     json.prop("projectCount", statistics.getProjectCount());
     json.prop("usingBranches", statistics.isUsingBranches());
-    json.prop(LINES_KEY, statistics.getLines());
     json.prop(NCLOC_KEY, statistics.getNcloc());
     json.name("projectCountByLanguage");
     json.beginArray();

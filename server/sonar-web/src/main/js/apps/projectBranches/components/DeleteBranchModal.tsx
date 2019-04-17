@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,13 +18,14 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import { deleteBranch } from '../../../api/branches';
-import { Branch } from '../../../app/types';
+import { deleteBranch, deletePullRequest } from '../../../api/branches';
 import Modal from '../../../components/controls/Modal';
+import { SubmitButton, ResetButtonLink } from '../../../components/ui/buttons';
 import { translate, translateWithParameters } from '../../../helpers/l10n';
+import { isPullRequest, getBranchLikeDisplayName } from '../../../helpers/branches';
 
 interface Props {
-  branch: Branch;
+  branchLike: T.BranchLike;
   component: string;
   onClose: () => void;
   onDelete: () => void;
@@ -49,7 +50,16 @@ export default class DeleteBranchModal extends React.PureComponent<Props, State>
   handleSubmit = (event: React.SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
     this.setState({ loading: true });
-    deleteBranch(this.props.component, this.props.branch.name).then(
+    const request = isPullRequest(this.props.branchLike)
+      ? deletePullRequest({
+          project: this.props.component,
+          pullRequest: this.props.branchLike.key
+        })
+      : deleteBranch({
+          branch: this.props.branchLike.name,
+          project: this.props.component
+        });
+    request.then(
       () => {
         if (this.mounted) {
           this.setState({ loading: false });
@@ -64,14 +74,11 @@ export default class DeleteBranchModal extends React.PureComponent<Props, State>
     );
   };
 
-  handleCancelClick = (event: React.SyntheticEvent<HTMLAnchorElement>) => {
-    event.preventDefault();
-    this.props.onClose();
-  };
-
   render() {
-    const { branch } = this.props;
-    const header = translate('branches.delete');
+    const { branchLike } = this.props;
+    const header = translate(
+      isPullRequest(branchLike) ? 'branches.pull_request.delete' : 'branches.delete'
+    );
 
     return (
       <Modal contentLabel={header} onRequestClose={this.props.onClose}>
@@ -80,16 +87,19 @@ export default class DeleteBranchModal extends React.PureComponent<Props, State>
         </header>
         <form onSubmit={this.handleSubmit}>
           <div className="modal-body">
-            {translateWithParameters('branches.delete.are_you_sure', branch.name)}
+            {translateWithParameters(
+              isPullRequest(branchLike)
+                ? 'branches.pull_request.delete.are_you_sure'
+                : 'branches.delete.are_you_sure',
+              getBranchLikeDisplayName(branchLike)
+            )}
           </div>
           <footer className="modal-foot">
             {this.state.loading && <i className="spinner spacer-right" />}
-            <button className="button-red" disabled={this.state.loading} type="submit">
+            <SubmitButton className="button-red" disabled={this.state.loading}>
               {translate('delete')}
-            </button>
-            <a href="#" onClick={this.handleCancelClick}>
-              {translate('cancel')}
-            </a>
+            </SubmitButton>
+            <ResetButtonLink onClick={this.props.onClose}>{translate('cancel')}</ResetButtonLink>
           </footer>
         </form>
       </Modal>

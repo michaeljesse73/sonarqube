@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -27,6 +27,7 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.mockito.ArgumentCaptor;
 import org.sonar.api.config.internal.MapSettings;
+import org.sonar.api.server.ws.WebService;
 import org.sonar.api.utils.System2;
 import org.sonar.api.utils.internal.AlwaysIncreasingSystem2;
 import org.sonar.core.config.CorePropertyDefinitions;
@@ -34,17 +35,16 @@ import org.sonar.db.DbSession;
 import org.sonar.db.DbTester;
 import org.sonar.db.user.GroupDto;
 import org.sonar.db.user.UserDto;
+import org.sonar.server.authentication.CredentialsLocalAuthentication;
 import org.sonar.server.es.EsTester;
 import org.sonar.server.exceptions.ForbiddenException;
 import org.sonar.server.organization.DefaultOrganizationProvider;
-import org.sonar.server.organization.OrganizationCreation;
+import org.sonar.server.organization.OrganizationUpdater;
 import org.sonar.server.organization.TestDefaultOrganizationProvider;
 import org.sonar.server.organization.TestOrganizationFlags;
 import org.sonar.server.tester.UserSessionRule;
 import org.sonar.server.user.NewUserNotifier;
 import org.sonar.server.user.UserUpdater;
-import org.sonar.server.user.index.UserDoc;
-import org.sonar.server.user.index.UserIndex;
 import org.sonar.server.user.index.UserIndexDefinition;
 import org.sonar.server.user.index.UserIndexer;
 import org.sonar.server.user.ws.CreateAction.CreateRequest;
@@ -54,13 +54,20 @@ import org.sonar.server.ws.WsActionTester;
 import org.sonarqube.ws.Users.CreateWsResponse;
 import org.sonarqube.ws.Users.CreateWsResponse.User;
 
+import static java.lang.String.format;
 import static java.util.Collections.singletonList;
+import static java.util.Optional.ofNullable;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Matchers.any;
+import static org.elasticsearch.index.query.QueryBuilders.boolQuery;
+import static org.elasticsearch.index.query.QueryBuilders.termQuery;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
-import static org.sonar.core.util.Protobuf.setNullable;
 import static org.sonar.db.user.UserTesting.newUserDto;
+import static org.sonar.server.user.index.UserIndexDefinition.FIELD_EMAIL;
+import static org.sonar.server.user.index.UserIndexDefinition.FIELD_LOGIN;
+import static org.sonar.server.user.index.UserIndexDefinition.FIELD_NAME;
+import static org.sonar.server.user.index.UserIndexDefinition.FIELD_SCM_ACCOUNTS;
 
 public class CreateActionTest {
 
@@ -71,22 +78,22 @@ public class CreateActionTest {
   @Rule
   public DbTester db = DbTester.create(system2);
   @Rule
-  public EsTester esTester = new EsTester(new UserIndexDefinition(settings.asConfig()));
+  public EsTester es = EsTester.create();
   @Rule
   public UserSessionRule userSessionRule = UserSessionRule.standalone();
   @Rule
   public ExpectedException expectedException = ExpectedException.none();
 
-  private UserIndex index = new UserIndex(esTester.client(), System2.INSTANCE);
-  private UserIndexer userIndexer = new UserIndexer(db.getDbClient(), esTester.client());
+  private UserIndexer userIndexer = new UserIndexer(db.getDbClient(), es.client());
   private GroupDto defaultGroupInDefaultOrg;
   private DefaultOrganizationProvider defaultOrganizationProvider = TestDefaultOrganizationProvider.from(db);
   private TestOrganizationFlags organizationFlags = TestOrganizationFlags.standalone();
-  private OrganizationCreation organizationCreation = mock(OrganizationCreation.class);
+  private OrganizationUpdater organizationUpdater = mock(OrganizationUpdater.class);
+  private CredentialsLocalAuthentication localAuthentication = new CredentialsLocalAuthentication(db.getDbClient());
   private WsActionTester tester = new WsActionTester(new CreateAction(
     db.getDbClient(),
-    new UserUpdater(mock(NewUserNotifier.class), db.getDbClient(), userIndexer, organizationFlags, defaultOrganizationProvider,
-      organizationCreation, new DefaultGroupFinder(db.getDbClient()), settings.asConfig()),
+    new UserUpdater(system2, mock(NewUserNotifier.class), db.getDbClient(), userIndexer, organizationFlags, defaultOrganizationProvider,
+      organizationUpdater, new DefaultGroupFinder(db.getDbClient()), settings.asConfig(), localAuthentication),
     userSessionRule));
 
   @Before
@@ -110,11 +117,14 @@ public class CreateActionTest {
       .extracting(User::getLogin, User::getName, User::getEmail, User::getScmAccountsList, User::getLocal)
       .containsOnly("john", "John", "john@email.com", singletonList("jn"), true);
 
-    UserDoc user = index.getNullableByLogin("john");
-    assertThat(user.login()).isEqualTo("john");
-    assertThat(user.name()).isEqualTo("John");
-    assertThat(user.email()).isEqualTo("john@email.com");
-    assertThat(user.scmAccounts()).containsOnly("jn");
+    // exists in index
+    assertThat(es.client().prepareSearch(UserIndexDefinition.TYPE_USER)
+      .setQuery(boolQuery()
+        .must(termQuery(FIELD_LOGIN, "john"))
+        .must(termQuery(FIELD_NAME, "John"))
+        .must(termQuery(FIELD_EMAIL, "john@email.com"))
+        .must(termQuery(FIELD_SCM_ACCOUNTS, "jn")))
+      .get().getHits().getHits()).hasSize(1);
 
     // exists in db
     Optional<UserDto> dbUser = db.users().selectUserByLogin("john");
@@ -167,7 +177,7 @@ public class CreateActionTest {
       .build());
 
     assertThat(db.users().selectUserByLogin("john").get())
-      .extracting(UserDto::isLocal, UserDto::getExternalIdentityProvider, UserDto::getExternalIdentity, UserDto::isRoot)
+      .extracting(UserDto::isLocal, UserDto::getExternalIdentityProvider, UserDto::getExternalLogin, UserDto::isRoot)
       .containsOnly(true, "sonarqube", "john", false);
   }
 
@@ -182,7 +192,7 @@ public class CreateActionTest {
       .build());
 
     assertThat(db.users().selectUserByLogin("john").get())
-      .extracting(UserDto::isLocal, UserDto::getExternalIdentityProvider, UserDto::getExternalIdentity, UserDto::isRoot)
+      .extracting(UserDto::isLocal, UserDto::getExternalIdentityProvider, UserDto::getExternalLogin, UserDto::isRoot)
       .containsOnly(false, "sonarqube", "john", false);
   }
 
@@ -213,7 +223,7 @@ public class CreateActionTest {
       .build());
 
     assertThat(db.users().selectUserByLogin("john").get())
-      .extracting(UserDto::getExternalIdentity)
+      .extracting(UserDto::getExternalLogin)
       .containsOnly("john");
   }
 
@@ -264,6 +274,21 @@ public class CreateActionTest {
   }
 
   @Test
+  public void fail_to_reactivate_user_when_active_user_exists() {
+    logInAsSystemAdministrator();
+    UserDto user = db.users().insertUser();
+
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage(format("An active user with login '%s' already exists", user.getLogin()));
+
+    call(CreateRequest.builder()
+      .setLogin(user.getLogin())
+      .setName("John")
+      .setPassword("1234")
+      .build());
+  }
+
+  @Test
   public void fail_when_missing_login() {
     logInAsSystemAdministrator();
 
@@ -271,6 +296,19 @@ public class CreateActionTest {
     expectedException.expectMessage("Login is mandatory and must not be empty");
     call(CreateRequest.builder()
       .setLogin(null)
+      .setName("John")
+      .setPassword("1234")
+      .build());
+  }
+
+  @Test
+  public void fail_when_login_is_too_short() {
+    logInAsSystemAdministrator();
+
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("'login' length (1) is shorter than the minimum authorized (2)");
+    call(CreateRequest.builder()
+      .setLogin("a")
       .setName("John")
       .setPassword("1234")
       .build());
@@ -332,7 +370,7 @@ public class CreateActionTest {
   }
 
   @Test
-  public void throw_ForbiddenException_if_not_system_administrator() throws Exception {
+  public void throw_ForbiddenException_if_not_system_administrator() {
     userSessionRule.logIn().setNonSystemAdministrator();
 
     expectedException.expect(ForbiddenException.class);
@@ -342,8 +380,12 @@ public class CreateActionTest {
     executeRequest("john");
   }
 
-  private void setDefaultGroupProperty(GroupDto adminGroup) {
-    settings.setProperty("sonar.defaultGroup", adminGroup.getName());
+  @Test
+  public void test_definition() {
+    WebService.Action action = tester.getDef();
+    assertThat(action).isNotNull();
+    assertThat(action.isPost()).isTrue();
+    assertThat(action.params()).hasSize(7);
   }
 
   private CreateWsResponse executeRequest(String login) {
@@ -367,7 +409,7 @@ public class CreateActionTest {
     assertThat(dbUser).isPresent();
 
     ArgumentCaptor<UserDto> userCaptor = ArgumentCaptor.forClass(UserDto.class);
-    verify(organizationCreation).createForUser(any(DbSession.class), userCaptor.capture());
+    verify(organizationUpdater).createForUser(any(DbSession.class), userCaptor.capture());
     assertThat(userCaptor.getValue().getId()).isEqualTo(dbUser.get().getId());
   }
 
@@ -377,11 +419,11 @@ public class CreateActionTest {
 
   private CreateWsResponse call(CreateRequest createRequest) {
     TestRequest request = tester.newRequest();
-    setNullable(createRequest.getLogin(), e -> request.setParam("login", e));
-    setNullable(createRequest.getName(), e -> request.setParam("name", e));
-    setNullable(createRequest.getEmail(), e -> request.setParam("email", e));
-    setNullable(createRequest.getPassword(), e -> request.setParam("password", e));
-    setNullable(createRequest.getScmAccounts(), e -> request.setMultiParam("scmAccount", e));
+    ofNullable(createRequest.getLogin()).ifPresent(e4 -> request.setParam("login", e4));
+    ofNullable(createRequest.getName()).ifPresent(e3 -> request.setParam("name", e3));
+    ofNullable(createRequest.getEmail()).ifPresent(e2 -> request.setParam("email", e2));
+    ofNullable(createRequest.getPassword()).ifPresent(e1 -> request.setParam("password", e1));
+    ofNullable(createRequest.getScmAccounts()).ifPresent(e -> request.setMultiParam("scmAccount", e));
     request.setParam("local", createRequest.isLocal() ? "true" : "false");
     return request.executeProtobuf(CreateWsResponse.class);
   }

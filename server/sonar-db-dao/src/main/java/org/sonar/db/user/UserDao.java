@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,7 +22,6 @@ package org.sonar.db.user;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -32,26 +31,35 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import org.sonar.api.user.UserQuery;
 import org.sonar.api.utils.System2;
+import org.sonar.core.util.UuidFactory;
 import org.sonar.db.Dao;
 import org.sonar.db.DbSession;
-import org.sonar.db.RowNotFoundException;
 import org.sonar.db.component.ComponentDto;
 import org.sonar.db.organization.OrganizationDto;
 
+import static java.util.Locale.ENGLISH;
 import static org.sonar.db.DatabaseUtils.executeLargeInputs;
 import static org.sonar.db.DatabaseUtils.executeLargeInputsWithoutOutput;
+import static org.sonar.db.user.UserDto.SCM_ACCOUNTS_SEPARATOR;
 
 public class UserDao implements Dao {
 
   private final System2 system2;
+  private final UuidFactory uuidFactory;
 
-  public UserDao(System2 system2) {
+  public UserDao(System2 system2, UuidFactory uuidFactory) {
     this.system2 = system2;
+    this.uuidFactory = uuidFactory;
   }
 
   @CheckForNull
   public UserDto selectUserById(DbSession session, int userId) {
     return mapper(session).selectUser(userId);
+  }
+
+  @CheckForNull
+  public UserDto selectByUuid(DbSession session, String uuid) {
+    return mapper(session).selectByUuid(uuid);
   }
 
   /**
@@ -79,6 +87,14 @@ public class UserDao implements Dao {
   }
 
   /**
+   * Select users by uuids, including disabled users. An empty list is returned
+   * if list of uuids is empty, without any db round trips.
+   */
+  public List<UserDto> selectByUuids(DbSession session, Collection<String> uuids) {
+    return executeLargeInputs(uuids, mapper(session)::selectByUuids);
+  }
+
+  /**
    * Gets a list users by their logins. The result does NOT contain {@code null} values for users not found, so
    * the size of result may be less than the number of keys.
    * A single user is returned if input keys contain multiple occurrences of a key.
@@ -102,16 +118,12 @@ public class UserDao implements Dao {
 
   public UserDto insert(DbSession session, UserDto dto) {
     long now = system2.now();
-    mapper(session).insert(dto, now);
-    dto.setCreatedAt(now);
-    dto.setUpdatedAt(now);
+    mapper(session).insert(dto.setUuid(uuidFactory.create()).setCreatedAt(now).setUpdatedAt(now));
     return dto;
   }
 
   public UserDto update(DbSession session, UserDto dto) {
-    long now = system2.now();
-    mapper(session).update(dto, now);
-    dto.setUpdatedAt(now);
+    mapper(session).update(dto.setUpdatedAt(system2.now()));
     return dto;
   }
 
@@ -124,11 +136,15 @@ public class UserDao implements Dao {
   }
 
   public void cleanHomepage(DbSession dbSession, OrganizationDto organization) {
-    mapper(dbSession).clearHomepage("ORGANIZATION", organization.getUuid(), system2.now());
+    mapper(dbSession).clearHomepages("ORGANIZATION", organization.getUuid(), system2.now());
   }
 
   public void cleanHomepage(DbSession dbSession, ComponentDto project) {
-    mapper(dbSession).clearHomepage("PROJECT", project.uuid(), system2.now());
+    mapper(dbSession).clearHomepages("PROJECT", project.uuid(), system2.now());
+  }
+
+  public void cleanHomepage(DbSession dbSession, UserDto user) {
+    mapper(dbSession).clearHomepage(user.getLogin(), system2.now());
   }
 
   @CheckForNull
@@ -136,37 +152,42 @@ public class UserDao implements Dao {
     return mapper(session).selectByLogin(login);
   }
 
-  public UserDto selectOrFailByLogin(DbSession session, String login) {
-    UserDto user = selectByLogin(session, login);
-    if (user == null) {
-      throw new RowNotFoundException(String.format("User with login '%s' has not been found", login));
-    }
-    return user;
-  }
-
   public List<UserDto> selectByScmAccountOrLoginOrEmail(DbSession session, String scmAccountOrLoginOrEmail) {
     String like = new StringBuilder().append("%")
-      .append(UserDto.SCM_ACCOUNTS_SEPARATOR).append(scmAccountOrLoginOrEmail)
-      .append(UserDto.SCM_ACCOUNTS_SEPARATOR).append("%").toString();
+      .append(SCM_ACCOUNTS_SEPARATOR).append(scmAccountOrLoginOrEmail)
+      .append(SCM_ACCOUNTS_SEPARATOR).append("%").toString();
     return mapper(session).selectNullableByScmAccountOrLoginOrEmail(scmAccountOrLoginOrEmail, like);
   }
 
   /**
-   * Search for an active user with the given email exits in database
+   * Search for an active user with the given emailCaseInsensitive exits in database
    *
-   * Please note that email is case insensitive, result for searching 'mail@email.com' or 'Mail@Email.com' will be the same
+   * Select is case insensitive. Result for searching 'mail@emailCaseInsensitive.com' or 'Mail@Email.com' is the same
    */
-  @CheckForNull
-  public UserDto selectByEmail(DbSession dbSession, String email) {
-    return mapper(dbSession).selectByEmail(email.toLowerCase(Locale.ENGLISH));
+  public List<UserDto> selectByEmail(DbSession dbSession, String emailCaseInsensitive) {
+    return mapper(dbSession).selectByEmail(emailCaseInsensitive.toLowerCase(ENGLISH));
   }
 
-  public void scrollByLogins(DbSession dbSession, Collection<String> logins, Consumer<UserDto> consumer) {
+  @CheckForNull
+  public UserDto selectByExternalIdAndIdentityProvider(DbSession dbSession, String externalId, String externalIdentityProvider) {
+    return mapper(dbSession).selectByExternalIdAndIdentityProvider(externalId, externalIdentityProvider);
+  }
+
+  public List<UserDto> selectByExternalIdsAndIdentityProvider(DbSession dbSession, Collection<String> externalIds, String externalIdentityProvider) {
+    return executeLargeInputs(externalIds, e -> mapper(dbSession).selectByExternalIdsAndIdentityProvider(e, externalIdentityProvider));
+  }
+
+  @CheckForNull
+  public UserDto selectByExternalLoginAndIdentityProvider(DbSession dbSession, String externalLogin, String externalIdentityProvider) {
+    return mapper(dbSession).selectByExternalLoginAndIdentityProvider(externalLogin, externalIdentityProvider);
+  }
+
+  public void scrollByUuids(DbSession dbSession, Collection<String> uuids, Consumer<UserDto> consumer) {
     UserMapper mapper = mapper(dbSession);
 
-    executeLargeInputsWithoutOutput(logins,
-      pageOfLogins -> mapper
-        .selectByLogins(pageOfLogins)
+    executeLargeInputsWithoutOutput(uuids,
+      pageOfUuids -> mapper
+        .selectByUuids(pageOfUuids)
         .forEach(consumer));
   }
 

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -23,8 +23,11 @@ import { translate } from '../../../helpers/l10n';
 export default function ComponentsEmpty() {
   return (
     <tr>
-      <td colSpan={2}>{translate('no_results')}</td>
-      <td colSpan={6} />
+      <td />
+      <td className="note" colSpan={2}>
+        {translate('no_results')}
+      </td>
+      <td colSpan={10} />
     </tr>
   );
 }

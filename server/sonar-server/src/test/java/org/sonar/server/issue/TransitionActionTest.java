@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -42,6 +42,7 @@ import static java.util.Collections.emptyList;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.sonar.api.issue.Issue.STATUS_CLOSED;
 import static org.sonar.api.web.UserRole.ISSUE_ADMIN;
 import static org.sonar.db.component.ComponentTesting.newFileDto;
 import static org.sonar.db.issue.IssueTesting.newDto;
@@ -68,7 +69,7 @@ public class TransitionActionTest {
   public void setUp() throws Exception {
     workflow.start();
     when(context.issue()).thenReturn(issue);
-    when(context.issueChangeContext()).thenReturn(IssueChangeContext.createUser(new Date(), "john"));
+    when(context.issueChangeContext()).thenReturn(IssueChangeContext.createUser(new Date(), "user_uuid"));
   }
 
   @Test
@@ -86,11 +87,11 @@ public class TransitionActionTest {
   @Test
   public void does_not_execute_if_transition_is_not_available() {
     loginAndAddProjectPermission("john", ISSUE_ADMIN);
-    issue.setStatus(Issue.STATUS_CLOSED);
+    issue.setStatus(STATUS_CLOSED);
 
     action.execute(ImmutableMap.of("transition", "reopen"), context);
 
-    assertThat(issue.status()).isEqualTo(Issue.STATUS_CLOSED);
+    assertThat(issue.status()).isEqualTo(STATUS_CLOSED);
   }
 
   @Test

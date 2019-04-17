@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -34,18 +34,21 @@ import { Profile } from '../../../api/quality-profiles';
 
 interface Props {
   facets?: Facets;
+  hideProfileFacet?: boolean;
   onFacetToggle: (facet: FacetKey) => void;
   onFilterChange: (changes: Partial<Query>) => void;
   openFacets: OpenFacets;
   organization: string | undefined;
   organizationsEnabled?: boolean;
   query: Query;
-  referencedProfiles: { [profile: string]: Profile };
-  referencedRepositories: { [repository: string]: { key: string; language: string; name: string } };
+  referencedProfiles: T.Dict<Profile>;
+  referencedRepositories: T.Dict<{ key: string; language: string; name: string }>;
   selectedProfile?: Profile;
 }
 
 export default function FacetsList(props: Props) {
+  const languageDisabled = !props.hideProfileFacet && props.query.profile !== undefined;
+
   const inheritanceDisabled =
     props.query.compareToProfile !== undefined ||
     props.selectedProfile === undefined ||
@@ -55,10 +58,10 @@ export default function FacetsList(props: Props) {
     props.query.compareToProfile !== undefined ||
     props.selectedProfile === undefined ||
     !props.query.activation;
-
   return (
-    <div className="search-navigator-facets-list">
+    <>
       <LanguageFacet
+        disabled={languageDisabled}
         onChange={props.onFilterChange}
         onToggle={props.onFacetToggle}
         open={!!props.openFacets.languages}
@@ -75,8 +78,8 @@ export default function FacetsList(props: Props) {
       <TagFacet
         onChange={props.onFilterChange}
         onToggle={props.onFacetToggle}
-        organization={props.organization}
         open={!!props.openFacets.tags}
+        organization={props.organization}
         stats={props.facets && props.facets.tags}
         values={props.query.tags}
       />
@@ -84,8 +87,8 @@ export default function FacetsList(props: Props) {
         onChange={props.onFilterChange}
         onToggle={props.onFacetToggle}
         open={!!props.openFacets.repositories}
-        stats={props.facets && props.facets.repositories}
         referencedRepositories={props.referencedRepositories}
+        stats={props.facets && props.facets.repositories}
         values={props.query.repositories}
       />
       <DefaultSeverityFacet
@@ -116,31 +119,35 @@ export default function FacetsList(props: Props) {
           value={props.query.template}
         />
       )}
-      <ProfileFacet
-        activation={props.query.activation}
-        compareToProfile={props.query.compareToProfile}
-        languages={props.query.languages}
-        onChange={props.onFilterChange}
-        onToggle={props.onFacetToggle}
-        open={!!props.openFacets.profile}
-        referencedProfiles={props.referencedProfiles}
-        value={props.query.profile}
-      />
-      <InheritanceFacet
-        disabled={inheritanceDisabled}
-        onChange={props.onFilterChange}
-        onToggle={props.onFacetToggle}
-        open={!!props.openFacets.inheritance}
-        value={props.query.inheritance}
-      />
-      <ActivationSeverityFacet
-        disabled={activationSeverityDisabled}
-        onChange={props.onFilterChange}
-        onToggle={props.onFacetToggle}
-        open={!!props.openFacets.activationSeverities}
-        stats={props.facets && props.facets.activationSeverities}
-        values={props.query.activationSeverities}
-      />
-    </div>
+      {!props.hideProfileFacet && (
+        <>
+          <ProfileFacet
+            activation={props.query.activation}
+            compareToProfile={props.query.compareToProfile}
+            languages={props.query.languages}
+            onChange={props.onFilterChange}
+            onToggle={props.onFacetToggle}
+            open={!!props.openFacets.profile}
+            referencedProfiles={props.referencedProfiles}
+            value={props.query.profile}
+          />
+          <InheritanceFacet
+            disabled={inheritanceDisabled}
+            onChange={props.onFilterChange}
+            onToggle={props.onFacetToggle}
+            open={!!props.openFacets.inheritance}
+            value={props.query.inheritance}
+          />
+          <ActivationSeverityFacet
+            disabled={activationSeverityDisabled}
+            onChange={props.onFilterChange}
+            onToggle={props.onFacetToggle}
+            open={!!props.openFacets.activationSeverities}
+            stats={props.facets && props.facets.activationSeverities}
+            values={props.query.activationSeverities}
+          />
+        </>
+      )}
+    </>
   );
 }

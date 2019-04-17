@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,6 +24,7 @@ import com.google.common.base.Throwables;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
 import java.io.Writer;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
@@ -35,9 +36,7 @@ import javax.annotation.Nullable;
 import okhttp3.HttpUrl;
 import org.apache.commons.io.FileUtils;
 import org.picocontainer.Startable;
-import org.sonar.api.batch.ScannerSide;
 import org.sonar.api.batch.fs.internal.InputModuleHierarchy;
-import org.sonar.api.config.Configuration;
 import org.sonar.api.platform.Server;
 import org.sonar.api.utils.MessageException;
 import org.sonar.api.utils.TempFolder;
@@ -46,7 +45,9 @@ import org.sonar.api.utils.log.Logger;
 import org.sonar.api.utils.log.Loggers;
 import org.sonar.scanner.bootstrap.GlobalAnalysisMode;
 import org.sonar.scanner.bootstrap.ScannerWsClient;
+import org.sonar.scanner.protocol.output.ScannerReportReader;
 import org.sonar.scanner.protocol.output.ScannerReportWriter;
+import org.sonar.scanner.scan.ScanProperties;
 import org.sonar.scanner.scan.branch.BranchConfiguration;
 import org.sonarqube.ws.Ce;
 import org.sonarqube.ws.MediaTypes;
@@ -54,21 +55,23 @@ import org.sonarqube.ws.client.HttpException;
 import org.sonarqube.ws.client.PostRequest;
 import org.sonarqube.ws.client.WsResponse;
 
-import static org.sonar.core.config.ScannerProperties.BRANCH_NAME;
-import static org.sonar.core.config.ScannerProperties.ORGANIZATION;
+import static java.net.URLEncoder.encode;
+import static org.apache.commons.lang.StringUtils.EMPTY;
+import static org.apache.commons.lang.StringUtils.isBlank;
 import static org.sonar.core.util.FileUtils.deleteQuietly;
+import static org.sonar.scanner.scan.branch.BranchType.LONG;
+import static org.sonar.scanner.scan.branch.BranchType.PULL_REQUEST;
+import static org.sonar.scanner.scan.branch.BranchType.SHORT;
 
-@ScannerSide
 public class ReportPublisher implements Startable {
 
   private static final Logger LOG = Loggers.get(ReportPublisher.class);
-
-  public static final String KEEP_REPORT_PROP_KEY = "sonar.scanner.keepReport";
-  public static final String VERBOSE_KEY = "sonar.verbose";
-  public static final String METADATA_DUMP_FILENAME = "report-task.txt";
   private static final String CHARACTERISTIC = "characteristic";
+  private static final String DASHBOARD = "dashboard";
+  private static final String BRANCH = "branch";
+  private static final String ID = "id";
+  private static final String RESOLVED = "resolved";
 
-  private final Configuration settings;
   private final ScannerWsClient wsClient;
   private final AnalysisContextReportPublisher contextPublisher;
   private final InputModuleHierarchy moduleHierarchy;
@@ -77,13 +80,14 @@ public class ReportPublisher implements Startable {
   private final ReportPublisherStep[] publishers;
   private final Server server;
   private final BranchConfiguration branchConfiguration;
+  private final ScanProperties properties;
 
   private Path reportDir;
   private ScannerReportWriter writer;
+  private ScannerReportReader reader;
 
-  public ReportPublisher(Configuration settings, ScannerWsClient wsClient, Server server, AnalysisContextReportPublisher contextPublisher,
+  public ReportPublisher(ScanProperties properties, ScannerWsClient wsClient, Server server, AnalysisContextReportPublisher contextPublisher,
     InputModuleHierarchy moduleHierarchy, GlobalAnalysisMode analysisMode, TempFolder temp, ReportPublisherStep[] publishers, BranchConfiguration branchConfiguration) {
-    this.settings = settings;
     this.wsClient = wsClient;
     this.server = server;
     this.contextPublisher = contextPublisher;
@@ -92,15 +96,17 @@ public class ReportPublisher implements Startable {
     this.temp = temp;
     this.publishers = publishers;
     this.branchConfiguration = branchConfiguration;
+    this.properties = properties;
   }
 
   @Override
   public void start() {
     reportDir = moduleHierarchy.root().getWorkDir().resolve("scanner-report");
     writer = new ScannerReportWriter(reportDir.toFile());
+    reader = new ScannerReportReader(reportDir.toFile());
     contextPublisher.init(writer);
 
-    if (!analysisMode.isIssues() && !analysisMode.isMediumTest()) {
+    if (!analysisMode.isMediumTest()) {
       String publicUrl = server.getPublicRootUrl();
       if (HttpUrl.parse(publicUrl) == null) {
         throw MessageException.of("Failed to parse public URL set in SonarQube server: " + publicUrl);
@@ -110,7 +116,7 @@ public class ReportPublisher implements Startable {
 
   @Override
   public void stop() {
-    if (!shouldKeepReport()) {
+    if (!properties.shouldKeepReport()) {
       deleteQuietly(reportDir);
     }
   }
@@ -123,23 +129,20 @@ public class ReportPublisher implements Startable {
     return writer;
   }
 
-  public void execute() {
-    // If this is a issues mode analysis then we should not upload reports
-    String taskId = null;
-    if (!analysisMode.isIssues()) {
-      File report = generateReportFile();
-      if (shouldKeepReport()) {
-        LOG.info("Analysis report generated in " + reportDir);
-      }
-      if (!analysisMode.isMediumTest()) {
-        taskId = upload(report);
-      }
-    }
-    logSuccess(taskId);
+  public ScannerReportReader getReader() {
+    return reader;
   }
 
-  private boolean shouldKeepReport() {
-    return settings.getBoolean(KEEP_REPORT_PROP_KEY).orElse(false) || settings.getBoolean(VERBOSE_KEY).orElse(false);
+  public void execute() {
+    String taskId = null;
+    File report = generateReportFile();
+    if (properties.shouldKeepReport()) {
+      LOG.info("Analysis report generated in " + reportDir);
+    }
+    if (!analysisMode.isMediumTest()) {
+      taskId = upload(report);
+    }
+    logSuccess(taskId);
   }
 
   private File generateReportFile() {
@@ -155,7 +158,7 @@ public class ReportPublisher implements Startable {
       File reportZip = temp.newFile("scanner-report", ".zip");
       ZipUtils.zipDir(reportDir.toFile(), reportZip);
       stopTime = System.currentTimeMillis();
-      LOG.info("Analysis reports compressed in {}ms, zip size={}", stopTime - startTime, FileUtils.byteCountToDisplaySize(FileUtils.sizeOf(reportZip)));
+      LOG.info("Analysis report compressed in {}ms, zip size={}", stopTime - startTime, FileUtils.byteCountToDisplaySize(FileUtils.sizeOf(reportZip)));
       return reportZip;
     } catch (IOException e) {
       throw new IllegalStateException("Unable to prepare analysis report", e);
@@ -172,7 +175,7 @@ public class ReportPublisher implements Startable {
     PostRequest.Part filePart = new PostRequest.Part(MediaTypes.ZIP, report);
     PostRequest post = new PostRequest("api/ce/submit")
       .setMediaType(MediaTypes.PROTOBUF)
-      .setParam("organization", settings.get(ORGANIZATION).orElse(null))
+      .setParam("organization", properties.organizationKey().orElse(null))
       .setParam("projectKey", moduleHierarchy.root().key())
       .setParam("projectName", moduleHierarchy.root().getOriginalName())
       .setParam("projectBranch", moduleHierarchy.root().getBranch())
@@ -180,15 +183,19 @@ public class ReportPublisher implements Startable {
 
     String branchName = branchConfiguration.branchName();
     if (branchName != null) {
-      post.setParam(CHARACTERISTIC, "branch=" + branchName);
-      post.setParam(CHARACTERISTIC, "branchType=" + branchConfiguration.branchType().name());
+      if (branchConfiguration.branchType() != PULL_REQUEST) {
+        post.setParam(CHARACTERISTIC, "branch=" + branchName);
+        post.setParam(CHARACTERISTIC, "branchType=" + branchConfiguration.branchType().name());
+      } else {
+        post.setParam(CHARACTERISTIC, "pullRequest=" + branchConfiguration.pullRequestKey());
+      }
     }
 
     WsResponse response;
     try {
       response = wsClient.call(post).failIfNotSuccessful();
     } catch (HttpException e) {
-      throw MessageException.of(String.format("Failed to upload report - %d: %s", e.code(), ScannerWsClient.tryParseAsJsonError(e.content())));
+      throw MessageException.of(String.format("Failed to upload report - %s", ScannerWsClient.createErrorMessage(e)));
     }
 
     try (InputStream protobuf = response.contentStream()) {
@@ -206,26 +213,21 @@ public class ReportPublisher implements Startable {
     if (taskId == null) {
       LOG.info("ANALYSIS SUCCESSFUL");
     } else {
-      String publicUrl = server.getPublicRootUrl();
-      HttpUrl httpUrl = HttpUrl.parse(publicUrl);
 
       Map<String, String> metadata = new LinkedHashMap<>();
       String effectiveKey = moduleHierarchy.root().getKeyWithBranch();
-      settings.get(ORGANIZATION).ifPresent(org -> metadata.put("organization", org));
+      properties.organizationKey().ifPresent(org -> metadata.put("organization", org));
       metadata.put("projectKey", effectiveKey);
-      metadata.put("serverUrl", publicUrl);
+      metadata.put("serverUrl", server.getPublicRootUrl());
       metadata.put("serverVersion", server.getVersion());
-      settings.get(BRANCH_NAME).ifPresent(branch -> metadata.put("branch", branch));
+      properties.branch().ifPresent(branch -> metadata.put("branch", branch));
 
-      URL dashboardUrl = httpUrl.newBuilder()
-        .addPathSegment("dashboard").addPathSegment("index").addPathSegment(effectiveKey)
-        .build()
-        .url();
+      URL dashboardUrl = buildDashboardUrl(server.getPublicRootUrl(), effectiveKey);
       metadata.put("dashboardUrl", dashboardUrl.toExternalForm());
 
-      URL taskUrl = HttpUrl.parse(publicUrl).newBuilder()
+      URL taskUrl = HttpUrl.parse(server.getPublicRootUrl()).newBuilder()
         .addPathSegment("api").addPathSegment("ce").addPathSegment("task")
-        .addQueryParameter("id", taskId)
+        .addQueryParameter(ID, taskId)
         .build()
         .url();
       metadata.put("ceTaskId", taskId);
@@ -239,14 +241,86 @@ public class ReportPublisher implements Startable {
     }
   }
 
+  private URL buildDashboardUrl(String publicUrl, String effectiveKey) {
+    HttpUrl httpUrl = HttpUrl.parse(publicUrl);
+
+    if (onPullRequest(branchConfiguration)) {
+      return httpUrl.newBuilder()
+        .addPathSegment(DASHBOARD)
+        .addEncodedQueryParameter(ID, encoded(effectiveKey))
+        .addEncodedQueryParameter("pullRequest", encoded(branchConfiguration.pullRequestKey()))
+        .build()
+        .url();
+    }
+
+    if (onLongLivingBranch(branchConfiguration)) {
+      return httpUrl.newBuilder()
+        .addPathSegment(DASHBOARD)
+        .addEncodedQueryParameter(ID, encoded(effectiveKey))
+        .addEncodedQueryParameter(BRANCH, encoded(branchConfiguration.branchName()))
+        .build()
+        .url();
+    }
+
+    if (onShortLivingBranch(branchConfiguration)) {
+      return httpUrl.newBuilder()
+        .addPathSegment(DASHBOARD)
+        .addEncodedQueryParameter(ID, encoded(effectiveKey))
+        .addEncodedQueryParameter(BRANCH, encoded(branchConfiguration.branchName()))
+        .addQueryParameter(RESOLVED, "false")
+        .build()
+        .url();
+    }
+
+    if (onMainBranch(branchConfiguration)) {
+      return httpUrl.newBuilder()
+        .addPathSegment(DASHBOARD)
+        .addEncodedQueryParameter(ID, encoded(effectiveKey))
+        .build()
+        .url();
+    }
+
+    return httpUrl.newBuilder().build().url();
+  }
+
+  private static boolean onPullRequest(BranchConfiguration branchConfiguration) {
+    return branchConfiguration.branchName() != null && (branchConfiguration.branchType() == PULL_REQUEST);
+  }
+
+  private static boolean onShortLivingBranch(BranchConfiguration branchConfiguration) {
+    return branchConfiguration.branchName() != null && (branchConfiguration.branchType() == SHORT);
+  }
+
+  private static boolean onLongLivingBranch(BranchConfiguration branchConfiguration) {
+    return branchConfiguration.branchName() != null && (branchConfiguration.branchType() == LONG);
+  }
+
+  private static boolean onMainBranch(BranchConfiguration branchConfiguration) {
+    return branchConfiguration.branchName() == null;
+  }
+
+  private static String encoded(@Nullable String queryParameter) {
+    if (isBlank(queryParameter)) {
+      return EMPTY;
+    }
+    try {
+      return encode(queryParameter, "UTF-8");
+    } catch (UnsupportedEncodingException e) {
+      throw new IllegalStateException("Unable to urlencode " + queryParameter, e);
+    }
+  }
+
   private void dumpMetadata(Map<String, String> metadata) {
-    Path file = moduleHierarchy.root().getWorkDir().resolve(METADATA_DUMP_FILENAME);
-    try (Writer output = Files.newBufferedWriter(file, StandardCharsets.UTF_8)) {
-      for (Map.Entry<String, String> entry : metadata.entrySet()) {
-        output.write(entry.getKey());
-        output.write("=");
-        output.write(entry.getValue());
-        output.write("\n");
+    Path file = properties.metadataFilePath();
+    try {
+      Files.createDirectories(file.getParent());
+      try (Writer output = Files.newBufferedWriter(file, StandardCharsets.UTF_8)) {
+        for (Map.Entry<String, String> entry : metadata.entrySet()) {
+          output.write(entry.getKey());
+          output.write("=");
+          output.write(entry.getValue());
+          output.write("\n");
+        }
       }
 
       LOG.debug("Report metadata written to {}", file);

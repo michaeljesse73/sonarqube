@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,7 +25,7 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
-import java.util.function.Function;
+import java.util.function.Consumer;
 import org.sonar.api.server.ws.Request;
 import org.sonar.api.server.ws.Response;
 import org.sonar.api.server.ws.WebService;
@@ -56,6 +56,7 @@ public class HashAction implements SourcesWsAction {
       .setDescription("Show line line hashes for a given file. Require See Source Code permission on file's project<br/>")
       .setSince("5.0")
       .setInternal(true)
+      .setDeprecatedSince("7.7")
       .setResponseExample(Resources.getResource(getClass(), "example-hash.txt"))
       .setHandler(this);
 
@@ -75,7 +76,7 @@ public class HashAction implements SourcesWsAction {
 
       response.stream().setMediaType("text/plain");
       try (OutputStreamWriter writer = new OutputStreamWriter(response.stream().output(), StandardCharsets.UTF_8)) {
-        HashFunction hashFunction = new HashFunction(writer, componentKey);
+        HashConsumer hashFunction = new HashConsumer(writer, componentKey);
         dbClient.fileSourceDao().readLineHashesStream(session, component.uuid(), hashFunction);
         if (!hashFunction.hasData()) {
           response.noContent();
@@ -84,26 +85,25 @@ public class HashAction implements SourcesWsAction {
     }
   }
 
-  private static class HashFunction implements Function<Reader, Void> {
+  private static class HashConsumer implements Consumer<Reader> {
 
     private final OutputStreamWriter writer;
     private final String componentKey;
     private boolean hasData = false;
 
-    public HashFunction(OutputStreamWriter writer, String componentKey) {
+    public HashConsumer(OutputStreamWriter writer, String componentKey) {
       this.writer = writer;
       this.componentKey = componentKey;
     }
 
     @Override
-    public Void apply(Reader input) {
+    public void accept(Reader input) {
       try {
         hasData = true;
         CharStreams.copy(input, writer);
       } catch (IOException e) {
         throw new IllegalStateException(String.format("Can't read line hashes of file '%s'", componentKey), e);
       }
-      return null;
     }
 
     public boolean hasData() {

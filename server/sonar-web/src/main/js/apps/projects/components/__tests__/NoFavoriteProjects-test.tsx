@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,18 +20,24 @@
 import * as React from 'react';
 import { shallow } from 'enzyme';
 import { NoFavoriteProjects } from '../NoFavoriteProjects';
-import { Visibility } from '../../../../app/types';
+import { isSonarCloud } from '../../../../helpers/system';
+
+jest.mock('../../../../helpers/system', () => ({ isSonarCloud: jest.fn() }));
 
 it('renders', () => {
-  expect(shallow(<NoFavoriteProjects onSonarCloud={false} organizations={[]} />)).toMatchSnapshot();
+  (isSonarCloud as jest.Mock).mockImplementation(() => false);
+  expect(
+    shallow(<NoFavoriteProjects openProjectOnboarding={jest.fn()} organizations={[]} />)
+  ).toMatchSnapshot();
 });
 
 it('renders for SonarCloud', () => {
-  const organizations = [
-    { isAdmin: true, key: 'org1', name: 'org1', projectVisibility: Visibility.Public },
-    { isAdmin: false, key: 'org2', name: 'org2', projectVisibility: Visibility.Public }
+  (isSonarCloud as jest.Mock).mockImplementation(() => true);
+  const organizations: T.Organization[] = [
+    { actions: { admin: true }, key: 'org1', name: 'org1', projectVisibility: 'public' },
+    { actions: { admin: false }, key: 'org2', name: 'org2', projectVisibility: 'public' }
   ];
   expect(
-    shallow(<NoFavoriteProjects onSonarCloud={true} organizations={organizations} />)
+    shallow(<NoFavoriteProjects openProjectOnboarding={jest.fn()} organizations={organizations} />)
   ).toMatchSnapshot();
 });

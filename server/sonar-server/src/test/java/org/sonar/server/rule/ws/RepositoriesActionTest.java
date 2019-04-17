@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -45,7 +45,7 @@ public class RepositoriesActionTest {
     RuleRepositoryDto repo1 = new RuleRepositoryDto("xoo", "xoo", "SonarQube");
     RuleRepositoryDto repo2 = new RuleRepositoryDto("squid", "ws", "SonarQube");
     RuleRepositoryDto repo3 = new RuleRepositoryDto("common-ws", "ws", "SonarQube Common");
-    dbTester.getDbClient().ruleRepositoryDao().insert(dbSession, asList(repo1, repo2, repo3));
+    dbTester.getDbClient().ruleRepositoryDao().insertOrUpdate(dbSession, asList(repo1, repo2, repo3));
     dbSession.commit();
 
     wsTester = new WsTester(new RulesWs(new RepositoriesAction(dbTester.getDbClient())));

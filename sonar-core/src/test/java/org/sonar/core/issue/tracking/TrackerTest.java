@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -41,6 +41,7 @@ public class TrackerTest {
   public static final RuleKey RULE_UNUSED_PRIVATE_METHOD = RuleKey.of("java", "UnusedPrivateMethod");
   public static final RuleKey RULE_NOT_DESIGNED_FOR_EXTENSION = RuleKey.of("java", "NotDesignedForExtension");
   public static final RuleKey RULE_USE_DIAMOND = RuleKey.of("java", "UseDiamond");
+  public static final RuleKey RULE_MISSING_PACKAGE_INFO = RuleKey.of("java", "MissingPackageInfo");
 
   @Rule
   public ExpectedException thrown = ExpectedException.none();
@@ -58,7 +59,7 @@ public class TrackerTest {
     FakeInput rawInput = new FakeInput("H1");
     Issue raw = rawInput.createIssueOnLine(1, RULE_UNUSED_LOCAL_VARIABLE, "msg");
 
-    Tracking<Issue, Issue> tracking = tracker.track(rawInput, baseInput);
+    Tracking<Issue, Issue> tracking = tracker.trackNonClosed(rawInput, baseInput);
     assertThat(tracking.baseFor(raw)).isNull();
   }
 
@@ -72,7 +73,7 @@ public class TrackerTest {
     Issue raw1 = rawInput.createIssueOnLine(3, RULE_SYSTEM_PRINT, "msg");
     Issue raw2 = rawInput.createIssueOnLine(5, RULE_SYSTEM_PRINT, "msg");
 
-    Tracking<Issue, Issue> tracking = tracker.track(rawInput, baseInput);
+    Tracking<Issue, Issue> tracking = tracker.trackNonClosed(rawInput, baseInput);
     assertThat(tracking.baseFor(raw1)).isSameAs(base1);
     assertThat(tracking.baseFor(raw2)).isSameAs(base2);
   }
@@ -88,7 +89,7 @@ public class TrackerTest {
     FakeInput rawInput = new FakeInput("H10", "H11", "H12");
     Issue raw = rawInput.createIssue(RULE_SYSTEM_PRINT, "msg2");
 
-    Tracking<Issue, Issue> tracking = tracker.track(rawInput, baseInput);
+    Tracking<Issue, Issue> tracking = tracker.trackNonClosed(rawInput, baseInput);
     assertThat(tracking.baseFor(raw)).isSameAs(base);
   }
 
@@ -100,7 +101,7 @@ public class TrackerTest {
     FakeInput rawInput = new FakeInput("H1");
     Issue raw = rawInput.createIssueOnLine(1, RULE_SYSTEM_PRINT, "msg2");
 
-    Tracking<Issue, Issue> tracking = tracker.track(rawInput, baseInput);
+    Tracking<Issue, Issue> tracking = tracker.trackNonClosed(rawInput, baseInput);
     assertThat(tracking.baseFor(raw)).isSameAs(base);
   }
 
@@ -112,7 +113,7 @@ public class TrackerTest {
     FakeInput rawInput = new FakeInput("H2");
     Issue raw = rawInput.createIssueOnLine(1, RULE_SYSTEM_PRINT, "message");
 
-    Tracking<Issue, Issue> tracking = tracker.track(rawInput, baseInput);
+    Tracking<Issue, Issue> tracking = tracker.trackNonClosed(rawInput, baseInput);
     assertThat(tracking.baseFor(raw)).isSameAs(base);
   }
 
@@ -127,7 +128,7 @@ public class TrackerTest {
     FakeInput rawInput = new FakeInput("H2");
     Issue raw = rawInput.createIssueOnLine(1, RULE_SYSTEM_PRINT, "msg");
 
-    Tracking<Issue, Issue> tracking = tracker.track(rawInput, baseInput);
+    Tracking<Issue, Issue> tracking = tracker.trackNonClosed(rawInput, baseInput);
     assertThat(tracking.baseFor(raw)).isSameAs(base);
   }
 
@@ -139,7 +140,7 @@ public class TrackerTest {
     FakeInput rawInput = new FakeInput("H2", "H1");
     Issue raw = rawInput.createIssueOnLine(2, RULE_SYSTEM_PRINT, "msg");
 
-    Tracking<Issue, Issue> tracking = tracker.track(rawInput, baseInput);
+    Tracking<Issue, Issue> tracking = tracker.trackNonClosed(rawInput, baseInput);
     assertThat(tracking.baseFor(raw)).isSameAs(base);
   }
 
@@ -154,7 +155,7 @@ public class TrackerTest {
     FakeInput rawInput = new FakeInput("H3", "H4", "H1");
     Issue raw = rawInput.createIssueOnLine(3, RULE_SYSTEM_PRINT, "other message");
 
-    Tracking<Issue, Issue> tracking = tracker.track(rawInput, baseInput);
+    Tracking<Issue, Issue> tracking = tracker.trackNonClosed(rawInput, baseInput);
     assertThat(tracking.baseFor(raw)).isSameAs(base);
   }
 
@@ -166,7 +167,7 @@ public class TrackerTest {
     FakeInput rawInput = new FakeInput("H3", "H4", "H5");
     Issue raw = rawInput.createIssue(RULE_UNUSED_LOCAL_VARIABLE, "msg2");
 
-    Tracking<Issue, Issue> tracking = tracker.track(rawInput, baseInput);
+    Tracking<Issue, Issue> tracking = tracker.trackNonClosed(rawInput, baseInput);
     assertThat(tracking.baseFor(raw)).isNull();
     assertThat(tracking.getUnmatchedBases()).containsOnly(base);
   }
@@ -179,7 +180,7 @@ public class TrackerTest {
     FakeInput rawInput = new FakeInput("H3", "H4", "H5");
     Issue raw = rawInput.createIssueOnLine(1, RULE_UNUSED_LOCAL_VARIABLE, "msg2");
 
-    Tracking<Issue, Issue> tracking = tracker.track(rawInput, baseInput);
+    Tracking<Issue, Issue> tracking = tracker.trackNonClosed(rawInput, baseInput);
     assertThat(tracking.baseFor(raw)).isNull();
     assertThat(tracking.getUnmatchedBases()).containsOnly(base);
   }
@@ -189,7 +190,7 @@ public class TrackerTest {
     FakeInput baseInput = new FakeInput();
     FakeInput rawInput = new FakeInput("H1").addIssue(new Issue(200, "H200", RULE_SYSTEM_PRINT, "msg", org.sonar.api.issue.Issue.STATUS_OPEN, new Date()));
 
-    Tracking<Issue, Issue> tracking = tracker.track(rawInput, baseInput);
+    Tracking<Issue, Issue> tracking = tracker.trackNonClosed(rawInput, baseInput);
 
     assertThat(tracking.getUnmatchedRaws()).hasSize(1);
   }
@@ -243,7 +244,7 @@ public class TrackerTest {
     Issue raw3 = rawInput.createIssueOnLine(17, RULE_SYSTEM_PRINT, "Indentation");
     Issue raw4 = rawInput.createIssueOnLine(21, RULE_SYSTEM_PRINT, "Indentation");
 
-    Tracking<Issue, Issue> tracking = tracker.track(rawInput, baseInput);
+    Tracking<Issue, Issue> tracking = tracker.trackNonClosed(rawInput, baseInput);
     assertThat(tracking.baseFor(raw1)).isNull();
     assertThat(tracking.baseFor(raw2)).isNull();
     assertThat(tracking.baseFor(raw3)).isSameAs(base1);
@@ -295,7 +296,7 @@ public class TrackerTest {
     Issue raw1 = rawInput.createIssueOnLine(11, RuleKey.of("squid", "S00103"), "Split this 139 characters long line (which is greater than 120 authorized).");
     Issue raw2 = rawInput.createIssueOnLine(15, RuleKey.of("squid", "S109"), "Assign this magic number 123 to a well-named constant, and use the constant instead.");
 
-    Tracking<Issue, Issue> tracking = tracker.track(rawInput, baseInput);
+    Tracking<Issue, Issue> tracking = tracker.trackNonClosed(rawInput, baseInput);
     assertThat(tracking.baseFor(raw1)).isNull();
     assertThat(tracking.baseFor(raw2)).isNull();
     assertThat(tracking.getUnmatchedBases()).hasSize(2);
@@ -337,7 +338,7 @@ public class TrackerTest {
     Issue raw2 = rawInput.createIssueOnLine(10, RULE_SYSTEM_PRINT, "SystemPrintln");
     Issue raw3 = rawInput.createIssueOnLine(14, RULE_SYSTEM_PRINT, "SystemPrintln");
 
-    Tracking<Issue, Issue> tracking = tracker.track(rawInput, baseInput);
+    Tracking<Issue, Issue> tracking = tracker.trackNonClosed(rawInput, baseInput);
     assertThat(tracking.baseFor(raw1)).isNull();
     assertThat(tracking.baseFor(raw2)).isSameAs(base1);
     assertThat(tracking.baseFor(raw3)).isNull();
@@ -394,7 +395,7 @@ public class TrackerTest {
     Issue rawSameAsBase3 = rawInput.createIssueOnLine(9, RULE_NOT_DESIGNED_FOR_EXTENSION,
       "Method 'avoidUtilityClass' is not designed for extension - needs to be abstract, final or empty.");
 
-    Tracking<Issue, Issue> tracking = tracker.track(rawInput, baseInput);
+    Tracking<Issue, Issue> tracking = tracker.trackNonClosed(rawInput, baseInput);
 
     assertThat(tracking.baseFor(newRaw)).isNull();
     assertThat(tracking.baseFor(rawSameAsBase1)).isSameAs(base1);
@@ -427,9 +428,25 @@ public class TrackerTest {
       "  private final Deque<Set<Set<DataItem>>> four = new ArrayDeque<>();");
     Issue raw1 = rawInput.createIssueOnLine(3, RULE_USE_DIAMOND, "Use diamond");
 
-    Tracking<Issue, Issue> tracking = tracker.track(rawInput, baseInput);
+    Tracking<Issue, Issue> tracking = tracker.trackNonClosed(rawInput, baseInput);
     assertThat(tracking.getUnmatchedBases()).hasSize(3);
     assertThat(tracking.baseFor(raw1)).isEqualTo(base1);
+  }
+
+  @Test
+  public void match_issues_with_same_rule_key_on_project_level() {
+    FakeInput baseInput = new FakeInput();
+    Issue base1 = baseInput.createIssue(RULE_MISSING_PACKAGE_INFO, "[com.test:abc] Missing package-info.java in package.");
+    Issue base2 = baseInput.createIssue(RULE_MISSING_PACKAGE_INFO, "[com.test:abc/def] Missing package-info.java in package.");
+
+    FakeInput rawInput = new FakeInput();
+    Issue raw1 = rawInput.createIssue(RULE_MISSING_PACKAGE_INFO, "[com.test:abc/def] Missing package-info.java in package.");
+    Issue raw2 = rawInput.createIssue(RULE_MISSING_PACKAGE_INFO, "[com.test:abc] Missing package-info.java in package.");
+
+    Tracking<Issue, Issue> tracking = tracker.trackNonClosed(rawInput, baseInput);
+    assertThat(tracking.getUnmatchedBases()).hasSize(0);
+    assertThat(tracking.baseFor(raw1)).isEqualTo(base2);
+    assertThat(tracking.baseFor(raw2)).isEqualTo(base1);
   }
 
   private static class Issue implements Trackable {

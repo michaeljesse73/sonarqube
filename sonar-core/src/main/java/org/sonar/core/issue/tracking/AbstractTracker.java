@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -34,17 +34,15 @@ import static java.util.Comparator.comparing;
 public class AbstractTracker<RAW extends Trackable, BASE extends Trackable> {
 
   protected void match(Tracking<RAW, BASE> tracking, Function<Trackable, SearchKey> searchKeyFactory) {
-
     if (tracking.isComplete()) {
       return;
     }
 
     Multimap<SearchKey, BASE> baseSearch = ArrayListMultimap.create();
-    for (BASE base : tracking.getUnmatchedBases()) {
-      baseSearch.put(searchKeyFactory.apply(base), base);
-    }
+    tracking.getUnmatchedBases()
+      .forEach(base -> baseSearch.put(searchKeyFactory.apply(base), base));
 
-    for (RAW raw : tracking.getUnmatchedRaws()) {
+    tracking.getUnmatchedRaws().forEach(raw -> {
       SearchKey rawKey = searchKeyFactory.apply(raw);
       Collection<BASE> bases = baseSearch.get(rawKey);
       bases.stream()
@@ -55,7 +53,7 @@ public class AbstractTracker<RAW extends Trackable, BASE extends Trackable> {
           tracking.match(raw, match);
           baseSearch.remove(rawKey, match);
         });
-    }
+    });
   }
 
   private int statusRank(BASE i) {
@@ -101,6 +99,41 @@ public class AbstractTracker<RAW extends Trackable, BASE extends Trackable> {
     }
   }
 
+  protected static class LineAndLineHashAndMessage implements SearchKey {
+    private final RuleKey ruleKey;
+    private final String lineHash;
+    private final String message;
+    private final Integer line;
+
+    protected LineAndLineHashAndMessage(Trackable trackable) {
+      this.ruleKey = trackable.getRuleKey();
+      this.line = trackable.getLine();
+      this.message = trackable.getMessage();
+      this.lineHash = StringUtils.defaultString(trackable.getLineHash(), "");
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      LineAndLineHashAndMessage that = (LineAndLineHashAndMessage) o;
+      // start with most discriminant field
+      return Objects.equals(line, that.line)
+        && lineHash.equals(that.lineHash)
+        && message.equals(that.message)
+        && ruleKey.equals(that.ruleKey);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(ruleKey, lineHash, message, line != null ? line : 0);
+    }
+  }
+
   protected static class LineHashAndMessageKey implements SearchKey {
     private final RuleKey ruleKey;
     private final String message;
@@ -113,9 +146,12 @@ public class AbstractTracker<RAW extends Trackable, BASE extends Trackable> {
     }
 
     @Override
-    public boolean equals(@Nonnull Object o) {
+    public boolean equals(Object o) {
       if (this == o) {
         return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
       }
       LineHashAndMessageKey that = (LineHashAndMessageKey) o;
       // start with most discriminant field
@@ -142,9 +178,12 @@ public class AbstractTracker<RAW extends Trackable, BASE extends Trackable> {
     }
 
     @Override
-    public boolean equals(@Nonnull Object o) {
+    public boolean equals(Object o) {
       if (this == o) {
         return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
       }
       LineAndMessageKey that = (LineAndMessageKey) o;
       // start with most discriminant field
@@ -169,9 +208,12 @@ public class AbstractTracker<RAW extends Trackable, BASE extends Trackable> {
     }
 
     @Override
-    public boolean equals(@Nonnull Object o) {
+    public boolean equals(Object o) {
       if (this == o) {
         return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
       }
       LineHashKey that = (LineHashKey) o;
       // start with most discriminant field

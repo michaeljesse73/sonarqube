@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -29,19 +29,25 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.sonar.api.SonarQubeSide;
+import org.sonar.api.SonarRuntime;
+import org.sonar.api.internal.SonarRuntimeImpl;
 import org.sonar.api.server.ws.Request;
 import org.sonar.api.server.ws.RequestHandler;
 import org.sonar.api.server.ws.Response;
 import org.sonar.api.server.ws.WebService;
+import org.sonar.api.utils.Version;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.sonar.server.ws.WebServiceFilterTest.WsUrl.newWsUrl;
 
 public class WebServiceFilterTest {
+
+  private static final String RUNTIME_VERSION = "7.1.0.1234";
 
   @Rule
   public ExpectedException expectedException = ExpectedException.none();
@@ -52,7 +58,7 @@ public class WebServiceFilterTest {
   private HttpServletResponse response = mock(HttpServletResponse.class);
   private FilterChain chain = mock(FilterChain.class);
   private ServletOutputStream responseOutput = mock(ServletOutputStream.class);
-
+  private SonarRuntime runtime = SonarRuntimeImpl.forSonarQube(Version.parse(RUNTIME_VERSION), SonarQubeSide.SERVER);
   private WebServiceFilter underTest;
 
   @Before
@@ -62,7 +68,7 @@ public class WebServiceFilterTest {
   }
 
   @Test
-  public void match_declared_web_services() {
+  public void match_declared_web_services_with_optional_suffix() {
     initWebServiceEngine(
       newWsUrl("api/issues", "search"),
       newWsUrl("batch", "index"));
@@ -70,6 +76,7 @@ public class WebServiceFilterTest {
     assertThat(underTest.doGetPattern().matches("/api/issues/search")).isTrue();
     assertThat(underTest.doGetPattern().matches("/api/issues/search.protobuf")).isTrue();
     assertThat(underTest.doGetPattern().matches("/batch/index")).isTrue();
+    assertThat(underTest.doGetPattern().matches("/batch/index.protobuf")).isTrue();
 
     assertThat(underTest.doGetPattern().matches("/foo")).isFalse();
   }
@@ -90,6 +97,16 @@ public class WebServiceFilterTest {
   }
 
   @Test
+  public void does_not_match_servlet_filter_that_prefix_a_ws() {
+    initWebServiceEngine(
+      newWsUrl("api/foo", "action").setHandler(ServletFilterHandler.INSTANCE),
+      newWsUrl("api/foo", "action_2"));
+
+    assertThat(underTest.doGetPattern().matches("/api/foo/action")).isFalse();
+    assertThat(underTest.doGetPattern().matches("/api/foo/action_2")).isTrue();
+  }
+
+  @Test
   public void does_not_match_api_properties_ws() {
     initWebServiceEngine(newWsUrl("api/properties", "index"));
 
@@ -98,12 +115,21 @@ public class WebServiceFilterTest {
   }
 
   @Test
-  public void execute_ws() throws Exception {
-    underTest = new WebServiceFilter(webServiceEngine);
+  public void execute_ws() {
+    underTest = new WebServiceFilter(webServiceEngine, runtime);
 
     underTest.doFilter(request, response, chain);
 
-    verify(webServiceEngine).execute(any(ServletRequest.class), any(org.sonar.server.ws.ServletResponse.class));
+    verify(webServiceEngine).execute(any(), any());
+  }
+
+  @Test
+  public void add_version_to_response_headers() {
+    underTest = new WebServiceFilter(webServiceEngine, runtime);
+
+    underTest.doFilter(request, response, chain);
+
+    verify(response).setHeader("Sonar-Version", RUNTIME_VERSION);
   }
 
   private void initWebServiceEngine(WsUrl... wsUrls) {
@@ -126,7 +152,7 @@ public class WebServiceFilterTest {
       controllers.add(wsController);
     }
     when(webServiceEngine.controllers()).thenReturn(controllers);
-    underTest = new WebServiceFilter(webServiceEngine);
+    underTest = new WebServiceFilter(webServiceEngine, runtime);
   }
 
   static final class WsUrl {

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,55 +25,62 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.function.BinaryOperator;
-import javax.annotation.Nullable;
-import org.apache.commons.io.IOUtils;
-import org.sonar.api.config.Configuration;
+import java.util.function.Supplier;
 import org.sonar.api.utils.MessageException;
 import org.sonar.scanner.bootstrap.ScannerWsClient;
+import org.sonar.scanner.scan.ScanProperties;
 import org.sonarqube.ws.Qualityprofiles.SearchWsResponse;
 import org.sonarqube.ws.Qualityprofiles.SearchWsResponse.QualityProfile;
 import org.sonarqube.ws.client.GetRequest;
+import org.sonarqube.ws.client.HttpException;
 
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toMap;
-import static org.sonar.core.config.ScannerProperties.ORGANIZATION;
 import static org.sonar.scanner.util.ScannerUtils.encodeForUrl;
 
 public class DefaultQualityProfileLoader implements QualityProfileLoader {
   private static final String WS_URL = "/api/qualityprofiles/search.protobuf";
 
-  private final Configuration settings;
   private final ScannerWsClient wsClient;
+  private final ScanProperties properties;
 
-  public DefaultQualityProfileLoader(Configuration settings, ScannerWsClient wsClient) {
-    this.settings = settings;
+  public DefaultQualityProfileLoader(ScanProperties properties, ScannerWsClient wsClient) {
+    this.properties = properties;
     this.wsClient = wsClient;
   }
 
   @Override
-  public List<QualityProfile> loadDefault(@Nullable String profileName) {
+  public List<QualityProfile> loadDefault() {
     StringBuilder url = new StringBuilder(WS_URL + "?defaults=true");
-    return loadAndOverrideIfNeeded(profileName, url);
+    return handleErrors(url, () -> "Failed to load the default quality profiles");
   }
 
   @Override
-  public List<QualityProfile> load(String projectKey, @Nullable String profileName) {
+  public List<QualityProfile> load(String projectKey) {
     StringBuilder url = new StringBuilder(WS_URL + "?projectKey=").append(encodeForUrl(projectKey));
-    return loadAndOverrideIfNeeded(profileName, url);
+    return handleErrors(url, () -> String.format("Failed to load the quality profiles of project '%s'", projectKey));
   }
 
-  private List<QualityProfile> loadAndOverrideIfNeeded(@Nullable String profileName, StringBuilder url) {
-    getOrganizationKey().ifPresent(k -> url.append("&organization=").append(encodeForUrl(k)));
+  private List<QualityProfile> handleErrors(StringBuilder url, Supplier<String> errorMsg) {
+    try {
+      return doLoad(url);
+    } catch (HttpException e) {
+      if (e.code() == 404) {
+        throw MessageException.of(errorMsg.get() + ": " + ScannerWsClient.createErrorMessage(e));
+      }
+      throw new IllegalStateException(errorMsg.get() + ": " + ScannerWsClient.createErrorMessage(e));
+    } catch (MessageException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new IllegalStateException(errorMsg.get(), e);
+    }
+  }
+
+  private List<QualityProfile> doLoad(StringBuilder url) throws IOException {
+    properties.organizationKey().ifPresent(k -> url.append("&organization=").append(encodeForUrl(k)));
     Map<String, QualityProfile> result = call(url.toString());
 
-    if (profileName != null) {
-      StringBuilder urlForName = new StringBuilder(WS_URL + "?profileName=");
-      urlForName.append(encodeForUrl(profileName));
-      getOrganizationKey().ifPresent(k -> urlForName.append("&organization=").append(encodeForUrl(k)));
-      result.putAll(call(urlForName.toString()));
-    }
     if (result.isEmpty()) {
       throw MessageException.of("No quality profiles have been found, you probably don't have any language plugin installed.");
     }
@@ -81,26 +88,13 @@ public class DefaultQualityProfileLoader implements QualityProfileLoader {
     return new ArrayList<>(result.values());
   }
 
-  private Optional<String> getOrganizationKey() {
-    return settings.get(ORGANIZATION);
-  }
-
-  private Map<String, QualityProfile> call(String url) {
+  private Map<String, QualityProfile> call(String url) throws IOException {
     GetRequest getRequest = new GetRequest(url);
-    InputStream is = wsClient.call(getRequest).contentStream();
-    SearchWsResponse profiles;
-
-    try {
-      profiles = SearchWsResponse.parseFrom(is);
-    } catch (IOException e) {
-      throw new IllegalStateException("Failed to load quality profiles", e);
-    } finally {
-      IOUtils.closeQuietly(is);
+    try (InputStream is = wsClient.call(getRequest).contentStream()) {
+      SearchWsResponse profiles = SearchWsResponse.parseFrom(is);
+      List<QualityProfile> profilesList = profiles.getProfilesList();
+      return profilesList.stream().collect(toMap(QualityProfile::getLanguage, identity(), throwingMerger(), LinkedHashMap::new));
     }
-
-    List<QualityProfile> profilesList = profiles.getProfilesList();
-    return profilesList.stream()
-      .collect(toMap(QualityProfile::getLanguage, identity(), throwingMerger(), LinkedHashMap::new));
   }
 
   private static <T> BinaryOperator<T> throwingMerger() {

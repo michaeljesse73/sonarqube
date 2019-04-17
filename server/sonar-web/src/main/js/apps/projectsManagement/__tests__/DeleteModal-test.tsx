@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -26,6 +26,7 @@ import * as React from 'react';
 import { shallow } from 'enzyme';
 import DeleteModal, { Props } from '../DeleteModal';
 import { click } from '../../../helpers/testUtils';
+import { parseDate } from '../../../helpers/dates';
 
 const bulkDeleteProjects = require('../../../api/components').bulkDeleteProjects as jest.Mock<any>;
 
@@ -39,10 +40,10 @@ it('deletes all projects', async () => {
   (wrapper.instance() as DeleteModal).mounted = true;
   expect(wrapper).toMatchSnapshot();
 
-  click(wrapper.find('button'));
+  click(wrapper.find('Button'));
   expect(wrapper).toMatchSnapshot();
   expect(bulkDeleteProjects).toBeCalledWith({
-    analyzedBefore: '2017-04-08T00:00:00.000Z',
+    analyzedBefore: '2017-04-08T00:00:00+0000',
     onProvisionedOnly: undefined,
     organization: 'org',
     q: 'bla',
@@ -59,7 +60,7 @@ it('deletes selected projects', async () => {
   (wrapper.instance() as DeleteModal).mounted = true;
   expect(wrapper).toMatchSnapshot();
 
-  click(wrapper.find('button'));
+  click(wrapper.find('Button'));
   expect(wrapper).toMatchSnapshot();
   expect(bulkDeleteProjects).toBeCalledWith({ organization: 'org', projects: 'proj1,proj2' });
 
@@ -77,7 +78,7 @@ it('closes', () => {
 function shallowRender(props?: { [P in keyof Props]?: Props[P] }) {
   return shallow(
     <DeleteModal
-      analyzedBefore="2017-04-08T00:00:00.000Z"
+      analyzedBefore={parseDate('2017-04-08T00:00:00.000Z')}
       onClose={jest.fn()}
       onConfirm={jest.fn()}
       organization="org"

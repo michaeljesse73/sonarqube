@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,6 +18,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
+import * as classNames from 'classnames';
 import Tooltip from './Tooltip';
 
 interface Option {
@@ -28,6 +29,7 @@ interface Option {
 }
 
 interface Props {
+  className?: string;
   name: string;
   onCheck: (value: string) => void;
   options: Option[];
@@ -51,26 +53,26 @@ export default class RadioToggle extends React.PureComponent<Props> {
     return (
       <li key={option.value}>
         <input
-          type="radio"
-          disabled={option.disabled}
-          name={this.props.name}
-          value={option.value}
-          id={htmlId}
           checked={checked}
+          disabled={option.disabled}
+          id={htmlId}
+          name={this.props.name}
           onChange={this.handleChange}
+          type="radio"
+          value={option.value}
         />
-        {option.tooltip ? (
-          <Tooltip overlay={option.tooltip}>
-            <label htmlFor={htmlId}>{option.label}</label>
-          </Tooltip>
-        ) : (
+        <Tooltip overlay={option.tooltip || undefined}>
           <label htmlFor={htmlId}>{option.label}</label>
-        )}
+        </Tooltip>
       </li>
     );
   };
 
   render() {
-    return <ul className="radio-toggle">{this.props.options.map(this.renderOption)}</ul>;
+    return (
+      <ul className={classNames('radio-toggle', this.props.className)}>
+        {this.props.options.map(this.renderOption)}
+      </ul>
+    );
   }
 }

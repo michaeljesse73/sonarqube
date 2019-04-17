@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,7 +25,6 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.junit.Rule;
 import org.junit.Test;
-import org.sonar.api.config.internal.MapSettings;
 import org.sonar.api.resources.Qualifiers;
 import org.sonar.api.utils.System2;
 import org.sonar.db.DbTester;
@@ -35,8 +34,8 @@ import org.sonar.server.es.EsTester;
 import org.sonar.server.es.SearchIdResult;
 import org.sonar.server.es.SearchOptions;
 import org.sonar.server.es.textsearch.ComponentTextSearchFeatureRule;
-import org.sonar.server.permission.index.AuthorizationTypeSupport;
 import org.sonar.server.permission.index.PermissionIndexerTester;
+import org.sonar.server.permission.index.WebAuthorizationTypeSupport;
 import org.sonar.server.tester.UserSessionRule;
 
 import static java.util.Collections.emptySet;
@@ -46,7 +45,7 @@ import static org.sonar.db.component.ComponentTesting.newFileDto;
 
 public class ComponentIndexSearchTest {
   @Rule
-  public EsTester es = new EsTester(new ComponentIndexDefinition(new MapSettings().asConfig()));
+  public EsTester es = EsTester.create();
   @Rule
   public DbTester db = DbTester.create(System2.INSTANCE);
   @Rule
@@ -57,7 +56,7 @@ public class ComponentIndexSearchTest {
   private ComponentIndexer indexer = new ComponentIndexer(db.getDbClient(), es.client());
   private PermissionIndexerTester authorizationIndexerTester = new PermissionIndexerTester(es, indexer);
 
-  private ComponentIndex underTest = new ComponentIndex(es.client(), new AuthorizationTypeSupport(userSession), System2.INSTANCE);
+  private ComponentIndex underTest = new ComponentIndex(es.client(), new WebAuthorizationTypeSupport(userSession), System2.INSTANCE);
 
   @Test
   public void filter_by_language() {

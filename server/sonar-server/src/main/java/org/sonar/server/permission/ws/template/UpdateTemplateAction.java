@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -31,20 +31,19 @@ import org.sonar.db.DbSession;
 import org.sonar.db.permission.template.PermissionTemplateDto;
 import org.sonar.server.permission.ws.PermissionWsSupport;
 import org.sonar.server.permission.ws.PermissionsWsAction;
+import org.sonar.server.permission.ws.RequestValidator;
+import org.sonar.server.permission.ws.WsParameters;
 import org.sonar.server.user.UserSession;
+import org.sonar.server.ws.WsUtils;
 import org.sonarqube.ws.Permissions.PermissionTemplate;
 import org.sonarqube.ws.Permissions.UpdateTemplateWsResponse;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
+import static org.apache.commons.lang.StringUtils.isBlank;
 import static org.sonar.server.permission.PermissionPrivilegeChecker.checkGlobalAdmin;
-import static org.sonar.server.permission.ws.PermissionRequestValidator.MSG_TEMPLATE_WITH_SAME_NAME;
-import static org.sonar.server.permission.ws.PermissionRequestValidator.validateProjectPattern;
-import static org.sonar.server.permission.ws.PermissionRequestValidator.validateTemplateNameFormat;
-import static org.sonar.server.permission.ws.PermissionsWsParametersBuilder.createIdParameter;
-import static org.sonar.server.permission.ws.PermissionsWsParametersBuilder.createTemplateDescriptionParameter;
-import static org.sonar.server.permission.ws.PermissionsWsParametersBuilder.createTemplateProjectKeyPatternParameter;
+import static org.sonar.server.permission.ws.RequestValidator.MSG_TEMPLATE_WITH_SAME_NAME;
 import static org.sonar.server.permission.ws.template.PermissionTemplateDtoToPermissionTemplateResponse.toPermissionTemplateResponse;
 import static org.sonar.server.ws.WsUtils.checkRequest;
 import static org.sonar.server.ws.WsUtils.writeProtobuf;
@@ -89,14 +88,14 @@ public class UpdateTemplateAction implements PermissionsWsAction {
       .setPost(true)
       .setHandler(this);
 
-    createIdParameter(action);
+    WsParameters.createIdParameter(action);
 
     action.createParam(PARAM_NAME)
       .setDescription("Name")
       .setExampleValue("Financial Service Permissions");
 
-    createTemplateProjectKeyPatternParameter(action);
-    createTemplateDescriptionParameter(action);
+    WsParameters.createTemplateProjectKeyPatternParameter(action);
+    WsParameters.createTemplateDescriptionParameter(action);
   }
 
   @Override
@@ -125,7 +124,7 @@ public class UpdateTemplateAction implements PermissionsWsAction {
 
   private void validateTemplate(DbSession dbSession, PermissionTemplateDto templateToUpdate) {
     validateTemplateNameForUpdate(dbSession, templateToUpdate.getOrganizationUuid(), templateToUpdate.getName(), templateToUpdate.getId());
-    validateProjectPattern(templateToUpdate.getKeyPattern());
+    RequestValidator.validateProjectPattern(templateToUpdate.getKeyPattern());
   }
 
   private PermissionTemplateDto getAndBuildTemplateToUpdate(DbSession dbSession, String uuid, @Nullable String newName, @Nullable String newDescription,
@@ -144,7 +143,7 @@ public class UpdateTemplateAction implements PermissionsWsAction {
   }
 
   private void validateTemplateNameForUpdate(DbSession dbSession, String organizationUuid, String name, long id) {
-    validateTemplateNameFormat(name);
+    WsUtils.checkRequest(!isBlank(name), "The template name must not be blank");
 
     PermissionTemplateDto permissionTemplateWithSameName = dbClient.permissionTemplateDao().selectByName(dbSession, organizationUuid, name);
     checkRequest(permissionTemplateWithSameName == null || permissionTemplateWithSameName.getId() == id,

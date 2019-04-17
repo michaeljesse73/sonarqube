@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -33,16 +33,16 @@ import { getMeasures } from '../../../api/measures';
 import { getChildren } from '../../../api/components';
 import { translate } from '../../../helpers/l10n';
 import { fetchMetrics } from '../../../store/rootActions';
-import { getMetrics } from '../../../store/rootReducer';
-import { Metric } from '../../../app/types';
+import { getMetrics, Store } from '../../../store/rootReducer';
 import '../styles.css';
+import PrivacyBadgeContainer from '../../../components/common/PrivacyBadgeContainer';
 
 interface OwnProps {
-  component: { key: string; name: string };
+  component: T.Component;
 }
 
 interface StateToProps {
-  metrics: { [key: string]: Metric };
+  metrics: T.Dict<T.Metric>;
 }
 
 interface DispatchToProps {
@@ -53,7 +53,7 @@ type Props = StateToProps & DispatchToProps & OwnProps;
 
 interface State {
   loading: boolean;
-  measures?: { [key: string]: string | undefined };
+  measures?: T.Dict<string | undefined>;
   subComponents?: SubComponent[];
   totalSubComponents?: number;
 }
@@ -81,7 +81,7 @@ export class App extends React.PureComponent<Props, State> {
   fetchData() {
     this.setState({ loading: true });
     Promise.all([
-      getMeasures(this.props.component.key, PORTFOLIO_METRICS),
+      getMeasures({ component: this.props.component.key, metricKeys: PORTFOLIO_METRICS.join() }),
       getChildren(this.props.component.key, SUB_COMPONENTS_METRICS, { ps: 20, s: 'qualifier' })
     ]).then(
       ([measures, subComponents]) => {
@@ -123,8 +123,11 @@ export class App extends React.PureComponent<Props, State> {
   renderEmpty() {
     return (
       <div className="empty-search">
-        <h3>{translate('portfolio.empty')}</h3>
-        <p>{translate('portfolio.empty.hint')}</p>
+        <h3>
+          {!this.state.measures || !this.state.measures['projects']
+            ? translate('portfolio.empty')
+            : translate('portfolio.no_lines_of_code')}
+        </h3>
       </div>
     );
   }
@@ -158,14 +161,13 @@ export class App extends React.PureComponent<Props, State> {
           <MaintainabilityBox component={component.key} measures={measures!} />
         </div>
 
-        {subComponents !== undefined &&
-          totalSubComponents !== undefined && (
-            <WorstProjects
-              component={component.key}
-              subComponents={subComponents}
-              total={totalSubComponents}
-            />
-          )}
+        {subComponents !== undefined && totalSubComponents !== undefined && (
+          <WorstProjects
+            component={component.key}
+            subComponents={subComponents}
+            total={totalSubComponents}
+          />
+        )}
       </div>
     );
   }
@@ -184,10 +186,29 @@ export class App extends React.PureComponent<Props, State> {
           <div className="page-main">{this.renderMain()}</div>
 
           <aside className="page-sidebar-fixed">
-            {!this.isEmpty() &&
-              !this.isNotComputed() && <Summary component={component} measures={measures!} />}
-            <Activity component={component.key} metrics={this.props.metrics} />
-            <Report component={component} />
+            <div className="portfolio-meta-card">
+              <h4 className="portfolio-meta-header">
+                {translate('overview.about_this_portfolio')}
+                {component.visibility && (
+                  <PrivacyBadgeContainer
+                    className="spacer-left pull-right"
+                    organization={component.organization}
+                    qualifier={component.qualifier}
+                    tooltipProps={{ projectKey: component.key }}
+                    visibility={component.visibility}
+                  />
+                )}
+              </h4>
+              <Summary component={component} measures={measures || {}} />
+            </div>
+
+            <div className="portfolio-meta-card">
+              <Activity component={component.key} metrics={this.props.metrics} />
+            </div>
+
+            <div className="portfolio-meta-card">
+              <Report component={component} />
+            </div>
           </aside>
         </div>
       </div>
@@ -197,10 +218,11 @@ export class App extends React.PureComponent<Props, State> {
 
 const mapDispatchToProps: DispatchToProps = { fetchMetrics };
 
-const mapStateToProps = (state: any): StateToProps => ({
+const mapStateToProps = (state: Store): StateToProps => ({
   metrics: getMetrics(state)
 });
 
-export default connect<StateToProps, DispatchToProps, Props>(mapStateToProps, mapDispatchToProps)(
-  App
-);
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(App);

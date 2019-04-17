@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,23 +18,25 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import { getDisplayedHistoryMetrics, DEFAULT_GRAPH } from '../../projectActivity/utils';
+import {
+  getDisplayedHistoryMetrics,
+  DEFAULT_GRAPH,
+  getProjectActivityGraph
+} from '../../projectActivity/utils';
 import PreviewGraph from '../../../components/preview-graph/PreviewGraph';
-import { getAllTimeMachineData, History } from '../../../api/time-machine';
-import { Metric } from '../../../app/types';
+import { getAllTimeMachineData } from '../../../api/time-machine';
 import { parseDate } from '../../../helpers/dates';
 import { translate } from '../../../helpers/l10n';
-import { getCustomGraph, getGraph } from '../../../helpers/storage';
-
-const AnyPreviewGraph = PreviewGraph as any;
 
 interface Props {
   component: string;
-  metrics: { [key: string]: Metric };
+  metrics: T.Dict<T.Metric>;
 }
 
 interface State {
-  history?: History;
+  history?: {
+    [metric: string]: Array<{ date: Date; value?: string }>;
+  };
   loading: boolean;
 }
 
@@ -60,16 +62,17 @@ export default class Activity extends React.PureComponent<Props> {
   fetchHistory = () => {
     const { component } = this.props;
 
-    let graphMetrics = getDisplayedHistoryMetrics(getGraph(), getCustomGraph());
+    const { graph, customGraphs } = getProjectActivityGraph(component);
+    let graphMetrics = getDisplayedHistoryMetrics(graph, customGraphs);
     if (!graphMetrics || graphMetrics.length <= 0) {
       graphMetrics = getDisplayedHistoryMetrics(DEFAULT_GRAPH, []);
     }
 
     this.setState({ loading: true });
-    return getAllTimeMachineData(component, graphMetrics).then(
+    return getAllTimeMachineData({ component, metrics: graphMetrics.join() }).then(
       timeMachine => {
         if (this.mounted) {
-          const history: History = {};
+          const history: T.Dict<Array<{ date: Date; value?: string }>> = {};
           timeMachine.measures.forEach(measure => {
             const measureHistory = measure.history.map(analysis => ({
               date: parseDate(analysis.date),
@@ -99,7 +102,7 @@ export default class Activity extends React.PureComponent<Props> {
           <i className="spinner" />
         ) : (
           this.state.history !== undefined && (
-            <AnyPreviewGraph
+            <PreviewGraph
               history={this.state.history}
               metrics={this.props.metrics}
               project={this.props.component}

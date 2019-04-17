@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -45,13 +45,13 @@ public class CoreMetricsTest {
   }
 
   @Test
-  public void get_metric_by_key() throws Exception {
+  public void get_metric_by_key() {
     Metric metric = getMetric("ncloc");
     assertThat(metric.getKey()).isEqualTo("ncloc");
   }
 
   @Test
-  public void fail_get_unknown_metric_by_key() throws Exception {
+  public void fail_get_unknown_metric_by_key() {
     expectedException.expect(NoSuchElementException.class);
     getMetric("unknown");
   }

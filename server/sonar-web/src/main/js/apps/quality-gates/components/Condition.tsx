@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,200 +18,78 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import DeleteConditionForm from './DeleteConditionForm';
-import ThresholdInput from './ThresholdInput';
-import Checkbox from '../../../components/controls/Checkbox';
-import Select from '../../../components/controls/Select';
-import {
-  Condition as ICondition,
-  ConditionBase,
-  createCondition,
-  QualityGate,
-  updateCondition
-} from '../../../api/quality-gates';
-import { Metric } from '../../../app/types';
-import { translate, getLocalizedMetricName } from '../../../helpers/l10n';
+import ConditionModal from './ConditionModal';
+import ActionsDropdown, { ActionsDropdownItem } from '../../../components/controls/ActionsDropdown';
+import { translate, getLocalizedMetricName, translateWithParameters } from '../../../helpers/l10n';
 import { formatMeasure } from '../../../helpers/measures';
+import ConfirmModal from '../../../components/controls/ConfirmModal';
+import { deleteCondition } from '../../../api/quality-gates';
 
 interface Props {
-  condition: ICondition;
-  edit: boolean;
-  metric: Metric;
-  organization: string;
-  onDeleteCondition: (condition: ICondition) => void;
-  onError: (error: any) => void;
-  onResetError: () => void;
-  onSaveCondition: (condition: ICondition, newCondition: ICondition) => void;
-  qualityGate: QualityGate;
+  condition: T.Condition;
+  canEdit: boolean;
+  metric: T.Metric;
+  organization?: string;
+  onRemoveCondition: (Condition: T.Condition) => void;
+  onSaveCondition: (newCondition: T.Condition, oldCondition: T.Condition) => void;
+  qualityGate: T.QualityGate;
 }
 
 interface State {
-  changed: boolean;
-  period?: number;
-  op?: string;
-  openDeleteCondition: boolean;
-  warning: string;
-  error: string;
+  deleteFormOpen: boolean;
+  modal: boolean;
 }
 
 export default class Condition extends React.PureComponent<Props, State> {
   constructor(props: Props) {
     super(props);
     this.state = {
-      changed: false,
-      period: props.condition.period,
-      op: props.condition.op,
-      openDeleteCondition: false,
-      warning: props.condition.warning || '',
-      error: props.condition.error || ''
+      deleteFormOpen: false,
+      modal: false
     };
   }
 
-  handleOperatorChange = ({ value }: any) => this.setState({ changed: true, op: value });
-
-  handlePeriodChange = (checked: boolean) => {
-    const period = checked ? 1 : undefined;
-    this.setState({ changed: true, period });
+  handleUpdateCondition = (newCondition: T.Condition) => {
+    this.props.onSaveCondition(newCondition, this.props.condition);
   };
 
-  handleWarningChange = (warning: string) => this.setState({ changed: true, warning });
+  handleOpenUpdate = () => {
+    this.setState({ modal: true });
+  };
 
-  handleErrorChange = (error: string) => this.setState({ changed: true, error });
+  handleUpdateClose = () => {
+    this.setState({ modal: false });
+  };
 
-  handleSaveClick = () => {
-    const { qualityGate, condition, metric, organization } = this.props;
-    const { period } = this.state;
-    const data: ConditionBase = {
-      metric: condition.metric,
-      op: metric.type === 'RATING' ? 'GT' : this.state.op,
-      warning: this.state.warning,
-      error: this.state.error
-    };
+  handleDeleteClick = () => {
+    this.setState({ deleteFormOpen: true });
+  };
 
-    if (period && metric.type !== 'RATING') {
-      data.period = period;
-    }
+  closeDeleteForm = () => {
+    this.setState({ deleteFormOpen: false });
+  };
 
-    if (metric.key.indexOf('new_') === 0) {
-      data.period = 1;
-    }
-
-    createCondition({ gateId: qualityGate.id, organization, ...data }).then(
-      this.handleConditionResponse,
-      this.props.onError
+  removeCondition = (condition: T.Condition) => {
+    deleteCondition({ id: condition.id, organization: this.props.organization }).then(
+      () => this.props.onRemoveCondition(condition),
+      () => {}
     );
   };
-
-  handleUpdateClick = () => {
-    const { condition, metric, organization } = this.props;
-    const { period } = this.state;
-    const data: ICondition = {
-      id: condition.id,
-      metric: condition.metric,
-      op: metric.type === 'RATING' ? 'GT' : this.state.op,
-      warning: this.state.warning,
-      error: this.state.error
-    };
-
-    if (period && metric.type !== 'RATING') {
-      data.period = period;
-    }
-
-    if (metric.key.indexOf('new_') === 0) {
-      data.period = 1;
-    }
-
-    updateCondition({ organization, ...data }).then(
-      this.handleConditionResponse,
-      this.props.onError
-    );
-  };
-
-  handleConditionResponse = (newCondition: ICondition) => {
-    this.setState({ changed: false });
-    this.props.onSaveCondition(this.props.condition, newCondition);
-    this.props.onResetError();
-  };
-
-  handleCancelClick = (e: React.SyntheticEvent<HTMLAnchorElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    this.props.onDeleteCondition(this.props.condition);
-  };
-
-  openDeleteConditionForm = () => this.setState({ openDeleteCondition: true });
-  closeDeleteConditionForm = () => this.setState({ openDeleteCondition: false });
-
-  renderPeriodValue() {
-    const { condition, metric } = this.props;
-    const isLeakSelected = !!this.state.period;
-    const isDiffMetric = condition.metric.indexOf('new_') === 0;
-    const isRating = metric.type === 'RATING';
-
-    if (isDiffMetric) {
-      return (
-        <span className="note">{translate('quality_gates.condition.leak.unconditional')}</span>
-      );
-    }
-
-    if (isRating) {
-      return <span className="note">{translate('quality_gates.condition.leak.never')}</span>;
-    }
-
-    return isLeakSelected
-      ? translate('quality_gates.condition.leak.yes')
-      : translate('quality_gates.condition.leak.no');
-  }
-
-  renderPeriod() {
-    const { condition, metric, edit } = this.props;
-
-    const isDiffMetric = condition.metric.indexOf('new_') === 0;
-    const isRating = metric.type === 'RATING';
-    const isLeakSelected = !!this.state.period;
-
-    if (isRating || isDiffMetric || !edit) {
-      return this.renderPeriodValue();
-    }
-
-    return <Checkbox checked={isLeakSelected} onCheck={this.handlePeriodChange} />;
-  }
 
   renderOperator() {
-    const { condition, edit, metric } = this.props;
-
-    if (!edit && condition.op) {
-      return metric.type === 'RATING'
-        ? translate('quality_gates.operator', condition.op, 'rating')
-        : translate('quality_gates.operator', condition.op);
-    }
-
-    if (metric.type === 'RATING') {
-      return <span className="note">{translate('quality_gates.operator.GT.rating')}</span>;
-    }
-
-    const operators = ['LT', 'GT', 'EQ', 'NE'];
-    const operatorOptions = operators.map(op => {
-      const label = translate('quality_gates.operator', op);
-      return { label, value: op };
-    });
-
+    // TODO can operator be missing?
+    const { op = 'GT' } = this.props.condition;
     return (
-      <Select
-        autofocus={true}
-        className="input-medium"
-        clearable={false}
-        name="operator"
-        onChange={this.handleOperatorChange}
-        options={operatorOptions}
-        searchable={false}
-        value={this.state.op}
-      />
+      <span className="note">
+        {this.props.metric.type === 'RATING'
+          ? translate('quality_gates.operator', op, 'rating')
+          : translate('quality_gates.operator', op)}
+      </span>
     );
   }
 
   render() {
-    const { condition, edit, metric, organization } = this.props;
+    const { condition, canEdit, metric, organization, qualityGate } = this.props;
     return (
       <tr>
         <td className="text-middle">
@@ -221,73 +99,47 @@ export default class Condition extends React.PureComponent<Props, State> {
           )}
         </td>
 
-        <td className="thin text-middle nowrap">{this.renderPeriod()}</td>
-
         <td className="thin text-middle nowrap">{this.renderOperator()}</td>
 
-        <td className="thin text-middle nowrap">
-          {edit ? (
-            <ThresholdInput
-              name="warning"
-              value={this.state.warning}
-              metric={metric}
-              onChange={this.handleWarningChange}
-            />
-          ) : (
-            formatMeasure(condition.warning, metric.type)
-          )}
-        </td>
+        <td className="thin text-middle nowrap">{formatMeasure(condition.error, metric.type)}</td>
 
-        <td className="thin text-middle nowrap">
-          {edit ? (
-            <ThresholdInput
-              name="error"
-              value={this.state.error}
-              metric={metric}
-              onChange={this.handleErrorChange}
-            />
-          ) : (
-            formatMeasure(condition.error, metric.type)
-          )}
-        </td>
-
-        {edit && (
+        {canEdit && (
           <td className="thin text-middle nowrap">
-            {condition.id ? (
-              <div>
-                <button
-                  className="update-condition"
-                  disabled={!this.state.changed}
-                  onClick={this.handleUpdateClick}>
-                  {translate('update_verb')}
-                </button>
-                <button
-                  className="button-red delete-condition little-spacer-left"
-                  onClick={this.openDeleteConditionForm}>
-                  {translate('delete')}
-                </button>
-                {this.state.openDeleteCondition && (
-                  <DeleteConditionForm
-                    condition={condition}
-                    metric={metric}
-                    onClose={this.closeDeleteConditionForm}
-                    onDelete={this.props.onDeleteCondition}
-                    organization={organization}
-                  />
+            <ActionsDropdown className="dropdown-menu-right">
+              <ActionsDropdownItem className="js-condition-update" onClick={this.handleOpenUpdate}>
+                {translate('update_details')}
+              </ActionsDropdownItem>
+              <ActionsDropdownItem
+                destructive={true}
+                id="condition-delete"
+                onClick={this.handleDeleteClick}>
+                {translate('delete')}
+              </ActionsDropdownItem>
+            </ActionsDropdown>
+            {this.state.modal && (
+              <ConditionModal
+                condition={condition}
+                header={translate('quality_gates.update_condition')}
+                metric={metric}
+                onAddCondition={this.handleUpdateCondition}
+                onClose={this.handleUpdateClose}
+                organization={organization}
+                qualityGate={qualityGate}
+              />
+            )}
+            {this.state.deleteFormOpen && (
+              <ConfirmModal
+                confirmButtonText={translate('delete')}
+                confirmData={condition}
+                header={translate('quality_gates.delete_condition')}
+                isDestructive={true}
+                onClose={this.closeDeleteForm}
+                onConfirm={this.removeCondition}>
+                {translateWithParameters(
+                  'quality_gates.delete_condition.confirm.message',
+                  getLocalizedMetricName(this.props.metric)
                 )}
-              </div>
-            ) : (
-              <div>
-                <button className="add-condition" onClick={this.handleSaveClick}>
-                  {translate('add_verb')}
-                </button>
-                <a
-                  className="cancel-add-condition spacer-left"
-                  href="#"
-                  onClick={this.handleCancelClick}>
-                  {translate('cancel')}
-                </a>
-              </div>
+              </ConfirmModal>
             )}
           </td>
         )}

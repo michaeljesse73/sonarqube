@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -23,7 +23,6 @@ import com.google.common.collect.ImmutableList;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -40,53 +39,6 @@ import static org.sonar.db.DatabaseUtils.executeLargeInputs;
  * No streaming because of union of joins -> no need to use ResultSetIterator
  */
 public class PermissionIndexerDao {
-
-  public static final class Dto {
-    private final String projectUuid;
-    private final String qualifier;
-    private final List<Integer> userIds = new ArrayList<>();
-    private final List<Integer> groupIds = new ArrayList<>();
-    private boolean allowAnyone = false;
-
-    public Dto(String projectUuid, String qualifier) {
-      this.projectUuid = projectUuid;
-      this.qualifier = qualifier;
-    }
-
-    public String getProjectUuid() {
-      return projectUuid;
-    }
-
-    public String getQualifier() {
-      return qualifier;
-    }
-
-    public List<Integer> getUserIds() {
-      return userIds;
-    }
-
-    public Dto addUserId(int l) {
-      userIds.add(l);
-      return this;
-    }
-
-    public Dto addGroupId(int id) {
-      groupIds.add(id);
-      return this;
-    }
-
-    public List<Integer> getGroupIds() {
-      return groupIds;
-    }
-
-    public void allowAnyone() {
-      this.allowAnyone = true;
-    }
-
-    public boolean isAllowAnyone() {
-      return allowAnyone;
-    }
-  }
 
   private enum RowKind {
     USER, GROUP, ANYONE, NONE
@@ -170,17 +122,17 @@ public class PermissionIndexerDao {
 
     "    ) project_authorization";
 
-  List<Dto> selectAll(DbClient dbClient, DbSession session) {
+  List<IndexPermissions> selectAll(DbClient dbClient, DbSession session) {
     return doSelectByProjects(dbClient, session, Collections.emptyList());
   }
 
-  List<Dto> selectByUuids(DbClient dbClient, DbSession session, Collection<String> projectOrViewUuids) {
+  List<IndexPermissions> selectByUuids(DbClient dbClient, DbSession session, Collection<String> projectOrViewUuids) {
     return executeLargeInputs(projectOrViewUuids, subProjectOrViewUuids -> doSelectByProjects(dbClient, session, subProjectOrViewUuids));
   }
 
-  private static List<Dto> doSelectByProjects(DbClient dbClient, DbSession session, List<String> projectUuids) {
+  private static List<IndexPermissions> doSelectByProjects(DbClient dbClient, DbSession session, List<String> projectUuids) {
     try {
-      Map<String, Dto> dtosByProjectUuid = new HashMap<>();
+      Map<String, IndexPermissions> dtosByProjectUuid = new HashMap<>();
       try (PreparedStatement stmt = createStatement(dbClient, session, projectUuids);
         ResultSet rs = stmt.executeQuery()) {
         while (rs.next()) {
@@ -231,14 +183,14 @@ public class PermissionIndexerDao {
     return newIndex;
   }
 
-  private static void processRow(ResultSet rs, Map<String, Dto> dtosByProjectUuid) throws SQLException {
+  private static void processRow(ResultSet rs, Map<String, IndexPermissions> dtosByProjectUuid) throws SQLException {
     RowKind rowKind = RowKind.valueOf(rs.getString(1));
     String projectUuid = rs.getString(2);
 
-    Dto dto = dtosByProjectUuid.get(projectUuid);
+    IndexPermissions dto = dtosByProjectUuid.get(projectUuid);
     if (dto == null) {
       String qualifier = rs.getString(5);
-      dto = new Dto(projectUuid, qualifier);
+      dto = new IndexPermissions(projectUuid, qualifier);
       dtosByProjectUuid.put(projectUuid, dto);
     }
     switch (rowKind) {

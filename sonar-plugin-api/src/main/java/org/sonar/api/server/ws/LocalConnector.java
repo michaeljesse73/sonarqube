@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,6 +21,7 @@ package org.sonar.api.server.ws;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import javax.annotation.CheckForNull;
 
@@ -99,6 +100,8 @@ public interface LocalConnector {
      * @since 6.6
      */
     Optional<String> getHeader(String name);
+
+    Map<String,String[]> getParameterMap();
   }
 
   interface LocalResponse {

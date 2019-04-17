@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,9 +19,8 @@
  */
 import * as React from 'react';
 import RestoreAccessModal from './RestoreAccessModal';
-import { Project } from './utils';
 import ApplyTemplate from '../permissions/project/components/ApplyTemplate';
-import { getComponentShow } from '../../api/components';
+import { getComponentShow, Project } from '../../api/components';
 import { getComponentNavigation } from '../../api/nav';
 import ActionsDropdown, { ActionsDropdownItem } from '../../components/controls/ActionsDropdown';
 import { translate } from '../../helpers/l10n';
@@ -57,8 +56,8 @@ export default class ProjectRowActions extends React.PureComponent<Props, State>
     // call `getComponentNavigation` to check if user has the "Administer" permission
     // call `getComponentShow` to check if user has the "Browse" permission
     Promise.all([
-      getComponentNavigation(this.props.project.key),
-      getComponentShow(this.props.project.key)
+      getComponentNavigation({ component: this.props.project.key }),
+      getComponentShow({ component: this.props.project.key })
     ]).then(
       ([navResponse]) => {
         if (this.mounted) {
@@ -76,7 +75,7 @@ export default class ProjectRowActions extends React.PureComponent<Props, State>
     );
   };
 
-  handleDropdownClick = () => {
+  handleDropdownOpen = () => {
     if (this.state.hasAccess === undefined && !this.state.loading) {
       this.fetchPermissions();
     }
@@ -106,24 +105,28 @@ export default class ProjectRowActions extends React.PureComponent<Props, State>
     const { hasAccess } = this.state;
 
     return (
-      <ActionsDropdown onToggleClick={this.handleDropdownClick}>
-        {hasAccess === true && (
-          <ActionsDropdownItem to={getComponentPermissionsUrl(this.props.project.key)}>
-            {translate('edit_permissions')}
-          </ActionsDropdownItem>
-        )}
+      <>
+        <ActionsDropdown onOpen={this.handleDropdownOpen}>
+          {hasAccess === true && (
+            <ActionsDropdownItem to={getComponentPermissionsUrl(this.props.project.key)}>
+              {translate('edit_permissions')}
+            </ActionsDropdownItem>
+          )}
 
-        {hasAccess === false && (
+          {hasAccess === false && (
+            <ActionsDropdownItem
+              className="js-restore-access"
+              onClick={this.handleRestoreAccessClick}>
+              {translate('global_permissions.restore_access')}
+            </ActionsDropdownItem>
+          )}
+
           <ActionsDropdownItem
-            className="js-restore-access"
-            onClick={this.handleRestoreAccessClick}>
-            {translate('global_permissions.restore_access')}
+            className="js-apply-template"
+            onClick={this.handleApplyTemplateClick}>
+            {translate('projects_role.apply_template')}
           </ActionsDropdownItem>
-        )}
-
-        <ActionsDropdownItem className="js-apply-template" onClick={this.handleApplyTemplateClick}>
-          {translate('projects_role.apply_template')}
-        </ActionsDropdownItem>
+        </ActionsDropdown>
 
         {this.state.restoreAccessModal && (
           <RestoreAccessModal
@@ -141,7 +144,7 @@ export default class ProjectRowActions extends React.PureComponent<Props, State>
             project={this.props.project}
           />
         )}
-      </ActionsDropdown>
+      </>
     );
   }
 }

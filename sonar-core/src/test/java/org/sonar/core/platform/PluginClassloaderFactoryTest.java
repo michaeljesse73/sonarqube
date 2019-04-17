@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,13 +19,12 @@
  */
 package org.sonar.core.platform;
 
+import com.sonarsource.plugins.license.api.FooBar;
 import java.io.File;
 import java.util.Map;
 import org.apache.commons.lang.StringUtils;
-import org.junit.Rule;
 import org.junit.Test;
 import org.sonar.api.server.rule.RulesDefinition;
-import org.sonar.api.utils.internal.JUnitTempFolder;
 
 import static java.util.Arrays.asList;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -37,10 +36,7 @@ public class PluginClassloaderFactoryTest {
   static final String BASE_PLUGIN_KEY = "base";
   static final String DEPENDENT_PLUGIN_KEY = "dependent";
 
-  @Rule
-  public JUnitTempFolder temp = new JUnitTempFolder();
-
-  PluginClassloaderFactory factory = new PluginClassloaderFactory(temp);
+  PluginClassloaderFactory factory = new PluginClassloaderFactory();
 
   @Test
   public void create_isolated_classloader() {
@@ -61,20 +57,6 @@ public class PluginClassloaderFactoryTest {
   }
 
   @Test
-  public void create_classloader_compatible_with_with_old_api_dependencies() {
-    PluginClassLoaderDef def = basePluginDef();
-    def.setCompatibilityMode(true);
-    ClassLoader classLoader = factory.create(asList(def)).get(def);
-
-    // Plugin can access to API and its transitive dependencies as defined in version 5.1.
-    // It can not access to core classes though, even if it was possible in previous versions.
-    assertThat(canLoadClass(classLoader, RulesDefinition.class.getCanonicalName())).isTrue();
-    assertThat(canLoadClass(classLoader, StringUtils.class.getCanonicalName())).isTrue();
-    assertThat(canLoadClass(classLoader, BASE_PLUGIN_CLASSNAME)).isTrue();
-    assertThat(canLoadClass(classLoader, PluginClassloaderFactory.class.getCanonicalName())).isFalse();
-  }
-
-  @Test
   public void classloader_exports_resources_to_other_classloaders() {
     PluginClassLoaderDef baseDef = basePluginDef();
     PluginClassLoaderDef dependentDef = dependentPluginDef();
@@ -90,6 +72,17 @@ public class PluginClassloaderFactoryTest {
     // dependent-plugin does not export its classes
     assertThat(canLoadClass(baseClassloader, DEPENDENT_PLUGIN_CLASSNAME)).isFalse();
     assertThat(canLoadClass(baseClassloader, BASE_PLUGIN_CLASSNAME)).isTrue();
+  }
+
+  @Test
+  public void classloader_exposes_license_api_from_main_classloader() {
+    PluginClassLoaderDef def = basePluginDef();
+    Map<PluginClassLoaderDef, ClassLoader> map = factory.create(asList(def));
+
+    assertThat(map).containsOnlyKeys(def);
+    ClassLoader classLoader = map.get(def);
+
+    assertThat(canLoadClass(classLoader, FooBar.class.getCanonicalName())).isTrue();
   }
 
   private static PluginClassLoaderDef basePluginDef() {

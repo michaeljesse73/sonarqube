@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -59,7 +59,11 @@ public class SecurityServletFilter implements Filter {
 
     // Clickjacking protection
     // See https://www.owasp.org/index.php/Clickjacking_Protection_for_Java_EE
-    httpResponse.addHeader("X-Frame-Options", "SAMEORIGIN");
+    // The protection is disabled on purpose for integration in external systems like VSTS (/integration/vsts/index.html).
+    String path = httpRequest.getRequestURI().replaceFirst(httpRequest.getContextPath(), "");
+    if (!path.startsWith("/integration/")) {
+      httpResponse.addHeader("X-Frame-Options", "SAMEORIGIN");
+    }
 
     // Cross-site scripting
     // See https://www.owasp.org/index.php/List_of_useful_HTTP_headers

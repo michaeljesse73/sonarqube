@@ -4,6 +4,7 @@ exports[`renders 1`] = `
 <Modal
   contentLabel="branches.rename"
   onRequestClose={[MockFunction]}
+  size="small"
 >
   <header
     className="modal-head"
@@ -47,18 +48,16 @@ exports[`renders 1`] = `
     <footer
       className="modal-foot"
     >
-      <button
+      <SubmitButton
         disabled={true}
-        type="submit"
       >
         rename
-      </button>
-      <a
-        href="#"
-        onClick={[Function]}
+      </SubmitButton>
+      <ResetButtonLink
+        onClick={[MockFunction]}
       >
         cancel
-      </a>
+      </ResetButtonLink>
     </footer>
   </form>
 </Modal>
@@ -68,6 +67,7 @@ exports[`renders 2`] = `
 <Modal
   contentLabel="branches.rename"
   onRequestClose={[MockFunction]}
+  size="small"
 >
   <header
     className="modal-head"
@@ -111,18 +111,16 @@ exports[`renders 2`] = `
     <footer
       className="modal-foot"
     >
-      <button
+      <SubmitButton
         disabled={false}
-        type="submit"
       >
         rename
-      </button>
-      <a
-        href="#"
-        onClick={[Function]}
+      </SubmitButton>
+      <ResetButtonLink
+        onClick={[MockFunction]}
       >
         cancel
-      </a>
+      </ResetButtonLink>
     </footer>
   </form>
 </Modal>
@@ -132,6 +130,7 @@ exports[`renders 3`] = `
 <Modal
   contentLabel="branches.rename"
   onRequestClose={[MockFunction]}
+  size="small"
 >
   <header
     className="modal-head"
@@ -178,18 +177,16 @@ exports[`renders 3`] = `
       <i
         className="spinner spacer-right"
       />
-      <button
+      <SubmitButton
         disabled={true}
-        type="submit"
       >
         rename
-      </button>
-      <a
-        href="#"
-        onClick={[Function]}
+      </SubmitButton>
+      <ResetButtonLink
+        onClick={[MockFunction]}
       >
         cancel
-      </a>
+      </ResetButtonLink>
     </footer>
   </form>
 </Modal>

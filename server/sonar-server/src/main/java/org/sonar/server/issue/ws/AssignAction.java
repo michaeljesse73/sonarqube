@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,10 +22,9 @@ package org.sonar.server.issue.ws;
 import com.google.common.base.Strings;
 import com.google.common.io.Resources;
 import java.util.Date;
-import java.util.Optional;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
-import org.apache.commons.lang.BooleanUtils;
+import org.sonar.api.rules.RuleType;
 import org.sonar.api.server.ws.Change;
 import org.sonar.api.server.ws.Request;
 import org.sonar.api.server.ws.Response;
@@ -55,7 +54,6 @@ import static org.sonarqube.ws.client.issue.IssuesWsParameters.PARAM_ASSIGNEE;
 import static org.sonarqube.ws.client.issue.IssuesWsParameters.PARAM_ISSUE;
 
 public class AssignAction implements IssuesWsAction {
-  private static final String DEPRECATED_PARAM_ME = "me";
   private static final String ASSIGN_TO_ME_VALUE = "_me";
 
   private final System2 system2;
@@ -96,10 +94,6 @@ public class AssignAction implements IssuesWsAction {
     action.createParam(PARAM_ASSIGNEE)
       .setDescription("Login of the assignee. When not set, it will unassign the issue. Use '%s' to assign to current user", ASSIGN_TO_ME_VALUE)
       .setExampleValue("admin");
-    action.createParam(DEPRECATED_PARAM_ME)
-      .setDescription("(deprecated) Assign the issue to the logged-in user. Replaced by the parameter assignee=_me")
-      .setDeprecatedSince("5.2")
-      .setBooleanPossibleValues();
   }
 
   @Override
@@ -111,15 +105,16 @@ public class AssignAction implements IssuesWsAction {
     responseWriter.write(key, preloadedResponseData, request, response);
   }
 
-  private SearchResponseData assign(String issueKey, @Nullable String assignee) {
+  private SearchResponseData assign(String issueKey, @Nullable String login) {
     try (DbSession dbSession = dbClient.openSession(false)) {
       IssueDto issueDto = issueFinder.getByKey(dbSession, issueKey);
       DefaultIssue issue = issueDto.toDefaultIssue();
-      UserDto user = getUser(dbSession, assignee);
+      checkArgument(issue.type() != RuleType.SECURITY_HOTSPOT, "Assigning security hotspots is not allowed");
+      UserDto user = getUser(dbSession, login);
       if (user != null) {
         checkMembership(dbSession, issueDto, user);
       }
-      IssueChangeContext context = IssueChangeContext.createUser(new Date(system2.now()), userSession.getLogin());
+      IssueChangeContext context = IssueChangeContext.createUser(new Date(system2.now()), userSession.getUuid());
       if (issueFieldsSetter.assign(issue, user, context)) {
         return issueUpdater.saveIssueAndPreloadSearchResponseData(dbSession, issue, context, null, false);
       }
@@ -130,10 +125,7 @@ public class AssignAction implements IssuesWsAction {
   @CheckForNull
   private String getAssignee(Request request) {
     String assignee = emptyToNull(request.param(PARAM_ASSIGNEE));
-    if (ASSIGN_TO_ME_VALUE.equals(assignee) || BooleanUtils.isTrue(request.paramAsBoolean(DEPRECATED_PARAM_ME))) {
-      return userSession.getLogin();
-    }
-    return assignee;
+    return ASSIGN_TO_ME_VALUE.equals(assignee) ? userSession.getLogin() : assignee;
   }
 
   @CheckForNull
@@ -146,7 +138,7 @@ public class AssignAction implements IssuesWsAction {
 
   private void checkMembership(DbSession dbSession, IssueDto issueDto, UserDto user) {
     String projectUuid = requireNonNull(issueDto.getProjectUuid());
-    ComponentDto project = Optional.ofNullable(dbClient.componentDao().selectByUuid(dbSession, projectUuid).orNull())
+    ComponentDto project = dbClient.componentDao().selectByUuid(dbSession, projectUuid)
       .orElseThrow(() -> new IllegalStateException(format("Unknown project %s", projectUuid)));
     OrganizationDto organizationDto = dbClient.organizationDao().selectByUuid(dbSession, project.getOrganizationUuid())
       .orElseThrow(() -> new IllegalStateException(format("Unknown organizationMember %s", project.getOrganizationUuid())));

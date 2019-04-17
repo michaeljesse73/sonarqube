@@ -11,14 +11,15 @@
     org.url as "url",
     org.avatar_url as "avatarUrl",
     org.guarded as "guarded",
-    org.user_id as "userId",
+    org.subscription as "subscription",
     org.created_at as "createdAt",
     org.updated_at as "updatedAt"
   </sql>
 
   <sql id="defaultTemplatesColumns">
     org.default_perm_template_project as "projectUuid",
-    org.default_perm_template_view as "viewUuid"
+    org.default_perm_template_app as "applicationsUuid",
+    org.default_perm_template_port as "portfoliosUuid"
   </sql>
 
   <select id="selectByUuid" resultType="Organization">
@@ -55,6 +56,17 @@
         <foreach collection="uuids" open="(" close=")" item="uuid" separator=",">
           #{uuid, jdbcType=VARCHAR}
         </foreach>
+  </select>
+
+  <select id="selectByOrganizationAlmId" resultType="Organization">
+    select
+      <include refid="selectColumns"/>
+    from organizations org
+    inner join organization_alm_bindings oab on org.uuid=oab.organization_uuid
+    inner join alm_app_installs aai on aai.uuid=oab.alm_app_install_uuid
+    where
+      aai.owner_id = #{organizationAlmId, jdbcType=VARCHAR} and
+      aai.alm_id = #{alm, jdbcType=VARCHAR}
   </select>
 
   <select id="countByQuery" resultType="int">
@@ -109,6 +121,43 @@
             #{key, jdbcType=VARCHAR}
           </foreach>
       </if>
+      <if test="query.onlyTeam">
+        and not exists(
+          select 1
+          from users u
+          where u.organization_uuid = org.uuid
+          and u.active = ${_true}
+        )
+      </if>
+      <if test="query.onlyPersonal">
+        and exists(
+          select 1
+          from users u
+          where u.organization_uuid = org.uuid
+          and u.active = ${_true}
+        )
+      </if>
+      <if test="query.withAnalyses">
+        and exists(
+          select 1
+          from snapshots s
+          inner join projects p on p.uuid = s.component_uuid
+          where p.organization_uuid = org.uuid
+          and p.enabled = ${_true}
+          and s.islast = ${_true}
+        )
+      </if>
+      <if test="query.analyzedAfter != null">
+        and exists(
+        select 1
+          from snapshots s
+          inner join projects p on p.uuid = s.component_uuid
+          where p.organization_uuid = org.uuid
+          and p.enabled = ${_true}
+          and s.islast = ${_true}
+          and s.created_at &gt;= #{query.analyzedAfter,jdbcType=BIGINT}
+        )
+      </if>
     </where>
   </sql>
 
@@ -152,6 +201,34 @@
     org.uuid = #{uuid, jdbcType=VARCHAR}
   </select>
 
+  <select id="selectOrganizationsWithNcloc" resultType="org.sonar.db.organization.OrganizationWithNclocDto">
+    select o.uuid as id, o.kee as kee, o.name as name, t.ncloc as ncloc
+    from organizations o
+    left outer join (
+    select orgUuid, sum(sumncloc.maxncloc) as ncloc from (
+    select b.project_uuid, p.organization_uuid as orgUuid, max(lm.value) as maxncloc
+    from live_measures lm
+    inner join metrics m on m.id = lm.metric_id
+    inner join projects p on p.uuid = lm.component_uuid
+    inner join project_branches b on b.uuid = p.uuid
+    where
+    m.name = #{ncloc, jdbcType=VARCHAR}
+    and p.enabled = ${_true}
+    and p.private = ${_true}
+    and p.scope = 'PRJ'
+    and p.qualifier = 'TRK'
+    and p.copy_component_uuid is null
+    and p.organization_uuid in <foreach collection="organizationUuids" open="(" close=")" item="uuid" separator=",">#{uuid, jdbcType=VARCHAR}</foreach>
+    and b.branch_type = #{branchType, jdbcType=VARCHAR}
+    and b.key_type = #{branch, jdbcType=VARCHAR}
+    group by b.project_uuid, p.organization_uuid
+    ) sumncloc
+    group by orgUuid
+    ) t on t.orgUuid = o.uuid
+    where
+    o.uuid in <foreach collection="organizationUuids" open="(" close=")" item="uuid" separator=",">#{uuid, jdbcType=VARCHAR}</foreach>
+  </select>
+
   <insert id="insert" parameterType="map" useGeneratedKeys="false">
     insert into organizations
     (
@@ -163,8 +240,8 @@
       avatar_url,
       guarded,
       new_project_private,
-      user_id,
       default_quality_gate_uuid,
+      subscription,
       created_at,
       updated_at
     )
@@ -178,8 +255,8 @@
       #{organization.avatarUrl, jdbcType=VARCHAR},
       #{organization.guarded, jdbcType=BOOLEAN},
       #{newProjectPrivate, jdbcType=BOOLEAN},
-      #{organization.userId, jdbcType=INTEGER},
       #{organization.defaultQualityGateUuid, jdbcType=VARCHAR},
+      #{organization.subscription, jdbcType=VARCHAR},
       #{organization.createdAt, jdbcType=BIGINT},
       #{organization.updatedAt, jdbcType=BIGINT}
     )
@@ -188,10 +265,12 @@
   <update id="update" parameterType="Organization">
     update organizations
     set
+      kee = #{organization.key, jdbcType=VARCHAR},
       name = #{organization.name, jdbcType=VARCHAR},
       description = #{organization.description, jdbcType=VARCHAR},
       url = #{organization.url, jdbcType=VARCHAR},
       default_quality_gate_uuid = #{organization.defaultQualityGateUuid, jdbcType=VARCHAR},
+      subscription = #{organization.subscription, jdbcType=VARCHAR},
       avatar_url = #{organization.avatarUrl, jdbcType=VARCHAR},
       updated_at = #{organization.updatedAt, jdbcType=BIGINT}
     where
@@ -202,7 +281,8 @@
     update organizations
     set
       default_perm_template_project = #{defaultTemplates.projectUuid, jdbcType=VARCHAR},
-      default_perm_template_view = #{defaultTemplates.viewUuid, jdbcType=VARCHAR},
+      default_perm_template_app = #{defaultTemplates.applicationsUuid, jdbcType=VARCHAR},
+      default_perm_template_port = #{defaultTemplates.portfoliosUuid, jdbcType=VARCHAR},
       updated_at = #{now, jdbcType=BIGINT}
     where
       uuid = #{organizationUuid, jdbcType=VARCHAR}
@@ -240,5 +320,4 @@
     where
       uuid = #{uuid, jdbcType=VARCHAR}
   </delete>
-
 </mapper>

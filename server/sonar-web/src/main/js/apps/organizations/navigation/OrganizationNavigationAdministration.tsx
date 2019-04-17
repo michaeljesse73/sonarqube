@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,93 +20,88 @@
 import * as React from 'react';
 import { Link } from 'react-router';
 import * as classNames from 'classnames';
-import { Organization } from '../../../app/types';
 import { translate } from '../../../helpers/l10n';
 import Dropdown from '../../../components/controls/Dropdown';
 import DropdownIcon from '../../../components/icons-components/DropdownIcon';
 
 interface Props {
   location: { pathname: string };
-  organization: Organization;
+  organization: T.Organization;
 }
 
 const ADMIN_PATHS = [
   'edit',
   'groups',
-  'delete',
   'permissions',
   'permission_templates',
-  'projects_management'
+  'projects_management',
+  'webhooks'
 ];
 
 export default function OrganizationNavigationAdministration({ location, organization }: Props) {
-  const extensions = organization.adminPages || [];
-  const adminPathsWithExtensions = extensions.map(e => `extension/${e.key}`).concat(ADMIN_PATHS);
+  const { adminPages = [] } = organization;
+  const adminPathsWithExtensions = adminPages.map(e => `extension/${e.key}`).concat(ADMIN_PATHS);
   const adminActive = adminPathsWithExtensions.some(path =>
     location.pathname.endsWith(`organizations/${organization.key}/${path}`)
   );
 
   return (
-    <Dropdown>
-      {({ onToggleClick, open }) => (
-        <li className={classNames('dropdown', { open })}>
-          <a
-            className={classNames('dropdown-toggle', { active: adminActive })}
-            id="organization-navigation-admin"
-            href="#"
-            onClick={onToggleClick}>
-            {translate('layout.settings')}
-            <DropdownIcon className="little-spacer-left" />
-          </a>
-          <ul className="dropdown-menu">
-            {extensions.map(extension => (
-              <li key={extension.key}>
-                <Link
-                  to={`/organizations/${organization.key}/extension/${extension.key}`}
-                  activeClassName="active">
-                  {extension.name}
-                </Link>
-              </li>
-            ))}
-            <li>
-              <Link to={`/organizations/${organization.key}/groups`} activeClassName="active">
-                {translate('user_groups.page')}
-              </Link>
-            </li>
-            <li>
-              <Link to={`/organizations/${organization.key}/permissions`} activeClassName="active">
-                {translate('permissions.page')}
-              </Link>
-            </li>
-            <li>
+    <Dropdown
+      overlay={
+        <ul className="menu">
+          <li>
+            <Link activeClassName="active" to={`/organizations/${organization.key}/edit`}>
+              {translate('organization.settings')}
+            </Link>
+          </li>
+          {adminPages.map(extension => (
+            <li key={extension.key}>
               <Link
-                to={`/organizations/${organization.key}/permission_templates`}
-                activeClassName="active">
-                {translate('permission_templates')}
+                activeClassName="active"
+                to={`/organizations/${organization.key}/extension/${extension.key}`}>
+                {extension.name}
               </Link>
             </li>
-            <li>
-              <Link
-                to={`/organizations/${organization.key}/projects_management`}
-                activeClassName="active">
-                {translate('projects_management')}
-              </Link>
-            </li>
-            <li>
-              <Link to={`/organizations/${organization.key}/edit`} activeClassName="active">
-                {translate('edit')}
-              </Link>
-            </li>
-            {organization.canDelete && (
-              <li>
-                <Link to={`/organizations/${organization.key}/delete`} activeClassName="active">
-                  {translate('delete')}
-                </Link>
-              </li>
-            )}
-          </ul>
-        </li>
-      )}
+          ))}
+          <li>
+            <Link activeClassName="active" to={`/organizations/${organization.key}/groups`}>
+              {translate('user_groups.page')}
+            </Link>
+          </li>
+          <li>
+            <Link activeClassName="active" to={`/organizations/${organization.key}/permissions`}>
+              {translate('permissions.page')}
+            </Link>
+          </li>
+          <li>
+            <Link
+              activeClassName="active"
+              to={`/organizations/${organization.key}/permission_templates`}>
+              {translate('permission_templates')}
+            </Link>
+          </li>
+          <li>
+            <Link
+              activeClassName="active"
+              to={`/organizations/${organization.key}/projects_management`}>
+              {translate('projects_management')}
+            </Link>
+          </li>
+          <li>
+            <Link activeClassName="active" to={`/organizations/${organization.key}/webhooks`}>
+              {translate('webhooks.page')}
+            </Link>
+          </li>
+        </ul>
+      }
+      tagName="li">
+      <a
+        className={classNames('dropdown-toggle', { active: adminActive })}
+        href="#"
+        id="organization-navigation-admin">
+        {translate('layout.settings')}
+        <DropdownIcon className="little-spacer-left" />
+      </a>
     </Dropdown>
   );
 }

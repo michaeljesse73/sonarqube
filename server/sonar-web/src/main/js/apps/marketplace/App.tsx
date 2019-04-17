@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,74 +18,48 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import * as PropTypes from 'prop-types';
 import { sortBy, uniqBy } from 'lodash';
 import Helmet from 'react-helmet';
 import Header from './Header';
 import EditionBoxes from './EditionBoxes';
 import Footer from './Footer';
-import PendingActions from './PendingActions';
 import PluginsList from './PluginsList';
 import Search from './Search';
 import { filterPlugins, parseQuery, Query, serializeQuery } from './utils';
+import Suggestions from '../../app/components/embed-docs-modal/Suggestions';
 import {
   getAvailablePlugins,
   getInstalledPluginsWithUpdates,
-  getPendingPlugins,
   getPluginUpdates,
   Plugin,
-  PluginPending,
+  PluginPendingResult,
   getInstalledPlugins
 } from '../../api/plugins';
-import { Edition, EditionStatus } from '../../api/marketplace';
-import { RawQuery } from '../../helpers/query';
 import { translate } from '../../helpers/l10n';
+import { withRouter, Location, Router } from '../../components/hoc/withRouter';
 import './style.css';
 
 export interface Props {
-  editions?: Edition[];
-  editionsReadOnly: boolean;
-  editionStatus?: EditionStatus;
-  loadingEditions: boolean;
-  location: { pathname: string; query: RawQuery };
-  standaloneMode: boolean;
+  currentEdition?: T.EditionKey;
+  fetchPendingPlugins: () => void;
+  pendingPlugins: PluginPendingResult;
+  location: Location;
+  router: Pick<Router, 'push'>;
+  standaloneMode?: boolean;
   updateCenterActive: boolean;
-  setEditionStatus: (editionStatus: EditionStatus) => void;
 }
 
 interface State {
   loadingPlugins: boolean;
-  pending: {
-    installing: PluginPending[];
-    updating: PluginPending[];
-    removing: PluginPending[];
-  };
   plugins: Plugin[];
 }
 
-export default class App extends React.PureComponent<Props, State> {
+class App extends React.PureComponent<Props, State> {
   mounted = false;
-
-  static contextTypes = {
-    router: PropTypes.object.isRequired
-  };
-
-  constructor(props: Props) {
-    super(props);
-    this.state = {
-      loadingPlugins: true,
-      pending: {
-        installing: [],
-        updating: [],
-        removing: []
-      },
-      plugins: []
-    };
-  }
+  state: State = { loadingPlugins: true, plugins: [] };
 
   componentDidMount() {
     this.mounted = true;
-    this.fetchPendingPlugins();
     this.fetchQueryPlugins();
   }
 
@@ -127,19 +101,9 @@ export default class App extends React.PureComponent<Props, State> {
     );
   };
 
-  fetchPendingPlugins = () =>
-    getPendingPlugins().then(
-      pending => {
-        if (this.mounted) {
-          this.setState({ pending });
-        }
-      },
-      () => {}
-    );
-
   updateQuery = (newQuery: Partial<Query>) => {
     const query = serializeQuery({ ...parseQuery(this.props.location.query), ...newQuery });
-    this.context.router.push({ pathname: this.props.location.pathname, query });
+    this.props.router.push({ pathname: this.props.location.pathname, query });
   };
 
   stopLoadingPlugins = () => {
@@ -149,29 +113,20 @@ export default class App extends React.PureComponent<Props, State> {
   };
 
   render() {
-    const { editions, editionStatus, standaloneMode } = this.props;
-    const { loadingPlugins, plugins, pending } = this.state;
+    const { currentEdition, standaloneMode, pendingPlugins } = this.props;
+    const { loadingPlugins, plugins } = this.state;
     const query = parseQuery(this.props.location.query);
-    const filteredPlugins = query.search ? filterPlugins(plugins, query.search) : plugins;
+    const filteredPlugins = filterPlugins(plugins, query.search);
 
     return (
       <div className="page page-limited" id="marketplace-page">
+        <Suggestions suggestions="marketplace" />
         <Helmet title={translate('marketplace.page')} />
-        <div className="page-notifs">
-          {standaloneMode && (
-            <PendingActions pending={pending} refreshPending={this.fetchPendingPlugins} />
-          )}
-        </div>
-        <Header />
-        <EditionBoxes
-          canInstall={standaloneMode && !this.props.editionsReadOnly}
-          canUninstall={standaloneMode}
-          editionStatus={editionStatus}
-          editions={editions}
-          loading={this.props.loadingEditions}
-          updateCenterActive={this.props.updateCenterActive}
-          updateEditionStatus={this.props.setEditionStatus}
-        />
+        <Header currentEdition={currentEdition} />
+        <EditionBoxes currentEdition={currentEdition} />
+        <header className="page-header">
+          <h1 className="page-title">{translate('marketplace.page.open_source_plugins')}</h1>
+        </header>
         <Search
           query={query}
           updateCenterActive={this.props.updateCenterActive}
@@ -180,11 +135,10 @@ export default class App extends React.PureComponent<Props, State> {
         {loadingPlugins && <i className="spinner" />}
         {!loadingPlugins && (
           <PluginsList
-            pending={pending}
+            pending={pendingPlugins}
             plugins={filteredPlugins}
             readOnly={!standaloneMode}
-            refreshPending={this.fetchPendingPlugins}
-            updateQuery={this.updateQuery}
+            refreshPending={this.props.fetchPendingPlugins}
           />
         )}
         {!loadingPlugins && <Footer total={filteredPlugins.length} />}
@@ -192,3 +146,5 @@ export default class App extends React.PureComponent<Props, State> {
     );
   }
 }
+
+export default withRouter(App);

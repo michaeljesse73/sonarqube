@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -39,6 +39,37 @@ public class ConfigurationTest {
     boolean value = new Random().nextBoolean();
 
     verifySupportHeadAndOrTrailingWhitespaces(value, Configuration::getBoolean);
+  }
+
+  @Test
+  public void getBoolean_returns_false_if_value_is_not_true() {
+    verifyBooleanFalse("false");
+    verifyBooleanFalse("False");
+    verifyBooleanFalse("FALSE");
+    verifyBooleanFalse("  false  ");
+    verifyBooleanFalse("foo");
+    verifyBooleanFalse("xxx");
+    verifyBooleanFalse("___");
+    verifyBooleanFalse("yes");
+    verifyBooleanFalse("no");
+  }
+
+  @Test
+  public void getBoolean_returns_true_if_value_is_true_ignore_case() {
+    verifyBooleanTrue("true");
+    verifyBooleanTrue("TRUE");
+    verifyBooleanTrue("True");
+    verifyBooleanTrue(" True ");
+  }
+
+  private void verifyBooleanFalse(String value) {
+    underTest.put("foo", value);
+    assertThat(underTest.getBoolean("foo")).hasValue(false);
+  }
+
+  private void verifyBooleanTrue(String value) {
+    underTest.put("foo", value);
+    assertThat(underTest.getBoolean("foo")).hasValue(true);
   }
 
   @Test

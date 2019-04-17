@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -23,18 +23,20 @@ import java.net.InetAddress;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.DisableOnDebug;
+import org.junit.rules.ExpectedException;
 import org.junit.rules.TestRule;
 import org.junit.rules.Timeout;
 import org.sonar.process.NetworkUtilsImpl;
 import org.sonar.process.ProcessId;
-import org.sonar.process.cluster.NodeType;
 
 import static java.util.Arrays.asList;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.sonar.process.ProcessProperties.Property.CLUSTER_NODE_PORT;
+import static org.sonar.process.ProcessProperties.Property.CLUSTER_NODE_HZ_PORT;
 
 public class HazelcastMemberBuilderTest {
 
+  @Rule
+  public ExpectedException expectedException = ExpectedException.none();
   @Rule
   public TestRule safeguardTimeout = new DisableOnDebug(Timeout.seconds(60));
 
@@ -45,7 +47,6 @@ public class HazelcastMemberBuilderTest {
   @Test
   public void build_member() {
     HazelcastMember member = underTest
-      .setNodeType(NodeType.APPLICATION)
       .setProcessId(ProcessId.COMPUTE_ENGINE)
       .setNodeName("bar")
       .setPort(NetworkUtilsImpl.INSTANCE.getNextAvailablePort(loopback))
@@ -60,9 +61,6 @@ public class HazelcastMemberBuilderTest {
     assertThat(member.getAtomicReference("baz")).isNotNull();
     assertThat(member.getLock("baz")).isNotNull();
     assertThat(member.getReplicatedMap("baz")).isNotNull();
-    assertThat(member.getList("baz")).isNotNull();
-    assertThat(member.getMap("baz")).isNotNull();
-    assertThat(member.getSet("baz")).isNotNull();
 
     member.close();
   }
@@ -72,8 +70,16 @@ public class HazelcastMemberBuilderTest {
     underTest.setMembers(asList("foo", "bar:9100", "1.2.3.4"));
 
     assertThat(underTest.getMembers()).containsExactly(
-      "foo:" + CLUSTER_NODE_PORT.getDefaultValue(),
+      "foo:" + CLUSTER_NODE_HZ_PORT.getDefaultValue(),
       "bar:9100",
-      "1.2.3.4:" + CLUSTER_NODE_PORT.getDefaultValue());
+      "1.2.3.4:" + CLUSTER_NODE_HZ_PORT.getDefaultValue());
+  }
+
+  @Test
+  public void fail_if_elasticsearch_process() {
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("Hazelcast must not be enabled on Elasticsearch node");
+
+    underTest.setProcessId(ProcessId.ELASTICSEARCH);
   }
 }

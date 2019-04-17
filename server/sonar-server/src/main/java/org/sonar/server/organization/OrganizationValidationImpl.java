@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -23,7 +23,6 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static java.lang.Math.min;
 import static java.util.Objects.requireNonNull;
 import static org.sonar.core.util.Slug.slugify;
 
@@ -32,7 +31,7 @@ public class OrganizationValidationImpl implements OrganizationValidation {
   @Override
   public String checkKey(String keyCandidate) {
     requireNonNull(keyCandidate, "key can't be null");
-    checkArgument(keyCandidate.length() >= KEY_MIN_LENGTH, "Key '%s' must be at least %s chars long", keyCandidate, KEY_MIN_LENGTH);
+    checkArgument(keyCandidate.length() >= KEY_MIN_LENGTH, "Key must not be empty");
     checkArgument(keyCandidate.length() <= KEY_MAX_LENGTH, "Key '%s' must be at most %s chars long", keyCandidate, KEY_MAX_LENGTH);
     checkArgument(slugify(keyCandidate).equals(keyCandidate), "Key '%s' contains at least one invalid char", keyCandidate);
 
@@ -43,7 +42,7 @@ public class OrganizationValidationImpl implements OrganizationValidation {
   public String checkName(String nameCandidate) {
     requireNonNull(nameCandidate, "name can't be null");
 
-    checkArgument(nameCandidate.length() >= NAME_MIN_LENGTH, "Name '%s' must be at least %s chars long", nameCandidate, NAME_MIN_LENGTH);
+    checkArgument(nameCandidate.length() >= NAME_MIN_LENGTH, "Name must not be empty");
     checkArgument(nameCandidate.length() <= NAME_MAX_LENGTH, "Name '%s' must be at most %s chars long", nameCandidate, NAME_MAX_LENGTH);
 
     return nameCandidate;
@@ -79,6 +78,6 @@ public class OrganizationValidationImpl implements OrganizationValidation {
 
   @Override
   public String generateKeyFrom(String source) {
-    return slugify(source.substring(0, min(source.length(), KEY_MAX_LENGTH)));
+    return slugify(source);
   }
 }

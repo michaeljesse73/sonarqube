@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,15 +20,20 @@
 import * as React from 'react';
 import { Link } from 'react-router';
 import TaskType from './TaskType';
-import { Task } from '../types';
-import QualifierIcon from '../../../components/shared/QualifierIcon';
+import QualifierIcon from '../../../components/icons-components/QualifierIcon';
 import Organization from '../../../components/shared/Organization';
-import { getProjectUrl } from '../../../helpers/urls';
+import {
+  getProjectUrl,
+  getShortLivingBranchUrl,
+  getLongLivingBranchUrl,
+  getPullRequestUrl
+} from '../../../helpers/urls';
 import ShortLivingBranchIcon from '../../../components/icons-components/ShortLivingBranchIcon';
 import LongLivingBranchIcon from '../../../components/icons-components/LongLivingBranchIcon';
+import PullRequestIcon from '../../../components/icons-components/PullRequestIcon';
 
 interface Props {
-  task: Task;
+  task: T.Task;
 }
 
 export default function TaskComponent({ task }: Props) {
@@ -45,18 +50,18 @@ export default function TaskComponent({ task }: Props) {
     <td>
       {task.branchType === 'SHORT' && <ShortLivingBranchIcon className="little-spacer-right" />}
       {task.branchType === 'LONG' && <LongLivingBranchIcon className="little-spacer-right" />}
+      {task.pullRequest !== undefined && <PullRequestIcon className="little-spacer-right" />}
 
-      {!task.branchType &&
-        task.componentQualifier && (
-          <span className="little-spacer-right">
-            <QualifierIcon qualifier={task.componentQualifier} />
-          </span>
-        )}
+      {!task.branchType && !task.pullRequest && task.componentQualifier && (
+        <span className="little-spacer-right">
+          <QualifierIcon qualifier={task.componentQualifier} />
+        </span>
+      )}
 
       {task.organization && <Organization organizationKey={task.organization} />}
 
       {task.componentName && (
-        <Link className="spacer-right" to={getProjectUrl(task.componentKey, task.branch)}>
+        <Link className="spacer-right" to={getTaskComponentUrl(task.componentKey, task)}>
           {task.componentName}
 
           {task.branch && (
@@ -65,10 +70,30 @@ export default function TaskComponent({ task }: Props) {
               {task.branch}
             </span>
           )}
+
+          {task.pullRequest && (
+            <span className="text-limited text-text-top" title={task.pullRequestTitle}>
+              <span style={{ marginLeft: 5, marginRight: 5 }}>/</span>
+              {task.pullRequest}
+            </span>
+          )}
         </Link>
       )}
 
       <TaskType type={task.type} />
     </td>
   );
+}
+
+function getTaskComponentUrl(componentKey: string, task: T.Task) {
+  if (task.branch) {
+    if (task.branchType === 'SHORT') {
+      return getShortLivingBranchUrl(componentKey, task.branch);
+    } else if (task.branchType === 'LONG') {
+      return getLongLivingBranchUrl(componentKey, task.branch);
+    }
+  } else if (task.pullRequest) {
+    return getPullRequestUrl(componentKey, task.pullRequest);
+  }
+  return getProjectUrl(componentKey);
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,7 +25,7 @@ import { HealthType } from '../../../../../api/system';
 it('should render correctly', () => {
   expect(
     shallow(
-      <HealthItem biggerHealth={true} name="Foo" health={HealthType.RED} healthCauses={['foo']} />
+      <HealthItem biggerHealth={true} health={HealthType.RED} healthCauses={['foo']} name="Foo" />
     )
   ).toMatchSnapshot();
 });

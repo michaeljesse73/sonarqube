@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,8 +21,6 @@ package org.sonar.server.issue.ws;
 
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.MultimapBuilder;
-import com.google.common.collect.SetMultimap;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -32,9 +30,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import javax.annotation.Nullable;
-import org.sonar.api.rule.RuleKey;
+import org.sonar.api.rules.RuleType;
 import org.sonar.core.issue.DefaultIssue;
 import org.sonar.core.util.stream.MoreCollectors;
 import org.sonar.db.DbClient;
@@ -52,9 +49,11 @@ import org.sonarqube.ws.client.issue.IssuesWsParameters;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.collect.ImmutableSet.copyOf;
-import static com.google.common.collect.Lists.newArrayList;
 import static com.google.common.collect.Sets.difference;
+import static com.google.common.collect.Sets.newHashSet;
 import static java.util.Collections.emptyList;
+import static java.util.Collections.singletonList;
+import static java.util.Objects.requireNonNull;
 import static java.util.stream.Stream.concat;
 import static org.sonar.api.web.UserRole.ISSUE_ADMIN;
 import static org.sonar.core.util.stream.MoreCollectors.toList;
@@ -64,9 +63,7 @@ import static org.sonar.server.issue.SetSeverityAction.SET_SEVERITY_KEY;
 import static org.sonar.server.issue.SetTypeAction.SET_TYPE_KEY;
 import static org.sonar.server.issue.ws.SearchAdditionalField.ACTIONS;
 import static org.sonar.server.issue.ws.SearchAdditionalField.COMMENTS;
-import static org.sonar.server.issue.ws.SearchAdditionalField.RULE_IDS_AND_KEYS;
 import static org.sonar.server.issue.ws.SearchAdditionalField.TRANSITIONS;
-import static org.sonar.server.issue.ws.SearchAdditionalField.USERS;
 
 /**
  * Loads all the information required for the response of api/issues/search.
@@ -90,19 +87,18 @@ public class SearchResponseLoader {
    * The returned {@link SearchResponseData} is <strong>not</strong> the one specified as argument.
    * </p>
    */
-  public SearchResponseData load(SearchResponseData preloadedResponseData, Collector collector, @Nullable Facets facets) {
+  public SearchResponseData load(SearchResponseData preloadedResponseData, Collector collector, Set<SearchAdditionalField> fields, @Nullable Facets facets) {
     try (DbSession dbSession = dbClient.openSession(false)) {
       SearchResponseData result = new SearchResponseData(loadIssues(preloadedResponseData, collector, dbSession));
       collector.collect(result.getIssues());
 
       loadRules(preloadedResponseData, collector, dbSession, result);
-      // order is important - loading of comments complete the list of users: loadComments() is
-      // before loadUsers()
-      loadComments(collector, dbSession, result);
+      // order is important - loading of comments complete the list of users: loadComments() is before loadUsers()
+      loadComments(collector, dbSession, fields, result);
       loadUsers(preloadedResponseData, collector, dbSession, result);
       loadComponents(preloadedResponseData, collector, dbSession, result);
       loadOrganizations(dbSession, result);
-      loadActionsAndTransitions(collector, result);
+      loadActionsAndTransitions(result, fields);
       completeTotalEffortFromFacet(facets, result);
       return result;
     }
@@ -131,19 +127,11 @@ public class SearchResponseLoader {
   }
 
   private void loadUsers(SearchResponseData preloadedResponseData, Collector collector, DbSession dbSession, SearchResponseData result) {
-    if (collector.contains(USERS)) {
-      List<UserDto> preloadedUsers = firstNonNull(preloadedResponseData.getUsers(), emptyList());
-      Set<String> preloadedLogins = preloadedUsers.stream().map(UserDto::getLogin).collect(MoreCollectors.toSet(preloadedUsers.size()));
-      Set<String> requestedLogins = collector.get(USERS);
-      Set<String> loginsToLoad = copyOf(difference(requestedLogins, preloadedLogins));
-
-      if (loginsToLoad.isEmpty()) {
-        result.setUsers(preloadedUsers);
-      } else {
-        List<UserDto> loadedUsers = dbClient.userDao().selectByLogins(dbSession, loginsToLoad);
-        result.setUsers(concat(preloadedUsers.stream(), loadedUsers.stream()).collect(toList(preloadedUsers.size() + loadedUsers.size())));
-      }
-    }
+    Set<String> usersUuidToLoad = collector.getUserUuids();
+    List<UserDto> preloadedUsers = firstNonNull(preloadedResponseData.getUsers(), emptyList());
+    result.addUsers(preloadedUsers);
+    preloadedUsers.forEach(userDto -> usersUuidToLoad.remove(userDto.getUuid()));
+    result.addUsers(dbClient.userDao().selectByUuids(dbSession, usersUuidToLoad));
   }
 
   private void loadComponents(SearchResponseData preloadedResponseData, Collector collector, DbSession dbSession, SearchResponseData result) {
@@ -159,10 +147,10 @@ public class SearchResponseLoader {
     // always load components and projects, because some issue fields still relate to component ids/keys.
     // They should be dropped but are kept for backward-compatibility (see SearchResponseFormat)
     result.addComponents(dbClient.componentDao().selectSubProjectsByComponentUuids(dbSession, collector.getComponentUuids()));
-    addProjectUuids(collector, dbSession, result);
+    loadProjects(collector, dbSession, result);
   }
 
-  private void addProjectUuids(Collector collector, DbSession dbSession, SearchResponseData result) {
+  private void loadProjects(Collector collector, DbSession dbSession, SearchResponseData result) {
     Collection<ComponentDto> loadedComponents = result.getComponents();
     for (ComponentDto component : loadedComponents) {
       collector.addProjectUuid(component.projectUuid());
@@ -176,41 +164,19 @@ public class SearchResponseLoader {
   }
 
   private void loadRules(SearchResponseData preloadedResponseData, Collector collector, DbSession dbSession, SearchResponseData result) {
-    if (collector.contains(RULE_IDS_AND_KEYS)) {
-      List<RuleDefinitionDto> preloadedRules = firstNonNull(preloadedResponseData.getRules(), emptyList());
-      Set<Integer> ruleIdsToLoad = new HashSet<>();
-      Set<RuleKey> ruleKeysToLoad = new HashSet<>();
-      collector.get(RULE_IDS_AND_KEYS).forEach(o -> {
-        if (o instanceof String) {
-          try {
-            ruleIdsToLoad.add(Integer.parseInt((String) o));
-          } catch (NumberFormatException e) {
-            ruleKeysToLoad.add(RuleKey.parse((String) o));
-          }
-        } else {
-          throw new IllegalArgumentException("Unsupported object " + o + " of type " + o.getClass().getSimpleName() + " in additional field " + RULE_IDS_AND_KEYS);
-        }
-      });
-      ruleIdsToLoad.removeAll(preloadedRules.stream().map(RuleDefinitionDto::getId).collect(toList(preloadedRules.size())));
-      ruleKeysToLoad.removeAll(preloadedRules.stream().map(RuleDefinitionDto::getKey).collect(toList(preloadedRules.size())));
-
-      result.setRules(
-        Stream.of(
-          preloadedRules.stream(),
-          dbClient.ruleDao().selectDefinitionByIds(dbSession, ruleIdsToLoad).stream(),
-          dbClient.ruleDao().selectDefinitionByKeys(dbSession, ruleKeysToLoad).stream())
-          .flatMap(s -> s)
-          .distinct()
-          .collect(Collectors.toList()));
-    }
+    List<RuleDefinitionDto> preloadedRules = firstNonNull(preloadedResponseData.getRules(), emptyList());
+    result.addRules(preloadedRules);
+    Set<Integer> ruleIdsToLoad = collector.getRuleIds();
+    ruleIdsToLoad.removeAll(preloadedRules.stream().map(RuleDefinitionDto::getId).collect(toList(preloadedRules.size())));
+    result.addRules(dbClient.ruleDao().selectDefinitionByIds(dbSession, ruleIdsToLoad));
   }
 
-  private void loadComments(Collector collector, DbSession dbSession, SearchResponseData result) {
-    if (collector.contains(COMMENTS)) {
+  private void loadComments(Collector collector, DbSession dbSession, Set<SearchAdditionalField> fields, SearchResponseData result) {
+    if (fields.contains(COMMENTS)) {
       List<IssueChangeDto> comments = dbClient.issueChangeDao().selectByTypeAndIssueKeys(dbSession, collector.getIssueKeys(), IssueChangeDto.TYPE_COMMENT);
       result.setComments(comments);
       for (IssueChangeDto comment : comments) {
-        collector.add(USERS, comment.getUserLogin());
+        collector.addUserUuids(singletonList(comment.getUserUuid()));
         if (canEditOrDelete(comment)) {
           result.addUpdatableComment(comment.getKey());
         }
@@ -219,7 +185,7 @@ public class SearchResponseLoader {
   }
 
   private boolean canEditOrDelete(IssueChangeDto dto) {
-    return userSession.isLoggedIn() && userSession.getLogin().equals(dto.getUserLogin());
+    return userSession.isLoggedIn() && requireNonNull(userSession.getUuid(), "User uuid should not be null").equals(dto.getUserUuid());
   }
 
   private void loadOrganizations(DbSession dbSession, SearchResponseData result) {
@@ -228,43 +194,52 @@ public class SearchResponseLoader {
       dbSession,
       components.stream().map(ComponentDto::getOrganizationUuid).collect(MoreCollectors.toSet()))
       .forEach(result::addOrganization);
+
+    if (userSession.isLoggedIn()) {
+      result.setUserOrganizationUuids(dbClient.organizationMemberDao().selectOrganizationUuidsByUser(dbSession, userSession.getUserId()));
+    }
   }
 
-  private void loadActionsAndTransitions(Collector collector, SearchResponseData result) {
-    if (collector.contains(ACTIONS) || collector.contains(TRANSITIONS)) {
+  private void loadActionsAndTransitions(SearchResponseData result, Set<SearchAdditionalField> fields) {
+    if (fields.contains(ACTIONS) || fields.contains(TRANSITIONS)) {
       Map<String, ComponentDto> componentsByProjectUuid = result.getComponents()
         .stream()
         .filter(ComponentDto::isRootProject)
         .collect(MoreCollectors.uniqueIndex(ComponentDto::projectUuid));
-      for (IssueDto dto : result.getIssues()) {
+      for (IssueDto issueDto : result.getIssues()) {
         // so that IssueDto can be used.
-        if (collector.contains(ACTIONS)) {
-          ComponentDto project = componentsByProjectUuid.get(dto.getProjectUuid());
-          result.addActions(dto.getKey(), listAvailableActions(dto, project));
+        if (fields.contains(ACTIONS)) {
+          ComponentDto project = componentsByProjectUuid.get(issueDto.getProjectUuid());
+          result.addActions(issueDto.getKey(), listAvailableActions(issueDto, project));
         }
-        if (collector.contains(TRANSITIONS)) {
+        if (fields.contains(TRANSITIONS) && !issueDto.isExternal()) {
           // TODO workflow and action engines must not depend on org.sonar.api.issue.Issue but on a generic interface
-          DefaultIssue issue = dto.toDefaultIssue();
+          DefaultIssue issue = issueDto.toDefaultIssue();
           result.addTransitions(issue.key(), transitionService.listTransitions(issue));
         }
       }
     }
   }
 
-  private List<String> listAvailableActions(IssueDto issue, ComponentDto project) {
-    List<String> availableActions = newArrayList();
+  private Set<String> listAvailableActions(IssueDto issue, ComponentDto project) {
+    Set<String> availableActions = newHashSet();
     String login = userSession.getLogin();
     if (login == null) {
-      return Collections.emptyList();
+      return Collections.emptySet();
     }
+    RuleType ruleType = RuleType.valueOf(issue.getType());
     availableActions.add(COMMENT_KEY);
     if (issue.getResolution() != null) {
       return availableActions;
     }
-    availableActions.add(ASSIGN_KEY);
+    if (ruleType != RuleType.SECURITY_HOTSPOT) {
+      availableActions.add(ASSIGN_KEY);
+    }
     availableActions.add("set_tags");
-    if (userSession.hasComponentPermission(ISSUE_ADMIN, project)) {
+    if (!issue.isFromHotspot() && userSession.hasComponentPermission(ISSUE_ADMIN, project)) {
       availableActions.add(SET_TYPE_KEY);
+    }
+    if ((ruleType != RuleType.SECURITY_HOTSPOT && userSession.hasComponentPermission(ISSUE_ADMIN, project))) {
       availableActions.add(SET_SEVERITY_KEY);
     }
     return availableActions;
@@ -283,16 +258,13 @@ public class SearchResponseLoader {
    * Collects the keys of all the data to be loaded (users, rules, ...)
    */
   public static class Collector {
-    private final Set<SearchAdditionalField> fields;
-    private final SetMultimap<SearchAdditionalField, Object> fieldValues = MultimapBuilder.enumKeys(SearchAdditionalField.class).hashSetValues().build();
     private final Set<String> componentUuids = new HashSet<>();
     private final Set<String> projectUuids = new HashSet<>();
     private final List<String> issueKeys;
     private final Set<Integer> ruleIds = new HashSet<>();
-    private final Set<String> ruleKeys = new HashSet<>();
+    private final Set<String> userUuids = new HashSet<>();
 
-    public Collector(Set<SearchAdditionalField> fields, List<String> issueKeys) {
-      this.fields = fields;
+    public Collector(List<String> issueKeys) {
       this.issueKeys = issueKeys;
     }
 
@@ -301,7 +273,10 @@ public class SearchResponseLoader {
         componentUuids.add(issue.getComponentUuid());
         projectUuids.add(issue.getProjectUuid());
         ruleIds.add(issue.getRuleId());
-        add(USERS, issue.getAssignee());
+        String issueAssigneeUuid = issue.getAssigneeUuid();
+        if (issueAssigneeUuid != null) {
+          userUuids.add(issueAssigneeUuid);
+        }
         collectComponentsFromIssueLocations(issue);
       }
     }
@@ -319,42 +294,32 @@ public class SearchResponseLoader {
       }
     }
 
-    public void add(SearchAdditionalField key, @Nullable Object value) {
-      if (value != null) {
-        fieldValues.put(key, value);
-      }
-    }
-
-    public void addComponentUuids(@Nullable Collection<String> uuids) {
+    void addComponentUuids(@Nullable Collection<String> uuids) {
       if (uuids != null) {
         this.componentUuids.addAll(uuids);
       }
     }
 
-    public void addProjectUuid(String uuid) {
+    void addProjectUuid(String uuid) {
       this.projectUuids.add(uuid);
     }
 
-    public void addProjectUuids(@Nullable Collection<String> uuids) {
+    void addProjectUuids(@Nullable Collection<String> uuids) {
       if (uuids != null) {
         this.projectUuids.addAll(uuids);
       }
     }
 
-    public void addAll(SearchAdditionalField key, @Nullable Iterable values) {
-      if (values != null) {
-        for (Object value : values) {
-          add(key, value);
-        }
+    void addRuleIds(@Nullable Collection<String> ruleIds) {
+      if (ruleIds != null) {
+        this.ruleIds.addAll(ruleIds.stream().map(Integer::parseInt).collect(MoreCollectors.toList()));
       }
     }
 
-    <T> Set<T> get(SearchAdditionalField key) {
-      return (Set<T>) fieldValues.get(key);
-    }
-
-    boolean contains(SearchAdditionalField field) {
-      return fields.contains(field);
+    void addUserUuids(@Nullable Collection<String> userUuids) {
+      if (userUuids != null) {
+        this.userUuids.addAll(userUuids);
+      }
     }
 
     public List<String> getIssueKeys() {
@@ -373,8 +338,8 @@ public class SearchResponseLoader {
       return ruleIds;
     }
 
-    public Set<String> getRuleKeys() {
-      return ruleKeys;
+    Set<String> getUserUuids() {
+      return userUuids;
     }
   }
 

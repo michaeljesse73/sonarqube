@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,6 +25,7 @@ jest.mock('../../../../api/quality-profiles', () => ({
 import * as React from 'react';
 import { shallow } from 'enzyme';
 import ProfilePermissionsUser from '../ProfilePermissionsUser';
+import { click } from '../../../../helpers/testUtils';
 
 const removeUser = require('../../../../api/quality-profiles').removeUser as jest.Mock<any>;
 
@@ -49,8 +50,7 @@ it('removes user', async () => {
   (wrapper.instance() as ProfilePermissionsUser).mounted = true;
   expect(wrapper.find('SimpleModal').exists()).toBeFalsy();
 
-  wrapper.find('DeleteButton').prop<Function>('onClick')();
-  wrapper.update();
+  click(wrapper.find('DeleteButton'));
   expect(wrapper.find('SimpleModal').exists()).toBeTruthy();
 
   wrapper.find('SimpleModal').prop<Function>('onSubmit')();

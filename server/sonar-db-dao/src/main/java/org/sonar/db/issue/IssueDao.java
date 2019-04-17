@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -23,14 +23,14 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import org.apache.ibatis.session.ResultHandler;
+
 import org.sonar.db.Dao;
 import org.sonar.db.DbSession;
 import org.sonar.db.RowNotFoundException;
 import org.sonar.db.WildcardPosition;
 import org.sonar.db.component.ComponentDto;
 
-import static org.sonar.db.DaoDatabaseUtils.buildLikeValue;
+import static org.sonar.db.DaoUtils.buildLikeValue;
 import static org.sonar.db.DatabaseUtils.executeLargeInputs;
 
 public class IssueDao implements Dao {
@@ -53,7 +53,7 @@ public class IssueDao implements Dao {
    * if input keys contain multiple occurrences of a key.
    * <p>Results may be in a different order as input keys.</p>
    */
-  public List<IssueDto> selectByKeys(final DbSession session, Collection<String> keys) {
+  public List<IssueDto> selectByKeys(DbSession session, Collection<String> keys) {
     return executeLargeInputs(keys, mapper(session)::selectByKeys);
   }
 
@@ -61,13 +61,17 @@ public class IssueDao implements Dao {
     return mapper(session).selectComponentUuidsOfOpenIssuesForProjectUuid(projectUuid);
   }
 
-  public void scrollNonClosedByComponentUuid(DbSession dbSession, String componentUuid, ResultHandler<IssueDto> handler) {
-    mapper(dbSession).scrollNonClosedByComponentUuid(componentUuid, handler);
+  public Set<String> selectModuleAndDirComponentUuidsOfOpenIssuesForProjectUuid(DbSession session, String projectUuid) {
+    return mapper(session).selectModuleAndDirComponentUuidsOfOpenIssuesForProjectUuid(projectUuid);
   }
 
-  public void scrollNonClosedByModuleOrProject(DbSession dbSession, ComponentDto module, ResultHandler<IssueDto> handler) {
+  public List<IssueDto> selectNonClosedByComponentUuidExcludingExternalsAndSecurityHotspots(DbSession dbSession, String componentUuid) {
+    return mapper(dbSession).selectNonClosedByComponentUuidExcludingExternals(componentUuid);
+  }
+
+  public List<IssueDto> selectNonClosedByModuleOrProjectExcludingExternalsAndSecurityHotspots(DbSession dbSession, ComponentDto module) {
     String likeModuleUuidPath = buildLikeValue(module.moduleUuidPath(), WildcardPosition.AFTER);
-    mapper(dbSession).scrollNonClosedByModuleOrProject(module.projectUuid(), likeModuleUuidPath, handler);
+    return mapper(dbSession).selectNonClosedByModuleOrProject(module.projectUuid(), likeModuleUuidPath);
   }
 
   public List<ShortBranchIssueDto> selectOpenByComponentUuids(DbSession dbSession, Collection<String> componentUuids) {

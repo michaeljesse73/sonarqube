@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -34,15 +34,17 @@ import org.sonar.api.utils.log.Loggers;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
 import org.sonar.db.component.BranchDto;
+import org.sonar.db.component.BranchType;
 import org.sonar.db.component.ComponentDto;
 import org.sonar.db.component.SnapshotDto;
+import org.sonar.db.measure.LiveMeasureComparator;
 import org.sonar.db.measure.LiveMeasureDto;
 import org.sonar.db.metric.MetricDto;
 import org.sonar.db.organization.OrganizationDto;
-import org.sonar.server.computation.task.projectanalysis.qualitymodel.DebtRatingGrid;
-import org.sonar.server.computation.task.projectanalysis.qualitymodel.Rating;
 import org.sonar.server.es.ProjectIndexer;
 import org.sonar.server.es.ProjectIndexers;
+import org.sonar.server.measure.DebtRatingGrid;
+import org.sonar.server.measure.Rating;
 import org.sonar.server.qualitygate.EvaluatedQualityGate;
 import org.sonar.server.qualitygate.QualityGate;
 import org.sonar.server.qualitygate.changeevent.QGChangeEvent;
@@ -99,7 +101,6 @@ public class LiveMeasureComputerImpl implements LiveMeasureComputer {
     if (!lastAnalysis.isPresent()) {
       return Optional.empty();
     }
-    Optional<Long> beginningOfLeakPeriod = lastAnalysis.map(SnapshotDto::getPeriodDate);
 
     QualityGate qualityGate = qGateComputer.loadQualityGate(dbSession, organization, project, branch);
     Collection<String> metricKeys = getKeysOfAllInvolvedMetrics(qualityGate);
@@ -117,11 +118,13 @@ public class LiveMeasureComputerImpl implements LiveMeasureComputer {
 
     MeasureMatrix matrix = new MeasureMatrix(components, metricsPerId.values(), dbMeasures);
     FormulaContextImpl context = new FormulaContextImpl(matrix, debtRatingGrid);
+    long beginningOfLeak = getBeginningOfLeakPeriod(lastAnalysis, branch);
+
     components.forEach(c -> {
-      IssueCounter issueCounter = new IssueCounter(dbClient.issueDao().selectIssueGroupsByBaseComponent(dbSession, c, beginningOfLeakPeriod.orElse(Long.MAX_VALUE)));
+      IssueCounter issueCounter = new IssueCounter(dbClient.issueDao().selectIssueGroupsByBaseComponent(dbSession, c, beginningOfLeak));
       for (IssueMetricFormula formula : formulaFactory.getFormulas()) {
-        // exclude leak formulas when leak period is not defined
-        if (beginningOfLeakPeriod.isPresent() || !formula.isOnLeak()) {
+        // use formulas when the leak period is defined, it's a PR/SLB, or the formula is not about the leak period
+        if (shouldUseLeakFormulas(lastAnalysis.get(), branch) || !formula.isOnLeak()) {
           context.change(c, formula);
           try {
             formula.compute(context, issueCounter);
@@ -135,11 +138,29 @@ public class LiveMeasureComputerImpl implements LiveMeasureComputer {
     EvaluatedQualityGate evaluatedQualityGate = qGateComputer.refreshGateStatus(project, qualityGate, matrix);
 
     // persist the measures that have been created or updated
-    matrix.getChanged().forEach(m -> dbClient.liveMeasureDao().insertOrUpdate(dbSession, m, null));
+    matrix.getChanged().sorted(LiveMeasureComparator.INSTANCE)
+      .forEach(m -> dbClient.liveMeasureDao().insertOrUpdate(dbSession, m));
     projectIndexer.commitAndIndex(dbSession, singleton(project), ProjectIndexer.Cause.MEASURE_CHANGE);
 
     return Optional.of(
       new QGChangeEvent(project, branch, lastAnalysis.get(), config, previousStatus, () -> Optional.of(evaluatedQualityGate)));
+  }
+
+  private static long getBeginningOfLeakPeriod(Optional<SnapshotDto> lastAnalysis, BranchDto branch) {
+    if (isSLBorPR(branch)) {
+      return 0L;
+    } else {
+      Optional<Long> beginningOfLeakPeriod = lastAnalysis.map(SnapshotDto::getPeriodDate);
+      return beginningOfLeakPeriod.orElse(Long.MAX_VALUE);
+    }
+  }
+
+  private static boolean isSLBorPR(BranchDto branch) {
+    return branch.getBranchType() == BranchType.SHORT || branch.getBranchType() == BranchType.PULL_REQUEST;
+  }
+
+  private static boolean shouldUseLeakFormulas(SnapshotDto lastAnalysis, BranchDto branch) {
+    return lastAnalysis.getPeriodDate() != null || isSLBorPR(branch);
   }
 
   @CheckForNull

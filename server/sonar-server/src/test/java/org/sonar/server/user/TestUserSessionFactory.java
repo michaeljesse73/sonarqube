@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,9 +22,10 @@ package org.sonar.server.user;
 import java.util.Collection;
 import java.util.Optional;
 import javax.annotation.Nullable;
+import org.sonar.db.organization.OrganizationDto;
+import org.sonar.db.permission.OrganizationPermission;
 import org.sonar.db.user.GroupDto;
 import org.sonar.db.user.UserDto;
-import org.sonar.db.permission.OrganizationPermission;
 
 import static java.util.Objects.requireNonNull;
 
@@ -67,6 +68,11 @@ public class TestUserSessionFactory implements UserSessionFactory {
     }
 
     @Override
+    public String getUuid() {
+      return user != null ? user.getUuid() : null;
+    }
+
+    @Override
     public String getName() {
       return user != null ? user.getName() : null;
     }
@@ -78,6 +84,21 @@ public class TestUserSessionFactory implements UserSessionFactory {
 
     @Override
     public Collection<GroupDto> getGroups() {
+      throw notImplemented();
+    }
+
+    @Override
+    public Optional<IdentityProvider> getIdentityProvider() {
+      throw notImplemented();
+    }
+
+    @Override
+    public Optional<ExternalIdentity> getExternalIdentity() {
+      throw notImplemented();
+    }
+
+    @Override
+    public Optional<String> getPersonalOrganizationUuid() {
       throw notImplemented();
     }
 
@@ -108,6 +129,11 @@ public class TestUserSessionFactory implements UserSessionFactory {
 
     @Override
     public boolean isSystemAdministrator() {
+      throw notImplemented();
+    }
+
+    @Override
+    public boolean hasMembershipImpl(OrganizationDto organizationDto) {
       throw notImplemented();
     }
 

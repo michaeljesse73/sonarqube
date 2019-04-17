@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,19 +21,24 @@ package org.sonar.server.ws;
 
 import com.google.common.base.Throwables;
 import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Maps;
 import com.google.protobuf.GeneratedMessageV3;
+import java.io.BufferedReader;
 import java.io.InputStream;
+import java.io.StringReader;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import org.apache.commons.io.IOUtils;
 import org.sonar.api.server.ws.internal.PartImpl;
 import org.sonar.api.server.ws.internal.ValidatingRequest;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
 import static java.util.Objects.requireNonNull;
 import static org.sonarqube.ws.MediaTypes.PROTOBUF;
 
@@ -43,9 +48,30 @@ public class TestRequest extends ValidatingRequest {
   private final Map<String, String> params = new HashMap<>();
   private final Map<String, String> headers = new HashMap<>();
   private final Map<String, Part> parts = Maps.newHashMap();
+  private String payload = "";
+  private boolean payloadConsumed = false;
   private String method = "GET";
   private String mimeType = "application/octet-stream";
   private String path;
+
+  @Override
+  public BufferedReader getReader() {
+    checkState(!payloadConsumed, "Payload already consumed");
+    if (payload == null) {
+      return super.getReader();
+    }
+
+    BufferedReader res = new BufferedReader(new StringReader(payload));
+    payloadConsumed = true;
+    return res;
+  }
+
+  public TestRequest setPayload(String payload) {
+    checkState(!payloadConsumed, "Payload already consumed");
+
+    this.payload = payload;
+    return this;
+  }
 
   @Override
   protected String readParam(String key) {
@@ -91,6 +117,13 @@ public class TestRequest extends ValidatingRequest {
     return path;
   }
 
+  @Override
+  public Map<String, String[]> getParams() {
+    ArrayListMultimap<String, String> result = ArrayListMultimap.create(multiParams);
+    params.forEach(result::put);
+    return result.asMap().entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().toArray(new String[0])));
+  }
+
   public TestRequest setPath(String path) {
     this.path = path;
     return this;
@@ -130,12 +163,17 @@ public class TestRequest extends ValidatingRequest {
   }
 
   @Override
+  public Map<String, String> getHeaders() {
+    return ImmutableMap.copyOf(headers);
+  }
+
+  @Override
   public Optional<String> header(String name) {
     return Optional.ofNullable(headers.get(name));
   }
 
   public TestRequest setHeader(String name, String value) {
-    this.headers.put(requireNonNull(name), requireNonNull(value));
+    headers.put(requireNonNull(name), requireNonNull(value));
     return this;
   }
 

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -79,9 +79,9 @@ public class EsStateSection implements SystemInfoSection {
     setAttribute(protobuf, "CPU Usage (%)", stats.getProcess().getCpu().getPercent());
     setAttribute(protobuf, "Disk Available", byteCountToDisplaySize(stats.getFs().getTotal().getAvailable().getBytes()));
     setAttribute(protobuf, "Store Size", byteCountToDisplaySize(stats.getIndices().getStore().getSizeInBytes()));
+    setAttribute(protobuf, "Translog Size", byteCountToDisplaySize(stats.getIndices().getTranslog().getTranslogSizeInBytes()));
     setAttribute(protobuf, "Open File Descriptors", stats.getProcess().getOpenFileDescriptors());
     setAttribute(protobuf, "Max File Descriptors", stats.getProcess().getMaxFileDescriptors());
-    setAttribute(protobuf, "Spinning", stats.getFs().getTotal().getSpins());
     setAttribute(protobuf, "JVM Heap Usage", formatPercent(stats.getJvm().getMem().getHeapUsedPercent()));
     setAttribute(protobuf, "JVM Heap Used", byteCountToDisplaySize(stats.getJvm().getMem().getHeapUsed().getBytes()));
     setAttribute(protobuf, "JVM Heap Max", byteCountToDisplaySize(stats.getJvm().getMem().getHeapMax().getBytes()));
@@ -101,6 +101,6 @@ public class EsStateSection implements SystemInfoSection {
   }
 
   private static String formatPercent(long amount) {
-    return format(Locale.ENGLISH, "%.1f%%", 100 * amount * 1.0D / 100L);
+    return format(Locale.ENGLISH, "%.1f%%", 100.0 * amount * 1.0 / 100.0);
   }
 }

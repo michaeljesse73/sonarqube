@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,52 +18,52 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import { connect } from 'react-redux';
-import { Organization, HomePageType } from '../../../app/types';
 import HomePageSelect from '../../../components/controls/HomePageSelect';
+import DocTooltip from '../../../components/docs/DocTooltip';
 import { translate } from '../../../helpers/l10n';
-import { getGlobalSettingValue } from '../../../store/rootReducer';
+import { isSonarCloud } from '../../../helpers/system';
+import { hasPrivateAccess, isPaidOrganization } from '../../../helpers/organizations';
 
-interface StateProps {
-  onSonarCloud: boolean;
+interface Props {
+  currentUser: T.CurrentUser;
+  organization: T.Organization;
+  userOrganizations: T.Organization[];
 }
 
-interface Props extends StateProps {
-  organization: Organization;
-}
-
-export function OrganizationNavigationMeta({ onSonarCloud, organization }: Props) {
+export default function OrganizationNavigationMeta({
+  currentUser,
+  organization,
+  userOrganizations
+}: Props) {
+  const onSonarCloud = isSonarCloud();
   return (
     <div className="navbar-context-meta">
       {organization.url != null && (
         <a
           className="spacer-right text-limited"
           href={organization.url}
-          title={organization.url}
-          rel="nofollow">
+          rel="nofollow"
+          title={organization.url}>
           {organization.url}
         </a>
       )}
+      {onSonarCloud &&
+        isPaidOrganization(organization) &&
+        hasPrivateAccess(currentUser, organization, userOrganizations) && (
+          <DocTooltip
+            className="spacer-right"
+            doc={import(/* webpackMode: "eager" */ 'Docs/tooltips/organizations/subscription-paid-plan.md')}>
+            <div className="outline-badge">{translate('organization.paid_plan.badge')}</div>
+          </DocTooltip>
+        )}
       <div className="text-muted">
         <strong>{translate('organization.key')}:</strong> {organization.key}
       </div>
       {onSonarCloud && (
         <div className="navbar-context-meta-secondary">
-          <HomePageSelect
-            currentPage={{ type: HomePageType.Organization, parameter: organization.key }}
-          />
+          <HomePageSelect currentPage={{ type: 'ORGANIZATION', organization: organization.key }} />
         </div>
       )}
     </div>
   );
 }
-
-const mapStateToProps = (state: any): StateProps => {
-  const sonarCloudSetting = getGlobalSettingValue(state, 'sonar.sonarcloud.enabled');
-
-  return {
-    onSonarCloud: Boolean(sonarCloudSetting && sonarCloudSetting.value === 'true')
-  };
-};
-
-export default connect(mapStateToProps)(OrganizationNavigationMeta);

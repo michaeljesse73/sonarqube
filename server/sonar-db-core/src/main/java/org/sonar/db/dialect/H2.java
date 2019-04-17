@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,11 +19,10 @@
  */
 package org.sonar.db.dialect;
 
+import java.sql.DatabaseMetaData;
 import org.apache.commons.lang.StringUtils;
+import org.sonar.api.utils.log.Loggers;
 
-/**
- * @since 1.12
- */
 public class H2 extends AbstractDialect {
 
   public static final String ID = "h2";
@@ -33,7 +32,7 @@ public class H2 extends AbstractDialect {
   }
 
   @Override
-  public boolean matchesJdbcURL(String jdbcConnectionURL) {
+  public boolean matchesJdbcUrl(String jdbcConnectionURL) {
     return StringUtils.startsWithIgnoreCase(jdbcConnectionURL, "jdbc:h2:");
   }
 
@@ -42,4 +41,8 @@ public class H2 extends AbstractDialect {
     return false;
   }
 
+  @Override
+  public void init(DatabaseMetaData metaData) {
+    Loggers.get(getClass()).warn("H2 database should be used for evaluation purpose only.");
+  }
 }

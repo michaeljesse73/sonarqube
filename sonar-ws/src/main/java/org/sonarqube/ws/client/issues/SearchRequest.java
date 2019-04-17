@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -35,17 +35,16 @@ public class SearchRequest {
   private String asc;
   private String assigned;
   private List<String> assignees;
+  private List<String> author;
   private List<String> authors;
   private String branch;
   private List<String> componentKeys;
-  private String componentRootUuids;
-  private String componentRoots;
   private List<String> componentUuids;
-  private String components;
   private String createdAfter;
   private String createdAt;
   private String createdBefore;
   private String createdInLast;
+  private List<String> cwe;
   private List<String> directories;
   private String facetMode;
   private List<String> facets;
@@ -55,14 +54,16 @@ public class SearchRequest {
   private List<String> moduleUuids;
   private String onComponentOnly;
   private String organization;
+  private List<String> owaspTop10;
   private String p;
-  private List<String> projectUuids;
   private List<String> projects;
   private String ps;
+  private String pullRequest;
   private List<String> resolutions;
   private String resolved;
   private List<String> rules;
   private String s;
+  private List<String> sansTop25;
   private List<String> severities;
   private String sinceLeakPeriod;
   private List<String> statuses;
@@ -140,8 +141,22 @@ public class SearchRequest {
   }
 
   /**
-   * Example value: "torvalds@linux-foundation.org"
+   * Example value: "author=torvalds@linux-foundation.org&author=linux@fondation.org"
    */
+  public SearchRequest setAuthor(List<String> author) {
+    this.author = author;
+    return this;
+  }
+
+  public List<String> getAuthor() {
+    return author;
+  }
+
+  /**
+   * Example value: "torvalds@linux-foundation.org"
+   * @deprecated since 7.7
+   */
+  @Deprecated
   public SearchRequest setAuthors(List<String> authors) {
     this.authors = authors;
     return this;
@@ -177,32 +192,6 @@ public class SearchRequest {
   }
 
   /**
-   * @deprecated since 5.1
-   */
-  @Deprecated
-  public SearchRequest setComponentRootUuids(String componentRootUuids) {
-    this.componentRootUuids = componentRootUuids;
-    return this;
-  }
-
-  public String getComponentRootUuids() {
-    return componentRootUuids;
-  }
-
-  /**
-   * @deprecated since 5.1
-   */
-  @Deprecated
-  public SearchRequest setComponentRoots(String componentRoots) {
-    this.componentRoots = componentRoots;
-    return this;
-  }
-
-  public String getComponentRoots() {
-    return componentRoots;
-  }
-
-  /**
    * Example value: "584a89f2-8037-4f7b-b82c-8b45d2d63fb2"
    * @deprecated since 6.5
    */
@@ -214,19 +203,6 @@ public class SearchRequest {
 
   public List<String> getComponentUuids() {
     return componentUuids;
-  }
-
-  /**
-   * @deprecated since 5.1
-   */
-  @Deprecated
-  public SearchRequest setComponents(String components) {
-    this.components = components;
-    return this;
-  }
-
-  public String getComponents() {
-    return components;
   }
 
   /**
@@ -278,6 +254,18 @@ public class SearchRequest {
   }
 
   /**
+   * Example value: "12,125,unknown"
+   */
+  public SearchRequest setCwe(List<String> cwe) {
+    this.cwe = cwe;
+    return this;
+  }
+
+  public List<String> getCwe() {
+    return cwe;
+  }
+
+  /**
    * This is part of the internal API.
    * Example value: "src/main/java/org/sonar/server/"
    */
@@ -295,7 +283,6 @@ public class SearchRequest {
    * <ul>
    *   <li>"count"</li>
    *   <li>"effort"</li>
-   *   <li>"debt"</li>
    * </ul>
    */
   public SearchRequest setFacetMode(String facetMode) {
@@ -310,22 +297,26 @@ public class SearchRequest {
   /**
    * Possible values:
    * <ul>
+   *   <li>"projects"</li>
+   *   <li>"moduleUuids"</li>
+   *   <li>"fileUuids"</li>
+   *   <li>"assigned_to_me"</li>
    *   <li>"severities"</li>
    *   <li>"statuses"</li>
    *   <li>"resolutions"</li>
    *   <li>"actionPlans"</li>
-   *   <li>"projectUuids"</li>
    *   <li>"rules"</li>
    *   <li>"assignees"</li>
-   *   <li>"assigned_to_me"</li>
    *   <li>"reporters"</li>
    *   <li>"authors"</li>
-   *   <li>"moduleUuids"</li>
-   *   <li>"fileUuids"</li>
+   *   <li>"author"</li>
    *   <li>"directories"</li>
    *   <li>"languages"</li>
    *   <li>"tags"</li>
    *   <li>"types"</li>
+   *   <li>"owaspTop10"</li>
+   *   <li>"sansTop25"</li>
+   *   <li>"cwe"</li>
    *   <li>"createdAt"</li>
    * </ul>
    */
@@ -378,7 +369,9 @@ public class SearchRequest {
   /**
    * This is part of the internal API.
    * Example value: "7d8749e8-3070-4903-9188-bdd82933bb92"
+   * @deprecated since 7.6
    */
+  @Deprecated
   public SearchRequest setModuleUuids(List<String> moduleUuids) {
     this.moduleUuids = moduleUuids;
     return this;
@@ -420,6 +413,31 @@ public class SearchRequest {
   }
 
   /**
+   * Possible values:
+   * <ul>
+   *   <li>"a1"</li>
+   *   <li>"a2"</li>
+   *   <li>"a3"</li>
+   *   <li>"a4"</li>
+   *   <li>"a5"</li>
+   *   <li>"a6"</li>
+   *   <li>"a7"</li>
+   *   <li>"a8"</li>
+   *   <li>"a9"</li>
+   *   <li>"a10"</li>
+   *   <li>"unknown"</li>
+   * </ul>
+   */
+  public SearchRequest setOwaspTop10(List<String> owaspTop10) {
+    this.owaspTop10 = owaspTop10;
+    return this;
+  }
+
+  public List<String> getOwaspTop10() {
+    return owaspTop10;
+  }
+
+  /**
    * Example value: "42"
    */
   public SearchRequest setP(String p) {
@@ -429,19 +447,6 @@ public class SearchRequest {
 
   public String getP() {
     return p;
-  }
-
-  /**
-   * This is part of the internal API.
-   * Example value: "7d8749e8-3070-4903-9188-bdd82933bb92"
-   */
-  public SearchRequest setProjectUuids(List<String> projectUuids) {
-    this.projectUuids = projectUuids;
-    return this;
-  }
-
-  public List<String> getProjectUuids() {
-    return projectUuids;
   }
 
   /**
@@ -467,6 +472,19 @@ public class SearchRequest {
 
   public String getPs() {
     return ps;
+  }
+
+  /**
+   * This is part of the internal API.
+   * Example value: "5461"
+   */
+  public SearchRequest setPullRequest(String pullRequest) {
+    this.pullRequest = pullRequest;
+    return this;
+  }
+
+  public String getPullRequest() {
+    return pullRequest;
   }
 
   /**
@@ -537,6 +555,23 @@ public class SearchRequest {
 
   public String getS() {
     return s;
+  }
+
+  /**
+   * Possible values:
+   * <ul>
+   *   <li>"insecure-interaction"</li>
+   *   <li>"risky-resource"</li>
+   *   <li>"porous-defenses"</li>
+   * </ul>
+   */
+  public SearchRequest setSansTop25(List<String> sansTop25) {
+    this.sansTop25 = sansTop25;
+    return this;
+  }
+
+  public List<String> getSansTop25() {
+    return sansTop25;
   }
 
   /**
@@ -616,6 +651,7 @@ public class SearchRequest {
    *   <li>"CODE_SMELL"</li>
    *   <li>"BUG"</li>
    *   <li>"VULNERABILITY"</li>
+   *   <li>"SECURITY_HOTSPOT"</li>
    * </ul>
    */
   public SearchRequest setTypes(List<String> types) {

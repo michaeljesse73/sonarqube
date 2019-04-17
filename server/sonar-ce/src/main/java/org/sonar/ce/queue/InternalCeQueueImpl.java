@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,45 +24,49 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
-import org.apache.log4j.Logger;
 import org.sonar.api.ce.ComputeEngineSide;
 import org.sonar.api.utils.System2;
+import org.sonar.api.utils.log.Logger;
 import org.sonar.api.utils.log.Loggers;
 import org.sonar.ce.container.ComputeEngineStatus;
 import org.sonar.ce.monitoring.CEQueueStatus;
+import org.sonar.ce.task.CeTask;
+import org.sonar.ce.task.CeTaskResult;
+import org.sonar.ce.task.TypedException;
+import org.sonar.ce.task.projectanalysis.component.VisitException;
 import org.sonar.core.util.UuidFactory;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
 import org.sonar.db.ce.CeActivityDto;
 import org.sonar.db.ce.CeQueueDao;
 import org.sonar.db.ce.CeQueueDto;
-import org.sonar.server.computation.task.projectanalysis.component.VisitException;
-import org.sonar.server.computation.task.step.TypedException;
+import org.sonar.db.ce.CeTaskCharacteristicDto;
+import org.sonar.db.component.ComponentDto;
 import org.sonar.server.organization.DefaultOrganizationProvider;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.lang.String.format;
+import static java.util.Collections.singletonList;
 import static java.util.Objects.requireNonNull;
+import static java.util.Optional.ofNullable;
+import static org.sonar.core.util.stream.MoreCollectors.uniqueIndex;
 
 @ComputeEngineSide
 public class InternalCeQueueImpl extends CeQueueImpl implements InternalCeQueue {
-  private static final org.sonar.api.utils.log.Logger LOG = Loggers.get(InternalCeQueueImpl.class);
+  private static final Logger LOG = Loggers.get(InternalCeQueueImpl.class);
 
-  private static final int MAX_EXECUTION_COUNT = 1;
-
-  private final System2 system2;
   private final DbClient dbClient;
   private final CEQueueStatus queueStatus;
   private final ComputeEngineStatus computeEngineStatus;
 
   public InternalCeQueueImpl(System2 system2, DbClient dbClient, UuidFactory uuidFactory, CEQueueStatus queueStatus,
     DefaultOrganizationProvider defaultOrganizationProvider, ComputeEngineStatus computeEngineStatus) {
-    super(dbClient, uuidFactory, defaultOrganizationProvider);
-    this.system2 = system2;
+    super(system2, dbClient, uuidFactory, defaultOrganizationProvider);
     this.dbClient = dbClient;
     this.queueStatus = queueStatus;
     this.computeEngineStatus = computeEngineStatus;
@@ -72,22 +76,30 @@ public class InternalCeQueueImpl extends CeQueueImpl implements InternalCeQueue 
   public Optional<CeTask> peek(String workerUuid) {
     requireNonNull(workerUuid, "workerUuid can't be null");
 
-    if (computeEngineStatus.getStatus() != ComputeEngineStatus.Status.STARTED) {
+    if (computeEngineStatus.getStatus() != ComputeEngineStatus.Status.STARTED || getWorkersPauseStatus() != WorkersPauseStatus.RESUMED) {
       return Optional.empty();
     }
     try (DbSession dbSession = dbClient.openSession(false)) {
       CeQueueDao ceQueueDao = dbClient.ceQueueDao();
       int i = ceQueueDao.resetToPendingForWorker(dbSession, workerUuid);
       if (i > 0) {
+        dbSession.commit();
         LOG.debug("{} in progress tasks reset for worker uuid {}", i, workerUuid);
       }
-      Optional<CeQueueDto> dto = ceQueueDao.peek(dbSession, workerUuid, MAX_EXECUTION_COUNT);
-      CeTask task = null;
-      if (dto.isPresent()) {
-        task = loadTask(dbSession, dto.get());
+      Optional<CeQueueDto> opt = ceQueueDao.peek(dbSession, workerUuid);
+      if (opt.isPresent()) {
+        CeQueueDto taskDto = opt.get();
+        Map<String, ComponentDto> componentsByUuid = loadComponentDtos(dbSession, taskDto);
+        Map<String, String> characteristics = dbClient.ceTaskCharacteristicsDao().selectByTaskUuids(dbSession, singletonList(taskDto.getUuid())).stream()
+          .collect(uniqueIndex(CeTaskCharacteristicDto::getKey, CeTaskCharacteristicDto::getValue));
+
+        CeTask task = convertToTask(dbSession, taskDto, characteristics,
+          ofNullable(taskDto.getComponentUuid()).map(componentsByUuid::get).orElse(null),
+          ofNullable(taskDto.getMainComponentUuid()).map(componentsByUuid::get).orElse(null));
         queueStatus.addInProgress();
+        return Optional.of(task);
       }
-      return Optional.ofNullable(task);
+      return Optional.empty();
     }
   }
 
@@ -99,15 +111,27 @@ public class InternalCeQueueImpl extends CeQueueImpl implements InternalCeQueue 
   @Override
   public void remove(CeTask task, CeActivityDto.Status status, @Nullable CeTaskResult taskResult, @Nullable Throwable error) {
     checkArgument(error == null || status == CeActivityDto.Status.FAILED, "Error can be provided only when status is FAILED");
+
+    long executionTimeInMs = 0L;
     try (DbSession dbSession = dbClient.openSession(false)) {
       CeQueueDto queueDto = dbClient.ceQueueDao().selectByUuid(dbSession, task.getUuid())
-      .orElseThrow(() -> new IllegalStateException("Task does not exist anymore: " + task));
+        .orElseThrow(() -> new IllegalStateException("Task does not exist anymore: " + task));
       CeActivityDto activityDto = new CeActivityDto(queueDto);
       activityDto.setStatus(status);
-      updateQueueStatus(status, activityDto);
+      executionTimeInMs = updateExecutionFields(activityDto);
       updateTaskResult(activityDto, taskResult);
       updateError(activityDto, error);
       remove(dbSession, queueDto, activityDto);
+    } finally {
+      updateQueueStatus(status, executionTimeInMs);
+    }
+  }
+
+  private void updateQueueStatus(CeActivityDto.Status status, long executionTimeInMs) {
+    if (status == CeActivityDto.Status.SUCCESS) {
+      queueStatus.addSuccess(executionTimeInMs);
+    } else {
+      queueStatus.addError(executionTimeInMs);
     }
   }
 
@@ -145,34 +169,19 @@ public class InternalCeQueueImpl extends CeQueueImpl implements InternalCeQueue 
       printStream.flush();
       return out.toString();
     } catch (IOException e) {
-      Logger.getLogger(InternalCeQueueImpl.class).debug("Failed to getStacktrace out of error", e);
+      LOG.debug("Failed to getStacktrace out of error", e);
       return null;
-    }
-  }
-
-  private void updateQueueStatus(CeActivityDto.Status status, CeActivityDto activityDto) {
-    Long startedAt = activityDto.getStartedAt();
-    if (startedAt == null) {
-      return;
-    }
-    activityDto.setExecutedAt(system2.now());
-    long executionTimeInMs = activityDto.getExecutedAt() - startedAt;
-    activityDto.setExecutionTimeMs(executionTimeInMs);
-    if (status == CeActivityDto.Status.SUCCESS) {
-      queueStatus.addSuccess(executionTimeInMs);
-    } else {
-      queueStatus.addError(executionTimeInMs);
     }
   }
 
   @Override
   public void cancelWornOuts() {
     try (DbSession dbSession = dbClient.openSession(false)) {
-      List<CeQueueDto> wornOutTasks = dbClient.ceQueueDao().selectPendingByMinimumExecutionCount(dbSession, MAX_EXECUTION_COUNT);
+      List<CeQueueDto> wornOutTasks = dbClient.ceQueueDao().selectWornout(dbSession);
       wornOutTasks.forEach(queueDto -> {
         CeActivityDto activityDto = new CeActivityDto(queueDto);
         activityDto.setStatus(CeActivityDto.Status.CANCELED);
-        updateQueueStatus(CeActivityDto.Status.CANCELED, activityDto);
+        updateExecutionFields(activityDto);
         remove(dbSession, queueDto, activityDto);
       });
     }

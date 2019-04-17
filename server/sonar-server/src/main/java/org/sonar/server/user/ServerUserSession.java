@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,25 +25,30 @@ import com.google.common.collect.ImmutableSet;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
-import org.sonar.core.permission.ProjectPermissions;
 import org.sonar.core.util.stream.MoreCollectors;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
 import org.sonar.db.component.ComponentDto;
+import org.sonar.db.organization.OrganizationDto;
+import org.sonar.db.organization.OrganizationMemberDto;
 import org.sonar.db.permission.OrganizationPermission;
 import org.sonar.db.user.GroupDto;
 import org.sonar.db.user.UserDto;
 import org.sonar.server.organization.DefaultOrganizationProvider;
 import org.sonar.server.organization.OrganizationFlags;
 
-import static com.google.common.collect.Maps.newHashMap;
+import static java.util.Objects.requireNonNull;
+import static java.util.Optional.of;
+import static java.util.Optional.ofNullable;
 import static org.apache.commons.lang.StringUtils.defaultIfEmpty;
+import static org.sonar.api.web.UserRole.PUBLIC_PERMISSIONS;
 
 /**
  * Implementation of {@link UserSession} used in web server
@@ -56,9 +61,10 @@ public class ServerUserSession extends AbstractUserSession {
   private final DefaultOrganizationProvider defaultOrganizationProvider;
   private final Supplier<Collection<GroupDto>> groups = Suppliers.memoize(this::loadGroups);
   private final Supplier<Boolean> isSystemAdministratorSupplier = Suppliers.memoize(this::loadIsSystemAdministrator);
-  private final Map<String, String> projectUuidByComponentUuid = newHashMap();
+  private final Map<String, String> projectUuidByComponentUuid = new HashMap<>();
   private Map<String, Set<OrganizationPermission>> permissionsByOrganizationUuid;
   private Map<String, Set<String>> permissionsByProjectUuid;
+  private Set<String> organizationMembership = new HashSet<>();
 
   ServerUserSession(DbClient dbClient, OrganizationFlags organizationFlags,
     DefaultOrganizationProvider defaultOrganizationProvider, @Nullable UserDto userDto) {
@@ -81,6 +87,12 @@ public class ServerUserSession extends AbstractUserSession {
   @CheckForNull
   public String getLogin() {
     return userDto == null ? null : userDto.getLogin();
+  }
+
+  @Override
+  @CheckForNull
+  public String getUuid() {
+    return userDto == null ? null : userDto.getUuid();
   }
 
   @Override
@@ -111,6 +123,21 @@ public class ServerUserSession extends AbstractUserSession {
   }
 
   @Override
+  public Optional<IdentityProvider> getIdentityProvider() {
+    return ofNullable(userDto).map(d -> computeIdentity(d).getIdentityProvider());
+  }
+
+  @Override
+  public Optional<ExternalIdentity> getExternalIdentity() {
+    return ofNullable(userDto).map(d -> computeIdentity(d).getExternalIdentity());
+  }
+
+  @Override
+  public Optional<String> getPersonalOrganizationUuid() {
+    return ofNullable(userDto).map(UserDto::getOrganizationUuid);
+  }
+
+  @Override
   protected boolean hasPermissionImpl(OrganizationPermission permission, String organizationUuid) {
     if (permissionsByOrganizationUuid == null) {
       permissionsByOrganizationUuid = new HashMap<>();
@@ -137,10 +164,10 @@ public class ServerUserSession extends AbstractUserSession {
   protected Optional<String> componentUuidToProjectUuid(String componentUuid) {
     String projectUuid = projectUuidByComponentUuid.get(componentUuid);
     if (projectUuid != null) {
-      return Optional.of(projectUuid);
+      return of(projectUuid);
     }
     try (DbSession dbSession = dbClient.openSession(false)) {
-      com.google.common.base.Optional<ComponentDto> component = dbClient.componentDao().selectByUuid(dbSession, componentUuid);
+      Optional<ComponentDto> component = dbClient.componentDao().selectByUuid(dbSession, componentUuid);
       if (!component.isPresent()) {
         return Optional.empty();
       }
@@ -148,7 +175,7 @@ public class ServerUserSession extends AbstractUserSession {
       // checked on the project (represented by its main branch)
       projectUuid = defaultIfEmpty(component.get().getMainBranchProjectUuid(), component.get().projectUuid());
       projectUuidByComponentUuid.put(componentUuid, projectUuid);
-      return Optional.of(projectUuid);
+      return of(projectUuid);
     }
   }
 
@@ -163,7 +190,7 @@ public class ServerUserSession extends AbstractUserSession {
 
   private Set<String> loadProjectPermissions(String projectUuid) {
     try (DbSession dbSession = dbClient.openSession(false)) {
-      com.google.common.base.Optional<ComponentDto> component = dbClient.componentDao().selectByUuid(dbSession, projectUuid);
+      Optional<ComponentDto> component = dbClient.componentDao().selectByUuid(dbSession, projectUuid);
       if (!component.isPresent()) {
         return Collections.emptySet();
       }
@@ -171,7 +198,7 @@ public class ServerUserSession extends AbstractUserSession {
         return loadDbPermissions(dbSession, projectUuid);
       }
       ImmutableSet.Builder<String> builder = ImmutableSet.builder();
-      builder.addAll(ProjectPermissions.PUBLIC_PERMISSIONS);
+      builder.addAll(PUBLIC_PERMISSIONS);
       builder.addAll(loadDbPermissions(dbSession, projectUuid));
       return builder.build();
     }
@@ -214,6 +241,31 @@ public class ServerUserSession extends AbstractUserSession {
       }
       // organization feature is enabled -> requires to be root
       return false;
+    }
+  }
+
+  @Override
+  public boolean hasMembershipImpl(OrganizationDto organizationDto) {
+    return isMember(organizationDto.getUuid());
+  }
+
+  private boolean isMember(String organizationUuid) {
+    if (!isLoggedIn()) {
+      return false;
+    }
+    if (isRoot()) {
+      return true;
+    }
+
+    if (organizationMembership.contains(organizationUuid)) {
+      return true;
+    }
+    try (DbSession dbSession = dbClient.openSession(false)) {
+      Optional<OrganizationMemberDto> organizationMemberDto = dbClient.organizationMemberDao().select(dbSession, organizationUuid, requireNonNull(getUserId()));
+      if (organizationMemberDto.isPresent()) {
+        organizationMembership.add(organizationUuid);
+      }
+      return organizationMembership.contains(organizationUuid);
     }
   }
 }

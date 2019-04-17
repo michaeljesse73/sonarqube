@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,6 +21,8 @@ package org.sonar.server.tester;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Optional;
+import org.sonar.db.organization.OrganizationDto;
 import org.sonar.db.user.GroupDto;
 
 public class AnonymousMockUserSession extends AbstractMockUserSession<AnonymousMockUserSession> {
@@ -36,6 +38,10 @@ public class AnonymousMockUserSession extends AbstractMockUserSession<AnonymousM
 
   @Override
   public String getLogin() {
+    return null;
+  }
+
+  @Override public String getUuid() {
     return null;
   }
 
@@ -57,5 +63,25 @@ public class AnonymousMockUserSession extends AbstractMockUserSession<AnonymousM
   @Override
   public Collection<GroupDto> getGroups() {
     return Collections.emptyList();
+  }
+
+  @Override
+  public Optional<IdentityProvider> getIdentityProvider() {
+    return Optional.empty();
+  }
+
+  @Override
+  public Optional<ExternalIdentity> getExternalIdentity() {
+    return Optional.empty();
+  }
+
+  @Override
+  public Optional<String> getPersonalOrganizationUuid() {
+    return Optional.empty();
+  }
+
+  @Override
+  public boolean hasMembershipImpl(OrganizationDto organizationDto) {
+    return false;
   }
 }

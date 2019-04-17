@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,12 +22,10 @@ package org.sonar.process.cluster.hz;
 import com.hazelcast.core.Cluster;
 import com.hazelcast.core.IAtomicReference;
 import com.hazelcast.core.MemberSelector;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.locks.Lock;
 import org.sonar.process.ProcessId;
-import org.sonar.process.cluster.NodeType;
 
 public interface HazelcastMember extends AutoCloseable {
 
@@ -36,11 +34,6 @@ public interface HazelcastMember extends AutoCloseable {
      * The key of the node name attribute of a member
      */
     NODE_NAME("NODE_NAME"),
-    /**
-     * The role of the sonar-application inside the SonarQube cluster
-     * {@link NodeType}
-     */
-    NODE_TYPE("NODE_TYPE"),
     /**
      * Key of process as defined by {@link ProcessId#getKey()}
      */
@@ -58,21 +51,6 @@ public interface HazelcastMember extends AutoCloseable {
   }
 
   <E> IAtomicReference<E> getAtomicReference(String name);
-
-  /**
-   * Gets the set shared by the cluster and identified by name
-   */
-  <E> Set<E> getSet(String name);
-
-  /**
-   * Gets the list shared by the cluster and identified by name
-   */
-  <E> List<E> getList(String name);
-
-  /**
-   * Gets the map shared by the cluster and identified by name
-   */
-  <K, V> Map<K, V> getMap(String name);
 
   /**
    * Gets the replicated map shared by the cluster and identified by name.

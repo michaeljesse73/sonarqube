@@ -11,7 +11,6 @@ exports[`should work for all qualifiers 1`] = `
         Object {
           "pathname": "/dashboard",
           "query": Object {
-            "branch": undefined,
             "id": "foo",
           },
         }
@@ -23,13 +22,13 @@ exports[`should work for all qualifiers 1`] = `
   <li>
     <Link
       activeClassName="active"
+      className=""
       onlyActiveOnIndex={false}
       style={Object {}}
       to={
         Object {
           "pathname": "/project/issues",
           "query": Object {
-            "branch": undefined,
             "id": "foo",
             "resolved": "false",
           },
@@ -39,6 +38,51 @@ exports[`should work for all qualifiers 1`] = `
       issues.page
     </Link>
   </li>
+  <Dropdown
+    overlay={
+      <ul
+        className="menu"
+      >
+        <li>
+          <Link
+            activeClassName="active"
+            onlyActiveOnIndex={false}
+            style={Object {}}
+            to={
+              Object {
+                "pathname": "/project/security_reports/owasp_top_10",
+                "query": Object {
+                  "id": "foo",
+                },
+              }
+            }
+          >
+            security_reports.owaspTop10.page
+          </Link>
+        </li>
+        <li>
+          <Link
+            activeClassName="active"
+            onlyActiveOnIndex={false}
+            style={Object {}}
+            to={
+              Object {
+                "pathname": "/project/security_reports/sans_top_25",
+                "query": Object {
+                  "id": "foo",
+                },
+              }
+            }
+          >
+            security_reports.sansTop25.page
+          </Link>
+        </li>
+      </ul>
+    }
+    tagName="li"
+  >
+    <Component />
+  </Dropdown>
   <li>
     <Link
       activeClassName="active"
@@ -48,7 +92,6 @@ exports[`should work for all qualifiers 1`] = `
         Object {
           "pathname": "/component_measures",
           "query": Object {
-            "branch": undefined,
             "id": "foo",
           },
         }
@@ -66,7 +109,6 @@ exports[`should work for all qualifiers 1`] = `
         Object {
           "pathname": "/code",
           "query": Object {
-            "branch": undefined,
             "id": "foo",
           },
         }
@@ -84,7 +126,6 @@ exports[`should work for all qualifiers 1`] = `
         Object {
           "pathname": "/project/activity",
           "query": Object {
-            "branch": undefined,
             "id": "foo",
           },
         }
@@ -93,84 +134,86 @@ exports[`should work for all qualifiers 1`] = `
       project_activity.page
     </Link>
   </li>
-  <li
-    className="dropdown"
+  <Dropdown
+    data-test="administration"
+    overlay={
+      <ul
+        className="menu"
+      >
+        <li>
+          <Link
+            activeClassName="active"
+            onlyActiveOnIndex={false}
+            style={Object {}}
+            to={
+              Object {
+                "pathname": "/project/settings",
+                "query": Object {
+                  "id": "foo",
+                },
+              }
+            }
+          >
+            project_settings.page
+          </Link>
+        </li>
+        <li>
+          <Link
+            activeClassName="active"
+            onlyActiveOnIndex={false}
+            style={Object {}}
+            to={
+              Object {
+                "pathname": "/project/branches",
+                "query": Object {
+                  "id": "foo",
+                },
+              }
+            }
+          >
+            project_branches.page
+          </Link>
+        </li>
+        <li>
+          <Link
+            activeClassName="active"
+            onlyActiveOnIndex={false}
+            style={Object {}}
+            to={
+              Object {
+                "pathname": "/project/webhooks",
+                "query": Object {
+                  "id": "foo",
+                },
+              }
+            }
+          >
+            webhooks.page
+          </Link>
+        </li>
+        <li>
+          <Link
+            activeClassName="active"
+            onlyActiveOnIndex={false}
+            style={Object {}}
+            to={
+              Object {
+                "pathname": "/project/deletion",
+                "query": Object {
+                  "id": "foo",
+                },
+              }
+            }
+          >
+            deletion.page
+          </Link>
+        </li>
+      </ul>
+    }
+    tagName="li"
   >
-    <a
-      className="dropdown-toggle"
-      data-toggle="dropdown"
-      href="#"
-      id="component-navigation-admin"
-    >
-      layout.settings
-       
-      <i
-        className="icon-dropdown"
-      />
-    </a>
-    <ul
-      className="dropdown-menu"
-    >
-      <li
-        key="settings"
-      >
-        <Link
-          activeClassName="active"
-          onlyActiveOnIndex={false}
-          style={Object {}}
-          to={
-            Object {
-              "pathname": "/project/settings",
-              "query": Object {
-                "branch": undefined,
-                "id": "foo",
-              },
-            }
-          }
-        >
-          project_settings.page
-        </Link>
-      </li>
-      <li
-        key="branches"
-      >
-        <Link
-          activeClassName="active"
-          onlyActiveOnIndex={false}
-          style={Object {}}
-          to={
-            Object {
-              "pathname": "/project/branches",
-              "query": Object {
-                "id": "foo",
-              },
-            }
-          }
-        >
-          project_branches.page
-        </Link>
-      </li>
-      <li
-        key="project_delete"
-      >
-        <Link
-          activeClassName="active"
-          onlyActiveOnIndex={false}
-          style={Object {}}
-          to={
-            Object {
-              "pathname": "/project/deletion",
-              "query": Object {
-                "id": "foo",
-              },
-            }
-          }
-        >
-          deletion.page
-        </Link>
-      </li>
-    </ul>
-  </li>
+    <Component />
+  </Dropdown>
 </NavBarTabs>
 `;
 
@@ -183,9 +226,8 @@ exports[`should work for all qualifiers 2`] = `
       style={Object {}}
       to={
         Object {
-          "pathname": "/dashboard",
+          "pathname": "/portfolio",
           "query": Object {
-            "branch": undefined,
             "id": "foo",
           },
         }
@@ -197,13 +239,13 @@ exports[`should work for all qualifiers 2`] = `
   <li>
     <Link
       activeClassName="active"
+      className=""
       onlyActiveOnIndex={false}
       style={Object {}}
       to={
         Object {
           "pathname": "/project/issues",
           "query": Object {
-            "branch": undefined,
             "id": "foo",
             "resolved": "false",
           },
@@ -213,6 +255,51 @@ exports[`should work for all qualifiers 2`] = `
       issues.page
     </Link>
   </li>
+  <Dropdown
+    overlay={
+      <ul
+        className="menu"
+      >
+        <li>
+          <Link
+            activeClassName="active"
+            onlyActiveOnIndex={false}
+            style={Object {}}
+            to={
+              Object {
+                "pathname": "/project/security_reports/owasp_top_10",
+                "query": Object {
+                  "id": "foo",
+                },
+              }
+            }
+          >
+            security_reports.owaspTop10.page
+          </Link>
+        </li>
+        <li>
+          <Link
+            activeClassName="active"
+            onlyActiveOnIndex={false}
+            style={Object {}}
+            to={
+              Object {
+                "pathname": "/project/security_reports/sans_top_25",
+                "query": Object {
+                  "id": "foo",
+                },
+              }
+            }
+          >
+            security_reports.sansTop25.page
+          </Link>
+        </li>
+      </ul>
+    }
+    tagName="li"
+  >
+    <Component />
+  </Dropdown>
   <li>
     <Link
       activeClassName="active"
@@ -222,7 +309,6 @@ exports[`should work for all qualifiers 2`] = `
         Object {
           "pathname": "/component_measures",
           "query": Object {
-            "branch": undefined,
             "id": "foo",
           },
         }
@@ -240,13 +326,12 @@ exports[`should work for all qualifiers 2`] = `
         Object {
           "pathname": "/code",
           "query": Object {
-            "branch": undefined,
             "id": "foo",
           },
         }
       }
     >
-      code.page
+      view_projects.page
     </Link>
   </li>
   <li>
@@ -258,7 +343,6 @@ exports[`should work for all qualifiers 2`] = `
         Object {
           "pathname": "/project/activity",
           "query": Object {
-            "branch": undefined,
             "id": "foo",
           },
         }
@@ -267,46 +351,35 @@ exports[`should work for all qualifiers 2`] = `
       project_activity.page
     </Link>
   </li>
-  <li
-    className="dropdown"
-  >
-    <a
-      className="dropdown-toggle"
-      data-toggle="dropdown"
-      href="#"
-      id="component-navigation-admin"
-    >
-      layout.settings
-       
-      <i
-        className="icon-dropdown"
-      />
-    </a>
-    <ul
-      className="dropdown-menu"
-    >
-      <li
-        key="settings"
+  <Dropdown
+    data-test="administration"
+    overlay={
+      <ul
+        className="menu"
       >
-        <Link
-          activeClassName="active"
-          onlyActiveOnIndex={false}
-          style={Object {}}
-          to={
-            Object {
-              "pathname": "/project/settings",
-              "query": Object {
-                "branch": undefined,
-                "id": "foo",
-              },
+        <li>
+          <Link
+            activeClassName="active"
+            onlyActiveOnIndex={false}
+            style={Object {}}
+            to={
+              Object {
+                "pathname": "/project/deletion",
+                "query": Object {
+                  "id": "foo",
+                },
+              }
             }
-          }
-        >
-          project_settings.page
-        </Link>
-      </li>
-    </ul>
-  </li>
+          >
+            deletion.page
+          </Link>
+        </li>
+      </ul>
+    }
+    tagName="li"
+  >
+    <Component />
+  </Dropdown>
 </NavBarTabs>
 `;
 
@@ -321,7 +394,6 @@ exports[`should work for all qualifiers 3`] = `
         Object {
           "pathname": "/portfolio",
           "query": Object {
-            "branch": undefined,
             "id": "foo",
           },
         }
@@ -333,13 +405,13 @@ exports[`should work for all qualifiers 3`] = `
   <li>
     <Link
       activeClassName="active"
+      className=""
       onlyActiveOnIndex={false}
       style={Object {}}
       to={
         Object {
           "pathname": "/project/issues",
           "query": Object {
-            "branch": undefined,
             "id": "foo",
             "resolved": "false",
           },
@@ -349,6 +421,51 @@ exports[`should work for all qualifiers 3`] = `
       issues.page
     </Link>
   </li>
+  <Dropdown
+    overlay={
+      <ul
+        className="menu"
+      >
+        <li>
+          <Link
+            activeClassName="active"
+            onlyActiveOnIndex={false}
+            style={Object {}}
+            to={
+              Object {
+                "pathname": "/project/security_reports/owasp_top_10",
+                "query": Object {
+                  "id": "foo",
+                },
+              }
+            }
+          >
+            security_reports.owaspTop10.page
+          </Link>
+        </li>
+        <li>
+          <Link
+            activeClassName="active"
+            onlyActiveOnIndex={false}
+            style={Object {}}
+            to={
+              Object {
+                "pathname": "/project/security_reports/sans_top_25",
+                "query": Object {
+                  "id": "foo",
+                },
+              }
+            }
+          >
+            security_reports.sansTop25.page
+          </Link>
+        </li>
+      </ul>
+    }
+    tagName="li"
+  >
+    <Component />
+  </Dropdown>
   <li>
     <Link
       activeClassName="active"
@@ -358,7 +475,6 @@ exports[`should work for all qualifiers 3`] = `
         Object {
           "pathname": "/component_measures",
           "query": Object {
-            "branch": undefined,
             "id": "foo",
           },
         }
@@ -376,7 +492,6 @@ exports[`should work for all qualifiers 3`] = `
         Object {
           "pathname": "/code",
           "query": Object {
-            "branch": undefined,
             "id": "foo",
           },
         }
@@ -394,7 +509,6 @@ exports[`should work for all qualifiers 3`] = `
         Object {
           "pathname": "/project/activity",
           "query": Object {
-            "branch": undefined,
             "id": "foo",
           },
         }
@@ -402,45 +516,6 @@ exports[`should work for all qualifiers 3`] = `
     >
       project_activity.page
     </Link>
-  </li>
-  <li
-    className="dropdown"
-  >
-    <a
-      className="dropdown-toggle"
-      data-toggle="dropdown"
-      href="#"
-      id="component-navigation-admin"
-    >
-      layout.settings
-       
-      <i
-        className="icon-dropdown"
-      />
-    </a>
-    <ul
-      className="dropdown-menu"
-    >
-      <li
-        key="project_delete"
-      >
-        <Link
-          activeClassName="active"
-          onlyActiveOnIndex={false}
-          style={Object {}}
-          to={
-            Object {
-              "pathname": "/project/deletion",
-              "query": Object {
-                "id": "foo",
-              },
-            }
-          }
-        >
-          deletion.page
-        </Link>
-      </li>
-    </ul>
   </li>
 </NavBarTabs>
 `;
@@ -454,105 +529,8 @@ exports[`should work for all qualifiers 4`] = `
       style={Object {}}
       to={
         Object {
-          "pathname": "/portfolio",
-          "query": Object {
-            "branch": undefined,
-            "id": "foo",
-          },
-        }
-      }
-    >
-      overview.page
-    </Link>
-  </li>
-  <li>
-    <Link
-      activeClassName="active"
-      onlyActiveOnIndex={false}
-      style={Object {}}
-      to={
-        Object {
-          "pathname": "/project/issues",
-          "query": Object {
-            "branch": undefined,
-            "id": "foo",
-            "resolved": "false",
-          },
-        }
-      }
-    >
-      issues.page
-    </Link>
-  </li>
-  <li>
-    <Link
-      activeClassName="active"
-      onlyActiveOnIndex={false}
-      style={Object {}}
-      to={
-        Object {
-          "pathname": "/component_measures",
-          "query": Object {
-            "branch": undefined,
-            "id": "foo",
-          },
-        }
-      }
-    >
-      layout.measures
-    </Link>
-  </li>
-  <li>
-    <Link
-      activeClassName="active"
-      onlyActiveOnIndex={false}
-      style={Object {}}
-      to={
-        Object {
-          "pathname": "/code",
-          "query": Object {
-            "branch": undefined,
-            "id": "foo",
-          },
-        }
-      }
-    >
-      view_projects.page
-    </Link>
-  </li>
-  <li>
-    <Link
-      activeClassName="active"
-      onlyActiveOnIndex={false}
-      style={Object {}}
-      to={
-        Object {
-          "pathname": "/project/activity",
-          "query": Object {
-            "branch": undefined,
-            "id": "foo",
-          },
-        }
-      }
-    >
-      project_activity.page
-    </Link>
-  </li>
-</NavBarTabs>
-`;
-
-exports[`should work for all qualifiers 5`] = `
-<NavBarTabs>
-  <li>
-    <Link
-      activeClassName="active"
-      onlyActiveOnIndex={false}
-      style={Object {}}
-      to={
-        Object {
           "pathname": "/dashboard",
           "query": Object {
-            "branch": undefined,
             "id": "foo",
           },
         }
@@ -564,13 +542,13 @@ exports[`should work for all qualifiers 5`] = `
   <li>
     <Link
       activeClassName="active"
+      className=""
       onlyActiveOnIndex={false}
       style={Object {}}
       to={
         Object {
           "pathname": "/project/issues",
           "query": Object {
-            "branch": undefined,
             "id": "foo",
             "resolved": "false",
           },
@@ -580,6 +558,51 @@ exports[`should work for all qualifiers 5`] = `
       issues.page
     </Link>
   </li>
+  <Dropdown
+    overlay={
+      <ul
+        className="menu"
+      >
+        <li>
+          <Link
+            activeClassName="active"
+            onlyActiveOnIndex={false}
+            style={Object {}}
+            to={
+              Object {
+                "pathname": "/project/security_reports/owasp_top_10",
+                "query": Object {
+                  "id": "foo",
+                },
+              }
+            }
+          >
+            security_reports.owaspTop10.page
+          </Link>
+        </li>
+        <li>
+          <Link
+            activeClassName="active"
+            onlyActiveOnIndex={false}
+            style={Object {}}
+            to={
+              Object {
+                "pathname": "/project/security_reports/sans_top_25",
+                "query": Object {
+                  "id": "foo",
+                },
+              }
+            }
+          >
+            security_reports.sansTop25.page
+          </Link>
+        </li>
+      </ul>
+    }
+    tagName="li"
+  >
+    <Component />
+  </Dropdown>
   <li>
     <Link
       activeClassName="active"
@@ -589,7 +612,6 @@ exports[`should work for all qualifiers 5`] = `
         Object {
           "pathname": "/component_measures",
           "query": Object {
-            "branch": undefined,
             "id": "foo",
           },
         }
@@ -607,7 +629,6 @@ exports[`should work for all qualifiers 5`] = `
         Object {
           "pathname": "/code",
           "query": Object {
-            "branch": undefined,
             "id": "foo",
           },
         }
@@ -625,7 +646,6 @@ exports[`should work for all qualifiers 5`] = `
         Object {
           "pathname": "/project/activity",
           "query": Object {
-            "branch": undefined,
             "id": "foo",
           },
         }
@@ -634,45 +654,35 @@ exports[`should work for all qualifiers 5`] = `
       project_activity.page
     </Link>
   </li>
-  <li
-    className="dropdown"
-  >
-    <a
-      className="dropdown-toggle"
-      data-toggle="dropdown"
-      href="#"
-      id="component-navigation-admin"
-    >
-      layout.settings
-       
-      <i
-        className="icon-dropdown"
-      />
-    </a>
-    <ul
-      className="dropdown-menu"
-    >
-      <li
-        key="project_delete"
+  <Dropdown
+    data-test="administration"
+    overlay={
+      <ul
+        className="menu"
       >
-        <Link
-          activeClassName="active"
-          onlyActiveOnIndex={false}
-          style={Object {}}
-          to={
-            Object {
-              "pathname": "/project/deletion",
-              "query": Object {
-                "id": "foo",
-              },
+        <li>
+          <Link
+            activeClassName="active"
+            onlyActiveOnIndex={false}
+            style={Object {}}
+            to={
+              Object {
+                "pathname": "/project/deletion",
+                "query": Object {
+                  "id": "foo",
+                },
+              }
             }
-          }
-        >
-          deletion.page
-        </Link>
-      </li>
-    </ul>
-  </li>
+          >
+            deletion.page
+          </Link>
+        </li>
+      </ul>
+    }
+    tagName="li"
+  >
+    <Component />
+  </Dropdown>
 </NavBarTabs>
 `;
 
@@ -699,6 +709,7 @@ exports[`should work for long-living branches 1`] = `
   <li>
     <Link
       activeClassName="active"
+      className=""
       onlyActiveOnIndex={false}
       style={Object {}}
       to={
@@ -715,6 +726,53 @@ exports[`should work for long-living branches 1`] = `
       issues.page
     </Link>
   </li>
+  <Dropdown
+    overlay={
+      <ul
+        className="menu"
+      >
+        <li>
+          <Link
+            activeClassName="active"
+            onlyActiveOnIndex={false}
+            style={Object {}}
+            to={
+              Object {
+                "pathname": "/project/security_reports/owasp_top_10",
+                "query": Object {
+                  "branch": "release",
+                  "id": "foo",
+                },
+              }
+            }
+          >
+            security_reports.owaspTop10.page
+          </Link>
+        </li>
+        <li>
+          <Link
+            activeClassName="active"
+            onlyActiveOnIndex={false}
+            style={Object {}}
+            to={
+              Object {
+                "pathname": "/project/security_reports/sans_top_25",
+                "query": Object {
+                  "branch": "release",
+                  "id": "foo",
+                },
+              }
+            }
+          >
+            security_reports.sansTop25.page
+          </Link>
+        </li>
+      </ul>
+    }
+    tagName="li"
+  >
+    <Component />
+  </Dropdown>
   <li>
     <Link
       activeClassName="active"
@@ -795,6 +853,7 @@ exports[`should work for long-living branches 2`] = `
   <li>
     <Link
       activeClassName="active"
+      className=""
       onlyActiveOnIndex={false}
       style={Object {}}
       to={
@@ -811,6 +870,53 @@ exports[`should work for long-living branches 2`] = `
       issues.page
     </Link>
   </li>
+  <Dropdown
+    overlay={
+      <ul
+        className="menu"
+      >
+        <li>
+          <Link
+            activeClassName="active"
+            onlyActiveOnIndex={false}
+            style={Object {}}
+            to={
+              Object {
+                "pathname": "/project/security_reports/owasp_top_10",
+                "query": Object {
+                  "branch": "release",
+                  "id": "foo",
+                },
+              }
+            }
+          >
+            security_reports.owaspTop10.page
+          </Link>
+        </li>
+        <li>
+          <Link
+            activeClassName="active"
+            onlyActiveOnIndex={false}
+            style={Object {}}
+            to={
+              Object {
+                "pathname": "/project/security_reports/sans_top_25",
+                "query": Object {
+                  "branch": "release",
+                  "id": "foo",
+                },
+              }
+            }
+          >
+            security_reports.sansTop25.page
+          </Link>
+        </li>
+      </ul>
+    }
+    tagName="li"
+  >
+    <Component />
+  </Dropdown>
   <li>
     <Link
       activeClassName="active"
@@ -877,6 +983,25 @@ exports[`should work for short-living branches 1`] = `
       style={Object {}}
       to={
         Object {
+          "pathname": "/dashboard",
+          "query": Object {
+            "branch": "feature",
+            "id": "foo",
+          },
+        }
+      }
+    >
+      overview.page
+    </Link>
+  </li>
+  <li>
+    <Link
+      activeClassName="active"
+      className=""
+      onlyActiveOnIndex={false}
+      style={Object {}}
+      to={
+        Object {
           "pathname": "/project/issues",
           "query": Object {
             "branch": "feature",
@@ -887,6 +1012,24 @@ exports[`should work for short-living branches 1`] = `
       }
     >
       issues.page
+    </Link>
+  </li>
+  <li>
+    <Link
+      activeClassName="active"
+      onlyActiveOnIndex={false}
+      style={Object {}}
+      to={
+        Object {
+          "pathname": "/component_measures",
+          "query": Object {
+            "branch": "feature",
+            "id": "foo",
+          },
+        }
+      }
+    >
+      layout.measures
     </Link>
   </li>
   <li>
@@ -911,119 +1054,46 @@ exports[`should work for short-living branches 1`] = `
 `;
 
 exports[`should work with extensions 1`] = `
-<NavBarTabs>
-  <li>
-    <Link
-      activeClassName="active"
-      onlyActiveOnIndex={false}
-      style={Object {}}
-      to={
-        Object {
-          "pathname": "/dashboard",
-          "query": Object {
-            "branch": undefined,
-            "id": "foo",
-          },
-        }
-      }
-    >
-      overview.page
-    </Link>
-  </li>
-  <li>
-    <Link
-      activeClassName="active"
-      onlyActiveOnIndex={false}
-      style={Object {}}
-      to={
-        Object {
-          "pathname": "/project/issues",
-          "query": Object {
-            "branch": undefined,
-            "id": "foo",
-            "resolved": "false",
-          },
-        }
-      }
-    >
-      issues.page
-    </Link>
-  </li>
-  <li>
-    <Link
-      activeClassName="active"
-      onlyActiveOnIndex={false}
-      style={Object {}}
-      to={
-        Object {
-          "pathname": "/component_measures",
-          "query": Object {
-            "branch": undefined,
-            "id": "foo",
-          },
-        }
-      }
-    >
-      layout.measures
-    </Link>
-  </li>
-  <li>
-    <Link
-      activeClassName="active"
-      onlyActiveOnIndex={false}
-      style={Object {}}
-      to={
-        Object {
-          "pathname": "/code",
-          "query": Object {
-            "branch": undefined,
-            "id": "foo",
-          },
-        }
-      }
-    >
-      code.page
-    </Link>
-  </li>
-  <li>
-    <Link
-      activeClassName="active"
-      onlyActiveOnIndex={false}
-      style={Object {}}
-      to={
-        Object {
-          "pathname": "/project/activity",
-          "query": Object {
-            "branch": undefined,
-            "id": "foo",
-          },
-        }
-      }
-    >
-      project_activity.page
-    </Link>
-  </li>
-  <li
-    className="dropdown"
-  >
-    <a
-      className="dropdown-toggle"
-      data-toggle="dropdown"
-      href="#"
-      id="component-navigation-admin"
-    >
-      layout.settings
-       
-      <i
-        className="icon-dropdown"
-      />
-    </a>
+<Dropdown
+  data-test="extensions"
+  overlay={
     <ul
-      className="dropdown-menu"
+      className="menu"
     >
-      <li
-        key="settings"
-      >
+      <li>
+        <Link
+          activeClassName="active"
+          onlyActiveOnIndex={false}
+          style={Object {}}
+          to={
+            Object {
+              "pathname": "/project/extension/component-foo",
+              "query": Object {
+                "id": "foo",
+                "qualifier": "TRK",
+              },
+            }
+          }
+        >
+          ComponentFoo
+        </Link>
+      </li>
+    </ul>
+  }
+  tagName="li"
+>
+  <Component />
+</Dropdown>
+`;
+
+exports[`should work with extensions 2`] = `
+<Dropdown
+  data-test="administration"
+  overlay={
+    <ul
+      className="menu"
+    >
+      <li>
         <Link
           activeClassName="active"
           onlyActiveOnIndex={false}
@@ -1032,7 +1102,6 @@ exports[`should work with extensions 1`] = `
             Object {
               "pathname": "/project/settings",
               "query": Object {
-                "branch": undefined,
                 "id": "foo",
               },
             }
@@ -1041,9 +1110,7 @@ exports[`should work with extensions 1`] = `
           project_settings.page
         </Link>
       </li>
-      <li
-        key="branches"
-      >
+      <li>
         <Link
           activeClassName="active"
           onlyActiveOnIndex={false}
@@ -1060,9 +1127,24 @@ exports[`should work with extensions 1`] = `
           project_branches.page
         </Link>
       </li>
-      <li
-        key="foo"
-      >
+      <li>
+        <Link
+          activeClassName="active"
+          onlyActiveOnIndex={false}
+          style={Object {}}
+          to={
+            Object {
+              "pathname": "/project/webhooks",
+              "query": Object {
+                "id": "foo",
+              },
+            }
+          }
+        >
+          webhooks.page
+        </Link>
+      </li>
+      <li>
         <Link
           activeClassName="active"
           onlyActiveOnIndex={false}
@@ -1072,6 +1154,7 @@ exports[`should work with extensions 1`] = `
               "pathname": "/project/admin/extension/foo",
               "query": Object {
                 "id": "foo",
+                "qualifier": "TRK",
               },
             }
           }
@@ -1079,9 +1162,7 @@ exports[`should work with extensions 1`] = `
           Foo
         </Link>
       </li>
-      <li
-        key="project_delete"
-      >
+      <li>
         <Link
           activeClassName="active"
           onlyActiveOnIndex={false}
@@ -1099,279 +1180,21 @@ exports[`should work with extensions 1`] = `
         </Link>
       </li>
     </ul>
-  </li>
-  <li
-    className="dropdown"
-  >
-    <a
-      className="dropdown-toggle"
-      data-toggle="dropdown"
-      href="#"
-      id="component-navigation-more"
-    >
-      more
-       
-      <i
-        className="icon-dropdown"
-      />
-    </a>
-    <ul
-      className="dropdown-menu"
-    >
-      <li
-        key="component-foo"
-      >
-        <Link
-          activeClassName="active"
-          onlyActiveOnIndex={false}
-          style={Object {}}
-          to={
-            Object {
-              "pathname": "/project/extension/component-foo",
-              "query": Object {
-                "id": "foo",
-              },
-            }
-          }
-        >
-          ComponentFoo
-        </Link>
-      </li>
-    </ul>
-  </li>
-</NavBarTabs>
+  }
+  tagName="li"
+>
+  <Component />
+</Dropdown>
 `;
 
 exports[`should work with multiple extensions 1`] = `
-<NavBarTabs>
-  <li>
-    <Link
-      activeClassName="active"
-      onlyActiveOnIndex={false}
-      style={Object {}}
-      to={
-        Object {
-          "pathname": "/dashboard",
-          "query": Object {
-            "branch": undefined,
-            "id": "foo",
-          },
-        }
-      }
-    >
-      overview.page
-    </Link>
-  </li>
-  <li>
-    <Link
-      activeClassName="active"
-      onlyActiveOnIndex={false}
-      style={Object {}}
-      to={
-        Object {
-          "pathname": "/project/issues",
-          "query": Object {
-            "branch": undefined,
-            "id": "foo",
-            "resolved": "false",
-          },
-        }
-      }
-    >
-      issues.page
-    </Link>
-  </li>
-  <li>
-    <Link
-      activeClassName="active"
-      onlyActiveOnIndex={false}
-      style={Object {}}
-      to={
-        Object {
-          "pathname": "/component_measures",
-          "query": Object {
-            "branch": undefined,
-            "id": "foo",
-          },
-        }
-      }
-    >
-      layout.measures
-    </Link>
-  </li>
-  <li>
-    <Link
-      activeClassName="active"
-      onlyActiveOnIndex={false}
-      style={Object {}}
-      to={
-        Object {
-          "pathname": "/code",
-          "query": Object {
-            "branch": undefined,
-            "id": "foo",
-          },
-        }
-      }
-    >
-      code.page
-    </Link>
-  </li>
-  <li>
-    <Link
-      activeClassName="active"
-      onlyActiveOnIndex={false}
-      style={Object {}}
-      to={
-        Object {
-          "pathname": "/project/activity",
-          "query": Object {
-            "branch": undefined,
-            "id": "foo",
-          },
-        }
-      }
-    >
-      project_activity.page
-    </Link>
-  </li>
-  <li
-    className="dropdown"
-  >
-    <a
-      className="dropdown-toggle"
-      data-toggle="dropdown"
-      href="#"
-      id="component-navigation-admin"
-    >
-      layout.settings
-       
-      <i
-        className="icon-dropdown"
-      />
-    </a>
+<Dropdown
+  data-test="extensions"
+  overlay={
     <ul
-      className="dropdown-menu"
+      className="menu"
     >
-      <li
-        key="settings"
-      >
-        <Link
-          activeClassName="active"
-          onlyActiveOnIndex={false}
-          style={Object {}}
-          to={
-            Object {
-              "pathname": "/project/settings",
-              "query": Object {
-                "branch": undefined,
-                "id": "foo",
-              },
-            }
-          }
-        >
-          project_settings.page
-        </Link>
-      </li>
-      <li
-        key="branches"
-      >
-        <Link
-          activeClassName="active"
-          onlyActiveOnIndex={false}
-          style={Object {}}
-          to={
-            Object {
-              "pathname": "/project/branches",
-              "query": Object {
-                "id": "foo",
-              },
-            }
-          }
-        >
-          project_branches.page
-        </Link>
-      </li>
-      <li
-        key="foo"
-      >
-        <Link
-          activeClassName="active"
-          onlyActiveOnIndex={false}
-          style={Object {}}
-          to={
-            Object {
-              "pathname": "/project/admin/extension/foo",
-              "query": Object {
-                "id": "foo",
-              },
-            }
-          }
-        >
-          Foo
-        </Link>
-      </li>
-      <li
-        key="bar"
-      >
-        <Link
-          activeClassName="active"
-          onlyActiveOnIndex={false}
-          style={Object {}}
-          to={
-            Object {
-              "pathname": "/project/admin/extension/bar",
-              "query": Object {
-                "id": "foo",
-              },
-            }
-          }
-        >
-          Bar
-        </Link>
-      </li>
-      <li
-        key="project_delete"
-      >
-        <Link
-          activeClassName="active"
-          onlyActiveOnIndex={false}
-          style={Object {}}
-          to={
-            Object {
-              "pathname": "/project/deletion",
-              "query": Object {
-                "id": "foo",
-              },
-            }
-          }
-        >
-          deletion.page
-        </Link>
-      </li>
-    </ul>
-  </li>
-  <li
-    className="dropdown"
-  >
-    <a
-      className="dropdown-toggle"
-      data-toggle="dropdown"
-      href="#"
-      id="component-navigation-more"
-    >
-      more
-       
-      <i
-        className="icon-dropdown"
-      />
-    </a>
-    <ul
-      className="dropdown-menu"
-    >
-      <li
-        key="component-foo"
-      >
+      <li>
         <Link
           activeClassName="active"
           onlyActiveOnIndex={false}
@@ -1381,6 +1204,7 @@ exports[`should work with multiple extensions 1`] = `
               "pathname": "/project/extension/component-foo",
               "query": Object {
                 "id": "foo",
+                "qualifier": "TRK",
               },
             }
           }
@@ -1388,9 +1212,7 @@ exports[`should work with multiple extensions 1`] = `
           ComponentFoo
         </Link>
       </li>
-      <li
-        key="component-bar"
-      >
+      <li>
         <Link
           activeClassName="active"
           onlyActiveOnIndex={false}
@@ -1400,6 +1222,7 @@ exports[`should work with multiple extensions 1`] = `
               "pathname": "/project/extension/component-bar",
               "query": Object {
                 "id": "foo",
+                "qualifier": "TRK",
               },
             }
           }
@@ -1408,6 +1231,128 @@ exports[`should work with multiple extensions 1`] = `
         </Link>
       </li>
     </ul>
-  </li>
-</NavBarTabs>
+  }
+  tagName="li"
+>
+  <Component />
+</Dropdown>
+`;
+
+exports[`should work with multiple extensions 2`] = `
+<Dropdown
+  data-test="administration"
+  overlay={
+    <ul
+      className="menu"
+    >
+      <li>
+        <Link
+          activeClassName="active"
+          onlyActiveOnIndex={false}
+          style={Object {}}
+          to={
+            Object {
+              "pathname": "/project/settings",
+              "query": Object {
+                "id": "foo",
+              },
+            }
+          }
+        >
+          project_settings.page
+        </Link>
+      </li>
+      <li>
+        <Link
+          activeClassName="active"
+          onlyActiveOnIndex={false}
+          style={Object {}}
+          to={
+            Object {
+              "pathname": "/project/branches",
+              "query": Object {
+                "id": "foo",
+              },
+            }
+          }
+        >
+          project_branches.page
+        </Link>
+      </li>
+      <li>
+        <Link
+          activeClassName="active"
+          onlyActiveOnIndex={false}
+          style={Object {}}
+          to={
+            Object {
+              "pathname": "/project/webhooks",
+              "query": Object {
+                "id": "foo",
+              },
+            }
+          }
+        >
+          webhooks.page
+        </Link>
+      </li>
+      <li>
+        <Link
+          activeClassName="active"
+          onlyActiveOnIndex={false}
+          style={Object {}}
+          to={
+            Object {
+              "pathname": "/project/admin/extension/foo",
+              "query": Object {
+                "id": "foo",
+                "qualifier": "TRK",
+              },
+            }
+          }
+        >
+          Foo
+        </Link>
+      </li>
+      <li>
+        <Link
+          activeClassName="active"
+          onlyActiveOnIndex={false}
+          style={Object {}}
+          to={
+            Object {
+              "pathname": "/project/admin/extension/bar",
+              "query": Object {
+                "id": "foo",
+                "qualifier": "TRK",
+              },
+            }
+          }
+        >
+          Bar
+        </Link>
+      </li>
+      <li>
+        <Link
+          activeClassName="active"
+          onlyActiveOnIndex={false}
+          style={Object {}}
+          to={
+            Object {
+              "pathname": "/project/deletion",
+              "query": Object {
+                "id": "foo",
+              },
+            }
+          }
+        >
+          deletion.page
+        </Link>
+      </li>
+    </ul>
+  }
+  tagName="li"
+>
+  <Component />
+</Dropdown>
 `;

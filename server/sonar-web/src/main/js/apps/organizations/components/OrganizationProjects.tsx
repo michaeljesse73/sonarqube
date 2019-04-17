@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,18 +19,22 @@
  */
 import * as React from 'react';
 import AllProjectsContainer from '../../projects/components/AllProjectsContainer';
+import Suggestions from '../../../app/components/embed-docs-modal/Suggestions';
 
 interface Props {
-  location: { pathname: string; query: { [x: string]: string } };
-  organization: { key: string };
+  location: { pathname: string; query: T.Dict<string> };
+  organization: T.Organization;
 }
 
 export default function OrganizationProjects(props: Props) {
   return (
-    <AllProjectsContainer
-      isFavorite={false}
-      location={props.location}
-      organization={props.organization}
-    />
+    <>
+      <AllProjectsContainer
+        isFavorite={false}
+        location={props.location}
+        organization={props.organization}
+      />
+      <Suggestions suggestions="organization_projects" />
+    </>
   );
 }

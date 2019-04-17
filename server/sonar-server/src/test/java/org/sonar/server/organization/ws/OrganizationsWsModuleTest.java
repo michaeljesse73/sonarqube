@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,20 +20,36 @@
 package org.sonar.server.organization.ws;
 
 import org.junit.Test;
+import org.sonar.api.config.internal.MapSettings;
 import org.sonar.core.platform.ComponentContainer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonar.core.platform.ComponentContainer.COMPONENTS_IN_EMPTY_COMPONENT_CONTAINER;
 
 public class OrganizationsWsModuleTest {
-  private OrganizationsWsModule underTest = new OrganizationsWsModule();
+
+  private ComponentContainer container = new ComponentContainer();
+  private MapSettings mapSettings = new MapSettings();
+  private OrganizationsWsModule underTest = new OrganizationsWsModule(mapSettings.asConfig());
 
   @Test
-  public void verify_component_count() {
-    ComponentContainer container = new ComponentContainer();
+  public void verify_component_count_when_on_SonarQube() {
+    mapSettings.setProperty("sonar.sonarcloud.enabled", false);
+
     underTest.configure(container);
+
     assertThat(container.getPicoContainer().getComponentAdapters())
-      .hasSize(COMPONENTS_IN_EMPTY_COMPONENT_CONTAINER + 11);
+      .hasSize(COMPONENTS_IN_EMPTY_COMPONENT_CONTAINER + 5);
+  }
+
+  @Test
+  public void verify_component_count_when_on_SonarCloud() {
+    mapSettings.setProperty("sonar.sonarcloud.enabled", true);
+
+    underTest.configure(container);
+
+    assertThat(container.getPicoContainer().getComponentAdapters())
+      .hasSize(COMPONENTS_IN_EMPTY_COMPONENT_CONTAINER + 12);
   }
 
 }

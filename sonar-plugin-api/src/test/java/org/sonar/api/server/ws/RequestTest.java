@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.commons.io.IOUtils;
 import org.junit.Before;
@@ -59,7 +60,7 @@ public class RequestTest {
   @Rule
   public ExpectedException expectedException = ExpectedException.none();
 
-  FakeRequest underTest = new FakeRequest();
+  private FakeRequest underTest = new FakeRequest();
 
   @Before
   public void before() {
@@ -144,6 +145,17 @@ public class RequestTest {
   }
 
   @Test
+  public void paramAsInt_throws_IAE_if_maximum_defined_and_value_not_a_number() {
+    String param = "maximum_value_param";
+    defineParameterTestAction(newParam -> newParam.setMaximumValue(10), param);
+
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("'maximum_value_param' value 'foo' cannot be parsed as an integer");
+
+    underTest.setParam(param, "foo").paramAsInt(param);
+  }
+
+  @Test
   public void required_param_as_strings() {
     underTest.setParam("a_required_string", "foo,bar");
 
@@ -213,7 +225,7 @@ public class RequestTest {
   }
 
   @Test
-  public void param_as_int() {
+  public void paramAsInt() {
     assertThat(underTest.setParam("a_number", "123").paramAsInt("a_number")).isEqualTo(123);
     assertThat(underTest.setParam("a_number", "123").paramAsInt("a_number", 42)).isEqualTo(123);
     assertThat(underTest.setParam("a_number", null).paramAsInt("a_number", 42)).isEqualTo(123);
@@ -608,7 +620,7 @@ public class RequestTest {
   }
 
   @Test
-  public void param_as_part() throws Exception {
+  public void param_as_part() {
     InputStream inputStream = mock(InputStream.class);
     underTest.setPart("key", inputStream, "filename");
 
@@ -620,7 +632,7 @@ public class RequestTest {
   }
 
   @Test
-  public void mandatory_param_as_part() throws Exception {
+  public void mandatory_param_as_part() {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("The 'required_param' parameter is missing");
 
@@ -684,6 +696,13 @@ public class RequestTest {
     @Override
     protected String readParam(String key) {
       return params.get(key);
+    }
+
+    @Override
+    public Map<String, String[]> getParams() {
+      ArrayListMultimap<String, String> result = ArrayListMultimap.create(multiParams);
+      params.forEach(result::put);
+      return result.asMap().entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().toArray(new String[0])));
     }
 
     @Override

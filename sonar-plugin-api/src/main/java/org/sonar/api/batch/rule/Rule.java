@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,7 +21,6 @@ package org.sonar.api.batch.rule;
 
 import java.util.Collection;
 import javax.annotation.CheckForNull;
-import org.sonar.api.batch.debt.DebtRemediationFunction;
 import org.sonar.api.rule.RuleKey;
 import org.sonar.api.rule.RuleStatus;
 
@@ -48,21 +47,4 @@ public interface Rule {
   Collection<RuleParam> params();
 
   RuleStatus status();
-
-  /**
-   * @since 4.3
-   * @deprecated since 5.2 as any computation of data are moved to server's Compute Engine. Calling this method throws an exception.
-   */
-  @CheckForNull
-  @Deprecated
-  String debtSubCharacteristic();
-
-  /**
-   * @since 4.3
-   * @deprecated since 5.2 as any computation of data are moved to server's Compute Engine. Calling this method throws an exception.
-   */
-  @CheckForNull
-  @Deprecated
-  DebtRemediationFunction debtRemediationFunction();
-
 }

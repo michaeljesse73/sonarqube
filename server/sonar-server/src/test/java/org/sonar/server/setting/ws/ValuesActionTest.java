@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -28,9 +28,11 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.sonar.api.PropertyType;
+import org.sonar.api.config.Configuration;
 import org.sonar.api.config.PropertyDefinition;
 import org.sonar.api.config.PropertyDefinitions;
 import org.sonar.api.config.PropertyFieldDefinition;
+import org.sonar.api.config.internal.MapSettings;
 import org.sonar.api.server.ws.WebService;
 import org.sonar.api.utils.System2;
 import org.sonar.api.web.UserRole;
@@ -40,6 +42,7 @@ import org.sonar.db.component.ComponentDbTester;
 import org.sonar.db.component.ComponentDto;
 import org.sonar.db.component.ComponentTesting;
 import org.sonar.db.organization.OrganizationDto;
+import org.sonar.db.permission.OrganizationPermission;
 import org.sonar.db.property.PropertyDbTester;
 import org.sonar.process.ProcessProperties;
 import org.sonar.server.component.TestComponentFinder;
@@ -58,7 +61,6 @@ import static java.lang.String.format;
 import static java.util.Arrays.asList;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.groups.Tuple.tuple;
-import static org.sonar.api.PropertyType.LICENSE;
 import static org.sonar.api.resources.Qualifiers.MODULE;
 import static org.sonar.api.resources.Qualifiers.PROJECT;
 import static org.sonar.api.web.UserRole.ADMIN;
@@ -66,10 +68,10 @@ import static org.sonar.api.web.UserRole.CODEVIEWER;
 import static org.sonar.api.web.UserRole.USER;
 import static org.sonar.core.permission.GlobalPermissions.SCAN_EXECUTION;
 import static org.sonar.db.component.ComponentTesting.newModuleDto;
-import static org.sonar.db.permission.OrganizationPermission.ADMINISTER;
 import static org.sonar.db.permission.OrganizationPermission.SCAN;
 import static org.sonar.db.property.PropertyTesting.newComponentPropertyDto;
 import static org.sonar.db.property.PropertyTesting.newGlobalPropertyDto;
+import static org.sonar.process.ProcessProperties.Property.SONARCLOUD_ENABLED;
 import static org.sonarqube.ws.MediaTypes.JSON;
 import static org.sonarqube.ws.Settings.Setting.ParentValueOneOfCase.PARENTVALUEONEOF_NOT_SET;
 
@@ -88,18 +90,13 @@ public class ValuesActionTest {
   private PropertyDbTester propertyDb = new PropertyDbTester(db);
   private ComponentDbTester componentDb = new ComponentDbTester(db);
   private PropertyDefinitions definitions = new PropertyDefinitions();
-  private SettingsFinder settingsFinder = new SettingsFinder(dbClient, definitions);
   private DefaultOrganizationProvider defaultOrganizationProvider = TestDefaultOrganizationProvider.from(db);
   private SettingsWsSupport support = new SettingsWsSupport(defaultOrganizationProvider, userSession);
   private ComponentDto project;
 
-  private WsActionTester ws = new WsActionTester(
-    new ValuesAction(dbClient, TestComponentFinder.from(db), userSession, definitions, settingsFinder, support));
-
   @Before
   public void setUp() throws Exception {
-    OrganizationDto organizationDto = db.organizations().insert();
-    project = componentDb.insertComponent(ComponentTesting.newPrivateProjectDto(organizationDto));
+    project = componentDb.insertComponent(ComponentTesting.newPrivateProjectDto(db.organizations().insert()));
   }
 
   @Test
@@ -285,6 +282,17 @@ public class ValuesActionTest {
     assertThat(globalPropertyWithoutDefinitionValue.getKey()).isEqualTo("globalPropertyWithoutDefinition");
     assertThat(globalPropertyWithoutDefinitionValue.getValue()).isEqualTo("value");
     assertThat(globalPropertyWithoutDefinitionValue.getInherited()).isFalse();
+  }
+
+  @Test
+  public void return_values_of_component_even_if_no_property_definition() {
+    logInAsProjectUser();
+    propertyDb.insertProperties(
+      newComponentPropertyDto(project).setKey("property").setValue("foo"));
+
+    ValuesWsResponse response = executeRequestForComponentProperties(project, "property");
+    assertThat(response.getSettingsCount()).isEqualTo(1);
+    assertSetting(response.getSettings(0), "property", "foo", false);
   }
 
   @Test
@@ -483,17 +491,13 @@ public class ValuesActionTest {
   }
 
   @Test
-  public void does_not_returned_secured_and_license_settings_when_not_authenticated() {
+  public void do_not_return_secured_settings_when_not_authenticated() {
     definitions.addComponents(asList(
       PropertyDefinition.builder("foo").build(),
-      PropertyDefinition.builder("secret.secured").build(),
-      PropertyDefinition.builder("commercial.plugin").type(LICENSE).build(),
-      PropertyDefinition.builder("plugin.license.secured").type(LICENSE).build()));
+      PropertyDefinition.builder("secret.secured").build()));
     propertyDb.insertProperties(
       newGlobalPropertyDto().setKey("foo").setValue("one"),
-      newGlobalPropertyDto().setKey("secret.secured").setValue("password"),
-      newGlobalPropertyDto().setKey("commercial.plugin").setValue("ABCD"),
-      newGlobalPropertyDto().setKey("plugin.license.secured").setValue("ABCD"));
+      newGlobalPropertyDto().setKey("secret.secured").setValue("password"));
 
     ValuesWsResponse result = executeRequestForGlobalProperties();
 
@@ -501,16 +505,15 @@ public class ValuesActionTest {
   }
 
   @Test
-  public void does_not_returned_secured_and_license_settings_in_property_set_when_not_authenticated() {
+  public void do_not_return_secured_settings_in_property_set_when_not_authenticated() {
     definitions.addComponent(PropertyDefinition
       .builder("foo")
       .type(PropertyType.PROPERTY_SET)
       .fields(asList(
         PropertyFieldDefinition.build("key").name("Key").build(),
-        PropertyFieldDefinition.build("plugin.license.secured").name("License").type(LICENSE).build(),
         PropertyFieldDefinition.build("secret.secured").name("Secured").build()))
       .build());
-    propertyDb.insertPropertySet("foo", null, ImmutableMap.of("key", "key1", "plugin.license.secured", "ABCD", "secret.secured", "123456"));
+    propertyDb.insertPropertySet("foo", null, ImmutableMap.of("key", "key1", "secret.secured", "123456"));
 
     ValuesWsResponse result = executeRequestForGlobalProperties();
 
@@ -518,65 +521,37 @@ public class ValuesActionTest {
   }
 
   @Test
-  public void return_license_settings_when_authenticated_but_not_admin() {
-    logIn();
-    definitions.addComponents(asList(
-      PropertyDefinition.builder("foo").build(),
-      PropertyDefinition.builder("secret.secured").build(),
-      PropertyDefinition.builder("commercial.plugin").type(LICENSE).build(),
-      PropertyDefinition.builder("plugin.license.secured").type(LICENSE).build()));
-    propertyDb.insertProperties(
-      newGlobalPropertyDto().setKey("foo").setValue("one"),
-      newGlobalPropertyDto().setKey("secret.secured").setValue("password"),
-      newGlobalPropertyDto().setKey("commercial.plugin").setValue("ABCD"),
-      newGlobalPropertyDto().setKey("plugin.license.secured").setValue("ABCD"));
-
-    ValuesWsResponse result = executeRequestForGlobalProperties();
-
-    assertThat(result.getSettingsList()).extracting(Settings.Setting::getKey).containsOnly("foo", "commercial.plugin", "plugin.license.secured");
-  }
-
-  @Test
   public void return_global_secured_settings_when_not_authenticated_but_with_scan_permission() {
     userSession.anonymous().addPermission(SCAN, db.getDefaultOrganization());
     definitions.addComponents(asList(
       PropertyDefinition.builder("foo").build(),
-      PropertyDefinition.builder("secret.secured").build(),
-      PropertyDefinition.builder("commercial.plugin").type(LICENSE).build(),
-      PropertyDefinition.builder("plugin.license.secured").type(LICENSE).build()));
+      PropertyDefinition.builder("secret.secured").build()));
     propertyDb.insertProperties(
       newGlobalPropertyDto().setKey("foo").setValue("one"),
-      newGlobalPropertyDto().setKey("secret.secured").setValue("password"),
-      newGlobalPropertyDto().setKey("commercial.plugin").setValue("ABCD"),
-      newGlobalPropertyDto().setKey("plugin.license.secured").setValue("ABCD"));
+      newGlobalPropertyDto().setKey("secret.secured").setValue("password"));
 
     ValuesWsResponse result = executeRequestForGlobalProperties();
 
-    assertThat(result.getSettingsList()).extracting(Settings.Setting::getKey).containsOnly("foo", "secret.secured", "commercial.plugin", "plugin.license.secured");
+    assertThat(result.getSettingsList()).extracting(Settings.Setting::getKey).containsOnly("foo", "secret.secured");
   }
 
   @Test
-  public void return_component_secured_settings_when_not_authenticated_but_with_scan_permission() {
+  public void return_component_secured_settings_when_not_authenticated_but_with_project_scan_permission() {
     userSession
       .addProjectPermission(USER, project)
       .addProjectPermission(SCAN_EXECUTION, project);
     definitions.addComponents(asList(
       PropertyDefinition.builder("foo").onQualifiers(PROJECT).build(),
       PropertyDefinition.builder("global.secret.secured").build(),
-      PropertyDefinition.builder("secret.secured").onQualifiers(PROJECT).build(),
-      PropertyDefinition.builder("commercial.plugin").type(LICENSE).build(),
-      PropertyDefinition.builder("plugin.license.secured").type(LICENSE).build()));
+      PropertyDefinition.builder("secret.secured").onQualifiers(PROJECT).build()));
     propertyDb.insertProperties(
       newComponentPropertyDto(project).setKey("foo").setValue("one"),
       newGlobalPropertyDto().setKey("global.secret.secured").setValue("very secret"),
-      newComponentPropertyDto(project).setKey("secret.secured").setValue("password"),
-      newComponentPropertyDto(project).setKey("commercial.plugin").setValue("ABCD"),
-      newGlobalPropertyDto().setKey("plugin.license.secured").setValue("ABCD"));
+      newComponentPropertyDto(project).setKey("secret.secured").setValue("password"));
 
     ValuesWsResponse result = executeRequestForProjectProperties();
 
-    assertThat(result.getSettingsList()).extracting(Settings.Setting::getKey).containsOnly("foo", "global.secret.secured", "secret.secured", "commercial.plugin",
-      "plugin.license.secured");
+    assertThat(result.getSettingsList()).extracting(Settings.Setting::getKey).containsOnly("foo", "global.secret.secured", "secret.secured");
   }
 
   @Test
@@ -592,43 +567,39 @@ public class ValuesActionTest {
   }
 
   @Test
-  public void return_secured_and_license_settings_when_system_admin() {
+  public void return_secured_settings_when_system_admin() {
     logInAsAdmin();
     definitions.addComponents(asList(
       PropertyDefinition.builder("foo").build(),
-      PropertyDefinition.builder("secret.secured").build(),
-      PropertyDefinition.builder("plugin.license.secured").type(LICENSE).build()));
+      PropertyDefinition.builder("secret.secured").build()));
     propertyDb.insertProperties(
       newGlobalPropertyDto().setKey("foo").setValue("one"),
-      newGlobalPropertyDto().setKey("secret.secured").setValue("password"),
-      newGlobalPropertyDto().setKey("plugin.license.secured").setValue("ABCD"));
+      newGlobalPropertyDto().setKey("secret.secured").setValue("password"));
 
     ValuesWsResponse result = executeRequestForGlobalProperties();
 
-    assertThat(result.getSettingsList()).extracting(Settings.Setting::getKey).containsOnly("foo", "secret.secured", "plugin.license.secured");
+    assertThat(result.getSettingsList()).extracting(Settings.Setting::getKey).containsOnly("foo", "secret.secured");
   }
 
   @Test
-  public void return_secured_and_license_settings_when_project_admin() {
+  public void return_secured_settings_when_project_admin() {
     logInAsProjectAdmin();
     definitions.addComponents(asList(
       PropertyDefinition.builder("foo").onQualifiers(PROJECT).build(),
       PropertyDefinition.builder("global.secret.secured").build(),
-      PropertyDefinition.builder("secret.secured").onQualifiers(PROJECT).build(),
-      PropertyDefinition.builder("plugin.license.secured").type(LICENSE).build()));
+      PropertyDefinition.builder("secret.secured").onQualifiers(PROJECT).build()));
     propertyDb.insertProperties(
       newComponentPropertyDto(project).setKey("foo").setValue("one"),
       newGlobalPropertyDto().setKey("global.secret.secured").setValue("very secret"),
-      newComponentPropertyDto(project).setKey("secret.secured").setValue("password"),
-      newGlobalPropertyDto().setKey("plugin.license.secured").setValue("ABCD"));
+      newComponentPropertyDto(project).setKey("secret.secured").setValue("password"));
 
     ValuesWsResponse result = executeRequestForProjectProperties();
 
-    assertThat(result.getSettingsList()).extracting(Settings.Setting::getKey).containsOnly("foo", "global.secret.secured", "secret.secured", "plugin.license.secured");
+    assertThat(result.getSettingsList()).extracting(Settings.Setting::getKey).containsOnly("foo", "global.secret.secured", "secret.secured");
   }
 
   @Test
-  public void return_secured_and_license_settings_even_if_not_defined_when_project_admin() {
+  public void return_secured_settings_even_if_not_defined_when_project_admin() {
     logInAsProjectAdmin();
     propertyDb.insertProperties(newComponentPropertyDto(project).setKey("not-defined.secured").setValue("123"));
 
@@ -638,21 +609,20 @@ public class ValuesActionTest {
   }
 
   @Test
-  public void return_secured_and_license_settings_in_property_set_when_system_admin() {
+  public void return_secured_settings_in_property_set_when_system_admin() {
     logInAsAdmin();
     definitions.addComponent(PropertyDefinition
       .builder("foo")
       .type(PropertyType.PROPERTY_SET)
       .fields(asList(
         PropertyFieldDefinition.build("key").name("Key").build(),
-        PropertyFieldDefinition.build("plugin.license.secured").name("License").type(LICENSE).build(),
         PropertyFieldDefinition.build("secret.secured").name("Secured").build()))
       .build());
-    propertyDb.insertPropertySet("foo", null, ImmutableMap.of("key", "key1", "plugin.license.secured", "ABCD", "secret.secured", "123456"));
+    propertyDb.insertPropertySet("foo", null, ImmutableMap.of("key", "key1", "secret.secured", "123456"));
 
     ValuesWsResponse result = executeRequestForGlobalProperties();
 
-    assertFieldValues(result.getSettings(0), ImmutableMap.of("key", "key1", "plugin.license.secured", "ABCD", "secret.secured", "123456"));
+    assertFieldValues(result.getSettings(0), ImmutableMap.of("key", "key1", "secret.secured", "123456"));
   }
 
   @Test
@@ -660,16 +630,14 @@ public class ValuesActionTest {
     logInAsAdmin();
     definitions.addComponents(asList(
       PropertyDefinition.builder("foo").build(),
-      PropertyDefinition.builder("secret.secured").build(),
-      PropertyDefinition.builder("plugin.license.secured").type(LICENSE).build()));
+      PropertyDefinition.builder("secret.secured").build()));
     propertyDb.insertProperties(
       newGlobalPropertyDto().setKey("foo").setValue("one"),
-      newGlobalPropertyDto().setKey("secret.secured").setValue("password"),
-      newGlobalPropertyDto().setKey("plugin.license.secured").setValue("ABCD"));
+      newGlobalPropertyDto().setKey("secret.secured").setValue("password"));
 
     ValuesWsResponse result = executeRequestForGlobalProperties();
 
-    assertThat(result.getSettingsList()).extracting(Settings.Setting::getKey).containsOnly("foo", "secret.secured", "plugin.license.secured");
+    assertThat(result.getSettingsList()).extracting(Settings.Setting::getKey).containsOnly("foo", "secret.secured");
   }
 
   @Test
@@ -677,22 +645,20 @@ public class ValuesActionTest {
     logInAsProjectAdmin();
     definitions.addComponents(asList(
       PropertyDefinition.builder("foo").onQualifiers(PROJECT).build(),
-      PropertyDefinition.builder("secret.secured").onQualifiers(PROJECT).build(),
-      PropertyDefinition.builder("plugin.license.secured").onQualifiers(PROJECT).type(LICENSE).build()));
+      PropertyDefinition.builder("secret.secured").onQualifiers(PROJECT).build()));
     propertyDb.insertProperties(
       newComponentPropertyDto(project).setKey("foo").setValue("one"),
-      newComponentPropertyDto(project).setKey("secret.secured").setValue("password"),
-      newComponentPropertyDto(project).setKey("plugin.license.secured").setValue("ABCD"));
+      newComponentPropertyDto(project).setKey("secret.secured").setValue("password"));
 
     ValuesWsResponse result = executeRequestForProjectProperties();
 
-    assertThat(result.getSettingsList()).extracting(Settings.Setting::getKey).containsOnly("foo", "secret.secured", "plugin.license.secured");
+    assertThat(result.getSettingsList()).extracting(Settings.Setting::getKey).containsOnly("foo", "secret.secured");
   }
 
   @Test
   public void return_additional_settings_specific_for_scanner_when_no_keys() {
     logInAsAdmin();
-    definitions.addComponent(PropertyDefinition.builder("plugin.license.secured").type(LICENSE).build());
+    definitions.addComponent(PropertyDefinition.builder("secret.secured").build());
     propertyDb.insertProperties(
       newGlobalPropertyDto().setKey("sonar.core.id").setValue("ID"),
       newGlobalPropertyDto().setKey("sonar.core.startTime").setValue("2017-01-01"));
@@ -723,7 +689,7 @@ public class ValuesActionTest {
     definitions.addComponent(PropertyDefinition.builder("sonar.leak.period").onQualifiers(PROJECT).build());
     propertyDb.insertProperties(newComponentPropertyDto(branch).setKey("sonar.leak.period").setValue("two"));
 
-    ValuesWsResponse result = ws.newRequest()
+    ValuesWsResponse result = newTester().newRequest()
       .setParam("keys", "sonar.leak.period")
       .setParam("component", branch.getKey())
       .setParam("branch", branch.getBranch())
@@ -741,7 +707,7 @@ public class ValuesActionTest {
     definitions.addComponent(PropertyDefinition.builder("sonar.leak.period").onQualifiers(PROJECT).build());
     propertyDb.insertProperties(newComponentPropertyDto(project).setKey("sonar.leak.period").setValue("two"));
 
-    ValuesWsResponse result = ws.newRequest()
+    ValuesWsResponse result = newTester().newRequest()
       .setParam("keys", "sonar.leak.period")
       .setParam("component", branch.getKey())
       .setParam("branch", branch.getBranch())
@@ -781,7 +747,7 @@ public class ValuesActionTest {
     expectedException.expect(NotFoundException.class);
     expectedException.expectMessage("Component key 'unknown' not found");
 
-    ws.newRequest()
+    newTester().newRequest()
       .setParam("keys", "foo")
       .setParam("component", "unknown")
       .execute();
@@ -797,7 +763,7 @@ public class ValuesActionTest {
     expectedException.expect(NotFoundException.class);
     expectedException.expectMessage(format("Component '%s' on branch 'unknown' not found", branch.getKey()));
 
-    ws.newRequest()
+    newTester().newRequest()
       .setParam("keys", settingKey)
       .setParam("component", branch.getKey())
       .setParam("branch", "unknown")
@@ -824,13 +790,13 @@ public class ValuesActionTest {
       .build());
     propertyDb.insertPropertySet("sonar.demo", null, ImmutableMap.of("text", "foo", "boolean", "true"), ImmutableMap.of("text", "bar", "boolean", "false"));
 
-    String result = ws.newRequest()
+    String result = newTester().newRequest()
       .setParam("keys", "sonar.test.jira,sonar.autogenerated,sonar.demo")
       .setMediaType(JSON)
       .execute()
       .getInput();
 
-    JsonAssert.assertJson(ws.getDef().responseExampleAsString()).isSimilarTo(result);
+    JsonAssert.assertJson(newTester().getDef().responseExampleAsString()).isSimilarTo(result);
   }
 
   @Test
@@ -843,7 +809,7 @@ public class ValuesActionTest {
     expectedException.expect(NotFoundException.class);
     expectedException.expectMessage(format("Component key '%s' not found", branch.getDbKey()));
 
-    ws.newRequest()
+    newTester().newRequest()
       .setParam("keys", "foo")
       .setParam("component", branch.getDbKey())
       .execute();
@@ -858,7 +824,7 @@ public class ValuesActionTest {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(format("Setting '%s' can only be used in sonar.properties", settingKey));
 
-    ws.newRequest()
+    newTester().newRequest()
       .setParam("keys", settingKey)
       .setParam("component", project.getKey())
       .execute();
@@ -866,12 +832,44 @@ public class ValuesActionTest {
 
   @Test
   public void test_ws_definition() {
-    WebService.Action action = ws.getDef();
+    WebService.Action action = newTester().getDef();
     assertThat(action).isNotNull();
     assertThat(action.isInternal()).isFalse();
     assertThat(action.isPost()).isFalse();
     assertThat(action.responseExampleAsString()).isNotEmpty();
-    assertThat(action.params()).extracting(WebService.Param::key).containsExactlyInAnyOrder("keys", "component", "branch");
+    assertThat(action.params()).extracting(WebService.Param::key).containsExactlyInAnyOrder("keys", "component", "branch", "pullRequest");
+  }
+
+  @Test
+  public void sonarcloud_global_secured_properties_require_system_admin_permission() {
+    PropertyDefinition securedDef = PropertyDefinition.builder("my.password.secured").build();
+    PropertyDefinition standardDef = PropertyDefinition.builder("my.property").build();
+    definitions.addComponents(asList(securedDef, standardDef));
+    propertyDb.insertProperties(
+      newGlobalPropertyDto().setKey(securedDef.key()).setValue("securedValue"),
+      newGlobalPropertyDto().setKey(standardDef.key()).setValue("standardValue"));
+
+    // anonymous
+    WsActionTester tester = newSonarCloudTester();
+    ValuesWsResponse response = executeRequest(tester, null, securedDef.key(), standardDef.key());
+    assertThat(response.getSettingsList()).extracting(Settings.Setting::getValue).containsExactly("standardValue");
+
+    // organization administrator but not system administrator
+    userSession.logIn()
+      .addPermission(OrganizationPermission.SCAN, db.getDefaultOrganization());
+    response = executeRequest(tester, null, securedDef.key(), standardDef.key());
+    assertThat(response.getSettingsList()).extracting(Settings.Setting::getValue).containsExactly("standardValue");
+
+    // organization administrator
+    userSession.logIn()
+      .addPermission(OrganizationPermission.ADMINISTER, db.getDefaultOrganization());
+    response = executeRequest(tester, null, securedDef.key(), standardDef.key());
+    assertThat(response.getSettingsList()).extracting(Settings.Setting::getValue).containsExactly("standardValue");
+
+    // system administrator
+    userSession.logIn().setSystemAdministrator();
+    response = executeRequest(tester, null, securedDef.key(), standardDef.key());
+    assertThat(response.getSettingsList()).extracting(Settings.Setting::getValue).containsExactlyInAnyOrder("securedValue", "standardValue");
   }
 
   private ValuesWsResponse executeRequestForComponentProperties(ComponentDto componentDto, String... keys) {
@@ -887,7 +885,11 @@ public class ValuesActionTest {
   }
 
   private ValuesWsResponse executeRequest(@Nullable String componentKey, String... keys) {
-    TestRequest request = ws.newRequest();
+    return executeRequest(newTester(), componentKey, keys);
+  }
+
+  private ValuesWsResponse executeRequest(WsActionTester tester, @Nullable String componentKey, String... keys) {
+    TestRequest request = tester.newRequest();
     if (keys.length > 0) {
       request.setParam("keys", COMMA_JOINER.join(keys));
     }
@@ -906,7 +908,7 @@ public class ValuesActionTest {
   }
 
   private void logInAsAdmin() {
-    userSession.logIn().addPermission(ADMINISTER, db.getDefaultOrganization());
+    userSession.logIn().setSystemAdministrator();
   }
 
   private void logInAsProjectAdmin() {
@@ -959,4 +961,15 @@ public class ValuesActionTest {
     }
   }
 
+  private WsActionTester newTester() {
+    MapSettings settings = new MapSettings();
+    Configuration configuration = settings.asConfig();
+    return new WsActionTester(new ValuesAction(dbClient, TestComponentFinder.from(db), userSession, definitions, support, configuration));
+  }
+
+  private WsActionTester newSonarCloudTester() {
+    MapSettings settings = new MapSettings().setProperty(SONARCLOUD_ENABLED.getKey(), "true");
+    Configuration configuration = settings.asConfig();
+    return new WsActionTester(new ValuesAction(dbClient, TestComponentFinder.from(db), userSession, definitions, support, configuration));
+  }
 }

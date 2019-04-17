@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -41,10 +41,7 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 import org.apache.commons.io.IOUtils;
 import org.picocontainer.Startable;
-import org.sonar.api.batch.ScannerSide;
 import org.sonar.api.i18n.I18n;
-import org.sonar.api.ce.ComputeEngineSide;
-import org.sonar.api.server.ServerSide;
 import org.sonar.api.utils.SonarException;
 import org.sonar.api.utils.System2;
 import org.sonar.api.utils.log.Logger;
@@ -52,9 +49,8 @@ import org.sonar.api.utils.log.Loggers;
 import org.sonar.core.platform.PluginInfo;
 import org.sonar.core.platform.PluginRepository;
 
-@ScannerSide
-@ServerSide
-@ComputeEngineSide
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 public class DefaultI18n implements I18n, Startable {
 
   private static final Logger LOG = Loggers.get(DefaultI18n.class);
@@ -88,10 +84,15 @@ public class DefaultI18n implements I18n, Startable {
   }
 
   @VisibleForTesting
-  void doStart(ClassLoader classloader) {
+  protected void doStart(ClassLoader classloader) {
     this.classloader = classloader;
     this.propertyToBundles = new HashMap<>();
+    initialize();
 
+    LOG.debug("Loaded {} properties from l10n bundles", propertyToBundles.size());
+  }
+
+  protected void initialize() {
     // org.sonar.l10n.core bundle is provided by sonar-core module
     initPlugin("core");
 
@@ -99,10 +100,9 @@ public class DefaultI18n implements I18n, Startable {
     for (PluginInfo plugin : infos) {
       initPlugin(plugin.getKey());
     }
-    LOG.debug("Loaded {} properties from l10n bundles", propertyToBundles.size());
   }
 
-  private void initPlugin(String pluginKey) {
+  protected void initPlugin(String pluginKey) {
     try {
       String bundleKey = BUNDLE_PACKAGE + pluginKey;
       ResourceBundle bundle = ResourceBundle.getBundle(bundleKey, Locale.ENGLISH, this.classloader, control);
@@ -213,7 +213,7 @@ public class DefaultI18n implements I18n, Startable {
   private static String readInputStream(String filePath, InputStream input) {
     String result;
     try {
-      result = IOUtils.toString(input, "UTF-8");
+      result = IOUtils.toString(input, UTF_8);
     } catch (IOException e) {
       throw new SonarException("Fail to load file: " + filePath, e);
     } finally {

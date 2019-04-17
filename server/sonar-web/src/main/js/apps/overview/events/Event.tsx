@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,30 +18,58 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import Tooltip from '../../../components/controls/Tooltip';
-import { Event as IEvent } from '../../../api/projectActivity';
+import { FormattedMessage } from 'react-intl';
+import { isRichQualityGateEvent } from '../../projectActivity/components/RichQualityGateEventInner';
+import Level from '../../../components/ui/Level';
 import { translate } from '../../../helpers/l10n';
+import { isDefinitionChangeEvent } from '../../projectActivity/components/DefinitionChangeEventInner';
 
 interface Props {
-  event: IEvent;
+  event: T.AnalysisEvent;
 }
 
 export default function Event({ event }: Props) {
   if (event.category === 'VERSION') {
     return (
-      <Tooltip overlay={`${translate('version')} ${event.name}`} mouseEnterDelay={0.5}>
-        <span className="overview-analysis-event badge">{event.name}</span>
-      </Tooltip>
+      <span
+        className="overview-analysis-event badge"
+        title={`${translate('version')} ${event.name}`}>
+        {event.name}
+      </span>
+    );
+  }
+
+  const eventCategory = translate('event.category', event.category);
+  if (isDefinitionChangeEvent(event)) {
+    return (
+      <div className="overview-analysis-event">
+        <span className="note">{eventCategory}</span>
+      </div>
+    );
+  }
+
+  if (isRichQualityGateEvent(event)) {
+    return (
+      <div className="overview-analysis-event">
+        <span className="note">{eventCategory}:</span>{' '}
+        {event.qualityGate.stillFailing ? (
+          <FormattedMessage
+            defaultMessage={translate('event.quality_gate.still_x')}
+            id="event.quality_gate.still_x"
+            values={{ status: <Level level={event.qualityGate.status} small={true} /> }}
+          />
+        ) : (
+          <Level level={event.qualityGate.status} small={true} />
+        )}
+      </div>
     );
   }
 
   return (
     <div className="overview-analysis-event">
-      <span className="note">{translate('event.category', event.category)}:</span>{' '}
+      <span className="note">{eventCategory}:</span>{' '}
       {event.description ? (
-        <Tooltip overlay={event.description} placement="left" mouseEnterDelay={0.5}>
-          <strong>{event.name}</strong>
-        </Tooltip>
+        <strong title={event.description}>{event.name}</strong>
       ) : (
         <strong>{event.name}</strong>
       )}

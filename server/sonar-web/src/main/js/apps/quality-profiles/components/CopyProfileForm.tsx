@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,15 +18,15 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
+import { Profile } from '../types';
 import { copyProfile } from '../../../api/quality-profiles';
 import Modal from '../../../components/controls/Modal';
+import { SubmitButton, ResetButtonLink } from '../../../components/ui/buttons';
 import { translate, translateWithParameters } from '../../../helpers/l10n';
-import { Profile } from '../types';
 
 interface Props {
   onClose: () => void;
   onCopy: (name: string) => void;
-  onRequestFail: (reasong: any) => void;
   profile: Profile;
 }
 
@@ -47,11 +47,6 @@ export default class CopyProfileForm extends React.PureComponent<Props, State> {
     this.mounted = false;
   }
 
-  handleCancelClick = (event: React.SyntheticEvent<HTMLElement>) => {
-    event.preventDefault();
-    this.props.onClose();
-  };
-
   handleNameChange = (event: React.SyntheticEvent<HTMLInputElement>) => {
     this.setState({ name: event.currentTarget.value });
   };
@@ -65,11 +60,10 @@ export default class CopyProfileForm extends React.PureComponent<Props, State> {
       this.setState({ loading: true });
       copyProfile(this.props.profile.key, name).then(
         (profile: any) => this.props.onCopy(profile.name),
-        (error: any) => {
+        () => {
           if (this.mounted) {
             this.setState({ loading: false });
           }
-          this.props.onRequestFail(error);
         }
       );
     }
@@ -86,7 +80,7 @@ export default class CopyProfileForm extends React.PureComponent<Props, State> {
       this.state.loading || !this.state.name || this.state.name === profile.name;
 
     return (
-      <Modal contentLabel={header} onRequestClose={this.props.onClose}>
+      <Modal contentLabel={header} onRequestClose={this.props.onClose} size="small">
         <form id="copy-profile-form" onSubmit={this.handleFormSubmit}>
           <div className="modal-head">
             <h2>{header}</h2>
@@ -112,12 +106,12 @@ export default class CopyProfileForm extends React.PureComponent<Props, State> {
           </div>
           <div className="modal-foot">
             {this.state.loading && <i className="spinner spacer-right" />}
-            <button disabled={submitDisabled} id="copy-profile-submit">
+            <SubmitButton disabled={submitDisabled} id="copy-profile-submit">
               {translate('copy')}
-            </button>
-            <a href="#" id="copy-profile-cancel" onClick={this.handleCancelClick}>
+            </SubmitButton>
+            <ResetButtonLink id="copy-profile-cancel" onClick={this.props.onClose}>
               {translate('cancel')}
-            </a>
+            </ResetButtonLink>
           </div>
         </form>
       </Modal>

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,14 +20,25 @@
 import { getJSON, post } from '../helpers/request';
 import throwGlobalError from '../app/utils/throwGlobalError';
 
-export function getBranches(project: string): Promise<any> {
+export function getBranches(project: string): Promise<T.Branch[]> {
   return getJSON('/api/project_branches/list', { project }).then(r => r.branches, throwGlobalError);
 }
 
-export function deleteBranch(project: string, branch: string): Promise<void | Response> {
-  return post('/api/project_branches/delete', { project, branch }).catch(throwGlobalError);
+export function getPullRequests(project: string): Promise<T.PullRequest[]> {
+  return getJSON('/api/project_pull_requests/list', { project }).then(
+    r => r.pullRequests,
+    throwGlobalError
+  );
 }
 
-export function renameBranch(project: string, name: string): Promise<void | Response> {
+export function deleteBranch(data: { branch: string; project: string }) {
+  return post('/api/project_branches/delete', data).catch(throwGlobalError);
+}
+
+export function deletePullRequest(data: { project: string; pullRequest: string }) {
+  return post('/api/project_pull_requests/delete', data).catch(throwGlobalError);
+}
+
+export function renameBranch(project: string, name: string) {
   return post('/api/project_branches/rename', { project, name }).catch(throwGlobalError);
 }

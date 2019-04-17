@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -31,8 +31,8 @@ it('renders with yValues', () => {
       <Histogram
         bars={[100, 75, 150]}
         height={75}
-        yValues={['100.0', '75.0', '150.0']}
         width={100}
+        yValues={['100.0', '75.0', '150.0']}
       />
     )
   ).toMatchSnapshot();
@@ -44,9 +44,9 @@ it('renders with yValues and yTicks', () => {
       <Histogram
         bars={[100, 75, 150]}
         height={75}
+        width={100}
         yTicks={['a', 'b', 'c']}
         yValues={['100.0', '75.0', '150.0']}
-        width={100}
       />
     )
   ).toMatchSnapshot();
@@ -58,10 +58,10 @@ it('renders with yValues, yTicks and yTooltips', () => {
       <Histogram
         bars={[100, 75, 150]}
         height={75}
+        width={100}
         yTicks={['a', 'b', 'c']}
         yTooltips={['a - 100', 'b - 75', 'c - 150']}
         yValues={['100.0', '75.0', '150.0']}
-        width={100}
       />
     )
   ).toMatchSnapshot();

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,11 +19,48 @@
  */
 import * as React from 'react';
 import { translate } from '../../../helpers/l10n';
+import { Button } from '../../../components/ui/buttons';
+import { isSonarCloud } from '../../../helpers/system';
+import { hasGlobalPermission, isLoggedIn } from '../../../helpers/users';
+import { OnboardingContextShape } from '../../../app/components/OnboardingContext';
 
-export default function EmptyInstance() {
-  return (
-    <div className="projects-empty-list">
-      <h3>{translate('projects.no_projects.empty_instance')}</h3>
-    </div>
-  );
+interface Props {
+  currentUser: T.CurrentUser;
+  openProjectOnboarding: OnboardingContextShape;
+  organization?: T.Organization;
+}
+
+export default class EmptyInstance extends React.PureComponent<Props> {
+  analyzeNewProject = () => {
+    this.props.openProjectOnboarding(this.props.organization);
+  };
+
+  render() {
+    const { currentUser, organization } = this.props;
+    const showNewProjectButton = isSonarCloud()
+      ? organization && organization.actions && organization.actions.provision
+      : isLoggedIn(currentUser) && hasGlobalPermission(currentUser, 'provisioning');
+
+    return (
+      <div className="projects-empty-list">
+        <h3>
+          {showNewProjectButton
+            ? translate('projects.no_projects.empty_instance.new_project')
+            : translate('projects.no_projects.empty_instance')}
+        </h3>
+        {showNewProjectButton && (
+          <div>
+            <p className="big-spacer-top">
+              {translate('projects.no_projects.empty_instance.how_to_add_projects')}
+            </p>
+            <p className="big-spacer-top">
+              <Button onClick={this.analyzeNewProject}>
+                {translate('my_account.create_new.TRK')}
+              </Button>
+            </p>
+          </div>
+        )}
+      </div>
+    );
+  }
 }

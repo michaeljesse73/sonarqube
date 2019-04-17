@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -48,5 +48,5 @@ it('accepts advanced options fields', () => {
 
 function getSample(props?: any) {
   const options = [{ value: 'one', label: 'first' }, { value: 'two', label: 'second' }];
-  return <RadioToggle options={options} name="sample" onCheck={() => true} {...props} />;
+  return <RadioToggle name="sample" onCheck={() => true} options={options} {...props} />;
 }

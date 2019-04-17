@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,6 +25,7 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.sonar.api.server.ws.WebService;
 import org.sonar.api.utils.System2;
+import org.sonar.db.DbClient;
 import org.sonar.db.DbTester;
 import org.sonar.db.organization.OrganizationDto;
 import org.sonar.server.exceptions.ForbiddenException;
@@ -57,9 +58,12 @@ public class UpdateActionTest {
   public UserSessionRule userSession = UserSessionRule.standalone();
   @Rule
   public ExpectedException expectedException = ExpectedException.none();
+  @Rule
+  public DbTester db = DbTester.create();
+  private DbClient dbClient = db.getDbClient();
 
   private TestOrganizationFlags organizationFlags = TestOrganizationFlags.standalone().setEnabled(true);
-  private UpdateAction underTest = new UpdateAction(userSession, new OrganizationsWsSupport(new OrganizationValidationImpl()), dbTester.getDbClient(), organizationFlags);
+  private UpdateAction underTest = new UpdateAction(userSession, new OrganizationsWsSupport(new OrganizationValidationImpl(), dbClient), dbTester.getDbClient(), organizationFlags);
   private WsActionTester wsTester = new WsActionTester(underTest);
 
   @Test
@@ -82,6 +86,8 @@ public class UpdateActionTest {
     assertThat(action.param("name"))
       .matches(param -> !param.isRequired())
       .matches(param -> "Foo Company".equals(param.exampleValue()))
+      .matches(param -> param.minimumLength().equals(1))
+      .matches(param -> param.maximumLength().equals(255))
       .matches(param -> param.description() != null);
     assertThat(action.param("description"))
       .matches(param -> !param.isRequired())
@@ -173,32 +179,11 @@ public class UpdateActionTest {
   }
 
   @Test
-  public void request_fails_if_name_is_one_char_long() {
-    userSession.logIn();
-
-    expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("Name 'a' must be at least 2 chars long");
-
-    executeKeyRequest(SOME_KEY, "a");
-  }
-
-  @Test
   public void request_succeeds_if_name_is_two_chars_long() {
     OrganizationDto org = mockForSuccessfulUpdate(DATE_1, DATE_2);
     logInAsAdministrator(org);
 
     verifyResponseAndDb(executeKeyRequest(org.getKey(), "ab"), org, "ab", DATE_2);
-  }
-
-  @Test
-  public void request_fails_if_name_is_65_chars_long() {
-    userSession.logIn();
-
-    expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("'name' length (65) is longer than the maximum authorized (64)");
-
-
-    executeKeyRequest(SOME_KEY, STRING_65_CHARS_LONG);
   }
 
   @Test

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,6 +24,7 @@ import java.util.Collections;
 import java.util.Optional;
 import javax.annotation.CheckForNull;
 import javax.annotation.concurrent.Immutable;
+import org.sonar.db.organization.OrganizationDto;
 import org.sonar.db.permission.OrganizationPermission;
 import org.sonar.db.user.GroupDto;
 import org.sonar.server.user.AbstractUserSession;
@@ -46,9 +47,20 @@ public class SafeModeUserSession extends AbstractUserSession {
     return false;
   }
 
+  @Override
+  protected boolean hasMembershipImpl(OrganizationDto organizationDto) {
+    return false;
+  }
+
   @CheckForNull
   @Override
   public String getLogin() {
+    return null;
+  }
+
+  @CheckForNull
+  @Override
+  public String getUuid() {
     return null;
   }
 
@@ -67,6 +79,21 @@ public class SafeModeUserSession extends AbstractUserSession {
   @Override
   public Collection<GroupDto> getGroups() {
     return Collections.emptyList();
+  }
+
+  @Override
+  public Optional<IdentityProvider> getIdentityProvider() {
+    return Optional.empty();
+  }
+
+  @Override
+  public Optional<ExternalIdentity> getExternalIdentity() {
+    return Optional.empty();
+  }
+
+  @Override
+  public Optional<String> getPersonalOrganizationUuid() {
+    return Optional.empty();
   }
 
   @Override

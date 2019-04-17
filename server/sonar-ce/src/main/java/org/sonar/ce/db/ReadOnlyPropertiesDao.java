@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,9 +21,9 @@ package org.sonar.ce.db;
 
 import java.util.Map;
 import org.sonar.api.utils.System2;
-import org.sonar.core.properties.PropertiesDao;
 import org.sonar.db.DbSession;
 import org.sonar.db.MyBatis;
+import org.sonar.db.property.PropertiesDao;
 import org.sonar.db.property.PropertyDto;
 
 /**
@@ -87,11 +87,6 @@ public class ReadOnlyPropertiesDao extends PropertiesDao {
 
   @Override
   public void renamePropertyKey(String oldKey, String newKey) {
-    // do nothing
-  }
-
-  @Override
-  public void setProperty(org.sonar.core.properties.PropertyDto property) {
     // do nothing
   }
 

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -35,8 +35,6 @@ public class CreateConditionRequest {
   private String metric;
   private String op;
   private String organization;
-  private String period;
-  private String warning;
 
   /**
    * Example value: "10"
@@ -77,13 +75,11 @@ public class CreateConditionRequest {
   }
 
   /**
-   * Example value: "EQ"
+   * Example value: "LT"
    * Possible values:
    * <ul>
    *   <li>"LT"</li>
    *   <li>"GT"</li>
-   *   <li>"EQ"</li>
-   *   <li>"NE"</li>
    * </ul>
    */
   public CreateConditionRequest setOp(String op) {
@@ -105,32 +101,5 @@ public class CreateConditionRequest {
 
   public String getOrganization() {
     return organization;
-  }
-
-  /**
-   * Possible values:
-   * <ul>
-   *   <li>"1"</li>
-   * </ul>
-   */
-  public CreateConditionRequest setPeriod(String period) {
-    this.period = period;
-    return this;
-  }
-
-  public String getPeriod() {
-    return period;
-  }
-
-  /**
-   * Example value: "5"
-   */
-  public CreateConditionRequest setWarning(String warning) {
-    this.warning = warning;
-    return this;
-  }
-
-  public String getWarning() {
-    return warning;
   }
 }

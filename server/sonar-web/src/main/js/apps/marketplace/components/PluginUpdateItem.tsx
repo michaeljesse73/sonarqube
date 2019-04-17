@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -52,7 +52,7 @@ export default class PluginUpdateItem extends React.PureComponent<Props, State> 
   render() {
     const { release, update } = this.props;
     return (
-      <li key={release.version} className="display-flex-row little-spacer-bottom">
+      <li className="display-flex-row little-spacer-bottom" key={release.version}>
         <div className="pull-left spacer-right">
           {update.status === 'COMPATIBLE' ? (
             <span className="js-update-version badge badge-success">{release.version}</span>

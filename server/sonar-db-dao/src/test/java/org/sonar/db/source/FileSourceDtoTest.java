@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,8 +19,12 @@
  */
 package org.sonar.db.source;
 
-import java.util.Arrays;
+import com.google.common.base.Joiner;
+import java.util.Collections;
 import java.util.List;
+import java.util.Random;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -37,22 +41,6 @@ public class FileSourceDtoTest {
 
   @Rule
   public ExpectedException expectedException = ExpectedException.none();
-
-  @Test
-  public void encode_and_decode_test_data() {
-    List<DbFileSources.Test> tests = Arrays.asList(
-      DbFileSources.Test.newBuilder()
-        .setName("name#1")
-        .build(),
-      DbFileSources.Test.newBuilder()
-        .setName("name#2")
-        .build());
-
-    FileSourceDto underTest = new FileSourceDto().setTestData(tests);
-
-    assertThat(underTest.getTestData()).hasSize(2);
-    assertThat(underTest.getTestData().get(0).getName()).isEqualTo("name#1");
-  }
 
   @Test
   public void getSourceData_throws_ISE_with_id_fileUuid_and_projectUuid_in_message_when_data_cant_be_read() {
@@ -90,5 +78,45 @@ public class FileSourceDtoTest {
           .build());
     }
     return dataBuilder.build();
+  }
+
+  @Test
+  public void new_FileSourceDto_as_lineCount_0_and_rawLineHashes_to_null() {
+    FileSourceDto underTest = new FileSourceDto();
+
+    assertThat(underTest.getLineCount()).isZero();
+    assertThat(underTest.getLineHashes()).isEmpty();
+    assertThat(underTest.getRawLineHashes()).isNull();
+  }
+
+  @Test
+  public void setLineHashes_null_sets_lineCount_to_0_and_rawLineHashes_to_null() {
+    FileSourceDto underTest = new FileSourceDto();
+    underTest.setLineHashes(null);
+
+    assertThat(underTest.getLineCount()).isZero();
+    assertThat(underTest.getLineHashes()).isEmpty();
+    assertThat(underTest.getRawLineHashes()).isNull();
+  }
+
+  @Test
+  public void setLineHashes_empty_sets_lineCount_to_1_and_rawLineHashes_to_null() {
+    FileSourceDto underTest = new FileSourceDto();
+    underTest.setLineHashes(Collections.emptyList());
+
+    assertThat(underTest.getLineCount()).isEqualTo(1);
+    assertThat(underTest.getLineHashes()).isEmpty();
+    assertThat(underTest.getRawLineHashes()).isNull();
+  }
+
+  @Test
+  public void setLineHashes_sets_lineCount_to_size_of_list_and_rawLineHashes_to_join_by_line_return() {
+    FileSourceDto underTest = new FileSourceDto();
+    int expected = 1 + new Random().nextInt(96);
+    List<String> lineHashes = IntStream.range(0, expected).mapToObj(String::valueOf).collect(Collectors.toList());
+    underTest.setLineHashes(lineHashes);
+
+    assertThat(underTest.getLineCount()).isEqualTo(expected);
+    assertThat(underTest.getRawLineHashes()).isEqualTo(Joiner.on('\n').join(lineHashes));
   }
 }

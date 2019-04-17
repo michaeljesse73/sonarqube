@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,13 +19,19 @@
  */
 package org.sonar.db.component;
 
+import com.tngtech.java.junit.dataprovider.DataProvider;
+import com.tngtech.java.junit.dataprovider.DataProviderRunner;
+import com.tngtech.java.junit.dataprovider.UseDataProvider;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
+import javax.annotation.Nullable;
+import org.apache.commons.lang.StringUtils;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.junit.runner.RunWith;
 import org.sonar.api.utils.DateUtils;
 import org.sonar.api.utils.System2;
 import org.sonar.db.DbClient;
@@ -42,6 +48,8 @@ import static java.util.Collections.singletonList;
 import static org.apache.commons.lang.RandomStringUtils.randomAlphanumeric;
 import static org.apache.commons.lang.math.RandomUtils.nextLong;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.groups.Tuple.tuple;
 import static org.sonar.db.ce.CeActivityDto.Status.CANCELED;
 import static org.sonar.db.ce.CeActivityDto.Status.SUCCESS;
 import static org.sonar.db.component.ComponentTesting.newPrivateProjectDto;
@@ -52,6 +60,7 @@ import static org.sonar.db.component.SnapshotQuery.SORT_ORDER.ASC;
 import static org.sonar.db.component.SnapshotQuery.SORT_ORDER.DESC;
 import static org.sonar.db.component.SnapshotTesting.newAnalysis;
 
+@RunWith(DataProviderRunner.class)
 public class SnapshotDaoTest {
 
   @Rule
@@ -71,11 +80,11 @@ public class SnapshotDaoTest {
       .setUuid("ABCD")
       .setStatus("P")
       .setLast(true)
-      .setPurgeStatus(1)
       .setPeriodMode("days")
       .setPeriodParam("30")
       .setPeriodDate(1500000000001L)
-      .setVersion("2.1-SNAPSHOT")
+      .setProjectVersion("2.1.0")
+      .setBuildString("2.1.0.2336")
       .setBuildDate(1500000000006L)
       .setCreatedAt(1403042400000L));
 
@@ -85,14 +94,13 @@ public class SnapshotDaoTest {
     assertThat(result.getComponentUuid()).isEqualTo(project.uuid());
     assertThat(result.getStatus()).isEqualTo("P");
     assertThat(result.getLast()).isTrue();
-    assertThat(result.getPurgeStatus()).isEqualTo(1);
-    assertThat(result.getVersion()).isEqualTo("2.1-SNAPSHOT");
+    assertThat(result.getProjectVersion()).isEqualTo("2.1.0");
+    assertThat(result.getBuildString()).isEqualTo("2.1.0.2336");
     assertThat(result.getPeriodMode()).isEqualTo("days");
     assertThat(result.getPeriodModeParameter()).isEqualTo("30");
     assertThat(result.getPeriodDate()).isEqualTo(1500000000001L);
     assertThat(result.getBuildDate()).isEqualTo(1500000000006L);
     assertThat(result.getCreatedAt()).isEqualTo(1403042400000L);
-    assertThat(result.getVersion()).isEqualTo("2.1-SNAPSHOT");
 
     assertThat(underTest.selectByUuid(db.getSession(), "DOES_NOT_EXIST").isPresent()).isFalse();
   }
@@ -149,8 +157,20 @@ public class SnapshotDaoTest {
 
     assertThat(underTest.selectAnalysesByQuery(db.getSession(), new SnapshotQuery())).hasSize(6);
 
-    assertThat(underTest.selectAnalysesByQuery(db.getSession(), new SnapshotQuery().setComponentUuid("ABCD").setSort(BY_DATE, ASC)).get(0).getId()).isEqualTo(1L);
-    assertThat(underTest.selectAnalysesByQuery(db.getSession(), new SnapshotQuery().setComponentUuid("ABCD").setSort(BY_DATE, DESC)).get(0).getId()).isEqualTo(3L);
+    assertThat(underTest.selectAnalysesByQuery(db.getSession(), new SnapshotQuery().setComponentUuid("ABCD").setSort(BY_DATE, ASC)))
+      .extracting(SnapshotDto::getId, SnapshotDto::getProjectVersion, SnapshotDto::getBuildString)
+      .containsOnly(
+        tuple(1L, "2.0-SNAPSHOT", "2.0.0.2363"),
+        tuple(2L, "2.1-SNAPSHOT", "2.1.0.11"),
+        tuple(3L, "2.2-SNAPSHOT", "2.2.0.8869")
+      );
+    assertThat(underTest.selectAnalysesByQuery(db.getSession(), new SnapshotQuery().setComponentUuid("ABCD").setSort(BY_DATE, DESC)))
+      .extracting(SnapshotDto::getId, SnapshotDto::getProjectVersion, SnapshotDto::getBuildString)
+      .containsOnly(
+        tuple(3L, "2.2-SNAPSHOT", "2.2.0.8869"),
+        tuple(2L, "2.1-SNAPSHOT", "2.1.0.11"),
+        tuple(1L, "2.0-SNAPSHOT", "2.0.0.2363")
+      );
     assertThat(underTest.selectAnalysesByQuery(db.getSession(), new SnapshotQuery().setComponentUuid("ABCD"))).hasSize(3);
     assertThat(underTest.selectAnalysesByQuery(db.getSession(), new SnapshotQuery().setComponentUuid("UNKOWN"))).isEmpty();
     assertThat(underTest.selectAnalysesByQuery(db.getSession(), new SnapshotQuery().setComponentUuid("GHIJ"))).isEmpty();
@@ -176,20 +196,6 @@ public class SnapshotDaoTest {
   }
 
   @Test
-  public void select_previous_version_snapshots() {
-    db.prepareDbUnit(getClass(), "select_previous_version_snapshots.xml");
-
-    List<SnapshotDto> snapshots = underTest.selectPreviousVersionSnapshots(db.getSession(), "ABCD", "1.2-SNAPSHOT");
-    assertThat(snapshots).hasSize(2);
-
-    SnapshotDto firstSnapshot = snapshots.get(0);
-    assertThat(firstSnapshot.getVersion()).isEqualTo("1.1");
-
-    // All snapshots are returned on an unknown version
-    assertThat(underTest.selectPreviousVersionSnapshots(db.getSession(), "ABCD", "UNKNOWN")).hasSize(3);
-  }
-
-  @Test
   public void select_first_snapshots() {
     ComponentDto project = newPrivateProjectDto(db.getDefaultOrganization());
     db.getDbClient().componentDao().insert(dbSession, project);
@@ -200,11 +206,11 @@ public class SnapshotDaoTest {
       newAnalysis(project).setCreatedAt(1L));
     dbSession.commit();
 
-    SnapshotDto dto = underTest.selectOldestSnapshot(dbSession, project.uuid());
-    assertThat(dto).isNotNull();
-    assertThat(dto.getCreatedAt()).isEqualTo(1L);
+    Optional<SnapshotDto> dto = underTest.selectOldestSnapshot(dbSession, project.uuid());
+    assertThat(dto).isNotEmpty();
+    assertThat(dto.get().getCreatedAt()).isEqualTo(1L);
 
-    assertThat(underTest.selectOldestSnapshot(dbSession, "blabla")).isNull();
+    assertThat(underTest.selectOldestSnapshot(dbSession, "blabla")).isEmpty();
   }
 
   @Test
@@ -234,7 +240,7 @@ public class SnapshotDaoTest {
   }
 
   @Test
-  public void selectFinishedByComponentUuidsAndFromDates_ignores_unsuccessful_analysis() {
+  public void selectFinishedByComponentUuidsAndFromDates_returns_processed_analysis_even_if_analysis_failed() {
     long from = 1_500_000_000_000L;
     ComponentDto project = db.components().insertMainBranch();
     SnapshotDto unprocessedAnalysis = db.components().insertSnapshot(project, s -> s.setStatus(STATUS_UNPROCESSED).setCreatedAt(from + 1_000_000L));
@@ -247,7 +253,7 @@ public class SnapshotDaoTest {
     List<SnapshotDto> result = underTest.selectFinishedByComponentUuidsAndFromDates(dbSession, singletonList(project.uuid()), singletonList(from));
 
     assertThat(result).extracting(SnapshotDto::getUuid)
-      .containsExactlyInAnyOrder(finishedAnalysis.getUuid());
+      .containsExactlyInAnyOrder(finishedAnalysis.getUuid(), canceledAnalysis.getUuid());
   }
 
   @Test
@@ -297,11 +303,10 @@ public class SnapshotDaoTest {
     SnapshotDto dto = underTest.insert(db.getSession(), newAnalysis(project)
       .setStatus("P")
       .setLast(true)
-      .setPurgeStatus(1)
       .setPeriodMode("days")
       .setPeriodParam("30")
       .setPeriodDate(1500000000001L)
-      .setVersion("2.1-SNAPSHOT")
+      .setProjectVersion("2.1-SNAPSHOT")
       .setBuildDate(1500000000006L)
       .setCreatedAt(1403042400000L));
 
@@ -310,14 +315,41 @@ public class SnapshotDaoTest {
     assertThat(dto.getComponentUuid()).isEqualTo(project.uuid());
     assertThat(dto.getStatus()).isEqualTo("P");
     assertThat(dto.getLast()).isTrue();
-    assertThat(dto.getPurgeStatus()).isEqualTo(1);
     assertThat(dto.getPeriodMode()).isEqualTo("days");
     assertThat(dto.getPeriodModeParameter()).isEqualTo("30");
     assertThat(dto.getPeriodDate()).isEqualTo(1500000000001L);
     assertThat(dto.getBuildDate()).isEqualTo(1500000000006L);
     assertThat(dto.getCreatedAt()).isEqualTo(1403042400000L);
-    assertThat(dto.getVersion()).isEqualTo("2.1-SNAPSHOT");
+    assertThat(dto.getProjectVersion()).isEqualTo("2.1-SNAPSHOT");
+  }
 
+  @Test
+  @UseDataProvider("nullAndEmptyNonEmptyStrings")
+  public void insert_with_null_and_empty_and_non_empty_projectVersion(@Nullable String projectVersion) {
+    ComponentDto project = db.components().insertPrivateProject();
+
+    SnapshotDto dto = underTest.insert(db.getSession(), newAnalysis(project).setProjectVersion(projectVersion));
+
+    assertThat(dto.getProjectVersion()).isEqualTo(projectVersion);
+  }
+
+  @Test
+  @UseDataProvider("nullAndEmptyNonEmptyStrings")
+  public void insert_with_null_and_empty_and_non_empty_buildString(@Nullable String buildString) {
+    ComponentDto project = db.components().insertPrivateProject();
+
+    SnapshotDto dto = underTest.insert(db.getSession(), newAnalysis(project).setBuildString(buildString));
+
+    assertThat(dto.getBuildString()).isEqualTo(buildString);
+  }
+
+  @DataProvider
+  public static Object[][] nullAndEmptyNonEmptyStrings() {
+    return new Object[][] {
+      {null},
+      {""},
+      {randomAlphanumeric(7)},
+    };
   }
 
   @Test
@@ -388,13 +420,13 @@ public class SnapshotDaoTest {
     db.commit();
     analysis
       .setComponentUuid("P42")
-      .setVersion("5.6.3")
+      .setProjectVersion("5.6.3")
       .setStatus(STATUS_UNPROCESSED);
 
     underTest.update(dbSession, analysis);
 
     SnapshotDto result = underTest.selectByUuid(dbSession, "A1").get();
-    assertThat(result.getVersion()).isEqualTo("5.6.3");
+    assertThat(result.getProjectVersion()).isEqualTo("5.6.3");
     assertThat(result.getStatus()).isEqualTo(STATUS_UNPROCESSED);
     assertThat(result.getComponentUuid()).isEqualTo("P1");
   }
@@ -420,8 +452,7 @@ public class SnapshotDaoTest {
       .setComponentUuid("uuid_3")
       .setStatus("P")
       .setLast(true)
-      .setPurgeStatus(1)
-      .setVersion("2.1-SNAPSHOT")
+      .setProjectVersion("2.1-SNAPSHOT")
       .setPeriodMode("days1")
       .setPeriodParam("30")
       .setPeriodDate(1_500_000_000_001L)

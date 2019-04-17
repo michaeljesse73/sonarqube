@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -30,10 +30,11 @@ import org.sonar.process.NetworkUtilsImpl;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assume.assumeThat;
 import static org.sonar.process.ProcessProperties.Property.CLUSTER_ENABLED;
-import static org.sonar.process.ProcessProperties.Property.CLUSTER_HOSTS;
+import static org.sonar.process.ProcessProperties.Property.CLUSTER_HZ_HOSTS;
 import static org.sonar.process.ProcessProperties.Property.CLUSTER_NAME;
 import static org.sonar.process.ProcessProperties.Property.CLUSTER_NODE_HOST;
 import static org.sonar.process.ProcessProperties.Property.CLUSTER_NODE_TYPE;
+import static org.sonar.process.ProcessProperties.Property.CLUSTER_SEARCH_HOSTS;
 
 public class AppStateFactoryTest {
 
@@ -48,8 +49,9 @@ public class AppStateFactoryTest {
     settings.set(CLUSTER_ENABLED.getKey(), "true");
     settings.set(CLUSTER_NODE_TYPE.getKey(), "application");
     settings.set(CLUSTER_NODE_HOST.getKey(), ip.get().getHostAddress());
-    settings.set(CLUSTER_HOSTS.getKey(), ip.get().getHostAddress());
+    settings.set(CLUSTER_HZ_HOSTS.getKey(), ip.get().getHostAddress());
     settings.set(CLUSTER_NAME.getKey(), "foo");
+    settings.set(CLUSTER_SEARCH_HOSTS.getKey(), "localhost:9001");
 
     AppState appState = underTest.create();
     assertThat(appState).isInstanceOf(ClusterAppStateImpl.class);

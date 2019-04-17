@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,7 +19,6 @@
  */
 package org.sonarqube.ws.client;
 
-import com.google.common.base.Joiner;
 import com.google.protobuf.Parser;
 import java.util.ArrayList;
 import java.util.List;
@@ -34,7 +33,7 @@ import org.junit.rules.ExternalResource;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.spy;
 
@@ -89,7 +88,6 @@ import static org.mockito.Mockito.spy;
  *
  */
 public class ServiceTester<T extends BaseService> extends ExternalResource {
-  private static final Joiner COMMA_JOINER = Joiner.on(",");
 
   private final T underTest;
   private final List<GetCall> getCalls = new ArrayList<>();

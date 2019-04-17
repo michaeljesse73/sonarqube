@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,9 +19,12 @@
  */
 package org.sonar.server.issue.ws;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Resources;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -38,14 +41,17 @@ import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
 import org.sonar.db.component.ComponentDto;
 import org.sonar.db.issue.IssueDto;
+import org.sonar.db.organization.OrganizationDto;
 import org.sonar.db.user.UserDto;
 import org.sonar.server.issue.IssueFinder;
+import org.sonar.server.user.UserSession;
 import org.sonarqube.ws.Issues.ChangelogWsResponse;
 import org.sonarqube.ws.Issues.ChangelogWsResponse.Changelog;
 
+import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.emptyToNull;
+import static java.util.Optional.ofNullable;
 import static org.sonar.api.utils.DateUtils.formatDateTime;
-import static org.sonar.core.util.Protobuf.setNullable;
 import static org.sonar.core.util.Uuids.UUID_EXAMPLE_01;
 import static org.sonar.server.issue.IssueFieldsSetter.FILE;
 import static org.sonar.server.issue.IssueFieldsSetter.TECHNICAL_DEBT;
@@ -60,11 +66,13 @@ public class ChangelogAction implements IssuesWsAction {
   private final DbClient dbClient;
   private final IssueFinder issueFinder;
   private final AvatarResolver avatarFactory;
+  private final UserSession userSession;
 
-  public ChangelogAction(DbClient dbClient, IssueFinder issueFinder, AvatarResolver avatarFactory) {
+  public ChangelogAction(DbClient dbClient, IssueFinder issueFinder, AvatarResolver avatarFactory, UserSession userSession) {
     this.dbClient = dbClient;
     this.issueFinder = issueFinder;
     this.avatarFactory = avatarFactory;
+    this.userSession = userSession;
   }
 
   @Override
@@ -113,14 +121,14 @@ public class ChangelogAction implements IssuesWsAction {
 
   private Function<FieldDiffs, Changelog> toWsChangelog(ChangeLogResults results) {
     return change -> {
-      String userLogin = change.userLogin();
+      String userUUuid = change.userUuid();
       Changelog.Builder changelogBuilder = Changelog.newBuilder();
       changelogBuilder.setCreationDate(formatDateTime(change.creationDate()));
-      UserDto user = userLogin == null ? null : results.users.get(userLogin);
+      UserDto user = userUUuid == null ? null : results.users.get(userUUuid);
       if (user != null) {
         changelogBuilder.setUser(user.getLogin());
         changelogBuilder.setUserName(user.getName());
-        setNullable(emptyToNull(user.getEmail()), email -> changelogBuilder.setAvatar(avatarFactory.create(user)));
+        ofNullable(emptyToNull(user.getEmail())).ifPresent(email -> changelogBuilder.setAvatar(avatarFactory.create(user)));
       }
       change.diffs().entrySet().stream()
         .map(toWsDiff(results))
@@ -134,14 +142,16 @@ public class ChangelogAction implements IssuesWsAction {
       FieldDiffs.Diff value = diff.getValue();
       Changelog.Diff.Builder diffBuilder = Changelog.Diff.newBuilder();
       String key = diff.getKey();
+      String oldValue = value.oldValue() != null ? value.oldValue().toString() : null;
+      String newValue = value.newValue() != null ? value.newValue().toString() : null;
       if (key.equals(FILE)) {
         diffBuilder.setKey(key);
-        setNullable(results.getFileLongName(emptyToNull(value.newValue().toString())), diffBuilder::setNewValue);
-        setNullable(results.getFileLongName(emptyToNull(value.oldValue().toString())), diffBuilder::setOldValue);
+        ofNullable(results.getFileLongName(emptyToNull(newValue))).ifPresent(diffBuilder::setNewValue);
+        ofNullable(results.getFileLongName(emptyToNull(oldValue))).ifPresent(diffBuilder::setOldValue);
       } else {
         diffBuilder.setKey(key.equals(TECHNICAL_DEBT) ? EFFORT_CHANGELOG_KEY : key);
-        setNullable(emptyToNull(value.newValue().toString()), diffBuilder::setNewValue);
-        setNullable(emptyToNull(value.oldValue().toString()), diffBuilder::setOldValue);
+        ofNullable(emptyToNull(newValue)).ifPresent(diffBuilder::setNewValue);
+        ofNullable(emptyToNull(oldValue)).ifPresent(diffBuilder::setOldValue);
       }
       return diffBuilder.build();
     };
@@ -153,11 +163,25 @@ public class ChangelogAction implements IssuesWsAction {
     private final Map<String, ComponentDto> files;
 
     ChangeLogResults(DbSession dbSession, String issueKey) {
-      IssueDto dbIssue = issueFinder.getByKey(dbSession, issueKey);
-      this.changes = dbClient.issueChangeDao().selectChangelogByIssue(dbSession, dbIssue.getKey());
-      List<String> logins = changes.stream().filter(change -> change.userLogin() != null).map(FieldDiffs::userLogin).collect(MoreCollectors.toList());
-      this.users = dbClient.userDao().selectByLogins(dbSession, logins).stream().collect(MoreCollectors.uniqueIndex(UserDto::getLogin));
-      this.files = dbClient.componentDao().selectByUuids(dbSession, getFileUuids(changes)).stream().collect(MoreCollectors.uniqueIndex(ComponentDto::uuid, Function.identity()));
+      IssueDto issue = issueFinder.getByKey(dbSession, issueKey);
+      if (isMember(dbSession, issue)) {
+        this.changes = dbClient.issueChangeDao().selectChangelogByIssue(dbSession, issue.getKey());
+        List<String> userUuids = changes.stream().filter(change -> change.userUuid() != null).map(FieldDiffs::userUuid).collect(MoreCollectors.toList());
+        this.users = dbClient.userDao().selectByUuids(dbSession, userUuids).stream().collect(MoreCollectors.uniqueIndex(UserDto::getUuid));
+        this.files = dbClient.componentDao().selectByUuids(dbSession, getFileUuids(changes)).stream().collect(MoreCollectors.uniqueIndex(ComponentDto::uuid, Function.identity()));
+      } else {
+        changes = ImmutableList.of();
+        users = ImmutableMap.of();
+        files = ImmutableMap.of();
+      }
+    }
+
+    private boolean isMember(DbSession dbSession, IssueDto issue) {
+      Optional<ComponentDto> project = dbClient.componentDao().selectByUuid(dbSession, issue.getProjectUuid());
+      checkState(project.isPresent(), "Cannot find the project with uuid %s from issue.id %s", issue.getProjectUuid(), issue.getId());
+      Optional<OrganizationDto> organization = dbClient.organizationDao().selectByUuid(dbSession, project.get().getOrganizationUuid());
+      checkState(organization.isPresent(), "Cannot find the organization with uuid %s from issue.id %s", project.get().getOrganizationUuid(), issue.getId());
+      return userSession.hasMembership(organization.get());
     }
 
     private Set<String> getFileUuids(List<FieldDiffs> changes) {

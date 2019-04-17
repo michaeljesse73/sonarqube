@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,15 +20,15 @@
 import * as React from 'react';
 import RemoveExtendedDescriptionModal from './RemoveExtendedDescriptionModal';
 import { updateRule } from '../../../api/rules';
-import { RuleDetails } from '../../../app/types';
 import MarkdownTips from '../../../components/common/MarkdownTips';
-import { translate } from '../../../helpers/l10n';
+import { Button, ResetButtonLink } from '../../../components/ui/buttons';
+import { translate, translateWithParameters } from '../../../helpers/l10n';
 
 interface Props {
   canWrite: boolean | undefined;
-  onChange: (newRuleDetails: RuleDetails) => void;
+  onChange: (newRuleDetails: T.RuleDetails) => void;
   organization: string | undefined;
-  ruleDetails: RuleDetails;
+  ruleDetails: T.RuleDetails;
 }
 
 interface State {
@@ -58,21 +58,15 @@ export default class RuleDetailsDescription extends React.PureComponent<Props, S
   handleDescriptionChange = (event: React.SyntheticEvent<HTMLTextAreaElement>) =>
     this.setState({ description: event.currentTarget.value });
 
-  handleCancelClick = (event: React.SyntheticEvent<HTMLButtonElement>) => {
-    event.preventDefault();
-    event.currentTarget.blur();
+  handleCancelClick = () => {
     this.setState({ descriptionForm: false });
   };
 
-  handleSaveClick = (event: React.SyntheticEvent<HTMLButtonElement>) => {
-    event.preventDefault();
-    event.currentTarget.blur();
+  handleSaveClick = () => {
     this.updateDescription(this.state.description);
   };
 
-  handleRemoveDescriptionClick = (event: React.SyntheticEvent<HTMLButtonElement>) => {
-    event.preventDefault();
-    event.currentTarget.blur();
+  handleRemoveDescriptionClick = () => {
     this.setState({ removeDescriptionModal: true });
   };
 
@@ -88,9 +82,7 @@ export default class RuleDetailsDescription extends React.PureComponent<Props, S
 
     updateRule({
       key: this.props.ruleDetails.key,
-      /* eslint-disable camelcase */
       markdown_note: text,
-      /* eslint-enable camelcase*/
       organization: this.props.organization
     }).then(
       ruleDetails => {
@@ -107,9 +99,7 @@ export default class RuleDetailsDescription extends React.PureComponent<Props, S
     );
   };
 
-  handleExtendDescriptionClick = (event: React.SyntheticEvent<HTMLButtonElement>) => {
-    event.preventDefault();
-    event.currentTarget.blur();
+  handleExtendDescriptionClick = () => {
     this.setState({
       // set description` to the current `mdNote` each time the form is open
       description: this.props.ruleDetails.mdNote || '',
@@ -126,48 +116,48 @@ export default class RuleDetailsDescription extends React.PureComponent<Props, S
         />
       )}
       {this.props.canWrite && (
-        <button
+        <Button
           id="coding-rules-detail-extend-description"
           onClick={this.handleExtendDescriptionClick}>
           {translate('coding_rules.extend_description')}
-        </button>
+        </Button>
       )}
     </div>
   );
 
   renderForm = () => (
     <div className="coding-rules-detail-extend-description-form">
-      <table className="width100">
+      <table className="width-100">
         <tbody>
           <tr>
-            <td className="width100" colSpan={2}>
+            <td colSpan={2}>
               <textarea
                 autoFocus={true}
+                className="width-100 little-spacer-bottom"
                 id="coding-rules-detail-extend-description-text"
                 onChange={this.handleDescriptionChange}
                 rows={4}
-                style={{ width: '100%', marginBottom: 4 }}
                 value={this.state.description}
               />
             </td>
           </tr>
           <tr>
             <td>
-              <button
+              <Button
                 disabled={this.state.submitting}
                 id="coding-rules-detail-extend-description-submit"
                 onClick={this.handleSaveClick}>
                 {translate('save')}
-              </button>
+              </Button>
               {this.props.ruleDetails.mdNote !== undefined && (
                 <>
-                  <button
+                  <Button
                     className="button-red spacer-left"
                     disabled={this.state.submitting}
                     id="coding-rules-detail-extend-description-remove"
                     onClick={this.handleRemoveDescriptionClick}>
                     {translate('remove')}
-                  </button>
+                  </Button>
                   {this.state.removeDescriptionModal && (
                     <RemoveExtendedDescriptionModal
                       onCancel={this.handleCancelRemoving}
@@ -176,13 +166,13 @@ export default class RuleDetailsDescription extends React.PureComponent<Props, S
                   )}
                 </>
               )}
-              <button
-                className="spacer-left button-link"
+              <ResetButtonLink
+                className="spacer-left"
                 disabled={this.state.submitting}
                 id="coding-rules-detail-extend-description-cancel"
                 onClick={this.handleCancelClick}>
                 {translate('cancel')}
-              </button>
+              </ResetButtonLink>
               {this.state.submitting && <i className="spinner spacer-left" />}
             </td>
             <td className="text-right">
@@ -196,13 +186,20 @@ export default class RuleDetailsDescription extends React.PureComponent<Props, S
 
   render() {
     const { ruleDetails } = this.props;
+    const hasDescription = !ruleDetails.isExternal || ruleDetails.type !== 'UNKNOWN';
 
     return (
       <div className="js-rule-description">
-        <div
-          className="coding-rules-detail-description rule-desc markdown"
-          dangerouslySetInnerHTML={{ __html: ruleDetails.htmlDesc || '' }}
-        />
+        {hasDescription ? (
+          <div
+            className="coding-rules-detail-description rule-desc markdown"
+            dangerouslySetInnerHTML={{ __html: ruleDetails.htmlDesc || '' }}
+          />
+        ) : (
+          <div className="coding-rules-detail-description rule-desc markdown">
+            {translateWithParameters('issue.external_issue_description', ruleDetails.name)}
+          </div>
+        )}
 
         {!ruleDetails.templateKey && (
           <div className="coding-rules-detail-description coding-rules-detail-description-extra">

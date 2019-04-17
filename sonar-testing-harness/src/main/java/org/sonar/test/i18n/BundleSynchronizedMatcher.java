@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -83,7 +83,7 @@ public class BundleSynchronizedMatcher extends BaseMatcher<String> {
   @Override
   public void describeTo(Description description) {
     // report file
-    File dumpFile = new File("target/l10n/" + bundleName + ".report.txt");
+    File dumpFile = new File("build/l10n/" + bundleName + ".report.txt");
 
     // prepare message
     StringBuilder details = prepareDetailsMessage(dumpFile);

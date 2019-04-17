@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -31,6 +31,7 @@ import org.sonar.db.dialect.PostgreSql;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.sonar.server.platform.db.migration.def.TimestampColumnDef.newTimestampColumnDefBuilder;
 
+@SuppressWarnings("deprecation")
 public class TimestampColumnDefTest {
 
   @Rule

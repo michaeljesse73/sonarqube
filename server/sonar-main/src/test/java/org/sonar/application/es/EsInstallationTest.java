@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -48,7 +48,7 @@ public class EsInstallationTest {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("Property sonar.path.home is not set");
 
-    new EsInstallation(props);
+    new EsInstallationImpl(props);
   }
 
   @Test
@@ -60,7 +60,7 @@ public class EsInstallationTest {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("Property sonar.path.temp is not set");
 
-    new EsInstallation(props);
+    new EsInstallationImpl(props);
   }
 
   @Test
@@ -71,7 +71,7 @@ public class EsInstallationTest {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("Missing property: sonar.path.data");
 
-    new EsInstallation(props);
+    new EsInstallationImpl(props);
   }
 
   @Test
@@ -83,7 +83,7 @@ public class EsInstallationTest {
     props.set(PATH_TEMP.getKey(), temp.newFolder().getAbsolutePath());
     props.set(PATH_LOGS.getKey(), temp.newFolder().getAbsolutePath());
 
-    EsInstallation underTest = new EsInstallation(props);
+    EsInstallation underTest = new EsInstallationImpl(props);
 
     assertThat(underTest.getHomeDirectory()).isEqualTo(new File(sqHomeDir, "elasticsearch"));
   }
@@ -100,9 +100,9 @@ public class EsInstallationTest {
 
     props.set(PATH_DATA.getKey(), dataDir.getAbsolutePath());
 
-    EsInstallation underTest = new EsInstallation(props);
+    EsInstallation underTest = new EsInstallationImpl(props);
 
-    assertThat(underTest.getDataDirectory()).isEqualTo(new File(dataDir, "es5"));
+    assertThat(underTest.getDataDirectory()).isEqualTo(new File(dataDir, "es6"));
   }
 
   @Test
@@ -115,9 +115,26 @@ public class EsInstallationTest {
     props.set(PATH_TEMP.getKey(), temp.newFolder().getAbsolutePath());
     props.set(PATH_LOGS.getKey(), logDir.getAbsolutePath());
 
-    EsInstallation underTest = new EsInstallation(props);
+    EsInstallation underTest = new EsInstallationImpl(props);
 
     assertThat(underTest.getLogDirectory()).isEqualTo(logDir);
+  }
+
+  @Test
+  public void getOutdatedSearchDirectories_returns_all_previously_used_es_data_directory_names() throws IOException {
+    File sqHomeDir = temp.newFolder();
+    File logDir = temp.newFolder();
+    Props props = new Props(new Properties());
+    props.set(PATH_DATA.getKey(), temp.newFolder().getAbsolutePath());
+    props.set(PATH_HOME.getKey(), sqHomeDir.getAbsolutePath());
+    props.set(PATH_TEMP.getKey(), temp.newFolder().getAbsolutePath());
+    props.set(PATH_LOGS.getKey(), logDir.getAbsolutePath());
+
+    EsInstallation underTest = new EsInstallationImpl(props);
+
+    assertThat(underTest.getOutdatedSearchDirectories())
+      .extracting(t -> t.getName())
+      .containsOnly("es", "es5");
   }
 
   @Test
@@ -129,7 +146,7 @@ public class EsInstallationTest {
     props.set(PATH_TEMP.getKey(), tempDir.getAbsolutePath());
     props.set(PATH_LOGS.getKey(), temp.newFolder().getAbsolutePath());
 
-    EsInstallation underTest = new EsInstallation(props);
+    EsInstallation underTest = new EsInstallationImpl(props);
 
     assertThat(underTest.getConfDirectory()).isEqualTo(new File(tempDir, "conf/es"));
   }
@@ -143,7 +160,7 @@ public class EsInstallationTest {
     props.set(PATH_TEMP.getKey(), temp.newFolder().getAbsolutePath());
     props.set(PATH_LOGS.getKey(), temp.newFolder().getAbsolutePath());
 
-    EsInstallation underTest = new EsInstallation(props);
+    EsInstallation underTest = new EsInstallationImpl(props);
 
     if (System.getProperty("os.name").startsWith("Windows")) {
       assertThat(underTest.getExecutable()).isEqualTo(new File(sqHomeDir, "elasticsearch/bin/elasticsearch.bat"));
@@ -161,7 +178,7 @@ public class EsInstallationTest {
     props.set(PATH_TEMP.getKey(), tempDir.getAbsolutePath());
     props.set(PATH_LOGS.getKey(), temp.newFolder().getAbsolutePath());
 
-    EsInstallation underTest = new EsInstallation(props);
+    EsInstallation underTest = new EsInstallationImpl(props);
 
     assertThat(underTest.getLog4j2PropertiesLocation()).isEqualTo(new File(tempDir, "conf/es/log4j2.properties"));
   }
@@ -175,7 +192,7 @@ public class EsInstallationTest {
     props.set(PATH_TEMP.getKey(), tempDir.getAbsolutePath());
     props.set(PATH_LOGS.getKey(), temp.newFolder().getAbsolutePath());
 
-    EsInstallation underTest = new EsInstallation(props);
+    EsInstallation underTest = new EsInstallationImpl(props);
 
     assertThat(underTest.getElasticsearchYml()).isEqualTo(new File(tempDir, "conf/es/elasticsearch.yml"));
   }
@@ -189,7 +206,7 @@ public class EsInstallationTest {
     props.set(PATH_TEMP.getKey(), tempDir.getAbsolutePath());
     props.set(PATH_LOGS.getKey(), temp.newFolder().getAbsolutePath());
 
-    EsInstallation underTest = new EsInstallation(props);
+    EsInstallation underTest = new EsInstallationImpl(props);
 
     assertThat(underTest.getJvmOptions()).isEqualTo(new File(tempDir, "conf/es/jvm.options"));
   }

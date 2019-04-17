@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,7 +21,7 @@ package org.sonar.server.usertoken.ws;
 
 import org.sonar.api.server.ws.WebService;
 
-import static org.sonar.server.usertoken.ws.UserTokensWsParameters.CONTROLLER;
+import static org.sonar.server.usertoken.ws.UserTokenSupport.CONTROLLER;
 
 public class UserTokensWs implements WebService {
   private final UserTokensWsAction[] actions;

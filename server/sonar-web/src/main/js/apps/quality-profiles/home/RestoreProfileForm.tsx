@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,10 +21,11 @@ import * as React from 'react';
 import { restoreQualityProfile } from '../../../api/quality-profiles';
 import Modal from '../../../components/controls/Modal';
 import { translate, translateWithParameters } from '../../../helpers/l10n';
+import { SubmitButton, ResetButtonLink } from '../../../components/ui/buttons';
+import { Alert } from '../../../components/ui/Alert';
 
 interface Props {
   onClose: () => void;
-  onRequestFail: (reason: any) => void;
   onRestore: () => void;
   organization: string | null;
 }
@@ -48,11 +49,6 @@ export default class RestoreProfileForm extends React.PureComponent<Props, State
     this.mounted = false;
   }
 
-  handleCancelClick = (event: React.SyntheticEvent<HTMLElement>) => {
-    event.preventDefault();
-    this.props.onClose();
-  };
-
   handleFormSubmit = (event: React.SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -75,14 +71,34 @@ export default class RestoreProfileForm extends React.PureComponent<Props, State
         }
         this.props.onRestore();
       },
-      (error: any) => {
+      () => {
         if (this.mounted) {
           this.setState({ loading: false });
         }
-        this.props.onRequestFail(error);
       }
     );
   };
+
+  renderAlert(profile: { name: string }, ruleFailures = 0, ruleSuccesses: number): React.ReactNode {
+    return ruleFailures ? (
+      <Alert variant="warning">
+        {translateWithParameters(
+          'quality_profiles.restore_profile.warning',
+          profile.name,
+          ruleSuccesses,
+          ruleFailures
+        )}
+      </Alert>
+    ) : (
+      <Alert variant="success">
+        {translateWithParameters(
+          'quality_profiles.restore_profile.success',
+          profile.name,
+          ruleSuccesses
+        )}
+      </Alert>
+    );
+  }
 
   render() {
     const header = translate('quality_profiles.restore_profile');
@@ -90,7 +106,7 @@ export default class RestoreProfileForm extends React.PureComponent<Props, State
     const { loading, profile, ruleFailures, ruleSuccesses } = this.state;
 
     return (
-      <Modal contentLabel={header} onRequestClose={this.props.onClose}>
+      <Modal contentLabel={header} onRequestClose={this.props.onClose} size="small">
         <form id="restore-profile-form" onSubmit={this.handleFormSubmit}>
           <div className="modal-head">
             <h2>{header}</h2>
@@ -98,24 +114,7 @@ export default class RestoreProfileForm extends React.PureComponent<Props, State
 
           <div className="modal-body">
             {profile != null && ruleSuccesses != null ? (
-              ruleFailures ? (
-                <div className="alert alert-warning">
-                  {translateWithParameters(
-                    'quality_profiles.restore_profile.warning',
-                    profile.name,
-                    ruleSuccesses,
-                    ruleFailures
-                  )}
-                </div>
-              ) : (
-                <div className="alert alert-success">
-                  {translateWithParameters(
-                    'quality_profiles.restore_profile.success',
-                    profile.name,
-                    ruleSuccesses
-                  )}
-                </div>
-              )
+              this.renderAlert(profile, ruleFailures, ruleSuccesses)
             ) : (
               <div className="modal-field">
                 <label htmlFor="restore-profile-backup">
@@ -130,18 +129,18 @@ export default class RestoreProfileForm extends React.PureComponent<Props, State
           {ruleSuccesses == null ? (
             <div className="modal-foot">
               {loading && <i className="spinner spacer-right" />}
-              <button disabled={loading} id="restore-profile-submit">
+              <SubmitButton disabled={loading} id="restore-profile-submit">
                 {translate('restore')}
-              </button>
-              <a href="#" id="restore-profile-cancel" onClick={this.handleCancelClick}>
+              </SubmitButton>
+              <ResetButtonLink id="restore-profile-cancel" onClick={this.props.onClose}>
                 {translate('cancel')}
-              </a>
+              </ResetButtonLink>
             </div>
           ) : (
             <div className="modal-foot">
-              <a href="#" onClick={this.handleCancelClick}>
+              <ResetButtonLink id="restore-profile-cancel" onClick={this.props.onClose}>
                 {translate('close')}
-              </a>
+              </ResetButtonLink>
             </div>
           )}
         </form>

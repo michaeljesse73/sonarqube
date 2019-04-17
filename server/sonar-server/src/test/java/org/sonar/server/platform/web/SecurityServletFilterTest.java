@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,26 +21,23 @@ package org.sonar.server.platform.web;
 
 import java.io.IOException;
 import javax.servlet.FilterChain;
-import javax.servlet.FilterConfig;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.junit.Test;
-import org.sonar.server.platform.web.SecurityServletFilter;
 
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.startsWith;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 public class SecurityServletFilterTest {
 
-  SecurityServletFilter underTest = new SecurityServletFilter();
-  HttpServletResponse response = mock(HttpServletResponse.class);
-  FilterChain chain = mock(FilterChain.class);
+  private SecurityServletFilter underTest = new SecurityServletFilter();
+  private HttpServletResponse response = mock(HttpServletResponse.class);
+  private FilterChain chain = mock(FilterChain.class);
 
   @Test
   public void allow_GET_method() throws IOException, ServletException {
@@ -63,7 +60,7 @@ public class SecurityServletFilterTest {
   }
 
   private void assertThatMethodIsAllowed(String httpMethod) throws IOException, ServletException {
-    HttpServletRequest request = newRequest(httpMethod);
+    HttpServletRequest request = newRequest(httpMethod, "/");
     underTest.doFilter(request, response, chain);
     verify(response, never()).setStatus(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
     verify(chain).doFilter(request, response);
@@ -80,25 +77,51 @@ public class SecurityServletFilterTest {
   }
 
   private void assertThatMethodIsDenied(String httpMethod) throws IOException, ServletException {
-    underTest.doFilter(newRequest(httpMethod), response, chain);
+    underTest.doFilter(newRequest(httpMethod, "/"), response, chain);
     verify(response).setStatus(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
   }
 
   @Test
-  public void set_secured_headers() throws ServletException, IOException {
-    underTest.init(mock(FilterConfig.class));
-    HttpServletRequest request = newRequest("GET");
+  public void set_security_headers() throws Exception {
+    HttpServletRequest request = newRequest("GET", "/");
 
     underTest.doFilter(request, response, chain);
 
-    verify(response, times(3)).addHeader(startsWith("X-"), anyString());
-
-    underTest.destroy();
+    verify(response).addHeader("X-Frame-Options", "SAMEORIGIN");
+    verify(response).addHeader("X-XSS-Protection", "1; mode=block");
+    verify(response).addHeader("X-Content-Type-Options", "nosniff");
   }
 
-  private HttpServletRequest newRequest(String httpMethod) {
+  @Test
+  public void do_not_set_frame_protection_on_integration_resources() throws Exception {
+    HttpServletRequest request = newRequest("GET", "/integration/vsts/index.html");
+
+    underTest.doFilter(request, response, chain);
+
+    verify(response, never()).addHeader(eq("X-Frame-Options"), anyString());
+    verify(response).addHeader("X-XSS-Protection", "1; mode=block");
+    verify(response).addHeader("X-Content-Type-Options", "nosniff");
+  }
+
+  @Test
+  public void do_not_set_frame_protection_on_integration_resources_with_context() throws Exception {
+    HttpServletRequest request = mock(HttpServletRequest.class);
+    when(request.getMethod()).thenReturn("GET");
+    when(request.getRequestURI()).thenReturn("/sonarqube/integration/vsts/index.html");
+    when(request.getContextPath()).thenReturn("/sonarqube");
+
+    underTest.doFilter(request, response, chain);
+
+    verify(response, never()).addHeader(eq("X-Frame-Options"), anyString());
+    verify(response).addHeader("X-XSS-Protection", "1; mode=block");
+    verify(response).addHeader("X-Content-Type-Options", "nosniff");
+  }
+
+  private static HttpServletRequest newRequest(String httpMethod, String path) {
     HttpServletRequest req = mock(HttpServletRequest.class);
     when(req.getMethod()).thenReturn(httpMethod);
+    when(req.getRequestURI()).thenReturn(path);
+    when(req.getContextPath()).thenReturn("");
     return req;
   }
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,7 +19,7 @@
  */
 package org.sonar.scanner.cpd;
 
-import com.google.common.base.Predicate;
+import java.util.function.Predicate;
 import org.junit.Test;
 import org.sonar.duplications.index.CloneGroup;
 
@@ -30,9 +30,9 @@ public class DuplicationPredicatesTest {
   @Test
   public void testNumberOfUnitsNotLessThan() {
     Predicate<CloneGroup> predicate = DuplicationPredicates.numberOfUnitsNotLessThan(5);
-    assertThat(predicate.apply(CloneGroup.builder().setLengthInUnits(6).build())).isTrue();
-    assertThat(predicate.apply(CloneGroup.builder().setLengthInUnits(5).build())).isTrue();
-    assertThat(predicate.apply(CloneGroup.builder().setLengthInUnits(4).build())).isFalse();
+    assertThat(predicate.test(CloneGroup.builder().setLengthInUnits(6).build())).isTrue();
+    assertThat(predicate.test(CloneGroup.builder().setLengthInUnits(5).build())).isTrue();
+    assertThat(predicate.test(CloneGroup.builder().setLengthInUnits(4).build())).isFalse();
   }
 
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,35 +22,30 @@ import { shallow } from 'enzyme';
 import ProfileRules from '../ProfileRules';
 import * as apiRules from '../../../../api/rules';
 import * as apiQP from '../../../../api/quality-profiles';
+import { mockQualityProfile } from '../../../../helpers/testMocks';
 import { waitAndUpdate } from '../../../../helpers/testUtils';
 
-const PROFILE = {
+const PROFILE = mockQualityProfile({
   activeRuleCount: 68,
   activeDeprecatedRuleCount: 0,
-  childrenCount: 0,
   depth: 0,
-  isBuiltIn: false,
-  isDefault: false,
-  isInherited: false,
-  key: 'foo',
-  language: 'java',
-  languageName: 'Java',
-  name: 'Foo',
+  language: 'js',
   organization: 'org',
   rulesUpdatedAt: '2017-06-28T12:58:44+0000'
-};
+});
 
 const EDITABLE_PROFILE = { ...PROFILE, actions: { edit: true } };
 
 const apiResponseAll = {
-  total: 243,
+  total: 253,
   facets: [
     {
       property: 'types',
       values: [
         { val: 'CODE_SMELL', count: 168 },
         { val: 'BUG', count: 68 },
-        { val: 'VULNERABILITY', count: 7 }
+        { val: 'VULNERABILITY', count: 7 },
+        { val: 'SECURITY_HOTSPOT', count: 10 }
       ]
     }
   ]
@@ -64,7 +59,8 @@ const apiResponseActive = {
       values: [
         { val: 'BUG', count: 68 },
         { val: 'CODE_SMELL', count: 0 },
-        { val: 'VULNERABILITY', count: 0 }
+        { val: 'VULNERABILITY', count: 0 },
+        { val: 'SECURITY_HOTSPOT', count: 0 }
       ]
     }
   ]
@@ -97,6 +93,16 @@ it('should show a button to activate more rules for admins', () => {
   expect(wrapper.find('.js-activate-rules')).toMatchSnapshot();
 });
 
+it('should show a disabled button to activate more rules for built-in profiles', () => {
+  const wrapper = shallow(
+    <ProfileRules
+      organization={null}
+      profile={{ ...EDITABLE_PROFILE, actions: { copy: true }, isBuiltIn: true }}
+    />
+  );
+  expect(wrapper.find('.js-activate-rules')).toMatchSnapshot();
+});
+
 it('should show a deprecated rules warning message', () => {
   const wrapper = shallow(
     <ProfileRules
@@ -111,7 +117,7 @@ it('should not show a button to activate more rules on built in profiles', () =>
   const wrapper = shallow(
     <ProfileRules organization={null} profile={{ ...EDITABLE_PROFILE, isBuiltIn: true }} />
   );
-  expect(wrapper.find('.js-activate-rules')).toHaveLength(0);
+  expect(wrapper.find('.js-activate-rules').exists()).toBe(false);
 });
 
 it('should not show sonarway comparison for built in profiles', async () => {

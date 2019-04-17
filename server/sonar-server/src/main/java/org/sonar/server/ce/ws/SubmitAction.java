@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -27,12 +27,15 @@ import org.apache.commons.lang.StringUtils;
 import org.sonar.api.server.ws.Request;
 import org.sonar.api.server.ws.Response;
 import org.sonar.api.server.ws.WebService;
-import org.sonar.ce.queue.CeTask;
-import org.sonar.server.computation.queue.ReportSubmitter;
+import org.sonar.ce.task.CeTask;
+import org.sonar.db.ce.CeTaskCharacteristicDto;
+import org.sonar.server.ce.queue.ReportSubmitter;
 import org.sonar.server.organization.DefaultOrganizationProvider;
 import org.sonar.server.ws.WsUtils;
 import org.sonarqube.ws.Ce;
 
+import static org.apache.commons.lang.StringUtils.abbreviate;
+import static org.apache.commons.lang.StringUtils.defaultIfBlank;
 import static org.sonar.core.component.ComponentKeys.MAX_COMPONENT_KEY_LENGTH;
 import static org.sonar.db.component.ComponentValidator.MAX_COMPONENT_NAME_LENGTH;
 import static org.sonar.server.ws.WsUtils.checkRequest;
@@ -78,6 +81,7 @@ public class SubmitAction implements CeWsAction {
       .setDescription("Key of project")
       .setExampleValue("my_project");
 
+    // deprecated branch (see scanner parameter sonar.branch)
     action
       .createParam(PARAM_PROJECT_BRANCH)
       .setDescription("Optional branch of project")
@@ -86,8 +90,7 @@ public class SubmitAction implements CeWsAction {
     action
       .createParam(PARAM_PROJECT_NAME)
       .setRequired(false)
-      .setMaximumLength(MAX_COMPONENT_NAME_LENGTH)
-      .setDescription("Optional name of the project, used only if the project does not exist yet.")
+      .setDescription("Optional name of the project, used only if the project does not exist yet. If name is longer than %d, it is abbreviated.", MAX_COMPONENT_NAME_LENGTH)
       .setExampleValue("My Project");
 
     action
@@ -109,16 +112,16 @@ public class SubmitAction implements CeWsAction {
       .emptyAsNull()
       .or(defaultOrganizationProvider.get()::getKey);
     String projectKey = wsRequest.mandatoryParam(PARAM_PROJECT_KEY);
-    String projectBranch = wsRequest.param(PARAM_PROJECT_BRANCH);
-    String projectName = StringUtils.defaultIfBlank(wsRequest.param(PARAM_PROJECT_NAME), projectKey);
+    String deprecatedBranch = wsRequest.param(PARAM_PROJECT_BRANCH);
+    String projectName = abbreviate(defaultIfBlank(wsRequest.param(PARAM_PROJECT_NAME), projectKey), MAX_COMPONENT_NAME_LENGTH);
 
     Map<String, String> characteristics = parseTaskCharacteristics(wsRequest);
 
     try (InputStream report = new BufferedInputStream(wsRequest.mandatoryParamAsPart(PARAM_REPORT_DATA).getInputStream())) {
-      CeTask task = reportSubmitter.submit(organizationKey, projectKey, projectBranch, projectName, characteristics, report);
+      CeTask task = reportSubmitter.submit(organizationKey, projectKey, deprecatedBranch, projectName, characteristics, report);
       Ce.SubmitResponse submitResponse = Ce.SubmitResponse.newBuilder()
         .setTaskId(task.getUuid())
-        .setProjectId(task.getComponentUuid())
+        .setProjectId(task.getComponent().get().getUuid())
         .build();
       WsUtils.writeProtobuf(submitResponse, wsRequest, wsResponse);
     }
@@ -131,7 +134,9 @@ public class SubmitAction implements CeWsAction {
       String[] pair = StringUtils.split(param, "=", 2);
       checkRequest(pair.length == 2, "Parameter '%s' must be a key-value pair with the format 'key=value'.", PARAM_ANALYSIS_CHARACTERISTIC);
       checkRequest(!characteristics.containsKey(pair[0]), "Key '%s' was provided twice with parameters '%s'", pair[0], PARAM_ANALYSIS_CHARACTERISTIC);
-      characteristics.put(pair[0], pair[1]);
+      if (CeTaskCharacteristicDto.SUPPORTED_KEYS.contains(pair[0])) {
+        characteristics.put(pair[0], pair[1]);
+      }
     }
     return characteristics;
   }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,16 +18,16 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import ChangeVisibilityForm from './ChangeVisibilityForm';
-import { Organization, Visibility } from '../../app/types';
+import ChangeDefaultVisibilityForm from './ChangeDefaultVisibilityForm';
+import { EditButton, Button } from '../../components/ui/buttons';
 import { translate } from '../../helpers/l10n';
-import { EditButton } from '../../components/ui/buttons';
+import { isSonarCloud } from '../../helpers/system';
 
 export interface Props {
   hasProvisionPermission?: boolean;
   onProjectCreate: () => void;
-  onVisibilityChange: (visibility: Visibility) => void;
-  organization: Organization;
+  onVisibilityChange: (visibility: T.Visibility) => void;
+  organization: T.Organization;
 }
 
 interface State {
@@ -36,11 +36,6 @@ interface State {
 
 export default class Header extends React.PureComponent<Props, State> {
   state: State = { visibilityForm: false };
-
-  handleCreateProjectClick = (event: React.SyntheticEvent<HTMLButtonElement>) => {
-    event.preventDefault();
-    this.props.onProjectCreate();
-  };
 
   handleChangeVisibilityClick = () => {
     this.setState({ visibilityForm: true });
@@ -58,27 +53,29 @@ export default class Header extends React.PureComponent<Props, State> {
         <h1 className="page-title">{translate('projects_management')}</h1>
 
         <div className="page-actions">
-          <span className="big-spacer-right">
-            <span className="text-middle">
-              {translate('organization.default_visibility_of_new_projects')}{' '}
-              <strong>{translate('visibility', organization.projectVisibility)}</strong>
+          {!isSonarCloud() && organization.projectVisibility && (
+            <span className="big-spacer-right">
+              <span className="text-middle">
+                {translate('organization.default_visibility_of_new_projects')}{' '}
+                <strong>{translate('visibility', organization.projectVisibility)}</strong>
+              </span>
+              <EditButton
+                className="js-change-visibility spacer-left button-small"
+                onClick={this.handleChangeVisibilityClick}
+              />
             </span>
-            <EditButton
-              className="js-change-visibility spacer-left button-small"
-              onClick={this.handleChangeVisibilityClick}
-            />
-          </span>
+          )}
           {this.props.hasProvisionPermission && (
-            <button id="create-project" onClick={this.handleCreateProjectClick}>
+            <Button id="create-project" onClick={this.props.onProjectCreate}>
               {translate('qualifiers.create.TRK')}
-            </button>
+            </Button>
           )}
         </div>
 
         <p className="page-description">{translate('projects_management.page.description')}</p>
 
-        {this.state.visibilityForm && (
-          <ChangeVisibilityForm
+        {!isSonarCloud() && this.state.visibilityForm && (
+          <ChangeDefaultVisibilityForm
             onClose={this.closeVisiblityForm}
             onConfirm={this.props.onVisibilityChange}
             organization={organization}

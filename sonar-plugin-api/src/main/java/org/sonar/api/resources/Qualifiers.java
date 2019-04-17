@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,7 +20,6 @@
 package org.sonar.api.resources;
 
 import java.util.List;
-import java.util.Objects;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.unmodifiableList;
@@ -57,7 +56,7 @@ public final class Qualifiers {
   public static final String LIBRARY = "LIB";
 
   /**
-   * Single project or root of multi-modules projects
+   * Project
    * Scope is Scopes.PROJECT
    */
   public static final String PROJECT = "TRK";
@@ -65,7 +64,10 @@ public final class Qualifiers {
   /**
    * Module of a multi-modules project. It's sometimes called "sub-project".
    * Scope of modules is Scopes.PROJECT
+   *
+   * @deprecated since 7.7 as modules doesn't exist anymore
    */
+  @Deprecated
   public static final String MODULE = "BRC";
 
   public static final String DIRECTORY = "DIR";
@@ -85,56 +87,5 @@ public final class Qualifiers {
 
   private Qualifiers() {
     // only static methods
-  }
-
-  /**
-   * @param resource not nullable
-   */
-  public static boolean isView(final Resource resource, final boolean acceptSubViews) {
-    boolean isView = Objects.equals(VIEW, resource.getQualifier());
-    if (!isView && acceptSubViews) {
-      isView = Objects.equals(SUBVIEW, resource.getQualifier());
-    }
-
-    return isView;
-  }
-
-  /**
-   * @param resource not nullable
-   */
-  public static boolean isSubview(final Resource resource) {
-    return Objects.equals(SUBVIEW, resource.getScope());
-  }
-
-  /**
-   * @param resource not nullable
-   */
-  public static boolean isProject(final Resource resource, final boolean acceptModules) {
-    boolean isProject = Objects.equals(PROJECT, resource.getQualifier());
-    if (!isProject && acceptModules) {
-      isProject = Objects.equals(MODULE, resource.getQualifier());
-    }
-    return isProject;
-  }
-
-  /**
-   * @param resource not nullable
-   */
-  public static boolean isModule(final Resource resource) {
-    return Objects.equals(MODULE, resource.getQualifier());
-  }
-
-  /**
-   * @param resource not nullable
-   */
-  public static boolean isDirectory(final Resource resource) {
-    return Objects.equals(DIRECTORY, resource.getQualifier());
-  }
-
-  /**
-   * @param resource not nullable
-   */
-  public static boolean isFile(final Resource resource) {
-    return Objects.equals(FILE, resource.getQualifier());
   }
 }

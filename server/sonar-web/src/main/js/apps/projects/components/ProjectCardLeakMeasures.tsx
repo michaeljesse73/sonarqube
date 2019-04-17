@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -26,13 +26,13 @@ import VulnerabilityIcon from '../../../components/icons-components/Vulnerabilit
 import { translate } from '../../../helpers/l10n';
 
 interface Props {
-  measures: { [key: string]: string };
+  measures: T.Dict<string>;
 }
 
 export default function ProjectCardLeakMeasures({ measures }: Props) {
   return (
     <div className="project-card-leak-measures">
-      <div className="project-card-measure smaller-card" data-key="new_reliability_rating">
+      <div className="project-card-measure" data-key="new_reliability_rating">
         <div className="project-card-measure-inner">
           <div className="project-card-measure-number">
             <Measure
@@ -114,7 +114,7 @@ export default function ProjectCardLeakMeasures({ measures }: Props) {
         </div>
       </div>
 
-      <div className="project-card-measure smaller-card project-card-ncloc" data-key="new_lines">
+      <div className="project-card-measure project-card-ncloc" data-key="new_lines">
         <div className="project-card-measure-inner">
           <div className="project-card-measure-number">
             <Measure metricKey="new_lines" metricType="SHORT_INT" value={measures['new_lines']} />

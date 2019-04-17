@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -36,7 +36,7 @@ it('should render with coverage selected', () => {
 it('should handle perspective change correctly', () => {
   const onChange = jest.fn();
   const instance = shallow(
-    <PerspectiveSelect view="visualizations" visualization="coverage" onChange={onChange} />
+    <PerspectiveSelect onChange={onChange} view="visualizations" visualization="coverage" />
   ).instance() as PerspectiveSelect;
   instance.handleChange({ label: 'overall', value: 'overall', type: 'view' });
   instance.handleChange({ label: 'leak', value: 'leak', type: 'view' });

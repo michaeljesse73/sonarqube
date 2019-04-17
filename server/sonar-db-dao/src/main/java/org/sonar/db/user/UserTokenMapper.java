@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -23,17 +23,20 @@ import java.util.List;
 import org.apache.ibatis.annotations.Param;
 
 public interface UserTokenMapper {
+
   void insert(UserTokenDto userToken);
+
+  void update(UserTokenDto userToken);
 
   UserTokenDto selectByTokenHash(String tokenHash);
 
-  UserTokenDto selectByLoginAndName(@Param("login") String login, @Param("name") String name);
+  UserTokenDto selectByUserUuidAndName(@Param("userUuid") String userUuid, @Param("name") String name);
 
-  List<UserTokenDto> selectByLogin(String login);
+  List<UserTokenDto> selectByUserUuid(String userUuid);
 
-  void deleteByLogin(String login);
+  void deleteByUserUuid(String userUuid);
 
-  void deleteByLoginAndName(@Param("login") String login, @Param("name") String name);
+  void deleteByUserUuidAndName(@Param("userUuid") String userUuid, @Param("name") String name);
 
-  List<UserTokenCount> countTokensByLogins(@Param("logins") List<String> logins);
+  List<UserTokenCount> countTokensByUserUuids(@Param("userUuids") List<String> userUuids);
 }

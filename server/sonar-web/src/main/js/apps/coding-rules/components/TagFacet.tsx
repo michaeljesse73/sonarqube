@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,45 +19,66 @@
  */
 import * as React from 'react';
 import { uniq } from 'lodash';
-import Facet, { BasicProps } from './Facet';
+import { BasicProps } from './Facet';
 import { getRuleTags } from '../../../api/rules';
-import FacetFooter from '../../../components/facet/FacetFooter';
+import * as theme from '../../../app/theme';
+import TagsIcon from '../../../components/icons-components/TagsIcon';
+import ListStyleFacet from '../../../components/facet/ListStyleFacet';
+import { translate } from '../../../helpers/l10n';
+import { highlightTerm } from '../../../helpers/search';
 
 interface Props extends BasicProps {
   organization: string | undefined;
 }
 
 export default class TagFacet extends React.PureComponent<Props> {
-  handleSearch = (query: string) =>
-    getRuleTags({ organization: this.props.organization, ps: 50, q: query }).then(tags =>
-      tags.map(tag => ({ label: tag, value: tag }))
-    );
+  handleSearch = (query: string) => {
+    return getRuleTags({ organization: this.props.organization, ps: 50, q: query }).then(tags => ({
+      paging: { pageIndex: 1, pageSize: tags.length, total: tags.length },
+      results: tags
+    }));
+  };
 
-  handleSelect = (tag: string) => this.props.onChange({ tags: uniq([...this.props.values, tag]) });
+  handleSelect = (option: { value: string }) => {
+    this.props.onChange({ tags: uniq([...this.props.values, option.value]) });
+  };
 
-  renderName = (tag: string) => (
+  getTagName = (tag: string) => {
+    return tag;
+  };
+
+  renderTag = (tag: string) => (
     <>
-      <i className="icon-tags icon-gray little-spacer-right" />
+      <TagsIcon className="little-spacer-right" fill={theme.gray60} />
       {tag}
     </>
   );
 
-  renderFooter = () => {
-    if (!this.props.stats) {
-      return null;
-    }
-
-    return <FacetFooter onSearch={this.handleSearch} onSelect={this.handleSelect} />;
-  };
+  renderSearchResult = (tag: string, term: string) => (
+    <>
+      <TagsIcon className="little-spacer-right" fill={theme.gray60} />
+      {highlightTerm(tag, term)}
+    </>
+  );
 
   render() {
-    const { organization, ...facetProps } = this.props;
     return (
-      <Facet
-        {...facetProps}
+      <ListStyleFacet<string>
+        facetHeader={translate('coding_rules.facet.tags')}
+        fetching={false}
+        getFacetItemText={this.getTagName}
+        getSearchResultKey={tag => tag}
+        getSearchResultText={tag => tag}
+        onChange={this.props.onChange}
+        onSearch={this.handleSearch}
+        onToggle={this.props.onToggle}
+        open={this.props.open}
         property="tags"
-        renderFooter={this.renderFooter}
-        renderName={this.renderName}
+        renderFacetItem={this.renderTag}
+        renderSearchResult={this.renderSearchResult}
+        searchPlaceholder={translate('search.search_for_tags')}
+        stats={this.props.stats}
+        values={this.props.values}
       />
     );
   }

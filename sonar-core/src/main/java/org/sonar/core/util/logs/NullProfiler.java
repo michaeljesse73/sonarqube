@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -127,6 +127,11 @@ class NullProfiler extends Profiler {
   public Profiler addContext(String key, @Nullable Object value) {
     // nothing to do
     return this;
+  }
+
+  @Override
+  public boolean hasContext(String key) {
+    return false;
   }
 
   @Override

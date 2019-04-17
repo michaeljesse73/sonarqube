@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,6 +22,7 @@ package org.sonar.db.rule;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableSet;
 import java.util.Set;
+import javax.annotation.CheckForNull;
 import org.sonar.api.rule.RuleKey;
 import org.sonar.api.rule.RuleStatus;
 import org.sonar.api.rules.RuleType;
@@ -38,15 +39,18 @@ public class RuleForIndexingDto {
   private RuleStatus status;
   private boolean isTemplate;
   private String systemTags;
+  private String securityStandards;
   private String templateRuleKey;
   private String templateRepository;
   private String internalKey;
   private String language;
+  private boolean isExternal;
   private int type;
   private long createdAt;
   private long updatedAt;
 
   private static final Splitter TAGS_SPLITTER = Splitter.on(',').trimResults().omitEmptyStrings();
+  private static final Splitter SECURITY_STANDARDS_SPLITTER = TAGS_SPLITTER;
 
   public Integer getId() {
     return id;
@@ -88,6 +92,10 @@ public class RuleForIndexingDto {
     return systemTags;
   }
 
+  public String getSecurityStandards() {
+    return securityStandards;
+  }
+
   public String getTemplateRuleKey() {
     return templateRuleKey;
   }
@@ -107,6 +115,10 @@ public class RuleForIndexingDto {
   public int getType() {
     return type;
   }
+  
+  public boolean isExternal() {
+    return isExternal;
+  }
 
   public long getCreatedAt() {
     return createdAt;
@@ -116,8 +128,9 @@ public class RuleForIndexingDto {
     return updatedAt;
   }
 
+  @CheckForNull
   public RuleType getTypeAsRuleType() {
-    return RuleType.valueOf(type);
+    return RuleType.valueOfNullable(type);
   }
 
   public String getSeverityAsString() {
@@ -130,5 +143,9 @@ public class RuleForIndexingDto {
 
   public Set<String> getSystemTagsAsSet() {
     return ImmutableSet.copyOf(TAGS_SPLITTER.split(systemTags == null ? "" : systemTags));
+  }
+
+  public Set<String> getSecurityStandardsAsSet() {
+    return ImmutableSet.copyOf(SECURITY_STANDARDS_SPLITTER.split(securityStandards == null ? "" : securityStandards));
   }
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -32,7 +32,11 @@ public interface IssueMapper {
 
   Set<String> selectComponentUuidsOfOpenIssuesForProjectUuid(String projectUuid);
 
+  Set<String> selectModuleAndDirComponentUuidsOfOpenIssuesForProjectUuid(String projectUuid);
+
   List<IssueDto> selectByKeys(List<String> keys);
+
+  List<IssueDto> selectByKeysIfNotUpdatedAt(@Param("keys") List<String> keys, @Param("updatedAt") long updatedAt);
 
   List<ShortBranchIssueDto> selectOpenByComponentUuids(List<String> componentUuids);
 
@@ -44,12 +48,14 @@ public interface IssueMapper {
 
   void scrollNonClosedByComponentUuid(@Param("componentUuid") String componentUuid, ResultHandler<IssueDto> handler);
 
-  void scrollNonClosedByModuleOrProject(
-    @Param("projectUuid") String projectUuid,
-    @Param("likeModuleUuidPath") String likeModuleUuidPath,
-    ResultHandler<IssueDto> handler);
+  void scrollClosedByComponentUuid(@Param("componentUuid") String componentUuid, @Param("closeDateAfter") long closeDateAfter, ResultHandler<IssueDto> handler);
+
+  List<IssueDto> selectNonClosedByComponentUuidExcludingExternals(@Param("componentUuid") String componentUuid);
+
+  List<IssueDto> selectNonClosedByModuleOrProject(@Param("projectUuid") String projectUuid, @Param("likeModuleUuidPath") String likeModuleUuidPath);
 
   Collection<IssueGroupDto> selectIssueGroupsByBaseComponent(
     @Param("baseComponent") ComponentDto baseComponent,
     @Param("leakPeriodBeginningDate") long leakPeriodBeginningDate);
+
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,11 +20,10 @@
 import * as React from 'react';
 import { sortBy } from 'lodash';
 import ListItem from './ListItem';
-import { Group } from '../../../app/types';
 import { translate } from '../../../helpers/l10n';
 
 interface Props {
-  groups: Group[];
+  groups: T.Group[];
   onDelete: (name: string) => Promise<void>;
   onEdit: (data: { description?: string; id: number; name?: string }) => Promise<void>;
   onEditMembers: () => void;
@@ -35,7 +34,7 @@ interface Props {
 export default function List(props: Props) {
   return (
     <div className="boxed-group boxed-group-inner">
-      <table id="groups-list" className="data zebra zebra-hover">
+      <table className="data zebra zebra-hover" id="groups-list">
         <thead>
           <tr>
             <th />

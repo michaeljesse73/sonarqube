@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -41,6 +41,14 @@ public interface System2 {
     public boolean isOsWindows() {
       return SystemUtils.IS_OS_WINDOWS;
     }
+
+    public boolean isJava9() {
+      return SystemUtils.JAVA_VERSION != null && SystemUtils.JAVA_VERSION.startsWith("9");
+    }
+
+    public boolean isJava10() {
+      return SystemUtils.JAVA_VERSION != null && SystemUtils.JAVA_VERSION.startsWith("10");
+    }
   };
 
   /**
@@ -57,4 +65,14 @@ public interface System2 {
    * True if this is MS Windows.
    */
   boolean isOsWindows();
+
+  /**
+   * True is current Java version is Java 9.
+   */
+  boolean isJava9();
+
+  /**
+   * True is current Java version is Java 10.
+   */
+  boolean isJava10();
 }

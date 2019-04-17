@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -35,7 +35,7 @@ it('should call onSelect', () => {
   const onSelect = jest.fn();
   const wrapper = shallow(<SearchSelect onSearch={jest.fn()} onSelect={onSelect} />);
   wrapper.prop('onChange')({ value: 'foo' });
-  expect(onSelect).lastCalledWith('foo');
+  expect(onSelect).lastCalledWith({ value: 'foo' });
 });
 
 it('should call onSearch', () => {

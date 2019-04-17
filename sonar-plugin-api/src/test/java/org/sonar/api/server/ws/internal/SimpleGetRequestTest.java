@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -50,7 +50,7 @@ public class SimpleGetRequestTest {
   }
 
   @Test
-  public void get_part() throws Exception {
+  public void get_part() {
     InputStream inputStream = mock(InputStream.class);
     underTest.setPart("key", inputStream, "filename");
 
@@ -86,7 +86,9 @@ public class SimpleGetRequestTest {
       .setParam("foo", "bar")
       .setParam("fee", "beer");
 
-    assertThat(underTest.getParams()).containsOnly(entry("foo", "bar"), entry("fee", "beer"));
+    assertThat(underTest.getParams()).containsOnly(
+      entry("foo", new String[] {"bar"}),
+      entry("fee", new String[] {"beer"}));
   }
 
   @Test

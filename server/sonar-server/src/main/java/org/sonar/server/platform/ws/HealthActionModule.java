@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -26,7 +26,6 @@ import org.sonar.server.health.DbConnectionNodeCheck;
 import org.sonar.server.health.EsStatusClusterCheck;
 import org.sonar.server.health.EsStatusNodeCheck;
 import org.sonar.server.health.HealthCheckerImpl;
-import org.sonar.server.health.SearchNodeClusterCheck;
 import org.sonar.server.health.WebServerStatusNodeCheck;
 import org.sonar.server.platform.WebServer;
 
@@ -48,8 +47,7 @@ public class HealthActionModule extends Module {
     } else {
       // ClusterHealthCheck implementations
       add(EsStatusClusterCheck.class,
-        AppNodeClusterCheck.class,
-        SearchNodeClusterCheck.class);
+        AppNodeClusterCheck.class);
     }
 
     add(HealthCheckerImpl.class,

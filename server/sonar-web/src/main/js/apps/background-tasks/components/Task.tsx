@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,21 +18,21 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import TaskStatus from './TaskStatus';
+import TaskActions from './TaskActions';
 import TaskComponent from './TaskComponent';
-import TaskId from './TaskId';
+import TaskExecutionTime from './TaskExecutionTime';
 import TaskDay from './TaskDay';
 import TaskDate from './TaskDate';
-import TaskExecutionTime from './TaskExecutionTime';
-import TaskActions from './TaskActions';
-import { Task as ITask } from '../types';
+import TaskId from './TaskId';
+import TaskStatus from './TaskStatus';
+import TaskSubmitter from './TaskSubmitter';
 
 interface Props {
-  component?: {};
-  onCancelTask: (task: ITask) => void;
-  onFilterTask: (task: ITask) => void;
-  task: ITask;
-  previousTask?: ITask;
+  component?: unknown;
+  onCancelTask: (task: T.Task) => Promise<void>;
+  onFilterTask: (task: T.Task) => void;
+  task: T.Task;
+  previousTask?: T.Task;
 }
 
 export default function Task(props: Props) {
@@ -43,19 +43,20 @@ export default function Task(props: Props) {
       <TaskStatus status={task.status} />
       <TaskComponent task={task} />
       <TaskId id={task.id} />
+      <TaskSubmitter submitter={task.submitterLogin} />
       <TaskDay
-        submittedAt={task.submittedAt}
         prevSubmittedAt={previousTask && previousTask.submittedAt}
+        submittedAt={task.submittedAt}
       />
       <TaskDate date={task.submittedAt} />
-      <TaskDate date={task.startedAt} baseDate={task.submittedAt} />
-      <TaskDate date={task.executedAt} baseDate={task.submittedAt} />
+      <TaskDate baseDate={task.submittedAt} date={task.startedAt} />
+      <TaskDate baseDate={task.submittedAt} date={task.executedAt} />
       <TaskExecutionTime ms={task.executionTimeMs} />
       <TaskActions
         component={component}
-        task={task}
-        onFilterTask={onFilterTask}
         onCancelTask={onCancelTask}
+        onFilterTask={onFilterTask}
+        task={task}
       />
     </tr>
   );

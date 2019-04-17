@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,20 +19,34 @@
  */
 import * as React from 'react';
 import { shallow } from 'enzyme';
-import { OrganizationNavigationMeta } from '../OrganizationNavigationMeta';
-import { Visibility } from '../../../../app/types';
+import OrganizationNavigationMeta from '../OrganizationNavigationMeta';
+
+jest.mock('../../../../helpers/system', () => ({ isSonarCloud: () => true }));
+
+const organization: T.Organization = { key: 'foo', name: 'Foo', subscription: 'FREE' };
 
 it('renders', () => {
   expect(
     shallow(
       <OrganizationNavigationMeta
-        onSonarCloud={true}
-        organization={{
-          key: 'foo',
-          name: 'Foo',
-          projectVisibility: Visibility.Public
-        }}
+        currentUser={{ isLoggedIn: false }}
+        organization={organization}
+        userOrganizations={[]}
       />
     )
   ).toMatchSnapshot();
+});
+
+it('renders with private badge', () => {
+  expect(
+    shallow(
+      <OrganizationNavigationMeta
+        currentUser={{ isLoggedIn: true }}
+        organization={{ ...organization, subscription: 'PAID' }}
+        userOrganizations={[organization]}
+      />
+    )
+      .find('DocTooltip')
+      .exists()
+  ).toBeTruthy();
 });

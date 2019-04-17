@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -30,7 +30,15 @@ const component = {
 };
 
 it('renders', () => {
-  const wrapper = shallow(<ComponentNav branches={[]} component={component} location={{}} />);
+  const wrapper = shallow(
+    <ComponentNav
+      branchLikes={[]}
+      component={component}
+      currentBranchLike={undefined}
+      location={{}}
+      warnings={[]}
+    />
+  );
   wrapper.setState({ isInProgress: true, isPending: true });
   expect(wrapper).toMatchSnapshot();
 });

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,15 +19,17 @@
  */
 import * as React from 'react';
 import { groupBy, pick, sortBy } from 'lodash';
+import { Location } from 'history';
 import ProfilesListRow from './ProfilesListRow';
 import ProfilesListHeader from './ProfilesListHeader';
+import DocTooltip from '../../../components/docs/DocTooltip';
 import { translate, translateWithParameters } from '../../../helpers/l10n';
 import { Profile } from '../types';
+import { Alert } from '../../../components/ui/Alert';
 
 interface Props {
-  languages: Array<{ key: string; name: string }>;
-  location: { query: { [p: string]: string } };
-  onRequestFail: (reason: any) => void;
+  languages: T.Language[];
+  location: Pick<Location, 'query'>;
   organization: string | null;
   profiles: Profile[];
   updateProfiles: () => Promise<void>;
@@ -38,7 +40,6 @@ export default class ProfilesList extends React.PureComponent<Props> {
     return profiles.map(profile => (
       <ProfilesListRow
         key={profile.key}
-        onRequestFail={this.props.onRequestFail}
         organization={this.props.organization}
         profile={profile}
         updateProfiles={this.props.updateProfiles}
@@ -61,7 +62,13 @@ export default class ProfilesList extends React.PureComponent<Props> {
             {', '}
             {translateWithParameters('quality_profiles.x_profiles', profilesCount)}
           </th>
-          <th className="text-right nowrap">{translate('quality_profiles.list.projects')}</th>
+          <th className="text-right nowrap">
+            {translate('quality_profiles.list.projects')}
+            <DocTooltip
+              className="table-cell-doc"
+              doc={import(/* webpackMode: "eager" */ 'Docs/tooltips/quality-profiles/quality-profile-projects.md')}
+            />
+          </th>
           <th className="text-right nowrap">{translate('quality_profiles.list.rules')}</th>
           <th className="text-right nowrap">{translate('quality_profiles.list.updated')}</th>
           <th className="text-right nowrap">{translate('quality_profiles.list.used')}</th>
@@ -73,8 +80,8 @@ export default class ProfilesList extends React.PureComponent<Props> {
 
   renderLanguage = (languageKey: string, profiles: Profile[] | undefined) => {
     return (
-      <div key={languageKey} className="boxed-group boxed-group-inner quality-profiles-table">
-        <table data-language={languageKey} className="data zebra zebra-hover">
+      <div className="boxed-group boxed-group-inner quality-profiles-table" key={languageKey}>
+        <table className="data zebra zebra-hover" data-language={languageKey}>
           {profiles !== undefined && this.renderHeader(languageKey, profiles.length)}
           <tbody>{profiles !== undefined && this.renderProfiles(profiles)}</tbody>
         </table>
@@ -86,7 +93,7 @@ export default class ProfilesList extends React.PureComponent<Props> {
     const { profiles, languages } = this.props;
     const { language } = this.props.location.query;
 
-    const profilesIndex: { [language: string]: Profile[] } = groupBy<Profile>(
+    const profilesIndex: T.Dict<Profile[]> = groupBy<Profile>(
       profiles,
       profile => profile.language
     );
@@ -104,7 +111,9 @@ export default class ProfilesList extends React.PureComponent<Props> {
         />
 
         {Object.keys(profilesToShow).length === 0 && (
-          <div className="alert alert-warning spacer-top">{translate('no_results')}</div>
+          <Alert className="spacer-top" variant="warning">
+            {translate('no_results')}
+          </Alert>
         )}
 
         {languagesToShow.map(languageKey =>

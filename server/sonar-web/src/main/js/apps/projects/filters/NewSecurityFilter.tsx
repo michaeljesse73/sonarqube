@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -30,7 +30,7 @@ interface Props {
   maxFacetValue?: number;
   onQueryChange: (change: RawQuery) => void;
   organization?: { key: string };
-  query: { [x: string]: any };
+  query: T.Dict<any>;
   value?: any;
 }
 

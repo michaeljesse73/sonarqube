@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -191,13 +191,13 @@ public class RuleUpdater {
       rule.setNoteData(null);
       rule.setNoteCreatedAt(null);
       rule.setNoteUpdatedAt(null);
-      rule.setNoteUserLogin(null);
+      rule.setNoteUserUuid(null);
     } else {
       long now = system.now();
       rule.setNoteData(update.getMarkdownNote());
       rule.setNoteCreatedAt(rule.getNoteCreatedAt() != null ? rule.getNoteCreatedAt() : now);
       rule.setNoteUpdatedAt(now);
-      rule.setNoteUserLogin(userSession.getLogin());
+      rule.setNoteUserUuid(userSession.getUuid());
     }
   }
 

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,9 +19,11 @@
  */
 import * as React from 'react';
 import SystemUpgradeForm from './SystemUpgradeForm';
-import { getSystemUpgrades, SystemUpgrade } from '../../../../api/system';
-import { translate } from '../../../../helpers/l10n';
 import { sortUpgrades, groupUpgrades } from '../../utils';
+import { getSystemUpgrades, SystemUpgrade } from '../../../../api/system';
+import { Button } from '../../../../components/ui/buttons';
+import { translate } from '../../../../helpers/l10n';
+import { Alert } from '../../../../components/ui/Alert';
 
 interface State {
   systemUpgrades: SystemUpgrade[][];
@@ -51,8 +53,13 @@ export default class SystemUpgradeNotif extends React.PureComponent<{}, State> {
       () => {}
     );
 
-  handleOpenSystemUpgradeForm = () => this.setState({ openSystemUpgradeForm: true });
-  handleCloseSystemUpgradeForm = () => this.setState({ openSystemUpgradeForm: false });
+  handleOpenSystemUpgradeForm = () => {
+    this.setState({ openSystemUpgradeForm: true });
+  };
+
+  handleCloseSystemUpgradeForm = () => {
+    this.setState({ openSystemUpgradeForm: false });
+  };
 
   render() {
     const { systemUpgrades } = this.state;
@@ -63,16 +70,16 @@ export default class SystemUpgradeNotif extends React.PureComponent<{}, State> {
 
     return (
       <div className="page-notifs">
-        <div className="alert alert-info">
+        <Alert variant="info">
           {translate('system.new_version_available')}
-          <button className="spacer-left" onClick={this.handleOpenSystemUpgradeForm}>
+          <Button className="spacer-left" onClick={this.handleOpenSystemUpgradeForm}>
             {translate('learn_more')}
-          </button>
-        </div>
+          </Button>
+        </Alert>
         {this.state.openSystemUpgradeForm && (
           <SystemUpgradeForm
-            systemUpgrades={systemUpgrades}
             onClose={this.handleCloseSystemUpgradeForm}
+            systemUpgrades={systemUpgrades}
           />
         )}
       </div>

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,40 +21,34 @@ package org.sonar.db.user;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.sonar.api.user.UserQuery;
 import org.sonar.api.utils.DateUtils;
-import org.sonar.api.utils.System2;
+import org.sonar.api.utils.internal.TestSystem2;
 import org.sonar.db.DatabaseUtils;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
 import org.sonar.db.DbTester;
-import org.sonar.db.RowNotFoundException;
 import org.sonar.db.component.ComponentDto;
 import org.sonar.db.organization.OrganizationDto;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
+import static java.util.Collections.singletonList;
 import static org.apache.commons.lang.RandomStringUtils.randomAlphanumeric;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.groups.Tuple.tuple;
-import static org.junit.Assert.fail;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 import static org.sonar.db.user.GroupTesting.newGroupDto;
 import static org.sonar.db.user.UserTesting.newUserDto;
 
 public class UserDaoTest {
   private static final long NOW = 1_500_000_000_000L;
 
-  private System2 system2 = mock(System2.class);
+  private TestSystem2 system2 = new TestSystem2().setNow(NOW);
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
   @Rule
   public DbTester db = DbTester.create(system2);
 
@@ -62,9 +56,14 @@ public class UserDaoTest {
   private DbSession session = db.getSession();
   private UserDao underTest = db.getDbClient().userDao();
 
-  @Before
-  public void setUp() {
-    when(system2.now()).thenReturn(NOW);
+  @Test
+  public void selectByUuid() {
+    UserDto user1 = db.users().insertUser();
+    UserDto user2 = db.users().insertUser(user -> user.setActive(false));
+
+    assertThat(underTest.selectByUuid(session, user1.getUuid())).isNotNull();
+    assertThat(underTest.selectByUuid(session, user2.getUuid())).isNotNull();
+    assertThat(underTest.selectByUuid(session, "unknown")).isNull();
   }
 
   @Test
@@ -107,6 +106,17 @@ public class UserDaoTest {
     Collection<UserDto> users = underTest.selectByLogins(session, asList("user1", "inactive_user", "other"));
 
     assertThat(users).extracting("login").containsExactlyInAnyOrder("user1", "inactive_user");
+  }
+
+  @Test
+  public void selectUsersByUuids() {
+    UserDto user1 = db.users().insertUser();
+    UserDto user2 = db.users().insertUser();
+    UserDto user3 = db.users().insertUser(user -> user.setActive(false));
+
+    assertThat((Collection<UserDto>) underTest.selectByUuids(session, asList(user1.getUuid(), user2.getUuid(), user3.getUuid()))).hasSize(3);
+    assertThat((Collection<UserDto>) underTest.selectByUuids(session, asList(user1.getUuid(), "unknown"))).hasSize(1);
+    assertThat((Collection<UserDto>) underTest.selectByUuids(session, Collections.emptyList())).isEmpty();
   }
 
   @Test
@@ -319,13 +329,16 @@ public class UserDaoTest {
       .setOnboarded(true)
       .setSalt("1234")
       .setCryptedPassword("abcd")
-      .setExternalIdentity("johngithub")
+      .setHashMethod("SHA1")
+      .setExternalLogin("johngithub")
       .setExternalIdentityProvider("github")
+      .setExternalId("EXT_ID")
       .setLocal(true)
-      .setCreatedAt(date)
-      .setUpdatedAt(date)
       .setHomepageType("project")
-      .setHomepageParameter("OB1");
+      .setHomepageParameter("OB1")
+      .setOrganizationUuid("ORG_UUID")
+      .setCreatedAt(date)
+      .setUpdatedAt(date);
     underTest.insert(db.getSession(), userDto);
     db.getSession().commit();
 
@@ -340,12 +353,26 @@ public class UserDaoTest {
     assertThat(user.getScmAccounts()).isEqualTo(",jo.hn,john2,");
     assertThat(user.getSalt()).isEqualTo("1234");
     assertThat(user.getCryptedPassword()).isEqualTo("abcd");
-    assertThat(user.getExternalIdentity()).isEqualTo("johngithub");
+    assertThat(user.getHashMethod()).isEqualTo("SHA1");
+    assertThat(user.getExternalLogin()).isEqualTo("johngithub");
     assertThat(user.getExternalIdentityProvider()).isEqualTo("github");
+    assertThat(user.getExternalId()).isEqualTo("EXT_ID");
     assertThat(user.isLocal()).isTrue();
     assertThat(user.isRoot()).isFalse();
     assertThat(user.getHomepageType()).isEqualTo("project");
     assertThat(user.getHomepageParameter()).isEqualTo("OB1");
+    assertThat(user.getOrganizationUuid()).isEqualTo("ORG_UUID");
+  }
+
+  @Test
+  public void insert_user_does_not_set_last_connection_date() {
+    UserDto user = newUserDto().setLastConnectionDate(10_000_000_000L);
+    underTest.insert(db.getSession(), user);
+    db.getSession().commit();
+
+    UserDto reloaded = underTest.selectByUuid(db.getSession(), user.getUuid());
+
+    assertThat(reloaded.getLastConnectionDate()).isNull();
   }
 
   @Test
@@ -356,11 +383,12 @@ public class UserDaoTest {
       .setEmail("jo@hn.com")
       .setActive(true)
       .setLocal(true)
-      .setOnboarded(false));
+      .setOnboarded(false)
+      .setOrganizationUuid("OLD_ORG_UUID"));
 
-    UserDto userUpdate = new UserDto()
-      .setId(1)
-      .setLogin("john")
+    underTest.update(db.getSession(), newUserDto()
+      .setUuid(user.getUuid())
+      .setLogin("johnDoo")
       .setName("John Doo")
       .setEmail("jodoo@hn.com")
       .setScmAccounts(",jo.hn,john2,johndoo,")
@@ -368,17 +396,20 @@ public class UserDaoTest {
       .setOnboarded(true)
       .setSalt("12345")
       .setCryptedPassword("abcde")
-      .setExternalIdentity("johngithub")
+      .setHashMethod("BCRYPT")
+      .setExternalLogin("johngithub")
       .setExternalIdentityProvider("github")
+      .setExternalId("EXT_ID")
       .setLocal(false)
       .setHomepageType("project")
-      .setHomepageParameter("OB1");
-    underTest.update(db.getSession(), userUpdate);
+      .setHomepageParameter("OB1")
+      .setOrganizationUuid("ORG_UUID")
+      .setLastConnectionDate(10_000_000_000L));
 
-    UserDto reloaded = underTest.selectByLogin(db.getSession(), user.getLogin());
+    UserDto reloaded = underTest.selectByUuid(db.getSession(), user.getUuid());
     assertThat(reloaded).isNotNull();
     assertThat(reloaded.getId()).isEqualTo(user.getId());
-    assertThat(reloaded.getLogin()).isEqualTo(user.getLogin());
+    assertThat(reloaded.getLogin()).isEqualTo("johnDoo");
     assertThat(reloaded.getName()).isEqualTo("John Doo");
     assertThat(reloaded.getEmail()).isEqualTo("jodoo@hn.com");
     assertThat(reloaded.isActive()).isFalse();
@@ -386,12 +417,16 @@ public class UserDaoTest {
     assertThat(reloaded.getScmAccounts()).isEqualTo(",jo.hn,john2,johndoo,");
     assertThat(reloaded.getSalt()).isEqualTo("12345");
     assertThat(reloaded.getCryptedPassword()).isEqualTo("abcde");
-    assertThat(reloaded.getExternalIdentity()).isEqualTo("johngithub");
+    assertThat(reloaded.getHashMethod()).isEqualTo("BCRYPT");
+    assertThat(reloaded.getExternalLogin()).isEqualTo("johngithub");
     assertThat(reloaded.getExternalIdentityProvider()).isEqualTo("github");
+    assertThat(reloaded.getExternalId()).isEqualTo("EXT_ID");
     assertThat(reloaded.isLocal()).isFalse();
     assertThat(reloaded.isRoot()).isFalse();
     assertThat(reloaded.getHomepageType()).isEqualTo("project");
     assertThat(reloaded.getHomepageParameter()).isEqualTo("OB1");
+    assertThat(reloaded.getOrganizationUuid()).isEqualTo("ORG_UUID");
+    assertThat(reloaded.getLastConnectionDate()).isEqualTo(10_000_000_000L);
   }
 
   @Test
@@ -399,22 +434,26 @@ public class UserDaoTest {
     UserDto user = insertActiveUser();
     insertUserGroup(user);
     UserDto otherUser = insertActiveUser();
+    underTest.update(db.getSession(), user.setLastConnectionDate(10_000_000_000L));
     session.commit();
 
     underTest.deactivateUser(session, user);
 
     UserDto userReloaded = underTest.selectUserById(session, user.getId());
     assertThat(userReloaded.isActive()).isFalse();
+    assertThat(userReloaded.getLogin()).isNotNull();
+    assertThat(userReloaded.getExternalId()).isNotNull();
+    assertThat(userReloaded.getExternalLogin()).isNotNull();
+    assertThat(userReloaded.getExternalIdentityProvider()).isNotNull();
     assertThat(userReloaded.getEmail()).isNull();
     assertThat(userReloaded.getScmAccounts()).isNull();
     assertThat(userReloaded.getSalt()).isNull();
     assertThat(userReloaded.getCryptedPassword()).isNull();
-    assertThat(userReloaded.getExternalIdentity()).isNull();
-    assertThat(userReloaded.getExternalIdentityProvider()).isNull();
     assertThat(userReloaded.isRoot()).isFalse();
     assertThat(userReloaded.getUpdatedAt()).isEqualTo(NOW);
     assertThat(userReloaded.getHomepageType()).isNull();
     assertThat(userReloaded.getHomepageParameter()).isNull();
+    assertThat(userReloaded.getLastConnectionDate()).isNull();
     assertThat(underTest.selectUserById(session, otherUser.getId())).isNotNull();
   }
 
@@ -467,8 +506,24 @@ public class UserDaoTest {
   }
 
   @Test
+  public void clean_user_homepage() {
+
+    UserDto user = newUserDto().setHomepageType("RANDOM").setHomepageParameter("any-string");
+    underTest.insert(session, user);
+    session.commit();
+
+    underTest.cleanHomepage(session, user);
+
+    UserDto reloaded = underTest.selectUserById(session, user.getId());
+    assertThat(reloaded.getUpdatedAt()).isEqualTo(NOW);
+    assertThat(reloaded.getHomepageType()).isNull();
+    assertThat(reloaded.getHomepageParameter()).isNull();
+
+  }
+
+  @Test
   public void does_not_fail_to_deactivate_missing_user() {
-    underTest.deactivateUser(session, UserTesting.newUserDto());
+    underTest.deactivateUser(session, newUserDto());
   }
 
   @Test
@@ -486,7 +541,7 @@ public class UserDaoTest {
     UserDto user2 = db.users().insertUser();
     underTest.setRoot(session, user2.getLogin(), true);
 
-    UserDto dto = underTest.selectOrFailByLogin(session, user1.getLogin());
+    UserDto dto = underTest.selectByLogin(session, user1.getLogin());
     assertThat(dto.getId()).isEqualTo(user1.getId());
     assertThat(dto.getLogin()).isEqualTo("marius");
     assertThat(dto.getName()).isEqualTo("Marius");
@@ -501,7 +556,7 @@ public class UserDaoTest {
     assertThat(dto.getHomepageType()).isEqualTo("project");
     assertThat(dto.getHomepageParameter()).isEqualTo("OB1");
 
-    dto = underTest.selectOrFailByLogin(session, user2.getLogin());
+    dto = underTest.selectByLogin(session, user2.getLogin());
     assertThat(dto.isRoot()).isTrue();
   }
 
@@ -528,16 +583,6 @@ public class UserDaoTest {
   }
 
   @Test
-  public void select_by_login_with_unknown_login() {
-    try {
-      underTest.selectOrFailByLogin(session, "unknown");
-      fail();
-    } catch (Exception e) {
-      assertThat(e).isInstanceOf(RowNotFoundException.class).hasMessage("User with login 'unknown' has not been found");
-    }
-  }
-
-  @Test
   public void select_nullable_by_login() {
     db.users().insertUser(user -> user.setLogin("marius"));
     db.users().insertUser(user -> user.setLogin("sbrandhof"));
@@ -548,12 +593,49 @@ public class UserDaoTest {
 
   @Test
   public void select_by_email() {
+    UserDto activeUser1 = db.users().insertUser(u -> u.setEmail("user1@email.com"));
+    UserDto activeUser2 = db.users().insertUser(u -> u.setEmail("user1@email.com"));
+    UserDto disableUser = db.users().insertUser(u -> u.setActive(false));
+
+    assertThat(underTest.selectByEmail(session, "user1@email.com")).hasSize(2);
+    assertThat(underTest.selectByEmail(session, disableUser.getEmail())).isEmpty();
+    assertThat(underTest.selectByEmail(session, "unknown")).isEmpty();
+  }
+
+  @Test
+  public void select_by_external_id_and_identity_provider() {
     UserDto activeUser = db.users().insertUser();
     UserDto disableUser = db.users().insertUser(u -> u.setActive(false));
 
-    assertThat(underTest.selectByEmail(session, activeUser.getEmail())).isNotNull();
-    assertThat(underTest.selectByEmail(session, disableUser.getEmail())).isNull();
-    assertThat(underTest.selectByEmail(session, "unknown")).isNull();
+    assertThat(underTest.selectByExternalIdAndIdentityProvider(session, activeUser.getExternalId(), activeUser.getExternalIdentityProvider())).isNotNull();
+    assertThat(underTest.selectByExternalIdAndIdentityProvider(session, disableUser.getExternalId(), disableUser.getExternalIdentityProvider())).isNotNull();
+    assertThat(underTest.selectByExternalIdAndIdentityProvider(session, "unknown", "unknown")).isNull();
+  }
+
+  @Test
+  public void select_by_external_ids_and_identity_provider() {
+    UserDto user1 = db.users().insertUser(u -> u.setExternalIdentityProvider("github"));
+    UserDto user2 = db.users().insertUser(u -> u.setExternalIdentityProvider("github"));
+    UserDto user3 = db.users().insertUser(u -> u.setExternalIdentityProvider("bitbucket"));
+    UserDto disableUser = db.users().insertDisabledUser(u -> u.setExternalIdentityProvider("github"));
+
+    assertThat(underTest.selectByExternalIdsAndIdentityProvider(session, singletonList(user1.getExternalId()), "github"))
+      .extracting(UserDto::getUuid).containsExactlyInAnyOrder(user1.getUuid());
+    assertThat(underTest.selectByExternalIdsAndIdentityProvider(session,
+      asList(user1.getExternalId(), user2.getExternalId(), user3.getExternalId(), disableUser.getExternalId()), "github"))
+        .extracting(UserDto::getUuid).containsExactlyInAnyOrder(user1.getUuid(), user2.getUuid(), disableUser.getUuid());
+    assertThat(underTest.selectByExternalIdsAndIdentityProvider(session, singletonList("unknown"), "github")).isEmpty();
+    assertThat(underTest.selectByExternalIdsAndIdentityProvider(session, singletonList(user1.getExternalId()), "unknown")).isEmpty();
+  }
+
+  @Test
+  public void select_by_external_login_and_identity_provider() {
+    UserDto activeUser = db.users().insertUser();
+    UserDto disableUser = db.users().insertUser(u -> u.setActive(false));
+
+    assertThat(underTest.selectByExternalLoginAndIdentityProvider(session, activeUser.getExternalLogin(), activeUser.getExternalIdentityProvider())).isNotNull();
+    assertThat(underTest.selectByExternalLoginAndIdentityProvider(session, disableUser.getExternalLogin(), disableUser.getExternalIdentityProvider())).isNotNull();
+    assertThat(underTest.selectByExternalLoginAndIdentityProvider(session, "unknown", "unknown")).isNull();
   }
 
   @Test
@@ -570,25 +652,25 @@ public class UserDaoTest {
     assertThat(underTest.selectByLogin(session, otherUser.getLogin()).isRoot()).isEqualTo(false);
 
     // does not fail when changing to same value
-    when(system2.now()).thenReturn(15_000L);
+    system2.setNow(15_000L);
     commit(() -> underTest.setRoot(session, login, false));
     verifyRootAndUpdatedAt(login, false, 15_000L);
     verifyRootAndUpdatedAt(otherUser.getLogin(), false, otherUser.getUpdatedAt());
 
     // change value
-    when(system2.now()).thenReturn(26_000L);
+    system2.setNow(26_000L);
     commit(() -> underTest.setRoot(session, login, true));
     verifyRootAndUpdatedAt(login, true, 26_000L);
     verifyRootAndUpdatedAt(otherUser.getLogin(), false, otherUser.getUpdatedAt());
 
     // does not fail when changing to same value
-    when(system2.now()).thenReturn(37_000L);
+    system2.setNow(37_000L);
     commit(() -> underTest.setRoot(session, login, true));
     verifyRootAndUpdatedAt(login, true, 37_000L);
     verifyRootAndUpdatedAt(otherUser.getLogin(), false, otherUser.getUpdatedAt());
 
     // change value back
-    when(system2.now()).thenReturn(48_000L);
+    system2.setNow(48_000L);
     commit(() -> underTest.setRoot(session, login, false));
     verifyRootAndUpdatedAt(login, false, 48_000L);
     verifyRootAndUpdatedAt(otherUser.getLogin(), false, otherUser.getUpdatedAt());
@@ -620,31 +702,31 @@ public class UserDaoTest {
   }
 
   @Test
-  public void scrollByLogins() {
+  public void scrollByLUuids() {
     UserDto u1 = insertUser(true);
     UserDto u2 = insertUser(false);
     UserDto u3 = insertUser(false);
 
     List<UserDto> result = new ArrayList<>();
-    underTest.scrollByLogins(db.getSession(), asList(u2.getLogin(), u3.getLogin(), "does not exist"), result::add);
+    underTest.scrollByUuids(db.getSession(), asList(u2.getUuid(), u3.getUuid(), "does not exist"), result::add);
 
-    assertThat(result).extracting(UserDto::getLogin, UserDto::getName)
-      .containsExactlyInAnyOrder(tuple(u2.getLogin(), u2.getName()), tuple(u3.getLogin(), u3.getName()));
+    assertThat(result).extracting(UserDto::getUuid, UserDto::getName)
+      .containsExactlyInAnyOrder(tuple(u2.getUuid(), u2.getName()), tuple(u3.getUuid(), u3.getName()));
   }
 
   @Test
-  public void scrollByLogins_scrolls_by_pages_of_1000_logins() {
-    List<String> logins = new ArrayList<>();
+  public void scrollByUuids_scrolls_by_pages_of_1000_uuids() {
+    List<String> uuids = new ArrayList<>();
     for (int i = 0; i < DatabaseUtils.PARTITION_SIZE_FOR_ORACLE + 10; i++) {
-      logins.add(insertUser(true).getLogin());
+      uuids.add(insertUser(true).getUuid());
     }
 
     List<UserDto> result = new ArrayList<>();
-    underTest.scrollByLogins(db.getSession(), logins, result::add);
+    underTest.scrollByUuids(db.getSession(), uuids, result::add);
 
     assertThat(result)
-      .extracting(UserDto::getLogin)
-      .containsExactlyInAnyOrder(logins.toArray(new String[0]));
+      .extracting(UserDto::getUuid)
+      .containsExactlyInAnyOrder(uuids.toArray(new String[0]));
   }
 
   @Test

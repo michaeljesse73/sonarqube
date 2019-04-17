@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -124,8 +124,10 @@ public class DefaultQProfileDaoTest {
     QProfileDto profileInOrg2 = dbTester.qualityProfiles().insert(org2, p -> p.setLanguage("java"));
     dbTester.qualityProfiles().setAsDefault(profileInOrg1);
 
-    //assertThat(underTest.selectUuidsOfOrganizationsWithoutDefaultProfile(dbSession, "java")).containsExactly(org2.getUuid());
-    assertThat(underTest.selectUuidsOfOrganizationsWithoutDefaultProfile(dbSession, "js")).containsExactlyInAnyOrder(org1.getUuid(), org2.getUuid());
+    assertThat(underTest.selectUuidsOfOrganizationsWithoutDefaultProfile(dbSession, "java"))
+      .containsExactly(org2.getUuid());
+    assertThat(underTest.selectUuidsOfOrganizationsWithoutDefaultProfile(dbSession, "js"))
+      .containsExactlyInAnyOrder(org1.getUuid(), org2.getUuid());
   }
 
   private void assertThatIsDefault(OrganizationDto org, QProfileDto profile) {

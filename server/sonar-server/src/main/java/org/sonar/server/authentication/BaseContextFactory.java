@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,24 +25,24 @@ import org.sonar.api.platform.Server;
 import org.sonar.api.server.authentication.BaseIdentityProvider;
 import org.sonar.api.server.authentication.UserIdentity;
 import org.sonar.db.user.UserDto;
+import org.sonar.server.authentication.UserRegistration.ExistingEmailStrategy;
+import org.sonar.server.authentication.UserRegistration.UpdateLoginStrategy;
 import org.sonar.server.authentication.event.AuthenticationEvent.Source;
 import org.sonar.server.user.ThreadLocalUserSession;
 import org.sonar.server.user.UserSessionFactory;
 
-import static org.sonar.server.authentication.UserIdentityAuthenticator.ExistingEmailStrategy.FORBID;
-
 public class BaseContextFactory {
 
   private final ThreadLocalUserSession threadLocalUserSession;
-  private final UserIdentityAuthenticator userIdentityAuthenticator;
+  private final UserRegistrar userRegistrar;
   private final Server server;
   private final JwtHttpHandler jwtHttpHandler;
   private final UserSessionFactory userSessionFactory;
 
-  public BaseContextFactory(UserIdentityAuthenticator userIdentityAuthenticator, Server server, JwtHttpHandler jwtHttpHandler,
-    ThreadLocalUserSession threadLocalUserSession, UserSessionFactory userSessionFactory) {
+  public BaseContextFactory(UserRegistrar userRegistrar, Server server, JwtHttpHandler jwtHttpHandler,
+                            ThreadLocalUserSession threadLocalUserSession, UserSessionFactory userSessionFactory) {
     this.userSessionFactory = userSessionFactory;
-    this.userIdentityAuthenticator = userIdentityAuthenticator;
+    this.userRegistrar = userRegistrar;
     this.server = server;
     this.jwtHttpHandler = jwtHttpHandler;
     this.threadLocalUserSession = threadLocalUserSession;
@@ -80,7 +80,14 @@ public class BaseContextFactory {
 
     @Override
     public void authenticate(UserIdentity userIdentity) {
-      UserDto userDto = userIdentityAuthenticator.authenticate(userIdentity, identityProvider, Source.external(identityProvider), FORBID);
+      UserDto userDto = userRegistrar.register(
+        UserRegistration.builder()
+          .setUserIdentity(userIdentity)
+          .setProvider(identityProvider)
+          .setSource(Source.external(identityProvider))
+          .setExistingEmailStrategy(ExistingEmailStrategy.FORBID)
+          .setUpdateLoginStrategy(UpdateLoginStrategy.ALLOW)
+          .build());
       jwtHttpHandler.generateToken(userDto, request, response);
       threadLocalUserSession.set(userSessionFactory.create(userDto));
     }

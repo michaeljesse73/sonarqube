@@ -3,12 +3,14 @@
     {
       "key": "qp1",
       "name": "Sonar Way Java",
-      "language": "java"
+      "language": "java",
+      "deleted": false
     },
     {
       "key": "qp2",
       "name": "Sonar Way Xoo",
-      "language": "xoo"
+      "language": "xoo",
+      "deleted": false
     }
   ]
 }

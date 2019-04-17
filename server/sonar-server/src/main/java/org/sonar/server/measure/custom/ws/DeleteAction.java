@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -29,6 +29,8 @@ import org.sonar.db.component.ComponentDto;
 import org.sonar.db.measure.custom.CustomMeasureDto;
 import org.sonar.server.user.UserSession;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 public class DeleteAction implements CustomMeasuresWsAction {
 
   private static final String ACTION = "delete";
@@ -48,6 +50,7 @@ public class DeleteAction implements CustomMeasuresWsAction {
       .setPost(true)
       .setHandler(this)
       .setSince("5.2")
+      .setDeprecatedSince("7.4")
       .setDescription("Delete a custom measure.<br /> Requires 'Administer System' permission or 'Administer' permission on the project.");
 
     action.createParam(PARAM_ID)
@@ -61,7 +64,8 @@ public class DeleteAction implements CustomMeasuresWsAction {
     long id = request.mandatoryParamAsLong(PARAM_ID);
 
     try (DbSession dbSession = dbClient.openSession(false)) {
-      CustomMeasureDto customMeasure = dbClient.customMeasureDao().selectOrFail(dbSession, id);
+      CustomMeasureDto customMeasure = dbClient.customMeasureDao().selectById(dbSession, id);
+      checkArgument(customMeasure != null, "Custom measure with id '%s' does not exist", id);
       checkPermission(dbSession, customMeasure);
       dbClient.customMeasureDao().delete(dbSession, id);
       dbSession.commit();

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,15 +19,19 @@
  */
 import { stringify } from 'querystring';
 import { omitBy, isNil } from 'lodash';
-import { isShortLivingBranch } from './branches';
+import {
+  isShortLivingBranch,
+  isPullRequest,
+  isLongLivingBranch,
+  getBranchLikeQuery
+} from './branches';
 import { getProfilePath } from '../apps/quality-profiles/utils';
-import { Branch, HomePage, HomePageType } from '../app/types';
 
 interface Query {
   [x: string]: string | undefined;
 }
 
-interface Location {
+export interface Location {
   pathname: string;
   query?: Query;
 }
@@ -40,29 +44,50 @@ export function getHostUrl(): string {
   return window.location.origin + getBaseUrl();
 }
 
-export function getPathUrlAsString(path: Location): string {
-  return `${getBaseUrl()}${path.pathname}?${stringify(omitBy(path.query, isNil))}`;
+export function getPathUrlAsString(path: Location, internal = true): string {
+  return `${internal ? getBaseUrl() : getHostUrl()}${path.pathname}?${stringify(
+    omitBy(path.query, isNil)
+  )}`;
 }
 
-export function getProjectUrl(key: string, branch?: string): Location {
-  return { pathname: '/dashboard', query: { id: key, branch } };
+export function getProjectUrl(project: string, branch?: string): Location {
+  return { pathname: '/dashboard', query: { id: project, branch } };
+}
+
+export function getPortfolioUrl(key: string): Location {
+  return { pathname: '/portfolio', query: { id: key } };
+}
+
+export function getPortfolioAdminUrl(key: string, qualifier: string) {
+  return { pathname: '/project/admin/extension/governance/console', query: { id: key, qualifier } };
 }
 
 export function getComponentBackgroundTaskUrl(componentKey: string, status?: string): Location {
   return { pathname: '/project/background_tasks', query: { id: componentKey, status } };
 }
 
-export function getProjectBranchUrl(key: string, branch: Branch): Location {
-  if (isShortLivingBranch(branch)) {
-    return {
-      pathname: '/project/issues',
-      query: { branch: branch.name, id: key, resolved: 'false' }
-    };
-  } else if (!branch.isMain) {
-    return { pathname: '/dashboard', query: { branch: branch.name, id: key } };
+export function getBranchLikeUrl(project: string, branchLike?: T.BranchLike): Location {
+  if (isPullRequest(branchLike)) {
+    return getPullRequestUrl(project, branchLike.key);
+  } else if (isShortLivingBranch(branchLike)) {
+    return getShortLivingBranchUrl(project, branchLike.name);
+  } else if (isLongLivingBranch(branchLike)) {
+    return getLongLivingBranchUrl(project, branchLike.name);
   } else {
-    return { pathname: '/dashboard', query: { id: key } };
+    return getProjectUrl(project);
   }
+}
+
+export function getLongLivingBranchUrl(project: string, branch: string): Location {
+  return { pathname: '/dashboard', query: { branch, id: project } };
+}
+
+export function getShortLivingBranchUrl(project: string, branch: string): Location {
+  return { pathname: '/dashboard', query: { branch, id: project } };
+}
+
+export function getPullRequestUrl(project: string, pullRequest: string): Location {
+  return { pathname: '/dashboard', query: { id: project, pullRequest } };
 }
 
 /**
@@ -83,28 +108,60 @@ export function getComponentIssuesUrl(componentKey: string, query?: Query): Loca
 /**
  * Generate URL for a component's drilldown page
  */
-export function getComponentDrilldownUrl(
-  componentKey: string,
-  metric: string,
-  branch?: string
-): Location {
-  return { pathname: '/component_measures', query: { id: componentKey, metric, branch } };
+export function getComponentDrilldownUrl(options: {
+  componentKey: string;
+  metric: string;
+  branchLike?: T.BranchLike;
+  selectionKey?: string;
+  treemapView?: boolean;
+  listView?: boolean;
+}): Location {
+  const { componentKey, metric, branchLike, selectionKey, treemapView, listView } = options;
+  const query: Query = { id: componentKey, metric, ...getBranchLikeQuery(branchLike) };
+  if (treemapView) {
+    query.view = 'treemap';
+  }
+  if (listView) {
+    query.view = 'list';
+  }
+  if (selectionKey) {
+    query.selected = selectionKey;
+  }
+  return { pathname: '/component_measures', query };
 }
 
-export function getMeasureTreemapUrl(component: string, metric: string, branch?: string) {
+export function getComponentDrilldownUrlWithSelection(
+  componentKey: string,
+  selectionKey: string,
+  metric: string,
+  branchLike?: T.BranchLike
+): Location {
+  return getComponentDrilldownUrl({ componentKey, selectionKey, metric, branchLike });
+}
+
+export function getMeasureTreemapUrl(componentKey: string, metric: string) {
+  return getComponentDrilldownUrl({ componentKey, metric, treemapView: true });
+}
+
+export function getActivityUrl(component: string, branchLike?: T.BranchLike) {
   return {
-    pathname: '/component_measures',
-    query: { id: component, metric, branch, view: 'treemap' }
+    pathname: '/project/activity',
+    query: { id: component, ...getBranchLikeQuery(branchLike) }
   };
 }
 
 /**
  * Generate URL for a component's measure history
  */
-export function getMeasureHistoryUrl(component: string, metric: string, branch?: string) {
+export function getMeasureHistoryUrl(component: string, metric: string, branchLike?: T.BranchLike) {
   return {
     pathname: '/project/activity',
-    query: { id: component, graph: 'custom', custom_metrics: metric, branch }
+    query: {
+      id: component,
+      graph: 'custom',
+      custom_metrics: metric,
+      ...getBranchLikeQuery(branchLike)
+    }
   };
 }
 
@@ -159,35 +216,65 @@ export function getDeprecatedActiveRulesUrl(
 }
 
 export function getRuleUrl(rule: string, organization: string | undefined) {
-  /* eslint-disable camelcase */
   return getRulesUrl({ open: rule, rule_key: rule }, organization);
-  /* eslint-enable camelcase */
 }
 
 export function getMarkdownHelpUrl(): string {
   return getBaseUrl() + '/markdown/help';
 }
 
-export function getCodeUrl(project: string, branch?: string, selected?: string) {
-  return { pathname: '/code', query: { id: project, branch, selected } };
+export function getCodeUrl(
+  project: string,
+  branchLike?: T.BranchLike,
+  selected?: string,
+  line?: number
+) {
+  return {
+    pathname: '/code',
+    query: { id: project, ...getBranchLikeQuery(branchLike), selected, line }
+  };
 }
 
 export function getOrganizationUrl(organization: string) {
   return `/organizations/${organization}`;
 }
 
-export function getHomePageUrl(homepage: HomePage) {
+export function getHomePageUrl(homepage: T.HomePage) {
   switch (homepage.type) {
-    case HomePageType.Project:
-      return getProjectUrl(homepage.parameter!);
-    case HomePageType.Organization:
-      return getOrganizationUrl(homepage.parameter!);
-    case HomePageType.MyProjects:
+    case 'APPLICATION':
+      return homepage.branch
+        ? getProjectUrl(homepage.component, homepage.branch)
+        : getProjectUrl(homepage.component);
+    case 'PROJECT':
+      return homepage.branch
+        ? getLongLivingBranchUrl(homepage.component, homepage.branch)
+        : getProjectUrl(homepage.component);
+    case 'ORGANIZATION':
+      return getOrganizationUrl(homepage.organization);
+    case 'PORTFOLIO':
+      return getPortfolioUrl(homepage.component);
+    case 'PORTFOLIOS':
+      return '/portfolios';
+    case 'MY_PROJECTS':
       return '/projects';
-    case HomePageType.MyIssues:
+    case 'ISSUES':
+    case 'MY_ISSUES':
       return { pathname: '/issues', query: { resolved: 'false' } };
   }
 
   // should never happen, but just in case...
   return '/projects';
+}
+
+export function getReturnUrl(location: { hash?: string; query?: { return_to?: string } }) {
+  const returnTo = location.query && location.query['return_to'];
+  if (isRelativeUrl(returnTo)) {
+    return returnTo + (location.hash ? location.hash : '');
+  }
+  return getBaseUrl() + '/';
+}
+
+export function isRelativeUrl(url?: string): boolean {
+  const regex = new RegExp(/^\/[^/\\]/);
+  return Boolean(url && regex.test(url));
 }

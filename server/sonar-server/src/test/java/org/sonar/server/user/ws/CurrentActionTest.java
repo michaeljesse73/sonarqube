@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,56 +19,73 @@
  */
 package org.sonar.server.user.ws;
 
+import java.util.Collections;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.sonar.api.config.internal.MapSettings;
+import org.sonar.api.resources.Qualifiers;
+import org.sonar.api.resources.ResourceType;
+import org.sonar.api.resources.ResourceTypeTree;
+import org.sonar.api.resources.ResourceTypes;
 import org.sonar.api.server.ws.WebService;
 import org.sonar.api.utils.System2;
-import org.sonar.db.DbClient;
+import org.sonar.core.platform.PluginRepository;
 import org.sonar.db.DbTester;
+import org.sonar.db.component.ComponentDto;
+import org.sonar.db.organization.OrganizationDto;
 import org.sonar.db.user.UserDto;
 import org.sonar.server.issue.ws.AvatarResolverImpl;
-import org.sonar.server.organization.DefaultOrganizationProvider;
 import org.sonar.server.organization.TestDefaultOrganizationProvider;
+import org.sonar.server.organization.TestOrganizationFlags;
+import org.sonar.server.permission.PermissionService;
+import org.sonar.server.permission.PermissionServiceImpl;
 import org.sonar.server.tester.UserSessionRule;
 import org.sonar.server.ws.WsActionTester;
 import org.sonarqube.ws.Users.CurrentWsResponse;
 
 import static com.google.common.collect.Lists.newArrayList;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
+import static org.mockito.Mockito.mock;
+import static org.sonar.api.web.UserRole.USER;
 import static org.sonar.db.permission.OrganizationPermission.ADMINISTER;
 import static org.sonar.db.permission.OrganizationPermission.ADMINISTER_QUALITY_PROFILES;
 import static org.sonar.db.permission.OrganizationPermission.PROVISION_PROJECTS;
 import static org.sonar.db.permission.OrganizationPermission.SCAN;
 import static org.sonar.db.user.GroupTesting.newGroupDto;
 import static org.sonar.test.JsonAssert.assertJson;
-import static org.sonarqube.ws.Users.CurrentWsResponse.HomepageType.MY_PROJECTS;
 
 public class CurrentActionTest {
   @Rule
-  public UserSessionRule userSessionRule = UserSessionRule.standalone();
+  public UserSessionRule userSession = UserSessionRule.standalone();
   @Rule
   public DbTester db = DbTester.create(System2.INSTANCE);
   @Rule
   public ExpectedException expectedException = ExpectedException.none();
 
-  private DbClient dbClient = db.getDbClient();
-  private DefaultOrganizationProvider defaultOrganizationProvider = TestDefaultOrganizationProvider.from(db);
-  private WsActionTester ws = new WsActionTester(new CurrentAction(userSessionRule, dbClient, defaultOrganizationProvider, new AvatarResolverImpl()));
+  private PluginRepository pluginRepository = mock(PluginRepository.class);
+  private MapSettings settings = new MapSettings();
+  private TestOrganizationFlags organizationFlags = TestOrganizationFlags.standalone();
+  private HomepageTypesImpl homepageTypes = new HomepageTypesImpl(settings.asConfig(), organizationFlags, db.getDbClient());
+  private PermissionService permissionService = new PermissionServiceImpl(new ResourceTypes(new ResourceTypeTree[] {
+    ResourceTypeTree.builder().addType(ResourceType.builder(Qualifiers.PROJECT).build()).build()}));
+
+  private WsActionTester ws = new WsActionTester(
+    new CurrentAction(userSession, db.getDbClient(), TestDefaultOrganizationProvider.from(db), new AvatarResolverImpl(), homepageTypes, pluginRepository, permissionService));
 
   @Test
   public void return_user_info() {
-    db.users().insertUser(user -> user
+    UserDto user = db.users().insertUser(u -> u
       .setLogin("obiwan.kenobi")
       .setName("Obiwan Kenobi")
       .setEmail("obiwan.kenobi@starwars.com")
       .setLocal(true)
-      .setExternalIdentity("obiwan")
+      .setExternalLogin("obiwan")
       .setExternalIdentityProvider("sonarqube")
       .setScmAccounts(newArrayList("obiwan:github", "obiwan:bitbucket"))
-      .setOnboarded(false)
-      .setHomepageType("MY_PROJECTS"));
-    userSessionRule.logIn("obiwan.kenobi");
+      .setOnboarded(false));
+    userSession.logIn(user);
 
     CurrentWsResponse response = call();
 
@@ -78,31 +95,26 @@ public class CurrentActionTest {
         CurrentWsResponse::getExternalIdentity, CurrentWsResponse::getExternalProvider, CurrentWsResponse::getScmAccountsList, CurrentWsResponse::getShowOnboardingTutorial)
       .containsExactly(true, "obiwan.kenobi", "Obiwan Kenobi", "obiwan.kenobi@starwars.com", "f5aa64437a1821ffe8b563099d506aef", true, "obiwan", "sonarqube",
         newArrayList("obiwan:github", "obiwan:bitbucket"), true);
-
-    assertThat(response.getHomepage()).isNotNull();
-    assertThat(response.getHomepage()).extracting(CurrentWsResponse.Homepage::getType)
-      .containsExactly(MY_PROJECTS);
-
   }
 
   @Test
   public void return_minimal_user_info() {
-    db.users().insertUser(user -> user
+    UserDto user = db.users().insertUser(u -> u
       .setLogin("obiwan.kenobi")
       .setName("Obiwan Kenobi")
       .setEmail(null)
       .setLocal(true)
-      .setExternalIdentity("obiwan")
+      .setExternalLogin("obiwan")
       .setExternalIdentityProvider("sonarqube")
       .setScmAccounts((String) null));
-    userSessionRule.logIn("obiwan.kenobi");
+    userSession.logIn(user);
 
     CurrentWsResponse response = call();
 
     assertThat(response)
       .extracting(CurrentWsResponse::getIsLoggedIn, CurrentWsResponse::getLogin, CurrentWsResponse::getName, CurrentWsResponse::hasAvatar, CurrentWsResponse::getLocal,
-        CurrentWsResponse::getExternalIdentity, CurrentWsResponse::getExternalProvider)
-      .containsExactly(true, "obiwan.kenobi", "Obiwan Kenobi", false, true, "obiwan", "sonarqube");
+        CurrentWsResponse::getExternalIdentity, CurrentWsResponse::getExternalProvider, CurrentWsResponse::hasPersonalOrganization, CurrentWsResponse::getSettingsList)
+      .containsExactly(true, "obiwan.kenobi", "Obiwan Kenobi", false, true, "obiwan", "sonarqube", false, Collections.emptyList());
     assertThat(response.hasEmail()).isFalse();
     assertThat(response.getScmAccountsList()).isEmpty();
     assertThat(response.getGroupsList()).isEmpty();
@@ -111,10 +123,10 @@ public class CurrentActionTest {
 
   @Test
   public void convert_empty_email_to_null() {
-    db.users().insertUser(user -> user
+    UserDto user = db.users().insertUser(u -> u
       .setLogin("obiwan.kenobi")
       .setEmail(""));
-    userSessionRule.logIn("obiwan.kenobi");
+    userSession.logIn(user);
 
     CurrentWsResponse response = call();
 
@@ -124,7 +136,7 @@ public class CurrentActionTest {
   @Test
   public void return_group_membership() {
     UserDto user = db.users().insertUser();
-    userSessionRule.logIn(user.getLogin());
+    userSession.logIn(user);
     db.users().insertMember(db.users().insertGroup(newGroupDto().setName("Jedi")), user);
     db.users().insertMember(db.users().insertGroup(newGroupDto().setName("Rebel")), user);
 
@@ -136,8 +148,8 @@ public class CurrentActionTest {
   @Test
   public void return_permissions() {
     UserDto user = db.users().insertUser();
-    userSessionRule
-      .logIn(user.getLogin())
+    userSession
+      .logIn(user)
       // permissions on default organization
       .addPermission(SCAN, db.getDefaultOrganization())
       .addPermission(ADMINISTER_QUALITY_PROFILES, db.getDefaultOrganization())
@@ -150,9 +162,41 @@ public class CurrentActionTest {
   }
 
   @Test
+  public void return_personal_organization() {
+    OrganizationDto organization = db.organizations().insert();
+    UserDto user = db.users().insertUser(u -> u.setOrganizationUuid(organization.getUuid()));
+    userSession.logIn(user);
+
+    CurrentWsResponse response = call();
+
+    assertThat(response.getPersonalOrganization()).isEqualTo(organization.getKey());
+  }
+
+  @Test
+  public void return_user_settings() {
+    UserDto user = db.users().insertUser();
+    db.users().insertUserSetting(user, userSetting -> userSetting
+      .setKey("notifications.readDate")
+      .setValue("1234"));
+    db.users().insertUserSetting(user, userSetting -> userSetting
+      .setKey("notifications.optOut")
+      .setValue("true"));
+    db.commit();
+    userSession.logIn(user);
+
+    CurrentWsResponse response = call();
+
+    assertThat(response.getSettingsList())
+      .extracting(CurrentWsResponse.Setting::getKey, CurrentWsResponse.Setting::getValue)
+      .containsExactlyInAnyOrder(
+        tuple("notifications.optOut", "true"),
+        tuple("notifications.readDate", "1234"));
+  }
+
+  @Test
   public void fail_with_ISE_when_user_login_in_db_does_not_exist() {
     db.users().insertUser(usert -> usert.setLogin("another"));
-    userSessionRule.logIn("obiwan.kenobi");
+    userSession.logIn("obiwan.kenobi");
 
     expectedException.expect(IllegalStateException.class);
     expectedException.expectMessage("User login 'obiwan.kenobi' cannot be found");
@@ -161,8 +205,19 @@ public class CurrentActionTest {
   }
 
   @Test
+  public void fail_with_ISE_when_personal_organization_does_not_exist() {
+    UserDto user = db.users().insertUser(u -> u.setOrganizationUuid("Unknown"));
+    userSession.logIn(user);
+
+    expectedException.expect(IllegalStateException.class);
+    expectedException.expectMessage("Organization uuid 'Unknown' does not exist");
+
+    call();
+  }
+
+  @Test
   public void anonymous() {
-    userSessionRule
+    userSession
       .anonymous()
       .addPermission(SCAN, db.getDefaultOrganization())
       .addPermission(PROVISION_PROJECTS, db.getDefaultOrganization());
@@ -181,25 +236,25 @@ public class CurrentActionTest {
 
   @Test
   public void json_example() {
-    userSessionRule
-      .logIn("obiwan.kenobi")
-      .addPermission(SCAN, db.getDefaultOrganization())
-      .addPermission(ADMINISTER_QUALITY_PROFILES, db.getDefaultOrganization());
+    ComponentDto componentDto = db.components().insertPrivateProject(u -> u.setUuid("UUID-of-the-death-star"), u -> u.setDbKey("death-star-key"));
     UserDto obiwan = db.users().insertUser(user -> user
       .setLogin("obiwan.kenobi")
       .setName("Obiwan Kenobi")
       .setEmail("obiwan.kenobi@starwars.com")
       .setLocal(true)
-      .setExternalIdentity("obiwan.kenobi")
+      .setExternalLogin("obiwan.kenobi")
       .setExternalIdentityProvider("sonarqube")
       .setScmAccounts(newArrayList("obiwan:github", "obiwan:bitbucket"))
       .setOnboarded(true)
       .setHomepageType("PROJECT")
       .setHomepageParameter("UUID-of-the-death-star"));
+    userSession
+      .logIn(obiwan)
+      .addPermission(SCAN, db.getDefaultOrganization())
+      .addPermission(ADMINISTER_QUALITY_PROFILES, db.getDefaultOrganization())
+      .addProjectPermission(USER, componentDto);
     db.users().insertMember(db.users().insertGroup(newGroupDto().setName("Jedi")), obiwan);
     db.users().insertMember(db.users().insertGroup(newGroupDto().setName("Rebel")), obiwan);
-
-    db.components().insertPublicProject(u->u.setUuid("UUID-of-the-death-star"), u->u.setDbKey("death-star-key"));
 
     String response = ws.newRequest().execute().getInput();
 
@@ -216,34 +271,11 @@ public class CurrentActionTest {
     assertThat(definition.isInternal()).isTrue();
     assertThat(definition.responseExampleAsString()).isNotEmpty();
     assertThat(definition.params()).isEmpty();
-    assertThat(definition.changelog()).hasSize(1);
+    assertThat(definition.changelog()).hasSize(2);
   }
 
   private CurrentWsResponse call() {
     return ws.newRequest().executeProtobuf(CurrentWsResponse.class);
   }
-
-  @Test
-  public void fail_with_ISE_when_user_homepage_project_does_not_exist_in_db() {
-    UserDto user = db.users().insertUser(u -> u.setHomepageType("PROJECT").setHomepageParameter("not-existing-project-uuid"));
-    userSessionRule.logIn(user.getLogin());
-
-    expectedException.expect(IllegalStateException.class);
-    expectedException.expectMessage("Unknown component 'not-existing-project-uuid' for homepageParameter");
-
-    call();
-  }
-
-  @Test
-  public void fail_with_ISE_when_user_homepage_organization_does_not_exist_in_db() {
-    UserDto user = db.users().insertUser(u -> u.setHomepageType("ORGANIZATION").setHomepageParameter("not-existing-organization-uuid"));
-    userSessionRule.logIn(user.getLogin());
-
-    expectedException.expect(IllegalStateException.class);
-    expectedException.expectMessage("Unknown organization 'not-existing-organization-uuid' for homepageParameter");
-
-    call();
-  }
-
 
 }

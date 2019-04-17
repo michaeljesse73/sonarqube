@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,14 +19,17 @@
  */
 package org.sonar.api.batch.fs.internal;
 
+import org.sonar.api.batch.fs.InputFile;
+
 /**
- * A shared, mutable object in the module container.
+ * A shared, mutable object in the project container.
  * It's used during the execution of sensors to decide whether
  * sensors should be executed once for the entire project, or per-module.
+ * It is also injected into each InputFile to change the behavior of {@link InputFile#relativePath()}
  */
 public class SensorStrategy {
 
-  private boolean global = false;
+  private boolean global = true;
 
   public boolean isGlobal() {
     return global;

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -29,10 +29,8 @@ import org.sonar.api.config.internal.MapSettings;
 import org.sonar.api.resources.Languages;
 import org.sonar.api.resources.Qualifiers;
 import org.sonar.api.rule.RuleKey;
-import org.sonar.api.server.ws.WebService;
 import org.sonar.api.utils.Durations;
 import org.sonar.api.utils.System2;
-import org.sonar.api.web.UserRole;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbTester;
 import org.sonar.db.component.ComponentDto;
@@ -41,18 +39,16 @@ import org.sonar.db.organization.OrganizationDto;
 import org.sonar.db.rule.RuleDefinitionDto;
 import org.sonar.server.es.EsTester;
 import org.sonar.server.issue.IssueFieldsSetter;
-import org.sonar.server.issue.IssueQueryFactory;
 import org.sonar.server.issue.TransitionService;
 import org.sonar.server.issue.index.IssueIndex;
-import org.sonar.server.issue.index.IssueIndexDefinition;
 import org.sonar.server.issue.index.IssueIndexer;
 import org.sonar.server.issue.index.IssueIteratorFactory;
+import org.sonar.server.issue.index.IssueQueryFactory;
 import org.sonar.server.issue.workflow.FunctionExecutor;
 import org.sonar.server.issue.workflow.IssueWorkflow;
-import org.sonar.server.permission.index.AuthorizationTypeSupport;
 import org.sonar.server.permission.index.PermissionIndexerTester;
+import org.sonar.server.permission.index.WebAuthorizationTypeSupport;
 import org.sonar.server.tester.UserSessionRule;
-import org.sonar.server.view.index.ViewIndexDefinition;
 import org.sonar.server.view.index.ViewIndexer;
 import org.sonar.server.ws.WsActionTester;
 import org.sonar.server.ws.WsResponseCommonFormat;
@@ -60,14 +56,17 @@ import org.sonarqube.ws.Issues;
 import org.sonarqube.ws.Issues.Component;
 import org.sonarqube.ws.Issues.Issue;
 import org.sonarqube.ws.Issues.SearchWsResponse;
-import org.sonarqube.ws.client.issue.IssuesWsParameters;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
+import static org.sonar.api.resources.Qualifiers.APP;
 import static org.sonar.api.utils.DateUtils.addDays;
 import static org.sonar.api.utils.DateUtils.parseDateTime;
+import static org.sonar.api.web.UserRole.USER;
 import static org.sonar.core.util.Uuids.UUID_EXAMPLE_01;
 import static org.sonar.core.util.Uuids.UUID_EXAMPLE_02;
+import static org.sonar.db.component.BranchType.PULL_REQUEST;
+import static org.sonar.db.component.BranchType.SHORT;
 import static org.sonar.db.component.ComponentTesting.newDirectory;
 import static org.sonar.db.component.ComponentTesting.newFileDto;
 import static org.sonar.db.component.ComponentTesting.newModuleDto;
@@ -77,7 +76,13 @@ import static org.sonar.db.component.ComponentTesting.newView;
 import static org.sonar.db.issue.IssueTesting.newIssue;
 import static org.sonarqube.ws.client.component.ComponentsWsParameters.PARAM_BRANCH;
 import static org.sonarqube.ws.client.issue.IssuesWsParameters.PARAM_COMPONENT_KEYS;
+import static org.sonarqube.ws.client.issue.IssuesWsParameters.PARAM_COMPONENT_UUIDS;
+import static org.sonarqube.ws.client.issue.IssuesWsParameters.PARAM_DIRECTORIES;
+import static org.sonarqube.ws.client.issue.IssuesWsParameters.PARAM_FILE_UUIDS;
+import static org.sonarqube.ws.client.issue.IssuesWsParameters.PARAM_MODULE_UUIDS;
+import static org.sonarqube.ws.client.issue.IssuesWsParameters.PARAM_PROJECTS;
 import static org.sonarqube.ws.client.issue.IssuesWsParameters.PARAM_PROJECT_KEYS;
+import static org.sonarqube.ws.client.issue.IssuesWsParameters.PARAM_PULL_REQUEST;
 import static org.sonarqube.ws.client.issue.IssuesWsParameters.PARAM_SINCE_LEAK_PERIOD;
 
 public class SearchActionComponentsTest {
@@ -89,10 +94,10 @@ public class SearchActionComponentsTest {
   @Rule
   public DbTester db = DbTester.create();
   @Rule
-  public EsTester es = new EsTester(new IssueIndexDefinition(new MapSettings().asConfig()), new ViewIndexDefinition(new MapSettings().asConfig()));
+  public EsTester es = EsTester.create();
 
   private DbClient dbClient = db.getDbClient();
-  private IssueIndex issueIndex = new IssueIndex(es.client(), System2.INSTANCE, userSession, new AuthorizationTypeSupport(userSession));
+  private IssueIndex issueIndex = new IssueIndex(es.client(), System2.INSTANCE, userSession, new WebAuthorizationTypeSupport(userSession));
   private IssueIndexer issueIndexer = new IssueIndexer(es.client(), dbClient, new IssueIteratorFactory(dbClient));
   private ViewIndexer viewIndexer = new ViewIndexer(dbClient, es.client());
   private IssueQueryFactory issueQueryFactory = new IssueQueryFactory(dbClient, Clock.systemUTC(), userSession);
@@ -103,8 +108,8 @@ public class SearchActionComponentsTest {
   private SearchResponseFormat searchResponseFormat = new SearchResponseFormat(new Durations(), new WsResponseCommonFormat(languages), languages, new AvatarResolverImpl());
   private PermissionIndexerTester permissionIndexer = new PermissionIndexerTester(es, issueIndexer);
 
-  private WsActionTester ws = new WsActionTester(new SearchAction(userSession, issueIndex, issueQueryFactory, searchResponseLoader, searchResponseFormat, System2.INSTANCE,
-    dbClient));
+  private WsActionTester ws = new WsActionTester(new SearchAction(userSession, issueIndex, issueQueryFactory, searchResponseLoader, searchResponseFormat,
+    new MapSettings().asConfig(), System2.INSTANCE, dbClient));
 
   @Test
   public void search_all_issues_when_no_parameter() {
@@ -148,6 +153,30 @@ public class SearchActionComponentsTest {
   }
 
   @Test
+  public void search_by_module() {
+    ComponentDto project = db.components().insertPublicProject();
+    ComponentDto module1 = db.components().insertComponent(newModuleDto(project));
+    ComponentDto file1 = db.components().insertComponent(newFileDto(module1));
+    ComponentDto module2 = db.components().insertComponent(newModuleDto(project));
+    ComponentDto file2 = db.components().insertComponent(newFileDto(module2));
+    RuleDefinitionDto rule = db.rules().insert();
+    IssueDto issue1 = db.issues().insert(rule, project, file1);
+    IssueDto issue2 = db.issues().insert(rule, project, file2);
+    allowAnyoneOnProjects(project);
+    indexIssues();
+
+    assertThat(ws.newRequest()
+      .setParam(PARAM_COMPONENT_KEYS, module1.getKey())
+      .executeProtobuf(SearchWsResponse.class).getIssuesList()).extracting(Issue::getKey)
+        .containsExactlyInAnyOrder(issue1.getKey());
+
+    assertThat(ws.newRequest()
+      .setParam(PARAM_MODULE_UUIDS, module1.uuid())
+      .executeProtobuf(SearchWsResponse.class).getIssuesList()).extracting(Issue::getKey)
+        .containsExactlyInAnyOrder(issue1.getKey());
+  }
+
+  @Test
   public void do_not_return_module_key_on_single_module_projects() {
     ComponentDto project = db.components().insertPublicProject(p -> p.setDbKey("PK1"));
     ComponentDto module = db.components().insertComponent(newModuleDto("M1", project).setDbKey("MK1"));
@@ -172,37 +201,7 @@ public class SearchActionComponentsTest {
   }
 
   @Test
-  public void search_by_project_uuid() throws Exception {
-    ComponentDto project = db.components().insertPublicProject(p -> p.setDbKey("PK1"));
-    ComponentDto file = db.components().insertComponent(newFileDto(project, null, "F1").setDbKey("FK1"));
-    RuleDefinitionDto rule = db.rules().insert(r -> r.setRuleKey(RuleKey.of("xoo", "x1")));
-    db.issues().insert(rule, project, file, i -> i.setKee("82fd47d4-b650-4037-80bc-7b112bd4eac2"));
-    allowAnyoneOnProjects(project);
-    indexIssues();
-
-    ws.newRequest()
-      .setParam(IssuesWsParameters.PARAM_PROJECT_UUIDS, project.uuid())
-      .execute()
-      .assertJson(this.getClass(), "search_by_project_uuid.json");
-
-    ws.newRequest()
-      .setParam(IssuesWsParameters.PARAM_PROJECT_UUIDS, "unknown")
-      .execute()
-      .assertJson(this.getClass(), "no_issue.json");
-
-    ws.newRequest()
-      .setParam(IssuesWsParameters.PARAM_COMPONENT_UUIDS, project.uuid())
-      .execute()
-      .assertJson(this.getClass(), "search_by_project_uuid.json");
-
-    ws.newRequest()
-      .setParam(IssuesWsParameters.PARAM_COMPONENT_UUIDS, "unknown")
-      .execute()
-      .assertJson(this.getClass(), "no_issue.json");
-  }
-
-  @Test
-  public void search_since_leak_period_on_project() throws Exception {
+  public void search_since_leak_period_on_project() {
     ComponentDto project = db.components().insertPublicProject(p -> p.setDbKey("PK1"));
     ComponentDto file = db.components().insertComponent(newFileDto(project, null, "F1").setDbKey("FK1"));
     db.components().insertSnapshot(project, a -> a.setPeriodDate(parseDateTime("2015-09-03T00:00:00+0100").getTime()));
@@ -217,14 +216,14 @@ public class SearchActionComponentsTest {
     indexIssues();
 
     ws.newRequest()
-      .setParam(IssuesWsParameters.PARAM_COMPONENT_UUIDS, project.uuid())
+      .setParam(PARAM_COMPONENT_UUIDS, project.uuid())
       .setParam(PARAM_SINCE_LEAK_PERIOD, "true")
       .execute()
       .assertJson(this.getClass(), "search_since_leak_period.json");
   }
 
   @Test
-  public void search_since_leak_period_on_file_in_module_project() throws Exception {
+  public void search_since_leak_period_on_file_in_module_project() {
     ComponentDto project = db.components().insertPublicProject(p -> p.setDbKey("PK1"));
     ComponentDto module = db.components().insertComponent(newModuleDto(project));
     ComponentDto file = db.components().insertComponent(newFileDto(module, null, "F1").setDbKey("FK1"));
@@ -240,40 +239,15 @@ public class SearchActionComponentsTest {
     indexIssues();
 
     ws.newRequest()
-      .setParam(IssuesWsParameters.PARAM_COMPONENT_UUIDS, project.uuid())
-      .setParam(IssuesWsParameters.PARAM_FILE_UUIDS, file.uuid())
+      .setParam(PARAM_COMPONENT_UUIDS, project.uuid())
+      .setParam(PARAM_FILE_UUIDS, file.uuid())
       .setParam(PARAM_SINCE_LEAK_PERIOD, "true")
       .execute()
       .assertJson(this.getClass(), "search_since_leak_period.json");
   }
 
   @Test
-  public void project_facet_is_sticky() throws Exception {
-    OrganizationDto organization1 = db.organizations().insert();
-    OrganizationDto organization2 = db.organizations().insert();
-    OrganizationDto organization3 = db.organizations().insert();
-    ComponentDto project1 = db.components().insertPublicProject(organization1, "P1");
-    ComponentDto project2 = db.components().insertPublicProject(organization2, "P2");
-    ComponentDto project3 = db.components().insertPublicProject(organization3, "P3");
-    ComponentDto file1 = db.components().insertComponent(newFileDto(project1, null, "F1").setDbKey("FK1"));
-    ComponentDto file2 = db.components().insertComponent(newFileDto(project2, null, "F2").setDbKey("FK2"));
-    ComponentDto file3 = db.components().insertComponent(newFileDto(project3, null, "F3").setDbKey("FK3"));
-    RuleDefinitionDto rule = db.rules().insert(r -> r.setRuleKey(RuleKey.of("xoo", "x1")));
-    db.issues().insert(rule, project1, file1, i -> i.setKee("82fd47d4-b650-4037-80bc-7b112bd4eac2"));
-    db.issues().insert(rule, project2, file2, i -> i.setKee("2bd4eac2-b650-4037-80bc-7b1182fd47d4"));
-    db.issues().insert(rule, project3, file3, i -> i.setKee("7b1182fd-b650-4037-80bc-82fd47d4eac2"));
-    allowAnyoneOnProjects(project1, project2, project3);
-    indexIssues();
-
-    ws.newRequest()
-      .setParam(IssuesWsParameters.PARAM_PROJECT_UUIDS, project1.uuid())
-      .setParam(WebService.Param.FACETS, "projectUuids")
-      .execute()
-      .assertJson(this.getClass(), "display_sticky_project_facet.json");
-  }
-
-  @Test
-  public void search_by_file_uuid() throws Exception {
+  public void search_by_file_uuid() {
     ComponentDto project = db.components().insertPublicProject(p -> p.setDbKey("PK1"));
     ComponentDto file = db.components().insertComponent(newFileDto(project, null, "F1").setDbKey("FK1"));
     RuleDefinitionDto rule = db.rules().insert(r -> r.setRuleKey(RuleKey.of("xoo", "x1")));
@@ -282,28 +256,28 @@ public class SearchActionComponentsTest {
     indexIssues();
 
     ws.newRequest()
-      .setParam(IssuesWsParameters.PARAM_FILE_UUIDS, file.uuid())
+      .setParam(PARAM_FILE_UUIDS, file.uuid())
       .execute()
       .assertJson(this.getClass(), "search_by_file_uuid.json");
 
     ws.newRequest()
-      .setParam(IssuesWsParameters.PARAM_FILE_UUIDS, "unknown")
+      .setParam(PARAM_FILE_UUIDS, "unknown")
       .execute()
       .assertJson(this.getClass(), "no_issue.json");
 
     ws.newRequest()
-      .setParam(IssuesWsParameters.PARAM_COMPONENT_UUIDS, file.uuid())
+      .setParam(PARAM_COMPONENT_UUIDS, file.uuid())
       .execute()
       .assertJson(this.getClass(), "search_by_file_uuid.json");
 
     ws.newRequest()
-      .setParam(IssuesWsParameters.PARAM_COMPONENT_UUIDS, "unknown")
+      .setParam(PARAM_COMPONENT_UUIDS, "unknown")
       .execute()
       .assertJson(this.getClass(), "no_issue.json");
   }
 
   @Test
-  public void search_by_file_key() throws Exception {
+  public void search_by_file_key() {
     ComponentDto project = db.components().insertPublicProject(p -> p.setDbKey("PK1"));
     ComponentDto file = db.components().insertComponent(newFileDto(project, null, "F1").setDbKey("FK1"));
     ComponentDto unitTest = db.components().insertComponent(newFileDto(project, null, "F2").setQualifier(Qualifiers.UNIT_TEST_FILE).setDbKey("FK2"));
@@ -314,78 +288,18 @@ public class SearchActionComponentsTest {
     indexIssues();
 
     ws.newRequest()
-      .setParam(IssuesWsParameters.PARAM_COMPONENTS, file.getDbKey())
+      .setParam(PARAM_COMPONENT_KEYS, file.getKey())
       .execute()
       .assertJson(this.getClass(), "search_by_file_key.json");
 
     ws.newRequest()
-      .setParam(IssuesWsParameters.PARAM_COMPONENTS, unitTest.getDbKey())
+      .setParam(PARAM_COMPONENT_KEYS, unitTest.getKey())
       .execute()
       .assertJson(this.getClass(), "search_by_test_key.json");
   }
 
   @Test
-  public void display_file_facet_with_project() throws Exception {
-    OrganizationDto organization = db.organizations().insert();
-    ComponentDto project = db.components().insertPublicProject(organization, p -> p.setDbKey("PK1"));
-    ComponentDto file1 = db.components().insertComponent(newFileDto(project, null, "F1").setDbKey("FK1"));
-    ComponentDto file2 = db.components().insertComponent(newFileDto(project, null, "F2").setDbKey("FK2"));
-    ComponentDto file3 = db.components().insertComponent(newFileDto(project, null, "F3").setDbKey("FK3"));
-    RuleDefinitionDto rule = db.rules().insert(r -> r.setRuleKey(RuleKey.of("xoo", "x1")));
-    db.issues().insert(rule, project, file1, i -> i.setKee("82fd47d4-b650-4037-80bc-7b112bd4eac2"));
-    db.issues().insert(rule, project, file2, i -> i.setKee("2bd4eac2-b650-4037-80bc-7b1182fd47d4"));
-    allowAnyoneOnProjects(project);
-    indexIssues();
-
-    ws.newRequest()
-      .setParam(IssuesWsParameters.PARAM_COMPONENT_KEYS, project.getKey())
-      .setParam(IssuesWsParameters.PARAM_FILE_UUIDS, file1.uuid() + "," + file3.uuid())
-      .setParam(WebService.Param.FACETS, "fileUuids")
-      .execute()
-      .assertJson(this.getClass(), "display_file_facet.json");
-  }
-
-  @Test
-  public void display_file_facet_with_organization() throws Exception {
-    OrganizationDto organization = db.organizations().insert();
-    ComponentDto project = db.components().insertPublicProject(organization, p -> p.setDbKey("PK1"));
-    ComponentDto file1 = db.components().insertComponent(newFileDto(project, null, "F1").setDbKey("FK1"));
-    ComponentDto file2 = db.components().insertComponent(newFileDto(project, null, "F2").setDbKey("FK2"));
-    ComponentDto file3 = db.components().insertComponent(newFileDto(project, null, "F3").setDbKey("FK3"));
-    RuleDefinitionDto rule = db.rules().insert(r -> r.setRuleKey(RuleKey.of("xoo", "x1")));
-    db.issues().insert(rule, project, file1, i -> i.setKee("82fd47d4-b650-4037-80bc-7b112bd4eac2"));
-    db.issues().insert(rule, project, file2, i -> i.setKee("2bd4eac2-b650-4037-80bc-7b1182fd47d4"));
-    allowAnyoneOnProjects(project);
-    indexIssues();
-
-    ws.newRequest()
-      .setParam(IssuesWsParameters.PARAM_ORGANIZATION, organization.getKey())
-      .setParam(IssuesWsParameters.PARAM_FILE_UUIDS, file1.uuid() + "," + file3.uuid())
-      .setParam(WebService.Param.FACETS, "fileUuids")
-      .execute()
-      .assertJson(this.getClass(), "display_file_facet.json");
-  }
-
-  @Test
-  public void fail_to_display_file_facet_when_no_organization_or_project_is_set() {
-    ComponentDto project = db.components().insertPublicProject();
-    ComponentDto file = db.components().insertComponent(newFileDto(project));
-    RuleDefinitionDto rule = db.rules().insert();
-    db.issues().insert(rule, project, file);
-    allowAnyoneOnProjects(project);
-    indexIssues();
-
-    expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("Facet(s) 'fileUuids' require to also filter by project or organization");
-
-    ws.newRequest()
-      .setParam(IssuesWsParameters.PARAM_FILE_UUIDS, file.uuid())
-      .setParam(WebService.Param.FACETS, "fileUuids")
-      .execute();
-  }
-
-  @Test
-  public void search_by_directory_path() throws Exception {
+  public void search_by_directory_path() {
     ComponentDto project = db.components().insertPublicProject(p -> p.setDbKey("PK1"));
     ComponentDto directory = db.components().insertComponent(newDirectory(project, "D1", "src/main/java/dir"));
     ComponentDto file = db.components().insertComponent(newFileDto(project, null, "F1").setDbKey("FK1").setPath(directory.path() + "/MyComponent.java"));
@@ -395,28 +309,28 @@ public class SearchActionComponentsTest {
     indexIssues();
 
     ws.newRequest()
-      .setParam(IssuesWsParameters.PARAM_COMPONENT_UUIDS, directory.uuid())
+      .setParam(PARAM_COMPONENT_KEYS, directory.getKey())
       .execute()
       .assertJson(this.getClass(), "search_by_file_uuid.json");
 
     ws.newRequest()
-      .setParam(IssuesWsParameters.PARAM_COMPONENT_UUIDS, "unknown")
+      .setParam(PARAM_DIRECTORIES, "unknown")
       .execute()
       .assertJson(this.getClass(), "no_issue.json");
 
     ws.newRequest()
-      .setParam(IssuesWsParameters.PARAM_DIRECTORIES, "src/main/java/dir")
+      .setParam(PARAM_DIRECTORIES, "src/main/java/dir")
       .execute()
       .assertJson(this.getClass(), "search_by_file_uuid.json");
 
     ws.newRequest()
-      .setParam(IssuesWsParameters.PARAM_DIRECTORIES, "src/main/java")
+      .setParam(PARAM_DIRECTORIES, "src/main/java")
       .execute()
       .assertJson(this.getClass(), "no_issue.json");
   }
 
   @Test
-  public void search_by_directory_path_in_different_modules() throws Exception {
+  public void search_by_directory_path_in_different_modules() {
     ComponentDto project = db.components().insertPublicProject(p -> p.setDbKey("PK1"));
     ComponentDto module1 = db.components().insertComponent(newModuleDto("M1", project).setDbKey("MK1"));
     ComponentDto module2 = db.components().insertComponent(newModuleDto("M2", project).setDbKey("MK2"));
@@ -430,165 +344,40 @@ public class SearchActionComponentsTest {
     indexIssues();
 
     ws.newRequest()
-      .setParam(IssuesWsParameters.PARAM_COMPONENT_UUIDS, directory1.uuid())
+      .setParam(PARAM_COMPONENT_KEYS, directory1.getKey())
       .execute()
       .assertJson(this.getClass(), "search_by_directory_uuid.json");
 
     ws.newRequest()
-      .setParam(IssuesWsParameters.PARAM_COMPONENT_UUIDS, directory2.uuid())
+      .setParam(PARAM_COMPONENT_KEYS, directory2.getKey())
       .execute()
       .assertJson(this.getClass(), "no_issue.json");
 
     ws.newRequest()
-      .setParam(IssuesWsParameters.PARAM_MODULE_UUIDS, module1.uuid())
-      .setParam(IssuesWsParameters.PARAM_DIRECTORIES, "src/main/java/dir")
+      .setParam(PARAM_MODULE_UUIDS, module1.uuid())
+      .setParam(PARAM_DIRECTORIES, "src/main/java/dir")
       .execute()
       .assertJson(this.getClass(), "search_by_directory_uuid.json");
 
     ws.newRequest()
-      .setParam(IssuesWsParameters.PARAM_MODULE_UUIDS, module2.uuid())
-      .setParam(IssuesWsParameters.PARAM_DIRECTORIES, "src/main/java/dir")
+      .setParam(PARAM_MODULE_UUIDS, module2.uuid())
+      .setParam(PARAM_DIRECTORIES, "src/main/java/dir")
       .execute()
       .assertJson(this.getClass(), "no_issue.json");
 
     ws.newRequest()
-      .setParam(IssuesWsParameters.PARAM_DIRECTORIES, "src/main/java/dir")
+      .setParam(PARAM_DIRECTORIES, "src/main/java/dir")
       .execute()
       .assertJson(this.getClass(), "search_by_directory_uuid.json");
 
     ws.newRequest()
-      .setParam(IssuesWsParameters.PARAM_DIRECTORIES, "src/main/java")
+      .setParam(PARAM_DIRECTORIES, "src/main/java")
       .execute()
       .assertJson(this.getClass(), "no_issue.json");
   }
 
   @Test
-  public void display_module_facet_using_project() throws Exception {
-    ComponentDto project = db.components().insertPublicProject(p -> p.setDbKey("PK1"));
-    ComponentDto module = db.components().insertComponent(newModuleDto("M1", project).setDbKey("MK1"));
-    ComponentDto subModule1 = db.components().insertComponent(newModuleDto("SUBM1", module).setDbKey("SUBMK1"));
-    ComponentDto subModule2 = db.components().insertComponent(newModuleDto("SUBM2", module).setDbKey("SUBMK2"));
-    ComponentDto subModule3 = db.components().insertComponent(newModuleDto("SUBM3", module).setDbKey("SUBMK3"));
-    ComponentDto file1 = db.components().insertComponent(newFileDto(subModule1, null, "F1").setDbKey("FK1"));
-    ComponentDto file2 = db.components().insertComponent(newFileDto(subModule2, null, "F2").setDbKey("FK2"));
-    RuleDefinitionDto rule = db.rules().insert(r -> r.setRuleKey(RuleKey.of("xoo", "x1")));
-    IssueDto issue1 = db.issues().insert(rule, project, file1, i -> i.setKee("82fd47d4-b650-4037-80bc-7b112bd4eac2"));
-    IssueDto issue2 = db.issues().insert(rule, project, file2, i -> i.setKee("2bd4eac2-b650-4037-80bc-7b1182fd47d4"));
-    allowAnyoneOnProjects(project);
-    indexIssues();
-
-    ws.newRequest()
-      .setParam(IssuesWsParameters.PARAM_PROJECTS, project.getKey())
-      .setParam(IssuesWsParameters.PARAM_COMPONENT_UUIDS, module.uuid())
-      .setParam(IssuesWsParameters.PARAM_MODULE_UUIDS, subModule1.uuid() + "," + subModule3.uuid())
-      .setParam(WebService.Param.FACETS, "moduleUuids")
-      .execute()
-      .assertJson(this.getClass(), "display_module_facet.json");
-  }
-
-  @Test
-  public void display_module_facet_using_organization() throws Exception {
-    OrganizationDto organization = db.organizations().insert();
-    ComponentDto project = db.components().insertPublicProject(organization, p -> p.setDbKey("PK1"));
-    ComponentDto module = db.components().insertComponent(newModuleDto("M1", project).setDbKey("MK1"));
-    ComponentDto subModule1 = db.components().insertComponent(newModuleDto("SUBM1", module).setDbKey("SUBMK1"));
-    ComponentDto subModule2 = db.components().insertComponent(newModuleDto("SUBM2", module).setDbKey("SUBMK2"));
-    ComponentDto subModule3 = db.components().insertComponent(newModuleDto("SUBM3", module).setDbKey("SUBMK3"));
-    ComponentDto file1 = db.components().insertComponent(newFileDto(subModule1, null, "F1").setDbKey("FK1"));
-    ComponentDto file2 = db.components().insertComponent(newFileDto(subModule2, null, "F2").setDbKey("FK2"));
-    RuleDefinitionDto rule = db.rules().insert(r -> r.setRuleKey(RuleKey.of("xoo", "x1")));
-    IssueDto issue1 = db.issues().insert(rule, project, file1, i -> i.setKee("82fd47d4-b650-4037-80bc-7b112bd4eac2"));
-    IssueDto issue2 = db.issues().insert(rule, project, file2, i -> i.setKee("2bd4eac2-b650-4037-80bc-7b1182fd47d4"));
-    allowAnyoneOnProjects(project);
-    indexIssues();
-
-    ws.newRequest()
-      .setParam(IssuesWsParameters.PARAM_ORGANIZATION, organization.getKey())
-      .setParam(IssuesWsParameters.PARAM_COMPONENT_UUIDS, module.uuid())
-      .setParam(IssuesWsParameters.PARAM_MODULE_UUIDS, subModule1.uuid() + "," + subModule3.uuid())
-      .setParam(WebService.Param.FACETS, "moduleUuids")
-      .execute()
-      .assertJson(this.getClass(), "display_module_facet.json");
-  }
-
-  @Test
-  public void fail_to_display_module_facet_when_no_organization_or_project_is_set() {
-    ComponentDto project = db.components().insertPublicProject();
-    ComponentDto module = db.components().insertComponent(newModuleDto(project));
-    ComponentDto file = db.components().insertComponent(newFileDto(module, null));
-    RuleDefinitionDto rule = db.rules().insert();
-    db.issues().insert(rule, project, file);
-    allowAnyoneOnProjects(project);
-    indexIssues();
-
-    expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("Facet(s) 'moduleUuids' require to also filter by project or organization");
-
-    ws.newRequest()
-      .setParam(IssuesWsParameters.PARAM_COMPONENT_UUIDS, module.uuid())
-      .setParam(WebService.Param.FACETS, "moduleUuids")
-      .execute();
-  }
-
-  @Test
-  public void display_directory_facet_using_project() throws Exception {
-    ComponentDto project = db.components().insertPublicProject(p -> p.setDbKey("PK1"));
-    ComponentDto directory = db.components().insertComponent(newDirectory(project, "D1", "src/main/java/dir"));
-    ComponentDto file = db.components().insertComponent(newFileDto(project, directory, "F1").setDbKey("FK1").setPath(directory.path() + "/MyComponent.java"));
-    RuleDefinitionDto rule = db.rules().insert(r -> r.setRuleKey(RuleKey.of("xoo", "x1")));
-    IssueDto issue = db.issues().insert(rule, project, file, i -> i.setKee("82fd47d4-b650-4037-80bc-7b112bd4eac2"));
-    allowAnyoneOnProjects(project);
-    indexIssues();
-
-    userSession.logIn("john");
-    ws.newRequest()
-      .setParam("resolved", "false")
-      .setParam(IssuesWsParameters.PARAM_COMPONENT_KEYS, project.getKey())
-      .setParam(WebService.Param.FACETS, "directories")
-      .execute()
-      .assertJson(this.getClass(), "display_directory_facet.json");
-  }
-
-  @Test
-  public void display_directory_facet_using_organization() throws Exception {
-    OrganizationDto organization = db.organizations().insert();
-    ComponentDto project = db.components().insertPublicProject(organization, p -> p.setDbKey("PK1"));
-    ComponentDto directory = db.components().insertComponent(newDirectory(project, "D1", "src/main/java/dir"));
-    ComponentDto file = db.components().insertComponent(newFileDto(project, directory, "F1").setDbKey("FK1").setPath(directory.path() + "/MyComponent.java"));
-    RuleDefinitionDto rule = db.rules().insert(r -> r.setRuleKey(RuleKey.of("xoo", "x1")));
-    IssueDto issue = db.issues().insert(rule, project, file, i -> i.setKee("82fd47d4-b650-4037-80bc-7b112bd4eac2"));
-    allowAnyoneOnProjects(project);
-    indexIssues();
-
-    userSession.logIn("john");
-    ws.newRequest()
-      .setParam("resolved", "false")
-      .setParam(IssuesWsParameters.PARAM_ORGANIZATION, organization.getKey())
-      .setParam(WebService.Param.FACETS, "directories")
-      .execute()
-      .assertJson(this.getClass(), "display_directory_facet.json");
-  }
-
-  @Test
-  public void fail_to_display_directory_facet_when_no_organization_or_project_is_set() {
-    ComponentDto project = db.components().insertPublicProject();
-    ComponentDto directory = db.components().insertComponent(newDirectory(project, "src"));
-    ComponentDto file = db.components().insertComponent(newFileDto(project, directory));
-    RuleDefinitionDto rule = db.rules().insert();
-    db.issues().insert(rule, project, file);
-    allowAnyoneOnProjects(project);
-    indexIssues();
-
-    expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("Facet(s) 'directories' require to also filter by project or organization");
-
-    ws.newRequest()
-      .setParam(WebService.Param.FACETS, "directories")
-      .execute();
-  }
-
-  @Test
-  public void search_by_view_uuid() throws Exception {
+  public void search_by_view_uuid() {
     ComponentDto project = db.components().insertPublicProject(p -> p.setDbKey("PK1"));
     ComponentDto file = db.components().insertComponent(newFileDto(project, null, "F1").setDbKey("FK1"));
     ComponentDto view = db.components().insertComponent(newView(db.getDefaultOrganization(), "V1").setDbKey("MyView"));
@@ -599,13 +388,13 @@ public class SearchActionComponentsTest {
     indexIssuesAndViews();
 
     ws.newRequest()
-      .setParam(IssuesWsParameters.PARAM_COMPONENT_UUIDS, view.uuid())
+      .setParam(PARAM_COMPONENT_KEYS, view.getKey())
       .execute()
       .assertJson(this.getClass(), "search_by_view_uuid.json");
   }
 
   @Test
-  public void search_by_sub_view_uuid() throws Exception {
+  public void search_by_sub_view_uuid() {
     ComponentDto project = db.components().insertPublicProject(p -> p.setDbKey("PK1"));
     ComponentDto file = db.components().insertComponent(newFileDto(project, null, "F1").setDbKey("FK1"));
     RuleDefinitionDto rule = db.rules().insert(r -> r.setRuleKey(RuleKey.of("xoo", "x1")));
@@ -617,13 +406,13 @@ public class SearchActionComponentsTest {
     indexIssuesAndViews();
 
     ws.newRequest()
-      .setParam(IssuesWsParameters.PARAM_COMPONENT_UUIDS, subView.uuid())
+      .setParam(PARAM_COMPONENT_KEYS, subView.getKey())
       .execute()
       .assertJson(this.getClass(), "search_by_view_uuid.json");
   }
 
   @Test
-  public void search_by_sub_view_uuid_return_only_authorized_view() throws Exception {
+  public void search_by_sub_view_uuid_return_only_authorized_view() {
     ComponentDto project = db.components().insertPublicProject(p -> p.setDbKey("PK1"));
     ComponentDto file = db.components().insertComponent(newFileDto(project, null, "F1").setDbKey("FK1"));
     RuleDefinitionDto rule = db.rules().insert(r -> r.setRuleKey(RuleKey.of("xoo", "x1")));
@@ -636,44 +425,23 @@ public class SearchActionComponentsTest {
     indexIssuesAndViews();
 
     ws.newRequest()
-      .setParam(IssuesWsParameters.PARAM_COMPONENT_UUIDS, subView.uuid())
-      .execute()
-      .assertJson(this.getClass(), "no_issue.json");
-  }
-
-  @Test
-  public void search_by_author() throws Exception {
-    ComponentDto project = db.components().insertPublicProject(p -> p.setDbKey("PK1"));
-    ComponentDto file = db.components().insertComponent(newFileDto(project, null, "F1").setDbKey("FK1"));
-    RuleDefinitionDto rule = db.rules().insert(r -> r.setRuleKey(RuleKey.of("xoo", "x1")));
-    db.issues().insert(rule, project, file, i -> i.setAuthorLogin("leia").setKee("2bd4eac2-b650-4037-80bc-7b112bd4eac2"));
-    db.issues().insert(rule, project, file, i -> i.setAuthorLogin("luke@skywalker.name").setKee("82fd47d4-b650-4037-80bc-7b1182fd47d4"));
-    allowAnyoneOnProjects(project);
-    indexIssues();
-
-    ws.newRequest()
-      .setParam(IssuesWsParameters.PARAM_AUTHORS, "leia")
-      .setParam(WebService.Param.FACETS, "authors")
-      .execute()
-      .assertJson(this.getClass(), "search_by_authors.json");
-
-    ws.newRequest()
-      .setParam(IssuesWsParameters.PARAM_AUTHORS, "unknown")
+      .setParam(PARAM_COMPONENT_KEYS, subView.getKey())
       .execute()
       .assertJson(this.getClass(), "no_issue.json");
   }
 
   @Test
   public void search_by_application_key() {
-    ComponentDto project1 = db.components().insertPublicProject();
-    ComponentDto project2 = db.components().insertPublicProject();
-    ComponentDto application = db.components().insertApplication(db.getDefaultOrganization());
-    db.components().insertComponents(newProjectCopy("PC1", project1, application));
-    db.components().insertComponents(newProjectCopy("PC2", project2, application));
+    ComponentDto application = db.components().insertPrivateApplication(db.getDefaultOrganization());
+    ComponentDto project1 = db.components().insertPrivateProject();
+    ComponentDto project2 = db.components().insertPrivateProject();
+    db.components().insertComponents(newProjectCopy(project1, application));
+    db.components().insertComponents(newProjectCopy(project2, application));
     RuleDefinitionDto rule = db.rules().insert();
     IssueDto issue1 = db.issues().insert(rule, project1, project1);
     IssueDto issue2 = db.issues().insert(rule, project2, project2);
     allowAnyoneOnProjects(project1, project2, application);
+    userSession.addProjectPermission(USER, application);
     indexIssuesAndViews();
 
     SearchWsResponse result = ws.newRequest()
@@ -682,6 +450,53 @@ public class SearchActionComponentsTest {
 
     assertThat(result.getIssuesList()).extracting(Issue::getKey)
       .containsExactlyInAnyOrder(issue1.getKey(), issue2.getKey());
+  }
+
+  @Test
+  public void search_by_application_key_and_branch() {
+    ComponentDto application = db.components().insertMainBranch(c -> c.setQualifier(APP).setDbKey("app"));
+    ComponentDto applicationBranch1 = db.components().insertProjectBranch(application, a -> a.setKey("app-branch1"));
+    ComponentDto applicationBranch2 = db.components().insertProjectBranch(application, a -> a.setKey("app-branch2"));
+    ComponentDto project1 = db.components().insertPrivateProject(p -> p.setDbKey("prj1"));
+    ComponentDto project1Branch1 = db.components().insertProjectBranch(project1);
+    ComponentDto fileOnProject1Branch1 = db.components().insertComponent(newFileDto(project1Branch1));
+    ComponentDto project1Branch2 = db.components().insertProjectBranch(project1);
+    ComponentDto project2 = db.components().insertPrivateProject(p -> p.setDbKey("prj2"));
+    db.components().insertComponents(newProjectCopy(project1Branch1, applicationBranch1));
+    db.components().insertComponents(newProjectCopy(project2, applicationBranch1));
+    db.components().insertComponents(newProjectCopy(project1Branch2, applicationBranch2));
+
+    RuleDefinitionDto rule = db.rules().insert();
+    IssueDto issueOnProject1 = db.issues().insert(rule, project1, project1);
+    IssueDto issueOnProject1Branch1 = db.issues().insert(rule, project1Branch1, project1Branch1);
+    IssueDto issueOnFileOnProject1Branch1 = db.issues().insert(rule, project1Branch1, fileOnProject1Branch1);
+    IssueDto issueOnProject1Branch2 = db.issues().insert(rule, project1Branch2, project1Branch2);
+    IssueDto issueOnProject2 = db.issues().insert(rule, project2, project2);
+    allowAnyoneOnProjects(project1, project2, application);
+    userSession.addProjectPermission(USER, application);
+    indexIssuesAndViews();
+
+    // All issues on applicationBranch1
+    assertThat(ws.newRequest()
+      .setParam(PARAM_COMPONENT_KEYS, applicationBranch1.getKey())
+      .setParam(PARAM_BRANCH, applicationBranch1.getBranch())
+      .executeProtobuf(SearchWsResponse.class).getIssuesList())
+        .extracting(Issue::getKey, Issue::getComponent, Issue::getProject, Issue::getBranch, Issue::hasBranch)
+        .containsExactlyInAnyOrder(
+          tuple(issueOnProject1Branch1.getKey(), project1Branch1.getKey(), project1Branch1.getKey(), project1Branch1.getBranch(), true),
+          tuple(issueOnFileOnProject1Branch1.getKey(), fileOnProject1Branch1.getKey(), project1Branch1.getKey(), project1Branch1.getBranch(), true),
+          tuple(issueOnProject2.getKey(), project2.getKey(), project2.getKey(), "", false));
+
+    // Issues on project1Branch1
+    assertThat(ws.newRequest()
+      .setParam(PARAM_COMPONENT_KEYS, applicationBranch1.getKey())
+      .setParam(PARAM_PROJECTS, project1.getKey())
+      .setParam(PARAM_BRANCH, applicationBranch1.getBranch())
+      .executeProtobuf(SearchWsResponse.class).getIssuesList())
+        .extracting(Issue::getKey, Issue::getComponent, Issue::getBranch)
+        .containsExactlyInAnyOrder(
+          tuple(issueOnProject1Branch1.getKey(), project1Branch1.getKey(), project1Branch1.getBranch()),
+          tuple(issueOnFileOnProject1Branch1.getKey(), fileOnProject1Branch1.getKey(), project1Branch1.getBranch()));
   }
 
   @Test
@@ -837,11 +652,48 @@ public class SearchActionComponentsTest {
   @Test
   public void search_by_branch() {
     RuleDefinitionDto rule = db.rules().insert();
+    ComponentDto project = db.components().insertMainBranch();
+    ComponentDto file = db.components().insertComponent(newFileDto(project));
+    IssueDto issue = db.issues().insertIssue(newIssue(rule, project, file));
+
+    ComponentDto branch = db.components().insertProjectBranch(project, b -> b.setBranchType(SHORT));
+    ComponentDto branchFile = db.components().insertComponent(newFileDto(branch));
+    IssueDto branchIssue = db.issues().insertIssue(newIssue(rule, branch, branchFile));
+    allowAnyoneOnProjects(project);
+    indexIssuesAndViews();
+
+    // On component key + branch
+    assertThat(ws.newRequest()
+      .setParam(PARAM_COMPONENT_KEYS, project.getKey())
+      .setParam(PARAM_BRANCH, branch.getBranch())
+      .executeProtobuf(SearchWsResponse.class).getIssuesList())
+        .extracting(Issue::getKey, Issue::getComponent, Issue::getBranch)
+        .containsExactlyInAnyOrder(tuple(branchIssue.getKey(), branchFile.getKey(), branchFile.getBranch()));
+
+    // On project key + branch
+    assertThat(ws.newRequest()
+      .setParam(PARAM_PROJECT_KEYS, project.getKey())
+      .setParam(PARAM_BRANCH, branch.getBranch())
+      .executeProtobuf(SearchWsResponse.class).getIssuesList())
+        .extracting(Issue::getKey, Issue::getComponent, Issue::getBranch)
+        .containsExactlyInAnyOrder(tuple(branchIssue.getKey(), branchFile.getKey(), branchFile.getBranch()));
+
+    // On file key + branch
+    assertThat(ws.newRequest()
+      .setParam(PARAM_COMPONENT_KEYS, branchFile.getKey())
+      .setParam(PARAM_BRANCH, branch.getBranch())
+      .executeProtobuf(SearchWsResponse.class).getIssuesList())
+        .extracting(Issue::getKey, Issue::getComponent, Issue::getBranch)
+        .containsExactlyInAnyOrder(tuple(branchIssue.getKey(), branchFile.getKey(), branchFile.getBranch()));
+  }
+
+  @Test
+  public void return_branch_in_component_list() {
+    RuleDefinitionDto rule = db.rules().insert();
     ComponentDto project = db.components().insertPrivateProject();
-    userSession.addProjectPermission(UserRole.USER, project);
     ComponentDto projectFile = db.components().insertComponent(newFileDto(project));
     IssueDto projectIssue = db.issues().insertIssue(newIssue(rule, project, projectFile));
-    ComponentDto branch = db.components().insertProjectBranch(project);
+    ComponentDto branch = db.components().insertProjectBranch(project, b -> b.setBranchType(SHORT));
     ComponentDto branchFile = db.components().insertComponent(newFileDto(branch));
     IssueDto branchIssue = db.issues().insertIssue(newIssue(rule, branch, branchFile));
     allowAnyoneOnProjects(project);
@@ -852,9 +704,6 @@ public class SearchActionComponentsTest {
       .setParam(PARAM_BRANCH, branch.getBranch())
       .executeProtobuf(SearchWsResponse.class);
 
-    assertThat(result.getIssuesList())
-      .extracting(Issue::getKey, Issue::getComponent, Issue::getBranch)
-      .containsExactlyInAnyOrder(tuple(branchIssue.getKey(), branchFile.getKey(), branchFile.getBranch()));
     assertThat(result.getComponentsList())
       .extracting(Issues.Component::getKey, Issues.Component::getBranch)
       .containsExactlyInAnyOrder(
@@ -863,10 +712,36 @@ public class SearchActionComponentsTest {
   }
 
   @Test
+  public void search_by_pull_request() {
+    RuleDefinitionDto rule = db.rules().insert();
+    ComponentDto project = db.components().insertPrivateProject();
+    ComponentDto projectFile = db.components().insertComponent(newFileDto(project));
+    IssueDto projectIssue = db.issues().insertIssue(newIssue(rule, project, projectFile));
+    ComponentDto pullRequest = db.components().insertProjectBranch(project, b -> b.setBranchType(PULL_REQUEST));
+    ComponentDto pullRequestFile = db.components().insertComponent(newFileDto(pullRequest));
+    IssueDto pullRequestIssue = db.issues().insertIssue(newIssue(rule, pullRequest, pullRequestFile));
+    allowAnyoneOnProjects(project);
+    indexIssuesAndViews();
+
+    SearchWsResponse result = ws.newRequest()
+      .setParam(PARAM_COMPONENT_KEYS, pullRequest.getKey())
+      .setParam(PARAM_PULL_REQUEST, pullRequest.getPullRequest())
+      .executeProtobuf(SearchWsResponse.class);
+
+    assertThat(result.getIssuesList())
+      .extracting(Issue::getKey, Issue::getComponent, Issue::getPullRequest)
+      .containsExactlyInAnyOrder(tuple(pullRequestIssue.getKey(), pullRequestFile.getKey(), pullRequestFile.getPullRequest()));
+    assertThat(result.getComponentsList())
+      .extracting(Issues.Component::getKey, Issues.Component::getPullRequest)
+      .containsExactlyInAnyOrder(
+        tuple(pullRequestFile.getKey(), pullRequestFile.getPullRequest()),
+        tuple(pullRequest.getKey(), pullRequest.getPullRequest()));
+  }
+
+  @Test
   public void search_using_main_branch_name() {
     RuleDefinitionDto rule = db.rules().insert();
     ComponentDto project = db.components().insertMainBranch();
-    userSession.addProjectPermission(UserRole.USER, project);
     ComponentDto projectFile = db.components().insertComponent(newFileDto(project));
     IssueDto projectIssue = db.issues().insertIssue(newIssue(rule, project, projectFile));
     allowAnyoneOnProjects(project);
@@ -910,7 +785,6 @@ public class SearchActionComponentsTest {
   public void does_not_return_branch_issues_when_using_db_key() {
     RuleDefinitionDto rule = db.rules().insert();
     ComponentDto project = db.components().insertPrivateProject();
-    userSession.addProjectPermission(UserRole.USER, project);
     ComponentDto projectFile = db.components().insertComponent(newFileDto(project));
     IssueDto projectIssue = db.issues().insertIssue(newIssue(rule, project, projectFile));
     ComponentDto branch = db.components().insertProjectBranch(project);

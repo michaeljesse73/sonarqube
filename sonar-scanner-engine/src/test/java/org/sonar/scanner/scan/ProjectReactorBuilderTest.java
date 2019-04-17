@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -35,12 +35,14 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.sonar.api.batch.bootstrap.ProjectDefinition;
 import org.sonar.api.batch.bootstrap.ProjectReactor;
+import org.sonar.api.notifications.AnalysisWarnings;
 import org.sonar.api.utils.MessageException;
 import org.sonar.api.utils.log.LogTester;
-import org.sonar.api.utils.log.LoggerLevel;
-import org.sonar.scanner.analysis.AnalysisProperties;
+import org.sonar.scanner.bootstrap.RawScannerProperties;
+import org.sonar.scanner.bootstrap.ProcessedScannerProperties;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
 public class ProjectReactorBuilderTest {
 
@@ -73,13 +75,6 @@ public class ProjectReactorBuilderTest {
   @Test
   public void should_not_fail_if_sources_are_missing_in_intermediate_module() {
     loadProjectDefinition("multi-module-pom-in-root");
-  }
-
-  @Test
-  public void fail_if_sources_not_set() {
-    thrown.expect(MessageException.class);
-    thrown.expectMessage("You must define the following mandatory properties for 'com.foo.project': sonar.sources");
-    loadProjectDefinition("simple-project-with-missing-source-dir");
   }
 
   @Test
@@ -287,7 +282,6 @@ public class ProjectReactorBuilderTest {
     ProjectDefinition projectDefinition = loadProjectDefinition("big-multi-module-definitions-all-in-root");
 
     assertThat(projectDefinition.properties().get("module11.property")).isNull();
-    assertThat(projectDefinition.properties().get("sonar.profile")).isEqualTo("Foo");
     ProjectDefinition module1 = null;
     ProjectDefinition module2 = null;
     for (ProjectDefinition prj : projectDefinition.getSubProjects()) {
@@ -299,10 +293,8 @@ public class ProjectReactorBuilderTest {
     }
     assertThat(module1.properties().get("module11.property")).isNull();
     assertThat(module1.properties().get("property")).isNull();
-    assertThat(module1.properties().get("sonar.profile")).isEqualTo("Foo");
     assertThat(module2.properties().get("module11.property")).isNull();
     assertThat(module2.properties().get("property")).isNull();
-    assertThat(module2.properties().get("sonar.profile")).isEqualTo("Foo");
 
     ProjectDefinition module11 = null;
     ProjectDefinition module12 = null;
@@ -316,22 +308,8 @@ public class ProjectReactorBuilderTest {
     assertThat(module11.properties().get("module1.module11.property")).isNull();
     assertThat(module11.properties().get("module11.property")).isNull();
     assertThat(module11.properties().get("property")).isEqualTo("My module11 property");
-    assertThat(module11.properties().get("sonar.profile")).isEqualTo("Foo");
     assertThat(module12.properties().get("module11.property")).isNull();
     assertThat(module12.properties().get("property")).isNull();
-    assertThat(module12.properties().get("sonar.profile")).isEqualTo("Foo");
-  }
-
-  @Test
-  public void shouldRemoveModulePropertiesFromTaskProperties() {
-    Map<String, String> props = loadProps("big-multi-module-definitions-all-in-root");
-
-    AnalysisProperties taskProperties = new AnalysisProperties(props, null);
-    assertThat(taskProperties.property("module1.module11.property")).isEqualTo("My module11 property");
-
-    new ProjectReactorBuilder(taskProperties).execute();
-
-    assertThat(taskProperties.property("module1.module11.property")).isNull();
   }
 
   @Test
@@ -412,19 +390,24 @@ public class ProjectReactorBuilderTest {
 
   @Test
   public void shouldInitRootWorkDir() {
-    ProjectReactorBuilder builder = new ProjectReactorBuilder(new AnalysisProperties(Maps.<String, String>newHashMap(), null));
+    ProjectReactorBuilder builder = new ProjectReactorBuilder(new ProcessedScannerProperties(
+      new RawScannerProperties(Maps.newHashMap()), new EmptyExternalProjectKeyAndOrganization()),
+      mock(AnalysisWarnings.class));
     File baseDir = new File("target/tmp/baseDir");
 
-    File workDir = builder.initRootProjectWorkDir(baseDir, Maps.<String, String>newHashMap());
+    File workDir = builder.initRootProjectWorkDir(baseDir, Maps.newHashMap());
 
     assertThat(workDir).isEqualTo(new File(baseDir, ".sonar"));
   }
 
   @Test
   public void shouldInitWorkDirWithCustomRelativeFolder() {
-    Map<String, String> props = Maps.<String, String>newHashMap();
+    Map<String, String> props = Maps.newHashMap();
     props.put("sonar.working.directory", ".foo");
-    ProjectReactorBuilder builder = new ProjectReactorBuilder(new AnalysisProperties(props, null));
+    ProjectReactorBuilder builder = new ProjectReactorBuilder(new ProcessedScannerProperties(
+      new RawScannerProperties(props),
+      new EmptyExternalProjectKeyAndOrganization()),
+      mock(AnalysisWarnings.class));
     File baseDir = new File("target/tmp/baseDir");
 
     File workDir = builder.initRootProjectWorkDir(baseDir, props);
@@ -434,9 +417,11 @@ public class ProjectReactorBuilderTest {
 
   @Test
   public void shouldInitRootWorkDirWithCustomAbsoluteFolder() {
-    Map<String, String> props = Maps.<String, String>newHashMap();
+    Map<String, String> props = Maps.newHashMap();
     props.put("sonar.working.directory", new File("src").getAbsolutePath());
-    ProjectReactorBuilder builder = new ProjectReactorBuilder(new AnalysisProperties(props, null));
+    ProjectReactorBuilder builder = new ProjectReactorBuilder(new ProcessedScannerProperties(
+      new RawScannerProperties(props), new EmptyExternalProjectKeyAndOrganization()),
+      mock(AnalysisWarnings.class));
     File baseDir = new File("target/tmp/baseDir");
 
     File workDir = builder.initRootProjectWorkDir(baseDir, props);
@@ -494,8 +479,10 @@ public class ProjectReactorBuilderTest {
 
   private ProjectDefinition loadProjectDefinition(String projectFolder) {
     Map<String, String> props = loadProps(projectFolder);
-    AnalysisProperties bootstrapProps = new AnalysisProperties(props, null);
-    ProjectReactor projectReactor = new ProjectReactorBuilder(bootstrapProps).execute();
+    ProcessedScannerProperties bootstrapProps = new ProcessedScannerProperties(
+      new RawScannerProperties(props),
+      new EmptyExternalProjectKeyAndOrganization());
+    ProjectReactor projectReactor = new ProjectReactorBuilder(bootstrapProps, mock(AnalysisWarnings.class)).execute();
     return projectReactor.getRoot();
   }
 
@@ -514,7 +501,7 @@ public class ProjectReactorBuilderTest {
   }
 
   private Map<String, String> loadProps(String projectFolder) {
-    Map<String, String> props = Maps.<String, String>newHashMap();
+    Map<String, String> props = Maps.newHashMap();
     Properties runnerProps = toProperties(getResource(this.getClass(), projectFolder + "/sonar-project.properties"));
     for (final String name : runnerProps.stringPropertyNames()) {
       props.put(name, runnerProps.getProperty(name));
@@ -632,16 +619,6 @@ public class ProjectReactorBuilderTest {
       .isEqualTo(getResource(this.getClass(), "multi-module-definitions-same-prefix/module1.feature"));
     assertThat(module1Feature.getWorkDir().getCanonicalFile())
       .isEqualTo(new File(getResource(this.getClass(), "multi-module-definitions-same-prefix"), ".sonar/com.foo.project_com.foo.project.module1.feature"));
-  }
-
-  @Test
-  public void should_log_a_warning_when_a_dropped_property_is_present() {
-    Map<String, String> props = loadProps("simple-project");
-    props.put("sonar.qualitygate", "somevalue");
-    AnalysisProperties bootstrapProps = new AnalysisProperties(props, null);
-    new ProjectReactorBuilder(bootstrapProps).execute();
-
-    assertThat(logTester.logs(LoggerLevel.WARN)).containsOnly("Property 'sonar.qualitygate' is not supported any more. It will be ignored.");
   }
 
   private Map<String, String> loadPropsFromFile(String filePath) throws IOException {

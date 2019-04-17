@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -23,33 +23,30 @@ import Filter from './Filter';
 import FilterHeader from './FilterHeader';
 import SearchableFilterFooter from './SearchableFilterFooter';
 import SearchableFilterOption from './SearchableFilterOption';
-import { getLanguageByKey, Languages } from '../../../store/languages/reducer';
+import { getLanguageByKey } from '../../../store/languages';
 import { translate } from '../../../helpers/l10n';
 import { Facet } from '../types';
 import { RawQuery } from '../../../helpers/query';
 
 interface Props {
   facet?: Facet;
-  languages: Languages;
+  languages: T.Languages;
   maxFacetValue?: number;
   onQueryChange: (change: RawQuery) => void;
   organization?: { key: string };
   property?: string;
-  query: { [x: string]: any };
-  value?: Array<string>;
+  query: T.Dict<any>;
+  value?: string[];
 }
-
-const LIST_SIZE = 10;
 
 export default class LanguagesFilter extends React.Component<Props> {
   getSearchOptions = () => {
-    let languageKeys = Object.keys(this.props.languages);
-    if (this.props.facet) {
-      languageKeys = difference(languageKeys, Object.keys(this.props.facet));
+    const { facet, languages } = this.props;
+    let languageKeys = Object.keys(languages);
+    if (facet) {
+      languageKeys = difference(languageKeys, Object.keys(facet));
     }
-    return languageKeys
-      .slice(0, LIST_SIZE)
-      .map(key => ({ label: this.props.languages[key].name, value: key }));
+    return languageKeys.map(key => ({ label: languages[key].name, value: key }));
   };
 
   getSortedOptions = (facet: Facet = {}) =>
@@ -59,8 +56,8 @@ export default class LanguagesFilter extends React.Component<Props> {
 
   renderOption = (option: string) => (
     <SearchableFilterOption
-      optionKey={option}
       option={getLanguageByKey(this.props.languages, option)}
+      optionKey={option}
     />
   );
 
@@ -69,26 +66,26 @@ export default class LanguagesFilter extends React.Component<Props> {
 
     return (
       <Filter
-        onQueryChange={this.props.onQueryChange}
-        property={property}
-        options={this.getSortedOptions(this.props.facet)}
-        query={this.props.query}
-        renderOption={this.renderOption}
-        value={this.props.value}
         facet={this.props.facet}
-        maxFacetValue={this.props.maxFacetValue}
-        organization={this.props.organization}
-        getFacetValueForOption={this.getFacetValueForOption}
-        header={<FilterHeader name={translate('projects.facets.languages')} />}
         footer={
           <SearchableFilterFooter
             onQueryChange={this.props.onQueryChange}
-            organization={this.props.organization}
             options={this.getSearchOptions()}
+            organization={this.props.organization}
             property={property}
             query={this.props.query}
           />
         }
+        getFacetValueForOption={this.getFacetValueForOption}
+        header={<FilterHeader name={translate('projects.facets.languages')} />}
+        maxFacetValue={this.props.maxFacetValue}
+        onQueryChange={this.props.onQueryChange}
+        options={this.getSortedOptions(this.props.facet)}
+        organization={this.props.organization}
+        property={property}
+        query={this.props.query}
+        renderOption={this.renderOption}
+        value={this.props.value}
       />
     );
   }

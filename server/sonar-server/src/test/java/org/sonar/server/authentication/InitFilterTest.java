@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -39,9 +39,10 @@ import org.sonar.api.utils.log.LoggerLevel;
 import org.sonar.db.user.UserDto;
 import org.sonar.server.authentication.event.AuthenticationEvent;
 import org.sonar.server.authentication.event.AuthenticationException;
+import org.sonar.server.authentication.exception.EmailAlreadyExistsRedirectionException;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -218,7 +219,7 @@ public class InitFilterTest {
 
   @Test
   public void redirect_when_failing_because_of_EmailAlreadyExistException() throws Exception {
-    UserDto existingUser = newUserDto().setEmail("john@email.com").setExternalIdentity("john.bitbucket").setExternalIdentityProvider("bitbucket");
+    UserDto existingUser = newUserDto().setEmail("john@email.com").setExternalLogin("john.bitbucket").setExternalIdentityProvider("bitbucket");
     FailWithEmailAlreadyExistException identityProvider = new FailWithEmailAlreadyExistException("failing", existingUser);
     when(request.getRequestURI()).thenReturn("/sessions/init/" + identityProvider.getKey());
     identityProviderRepository.addIdentityProvider(identityProvider);
@@ -238,7 +239,7 @@ public class InitFilterTest {
     underTest.doFilter(request, response, chain);
 
     verify(response).sendRedirect("/sessions/unauthorized");
-    assertThat(logTester.logs(LoggerLevel.ERROR)).containsExactlyInAnyOrder("Fail to initialize authentication with provider 'failing'");
+    assertThat(logTester.logs(LoggerLevel.WARN)).containsExactlyInAnyOrder("Fail to initialize authentication with provider 'failing'");
     verifyDeleteAuthCookie();
   }
 
@@ -253,7 +254,7 @@ public class InitFilterTest {
   }
 
   private void assertError(String expectedError) throws Exception {
-    assertThat(logTester.logs(LoggerLevel.ERROR)).contains(expectedError);
+    assertThat(logTester.logs(LoggerLevel.WARN)).contains(expectedError);
     verify(response).sendRedirect("/sessions/unauthorized");
     assertThat(oAuth2IdentityProvider.isInitCalled()).isFalse();
   }
@@ -297,7 +298,7 @@ public class InitFilterTest {
 
     @Override
     public void init(Context context) {
-      throw new EmailAlreadyExistsException(existingUser.getEmail(), existingUser, UserIdentity.builder()
+      throw new EmailAlreadyExistsRedirectionException(existingUser.getEmail(), existingUser, UserIdentity.builder()
         .setProviderLogin("john.github")
         .setLogin("john.github")
         .setName(existingUser.getName())

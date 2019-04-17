@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,16 +18,16 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import Modal from '../../components/controls/Modal';
+import Modal, { ModalProps } from './Modal';
 
 export interface ChildrenProps {
-  onCloseClick: (event: React.SyntheticEvent<HTMLElement>) => void;
+  onCloseClick: (event?: React.SyntheticEvent<HTMLElement>) => void;
   onFormSubmit: (event: React.SyntheticEvent<HTMLFormElement>) => void;
-  onSubmitClick: (event: React.SyntheticEvent<HTMLElement>) => void;
+  onSubmitClick: (event?: React.SyntheticEvent<HTMLElement>) => void;
   submitting: boolean;
 }
 
-interface Props {
+interface Props extends ModalProps {
   children: (props: ChildrenProps) => React.ReactNode;
   header: string;
   onClose: () => void;
@@ -38,7 +38,7 @@ interface State {
   submitting: boolean;
 }
 
-export default class SimpleModal extends React.PureComponent<Props, State> {
+export default class SimpleModal extends React.Component<Props, State> {
   mounted = false;
   state: State = { submitting: false };
 
@@ -56,9 +56,11 @@ export default class SimpleModal extends React.PureComponent<Props, State> {
     }
   };
 
-  handleCloseClick = (event: React.SyntheticEvent<HTMLElement>) => {
-    event.preventDefault();
-    event.currentTarget.blur();
+  handleCloseClick = (event?: React.SyntheticEvent<HTMLElement>) => {
+    if (event) {
+      event.preventDefault();
+      event.currentTarget.blur();
+    }
     this.props.onClose();
   };
 
@@ -67,9 +69,11 @@ export default class SimpleModal extends React.PureComponent<Props, State> {
     this.submit();
   };
 
-  handleSubmitClick = (event: React.SyntheticEvent<HTMLElement>) => {
-    event.preventDefault();
-    event.currentTarget.blur();
+  handleSubmitClick = (event?: React.SyntheticEvent<HTMLElement>) => {
+    if (event) {
+      event.preventDefault();
+      event.currentTarget.blur();
+    }
     this.submit();
   };
 
@@ -82,9 +86,10 @@ export default class SimpleModal extends React.PureComponent<Props, State> {
   };
 
   render() {
+    const { children, header, onClose, onSubmit, ...modalProps } = this.props;
     return (
-      <Modal contentLabel={this.props.header} onRequestClose={this.props.onClose}>
-        {this.props.children({
+      <Modal contentLabel={header} onRequestClose={onClose} {...modalProps}>
+        {children({
           onCloseClick: this.handleCloseClick,
           onFormSubmit: this.handleFormSubmit,
           onSubmitClick: this.handleSubmitClick,

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,17 +20,23 @@
 import * as React from 'react';
 import { shallow } from 'enzyme';
 import BranchRow from '../BranchRow';
-import { MainBranch, ShortLivingBranch, BranchType } from '../../../../app/types';
 import { click } from '../../../../helpers/testUtils';
 
-const mainBranch: MainBranch = { isMain: true, name: 'master' };
+const mainBranch: T.MainBranch = { isMain: true, name: 'master' };
 
-const shortBranch: ShortLivingBranch = {
+const shortBranch: T.ShortLivingBranch = {
   analysisDate: '2017-09-27T00:05:19+0000',
   isMain: false,
   name: 'feature',
   mergeBranch: 'foo',
-  type: BranchType.SHORT
+  type: 'SHORT'
+};
+
+const pullRequest: T.PullRequest = {
+  base: 'master',
+  branch: 'feature',
+  key: '1234',
+  title: 'Feature PR'
 };
 
 it('renders main branch', () => {
@@ -39,6 +45,10 @@ it('renders main branch', () => {
 
 it('renders short-living branch', () => {
   expect(shallowRender(shortBranch)).toMatchSnapshot();
+});
+
+it('renders pull request', () => {
+  expect(shallowRender(pullRequest)).toMatchSnapshot();
 });
 
 it('renames main branch', () => {
@@ -59,8 +69,19 @@ it('deletes short-living branch', () => {
   expect(onChange).toBeCalled();
 });
 
-function shallowRender(branch: MainBranch | ShortLivingBranch, onChange: () => void = jest.fn()) {
-  const wrapper = shallow(<BranchRow branch={branch} component="foo" onChange={onChange} />);
+it('deletes pull request', () => {
+  const onChange = jest.fn();
+  const wrapper = shallowRender(pullRequest, onChange);
+
+  click(wrapper.find('.js-delete'));
+  (wrapper.find('DeleteBranchModal').prop('onDelete') as Function)();
+  expect(onChange).toBeCalled();
+});
+
+function shallowRender(branchLike: T.BranchLike, onChange: () => void = jest.fn()) {
+  const wrapper = shallow(
+    <BranchRow branchLike={branchLike} component="foo" isOrphan={false} onChange={onChange} />
+  );
   (wrapper.instance() as any).mounted = true;
   return wrapper;
 }

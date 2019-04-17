@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,6 +20,7 @@
 package org.sonar.db.purge;
 
 import java.util.List;
+import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 import org.apache.ibatis.annotations.Param;
 
@@ -40,6 +41,8 @@ public interface PurgeMapper {
 
   void deleteAnalysisEvents(@Param("analysisUuids") List<String> analysisUuids);
 
+  void deleteAnalysisEventComponentChanges(@Param("analysisUuids") List<String> analysisUuids);
+
   void deleteAnalysisMeasures(@Param("analysisUuids") List<String> analysisUuids);
 
   void fullDeleteComponentMeasures(@Param("componentUuids") List<String> componentUuids);
@@ -50,11 +53,15 @@ public interface PurgeMapper {
 
   void deleteAnalysisWastedMeasures(@Param("analysisUuids") List<String> analysisUuids, @Param("metricIds") List<Long> metricIds);
 
+  /**
+   * Purge status flag is used to not attempt to remove duplications & historical data of analyses
+   * for which we already removed them.
+   */
   void updatePurgeStatusToOne(@Param("analysisUuids") List<String> analysisUuid);
 
   void resolveComponentIssuesNotAlreadyResolved(@Param("componentUuids") List<String> componentUuids, @Param("dateAsLong") Long dateAsLong);
 
-  void deleteProjectLinksByComponentUuid(@Param("rootUuid") String rootUuid);
+  void deleteProjectLinksByProjectUuid(@Param("rootUuid") String rootUuid);
 
   void deletePropertiesByComponentIds(@Param("componentIds") List<Long> componentIds);
 
@@ -70,6 +77,8 @@ public interface PurgeMapper {
 
   void deleteEventsByComponentUuid(@Param("componentUuid") String componentUuid);
 
+  void deleteEventComponentChangesByComponentUuid(@Param("componentUuid") String componentUuid);
+
   List<PurgeableAnalysisDto> selectPurgeableAnalysesWithEvents(@Param("componentUuid") String componentUuid);
 
   List<PurgeableAnalysisDto> selectPurgeableAnalysesWithoutEvents(@Param("componentUuid") String componentUuid);
@@ -80,7 +89,10 @@ public interface PurgeMapper {
 
   List<String> selectOldClosedIssueKeys(@Param("projectUuid") String projectUuid, @Nullable @Param("toDate") Long toDate);
 
-  List<String> selectStaleShortLivingBranches(@Param("mainBranchProjectUuid") String mainBranchProjectUuid, @Param("toDate") Long toDate);
+  List<String> selectStaleShortLivingBranchesAndPullRequests(@Param("projectUuid") String projectUuid, @Param("toDate") Long toDate);
+
+  @CheckForNull
+  String selectManualBaseline(@Param("projectUuid") String projectUuid);
 
   void deleteIssuesFromKeys(@Param("keys") List<String> keys);
 
@@ -90,25 +102,37 @@ public interface PurgeMapper {
 
   void deleteFileSourcesByFileUuid(@Param("fileUuids") List<String> fileUuids);
 
-  void deleteCeTaskCharacteristicsOfCeActivityByProjectUuid(@Param("projectUuid") String projectUuid);
+  void deleteCeTaskCharacteristicsOfCeActivityByRootUuid(@Param("rootUuid") String rootUuid);
 
-  void deleteCeTaskInputOfCeActivityByProjectUuid(@Param("projectUuid") String projectUuid);
+  void deleteCeTaskInputOfCeActivityByRootUuid(@Param("rootUuid") String rootUuid);
 
-  void deleteCeScannerContextOfCeActivityByProjectUuid(@Param("projectUuid") String projectUuid);
+  void deleteCeScannerContextOfCeActivityByRootUuid(@Param("rootUuid") String rootUuid);
 
-  void deleteCeActivityByProjectUuid(@Param("projectUuid") String projectUuid);
+  void deleteCeTaskMessageOfCeActivityByRootUuid(@Param("rootUuid") String rootUuid);
 
-  void deleteCeScannerContextOfCeQueueByProjectUuid(@Param("projectUuid") String projectUuid);
+  void deleteCeActivityByRootUuid(@Param("rootUuid") String rootUuid);
 
-  void deleteCeTaskCharacteristicsOfCeQueueByProjectUuid(@Param("projectUuid") String projectUuid);
+  void deleteCeScannerContextOfCeQueueByRootUuid(@Param("rootUuid") String rootUuid);
 
-  void deleteCeTaskInputOfCeQueueByProjectUuid(@Param("projectUuid") String projectUuid);
+  void deleteCeTaskCharacteristicsOfCeQueueByRootUuid(@Param("rootUuid") String rootUuid);
 
-  void deleteCeQueueByProjectUuid(@Param("projectUuid") String projectUuid);
+  void deleteCeTaskInputOfCeQueueByRootUuid(@Param("rootUuid") String rootUuid);
+
+  void deleteCeTaskMessageOfCeQueueByRootUuid(@Param("rootUuid") String rootUuid);
+
+  void deleteCeQueueByRootUuid(@Param("rootUuid") String rootUuid);
+
+  void deleteWebhooksByProjectUuid(@Param("projectUuid") String projectUuid);
 
   void deleteWebhookDeliveriesByProjectUuid(@Param("projectUuid") String projectUuid);
+
+  void deleteProjectMappingsByProjectUuid(@Param("projectUuid") String projectUuid);
+
+  void deleteProjectAlmBindingsByProjectUuid(@Param("projectUuid") String projectUuid);
 
   void deleteBranchByUuid(@Param("uuid") String uuid);
 
   void deleteLiveMeasuresByProjectUuid(@Param("projectUuid") String projectUuid);
+
+  void deleteLiveMeasuresByComponentUuids(@Param("componentUuids") List<String> componentUuids);
 }

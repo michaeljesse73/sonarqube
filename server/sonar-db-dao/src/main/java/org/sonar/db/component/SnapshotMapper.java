@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,7 +24,6 @@ import java.util.List;
 import javax.annotation.CheckForNull;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.session.RowBounds;
-import org.sonar.db.ce.CeActivityDto;
 import org.sonar.db.component.SnapshotDao.ComponentUuidFromDatePair;
 
 public interface SnapshotMapper {
@@ -43,8 +42,6 @@ public interface SnapshotMapper {
 
   List<SnapshotDto> selectSnapshotsByQuery(@Param("query") SnapshotQuery query);
 
-  List<SnapshotDto> selectPreviousVersionSnapshots(@Param("componentUuid") String componentUuid, @Param("lastVersion") String lastVersion);
-
   List<SnapshotDto> selectOldestSnapshots(@Param("componentUuid") String componentUuid, RowBounds rowBounds);
 
   List<ViewsSnapshotDto> selectSnapshotBefore(@Param("componentUuid") String componentUuid, @Param("date") long date);
@@ -55,7 +52,6 @@ public interface SnapshotMapper {
 
   void update(SnapshotDto analysis);
 
-  List<SnapshotDto> selectFinishedByComponentUuidsAndFromDates(@Param("componentUuidFromDatePairs") List<ComponentUuidFromDatePair> pairs,
-    @Param("ceStatus") CeActivityDto.Status ceStatus);
+  List<SnapshotDto> selectFinishedByComponentUuidsAndFromDates(@Param("componentUuidFromDatePairs") List<ComponentUuidFromDatePair> pairs);
 
 }

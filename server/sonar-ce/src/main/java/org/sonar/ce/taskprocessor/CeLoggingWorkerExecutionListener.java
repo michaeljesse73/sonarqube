@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,29 +20,29 @@
 package org.sonar.ce.taskprocessor;
 
 import javax.annotation.Nullable;
-import org.sonar.ce.log.CeLogging;
-import org.sonar.ce.queue.CeTask;
-import org.sonar.ce.queue.CeTaskResult;
+import org.sonar.ce.task.CeTask;
+import org.sonar.ce.task.CeTaskResult;
+import org.sonar.ce.task.log.CeTaskLogging;
 import org.sonar.db.ce.CeActivityDto;
 
 /**
- * {@link CeWorker.ExecutionListener} responsible of calling {@link CeLogging#initForTask(CeTask)} and
- * {@link CeLogging#clearForTask()}.
+ * {@link CeWorker.ExecutionListener} responsible of calling {@link CeTaskLogging#initForTask(CeTask)} and
+ * {@link CeTaskLogging#clearForTask()}.
  */
 public class CeLoggingWorkerExecutionListener implements CeWorker.ExecutionListener {
-  private final CeLogging ceLogging;
+  private final CeTaskLogging ceTaskLogging;
 
-  public CeLoggingWorkerExecutionListener(CeLogging ceLogging) {
-    this.ceLogging = ceLogging;
+  public CeLoggingWorkerExecutionListener(CeTaskLogging ceTaskLogging) {
+    this.ceTaskLogging = ceTaskLogging;
   }
 
   @Override
   public void onStart(CeTask ceTask) {
-    ceLogging.initForTask(ceTask);
+    ceTaskLogging.initForTask(ceTask);
   }
 
   @Override
   public void onEnd(CeTask ceTask, CeActivityDto.Status status, @Nullable CeTaskResult taskResult, @Nullable Throwable error) {
-    ceLogging.clearForTask();
+    ceTaskLogging.clearForTask();
   }
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,18 +25,18 @@ import java.util.List;
 
 import static java.lang.String.format;
 
-public class MssqlMetadataReader {
+class MssqlMetadataReader {
   private final SqlExecutor sqlExecutor;
 
-  public MssqlMetadataReader(SqlExecutor sqlExecutor) {
+  MssqlMetadataReader(SqlExecutor sqlExecutor) {
     this.sqlExecutor = sqlExecutor;
   }
 
-  public String getDefaultCollation(Connection connection) throws SQLException {
-    return sqlExecutor.selectSingleString(connection, "SELECT CONVERT(VARCHAR, DATABASEPROPERTYEX(DB_NAME(), 'Collation'))");
+  String getDefaultCollation(Connection connection) throws SQLException {
+    return sqlExecutor.selectSingleString(connection, "SELECT CONVERT(VARCHAR(128), DATABASEPROPERTYEX(DB_NAME(), 'Collation'))");
   }
 
-  public List<ColumnDef> getColumnDefs(Connection connection) throws SQLException {
+  List<ColumnDef> getColumnDefs(Connection connection) throws SQLException {
     return sqlExecutor.select(connection,
       ColumnDef.SELECT_COLUMNS +
         "FROM [INFORMATION_SCHEMA].[COLUMNS] " +
@@ -45,7 +45,7 @@ public class MssqlMetadataReader {
       ColumnDef.ColumnDefRowConverter.INSTANCE);
   }
 
-  public List<MssqlCharsetHandler.ColumnIndex> getColumnIndices(Connection connection, ColumnDef column) throws SQLException {
+  List<MssqlCharsetHandler.ColumnIndex> getColumnIndices(Connection connection, ColumnDef column) throws SQLException {
     String selectIndicesSql = format("SELECT I.name as index_name, I.is_unique as unik, IndexedColumns " +
       "     FROM sys.indexes I " +
       "     JOIN sys.tables T ON T.Object_id = I.Object_id " +

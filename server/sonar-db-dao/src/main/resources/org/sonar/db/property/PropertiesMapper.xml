@@ -62,17 +62,6 @@
       and r.kee=#{resourceKey,jdbcType=VARCHAR}
   </select>
 
-  <select id="selectDescendantModuleProperties" parameterType="String" resultType="ScrapProperty">
-    select
-      <include refid="columnsToScrapPropertyDto"/>
-    from
-      properties p
-    inner join (select p.id from projects p<include refid="org.sonar.db.component.ComponentMapper.modulesTreeQuery"/>) modules
-      on modules.id=p.resource_id
-    where
-      p.user_id is null
-  </select>
-
   <select id="selectByKey" parameterType="map" resultType="ScrapProperty">
     select
       <include refid="columnsToScrapPropertyDto"/>
@@ -139,6 +128,17 @@
       and p.user_id is null
   </select>
 
+  <select id="selectByKeyAndUserIdAndComponentQualifier" parameterType="map" resultType="ScrapProperty">
+    select
+    <include refid="columnsToScrapPropertyDto"/>
+    from
+    properties p
+      inner join projects prj on prj.id=p.resource_id and prj.qualifier = #{qualifier, jdbcType=VARCHAR}
+    where
+      p.prop_key = #{key, jdbcType=VARCHAR}
+      and p.user_id = #{userId, jdbcType=INTEGER}
+  </select>
+
   <select id="selectByQuery" parameterType="map" resultType="ScrapProperty">
     select
       <include refid="columnsToScrapPropertyDto"/>
@@ -177,6 +177,16 @@
       #{property,jdbcType=VARCHAR}
     </foreach>
     and ps.organization_uuid=#{organizationUuid,jdbcType=VARCHAR}
+  </select>
+
+  <select id="selectByKeyAndMatchingValue" parameterType="map" resultType="ScrapProperty">
+    select
+      <include refid="columnsToScrapPropertyDto"/>
+    from properties p
+    <where>
+      p.prop_key = #{key,jdbcType=VARCHAR}
+      and p.text_value like #{value,jdbcType=VARCHAR}
+    </where>
   </select>
 
   <insert id="insertAsEmpty" parameterType="Map" useGeneratedKeys="false">

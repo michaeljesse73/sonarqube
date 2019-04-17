@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -75,8 +75,12 @@ it('resets value', async () => {
   );
   expect(wrapper).toMatchSnapshot();
 
-  click(wrapper.find('button[type="reset"]'));
-  expect(resetSettingValue).toBeCalledWith('foo', 'project', undefined);
+  click(wrapper.find('Button'));
+  expect(resetSettingValue).toBeCalledWith({
+    keys: 'foo',
+    component: 'project',
+    branch: undefined
+  });
 
   await new Promise(setImmediate);
   expect(onChange).toBeCalled();

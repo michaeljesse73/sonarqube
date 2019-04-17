@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,8 +19,7 @@
  */
 package org.sonar.scanner.mediumtest;
 
-import com.google.common.collect.HashBasedTable;
-import com.google.common.collect.Table;
+import com.google.common.collect.Maps;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -36,14 +35,12 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 import org.apache.commons.io.FileUtils;
 import org.junit.rules.ExternalResource;
 import org.sonar.api.Plugin;
-import org.sonar.api.batch.debt.internal.DefaultDebtModel;
 import org.sonar.api.measures.CoreMetrics;
 import org.sonar.api.measures.Metric;
 import org.sonar.api.rule.RuleKey;
@@ -54,24 +51,24 @@ import org.sonar.batch.bootstrapper.Batch;
 import org.sonar.batch.bootstrapper.EnvironmentInformation;
 import org.sonar.batch.bootstrapper.LogOutput;
 import org.sonar.scanner.bootstrap.GlobalAnalysisMode;
-import org.sonar.scanner.issue.tracking.ServerLineHashesLoader;
-import org.sonar.scanner.protocol.input.ScannerInput.ServerIssue;
-import org.sonar.scanner.report.ReportPublisher;
 import org.sonar.scanner.repository.FileData;
 import org.sonar.scanner.repository.MetricsRepository;
 import org.sonar.scanner.repository.MetricsRepositoryLoader;
 import org.sonar.scanner.repository.ProjectRepositories;
 import org.sonar.scanner.repository.ProjectRepositoriesLoader;
 import org.sonar.scanner.repository.QualityProfileLoader;
-import org.sonar.scanner.repository.ServerIssuesLoader;
-import org.sonar.scanner.repository.settings.SettingsLoader;
+import org.sonar.scanner.repository.SingleProjectRepository;
+import org.sonar.scanner.repository.settings.GlobalSettingsLoader;
+import org.sonar.scanner.repository.settings.ProjectSettingsLoader;
 import org.sonar.scanner.rule.ActiveRulesLoader;
 import org.sonar.scanner.rule.LoadedActiveRule;
 import org.sonar.scanner.rule.RulesLoader;
+import org.sonar.scanner.scan.ScanProperties;
 import org.sonar.scanner.scan.branch.BranchConfiguration;
 import org.sonar.scanner.scan.branch.BranchConfigurationLoader;
 import org.sonar.scanner.scan.branch.BranchType;
 import org.sonar.scanner.scan.branch.ProjectBranches;
+import org.sonar.scanner.scan.branch.ProjectPullRequests;
 import org.sonarqube.ws.Qualityprofiles.SearchWsResponse.QualityProfile;
 import org.sonarqube.ws.Rules.ListResponse.Rule;
 
@@ -88,8 +85,8 @@ public class ScannerMediumTester extends ExternalResource {
   private final FakeBranchConfiguration branchConfiguration = new FakeBranchConfiguration();
   private final FakeProjectRepositoriesLoader projectRefProvider = new FakeProjectRepositoriesLoader();
   private final FakePluginInstaller pluginInstaller = new FakePluginInstaller();
-  private final FakeServerIssuesLoader serverIssues = new FakeServerIssuesLoader();
-  private final FakeServerLineHashesLoader serverLineHashes = new FakeServerLineHashesLoader();
+  private final FakeGlobalSettingsLoader globalSettingsLoader = new FakeGlobalSettingsLoader();
+  private final FakeProjectSettingsLoader projectSettingsLoader = new FakeProjectSettingsLoader();
   private final FakeRulesLoader rulesLoader = new FakeRulesLoader();
   private final FakeQualityProfileLoader qualityProfiles = new FakeQualityProfileLoader();
   private final FakeActiveRulesLoader activeRules = new FakeActiveRulesLoader();
@@ -183,11 +180,6 @@ public class ScannerMediumTester extends ExternalResource {
     return this;
   }
 
-  public ScannerMediumTester setPreviousAnalysisDate(Date previousAnalysis) {
-    projectRefProvider.setLastAnalysisDate(previousAnalysis);
-    return this;
-  }
-
   public ScannerMediumTester bootstrapProperties(Map<String, String> props) {
     globalProperties.putAll(props);
     return this;
@@ -199,37 +191,32 @@ public class ScannerMediumTester extends ExternalResource {
   }
 
   public ScannerMediumTester addActiveRule(String repositoryKey, String ruleKey, @Nullable String templateRuleKey, String name, @Nullable String severity,
-    @Nullable String internalKey, @Nullable String languag) {
+    @Nullable String internalKey, @Nullable String language) {
     LoadedActiveRule r = new LoadedActiveRule();
 
     r.setInternalKey(internalKey);
     r.setRuleKey(RuleKey.of(repositoryKey, ruleKey));
     r.setName(name);
     r.setTemplateRuleKey(templateRuleKey);
-    r.setLanguage(languag);
+    r.setLanguage(language);
     r.setSeverity(severity);
 
     activeRules.addActiveRule(r);
     return this;
   }
 
-  public ScannerMediumTester addFileData(String moduleKey, String path, FileData fileData) {
-    projectRefProvider.addFileData(moduleKey, path, fileData);
+  public ScannerMediumTester addFileData(String path, FileData fileData) {
+    projectRefProvider.addFileData(path, fileData);
     return this;
   }
 
-  public ScannerMediumTester setLastBuildDate(Date d) {
-    projectRefProvider.setLastAnalysisDate(d);
+  public ScannerMediumTester addGlobalServerSettings(String key, String value) {
+    globalSettingsLoader.getGlobalSettings().put(key, value);
     return this;
   }
 
-  public ScannerMediumTester mockServerIssue(ServerIssue issue) {
-    serverIssues.getServerIssues().add(issue);
-    return this;
-  }
-
-  public ScannerMediumTester mockLineHashes(String fileKey, String[] lineHashes) {
-    serverLineHashes.byKey.put(fileKey, lineHashes);
+  public ScannerMediumTester addProjectServerSettings(String key, String value) {
+    projectSettingsLoader.getProjectSettings().put(key, value);
     return this;
   }
 
@@ -242,7 +229,7 @@ public class ScannerMediumTester extends ExternalResource {
     }
     registerCoreMetrics();
     globalProperties.put(GlobalAnalysisMode.MEDIUM_TEST_ENABLED, "true");
-    globalProperties.put(ReportPublisher.KEEP_REPORT_PROP_KEY, "true");
+    globalProperties.put(ScanProperties.KEEP_REPORT_PROP_KEY, "true");
     globalProperties.put("sonar.userHome", userHome.toString());
   }
 
@@ -255,18 +242,18 @@ public class ScannerMediumTester extends ExternalResource {
     }
   }
 
-  public TaskBuilder newTask() {
-    return new TaskBuilder(this);
+  public AnalysisBuilder newAnalysis() {
+    return new AnalysisBuilder(this);
   }
 
-  public TaskBuilder newScanTask(File sonarProps) {
+  public AnalysisBuilder newAnalysis(File sonarProps) {
     Properties prop = new Properties();
     try (Reader reader = new InputStreamReader(new FileInputStream(sonarProps), StandardCharsets.UTF_8)) {
       prop.load(reader);
     } catch (Exception e) {
       throw new IllegalStateException("Unable to read configuration file", e);
     }
-    TaskBuilder builder = new TaskBuilder(this);
+    AnalysisBuilder builder = new AnalysisBuilder(this);
     builder.property("sonar.projectBaseDir", sonarProps.getParentFile().getAbsolutePath());
     for (Map.Entry<Object, Object> entry : prop.entrySet()) {
       builder.property(entry.getKey().toString(), entry.getValue().toString());
@@ -274,16 +261,16 @@ public class ScannerMediumTester extends ExternalResource {
     return builder;
   }
 
-  public static class TaskBuilder {
+  public static class AnalysisBuilder {
     private final Map<String, String> taskProperties = new HashMap<>();
     private ScannerMediumTester tester;
 
-    public TaskBuilder(ScannerMediumTester tester) {
+    public AnalysisBuilder(ScannerMediumTester tester) {
       this.tester = tester;
     }
 
-    public TaskResult execute() {
-      TaskResult result = new TaskResult();
+    public AnalysisResult execute() {
+      AnalysisResult result = new AnalysisResult();
       Map<String, String> props = new HashMap<>();
       props.putAll(tester.globalProperties);
       props.putAll(taskProperties);
@@ -299,9 +286,8 @@ public class ScannerMediumTester extends ExternalResource {
           tester.branchConfigurationLoader,
           tester.projectRefProvider,
           tester.activeRules,
-          tester.serverIssues,
-          new DefaultDebtModel(),
-          new FakeSettingsLoader(),
+          tester.globalSettingsLoader,
+          tester.projectSettingsLoader,
           result)
         .setLogOutput(tester.logOutput)
         .build().execute();
@@ -309,12 +295,12 @@ public class ScannerMediumTester extends ExternalResource {
       return result;
     }
 
-    public TaskBuilder properties(Map<String, String> props) {
+    public AnalysisBuilder properties(Map<String, String> props) {
       taskProperties.putAll(props);
       return this;
     }
 
-    public TaskBuilder property(String key, String value) {
+    public AnalysisBuilder property(String key, String value) {
       taskProperties.put(key, value);
       return this;
     }
@@ -369,23 +355,15 @@ public class ScannerMediumTester extends ExternalResource {
   }
 
   private static class FakeProjectRepositoriesLoader implements ProjectRepositoriesLoader {
-
-    private Table<String, String, FileData> fileDataTable = HashBasedTable.create();
-    private Date lastAnalysisDate;
+    private Map<String, FileData> fileDataMap = Maps.newHashMap();
 
     @Override
-    public ProjectRepositories load(String projectKey, boolean isIssuesMode, @Nullable String branchBase) {
-      Table<String, String, String> settings = HashBasedTable.create();
-      return new ProjectRepositories(settings, fileDataTable, lastAnalysisDate);
+    public ProjectRepositories load(String projectKey, @Nullable String branchBase) {
+      return new SingleProjectRepository(fileDataMap);
     }
 
-    public FakeProjectRepositoriesLoader addFileData(String moduleKey, String path, FileData fileData) {
-      fileDataTable.put(moduleKey, path, fileData);
-      return this;
-    }
-
-    public FakeProjectRepositoriesLoader setLastAnalysisDate(Date d) {
-      lastAnalysisDate = d;
+    public FakeProjectRepositoriesLoader addFileData(String path, FileData fileData) {
+      fileDataMap.put(path, fileData);
       return this;
     }
 
@@ -396,7 +374,7 @@ public class ScannerMediumTester extends ExternalResource {
     private BranchType branchType = BranchType.LONG;
     private String branchName = null;
     private String branchTarget = null;
-    private String branchBase = null;
+    private String longLivingSonarReferenceBranch = null;
 
     @Override
     public BranchType branchType() {
@@ -411,14 +389,19 @@ public class ScannerMediumTester extends ExternalResource {
 
     @CheckForNull
     @Override
-    public String branchTarget() {
+    public String targetScmBranch() {
       return branchTarget;
     }
 
     @CheckForNull
     @Override
-    public String branchBase() {
-      return branchBase;
+    public String longLivingSonarReferenceBranch() {
+      return longLivingSonarReferenceBranch;
+    }
+
+    @Override
+    public String pullRequestKey() {
+      throw new UnsupportedOperationException();
     }
   }
 
@@ -437,9 +420,14 @@ public class ScannerMediumTester extends ExternalResource {
     return this;
   }
 
+  public ScannerMediumTester setLongLivingSonarReferenceBranch(String longLivingSonarReferenceBranch) {
+    this.branchConfiguration.longLivingSonarReferenceBranch = longLivingSonarReferenceBranch;
+    return this;
+  }
+
   private class FakeBranchConfigurationLoader implements BranchConfigurationLoader {
     @Override
-    public BranchConfiguration load(Map<String, String> localSettings, Supplier<Map<String, String>> settingsSupplier, ProjectBranches branches) {
+    public BranchConfiguration load(Map<String, String> localSettings, Supplier<Map<String, String>> settingsSupplier, ProjectBranches branches, ProjectPullRequests pullRequests) {
       return branchConfiguration;
     }
   }
@@ -458,50 +446,42 @@ public class ScannerMediumTester extends ExternalResource {
     }
 
     @Override
-    public List<QualityProfile> load(String projectKey, String profileName) {
+    public List<QualityProfile> load(String projectKey) {
       return qualityProfiles;
     }
 
     @Override
-    public List<QualityProfile> loadDefault(String profileName) {
+    public List<QualityProfile> loadDefault() {
       return qualityProfiles;
     }
   }
 
-  private static class FakeServerIssuesLoader implements ServerIssuesLoader {
+  private static class FakeGlobalSettingsLoader implements GlobalSettingsLoader {
 
-    private List<ServerIssue> serverIssues = new ArrayList<>();
+    private Map<String, String> globalSettings = new HashMap<>();
 
-    public List<ServerIssue> getServerIssues() {
-      return serverIssues;
+    public Map<String, String> getGlobalSettings() {
+      return globalSettings;
     }
 
     @Override
-    public void load(String componentKey, Consumer<ServerIssue> consumer) {
-      for (ServerIssue serverIssue : serverIssues) {
-        consumer.accept(serverIssue);
-      }
+    public Map<String, String> loadGlobalSettings() {
+      return Collections.unmodifiableMap(globalSettings);
     }
   }
 
-  private static class FakeSettingsLoader implements SettingsLoader {
+  private static class FakeProjectSettingsLoader implements ProjectSettingsLoader {
+
+    private Map<String, String> projectSettings = new HashMap<>();
+
+    public Map<String, String> getProjectSettings() {
+      return projectSettings;
+    }
 
     @Override
-    public Map<String, String> load(String componentKey) {
-      return Collections.emptyMap();
+    public Map<String, String> loadProjectSettings() {
+      return Collections.unmodifiableMap(projectSettings);
     }
   }
 
-  private static class FakeServerLineHashesLoader implements ServerLineHashesLoader {
-    private Map<String, String[]> byKey = new HashMap<>();
-
-    @Override
-    public String[] getLineHashes(String fileKey) {
-      if (byKey.containsKey(fileKey)) {
-        return byKey.get(fileKey);
-      } else {
-        throw new IllegalStateException("You forgot to mock line hashes for " + fileKey);
-      }
-    }
-  }
 }

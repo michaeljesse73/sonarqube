@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,15 +21,20 @@ package org.sonar.db;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 import javax.annotation.Nullable;
-import org.apache.commons.dbcp.BasicDataSource;
+import org.apache.commons.dbcp2.BasicDataSource;
 import org.apache.commons.lang.StringUtils;
 import org.picocontainer.containers.TransientPicoContainer;
 import org.sonar.api.utils.System2;
 import org.sonar.core.util.SequenceUuidFactory;
+import org.sonar.db.alm.AlmDbTester;
 import org.sonar.db.component.ComponentDbTester;
+import org.sonar.db.component.ProjectLinkDbTester;
 import org.sonar.db.event.EventDbTester;
 import org.sonar.db.favorite.FavoriteDbTester;
 import org.sonar.db.issue.IssueDbTester;
@@ -42,12 +47,13 @@ import org.sonar.db.permission.template.PermissionTemplateDbTester;
 import org.sonar.db.plugin.PluginDbTester;
 import org.sonar.db.property.PropertyDbTester;
 import org.sonar.db.qualitygate.QualityGateDbTester;
-import org.sonar.db.qualitygate.QualityGateDto;
 import org.sonar.db.qualityprofile.QualityProfileDbTester;
 import org.sonar.db.rule.RuleDbTester;
 import org.sonar.db.source.FileSourceTester;
 import org.sonar.db.user.RootFlagAssertions;
 import org.sonar.db.user.UserDbTester;
+import org.sonar.db.webhook.WebhookDbTester;
+import org.sonar.db.webhook.WebhookDeliveryDbTester;
 
 import static com.google.common.base.Preconditions.checkState;
 import static org.apache.commons.lang.RandomStringUtils.randomAlphanumeric;
@@ -65,10 +71,10 @@ public class DbTester extends AbstractDbTester<TestDb> {
   private boolean started = false;
   private String defaultOrganizationUuid = randomAlphanumeric(40);
   private OrganizationDto defaultOrganization;
-  private QualityGateDto builtInQualityGate;
 
   private final UserDbTester userTester;
   private final ComponentDbTester componentTester;
+  private final ProjectLinkDbTester componentLinkTester;
   private final FavoriteDbTester favoriteTester;
   private final EventDbTester eventTester;
   private final OrganizationDbTester organizationTester;
@@ -83,14 +89,18 @@ public class DbTester extends AbstractDbTester<TestDb> {
   private final MeasureDbTester measureDbTester;
   private final FileSourceTester fileSourceTester;
   private final PluginDbTester pluginDbTester;
+  private final WebhookDbTester webhookDbTester;
+  private final WebhookDeliveryDbTester webhookDeliveryDbTester;
+  private final AlmDbTester almDbTester;
 
-  public DbTester(System2 system2, @Nullable String schemaPath) {
-    super(TestDb.create(schemaPath));
+  private DbTester(System2 system2, @Nullable String schemaPath, MyBatisConfExtension... confExtensions) {
+    super(TestDb.create(schemaPath, confExtensions));
     this.system2 = system2;
 
     initDbClient();
     this.userTester = new UserDbTester(this);
     this.componentTester = new ComponentDbTester(this);
+    this.componentLinkTester = new ProjectLinkDbTester(this);
     this.favoriteTester = new FavoriteDbTester(this);
     this.eventTester = new EventDbTester(this);
     this.organizationTester = new OrganizationDbTester(this);
@@ -105,6 +115,9 @@ public class DbTester extends AbstractDbTester<TestDb> {
     this.measureDbTester = new MeasureDbTester(this);
     this.fileSourceTester = new FileSourceTester(this);
     this.pluginDbTester = new PluginDbTester(this);
+    this.webhookDbTester = new WebhookDbTester(this);
+    this.webhookDeliveryDbTester = new WebhookDeliveryDbTester(this);
+    this.almDbTester = new AlmDbTester(this);
   }
 
   public static DbTester create() {
@@ -113,6 +126,14 @@ public class DbTester extends AbstractDbTester<TestDb> {
 
   public static DbTester create(System2 system2) {
     return new DbTester(system2, null);
+  }
+
+  public static DbTester createWithExtensionMappers(Class<?> firstMapperClass, Class<?>... otherMapperClasses) {
+    return new DbTester(System2.INSTANCE, null, new DbTesterMyBatisConfExtension(firstMapperClass, otherMapperClasses));
+  }
+
+  public static DbTester createWithExtensionMappers(System2 system2, Class<?> firstMapperClass, Class<?>... otherMapperClasses) {
+    return new DbTester(system2, null, new DbTesterMyBatisConfExtension(firstMapperClass, otherMapperClasses));
   }
 
   public static DbTester createForSchema(System2 system2, Class testClass, String filename) {
@@ -187,6 +208,10 @@ public class DbTester extends AbstractDbTester<TestDb> {
     return componentTester;
   }
 
+  public ProjectLinkDbTester componentLinks() {
+    return componentLinkTester;
+  }
+
   public FavoriteDbTester favorites() {
     return favoriteTester;
   }
@@ -241,6 +266,18 @@ public class DbTester extends AbstractDbTester<TestDb> {
 
   public PluginDbTester pluginDbTester() {
     return pluginDbTester;
+  }
+
+  public WebhookDbTester webhooks() {
+    return webhookDbTester;
+  }
+
+  public WebhookDeliveryDbTester webhookDelivery() {
+    return webhookDeliveryDbTester;
+  }
+
+  public AlmDbTester alm() {
+    return almDbTester;
   }
 
   @Override
@@ -329,4 +366,38 @@ public class DbTester extends AbstractDbTester<TestDb> {
     }
   }
 
+  private static class DbTesterMyBatisConfExtension implements MyBatisConfExtension {
+    // do not replace with a lambda to allow cache of MyBatis instances in TestDb to work
+    private final Class<?>[] mapperClasses;
+
+    public DbTesterMyBatisConfExtension(Class<?> firstMapperClass, Class<?>... otherMapperClasses) {
+      this.mapperClasses = Stream.concat(
+        Stream.of(firstMapperClass),
+        Arrays.stream(otherMapperClasses))
+        .sorted(Comparator.comparing(Class::getName))
+        .toArray(Class<?>[]::new);
+    }
+
+    @Override
+    public Stream<Class<?>> getMapperClasses() {
+      return Arrays.stream(mapperClasses);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      DbTesterMyBatisConfExtension that = (DbTesterMyBatisConfExtension) o;
+      return Arrays.equals(mapperClasses, that.mapperClasses);
+    }
+
+    @Override
+    public int hashCode() {
+      return Arrays.hashCode(mapperClasses);
+    }
+  }
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,9 +19,9 @@
  */
 package org.sonarqube.ws.client;
 
-import com.google.common.collect.ImmutableMap;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.commons.io.IOUtils;
@@ -32,8 +32,8 @@ import org.sonarqube.ws.MediaTypes;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.argThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -57,7 +57,9 @@ public class LocalWsConnectorTest {
 
     WsResponse wsResponse = underTest.call(wsRequest);
 
-    verifyRequested("POST", "api/issues/search", MediaTypes.JSON, ImmutableMap.of("foo", "bar"));
+    Map<String, String> expectedParams = new HashMap<>();
+    expectedParams.put("foo", "bar");
+    verifyRequested("POST", "api/issues/search", MediaTypes.JSON, expectedParams);
     assertThat(wsResponse.code()).isEqualTo(400);
     assertThat(wsResponse.content()).isEqualTo("{}");
     assertThat(IOUtils.toString(wsResponse.contentReader())).isEqualTo("{}");

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,6 +19,9 @@
  */
 package org.sonar.ce.container;
 
+/**
+ * Status of the Compute Engine local node, but not of cluster of Compute Engine nodes.
+ */
 public interface ComputeEngineStatus {
 
   /**

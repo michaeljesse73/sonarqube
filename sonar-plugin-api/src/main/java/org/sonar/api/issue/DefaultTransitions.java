@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -41,7 +41,18 @@ public interface DefaultTransitions {
   String WONT_FIX = "wontfix";
 
   /**
+   * @since 7.3
+   */
+  String DETECT = "detect";
+  String DISMISS = "dismiss";
+  String REJECT = "reject";
+  String REQUEST_REVIEW = "requestreview";
+  String ACCEPT = "accept";
+  String CLEAR = "clear";
+  String REOPEN_HOTSPOT = "reopenhotspot";
+
+  /**
    * @since 4.4
    */
-  List<String> ALL = asList(CONFIRM, UNCONFIRM, REOPEN, RESOLVE, FALSE_POSITIVE, WONT_FIX, CLOSE);
+  List<String> ALL = asList(CONFIRM, UNCONFIRM, REOPEN, RESOLVE, FALSE_POSITIVE, WONT_FIX, CLOSE, DETECT, DISMISS, REJECT, REQUEST_REVIEW, ACCEPT, CLEAR, REOPEN_HOTSPOT);
 }

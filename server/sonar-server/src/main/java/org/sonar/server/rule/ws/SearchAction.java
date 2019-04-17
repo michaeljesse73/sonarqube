@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -36,7 +36,6 @@ import java.util.Objects;
 import java.util.Set;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
-import org.sonar.api.rule.RuleStatus;
 import org.sonar.api.rule.Severity;
 import org.sonar.api.rules.RuleType;
 import org.sonar.api.server.ws.Change;
@@ -49,12 +48,11 @@ import org.sonar.db.DbSession;
 import org.sonar.db.rule.RuleDefinitionDto;
 import org.sonar.db.rule.RuleDto;
 import org.sonar.db.rule.RuleParamDto;
+import org.sonar.db.user.UserDto;
 import org.sonar.server.es.Facets;
 import org.sonar.server.es.SearchIdResult;
 import org.sonar.server.es.SearchOptions;
-import org.sonar.server.qualityprofile.ActiveRuleInheritance;
 import org.sonar.server.rule.index.RuleIndex;
-import org.sonar.server.rule.index.RuleIndexDefinition;
 import org.sonar.server.rule.index.RuleQuery;
 import org.sonarqube.ws.Common;
 import org.sonarqube.ws.Rules.SearchResponse;
@@ -65,10 +63,6 @@ import static org.sonar.api.server.ws.WebService.Param.FACETS;
 import static org.sonar.api.server.ws.WebService.Param.FIELDS;
 import static org.sonar.api.server.ws.WebService.Param.PAGE;
 import static org.sonar.api.server.ws.WebService.Param.PAGE_SIZE;
-import static org.sonar.api.server.ws.WebService.Param.SORT;
-import static org.sonar.api.server.ws.WebService.Param.TEXT_QUERY;
-import static org.sonar.core.util.Uuids.UUID_EXAMPLE_01;
-import static org.sonar.core.util.Uuids.UUID_EXAMPLE_02;
 import static org.sonar.server.es.SearchOptions.MAX_LIMIT;
 import static org.sonar.server.rule.index.RuleIndex.ALL_STATUSES_EXCEPT_REMOVED;
 import static org.sonar.server.rule.index.RuleIndex.FACET_ACTIVE_SEVERITIES;
@@ -80,21 +74,12 @@ import static org.sonar.server.rule.index.RuleIndex.FACET_STATUSES;
 import static org.sonar.server.rule.index.RuleIndex.FACET_TAGS;
 import static org.sonar.server.rule.index.RuleIndex.FACET_TYPES;
 import static org.sonar.server.rule.ws.RulesWsParameters.OPTIONAL_FIELDS;
-import static org.sonar.server.rule.ws.RulesWsParameters.PARAM_ACTIVATION;
 import static org.sonar.server.rule.ws.RulesWsParameters.PARAM_ACTIVE_SEVERITIES;
-import static org.sonar.server.rule.ws.RulesWsParameters.PARAM_AVAILABLE_SINCE;
-import static org.sonar.server.rule.ws.RulesWsParameters.PARAM_COMPARE_TO_PROFILE;
-import static org.sonar.server.rule.ws.RulesWsParameters.PARAM_INHERITANCE;
-import static org.sonar.server.rule.ws.RulesWsParameters.PARAM_IS_TEMPLATE;
 import static org.sonar.server.rule.ws.RulesWsParameters.PARAM_LANGUAGES;
-import static org.sonar.server.rule.ws.RulesWsParameters.PARAM_ORGANIZATION;
-import static org.sonar.server.rule.ws.RulesWsParameters.PARAM_QPROFILE;
 import static org.sonar.server.rule.ws.RulesWsParameters.PARAM_REPOSITORIES;
-import static org.sonar.server.rule.ws.RulesWsParameters.PARAM_RULE_KEY;
 import static org.sonar.server.rule.ws.RulesWsParameters.PARAM_SEVERITIES;
 import static org.sonar.server.rule.ws.RulesWsParameters.PARAM_STATUSES;
 import static org.sonar.server.rule.ws.RulesWsParameters.PARAM_TAGS;
-import static org.sonar.server.rule.ws.RulesWsParameters.PARAM_TEMPLATE_KEY;
 import static org.sonar.server.rule.ws.RulesWsParameters.PARAM_TYPES;
 import static org.sonar.server.ws.WsUtils.writeProtobuf;
 
@@ -117,13 +102,16 @@ public class SearchAction implements RulesWsAction {
   private final RuleIndex ruleIndex;
   private final ActiveRuleCompleter activeRuleCompleter;
   private final RuleMapper mapper;
+  private final RuleWsSupport ruleWsSupport;
 
-  public SearchAction(RuleIndex ruleIndex, ActiveRuleCompleter activeRuleCompleter, RuleQueryFactory ruleQueryFactory, DbClient dbClient, RuleMapper mapper) {
+  public SearchAction(RuleIndex ruleIndex, ActiveRuleCompleter activeRuleCompleter, RuleQueryFactory ruleQueryFactory, DbClient dbClient, RuleMapper mapper,
+    RuleWsSupport ruleWsSupport) {
     this.ruleIndex = ruleIndex;
     this.activeRuleCompleter = activeRuleCompleter;
     this.ruleQueryFactory = ruleQueryFactory;
     this.dbClient = dbClient;
     this.mapper = mapper;
+    this.ruleWsSupport = ruleWsSupport;
   }
 
   @Override
@@ -132,7 +120,10 @@ public class SearchAction implements RulesWsAction {
       .addPagingParams(100, MAX_LIMIT)
       .setHandler(this)
       .setChangelog(new Change("7.1", "The field 'scope' has been added to the response"))
-      .setChangelog(new Change("7.1", "The field 'scope' has been added to the 'f' parameter"));
+      .setChangelog(new Change("7.1", "The field 'scope' has been added to the 'f' parameter"))
+      .setChangelog(new Change("7.2", "The field 'isExternal' has been added to the response"))
+      .setChangelog(new Change("7.2", "The field 'includeExternal' has been added to the 'f' parameter"))
+      .setChangelog(new Change("7.5", "The field 'updatedAt' has been added to the 'f' parameter"));
 
     action.createParam(FACETS)
       .setDescription("Comma-separated list of the facets to be computed. No facet is computed by default.")
@@ -152,7 +143,23 @@ public class SearchAction implements RulesWsAction {
 
     Iterator<String> it = OPTIONAL_FIELDS.iterator();
     paramFields.setExampleValue(format("%s,%s", it.next(), it.next()));
-    doDefinition(action);
+    action.setDescription("Search for a collection of relevant rules matching a specified query.<br/>" +
+      "Since 5.5, following fields in the response have been deprecated :" +
+      "<ul>" +
+      "<li>\"effortToFixDescription\" becomes \"gapDescription\"</li>" +
+      "<li>\"debtRemFnCoeff\" becomes \"remFnGapMultiplier\"</li>" +
+      "<li>\"defaultDebtRemFnCoeff\" becomes \"defaultRemFnGapMultiplier\"</li>" +
+      "<li>\"debtRemFnOffset\" becomes \"remFnBaseEffort\"</li>" +
+      "<li>\"defaultDebtRemFnOffset\" becomes \"defaultRemFnBaseEffort\"</li>" +
+      "<li>\"debtOverloaded\" becomes \"remFnOverloaded\"</li>" +
+      "</ul>")
+      .setResponseExample(getClass().getResource("search-example.json"))
+      .setSince("4.4")
+      .setHandler(this);
+
+    // Rule-specific search parameters
+    RuleWsSupport.defineGenericRuleSearchParameters(action);
+    RuleWsSupport.defineIsExternalParam(action);
   }
 
   @Override
@@ -160,7 +167,7 @@ public class SearchAction implements RulesWsAction {
     try (DbSession dbSession = dbClient.openSession(false)) {
       SearchRequest searchWsRequest = toSearchWsRequest(request);
       SearchOptions context = buildSearchOptions(searchWsRequest);
-      RuleQuery query = ruleQueryFactory.createRuleQuery(dbSession, request);
+      RuleQuery query = ruleQueryFactory.createRuleSearchQuery(dbSession, request);
       SearchResult searchResult = doSearch(dbSession, query, context);
       SearchResponse responseBuilder = buildResponse(dbSession, searchWsRequest, context, searchResult, query);
       writeProtobuf(responseBuilder, request, response);
@@ -183,144 +190,9 @@ public class SearchAction implements RulesWsAction {
     response.setPs(context.getLimit());
   }
 
-  private void doDefinition(WebService.NewAction action) {
-    action.setDescription("Search for a collection of relevant rules matching a specified query.<br/>" +
-      "Since 5.5, following fields in the response have been deprecated :" +
-      "<ul>" +
-      "<li>\"effortToFixDescription\" becomes \"gapDescription\"</li>" +
-      "<li>\"debtRemFnCoeff\" becomes \"remFnGapMultiplier\"</li>" +
-      "<li>\"defaultDebtRemFnCoeff\" becomes \"defaultRemFnGapMultiplier\"</li>" +
-      "<li>\"debtRemFnOffset\" becomes \"remFnBaseEffort\"</li>" +
-      "<li>\"defaultDebtRemFnOffset\" becomes \"defaultRemFnBaseEffort\"</li>" +
-      "<li>\"debtOverloaded\" becomes \"remFnOverloaded\"</li>" +
-      "</ul>")
-      .setResponseExample(getClass().getResource("search-example.json"))
-      .setSince("4.4")
-      .setHandler(this);
-
-    // Rule-specific search parameters
-    defineRuleSearchParameters(action);
-  }
-
-  public static void defineRuleSearchParameters(WebService.NewAction action) {
-    action
-      .createParam(TEXT_QUERY)
-      .setMinimumLength(2)
-      .setDescription("UTF-8 search query")
-      .setExampleValue("xpath");
-
-    action
-      .createParam(PARAM_RULE_KEY)
-      .setDescription("Key of rule to search for")
-      .setExampleValue("squid:S001");
-
-    action
-      .createParam(PARAM_REPOSITORIES)
-      .setDescription("Comma-separated list of repositories")
-      .setExampleValue("checkstyle,findbugs");
-
-    action
-      .createParam(PARAM_SEVERITIES)
-      .setDescription("Comma-separated list of default severities. Not the same than severity of rules in Quality profiles.")
-      .setPossibleValues(Severity.ALL)
-      .setExampleValue("CRITICAL,BLOCKER");
-
-    action
-      .createParam(PARAM_LANGUAGES)
-      .setDescription("Comma-separated list of languages")
-      .setExampleValue("java,js");
-
-    action
-      .createParam(PARAM_STATUSES)
-      .setDescription("Comma-separated list of status codes")
-      .setPossibleValues(RuleStatus.values())
-      .setExampleValue(RuleStatus.READY);
-
-    action
-      .createParam(PARAM_AVAILABLE_SINCE)
-      .setDescription("Filters rules added since date. Format is yyyy-MM-dd")
-      .setExampleValue("2014-06-22");
-
-    action
-      .createParam(PARAM_TAGS)
-      .setDescription("Comma-separated list of tags. Returned rules match any of the tags (OR operator)")
-      .setExampleValue("security,java8");
-
-    action
-      .createParam(PARAM_TYPES)
-      .setSince("5.5")
-      .setDescription("Comma-separated list of types. Returned rules match any of the tags (OR operator)")
-      .setPossibleValues(RuleType.values())
-      .setExampleValue(RuleType.BUG);
-
-    action
-      .createParam(PARAM_ACTIVATION)
-      .setDescription("Filter rules that are activated or deactivated on the selected Quality profile. Ignored if " +
-        "the parameter '" + PARAM_QPROFILE + "' is not set.")
-      .setBooleanPossibleValues();
-
-    action
-      .createParam(PARAM_QPROFILE)
-      .setDescription("Quality profile key to filter on. Used only if the parameter '" +
-        PARAM_ACTIVATION + "' is set.")
-      .setExampleValue(UUID_EXAMPLE_01);
-
-    action.createParam(PARAM_COMPARE_TO_PROFILE)
-      .setDescription("Quality profile key to filter rules that are activated. Meant to compare easily to profile set in '%s'", PARAM_QPROFILE)
-      .setInternal(true)
-      .setSince("6.5")
-      .setExampleValue(UUID_EXAMPLE_02);
-
-    action
-      .createParam(PARAM_INHERITANCE)
-      .setDescription("Comma-separated list of values of inheritance for a rule within a quality profile. Used only if the parameter '" +
-        PARAM_ACTIVATION + "' is set.")
-      .setPossibleValues(ActiveRuleInheritance.NONE.name(),
-        ActiveRuleInheritance.INHERITED.name(),
-        ActiveRuleInheritance.OVERRIDES.name())
-      .setExampleValue(ActiveRuleInheritance.INHERITED.name() + "," +
-        ActiveRuleInheritance.OVERRIDES.name());
-
-    action
-      .createParam(PARAM_ACTIVE_SEVERITIES)
-      .setDescription("Comma-separated list of activation severities, i.e the severity of rules in Quality profiles.")
-      .setPossibleValues(Severity.ALL)
-      .setExampleValue("CRITICAL,BLOCKER");
-
-    action
-      .createParam(PARAM_IS_TEMPLATE)
-      .setDescription("Filter template rules")
-      .setBooleanPossibleValues();
-
-    action
-      .createParam(PARAM_TEMPLATE_KEY)
-      .setDescription("Key of the template rule to filter on. Used to search for the custom rules based on this template.")
-      .setExampleValue("java:S001");
-
-    action
-      .createParam(SORT)
-      .setDescription("Sort field")
-      .setPossibleValues(RuleIndexDefinition.SORT_FIELDS)
-      .setExampleValue(RuleIndexDefinition.SORT_FIELDS.iterator().next());
-
-    action
-      .createParam(ASCENDING)
-      .setDescription("Ascending sort")
-      .setBooleanPossibleValues()
-      .setDefaultValue(true);
-
-    action.createParam(PARAM_ORGANIZATION)
-      .setDescription("Organization key")
-      .setRequired(false)
-      .setInternal(true)
-      .setExampleValue("my-org")
-      .setSince("6.4");
-  }
-
-  private void writeRules(SearchResponse.Builder response, SearchResult result, SearchOptions context) {
-    for (RuleDto rule : result.rules) {
-      response.addRules(mapper.toWsRule(rule.getDefinition(), result, context.getFields(), rule.getMetadata()));
-    }
+  private void writeRules(DbSession dbSession, SearchResponse.Builder response, SearchResult result, SearchOptions context) {
+    Map<String, UserDto> usersByUuid = ruleWsSupport.getUsersByUuid(dbSession, result.rules);
+    result.rules.forEach(rule -> response.addRules(mapper.toWsRule(rule.getDefinition(), result, context.getFields(), rule.getMetadata(), usersByUuid)));
   }
 
   private static SearchOptions buildSearchOptions(SearchRequest request) {
@@ -379,8 +251,8 @@ public class SearchAction implements RulesWsAction {
 
   private void doContextResponse(DbSession dbSession, SearchRequest request, SearchResult result, SearchResponse.Builder response, RuleQuery query) {
     SearchOptions contextForResponse = loadCommonContext(request);
-    writeRules(response, result, contextForResponse);
-    if (contextForResponse.getFields().contains("actives")) {
+    writeRules(dbSession, response, result, contextForResponse);
+    if (contextForResponse.getFields().contains("actives") && ruleWsSupport.areActiveRulesVisible(query.getOrganization())) {
       activeRuleCompleter.completeSearch(dbSession, query, result.rules, response);
     }
   }

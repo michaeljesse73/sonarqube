@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,16 +19,23 @@
  */
 package org.sonar.db.source;
 
+import java.util.Collection;
 import java.util.List;
 import javax.annotation.CheckForNull;
 import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.session.ResultHandler;
 
 public interface FileSourceMapper {
 
-  List<FileSourceDto> selectHashesForProject(@Param("projectUuid") String projectUuid, @Param("dataType") String dataType);
+  List<FileSourceDto> selectHashesForProject(@Param("projectUuid") String projectUuid);
 
   @CheckForNull
-  FileSourceDto select(@Param("fileUuid") String fileUuid, @Param("dataType") String dataType);
+  FileSourceDto selectByFileUuid(@Param("fileUuid") String fileUuid);
+
+  void scrollLineHashes(@Param("fileUuids") Collection<String> fileUuids, ResultHandler<LineHashesWithUuidDto> rowHandler);
+
+  @CheckForNull
+  Integer selectLineHashesVersion(@Param("fileUuid") String fileUuid);
 
   void insert(FileSourceDto dto);
 

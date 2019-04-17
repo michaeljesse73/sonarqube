@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,7 +20,6 @@
 import * as React from 'react';
 import { shallow } from 'enzyme';
 import OrganizationNavigationAdministration from '../OrganizationNavigationAdministration';
-import { Visibility } from '../../../../app/types';
 
 it('renders', () => {
   const wrapper = shallow(
@@ -29,9 +28,9 @@ it('renders', () => {
       organization={{
         key: 'foo',
         name: 'Foo',
-        projectVisibility: Visibility.Public
+        projectVisibility: 'public'
       }}
     />
   );
-  expect(wrapper.find('Dropdown').dive()).toMatchSnapshot();
+  expect(wrapper.find('Dropdown')).toMatchSnapshot();
 });

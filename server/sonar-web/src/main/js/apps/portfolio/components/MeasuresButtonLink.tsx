@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -31,7 +31,7 @@ export default function MeasuresButtonLink({ component, metric }: Props) {
   return (
     <Link
       className="button button-small spacer-left text-text-bottom"
-      to={getComponentDrilldownUrl(component, metric)}>
+      to={getComponentDrilldownUrl({ componentKey: component, metric })}>
       <BubblesIcon size={14} />
     </Link>
   );

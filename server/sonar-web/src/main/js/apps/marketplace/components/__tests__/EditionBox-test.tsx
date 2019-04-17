@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,46 +19,25 @@
  */
 import * as React from 'react';
 import { shallow } from 'enzyme';
-import { Edition, EditionStatus } from '../../../../api/marketplace';
 import EditionBox from '../EditionBox';
+import { EditionKey } from '../../utils';
 
-const DEFAULT_STATUS: EditionStatus = {
-  currentEditionKey: '',
-  nextEditionKey: '',
-  installationStatus: 'NONE'
-};
-
-const DEFAULT_EDITION: Edition = {
-  key: 'foo',
-  name: 'Foo',
-  textDescription: 'Foo desc',
+const DEFAULT_EDITION = {
+  key: EditionKey.developer,
+  name: 'Developer',
   downloadUrl: 'download_url',
-  homeUrl: 'more_url',
-  licenseRequestUrl: 'license_url'
+  homeUrl: 'more_url'
 };
 
 it('should display the edition', () => {
-  expect(getWrapper()).toMatchSnapshot();
+  expect(
+    shallow(
+      <EditionBox
+        currentEdition={EditionKey.community}
+        edition={DEFAULT_EDITION}
+        ncloc={1000}
+        serverId="serverId"
+      />
+    )
+  ).toMatchSnapshot();
 });
-
-it('should disable action button', () => {
-  expect(getWrapper({ disableAction: true })).toMatchSnapshot();
-});
-
-it('should correctly hide action buttons', () => {
-  expect(getWrapper({ displayAction: false })).toMatchSnapshot();
-});
-
-function getWrapper(props = {}) {
-  return shallow(
-    <EditionBox
-      actionLabel="action"
-      disableAction={false}
-      displayAction={true}
-      edition={DEFAULT_EDITION}
-      editionStatus={DEFAULT_STATUS}
-      onAction={jest.fn()}
-      {...props}
-    />
-  );
-}

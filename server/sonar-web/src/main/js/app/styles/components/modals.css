@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -28,6 +28,7 @@
   background-color: #fff;
   opacity: 0;
   transition: all 0.2s ease;
+  border-radius: 3px;
 }
 
 .modal:focus,
@@ -41,9 +42,14 @@
   opacity: 1;
 }
 
+.modal-small {
+  width: 450px;
+  margin-left: -225px;
+}
+
 .modal-medium {
-  width: 800px;
-  margin-left: -400px;
+  width: 830px;
+  margin-left: -415px;
 }
 
 .modal-large {
@@ -72,127 +78,80 @@
   opacity: 1;
 }
 
+.modal-no-backdrop {
+  background-color: transparent;
+}
+
 .modal-open,
 .ReactModal__Body--open {
   overflow: hidden;
-  margin-right: 15px;
-}
-
-.modal-container {
-  max-height: 70vh;
-  padding: 10px;
-  box-sizing: border-box;
-  overflow: auto;
+  margin-right: var(--sbw);
 }
 
 .modal-head {
-  padding: 0 10px;
-  background-color: var(--gray94);
-  border-bottom: 1px solid #ddd;
+  padding: calc(4 * var(--gridSize));
+  padding-bottom: 0;
 }
 
 .modal-head h1,
 .modal-head h2 {
-  line-height: 30px;
-  min-height: 30px;
-}
-
-ul.modal-head-metadata {
-  overflow: hidden;
-  padding: 0 0 5px 0;
-}
-
-ul.modal-head-metadata li {
-  float: left;
-  position: relative;
-  font-size: 85%;
-  color: var(--secondFontColor);
+  margin: 0;
+  font-size: var(--bigFontSize);
+  font-weight: bold;
+  line-height: normal;
 }
 
 .modal-body {
-  padding: 10px;
+  padding: var(--pagePadding) calc(4 * var(--gridSize));
 }
 
-.modal-body-select2 {
-  margin-bottom: 10px;
+.modal-container {
+  max-height: 60vh;
+  box-sizing: border-box;
+  overflow-y: scroll;
+  border-top: 1px solid var(--barBorderColor);
+  margin-top: var(--pagePadding);
+  padding-right: calc(4 * var(--gridSize) - var(--sbw));
 }
 
-.modal-body .notes {
-  height: auto;
+.modal-container > :last-child {
+  margin-bottom: var(--pagePadding);
 }
 
-.modal-field {
+.modal-field,
+.modal-validation-field {
   clear: both;
   display: block;
-  padding: 5px 0 5px 130px;
-}
-
-.modal-large-field {
-  clear: both;
-  display: block;
-  padding: 20px 40px;
-}
-
-.modal-field label {
-  position: relative;
-  left: -140px;
-  display: block;
-  float: left;
-  width: 120px;
-  margin-right: -130px;
-  padding-top: 5px;
-  padding-bottom: 2px;
-  padding-left: 10px;
-  line-height: 1;
-  text-align: right;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.modal-field label.simple-label {
-  display: inline-block;
-  vertical-align: middle;
-  float: none;
-  position: static;
-  margin: 0 0 0 -5px;
   padding: 0;
-  text-align: left;
+  margin-bottom: calc(var(--gridSize) * 2);
 }
 
-.modal-large-field label {
-  display: inline-block;
-  padding-bottom: 15px;
+.modal-field label,
+.modal-validation-field label {
+  display: block;
   font-weight: bold;
+  padding-bottom: calc(var(--gridSize) / 2);
 }
 
-.readonly-field {
-  padding-top: 5px;
-  margin-left: -5px;
-  line-height: 1;
-}
-
+.modal-field a.icon-checkbox,
 .modal-field input,
-.modal-large-field input,
 .modal-field select,
-.modal-large-field select,
 .modal-field textarea,
-.modal-large-field textarea,
-.modal-field .Select,
-.modal-large-field .Select {
+.modal-field .Select {
   margin-right: 5px;
-  margin-bottom: 10px;
+}
+
+.modal-field a.icon-checkbox {
+  height: 24px;
 }
 
 .modal-field input[type='radio'],
-.modal-large-field input[type='radio'],
-.modal-field input[type='checkbox'],
-.modal-large-field input[type='checkbox'] {
+.modal-field input[type='checkbox'] {
   margin-top: 5px;
   margin-bottom: 4px;
 }
 
-.modal-field > .icon-checkbox,
-.modal-large-field > .icon-checkbox {
+.modal-field > .icon-checkbox {
   padding-top: 6px;
   padding-right: 8px;
 }
@@ -203,32 +162,43 @@ ul.modal-head-metadata li {
 .modal-field textarea,
 .modal-field select,
 .modal-field .Select {
-  width: 250px;
-}
-
-.modal-large-field input[type='text'],
-.modal-large-field input[type='email'],
-.modal-large-field input[type='password'],
-.modal-large-field textarea,
-.modal-large-field select,
-.modal-large-field .Select {
   width: 100%;
 }
 
+.modal-validation-field input,
+.modal-validation-field textarea,
+.modal-validation-field .Select {
+  margin-right: var(--gridSize);
+  margin-bottom: 2px;
+  width: calc(100% - 3 * var(--gridSize));
+}
+
+.modal-field textarea,
+.modal-validation-field textarea {
+  max-width: 100%;
+  min-width: 100%;
+  max-height: 50vh;
+  min-height: var(--controlHeight);
+}
+.modal-validation-field input:not(.is-invalid),
+.modal-validation-field .Select:not(.is-invalid) {
+  margin-bottom: calc(var(--tinyControlHeight) + 2px);
+}
+
 .modal-field-description {
-  padding-bottom: 4px;
   line-height: 1.4;
   color: var(--secondFontColor);
   font-size: var(--smallFontSize);
   overflow: hidden;
   text-overflow: ellipsis;
+  margin-top: 2px;
 }
 
 .modal-foot {
-  line-height: var(--controlHeight);
-  padding: 10px;
-  border-top: 1px solid #ccc;
-  background-color: var(--gray94);
+  padding: var(--pagePadding) calc(4 * var(--gridSize));
+  border-top: 1px solid var(--barBorderColor);
+  background-color: var(--barBackgroundColor);
+  border-radius: 3px;
   text-align: right;
 }
 
@@ -236,7 +206,7 @@ ul.modal-head-metadata li {
 .modal-foot .button,
 .modal-foot input[type='submit'],
 .modal-foot input[type='button'] {
-  margin-right: 10px;
+  margin-left: var(--gridSize);
 }
 
 .modal-error,

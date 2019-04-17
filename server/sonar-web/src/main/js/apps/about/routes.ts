@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -17,13 +17,50 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import { RouterState, IndexRouteProps } from 'react-router';
+import { lazyLoad } from '../../components/lazyLoad';
+import { isSonarCloud } from '../../helpers/system';
 
 const routes = [
   {
-    getIndexRoute(_: RouterState, callback: (err: any, route: IndexRouteProps) => any) {
-      import('./components/AboutApp').then(i => callback(null, { component: i.default }));
-    }
+    indexRoute: {
+      component: lazyLoad(() =>
+        isSonarCloud() ? import('./sonarcloud/Home') : import('./components/AboutApp')
+      )
+    },
+    childRoutes: isSonarCloud()
+      ? [
+          {
+            path: 'contact',
+            component: lazyLoad(() => import('./sonarcloud/Contact'))
+          },
+          {
+            path: 'pricing',
+            component: lazyLoad(() => import('./sonarcloud/Pricing'))
+          },
+          {
+            path: 'sq',
+            childRoutes: [
+              { indexRoute: { component: lazyLoad(() => import('./sonarcloud/SQHome')) } },
+              {
+                path: 'as-a-service',
+                component: lazyLoad(() => import('./sonarcloud/AsAService'))
+              },
+              {
+                path: 'branch-analysis-and-pr-decoration',
+                component: lazyLoad(() => import('./sonarcloud/BranchAnalysis'))
+              },
+              {
+                path: 'sonarlint-integration',
+                component: lazyLoad(() => import('./sonarcloud/SonarLintIntegration'))
+              },
+              {
+                path: 'vsts',
+                component: lazyLoad(() => import('./sonarcloud/AzureDevOps'))
+              }
+            ]
+          }
+        ]
+      : []
   }
 ];
 

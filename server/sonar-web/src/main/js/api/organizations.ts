@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -17,65 +17,52 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import { getJSON, post, postJSON, RequestData } from '../helpers/request';
+import { getJSON, post, postJSON } from '../helpers/request';
 import throwGlobalError from '../app/utils/throwGlobalError';
 
-interface GetOrganizationsParameters {
+export function getOrganizations(data: {
   organizations?: string;
   member?: boolean;
+}): Promise<{
+  organizations: T.Organization[];
+  paging: T.Paging;
+}> {
+  return getJSON('/api/organizations/search', data).catch(throwGlobalError);
 }
 
-interface GetOrganizationsResponse {
-  organizations: Array<{
-    avatar?: string;
-    description?: string;
-    guarded: boolean;
-    isAdmin: boolean;
-    key: string;
-    name: string;
-    url?: string;
-  }>;
-  paging: {
-    pageIndex: number;
-    pageSize: number;
-    total: number;
-  };
-}
-
-export function getOrganizations(
-  data: GetOrganizationsParameters
-): Promise<GetOrganizationsResponse> {
-  return getJSON('/api/organizations/search', data);
-}
-
-export function getOrganization(key: string): Promise<any> {
-  return getOrganizations({ organizations: key })
-    .then(r => r.organizations.find((o: any) => o.key === key))
-    .catch(throwGlobalError);
+export function getOrganization(key: string): Promise<T.Organization | undefined> {
+  return getJSON('/api/organizations/search', { organizations: key }).then(
+    r => r.organizations.find((o: T.Organization) => o.key === key),
+    throwGlobalError
+  );
 }
 
 interface GetOrganizationNavigation {
-  canAdmin: boolean;
-  canDelete: boolean;
-  canProvisionProjects: boolean;
+  adminPages: T.Extension[];
+  alm?: { key: string; membersSync: boolean; url: string };
+  canUpdateProjectsVisibilityToPrivate: boolean;
   isDefault: boolean;
-  pages: Array<{ key: string; name: string }>;
-  adminPages: Array<{ key: string; name: string }>;
+  pages: T.Extension[];
 }
 
 export function getOrganizationNavigation(key: string): Promise<GetOrganizationNavigation> {
-  return getJSON('/api/navigation/organization', { organization: key }).then(r => r.organization);
+  return getJSON('/api/navigation/organization', { organization: key }).then(
+    r => r.organization,
+    throwGlobalError
+  );
 }
 
-export function createOrganization(data: RequestData): Promise<any> {
+export function createOrganization(
+  data: T.OrganizationBase & { installationId?: string }
+): Promise<T.Organization> {
   return postJSON('/api/organizations/create', data).then(r => r.organization, throwGlobalError);
 }
 
-export function updateOrganization(key: string, changes: RequestData): Promise<void> {
-  return post('/api/organizations/update', { key, ...changes });
+export function updateOrganization(key: string, changes: T.OrganizationBase) {
+  return post('/api/organizations/update', { key, ...changes }).catch(throwGlobalError);
 }
 
-export function deleteOrganization(key: string): Promise<void | Response> {
+export function deleteOrganization(key: string) {
   return post('/api/organizations/delete', { key }).catch(throwGlobalError);
 }
 
@@ -85,21 +72,42 @@ export function searchMembers(data: {
   ps?: number;
   q?: string;
   selected?: string;
-}): Promise<any> {
-  return getJSON('/api/organizations/search_members', data);
+}): Promise<{ paging: T.Paging; users: T.OrganizationMember[] }> {
+  return getJSON('/api/organizations/search_members', data).catch(throwGlobalError);
 }
 
-export function addMember(data: { login: string; organization: string }): Promise<any> {
-  return postJSON('/api/organizations/add_member', data).then(r => r.user);
+export function addMember(data: {
+  login: string;
+  organization: string;
+}): Promise<T.OrganizationMember> {
+  return postJSON('/api/organizations/add_member', data).then(r => r.user, throwGlobalError);
 }
 
-export function removeMember(data: { login: string; organization: string }): Promise<void> {
-  return post('/api/organizations/remove_member', data);
+export function removeMember(data: { login: string; organization: string }) {
+  return post('/api/organizations/remove_member', data).catch(throwGlobalError);
 }
 
-export function changeProjectVisibility(
-  organization: string,
-  projectVisibility: string
-): Promise<void> {
-  return post('/api/organizations/update_project_visibility', { organization, projectVisibility });
+export interface OrganizationBilling {
+  nclocCount: number;
+  subscription: {
+    plan?: {
+      maxNcloc: number;
+      price: number;
+    };
+    nextBillingDate?: string;
+    status: 'active' | 'inactive' | 'suspended';
+    trial: boolean;
+  };
+}
+
+export function getOrganizationBilling(organization: string): Promise<OrganizationBilling> {
+  return getJSON('/api/billing/show', { organization, p: 1, ps: 1 });
+}
+
+export function setOrganizationMemberSync(data: { enabled: boolean; organization: string }) {
+  return post('/api/organizations/set_members_sync', data).catch(throwGlobalError);
+}
+
+export function syncMembers(organization: string) {
+  return post('/api/organizations/sync_members', { organization }).catch(throwGlobalError);
 }

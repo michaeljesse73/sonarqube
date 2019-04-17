@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.locks.Lock;
+import org.elasticsearch.cluster.health.ClusterHealthStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.sonar.application.AppStateListener;
@@ -43,14 +44,13 @@ import org.sonar.application.cluster.health.HealthStateSharingImpl;
 import org.sonar.application.cluster.health.SearchNodeHealthProvider;
 import org.sonar.application.config.AppSettings;
 import org.sonar.application.config.ClusterSettings;
+import org.sonar.application.es.EsConnector;
 import org.sonar.process.MessageException;
 import org.sonar.process.NetworkUtilsImpl;
 import org.sonar.process.ProcessId;
-import org.sonar.process.cluster.NodeType;
 import org.sonar.process.cluster.hz.HazelcastMember;
 
 import static java.lang.String.format;
-import static org.sonar.process.cluster.hz.HazelcastMember.Attribute.NODE_TYPE;
 import static org.sonar.process.cluster.hz.HazelcastObjects.CLUSTER_NAME;
 import static org.sonar.process.cluster.hz.HazelcastObjects.LEADER;
 import static org.sonar.process.cluster.hz.HazelcastObjects.OPERATIONAL_PROCESSES;
@@ -66,9 +66,10 @@ public class ClusterAppStateImpl implements ClusterAppState {
   private final ReplicatedMap<ClusterProcess, Boolean> operationalProcesses;
   private final String operationalProcessListenerUUID;
   private final String nodeDisconnectedListenerUUID;
+  private final EsConnector esConnector;
   private HealthStateSharing healthStateSharing = null;
 
-  public ClusterAppStateImpl(AppSettings settings, HazelcastMember hzMember) {
+  public ClusterAppStateImpl(AppSettings settings, HazelcastMember hzMember, EsConnector esConnector) {
     this.hzMember = hzMember;
 
     // Get or create the replicated map
@@ -80,6 +81,8 @@ public class ClusterAppStateImpl implements ClusterAppState {
       this.healthStateSharing = new HealthStateSharingImpl(hzMember, new SearchNodeHealthProvider(settings.getProps(), this, NetworkUtilsImpl.INSTANCE));
       this.healthStateSharing.start();
     }
+
+    this.esConnector = esConnector;
   }
 
   @Override
@@ -97,6 +100,11 @@ public class ClusterAppStateImpl implements ClusterAppState {
     if (local) {
       return operationalLocalProcesses.computeIfAbsent(processId, p -> false);
     }
+
+    if (processId.equals(ProcessId.ELASTICSEARCH)) {
+      return isElasticSearchAvailable();
+    }
+
     for (Map.Entry<ClusterProcess, Boolean> entry : operationalProcesses.entrySet()) {
       if (entry.getKey().getProcessId().equals(processId) && entry.getValue()) {
         return true;
@@ -194,6 +202,8 @@ public class ClusterAppStateImpl implements ClusterAppState {
 
   @Override
   public void close() {
+    esConnector.stop();
+
     if (hzMember != null) {
       if (healthStateSharing != null) {
         healthStateSharing.stop();
@@ -218,6 +228,11 @@ public class ClusterAppStateImpl implements ClusterAppState {
         LOGGER.debug("Unable to close Hazelcast cluster", e);
       }
     }
+  }
+
+  private boolean isElasticSearchAvailable() {
+    ClusterHealthStatus clusterHealthStatus = esConnector.getClusterHealthStatus();
+    return clusterHealthStatus.equals(ClusterHealthStatus.GREEN) || clusterHealthStatus.equals(ClusterHealthStatus.YELLOW);
   }
 
   private class OperationalProcessListener implements EntryListener<ClusterProcess, Boolean> {
@@ -265,19 +280,11 @@ public class ClusterAppStateImpl implements ClusterAppState {
     @Override
     public void memberRemoved(MembershipEvent membershipEvent) {
       removeOperationalProcess(membershipEvent.getMember().getUuid());
-      if (membershipEvent.getMembers().stream()
-        .noneMatch(this::isAppNode)) {
-        purgeSharedMemoryForAppNodes();
-      }
     }
 
     @Override
     public void memberAttributeChanged(MemberAttributeEvent memberAttributeEvent) {
       // Nothing to do
-    }
-
-    private boolean isAppNode(Member member) {
-      return NodeType.APPLICATION.getValue().equals(member.getStringAttribute(NODE_TYPE.getKey()));
     }
 
     private void removeOperationalProcess(String uuid) {
@@ -287,12 +294,6 @@ public class ClusterAppStateImpl implements ClusterAppState {
           hzMember.getReplicatedMap(OPERATIONAL_PROCESSES).put(clusterProcess, Boolean.FALSE);
         }
       }
-    }
-
-    private void purgeSharedMemoryForAppNodes() {
-      LOGGER.info("No more application nodes, clearing cluster information about application nodes.");
-      hzMember.getAtomicReference(LEADER).clear();
-      hzMember.getAtomicReference(SONARQUBE_VERSION).clear();
     }
   }
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,6 +22,7 @@ import { Helmet } from 'react-helmet';
 import { MetricProps } from './Form';
 import Header from './Header';
 import List from './List';
+import Suggestions from '../../../app/components/embed-docs-modal/Suggestions';
 import {
   getMetricDomains,
   getMetricTypes,
@@ -31,7 +32,6 @@ import {
   createMetric,
   MetricsResponse
 } from '../../../api/metrics';
-import { Metric, Paging } from '../../../app/types';
 import ListFooter from '../../../components/controls/ListFooter';
 import { translate } from '../../../helpers/l10n';
 
@@ -40,8 +40,8 @@ interface Props {}
 interface State {
   domains?: string[];
   loading: boolean;
-  metrics?: Metric[];
-  paging?: Paging;
+  metrics?: T.Metric[];
+  paging?: T.Paging;
   types?: string[];
 }
 
@@ -103,7 +103,7 @@ export default class App extends React.PureComponent<Props, State> {
     }
   };
 
-  getPaging = (response: MetricsResponse): Paging => ({
+  getPaging = (response: MetricsResponse): T.Paging => ({
     pageIndex: response.p,
     pageSize: response.ps,
     total: response.total
@@ -146,6 +146,7 @@ export default class App extends React.PureComponent<Props, State> {
 
     return (
       <>
+        <Suggestions suggestions="custom_metrics" />
         <Helmet title={translate('custom_metrics.page')} />
         <div className="page page-limited" id="custom-metrics-page">
           <Header domains={domains} loading={loading} onCreate={this.handleCreate} types={types} />
@@ -158,15 +159,14 @@ export default class App extends React.PureComponent<Props, State> {
               types={types}
             />
           )}
-          {metrics &&
-            paging && (
-              <ListFooter
-                count={metrics.length}
-                loadMore={this.fetchMore}
-                ready={!loading}
-                total={paging.total}
-              />
-            )}
+          {metrics && paging && (
+            <ListFooter
+              count={metrics.length}
+              loadMore={this.fetchMore}
+              ready={!loading}
+              total={paging.total}
+            />
+          )}
         </div>
       </>
     );

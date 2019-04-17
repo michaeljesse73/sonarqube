@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -45,8 +45,8 @@ export default class PerspectiveSelect extends React.PureComponent<Props> {
     const options = [
       ...VIEWS.map(opt => ({
         type: 'view',
-        value: opt,
-        label: translate('projects.view', opt)
+        value: opt.value,
+        label: translate('projects.view', opt.label)
       })),
       ...VISUALIZATIONS.map(opt => ({
         type: 'visualization',

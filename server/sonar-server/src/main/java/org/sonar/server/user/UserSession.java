@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,13 +19,19 @@
  */
 package org.sonar.server.user;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 import javax.annotation.CheckForNull;
+import javax.annotation.concurrent.Immutable;
 import org.sonar.db.component.ComponentDto;
 import org.sonar.db.organization.OrganizationDto;
 import org.sonar.db.permission.OrganizationPermission;
 import org.sonar.db.user.GroupDto;
+
+import static java.util.Objects.requireNonNull;
 
 public interface UserSession {
 
@@ -35,6 +41,13 @@ public interface UserSession {
    */
   @CheckForNull
   String getLogin();
+
+  /**
+   * Uuid of the authenticated user. Returns {@code null}
+   * if {@link #isLoggedIn()} is {@code false}.
+   */
+  @CheckForNull
+  String getUuid();
 
   /**
    * Name of the authenticated user. Returns {@code null}
@@ -55,6 +68,90 @@ public interface UserSession {
    * collection is returned if {@link #isLoggedIn()} is {@code false}.
    */
   Collection<GroupDto> getGroups();
+
+  /**
+   * This enum supports by name only the few providers for which specific code exists.
+   */
+  enum IdentityProvider {
+    SONARQUBE("sonarqube"), GITHUB("github"), BITBUCKETCLOUD("bitbucket"), OTHER("other");
+
+    String key;
+
+    IdentityProvider(String key) {
+      this.key = key;
+    }
+
+    public String getKey() {
+      return key;
+    }
+
+    public static IdentityProvider getFromKey(String key) {
+      return Arrays.stream(IdentityProvider.values())
+        .filter(i -> i.getKey().equals(key))
+        .findAny()
+        .orElse(OTHER);
+    }
+  }
+
+  /**
+   * @return empty if user is anonymous
+   */
+  Optional<IdentityProvider> getIdentityProvider();
+
+  @Immutable
+  final class ExternalIdentity {
+    private final String id;
+    private final String login;
+
+    public ExternalIdentity(String id, String login) {
+      this.id = requireNonNull(id, "id can't be null");
+      this.login = requireNonNull(login, "login can't be null");
+    }
+
+    public String getId() {
+      return id;
+    }
+
+    public String getLogin() {
+      return login;
+    }
+
+    @Override
+    public String toString() {
+      return "ExternalIdentity{" +
+        "id='" + id + '\'' +
+        ", login='" + login + '\'' +
+        '}';
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      ExternalIdentity that = (ExternalIdentity) o;
+      return Objects.equals(id, that.id) &&
+        Objects.equals(login, that.login);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(id, login);
+    }
+  }
+
+  /**
+   * @return empty if {@link #getIdentityProvider()} returns empty or {@link IdentityProvider#SONARQUBE}
+   */
+  Optional<ExternalIdentity> getExternalIdentity();
+
+  /**
+   * The UUID of the personal organization of the authenticated user.
+   */
+  Optional<String> getPersonalOrganizationUuid();
 
   /**
    * Whether the user is logged-in or anonymous.
@@ -110,7 +207,7 @@ public interface UserSession {
    * If the permission is not granted, then the organization permission is _not_ checked.
    *
    * @param component non-null component.
-   * @param permission project permission as defined by {@link org.sonar.core.permission.ProjectPermissions}
+   * @param permission project permission as defined by {@link org.sonar.server.permission.PermissionService}
    */
   boolean hasComponentPermission(String permission, ComponentDto component);
 
@@ -165,5 +262,21 @@ public interface UserSession {
    * otherwise throws {@link org.sonar.server.exceptions.ForbiddenException}.
    */
   UserSession checkIsSystemAdministrator();
+
+  /**
+   * Returns {@code true} if the user is member of the organization, otherwise {@code false}.
+   *
+   * If the organization does not exist, then returns {@code false}.
+   *
+   * Always returns {@code true} if {@link #isRoot()} is {@code true}, even if
+   * organization does not exist.
+   */
+  boolean hasMembership(OrganizationDto organization);
+
+  /**
+   * Ensures that {@link #hasMembership(OrganizationDto)} is {@code true},
+   * otherwise throws a {@link org.sonar.server.exceptions.ForbiddenException}.
+   */
+  UserSession checkMembership(OrganizationDto organization);
 
 }

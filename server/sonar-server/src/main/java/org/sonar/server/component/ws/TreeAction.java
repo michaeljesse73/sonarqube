@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -66,15 +66,18 @@ import static org.sonar.server.component.ComponentFinder.ParamNames.COMPONENT_ID
 import static org.sonar.server.component.ws.ComponentDtoToWsComponent.componentDtoToWsComponent;
 import static org.sonar.server.ws.KeyExamples.KEY_BRANCH_EXAMPLE_001;
 import static org.sonar.server.ws.KeyExamples.KEY_PROJECT_EXAMPLE_001;
+import static org.sonar.server.ws.KeyExamples.KEY_PULL_REQUEST_EXAMPLE_001;
 import static org.sonar.server.ws.WsParameterBuilder.createQualifiersParameter;
 import static org.sonar.server.ws.WsParameterBuilder.QualifierParameterContext.newQualifierParameterContext;
+import static org.sonar.server.ws.WsUtils.checkRequest;
 import static org.sonar.server.ws.WsUtils.writeProtobuf;
 import static org.sonarqube.ws.client.component.ComponentsWsParameters.ACTION_TREE;
+import static org.sonarqube.ws.client.component.ComponentsWsParameters.PARAM_BRANCH;
 import static org.sonarqube.ws.client.component.ComponentsWsParameters.PARAM_COMPONENT;
 import static org.sonarqube.ws.client.component.ComponentsWsParameters.PARAM_COMPONENT_ID;
+import static org.sonarqube.ws.client.component.ComponentsWsParameters.PARAM_PULL_REQUEST;
 import static org.sonarqube.ws.client.component.ComponentsWsParameters.PARAM_QUALIFIERS;
 import static org.sonarqube.ws.client.component.ComponentsWsParameters.PARAM_STRATEGY;
-import static org.sonar.server.component.ws.MeasuresWsParameters.PARAM_BRANCH;
 
 public class TreeAction implements ComponentsWsAction {
 
@@ -117,6 +120,8 @@ public class TreeAction implements ComponentsWsAction {
       .setSince("5.4")
       .setResponseExample(getClass().getResource("tree-example.json"))
       .setChangelog(
+        new Change("7.6", String.format("The use of 'BRC' as value for parameter '%s' is deprecated", PARAM_QUALIFIERS)),
+        new Change("7.6", String.format("The use of module keys in parameter '%s' is deprecated", PARAM_COMPONENT)),
         new Change("6.4", "The field 'id' is deprecated in the response"))
       .setHandler(this)
       .addPagingParams(100, MAX_SIZE);
@@ -137,6 +142,12 @@ public class TreeAction implements ComponentsWsAction {
       .setExampleValue(KEY_BRANCH_EXAMPLE_001)
       .setInternal(true)
       .setSince("6.6");
+
+    action.createParam(PARAM_PULL_REQUEST)
+      .setDescription("Pull request id")
+      .setExampleValue(KEY_PULL_REQUEST_EXAMPLE_001)
+      .setInternal(true)
+      .setSince("7.1");
 
     action.createSortParams(SORTS, NAME_SORT, true)
       .setDescription("Comma-separated list of sort fields")
@@ -190,12 +201,16 @@ public class TreeAction implements ComponentsWsAction {
 
   private ComponentDto loadComponent(DbSession dbSession, Request request) {
     String componentId = request.getBaseComponentId();
-    String componentKey = request.getBaseComponentKey();
+    String componentKey = request.getComponent();
     String branch = request.getBranch();
-    checkArgument(componentId == null || branch == null, "'%s' and '%s' parameters cannot be used at the same time", PARAM_COMPONENT_ID, PARAM_BRANCH);
-    return branch == null
-      ? componentFinder.getByUuidOrKey(dbSession, componentId, componentKey, COMPONENT_ID_AND_COMPONENT)
-      : componentFinder.getByKeyAndBranch(dbSession, componentKey, branch);
+    String pullRequest = request.getPullRequest();
+    checkArgument(componentId == null || (branch == null && pullRequest == null), "Parameter '%s' cannot be used at the same time as '%s' or '%s'", PARAM_COMPONENT_ID,
+      PARAM_BRANCH, PARAM_PULL_REQUEST);
+    if (branch == null && pullRequest == null) {
+      return componentFinder.getByUuidOrKey(dbSession, componentId, componentKey, COMPONENT_ID_AND_COMPONENT);
+    }
+    checkRequest(componentKey != null, "The '%s' parameter is missing", PARAM_COMPONENT);
+    return componentFinder.getByKeyAndOptionalBranchOrPullRequest(dbSession, componentKey, branch, pullRequest);
   }
 
   private Map<String, ComponentDto> searchReferenceComponentsByUuid(DbSession dbSession, List<ComponentDto> components) {
@@ -239,7 +254,7 @@ public class TreeAction implements ComponentsWsAction {
     ComponentDto referenceComponent = referenceComponentsByUuid.get(component.getCopyResourceUuid());
     if (referenceComponent != null) {
       wsComponent.setRefId(referenceComponent.uuid());
-      wsComponent.setRefKey(referenceComponent.getDbKey());
+      wsComponent.setRefKey(referenceComponent.getKey());
     }
 
     return wsComponent;
@@ -285,8 +300,9 @@ public class TreeAction implements ComponentsWsAction {
   private static Request toTreeWsRequest(org.sonar.api.server.ws.Request request) {
     return new Request()
       .setBaseComponentId(request.param(PARAM_COMPONENT_ID))
-      .setBaseComponentKey(request.param(PARAM_COMPONENT))
+      .setComponent(request.param(PARAM_COMPONENT))
       .setBranch(request.param(PARAM_BRANCH))
+      .setPullRequest(request.param(PARAM_PULL_REQUEST))
       .setStrategy(request.mandatoryParam(PARAM_STRATEGY))
       .setQuery(request.param(Param.TEXT_QUERY))
       .setQualifiers(request.paramAsStrings(PARAM_QUALIFIERS))
@@ -335,9 +351,9 @@ public class TreeAction implements ComponentsWsAction {
 
   private static class Request {
     private String baseComponentId;
-    private String baseComponentKey;
     private String component;
     private String branch;
+    private String pullRequest;
     private String strategy;
     private List<String> qualifiers;
     private String query;
@@ -364,24 +380,6 @@ public class TreeAction implements ComponentsWsAction {
       return this;
     }
 
-    /**
-     * @deprecated since 6.4, please use {@link #getComponent()} instead
-     */
-    @Deprecated
-    @CheckForNull
-    private String getBaseComponentKey() {
-      return baseComponentKey;
-    }
-
-    /**
-     * @deprecated since 6.4, please use {@link #setComponent(String)} instead
-     */
-    @Deprecated
-    private Request setBaseComponentKey(@Nullable String baseComponentKey) {
-      this.baseComponentKey = baseComponentKey;
-      return this;
-    }
-
     public Request setComponent(@Nullable String component) {
       this.component = component;
       return this;
@@ -399,6 +397,16 @@ public class TreeAction implements ComponentsWsAction {
 
     private Request setBranch(@Nullable String branch) {
       this.branch = branch;
+      return this;
+    }
+
+    @CheckForNull
+    public String getPullRequest() {
+      return pullRequest;
+    }
+
+    public Request setPullRequest(@Nullable String pullRequest) {
+      this.pullRequest = pullRequest;
       return this;
     }
 

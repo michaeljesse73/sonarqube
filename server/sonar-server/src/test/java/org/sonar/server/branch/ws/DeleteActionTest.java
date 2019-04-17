@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -29,17 +29,19 @@ import org.sonar.api.web.UserRole;
 import org.sonar.db.DbSession;
 import org.sonar.db.DbTester;
 import org.sonar.db.component.ComponentDto;
-import org.sonar.db.component.ComponentTesting;
 import org.sonar.server.component.ComponentCleanerService;
 import org.sonar.server.component.ComponentFinder;
 import org.sonar.server.component.TestComponentFinder;
 import org.sonar.server.exceptions.NotFoundException;
 import org.sonar.server.exceptions.UnauthorizedException;
+import org.sonar.server.project.Project;
+import org.sonar.server.project.ProjectLifeCycleListeners;
 import org.sonar.server.tester.UserSessionRule;
 import org.sonar.server.ws.WsActionTester;
 
+import static java.util.Collections.singleton;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
@@ -52,20 +54,26 @@ public class DeleteActionTest {
 
   private ComponentCleanerService componentCleanerService = mock(ComponentCleanerService.class);
   private ComponentFinder componentFinder = TestComponentFinder.from(db);
+  private ProjectLifeCycleListeners projectLifeCycleListeners = mock(ProjectLifeCycleListeners.class);
 
   @Rule
   public UserSessionRule userSession = UserSessionRule.standalone();
 
-  public WsActionTester tester = new WsActionTester(new DeleteAction(db.getDbClient(), componentFinder, userSession, componentCleanerService));
+  public WsActionTester tester = new WsActionTester(new DeleteAction(db.getDbClient(), componentFinder, userSession, componentCleanerService, projectLifeCycleListeners));
 
   @Test
-  public void test_definition() {
-    WebService.Action definition = tester.getDef();
-    assertThat(definition.key()).isEqualTo("delete");
-    assertThat(definition.isPost()).isTrue();
-    assertThat(definition.isInternal()).isFalse();
-    assertThat(definition.params()).extracting(WebService.Param::key).containsExactlyInAnyOrder("project", "branch");
-    assertThat(definition.since()).isEqualTo("6.6");
+  public void delete_branch() {
+    ComponentDto project = db.components().insertMainBranch();
+    ComponentDto branch = db.components().insertProjectBranch(project, b -> b.setKey("branch1"));
+    userSession.logIn().addProjectPermission(UserRole.ADMIN, project);
+
+    tester.newRequest()
+      .setParam("project", project.getKey())
+      .setParam("branch", "branch1")
+      .execute();
+
+    verifyDeletedKey(branch.getDbKey());
+    verify(projectLifeCycleListeners).onProjectBranchesDeleted(singleton(Project.from(project)));
   }
 
   @Test
@@ -96,16 +104,16 @@ public class DeleteActionTest {
     tester.newRequest().execute();
   }
 
-  public void fail_branch_does_not_exist() {
+  @Test
+  public void fail_if_branch_does_not_exist() {
     ComponentDto project = db.components().insertPrivateProject();
-    ComponentDto file = db.components().insertComponent(ComponentTesting.newFileDto(project));
     userSession.logIn().addProjectPermission(UserRole.ADMIN, project);
 
     expectedException.expect(NotFoundException.class);
     expectedException.expectMessage("Branch 'branch1' not found");
 
     tester.newRequest()
-      .setParam("project", file.getDbKey())
+      .setParam("project", project.getDbKey())
       .setParam("branch", "branch1")
       .execute();
   }
@@ -140,18 +148,13 @@ public class DeleteActionTest {
   }
 
   @Test
-  public void delete_branch() {
-
-    ComponentDto project = db.components().insertMainBranch();
-    ComponentDto branch = db.components().insertProjectBranch(project, b -> b.setKey("branch1"));
-
-    userSession.logIn().addProjectPermission(UserRole.ADMIN, project);
-
-    tester.newRequest()
-      .setParam("project", project.getKey())
-      .setParam("branch", "branch1")
-      .execute();
-    verifyDeletedKey(branch.getDbKey());
+  public void definition() {
+    WebService.Action definition = tester.getDef();
+    assertThat(definition.key()).isEqualTo("delete");
+    assertThat(definition.isPost()).isTrue();
+    assertThat(definition.isInternal()).isFalse();
+    assertThat(definition.params()).extracting(WebService.Param::key).containsExactlyInAnyOrder("project", "branch");
+    assertThat(definition.since()).isEqualTo("6.6");
   }
 
   private void verifyDeletedKey(String key) {

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -30,7 +30,7 @@ export default function ProfileNotFound(props: Props) {
   return (
     <div className="quality-profile-not-found">
       <div className="note spacer-bottom">
-        <IndexLink to={getProfilesPath(props.organization)} className="text-muted">
+        <IndexLink className="text-muted" to={getProfilesPath(props.organization)}>
           {translate('quality_profiles.page')}
         </IndexLink>
       </div>

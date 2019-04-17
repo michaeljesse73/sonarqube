@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,14 +25,13 @@ import ResponseExample from './ResponseExample';
 import ActionChangelog from './ActionChangelog';
 import DeprecatedBadge from './DeprecatedBadge';
 import InternalBadge from './InternalBadge';
-import { getActionKey } from '../utils';
+import { getActionKey, serializeQuery } from '../utils';
 import LinkIcon from '../../../components/icons-components/LinkIcon';
-import { Action as ActionType, Domain as DomainType } from '../../../api/web-api';
 import { translate, translateWithParameters } from '../../../helpers/l10n';
 
 interface Props {
-  action: ActionType;
-  domain: DomainType;
+  action: T.WebApi.Action;
+  domain: T.WebApi.Domain;
   showDeprecated: boolean;
   showInternal: boolean;
 }
@@ -52,29 +51,29 @@ export default class Action extends React.PureComponent<Props, State> {
 
   handleShowParamsClick = (e: React.SyntheticEvent<HTMLElement>) => {
     e.preventDefault();
-    this.setState({
+    this.setState(state => ({
       showChangelog: false,
       showResponse: false,
-      showParams: !this.state.showParams
-    });
+      showParams: !state.showParams
+    }));
   };
 
   handleShowResponseClick = (e: React.SyntheticEvent<HTMLElement>) => {
     e.preventDefault();
-    this.setState({
+    this.setState(state => ({
       showChangelog: false,
       showParams: false,
-      showResponse: !this.state.showResponse
-    });
+      showResponse: !state.showResponse
+    }));
   };
 
   handleChangelogClick = (e: React.SyntheticEvent<HTMLElement>) => {
     e.preventDefault();
-    this.setState({
-      showChangelog: !this.state.showChangelog,
+    this.setState(state => ({
+      showChangelog: !state.showChangelog,
       showParams: false,
       showResponse: false
-    });
+    }));
   };
 
   renderTabs() {
@@ -130,16 +129,24 @@ export default class Action extends React.PureComponent<Props, State> {
     const actionKey = getActionKey(domain.path, action.key);
 
     return (
-      <div id={actionKey} className="boxed-group">
+      <div className="boxed-group" id={actionKey}>
         <header className="web-api-action-header boxed-group-header">
           <Link
-            to={{ pathname: '/web_api/' + actionKey }}
-            className="spacer-right link-no-underline">
+            className="spacer-right link-no-underline"
+            to={{
+              pathname: '/web_api/' + actionKey,
+              query: serializeQuery({
+                deprecated: Boolean(action.deprecatedSince),
+                internal: Boolean(action.internal)
+              })
+            }}>
             <LinkIcon />
           </Link>
 
           <h3 className="web-api-action-title">
-            {verb}&nbsp;{actionKey}
+            {verb}
+            &nbsp;
+            {actionKey}
           </h3>
 
           {action.internal && (
@@ -169,17 +176,17 @@ export default class Action extends React.PureComponent<Props, State> {
 
           {this.renderTabs()}
 
-          {showParams &&
-            action.params && (
-              <Params
-                params={action.params}
-                showDeprecated={this.props.showDeprecated}
-                showInternal={this.props.showInternal}
-              />
-            )}
+          {showParams && action.params && (
+            <Params
+              params={action.params}
+              showDeprecated={this.props.showDeprecated}
+              showInternal={this.props.showInternal}
+            />
+          )}
 
-          {showResponse &&
-            action.hasResponseExample && <ResponseExample domain={domain} action={action} />}
+          {showResponse && action.hasResponseExample && (
+            <ResponseExample action={action} domain={domain} />
+          )}
 
           {showChangelog && <ActionChangelog changelog={action.changelog} />}
         </div>

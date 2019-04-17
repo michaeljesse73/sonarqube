@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,51 +21,74 @@ import * as React from 'react';
 import Component from './Component';
 import ComponentsEmpty from './ComponentsEmpty';
 import ComponentsHeader from './ComponentsHeader';
-import { Component as IComponent } from '../types';
+import withKeyboardNavigation from '../../../components/hoc/withKeyboardNavigation';
+import { getCodeMetrics } from '../utils';
+import { isDefined } from '../../../helpers/types';
 
 interface Props {
-  baseComponent?: IComponent;
-  branch?: string;
-  components: IComponent[];
-  rootComponent: IComponent;
-  selected?: IComponent;
+  baseComponent?: T.ComponentMeasure;
+  branchLike?: T.BranchLike;
+  components: T.ComponentMeasure[];
+  metrics: T.Dict<T.Metric>;
+  rootComponent: T.ComponentMeasure;
+  selected?: T.ComponentMeasure;
 }
 
-export default function Components(props: Props) {
-  const { baseComponent, branch, components, rootComponent, selected } = props;
-  return (
-    <table className="data zebra">
-      <ComponentsHeader baseComponent={baseComponent} rootComponent={rootComponent} />
-      {baseComponent && (
-        <tbody>
-          <Component
-            branch={branch}
-            component={baseComponent}
-            key={baseComponent.key}
+export class Components extends React.PureComponent<Props> {
+  render() {
+    const { baseComponent, branchLike, components, rootComponent, selected } = this.props;
+    const metricKeys = getCodeMetrics(rootComponent.qualifier, branchLike);
+    const metrics = metricKeys.map(metric => this.props.metrics[metric]).filter(isDefined);
+    return (
+      <table className="data boxed-padding zebra">
+        {baseComponent && (
+          <ComponentsHeader
+            baseComponent={baseComponent}
+            metrics={metricKeys}
             rootComponent={rootComponent}
           />
+        )}
+        {baseComponent && (
+          <tbody>
+            <Component
+              branchLike={branchLike}
+              component={baseComponent}
+              key={baseComponent.key}
+              metrics={metrics}
+              rootComponent={rootComponent}
+            />
+            <tr className="blank">
+              <td colSpan={3}>&nbsp;</td>
+              <td colSpan={10}>&nbsp;</td>
+            </tr>
+          </tbody>
+        )}
+        <tbody>
+          {components.length ? (
+            components.map((component, index, list) => (
+              <Component
+                branchLike={branchLike}
+                canBrowse={true}
+                component={component}
+                key={component.key}
+                metrics={metrics}
+                previous={index > 0 ? list[index - 1] : undefined}
+                rootComponent={rootComponent}
+                selected={selected && component.key === selected.key}
+              />
+            ))
+          ) : (
+            <ComponentsEmpty />
+          )}
+
           <tr className="blank">
-            <td colSpan={8}>&nbsp;</td>
+            <td colSpan={3} />
+            <td colSpan={10} />
           </tr>
         </tbody>
-      )}
-      <tbody>
-        {components.length ? (
-          components.map((component, index, list) => (
-            <Component
-              branch={branch}
-              canBrowse={true}
-              component={component}
-              key={component.key}
-              previous={index > 0 ? list[index - 1] : undefined}
-              rootComponent={rootComponent}
-              selected={component === selected}
-            />
-          ))
-        ) : (
-          <ComponentsEmpty />
-        )}
-      </tbody>
-    </table>
-  );
+      </table>
+    );
+  }
 }
+
+export default withKeyboardNavigation(Components);

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -23,7 +23,7 @@ body {
 }
 
 body {
-  font-family: 'Helvetica Neue', 'Segoe UI', Helvetica, Arial, sans-serif;
+  font-family: var(--baseFontFamily);
   font-size: var(--baseFontSize);
   line-height: 1.23076923;
 }
@@ -142,6 +142,7 @@ strong {
 
 mark {
   background: none;
+  color: var(--baseFontColor);
   font-weight: bold;
 }
 
@@ -164,11 +165,19 @@ blockquote cite {
 
 small,
 .small {
-  font-size: 92.30769231%;
+  font-size: var(--smallFontSize);
+}
+
+.medium {
+  font-size: var(--mediumFontSize);
 }
 
 .big {
-  font-size: 123.07692308%;
+  font-size: var(--bigFontSize);
+}
+
+.huge {
+  font-size: var(--hugeFontSize);
 }
 
 .zero-font-size {
@@ -211,7 +220,19 @@ small,
   vertical-align: text-bottom !important;
 }
 
+.text-baseline {
+  vertical-align: baseline !important;
+}
+
 .text-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.text-limited-small {
+  display: inline-block;
+  max-width: 8vw;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -238,7 +259,7 @@ small,
 }
 
 .text-normal {
-  font-weight: normal;
+  font-weight: normal !important;
 }
 
 .text-muted {

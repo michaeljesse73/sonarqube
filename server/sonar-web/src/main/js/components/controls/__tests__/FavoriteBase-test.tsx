@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -49,8 +49,8 @@ it('should remove favorite', () => {
 function renderFavoriteBase(props: Partial<Props> = {}) {
   return shallow(
     <FavoriteBase
-      favorite={true}
       addFavorite={jest.fn()}
+      favorite={true}
       qualifier="TRK"
       removeFavorite={jest.fn()}
       {...props}

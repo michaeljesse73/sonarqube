@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -27,9 +27,8 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 import org.apache.commons.lang.builder.ReflectionToStringBuilder;
 import org.apache.commons.lang.builder.ToStringStyle;
-import org.sonar.api.batch.InstantiationStrategy;
-import org.sonar.api.batch.ScannerSide;
 import org.sonar.api.ce.ComputeEngineSide;
+import org.sonar.api.scanner.ScannerSide;
 import org.sonar.api.server.ServerSide;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
@@ -38,10 +37,8 @@ import static org.apache.commons.lang.StringUtils.isNotBlank;
 
 /**
  * Used to define a metric in a plugin. Should be used with {@link Metrics} extension point.
- * Should no more be used on scanner side. Use {@link org.sonar.api.batch.measure.Metric} instead.
  */
 @ScannerSide
-@InstantiationStrategy(InstantiationStrategy.PER_BATCH)
 @ServerSide
 @ComputeEngineSide
 public class Metric<G extends Serializable> implements Serializable, org.sonar.api.batch.measure.Metric<G> {
@@ -106,7 +103,13 @@ public class Metric<G extends Serializable> implements Serializable, org.sonar.a
   }
 
   public enum Level {
-    OK("Green"), WARN("Orange"), ERROR("Red");
+    OK("Green"),
+    /**
+     * @deprecated in 7.6.
+     */
+    @Deprecated
+    WARN("Orange"),
+    ERROR("Red");
 
     private static final List<String> NAMES = Arrays.stream(values())
       .map(Level::name)
@@ -128,7 +131,6 @@ public class Metric<G extends Serializable> implements Serializable, org.sonar.a
   }
 
   private Integer id;
-  private transient Formula formula;
   private String key;
   private String description;
   private ValueType type;
@@ -158,7 +160,6 @@ public class Metric<G extends Serializable> implements Serializable, org.sonar.a
     this.optimizedBestValue = builder.optimizedBestValue;
     this.bestValue = builder.bestValue;
     this.hidden = builder.hidden;
-    this.formula = builder.formula;
     this.userManaged = builder.userManaged;
     this.deleteHistoricalData = builder.deleteHistoricalData;
     this.decimalScale = builder.decimalScale;
@@ -248,28 +249,6 @@ public class Metric<G extends Serializable> implements Serializable, org.sonar.a
    */
   public Metric<G> setId(@Nullable Integer id) {
     this.id = id;
-    return this;
-  }
-
-  /**
-   * @return the metric formula
-   * @deprecated since 5.2 there's no more decorator on batch side, please use {@link org.sonar.api.ce.measure.MeasureComputer} instead
-   */
-  @Deprecated
-  public Formula getFormula() {
-    return formula;
-  }
-
-  /**
-   * Sets the metric formula
-   *
-   * @param formula the formula
-   * @return this
-   * @deprecated since 5.2 there's no more decorator on batch side, please use {@link org.sonar.api.ce.measure.MeasureComputer} instead
-   */
-  @Deprecated
-  public Metric<G> setFormula(Formula formula) {
-    this.formula = formula;
     return this;
   }
 
@@ -582,7 +561,6 @@ public class Metric<G extends Serializable> implements Serializable, org.sonar.a
     private Integer direction = DIRECTION_NONE;
     private Boolean qualitative = Boolean.FALSE;
     private String domain = null;
-    private Formula formula;
     private Double worstValue;
     private Double bestValue;
     private boolean optimizedBestValue = false;
@@ -661,25 +639,6 @@ public class Metric<G extends Serializable> implements Serializable, org.sonar.a
      */
     public Builder setDomain(String d) {
       this.domain = d;
-      return this;
-    }
-
-    /**
-     * Specifies the formula used by Sonar to automatically aggregate measures stored on files up to the project level.
-     * <br>
-     * <br>
-     * By default, no formula is defined, which means that it's up to a sensor/decorator to compute measures on appropriate levels.
-     * <br>
-     * When a formula is set, sensors/decorators just need to store measures at a specific level and let Sonar run the formula to store
-     * measures on the remaining levels.
-     *
-     * @param f the formula
-     * @return the builder
-     * @deprecated since 5.2, it's no more possible to define a formula on a metric, please use {@link org.sonar.api.ce.measure.MeasureComputer} instead
-     */
-    @Deprecated
-    public Builder setFormula(Formula f) {
-      this.formula = f;
       return this;
     }
 

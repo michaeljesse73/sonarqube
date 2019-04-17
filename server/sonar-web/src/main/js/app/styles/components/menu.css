@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -31,6 +31,11 @@
   outline: none;
 }
 
+.menu.is-container {
+  padding: 5px;
+}
+
+.menu-item,
 .menu > li > a,
 .menu > li > span {
   display: block;
@@ -49,11 +54,31 @@
   transition: none;
 }
 
+.menu > li > a.rich-item {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--gray80);
+  border-radius: 4px;
+  margin: 4px 10px;
+  padding: 2px 8px;
+  white-space: normal;
+}
+
 .menu .divider {
   height: 1px;
   margin: 6px 0;
   overflow: hidden;
   background-color: var(--barBorderColor);
+}
+
+.menu > li > a.disabled {
+  color: var(--disableGrayText) !important;
+  cursor: not-allowed !important;
+  pointer-events: none !important;
+}
+
+.menu > li > a.text-muted {
+  color: var(--secondFontColor);
 }
 
 .menu > li > a:hover,
@@ -75,9 +100,23 @@
   background-color: var(--barBackgroundColor);
 }
 
-.menu .menu-vertically-limited {
+.menu > li > a.text-danger,
+.menu > li > a.text-danger:hover {
+  color: var(--red) !important;
+}
+
+.menu .menu-vertically-limited,
+.menu.menu-vertically-limited {
   max-height: 300px;
   overflow-y: auto;
+}
+
+.menu-vertically-limited.with-top-separator {
+  border-top: 1px solid #e6e6e6;
+}
+
+.menu-vertically-limited.with-bottom-separator {
+  border-bottom: 1px solid #e6e6e6;
 }
 
 .menu .menu-footer > a > span {
@@ -96,7 +135,7 @@
 
 .menu-search {
   position: relative;
-  padding: 4px 16px 0;
+  padding: var(--gridSize) calc(2 * var(--gridSize)) 0;
 }
 
 .menu-search .search-box,
@@ -123,4 +162,16 @@
   display: block;
   padding: 4px 16px;
   line-height: 16px;
+}
+
+.menu-header {
+  padding: var(--gridSize);
+  font-size: 12px;
+  color: #777;
+  white-space: nowrap;
+}
+
+.menu-header:first-child,
+.divider + .menu-header {
+  padding-top: calc(var(--gridSize) - 5px);
 }

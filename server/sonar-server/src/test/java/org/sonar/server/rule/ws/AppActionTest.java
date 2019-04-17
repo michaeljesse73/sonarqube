@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -57,11 +57,11 @@ public class AppActionTest {
   private DefaultOrganizationProvider defaultOrganizationProvider = TestDefaultOrganizationProvider.from(db);
   private RuleWsSupport wsSupport = new RuleWsSupport(db.getDbClient(), userSession, defaultOrganizationProvider);
   private AppAction underTest = new AppAction(languages, db.getDbClient(), userSession, wsSupport);
-  private WsActionTester tester = new WsActionTester(underTest);
+  private WsActionTester ws = new WsActionTester(underTest);
 
   @Test
   public void test_definition() {
-    WebService.Action definition = tester.getDef();
+    WebService.Action definition = ws.getDef();
 
     assertThat(definition.isInternal()).isTrue();
     assertThat(definition.key()).isEqualTo("app");
@@ -76,7 +76,7 @@ public class AppActionTest {
   public void response_contains_rule_repositories() {
     insertRules();
 
-    String json = tester.newRequest().execute().getInput();
+    String json = ws.newRequest().execute().getInput();
     assertJson(json).isSimilarTo("{" +
       "\"repositories\": [" +
       "    {" +
@@ -95,7 +95,7 @@ public class AppActionTest {
 
   @Test
   public void response_contains_languages() {
-    String json = tester.newRequest().execute().getInput();
+    String json = ws.newRequest().execute().getInput();
 
     assertJson(json).isSimilarTo("{" +
       "\"languages\": {" +
@@ -106,20 +106,10 @@ public class AppActionTest {
   }
 
   @Test
-  public void throw_NotFoundException_if_organization_does_not_exist() {
-    expectedException.expect(NotFoundException.class);
-    expectedException.expectMessage("No organization with key 'does_not_exist'");
-
-    tester.newRequest()
-      .setParam("organization", "does_not_exist")
-      .execute();
-  }
-
-  @Test
   public void canWrite_is_true_if_user_is_profile_administrator_of_default_organization() {
     userSession.addPermission(OrganizationPermission.ADMINISTER_QUALITY_PROFILES, db.getDefaultOrganization());
 
-    String json = tester.newRequest().execute().getInput();
+    String json = ws.newRequest().execute().getInput();
 
     assertJson(json).isSimilarTo("{ \"canWrite\": true }");
   }
@@ -129,7 +119,7 @@ public class AppActionTest {
     OrganizationDto organization = db.organizations().insert();
     userSession.addPermission(OrganizationPermission.ADMINISTER_QUALITY_PROFILES, organization);
 
-    String json = tester.newRequest()
+    String json = ws.newRequest()
       .setParam("organization", organization.getKey())
       .execute().getInput();
 
@@ -142,7 +132,7 @@ public class AppActionTest {
     OrganizationDto organization2 = db.organizations().insert();
     userSession.addPermission(OrganizationPermission.ADMINISTER_QUALITY_PROFILES, organization1);
 
-    String json = tester.newRequest()
+    String json = ws.newRequest()
       .setParam("organization", organization2.getKey())
       .execute().getInput();
 
@@ -154,15 +144,25 @@ public class AppActionTest {
     OrganizationDto organization = db.organizations().insert();
     userSession.addPermission(OrganizationPermission.ADMINISTER_QUALITY_PROFILES, organization);
 
-    String json = tester.newRequest().execute().getInput();
+    String json = ws.newRequest().execute().getInput();
 
     assertJson(json).isSimilarTo("{ \"canWrite\": false }");
+  }
+
+  @Test
+  public void throw_NotFoundException_if_organization_does_not_exist() {
+    expectedException.expect(NotFoundException.class);
+    expectedException.expectMessage("No organization with key 'does_not_exist'");
+
+    ws.newRequest()
+      .setParam("organization", "does_not_exist")
+      .execute();
   }
 
   private void insertRules() {
     RuleRepositoryDto repo1 = new RuleRepositoryDto("xoo", "xoo", "SonarQube");
     RuleRepositoryDto repo2 = new RuleRepositoryDto("squid", "ws", "SonarQube");
-    db.getDbClient().ruleRepositoryDao().insert(db.getSession(), asList(repo1, repo2));
+    db.getDbClient().ruleRepositoryDao().insertOrUpdate(db.getSession(), asList(repo1, repo2));
     db.getSession().commit();
   }
 

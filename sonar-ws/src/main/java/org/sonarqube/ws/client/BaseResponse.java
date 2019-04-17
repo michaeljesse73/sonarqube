@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -42,7 +42,7 @@ abstract class BaseResponse implements WsResponse {
   public boolean hasContent() {
     return code() != HTTP_NO_CONTENT;
   }
-  
+
   @Override
   public void close() {
     // override if needed

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -58,7 +58,7 @@ final class AesCipher implements Cipher {
     try {
       javax.crypto.Cipher cipher = javax.crypto.Cipher.getInstance(CRYPTO_KEY);
       cipher.init(javax.crypto.Cipher.ENCRYPT_MODE, loadSecretFile());
-      return Base64.encodeBase64String(cipher.doFinal(clearText.getBytes("UTF-8")));
+      return Base64.encodeBase64String(cipher.doFinal(clearText.getBytes(UTF_8)));
     } catch (RuntimeException e) {
       throw e;
     } catch (Exception e) {

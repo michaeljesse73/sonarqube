@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,6 +19,7 @@
  */
 package org.sonar.db.rule;
 
+import java.util.Collection;
 import java.util.List;
 import javax.annotation.CheckForNull;
 import org.apache.ibatis.annotations.Param;
@@ -32,7 +33,9 @@ public interface RuleRepositoryMapper {
   @CheckForNull
   RuleRepositoryDto selectByKey(@Param("key") String key);
 
-  void truncate();
-
   void insert(@Param("repository") RuleRepositoryDto repository, @Param("now") long now);
+
+  int update(@Param("repository") RuleRepositoryDto repository);
+
+  void deleteIfKeyNotIn(@Param("keys") Collection<String> keys);
 }

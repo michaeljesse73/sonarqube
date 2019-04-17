@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,46 +18,40 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import { getJSON } from '../helpers/request';
-import { Paging } from '../app/types';
 import throwGlobalError from '../app/utils/throwGlobalError';
-
-export interface HistoryItem {
-  date: Date;
-  value: string;
-}
-
-export interface History {
-  [metric: string]: HistoryItem[];
-}
 
 interface TimeMachineResponse {
   measures: {
     metric: string;
-    history: HistoryItem[];
+    history: Array<{ date: string; value?: string }>;
   }[];
-  paging: Paging;
+  paging: T.Paging;
 }
 
 export function getTimeMachineData(
-  component: string,
-  metrics: string[],
-  other?: { branch?: string; p?: number; ps?: number; from?: string; to?: string }
+  data: {
+    component: string;
+    from?: string;
+    metrics: string;
+    p?: number;
+    ps?: number;
+    to?: string;
+  } & T.BranchParameters
 ): Promise<TimeMachineResponse> {
-  return getJSON('/api/measures/search_history', {
-    component,
-    metrics: metrics.join(),
-    ps: 1000,
-    ...other
-  }).catch(throwGlobalError);
+  return getJSON('/api/measures/search_history', data).catch(throwGlobalError);
 }
 
 export function getAllTimeMachineData(
-  component: string,
-  metrics: Array<string>,
-  other?: { branch?: string; p?: number; from?: string; to?: string },
+  data: {
+    component: string;
+    metrics: string;
+    from?: string;
+    p?: number;
+    to?: string;
+  } & T.BranchParameters,
   prev?: TimeMachineResponse
 ): Promise<TimeMachineResponse> {
-  return getTimeMachineData(component, metrics, { ...other, ps: 1000 }).then(r => {
+  return getTimeMachineData({ ...data, ps: 1000 }).then(r => {
     const result = prev
       ? {
           measures: prev.measures.map((measure, idx) => ({
@@ -71,11 +65,6 @@ export function getAllTimeMachineData(
     if (result.paging.pageIndex * result.paging.pageSize >= result.paging.total) {
       return result;
     }
-    return getAllTimeMachineData(
-      component,
-      metrics,
-      { ...other, p: result.paging.pageIndex + 1 },
-      result
-    );
+    return getAllTimeMachineData({ ...data, p: result.paging.pageIndex + 1 }, result);
   });
 }

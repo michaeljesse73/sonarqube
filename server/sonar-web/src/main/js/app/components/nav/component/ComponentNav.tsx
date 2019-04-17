@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,20 +24,20 @@ import ComponentNavMenu from './ComponentNavMenu';
 import ComponentNavBgTaskNotif from './ComponentNavBgTaskNotif';
 import RecentHistory from '../../RecentHistory';
 import * as theme from '../../../theme';
-import { Branch, Component } from '../../../types';
 import ContextNavBar from '../../../../components/nav/ContextNavBar';
-import { Task } from '../../../../api/ce';
 import { STATUSES } from '../../../../apps/background-tasks/constants';
 import './ComponentNav.css';
 
 interface Props {
-  branches: Branch[];
-  currentBranch?: Branch;
-  component: Component;
-  currentTask?: Task;
+  branchLikes: T.BranchLike[];
+  currentBranchLike: T.BranchLike | undefined;
+  component: T.Component;
+  currentTask?: T.Task;
+  currentTaskOnSameBranch?: boolean;
   isInProgress?: boolean;
   isPending?: boolean;
   location: {};
+  warnings: string[];
 }
 
 export default class ComponentNav extends React.PureComponent<Props> {
@@ -67,13 +67,14 @@ export default class ComponentNav extends React.PureComponent<Props> {
   };
 
   render() {
-    const { currentTask, isInProgress, isPending } = this.props;
+    const { component, currentBranchLike, currentTask, isInProgress, isPending } = this.props;
     let notifComponent;
     if (isInProgress || isPending || (currentTask && currentTask.status === STATUSES.FAILED)) {
       notifComponent = (
         <ComponentNavBgTaskNotif
-          component={this.props.component}
+          component={component}
           currentTask={currentTask}
+          currentTaskOnSameBranch={this.props.currentTaskOnSameBranch}
           isInProgress={isInProgress}
           isPending={isPending}
         />
@@ -81,20 +82,26 @@ export default class ComponentNav extends React.PureComponent<Props> {
     }
     return (
       <ContextNavBar
+        height={notifComponent ? theme.contextNavHeightRaw + 30 : theme.contextNavHeightRaw}
         id="context-navigation"
-        height={notifComponent ? theme.contextNavHeightRaw + 20 : theme.contextNavHeightRaw}
         notif={notifComponent}>
-        <ComponentNavHeader
-          branches={this.props.branches}
-          component={this.props.component}
-          currentBranch={this.props.currentBranch}
-          // to close dropdown on any location change
-          location={this.props.location}
-        />
-        <ComponentNavMeta branch={this.props.currentBranch} component={this.props.component} />
+        <div className="navbar-context-justified">
+          <ComponentNavHeader
+            branchLikes={this.props.branchLikes}
+            component={component}
+            currentBranchLike={currentBranchLike}
+            // to close dropdown on any location change
+            location={this.props.location}
+          />
+          <ComponentNavMeta
+            branchLike={currentBranchLike}
+            component={component}
+            warnings={this.props.warnings}
+          />
+        </div>
         <ComponentNavMenu
-          branch={this.props.currentBranch}
-          component={this.props.component}
+          branchLike={currentBranchLike}
+          component={component}
           // to re-render selected menu item
           location={this.props.location}
         />

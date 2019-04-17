@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -26,6 +26,12 @@ export interface ApplicationLeak {
   projectName: string;
 }
 
-export function getApplicationLeak(application: string): Promise<Array<ApplicationLeak>> {
-  return getJSON('/api/views/show_leak', { application }).then(r => r.leaks, throwGlobalError);
+export function getApplicationLeak(
+  application: string,
+  branch?: string
+): Promise<Array<ApplicationLeak>> {
+  return getJSON('/api/applications/show_leak', { application, branch }).then(
+    r => r.leaks,
+    throwGlobalError
+  );
 }

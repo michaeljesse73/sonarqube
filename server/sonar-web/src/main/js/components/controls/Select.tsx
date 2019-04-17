@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,17 +18,17 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import ReactSelect, {
-  Creatable as ReactCreatable,
-  Async,
-  ReactSelectProps,
-  ReactCreatableSelectProps,
-  ReactAsyncSelectProps
-} from 'react-select';
+import { ReactSelectProps, ReactCreatableSelectProps, ReactAsyncSelectProps } from 'react-select';
 import * as theme from '../../app/theme';
 import ClearIcon from '../icons-components/ClearIcon';
 import { ButtonIcon } from '../ui/buttons';
+import { lazyLoad } from '../lazyLoad';
 import './react-select.css';
+
+const ReactSelectLib = import('react-select');
+const ReactSelect = lazyLoad(() => ReactSelectLib);
+const ReactCreatable = lazyLoad(() => ReactSelectLib.then(lib => ({ default: lib.Creatable })));
+const ReactAsync = lazyLoad(() => ReactSelectLib.then(lib => ({ default: lib.Async })));
 
 function renderInput() {
   return (
@@ -39,7 +39,7 @@ function renderInput() {
 }
 
 interface WithInnerRef {
-  innerRef?: (element: ReactSelect) => void;
+  innerRef?: (element: React.Component) => void;
 }
 
 export default function Select({ innerRef, ...props }: WithInnerRef & ReactSelectProps) {
@@ -49,15 +49,17 @@ export default function Select({ innerRef, ...props }: WithInnerRef & ReactSelec
   // hide the "x" icon when select is empty
   const clearable = props.clearable ? Boolean(props.value) : false;
   return (
-    <ReactSelectAny {...props} clearable={clearable} clearRenderer={renderInput} ref={innerRef} />
+    <ReactSelectAny {...props} clearRenderer={renderInput} clearable={clearable} ref={innerRef} />
   );
 }
 
 export function Creatable(props: ReactCreatableSelectProps) {
-  return <ReactCreatable {...props} />;
+  // ReactSelect doesn't declare `clearRenderer` prop
+  const ReactCreatableAny = ReactCreatable as any;
+  return <ReactCreatableAny {...props} clearRenderer={renderInput} />;
 }
 
 // TODO figure out why `ref` prop is incompatible
-export function AsyncSelect(props: ReactAsyncSelectProps & { ref: any }) {
-  return <Async {...props} />;
+export function AsyncSelect(props: ReactAsyncSelectProps & { ref?: any }) {
+  return <ReactAsync {...props} />;
 }

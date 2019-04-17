@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,10 +19,10 @@
  */
 package org.sonar.ce;
 
+import org.sonar.ce.task.projectanalysis.purge.IndexPurgeListener;
+import org.sonar.ce.task.projectanalysis.purge.ProjectCleaner;
 import org.sonar.core.platform.Module;
 import org.sonar.db.purge.period.DefaultPeriodCleaner;
-import org.sonar.server.computation.dbcleaner.IndexPurgeListener;
-import org.sonar.server.computation.dbcleaner.ProjectCleaner;
 
 /**
  * Globally available components in CE for tasks to use.

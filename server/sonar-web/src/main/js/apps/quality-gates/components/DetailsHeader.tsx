@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,118 +22,96 @@ import BuiltInQualityGateBadge from './BuiltInQualityGateBadge';
 import RenameQualityGateForm from './RenameQualityGateForm';
 import CopyQualityGateForm from './CopyQualityGateForm';
 import DeleteQualityGateForm from './DeleteQualityGateForm';
-import { fetchQualityGate, QualityGate, setQualityGateAsDefault } from '../../../api/quality-gates';
+import ModalButton from '../../../components/controls/ModalButton';
+import { setQualityGateAsDefault } from '../../../api/quality-gates';
+import { Button } from '../../../components/ui/buttons';
 import { translate } from '../../../helpers/l10n';
 
 interface Props {
-  qualityGate: QualityGate;
-  onRename: (qualityGate: QualityGate, newName: string) => void;
-  onCopy: (newQualityGate: QualityGate) => void;
-  onSetAsDefault: (qualityGate: QualityGate) => void;
-  onDelete: (qualityGate: QualityGate) => void;
+  onSetDefault: () => void;
   organization?: string;
+  qualityGate: T.QualityGate;
+  refreshItem: () => Promise<void>;
+  refreshList: () => Promise<void>;
 }
 
-interface State {
-  openPopup?: string;
-}
-
-export default class DetailsHeader extends React.PureComponent<Props, State> {
-  state = { openPopup: undefined };
-
-  handleRenameClick = (e: React.SyntheticEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-    this.setState({ openPopup: 'rename' });
+export default class DetailsHeader extends React.PureComponent<Props> {
+  handleActionRefresh = () => {
+    const { refreshItem, refreshList } = this.props;
+    return Promise.all([refreshItem(), refreshList()]).then(() => {}, () => {});
   };
 
-  handleCopyClick = (e: React.SyntheticEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-    this.setState({ openPopup: 'copy' });
-  };
-
-  handleSetAsDefaultClick = (e: React.SyntheticEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-    const { qualityGate, onSetAsDefault, organization } = this.props;
+  handleSetAsDefaultClick = () => {
+    const { organization, qualityGate } = this.props;
     if (!qualityGate.isDefault) {
-      setQualityGateAsDefault({ id: qualityGate.id, organization })
-        .then(() => fetchQualityGate({ id: qualityGate.id, organization }))
-        .then(qualityGate => onSetAsDefault(qualityGate), () => {});
+      // Optimistic update
+      this.props.onSetDefault();
+      setQualityGateAsDefault({ id: qualityGate.id, organization }).then(
+        this.handleActionRefresh,
+        this.handleActionRefresh
+      );
     }
   };
 
-  handleDeleteClick = (e: React.SyntheticEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-    this.setState({ openPopup: 'delete' });
-  };
-
-  handleClosePopup = () => this.setState({ openPopup: undefined });
-
   render() {
     const { organization, qualityGate } = this.props;
-    const { openPopup } = this.state;
     const actions = qualityGate.actions || ({} as any);
     return (
       <div className="layout-page-header-panel layout-page-main-header issues-main-header">
         <div className="layout-page-header-panel-inner layout-page-main-header-inner">
           <div className="layout-page-main-inner">
-            <h2 className="pull-left">
-              {qualityGate.name}
+            <div className="pull-left display-flex-center">
+              <h2>{qualityGate.name}</h2>
               {qualityGate.isBuiltIn && <BuiltInQualityGateBadge className="spacer-left" />}
-            </h2>
+            </div>
 
             <div className="pull-right">
               {actions.rename && (
-                <button id="quality-gate-rename" onClick={this.handleRenameClick}>
-                  {translate('rename')}
-                </button>
+                <ModalButton
+                  modal={({ onClose }) => (
+                    <RenameQualityGateForm
+                      onClose={onClose}
+                      onRename={this.handleActionRefresh}
+                      organization={organization}
+                      qualityGate={qualityGate}
+                    />
+                  )}>
+                  {({ onClick }) => (
+                    <Button id="quality-gate-rename" onClick={onClick}>
+                      {translate('rename')}
+                    </Button>
+                  )}
+                </ModalButton>
               )}
               {actions.copy && (
-                <button
-                  className="little-spacer-left"
-                  id="quality-gate-copy"
-                  onClick={this.handleCopyClick}>
-                  {translate('copy')}
-                </button>
+                <ModalButton
+                  modal={({ onClose }) => (
+                    <CopyQualityGateForm
+                      onClose={onClose}
+                      onCopy={this.handleActionRefresh}
+                      organization={organization}
+                      qualityGate={qualityGate}
+                    />
+                  )}>
+                  {({ onClick }) => (
+                    <Button className="little-spacer-left" id="quality-gate-copy" onClick={onClick}>
+                      {translate('copy')}
+                    </Button>
+                  )}
+                </ModalButton>
               )}
               {actions.setAsDefault && (
-                <button
+                <Button
                   className="little-spacer-left"
                   id="quality-gate-toggle-default"
                   onClick={this.handleSetAsDefaultClick}>
                   {translate('set_as_default')}
-                </button>
+                </Button>
               )}
               {actions.delete && (
-                <button
-                  id="quality-gate-delete"
-                  className="little-spacer-left button-red"
-                  onClick={this.handleDeleteClick}>
-                  {translate('delete')}
-                </button>
-              )}
-              {openPopup === 'rename' && (
-                <RenameQualityGateForm
-                  onRename={this.props.onRename}
-                  organization={organization}
-                  onClose={this.handleClosePopup}
-                  qualityGate={qualityGate}
-                />
-              )}
-
-              {openPopup === 'copy' && (
-                <CopyQualityGateForm
-                  onCopy={this.props.onCopy}
-                  organization={organization}
-                  onClose={this.handleClosePopup}
-                  qualityGate={qualityGate}
-                />
-              )}
-
-              {openPopup === 'delete' && (
                 <DeleteQualityGateForm
-                  onDelete={this.props.onDelete}
+                  onDelete={this.props.refreshList}
                   organization={organization}
-                  onClose={this.handleClosePopup}
                   qualityGate={qualityGate}
                 />
               )}

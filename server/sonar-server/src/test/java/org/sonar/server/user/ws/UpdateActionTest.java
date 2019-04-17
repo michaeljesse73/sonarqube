@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,22 +25,23 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.sonar.api.config.internal.MapSettings;
+import org.sonar.api.server.ws.WebService;
 import org.sonar.api.utils.System2;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
 import org.sonar.db.DbTester;
 import org.sonar.db.user.UserDto;
+import org.sonar.server.authentication.CredentialsLocalAuthentication;
 import org.sonar.server.es.EsTester;
 import org.sonar.server.exceptions.ForbiddenException;
 import org.sonar.server.exceptions.NotFoundException;
 import org.sonar.server.organization.DefaultOrganizationProvider;
-import org.sonar.server.organization.OrganizationCreation;
+import org.sonar.server.organization.OrganizationUpdater;
 import org.sonar.server.organization.TestDefaultOrganizationProvider;
 import org.sonar.server.organization.TestOrganizationFlags;
 import org.sonar.server.tester.UserSessionRule;
 import org.sonar.server.user.NewUserNotifier;
 import org.sonar.server.user.UserUpdater;
-import org.sonar.server.user.index.UserIndexDefinition;
 import org.sonar.server.user.index.UserIndexer;
 import org.sonar.server.usergroups.DefaultGroupFinder;
 import org.sonar.server.ws.WsActionTester;
@@ -53,14 +54,14 @@ import static org.sonar.db.user.UserTesting.newUserDto;
 
 public class UpdateActionTest {
 
-  private static final OrganizationCreation ORGANIZATION_CREATION_NOT_USED_FOR_UPDATE = null;
+  private static final OrganizationUpdater ORGANIZATION_CREATION_NOT_USED_FOR_UPDATE = null;
   private MapSettings settings = new MapSettings();
   private System2 system2 = new System2();
 
   @Rule
   public DbTester db = DbTester.create(system2);
   @Rule
-  public EsTester es = new EsTester(new UserIndexDefinition(settings.asConfig()));
+  public EsTester es = EsTester.create();
   @Rule
   public UserSessionRule userSession = UserSessionRule.standalone().logIn().setSystemAdministrator();
   @Rule
@@ -71,10 +72,12 @@ public class UpdateActionTest {
   private UserIndexer userIndexer = new UserIndexer(dbClient, es.client());
   private DefaultOrganizationProvider defaultOrganizationProvider = TestDefaultOrganizationProvider.from(db);
   private TestOrganizationFlags organizationFlags = TestOrganizationFlags.standalone();
+  private CredentialsLocalAuthentication localAuthentication = new CredentialsLocalAuthentication(db.getDbClient());
 
   private WsActionTester ws = new WsActionTester(new UpdateAction(
-    new UserUpdater(mock(NewUserNotifier.class), dbClient, userIndexer, organizationFlags, defaultOrganizationProvider, ORGANIZATION_CREATION_NOT_USED_FOR_UPDATE,
-      new DefaultGroupFinder(db.getDbClient()), settings.asConfig()), userSession, new UserJsonWriter(userSession), dbClient));
+    new UserUpdater(system2, mock(NewUserNotifier.class), dbClient, userIndexer, organizationFlags, defaultOrganizationProvider, ORGANIZATION_CREATION_NOT_USED_FOR_UPDATE,
+      new DefaultGroupFinder(db.getDbClient()), settings.asConfig(), localAuthentication),
+    userSession, new UserJsonWriter(userSession), dbClient));
 
   @Before
   public void setUp() {
@@ -82,7 +85,7 @@ public class UpdateActionTest {
   }
 
   @Test
-  public void update_user() throws Exception {
+  public void update_user() {
     createUser();
 
     ws.newRequest()
@@ -95,7 +98,7 @@ public class UpdateActionTest {
   }
 
   @Test
-  public void update_only_name() throws Exception {
+  public void update_only_name() {
     createUser();
 
     ws.newRequest()
@@ -106,7 +109,7 @@ public class UpdateActionTest {
   }
 
   @Test
-  public void update_only_email() throws Exception {
+  public void update_only_email() {
     createUser();
 
     ws.newRequest()
@@ -117,7 +120,7 @@ public class UpdateActionTest {
   }
 
   @Test
-  public void blank_email_is_updated_to_null() throws Exception {
+  public void blank_email_is_updated_to_null() {
     createUser();
 
     ws.newRequest()
@@ -144,7 +147,7 @@ public class UpdateActionTest {
   }
 
   @Test
-  public void update_only_scm_accounts() throws Exception {
+  public void update_only_scm_accounts() {
     createUser();
 
     ws.newRequest()
@@ -197,7 +200,7 @@ public class UpdateActionTest {
   }
 
   @Test
-  public void update_only_scm_accounts_with_deprecated_scmAccounts_parameter() throws Exception {
+  public void update_only_scm_accounts_with_deprecated_scmAccounts_parameter() {
     createUser();
 
     ws.newRequest()
@@ -211,7 +214,7 @@ public class UpdateActionTest {
   }
 
   @Test
-  public void update_only_scm_accounts_with_deprecated_scm_accounts_parameter() throws Exception {
+  public void update_only_scm_accounts_with_deprecated_scm_accounts_parameter() {
     createUser();
 
     ws.newRequest()
@@ -239,6 +242,19 @@ public class UpdateActionTest {
   @Test
   public void fail_on_unknown_user() {
     expectedException.expect(NotFoundException.class);
+    expectedException.expectMessage("User 'john' doesn't exist");
+
+    ws.newRequest()
+      .setParam("login", "john")
+      .execute();
+  }
+
+  @Test
+  public void fail_on_disabled_user() {
+    db.users().insertUser(u -> u.setLogin("john").setActive(false));
+
+    expectedException.expect(NotFoundException.class);
+    expectedException.expectMessage("User 'john' doesn't exist");
 
     ws.newRequest()
       .setParam("login", "john")
@@ -258,6 +274,14 @@ public class UpdateActionTest {
       .execute();
   }
 
+  @Test
+  public void test_definition() {
+    WebService.Action action = ws.getDef();
+    assertThat(action).isNotNull();
+    assertThat(action.isPost()).isTrue();
+    assertThat(action.params()).hasSize(5);
+  }
+
   private void createUser() {
     UserDto userDto = newUserDto()
       .setEmail("john@email.com")
@@ -266,7 +290,7 @@ public class UpdateActionTest {
       .setScmAccounts(newArrayList("jn"))
       .setActive(true)
       .setLocal(true)
-      .setExternalIdentity("jo")
+      .setExternalLogin("jo")
       .setExternalIdentityProvider("sonarqube");
     dbClient.userDao().insert(dbSession, userDto);
     userIndexer.commitAndIndex(dbSession, userDto);

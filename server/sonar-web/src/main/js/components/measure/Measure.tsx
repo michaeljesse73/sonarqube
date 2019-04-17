@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,24 +21,32 @@ import * as React from 'react';
 import { getRatingTooltip } from './utils';
 import Rating from '../ui/Rating';
 import Level from '../ui/Level';
-import Tooltips from '../controls/Tooltip';
+import Tooltip from '../controls/Tooltip';
 import { formatMeasure } from '../../helpers/measures';
 
 interface Props {
   className?: string;
   decimals?: number | null;
-  value?: string;
   metricKey: string;
   metricType: string;
+  small?: boolean;
+  value: string | undefined;
 }
 
-export default function Measure({ className, decimals, metricKey, metricType, value }: Props) {
+export default function Measure({
+  className,
+  decimals,
+  metricKey,
+  metricType,
+  small,
+  value
+}: Props) {
   if (value === undefined) {
     return <span>{'–'}</span>;
   }
 
   if (metricType === 'LEVEL') {
-    return <Level className={className} level={value} />;
+    return <Level className={className} level={value} small={small} />;
   }
 
   if (metricType !== 'RATING') {
@@ -47,12 +55,12 @@ export default function Measure({ className, decimals, metricKey, metricType, va
   }
 
   const tooltip = getRatingTooltip(metricKey, Number(value));
-  const rating = <Rating value={value} />;
+  const rating = <Rating small={small} value={value} />;
   if (tooltip) {
     return (
-      <Tooltips overlay={tooltip}>
+      <Tooltip overlay={tooltip}>
         <span className={className}>{rating}</span>
-      </Tooltips>
+      </Tooltip>
     );
   }
   return rating;

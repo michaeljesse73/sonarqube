@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,7 +19,6 @@
  */
 package org.sonarqube.ws.client.navigation;
 
-import java.util.List;
 import javax.annotation.Generated;
 
 /**
@@ -33,6 +32,7 @@ public class ComponentRequest {
 
   private String branch;
   private String component;
+  private String pullRequest;
 
   /**
    * This is part of the internal API.
@@ -57,5 +57,18 @@ public class ComponentRequest {
 
   public String getComponent() {
     return component;
+  }
+
+  /**
+   * This is part of the internal API.
+   * Example value: "5461"
+   */
+  public ComponentRequest setPullRequest(String pullRequest) {
+    this.pullRequest = pullRequest;
+    return this;
+  }
+
+  public String getPullRequest() {
+    return pullRequest;
   }
 }

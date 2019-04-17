@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,13 +21,17 @@ package org.sonar.server.projectanalysis.ws;
 
 import com.google.common.collect.ListMultimap;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nullable;
 import org.sonar.api.utils.Paging;
 import org.sonar.core.util.stream.MoreCollectors;
 import org.sonar.db.DbSession;
 import org.sonar.db.component.ComponentDto;
 import org.sonar.db.component.SnapshotDto;
+import org.sonar.db.event.EventComponentChangeDto;
 import org.sonar.db.event.EventDto;
 
 import static java.util.Objects.requireNonNull;
@@ -35,23 +39,36 @@ import static java.util.Objects.requireNonNull;
 class SearchData {
   final List<SnapshotDto> analyses;
   final ListMultimap<String, EventDto> eventsByAnalysis;
+  final ListMultimap<String, EventComponentChangeDto> componentChangesByEventUuid;
   final Paging paging;
+  @CheckForNull
+  private final String manualBaseline;
 
   private SearchData(Builder builder) {
     this.analyses = builder.analyses;
     this.eventsByAnalysis = buildEvents(builder.events);
+    this.componentChangesByEventUuid = buildComponentChanges(builder.componentChanges);
     this.paging = Paging
       .forPageIndex(builder.getRequest().getPage())
       .withPageSize(builder.getRequest().getPageSize())
       .andTotal(builder.countAnalyses);
+    this.manualBaseline = builder.manualBaseline;
   }
 
   private static ListMultimap<String, EventDto> buildEvents(List<EventDto> events) {
     return events.stream().collect(MoreCollectors.index(EventDto::getAnalysisUuid));
   }
 
+  private static ListMultimap<String, EventComponentChangeDto> buildComponentChanges(List<EventComponentChangeDto> changes) {
+    return changes.stream().collect(MoreCollectors.index(EventComponentChangeDto::getEventUuid));
+  }
+
   static Builder builder(DbSession dbSession, SearchRequest request) {
     return new Builder(dbSession, request);
+  }
+
+  public Optional<String> getManualBaseline() {
+    return Optional.ofNullable(manualBaseline);
   }
 
   static class Builder {
@@ -60,7 +77,9 @@ class SearchData {
     private ComponentDto project;
     private List<SnapshotDto> analyses;
     private int countAnalyses;
+    private String manualBaseline;
     private List<EventDto> events;
+    private List<EventComponentChangeDto> componentChanges;
 
     private Builder(DbSession dbSession, SearchRequest request) {
       this.dbSession = dbSession;
@@ -91,6 +110,15 @@ class SearchData {
       return this;
     }
 
+    public List<EventComponentChangeDto> getComponentChanges() {
+      return componentChanges;
+    }
+
+    Builder setComponentChanges(List<EventComponentChangeDto> componentChanges) {
+      this.componentChanges = componentChanges;
+      return this;
+    }
+
     DbSession getDbSession() {
       return dbSession;
     }
@@ -105,6 +133,11 @@ class SearchData {
 
     List<SnapshotDto> getAnalyses() {
       return analyses;
+    }
+
+    public Builder setManualBaseline(@Nullable String manualBaseline) {
+      this.manualBaseline = manualBaseline;
+      return this;
     }
 
     private void filterByCategory() {

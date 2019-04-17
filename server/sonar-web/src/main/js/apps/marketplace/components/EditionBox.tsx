@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,42 +18,36 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import EditionBoxBadge from './EditionBoxBadge';
-import { Edition, EditionStatus } from '../../../api/marketplace';
+import tooltipDCE from 'Docs/tooltips/editions/datacenter.md';
+import tooltipDE from 'Docs/tooltips/editions/developer.md';
+import tooltipEE from 'Docs/tooltips/editions/enterprise.md';
+import { Edition, getEditionUrl } from '../utils';
 import { translate } from '../../../helpers/l10n';
+import { lazyLoad } from '../../../components/lazyLoad';
+
+const DocMarkdownBlock = lazyLoad(() => import('../../../components/docs/DocMarkdownBlock'));
 
 interface Props {
-  actionLabel: string;
-  disableAction: boolean;
-  displayAction: boolean;
+  currentEdition?: T.EditionKey;
   edition: Edition;
-  editionStatus?: EditionStatus;
-  onAction: (edition: Edition) => void;
+  ncloc?: number;
+  serverId?: string;
 }
 
-export default class EditionBox extends React.PureComponent<Props> {
-  handleAction = () => this.props.onAction(this.props.edition);
-
-  render() {
-    const { disableAction, displayAction, edition, editionStatus } = this.props;
-    return (
-      <div className="boxed-group boxed-group-inner marketplace-edition">
-        {editionStatus && <EditionBoxBadge editionKey={edition.key} status={editionStatus} />}
-        <div>
-          <h3 className="spacer-bottom">{edition.name}</h3>
-          <p>{edition.textDescription}</p>
-        </div>
-        <div className="marketplace-edition-action spacer-top">
-          <a href={edition.homeUrl} target="_blank">
-            {translate('marketplace.learn_more')}
-          </a>
-          {displayAction && (
-            <button disabled={disableAction} onClick={this.handleAction}>
-              {this.props.actionLabel}
-            </button>
-          )}
-        </div>
+export default function EditionBox({ edition, ncloc, serverId, currentEdition }: Props) {
+  return (
+    <div className="boxed-group boxed-group-inner marketplace-edition">
+      {edition.key === 'datacenter' && <DocMarkdownBlock content={tooltipDCE} />}
+      {edition.key === 'developer' && <DocMarkdownBlock content={tooltipDE} />}
+      {edition.key === 'enterprise' && <DocMarkdownBlock content={tooltipEE} />}
+      <div className="marketplace-edition-action spacer-top">
+        <a
+          href={getEditionUrl(edition, { ncloc, serverId, sourceEdition: currentEdition })}
+          rel="noopener noreferrer"
+          target="_blank">
+          {translate('marketplace.ask_for_information')}
+        </a>
       </div>
-    );
-  }
+    </div>
+  );
 }

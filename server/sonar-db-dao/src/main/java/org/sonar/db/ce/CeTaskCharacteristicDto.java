@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,10 +19,18 @@
  */
 package org.sonar.db.ce;
 
+import java.util.HashSet;
+import java.util.Set;
+
+import static java.util.Arrays.asList;
+import static java.util.Collections.unmodifiableSet;
+
 public class CeTaskCharacteristicDto {
 
   public static final String BRANCH_KEY = "branch";
   public static final String BRANCH_TYPE_KEY = "branchType";
+  public static final String PULL_REQUEST = "pullRequest";
+  public static final Set<String> SUPPORTED_KEYS = unmodifiableSet(new HashSet<>(asList(BRANCH_KEY, BRANCH_TYPE_KEY, PULL_REQUEST)));
 
   private String uuid;
   private String taskUuid;

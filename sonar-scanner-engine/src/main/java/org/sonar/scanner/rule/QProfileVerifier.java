@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,28 +20,19 @@
 package org.sonar.scanner.rule;
 
 import com.google.common.annotations.VisibleForTesting;
-import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.sonar.api.batch.ScannerSide;
-import org.sonar.api.batch.fs.FileSystem;
-import org.sonar.api.config.Configuration;
-import org.sonar.api.utils.MessageException;
+import org.sonar.scanner.scan.filesystem.InputComponentStore;
 
-import static org.apache.commons.lang.StringUtils.isNotEmpty;
-
-@ScannerSide
 public class QProfileVerifier {
 
   private static final Logger LOG = LoggerFactory.getLogger(QProfileVerifier.class);
 
-  private final Configuration settings;
-  private final FileSystem fs;
-  private final ModuleQProfiles profiles;
+  private final InputComponentStore store;
+  private final QualityProfiles profiles;
 
-  public QProfileVerifier(Configuration settings, FileSystem fs, ModuleQProfiles profiles) {
-    this.settings = settings;
-    this.fs = fs;
+  public QProfileVerifier(InputComponentStore store, QualityProfiles profiles) {
+    this.store = store;
     this.profiles = profiles;
   }
 
@@ -51,21 +42,13 @@ public class QProfileVerifier {
 
   @VisibleForTesting
   void execute(Logger logger) {
-    String defaultName = settings.get(ModuleQProfiles.SONAR_PROFILE_PROP).orElse(null);
-    boolean defaultNameUsed = StringUtils.isBlank(defaultName);
-    for (String lang : fs.languages()) {
+    for (String lang : store.languages()) {
       QProfile profile = profiles.findByLanguage(lang);
       if (profile == null) {
         logger.warn("No Quality profile found for language {}", lang);
       } else {
         logger.info("Quality profile for {}: {}", lang, profile.getName());
-        if (isNotEmpty(defaultName) && defaultName.equals(profile.getName())) {
-          defaultNameUsed = true;
-        }
       }
-    }
-    if (!defaultNameUsed && !fs.languages().isEmpty()) {
-      throw MessageException.of("sonar.profile was set to '" + defaultName + "' but didn't match any profile for any language. Please check your configuration.");
     }
   }
 }

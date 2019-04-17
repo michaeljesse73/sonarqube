@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -17,49 +17,38 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
+import * as React from 'react';
 import { connect } from 'react-redux';
 import App from './App';
-import {
-  getAppState,
-  getGlobalSettingValue,
-  getMarketplaceState,
-  getMarketplaceEditions,
-  getMarketplaceEditionStatus
-} from '../../store/rootReducer';
-import { Edition, EditionStatus } from '../../api/marketplace';
-import { setEditionStatus } from '../../store/marketplace/actions';
+import { getAppState, getGlobalSettingValue, Store } from '../../store/rootReducer';
 import { RawQuery } from '../../helpers/query';
+import MarketplaceContext from '../../app/components/MarketplaceContext';
 
 interface OwnProps {
   location: { pathname: string; query: RawQuery };
 }
 
 interface StateToProps {
-  editions?: Edition[];
-  editionsReadOnly: boolean;
-  editionStatus?: EditionStatus;
-  loadingEditions: boolean;
-  standaloneMode: boolean;
+  currentEdition?: T.EditionKey;
+  standaloneMode?: boolean;
   updateCenterActive: boolean;
 }
 
-interface DispatchToProps {
-  setEditionStatus: (editionStatus: EditionStatus) => void;
-}
+const mapStateToProps = (state: Store) => {
+  const updateCenterActive = getGlobalSettingValue(state, 'sonar.updatecenter.activate');
+  return {
+    currentEdition: getAppState(state).edition,
+    standaloneMode: getAppState(state).standalone,
+    updateCenterActive: Boolean(updateCenterActive && updateCenterActive.value === 'true')
+  };
+};
 
-const mapStateToProps = (state: any) => ({
-  editions: getMarketplaceEditions(state),
-  editionsReadOnly: getMarketplaceState(state).readOnly,
-  editionStatus: getMarketplaceEditionStatus(state),
-  loadingEditions: getMarketplaceState(state).loading,
-  standaloneMode: getAppState(state).standalone,
-  updateCenterActive:
-    (getGlobalSettingValue(state, 'sonar.updatecenter.activate') || {}).value === 'true'
-});
+const WithMarketplaceContext = (props: StateToProps & OwnProps) => (
+  <MarketplaceContext.Consumer>
+    {({ fetchPendingPlugins, pendingPlugins }) => (
+      <App fetchPendingPlugins={fetchPendingPlugins} pendingPlugins={pendingPlugins} {...props} />
+    )}
+  </MarketplaceContext.Consumer>
+);
 
-const mapDispatchToProps = { setEditionStatus };
-
-export default connect<StateToProps, DispatchToProps, OwnProps>(
-  mapStateToProps,
-  mapDispatchToProps
-)(App);
+export default connect(mapStateToProps)(WithMarketplaceContext);

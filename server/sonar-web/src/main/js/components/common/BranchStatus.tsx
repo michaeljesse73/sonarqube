@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,62 +18,27 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import StatusIndicator from './StatusIndicator';
-import { Branch } from '../../app/types';
+import { connect } from 'react-redux';
 import Level from '../ui/Level';
-import BugIcon from '../icons-components/BugIcon';
-import CodeSmellIcon from '../icons-components/CodeSmellIcon';
-import VulnerabilityIcon from '../icons-components/VulnerabilityIcon';
-import { isShortLivingBranch } from '../../helpers/branches';
-import './BranchStatus.css';
+import { Store, getBranchStatusByBranchLike } from '../../store/rootReducer';
 
 interface Props {
-  branch: Branch;
-  concise?: boolean;
+  branchLike: T.BranchLike;
+  component: string;
+  status?: string;
 }
 
-export default function BranchStatus({ branch, concise = false }: Props) {
-  if (isShortLivingBranch(branch)) {
-    if (!branch.status) {
-      return null;
-    }
-
-    const totalIssues =
-      branch.status.bugs + branch.status.vulnerabilities + branch.status.codeSmells;
-
-    const indicatorColor = totalIssues > 0 ? 'red' : 'green';
-
-    return concise ? (
-      <ul className="branch-status">
-        <li>{totalIssues}</li>
-        <li className="spacer-left">
-          <StatusIndicator color={indicatorColor} size="small" />
-        </li>
-      </ul>
-    ) : (
-      <ul className="branch-status">
-        <li className="spacer-right">
-          <StatusIndicator color={indicatorColor} size="small" />
-        </li>
-        <li className="spacer-left">
-          {branch.status.bugs}
-          <BugIcon />
-        </li>
-        <li className="spacer-left">
-          {branch.status.vulnerabilities}
-          <VulnerabilityIcon />
-        </li>
-        <li className="spacer-left">
-          {branch.status.codeSmells}
-          <CodeSmellIcon />
-        </li>
-      </ul>
-    );
-  } else {
-    if (!branch.status) {
-      return null;
-    }
-
-    return <Level level={branch.status.qualityGateStatus} small={true} />;
+export function BranchStatus({ status }: Props) {
+  if (!status) {
+    return null;
   }
+
+  return <Level level={status} small={true} />;
 }
+
+const mapStateToProps = (state: Store, { branchLike, component }: Props) => {
+  const status = getBranchStatusByBranchLike(state, component, branchLike);
+  return { status };
+};
+
+export default connect(mapStateToProps)(BranchStatus);

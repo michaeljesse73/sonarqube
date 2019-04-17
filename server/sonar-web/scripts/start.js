@@ -1,7 +1,7 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2016 SonarSource SA
- * mailto:contact AT sonarsource DOT com
+ * Copyright (C) 2009-2019 SonarSource SA
+ * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -20,25 +20,30 @@
 /* eslint-disable no-console */
 process.env.NODE_ENV = 'development';
 
+const fs = require('fs');
 const chalk = require('chalk');
 const webpack = require('webpack');
 const WebpackDevServer = require('webpack-dev-server');
 const clearConsole = require('react-dev-utils/clearConsole');
 const formatWebpackMessages = require('react-dev-utils/formatWebpackMessages');
 const errorOverlayMiddleware = require('react-error-overlay/middleware');
-const getConfig = require('../config/webpack.config');
-const paths = require('../config/paths');
 const getMessages = require('./utils/getMessages');
+const getConfigs = require('../config/webpack.config');
+const paths = require('../config/paths');
 
-const config = getConfig({ production: false });
+const configs = getConfigs({ production: false });
+const config = configs.find(config => config.name === 'modern');
 
 const port = process.env.PORT || 3000;
 const protocol = process.env.HTTPS === 'true' ? 'https' : 'http';
 const host = process.env.HOST || 'localhost';
 const proxy = process.env.PROXY || 'http://localhost:9000';
 
-const compiler = setupCompiler(host, port, protocol);
+// Force start script to proxy l10n request to the server (can be useful when working with plugins/extensions)
+const l10nCompiledFlag = process.argv.findIndex(val => val === 'l10nCompiled') >= 0;
+const l10nExtensions = process.argv.findIndex(val => val === 'l10nExtensions') >= 0;
 
+const compiler = setupCompiler(host, port, protocol);
 runDevServer(compiler, host, port, protocol);
 
 function setupCompiler(host, port, protocol) {
@@ -82,15 +87,17 @@ function runDevServer(compiler, host, port, protocol) {
   const devServer = new WebpackDevServer(compiler, {
     before(app) {
       app.use(errorOverlayMiddleware());
-      app.get('/api/l10n/index', (req, res) => {
-        getMessages()
-          .then(messages => res.json({ effectiveLocale: 'en', messages }))
-          .catch(() => res.status(500));
-      });
+      if (!l10nCompiledFlag) {
+        app.get('/api/l10n/index', (req, res) => {
+          getMessages(l10nExtensions)
+            .then(messages => res.json({ effectiveLocale: 'en', messages }))
+            .catch(() => res.status(500));
+        });
+      }
     },
     compress: true,
     clientLogLevel: 'none',
-    contentBase: paths.appPublic,
+    contentBase: [paths.appPublic, paths.docRoot],
     disableHostCheck: true,
     hot: true,
     publicPath: config.output.publicPath,
@@ -105,10 +112,12 @@ function runDevServer(compiler, host, port, protocol) {
       disableDotRule: true
     },
     proxy: {
-      '/api': proxy,
-      '/fonts': proxy,
-      '/images': proxy,
-      '/static': proxy
+      '/api': { target: proxy, changeOrigin: true },
+      '/static': { target: proxy, changeOrigin: true },
+      '/integration': { target: proxy, changeOrigin: true },
+      '/sessions/init': { target: proxy, changeOrigin: true },
+      '/oauth2': { target: proxy, changeOrigin: true },
+      '/batch': { target: proxy, changeOrigin: true }
     }
   });
 

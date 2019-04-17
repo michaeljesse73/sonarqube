@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,15 +19,13 @@
  */
 import * as React from 'react';
 import ProjectCard from './ProjectCard';
-import { Project } from './types';
 import ListFooter from '../../../components/controls/ListFooter';
 import { translate } from '../../../helpers/l10n';
 
 interface Props {
   loading: boolean;
   loadMore: () => void;
-  projects: Project[];
-  search: (query: string) => void;
+  projects: T.MyProject[];
   total?: number;
 }
 
@@ -55,9 +53,9 @@ export default function Projects(props: Props) {
       {projects.length > 0 && (
         <ListFooter
           count={projects.length}
-          total={props.total || 0}
-          ready={!props.loading}
           loadMore={props.loadMore}
+          ready={!props.loading}
+          total={props.total || 0}
         />
       )}
     </div>

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -23,7 +23,7 @@ import Section from '../Section';
 
 it('should render correctly', () => {
   expect(
-    shallow(<Section name="foo" items={{ foo: 1, bar: 'Bar', baz: false }} />)
+    shallow(<Section items={{ foo: 1, bar: 'Bar', baz: false }} name="foo" />)
   ).toMatchSnapshot();
 });
 

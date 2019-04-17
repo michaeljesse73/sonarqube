@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,7 +25,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.mockito.ArgumentCaptor;
-import org.sonar.api.config.internal.MapSettings;
 import org.sonar.api.server.ws.Request;
 import org.sonar.api.server.ws.Response;
 import org.sonar.api.server.ws.WebService;
@@ -43,10 +42,9 @@ import org.sonar.server.exceptions.NotFoundException;
 import org.sonar.server.exceptions.UnauthorizedException;
 import org.sonar.server.issue.IssueFieldsSetter;
 import org.sonar.server.issue.IssueFinder;
+import org.sonar.server.issue.WebIssueStorage;
 import org.sonar.server.issue.IssueUpdater;
-import org.sonar.server.issue.ServerIssueStorage;
 import org.sonar.server.issue.TestIssueChangePostProcessor;
-import org.sonar.server.issue.index.IssueIndexDefinition;
 import org.sonar.server.issue.index.IssueIndexer;
 import org.sonar.server.issue.index.IssueIteratorFactory;
 import org.sonar.server.notification.NotificationManager;
@@ -59,15 +57,15 @@ import org.sonar.server.ws.TestResponse;
 import org.sonar.server.ws.WsActionTester;
 
 import static java.util.Collections.singletonList;
+import static java.util.Optional.ofNullable;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.sonar.api.web.UserRole.CODEVIEWER;
 import static org.sonar.api.web.UserRole.USER;
-import static org.sonar.core.util.Protobuf.setNullable;
 import static org.sonar.db.issue.IssueChangeDto.TYPE_COMMENT;
 
 public class AddCommentActionTest {
@@ -81,7 +79,7 @@ public class AddCommentActionTest {
   public DbTester dbTester = DbTester.create(System2.INSTANCE);
 
   @Rule
-  public EsTester esTester = new EsTester(new IssueIndexDefinition(new MapSettings().asConfig()));
+  public EsTester es = EsTester.create();
 
   @Rule
   public UserSessionRule userSession = UserSessionRule.standalone();
@@ -93,8 +91,8 @@ public class AddCommentActionTest {
 
   private IssueDbTester issueDbTester = new IssueDbTester(dbTester);
 
-  private IssueIndexer issueIndexer = new IssueIndexer(esTester.client(), dbClient, new IssueIteratorFactory(dbClient));
-  private ServerIssueStorage serverIssueStorage = new ServerIssueStorage(system2, new DefaultRuleFinder(dbClient, defaultOrganizationProvider), dbClient, issueIndexer);
+  private IssueIndexer issueIndexer = new IssueIndexer(es.client(), dbClient, new IssueIteratorFactory(dbClient));
+  private WebIssueStorage serverIssueStorage = new WebIssueStorage(system2, dbClient, new DefaultRuleFinder(dbClient, defaultOrganizationProvider), issueIndexer);
   private TestIssueChangePostProcessor issueChangePostProcessor = new TestIssueChangePostProcessor();
   private IssueUpdater issueUpdater = new IssueUpdater(dbClient, serverIssueStorage, mock(NotificationManager.class), issueChangePostProcessor);
   private OperationResponseWriter responseWriter = mock(OperationResponseWriter.class);
@@ -120,7 +118,7 @@ public class AddCommentActionTest {
 
     IssueChangeDto issueComment = dbClient.issueChangeDao().selectByTypeAndIssueKeys(dbTester.getSession(), singletonList(issueDto.getKey()), TYPE_COMMENT).get(0);
     assertThat(issueComment.getKey()).isNotNull();
-    assertThat(issueComment.getUserLogin()).isEqualTo("john");
+    assertThat(issueComment.getUserUuid()).isEqualTo(userSession.getUuid());
     assertThat(issueComment.getChangeType()).isEqualTo(TYPE_COMMENT);
     assertThat(issueComment.getChangeData()).isEqualTo("please fix it");
     assertThat(issueComment.getCreatedAt()).isNotNull();
@@ -206,8 +204,8 @@ public class AddCommentActionTest {
 
   private TestResponse call(@Nullable String issueKey, @Nullable String commentText) {
     TestRequest request = tester.newRequest();
-    setNullable(issueKey, issue -> request.setParam("issue", issue));
-    setNullable(commentText, text -> request.setParam("text", text));
+    ofNullable(issueKey).ifPresent(issue -> request.setParam("issue", issue));
+    ofNullable(commentText).ifPresent(text -> request.setParam("text", text));
     return request.execute();
   }
 

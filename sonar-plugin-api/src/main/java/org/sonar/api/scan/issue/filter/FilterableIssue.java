@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,14 +22,21 @@ package org.sonar.api.scan.issue.filter;
 import java.util.Date;
 import javax.annotation.CheckForNull;
 import javax.annotation.concurrent.ThreadSafe;
+import org.sonar.api.batch.fs.TextRange;
 import org.sonar.api.rule.RuleKey;
 
 /**
  * @since 5.3
+ * @deprecated since 7.6
  */
 @ThreadSafe
+@Deprecated
 public interface FilterableIssue {
 
+  /**
+   * @deprecated since 7.6 filtering issue should not depend on the key
+   */
+  @Deprecated
   String componentKey();
 
   RuleKey ruleKey();
@@ -38,14 +45,18 @@ public interface FilterableIssue {
 
   String message();
 
+  /**
+   * @deprecated since 7.2. Use {@link #textRange()} instead.
+   */
+  @Deprecated
   @CheckForNull
   Integer line();
 
   /**
-   * @deprecated since 5.5 use {@link #gap()}
+   * @since 7.2 
    */
-  @Deprecated
-  Double effortToFix();
+  @CheckForNull
+  TextRange textRange();
 
   /**
    * @since 5.5
@@ -54,10 +65,14 @@ public interface FilterableIssue {
   Double gap();
 
   /**
-   * @deprecated since 6.6 useless
+   * @deprecated since 6.6 useless since creation date is computed on server side
    */
   @Deprecated
   Date creationDate();
 
+  /**
+   * @deprecated since 7.6 filtering issue should not depend on the key
+   */
+  @Deprecated
   String projectKey();
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,7 +19,7 @@
  */
 package org.sonar.server.platform.db.migration.step;
 
-import java.util.stream.Stream;
+import java.util.List;
 
 /**
  * Responsible for:
@@ -34,5 +34,5 @@ public interface MigrationStepsExecutor {
   /**
    * @throws MigrationStepExecutionException at the first failing migration step execution
    */
-  void execute(Stream<RegisteredMigrationStep> steps);
+  void execute(List<RegisteredMigrationStep> steps);
 }

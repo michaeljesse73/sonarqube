@@ -18,53 +18,59 @@ exports[`applies permission template 1`] = `
 `;
 
 exports[`restores access 1`] = `
-<ActionsDropdown
-  onToggleClick={[Function]}
->
-  <ActionsDropdownItem
-    className="js-apply-template"
-    onClick={[Function]}
+<Fragment>
+  <ActionsDropdown
+    onOpen={[Function]}
   >
-    projects_role.apply_template
-  </ActionsDropdownItem>
-</ActionsDropdown>
+    <ActionsDropdownItem
+      className="js-apply-template"
+      onClick={[Function]}
+    >
+      projects_role.apply_template
+    </ActionsDropdownItem>
+  </ActionsDropdown>
+</Fragment>
 `;
 
 exports[`restores access 2`] = `
-<ActionsDropdown
-  onToggleClick={[Function]}
->
-  <ActionsDropdownItem
-    className="js-restore-access"
-    onClick={[Function]}
+<Fragment>
+  <ActionsDropdown
+    onOpen={[Function]}
   >
-    global_permissions.restore_access
-  </ActionsDropdownItem>
-  <ActionsDropdownItem
-    className="js-apply-template"
-    onClick={[Function]}
-  >
-    projects_role.apply_template
-  </ActionsDropdownItem>
-</ActionsDropdown>
+    <ActionsDropdownItem
+      className="js-restore-access"
+      onClick={[Function]}
+    >
+      global_permissions.restore_access
+    </ActionsDropdownItem>
+    <ActionsDropdownItem
+      className="js-apply-template"
+      onClick={[Function]}
+    >
+      projects_role.apply_template
+    </ActionsDropdownItem>
+  </ActionsDropdown>
+</Fragment>
 `;
 
 exports[`restores access 3`] = `
-<ActionsDropdown
-  onToggleClick={[Function]}
->
-  <ActionsDropdownItem
-    className="js-restore-access"
-    onClick={[Function]}
+<Fragment>
+  <ActionsDropdown
+    onOpen={[Function]}
   >
-    global_permissions.restore_access
-  </ActionsDropdownItem>
-  <ActionsDropdownItem
-    className="js-apply-template"
-    onClick={[Function]}
-  >
-    projects_role.apply_template
-  </ActionsDropdownItem>
+    <ActionsDropdownItem
+      className="js-restore-access"
+      onClick={[Function]}
+    >
+      global_permissions.restore_access
+    </ActionsDropdownItem>
+    <ActionsDropdownItem
+      className="js-apply-template"
+      onClick={[Function]}
+    >
+      projects_role.apply_template
+    </ActionsDropdownItem>
+  </ActionsDropdown>
   <RestoreAccessModal
     currentUser={
       Object {
@@ -84,5 +90,5 @@ exports[`restores access 3`] = `
       }
     }
   />
-</ActionsDropdown>
+</Fragment>
 `;

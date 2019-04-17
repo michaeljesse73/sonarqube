@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,38 +19,51 @@
  */
 import * as React from 'react';
 import { shallow } from 'enzyme';
-import OrganizationNavigationHeader from '../OrganizationNavigationHeader';
-import { Visibility } from '../../../../app/types';
+import OrganizationNavigationHeader, { Props } from '../OrganizationNavigationHeader';
+import {
+  mockOrganizationWithAlm,
+  mockCurrentUser,
+  mockLoggedInUser
+} from '../../../../helpers/testMocks';
 
 it('renders', () => {
+  expect(shallowRender()).toMatchSnapshot();
+});
+
+it('renders with alm integration', () => {
   expect(
-    shallow(
-      <OrganizationNavigationHeader
-        organization={{
-          key: 'foo',
-          name: 'Foo',
-          projectVisibility: Visibility.Public
-        }}
-        organizations={[]}
-      />
-    )
+    shallowRender({ organization: mockOrganizationWithAlm({ projectVisibility: 'public' }) })
+  ).toMatchSnapshot();
+});
+
+it('renders for external user w/o alm integration', () => {
+  expect(
+    shallowRender({ currentUser: mockLoggedInUser({ externalProvider: 'github' }) })
   ).toMatchSnapshot();
 });
 
 it('renders dropdown', () => {
-  const organizations = [
-    { isAdmin: true, key: 'org1', name: 'org1', projectVisibility: Visibility.Public },
-    { isAdmin: false, key: 'org2', name: 'org2', projectVisibility: Visibility.Public }
+  const organizations: T.Organization[] = [
+    { actions: { admin: true }, key: 'org1', name: 'org1', projectVisibility: 'public' },
+    { actions: { admin: false }, key: 'org2', name: 'org2', projectVisibility: 'public' }
   ];
-  const wrapper = shallow(
+  const wrapper = shallowRender({
+    organizations
+  });
+  expect(wrapper.find('Dropdown')).toMatchSnapshot();
+});
+
+function shallowRender(props: Partial<Props> = {}) {
+  return shallow(
     <OrganizationNavigationHeader
+      currentUser={mockCurrentUser()}
       organization={{
         key: 'foo',
         name: 'Foo',
-        projectVisibility: Visibility.Public
+        projectVisibility: 'public'
       }}
-      organizations={organizations}
+      organizations={[]}
+      {...props}
     />
   );
-  expect(wrapper.find('Dropdown').dive()).toMatchSnapshot();
-});
+}

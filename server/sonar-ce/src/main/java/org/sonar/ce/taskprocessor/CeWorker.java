@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,11 +19,12 @@
  */
 package org.sonar.ce.taskprocessor;
 
+import java.util.Optional;
 import java.util.concurrent.Callable;
 import javax.annotation.Nullable;
 import org.sonar.ce.queue.CeQueue;
-import org.sonar.ce.queue.CeTask;
-import org.sonar.ce.queue.CeTaskResult;
+import org.sonar.ce.task.CeTask;
+import org.sonar.ce.task.CeTaskResult;
 import org.sonar.db.ce.CeActivityDto;
 
 /**
@@ -32,6 +33,7 @@ import org.sonar.db.ce.CeActivityDto;
  * {@code false} otherwise.
  */
 public interface CeWorker extends Callable<CeWorker.Result> {
+
   enum Result {
     /** Worker is disabled */
     DISABLED,
@@ -52,6 +54,16 @@ public interface CeWorker extends Callable<CeWorker.Result> {
   String getUUID();
 
   /**
+   * @return {@code true} if this CeWorker currently being executed by the specified {@link Thread}.
+   */
+  boolean isExecutedBy(Thread thread);
+
+  /**
+   * @return the {@link CeTask} currently being executed by this worker, if any.
+   */
+  Optional<CeTask> getCurrentTask();
+
+  /**
    * Classes implementing will be called a task start and finishes executing.
    * All classes implementing this interface are guaranted to be called for each event, even if another implementation
    * failed when called.
@@ -59,7 +71,7 @@ public interface CeWorker extends Callable<CeWorker.Result> {
   interface ExecutionListener {
     /**
      * Called when starting executing a {@link CeTask} (which means: after it's been picked for processing, but before
-     * the execution of the task by the {@link CeTaskProcessor#process(CeTask)}).
+     * the execution of the task by the {@link org.sonar.ce.task.taskprocessor.CeTaskProcessor#process(CeTask)}).
      */
     void onStart(CeTask ceTask);
 

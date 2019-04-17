@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,65 +18,74 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import * as PropTypes from 'prop-types';
 import { Link } from 'react-router';
 import ComponentNavBranchesMenuItem from './ComponentNavBranchesMenuItem';
-import { Branch, Component } from '../../../types';
 import {
   sortBranchesAsTree,
   isLongLivingBranch,
-  isShortLivingBranch
+  isShortLivingBranch,
+  isSameBranchLike,
+  getBranchLikeKey,
+  isPullRequest,
+  isBranch
 } from '../../../../helpers/branches';
+import { scrollToElement } from '../../../../helpers/scrolling';
 import { translate } from '../../../../helpers/l10n';
-import { getProjectBranchUrl } from '../../../../helpers/urls';
+import { getBranchLikeUrl } from '../../../../helpers/urls';
 import SearchBox from '../../../../components/controls/SearchBox';
-import Tooltip from '../../../../components/controls/Tooltip';
+import HelpTooltip from '../../../../components/controls/HelpTooltip';
+import { DropdownOverlay } from '../../../../components/controls/Dropdown';
+import { withRouter, Router } from '../../../../components/hoc/withRouter';
 
 interface Props {
-  branches: Branch[];
+  branchLikes: T.BranchLike[];
   canAdmin?: boolean;
-  component: Component;
-  currentBranch: Branch;
+  component: T.Component;
+  currentBranchLike: T.BranchLike;
   onClose: () => void;
+  router: Pick<Router, 'push'>;
 }
 
 interface State {
   query: string;
-  selected: string | null;
+  selected: T.BranchLike | undefined;
 }
 
-export default class ComponentNavBranchesMenu extends React.PureComponent<Props, State> {
-  private node?: HTMLElement | null;
-
-  static contextTypes = {
-    router: PropTypes.object
-  };
-
-  constructor(props: Props) {
-    super(props);
-    this.state = { query: '', selected: null };
-  }
+export class ComponentNavBranchesMenu extends React.PureComponent<Props, State> {
+  listNode?: HTMLUListElement | null;
+  selectedBranchNode?: HTMLLIElement | null;
+  state: State = { query: '', selected: undefined };
 
   componentDidMount() {
-    window.addEventListener('click', this.handleClickOutside);
+    this.scrollToSelectedBranch(false);
   }
 
-  componentWillUnmount() {
-    window.removeEventListener('click', this.handleClickOutside);
+  componentDidUpdate() {
+    this.scrollToSelectedBranch(true);
   }
 
-  getFilteredBranches = () =>
-    sortBranchesAsTree(this.props.branches).filter(branch =>
-      branch.name.toLowerCase().includes(this.state.query.toLowerCase())
-    );
-
-  handleClickOutside = (event: Event) => {
-    if (!this.node || !this.node.contains(event.target as HTMLElement)) {
-      this.props.onClose();
+  scrollToSelectedBranch(smooth: boolean) {
+    if (this.listNode && this.selectedBranchNode) {
+      scrollToElement(this.selectedBranchNode, {
+        parent: this.listNode,
+        smooth
+      });
     }
+  }
+
+  getFilteredBranchLikes = () => {
+    const query = this.state.query.toLowerCase();
+    return sortBranchesAsTree(this.props.branchLikes).filter(branchLike => {
+      const matchBranchName = isBranch(branchLike) && branchLike.name.toLowerCase().includes(query);
+      const matchPullRequestTitleOrId =
+        isPullRequest(branchLike) &&
+        (branchLike.title.toLowerCase().includes(query) ||
+          branchLike.key.toLowerCase().includes(query));
+      return matchBranchName || matchPullRequestTitleOrId;
+    });
   };
 
-  handleSearchChange = (query: string) => this.setState({ query, selected: null });
+  handleSearchChange = (query: string) => this.setState({ query, selected: undefined });
 
   handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     switch (event.keyCode) {
@@ -99,32 +108,31 @@ export default class ComponentNavBranchesMenu extends React.PureComponent<Props,
 
   openSelected = () => {
     const selected = this.getSelected();
-    const branch = this.getFilteredBranches().find(branch => branch.name === selected);
-    if (branch) {
-      this.context.router.push(this.getProjectBranchUrl(branch));
+    if (selected) {
+      this.props.router.push(this.getProjectBranchUrl(selected));
     }
   };
 
   selectPrevious = () => {
     const selected = this.getSelected();
-    const branches = this.getFilteredBranches();
-    const index = branches.findIndex(branch => branch.name === selected);
+    const branchLikes = this.getFilteredBranchLikes();
+    const index = branchLikes.findIndex(b => isSameBranchLike(b, selected));
     if (index > 0) {
-      this.setState({ selected: branches[index - 1].name });
+      this.setState({ selected: branchLikes[index - 1] });
     }
   };
 
   selectNext = () => {
     const selected = this.getSelected();
-    const branches = this.getFilteredBranches();
-    const index = branches.findIndex(branch => branch.name === selected);
+    const branches = this.getFilteredBranchLikes();
+    const index = branches.findIndex(b => isSameBranchLike(b, selected));
     if (index >= 0 && index < branches.length - 1) {
-      this.setState({ selected: branches[index + 1].name });
+      this.setState({ selected: branches[index + 1] });
     }
   };
 
-  handleSelect = (branch: Branch) => {
-    this.setState({ selected: branch.name });
+  handleSelect = (branchLike: T.BranchLike) => {
+    this.setState({ selected: branchLike });
   };
 
   getSelected = () => {
@@ -132,21 +140,24 @@ export default class ComponentNavBranchesMenu extends React.PureComponent<Props,
       return this.state.selected;
     }
 
-    const branches = this.getFilteredBranches();
-    if (branches.find(b => b.name === this.props.currentBranch.name)) {
-      return this.props.currentBranch.name;
+    const branchLikes = this.getFilteredBranchLikes();
+    if (branchLikes.find(b => isSameBranchLike(b, this.props.currentBranchLike))) {
+      return this.props.currentBranchLike;
     }
 
-    if (branches.length > 0) {
-      return branches[0].name;
+    if (branchLikes.length > 0) {
+      return branchLikes[0];
     }
 
     return undefined;
   };
 
-  getProjectBranchUrl = (branch: Branch) => getProjectBranchUrl(this.props.component.key, branch);
+  getProjectBranchUrl = (branchLike: T.BranchLike) =>
+    getBranchLikeUrl(this.props.component.key, branchLike);
 
-  isSelected = (branch: Branch) => branch.name === this.getSelected();
+  isOrphan = (branchLike: T.BranchLike) => {
+    return (isShortLivingBranch(branchLike) || isPullRequest(branchLike)) && branchLike.isOrphan;
+  };
 
   renderSearch = () => (
     <div className="menu-search">
@@ -161,42 +172,67 @@ export default class ComponentNavBranchesMenu extends React.PureComponent<Props,
   );
 
   renderBranchesList = () => {
-    const branches = this.getFilteredBranches();
+    const branchLikes = this.getFilteredBranchLikes();
     const selected = this.getSelected();
 
-    if (branches.length === 0) {
+    if (branchLikes.length === 0) {
       return <div className="menu-message note">{translate('no_results')}</div>;
     }
 
-    const items = branches.map((branch, index) => {
-      const isOrphan = isShortLivingBranch(branch) && branch.isOrphan;
-      const previous = index > 0 ? branches[index - 1] : undefined;
-      const isPreviousOrphan = isShortLivingBranch(previous) ? previous.isOrphan : false;
-      const showDivider = isLongLivingBranch(branch) || (isOrphan && !isPreviousOrphan);
+    const items = branchLikes.map((branchLike, index) => {
+      const isOrphan = this.isOrphan(branchLike);
+      const previous = index > 0 ? branchLikes[index - 1] : undefined;
+      const isPreviousOrphan = previous !== undefined && this.isOrphan(previous);
+      const showDivider = isLongLivingBranch(branchLike) || (isOrphan && !isPreviousOrphan);
       const showOrphanHeader = isOrphan && !isPreviousOrphan;
+      const showPullRequestHeader =
+        !showOrphanHeader && isPullRequest(branchLike) && !isPullRequest(previous);
+      const showShortLivingBranchHeader =
+        !showOrphanHeader && isShortLivingBranch(branchLike) && !isShortLivingBranch(previous);
+      const isSelected = isSameBranchLike(branchLike, selected);
       return (
-        <React.Fragment key={branch.name}>
+        <React.Fragment key={getBranchLikeKey(branchLike)}>
           {showDivider && <li className="divider" />}
           {showOrphanHeader && (
-            <li className="dropdown-header">
-              {translate('branches.orphan_branches')}
-              <Tooltip overlay={translate('branches.orphan_branches.tooltip')}>
-                <i className="icon-help spacer-left" />
-              </Tooltip>
+            <li className="menu-header">
+              <div className="display-inline-block text-middle">
+                {translate('branches.orphan_branches')}
+              </div>
+              <HelpTooltip
+                className="spacer-left"
+                overlay={translate('branches.orphan_branches.tooltip')}
+              />
+            </li>
+          )}
+          {showPullRequestHeader && (
+            <li className="menu-header navbar-context-meta-branch-menu-title">
+              {translate('branches.pull_requests')}
+            </li>
+          )}
+          {showShortLivingBranchHeader && (
+            <li className="menu-header navbar-context-meta-branch-menu-title">
+              {translate('branches.short_lived_branches')}
             </li>
           )}
           <ComponentNavBranchesMenuItem
-            branch={branch}
+            branchLike={branchLike}
             component={this.props.component}
-            key={branch.name}
+            innerRef={node =>
+              (this.selectedBranchNode = isSelected ? node : this.selectedBranchNode)
+            }
+            key={getBranchLikeKey(branchLike)}
             onSelect={this.handleSelect}
-            selected={branch.name === selected}
+            selected={isSelected}
           />
         </React.Fragment>
       );
     });
 
-    return <ul className="menu menu-vertically-limited">{items}</ul>;
+    return (
+      <ul className="menu menu-vertically-limited" ref={node => (this.listNode = node)}>
+        {items}
+      </ul>
+    );
   };
 
   render() {
@@ -207,7 +243,7 @@ export default class ComponentNavBranchesMenu extends React.PureComponent<Props,
       component.configuration.showSettings;
 
     return (
-      <div className="dropdown-menu" ref={node => (this.node = node)}>
+      <DropdownOverlay noPadding={true}>
         {this.renderSearch()}
         {this.renderBranchesList()}
         {showManageLink && (
@@ -219,7 +255,9 @@ export default class ComponentNavBranchesMenu extends React.PureComponent<Props,
             </Link>
           </div>
         )}
-      </div>
+      </DropdownOverlay>
     );
   }
 }
+
+export default withRouter(ComponentNavBranchesMenu);

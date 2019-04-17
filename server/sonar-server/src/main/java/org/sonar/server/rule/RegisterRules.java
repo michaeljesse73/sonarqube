@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -325,12 +325,13 @@ public class RegisterRules implements Startable {
   }
 
   private void persistRepositories(DbSession dbSession, List<RulesDefinition.Repository> repositories) {
-    dbClient.ruleRepositoryDao().truncate(dbSession);
     List<RuleRepositoryDto> dtos = repositories
       .stream()
       .map(r -> new RuleRepositoryDto(r.key(), r.language(), r.name()))
       .collect(toList(repositories.size()));
-    dbClient.ruleRepositoryDao().insert(dbSession, dtos);
+    List<String> keys = dtos.stream().map(RuleRepositoryDto::getKey).collect(toList(repositories.size()));
+    dbClient.ruleRepositoryDao().insertOrUpdate(dbSession, dtos);
+    dbClient.ruleRepositoryDao().deleteIfKeyNotIn(dbSession, keys);
     dbSession.commit();
   }
 
@@ -367,6 +368,10 @@ public class RegisterRules implements Startable {
       context.updated(ruleDefinitionDto);
     }
 
+    if (mergeSecurityStandards(ruleDef, ruleDefinitionDto)) {
+      context.updated(ruleDefinitionDto);
+    }
+
     if (context.isUpdated(ruleDefinitionDto) || context.isRenamed(ruleDefinitionDto)) {
       update(session, ruleDefinitionDto);
     } else if (!context.isCreated(ruleDefinitionDto)) {
@@ -389,8 +394,11 @@ public class RegisterRules implements Startable {
       .setStatus(ruleDef.status())
       .setGapDescription(ruleDef.gapDescription())
       .setSystemTags(ruleDef.tags())
+      .setSecurityStandards(ruleDef.securityStandards())
       .setType(RuleType.valueOf(ruleDef.type().name()))
       .setScope(toDtoScope(ruleDef.scope()))
+      .setIsExternal(ruleDef.repository().isExternal())
+      .setIsAdHoc(false)
       .setCreatedAt(system2.now())
       .setUpdatedAt(system2.now());
     if (ruleDef.htmlDescription() != null) {
@@ -467,6 +475,10 @@ public class RegisterRules implements Startable {
     RuleType type = RuleType.valueOf(def.type().name());
     if (!ObjectUtils.equals(dto.getType(), type.getDbConstant())) {
       dto.setType(type);
+      changed = true;
+    }
+    if (dto.isAdHoc()) {
+      dto.setIsAdHoc(false);
       changed = true;
     }
     return changed;
@@ -626,6 +638,20 @@ public class RegisterRules implements Startable {
     return changed;
   }
 
+  private static boolean mergeSecurityStandards(RulesDefinition.Rule ruleDef, RuleDefinitionDto dto) {
+    boolean changed = false;
+
+    if (RuleStatus.REMOVED == ruleDef.status()) {
+      dto.setSecurityStandards(emptySet());
+      changed = true;
+    } else if (dto.getSecurityStandards().size() != ruleDef.securityStandards().size() ||
+      !dto.getSecurityStandards().containsAll(ruleDef.securityStandards())) {
+      dto.setSecurityStandards(ruleDef.securityStandards());
+      changed = true;
+    }
+    return changed;
+  }
+
   private void processRemainingDbRules(RegisterRulesContext recorder, DbSession dbSession) {
     // custom rules check status of template, so they must be processed at the end
     List<RuleDefinitionDto> customRules = newArrayList();
@@ -633,7 +659,7 @@ public class RegisterRules implements Startable {
     recorder.getRemaining().forEach(rule -> {
       if (rule.isCustomRule()) {
         customRules.add(rule);
-      } else if (rule.getStatus() != RuleStatus.REMOVED) {
+      } else if (!rule.isAdHoc() && rule.getStatus() != RuleStatus.REMOVED) {
         removeRule(dbSession, recorder, rule);
       }
     });
@@ -743,7 +769,6 @@ public class RegisterRules implements Startable {
     rule.setUpdatedAt(system2.now());
     dbClient.ruleDao().update(session, rule);
   }
-
 
   private static void verifyRuleKeyConsistency(List<RulesDefinition.ExtendedRepository> repositories, RegisterRulesContext registerRulesContext) {
     List<RulesDefinition.Rule> definedRules = repositories.stream()

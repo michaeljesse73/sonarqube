@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,6 +21,6 @@
 @Generated("sonar-ws-generator")
 package org.sonarqube.ws.client.editions;
 
-import javax.annotation.ParametersAreNonnullByDefault;
 import javax.annotation.Generated;
+import javax.annotation.ParametersAreNonnullByDefault;
 

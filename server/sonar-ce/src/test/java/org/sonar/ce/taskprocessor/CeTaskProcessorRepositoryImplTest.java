@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,8 +24,9 @@ import java.util.Set;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
-import org.sonar.ce.queue.CeTask;
-import org.sonar.ce.queue.CeTaskResult;
+import org.sonar.ce.task.CeTask;
+import org.sonar.ce.task.CeTaskResult;
+import org.sonar.ce.task.taskprocessor.CeTaskProcessor;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -106,11 +107,13 @@ public class CeTaskProcessorRepositoryImplTest {
   }
 
   private static CeTask createCeTask(String ceTaskType, String key) {
+    CeTask.Component component = new CeTask.Component("uuid_" + key, key, "name_" + key);
     return new CeTask.Builder()
       .setOrganizationUuid("org1")
       .setType(ceTaskType)
       .setUuid("task_uuid_" + key)
-      .setComponentKey(key).setComponentUuid("uuid_" + key).setComponentName("name_" + key)
+      .setComponent(component)
+      .setMainComponent(component)
       .build();
   }
 

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,6 +19,8 @@
  */
 package org.sonar.process.cluster.health;
 
+import com.hazelcast.core.HazelcastInstanceNotActiveException;
+import com.hazelcast.spi.exception.RetryableHazelcastException;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,6 +49,8 @@ public class HealthStateRefresher {
     try {
       NodeHealth nodeHealth = nodeHealthProvider.get();
       sharedHealthState.writeMine(nodeHealth);
+    } catch (HazelcastInstanceNotActiveException | RetryableHazelcastException e) {
+      LOG.debug("Hazelcast is no more active", e);
     } catch (Throwable t) {
       LOG.error("An error occurred while attempting to refresh HealthState of the current node in the shared state:", t);
     }

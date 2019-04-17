@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -95,7 +95,7 @@ public class AddCommentAction implements IssuesWsAction {
     AddCommentRequest wsRequest = toWsRequest(request);
     try (DbSession dbSession = dbClient.openSession(false)) {
       IssueDto issueDto = issueFinder.getByKey(dbSession, wsRequest.getIssue());
-      IssueChangeContext context = IssueChangeContext.createUser(new Date(system2.now()), userSession.getLogin());
+      IssueChangeContext context = IssueChangeContext.createUser(new Date(system2.now()), userSession.getUuid());
       DefaultIssue defaultIssue = issueDto.toDefaultIssue();
       issueFieldsSetter.addComment(defaultIssue, wsRequest.getText(), context);
       SearchResponseData preloadedSearchResponseData = issueUpdater.saveIssueAndPreloadSearchResponseData(dbSession, defaultIssue, context, wsRequest.getText(), false);

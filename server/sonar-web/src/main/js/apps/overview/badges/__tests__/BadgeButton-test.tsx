@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -32,7 +32,7 @@ it('should display correctly', () => {
 it('should return the badge type on click', () => {
   const onClick = jest.fn();
   const wrapper = getWrapper({ onClick });
-  click(wrapper.find('button'));
+  click(wrapper.find('Button'));
   expect(onClick).toHaveBeenCalledWith(BadgeType.marketing);
 });
 

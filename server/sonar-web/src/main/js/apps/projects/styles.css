@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -36,10 +36,6 @@
   padding-left: 32px;
 }
 
-.projects-topbar-item.is-loading {
-  padding-left: 0;
-}
-
 .projects-topbar-item.disabled {
   cursor: not-allowed;
   opacity: 0.4;
@@ -65,8 +61,20 @@
   box-sizing: border-box;
 }
 
+.project-card-header {
+  display: flex;
+  align-items: center;
+}
+
+.project-card-header-right {
+  margin-left: auto;
+}
+
 .project-card-name {
   font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .project-card-dates {
@@ -109,10 +117,6 @@
   width: 130px;
 }
 
-.project-card-measure.smaller-card {
-  width: 90px;
-}
-
 .project-card-measure {
   position: relative;
   display: inline-block;
@@ -147,6 +151,7 @@
 .project-card-measure-number {
   line-height: 25px;
   font-size: 18px;
+  white-space: nowrap;
 }
 
 .project-card-measure-label {
@@ -259,6 +264,11 @@
   font-style: italic;
 }
 
+.measure-details-bubble-chart-title {
+  position: absolute;
+  left: 20px;
+}
+
 .measure-details-bubble-chart-axis {
   position: absolute;
   color: var(--secondFontColor);
@@ -267,7 +277,7 @@
 
 .measure-details-bubble-chart-axis.x {
   left: 50%;
-  bottom: 10px;
+  bottom: 16px;
   width: 500px;
   margin-left: -250px;
   text-align: center;
@@ -280,11 +290,11 @@
 }
 
 .measure-details-bubble-chart-axis.size {
-  left: 50%;
-  top: 10px;
-  width: 500px;
-  margin-left: -250px;
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  top: 16px;
+  width: 100%;
 }
 
 .projects-empty-list {

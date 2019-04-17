@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,46 +18,64 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import { sortBy } from 'lodash';
 import { Link } from 'react-router';
-import { Project } from './types';
 import DateFromNow from '../../../components/intl/DateFromNow';
 import DateTimeFormatter from '../../../components/intl/DateTimeFormatter';
+import HelpTooltip from '../../../components/controls/HelpTooltip';
 import Level from '../../../components/ui/Level';
 import Tooltip from '../../../components/controls/Tooltip';
+import MetaLink from '../../overview/meta/MetaLink';
+import { orderLinks } from '../../projectLinks/utils';
 import { translateWithParameters, translate } from '../../../helpers/l10n';
 
 interface Props {
-  project: Project;
+  project: T.MyProject;
 }
 
 export default function ProjectCard({ project }: Props) {
-  const isAnalyzed = project.lastAnalysisDate != null;
-  const links = sortBy(project.links, 'type');
+  const { links } = project;
+
+  const orderedLinks: T.ProjectLink[] = orderLinks(
+    links.map((link, i) => {
+      const { href, name, type } = link;
+      return {
+        id: `link-${i}`,
+        name,
+        type,
+        url: href
+      };
+    })
+  );
+
+  const { lastAnalysisDate } = project;
 
   return (
     <div className="account-project-card clearfix">
       <aside className="account-project-side">
-        {isAnalyzed ? (
-          <Tooltip
-            overlay={<DateTimeFormatter date={project.lastAnalysisDate} />}
-            placement="right">
-            <div className="account-project-analysis">
-              <DateFromNow date={project.lastAnalysisDate}>
-                {(fromNow: string) => (
+        {lastAnalysisDate !== undefined ? (
+          <div className="account-project-analysis">
+            <DateFromNow date={lastAnalysisDate}>
+              {fromNow => (
+                <Tooltip overlay={<DateTimeFormatter date={lastAnalysisDate} />}>
                   <span>{translateWithParameters('my_account.projects.analyzed_x', fromNow)}</span>
-                )}
-              </DateFromNow>
-            </div>
-          </Tooltip>
+                </Tooltip>
+              )}
+            </DateFromNow>
+          </div>
         ) : (
           <div className="account-project-analysis">
             {translate('my_account.projects.never_analyzed')}
           </div>
         )}
 
-        {project.qualityGate != null && (
+        {project.qualityGate !== undefined && (
           <div className="account-project-quality-gate">
+            {project.qualityGate === 'WARN' && (
+              <HelpTooltip
+                className="little-spacer-right"
+                overlay={translate('quality_gates.conditions.warning.tootlip')}
+              />
+            )}
             <Level level={project.qualityGate} />
           </div>
         )}
@@ -67,20 +85,11 @@ export default function ProjectCard({ project }: Props) {
         <Link to={{ pathname: '/dashboard', query: { id: project.key } }}>{project.name}</Link>
       </h3>
 
-      {links.length > 0 && (
+      {orderedLinks.length > 0 && (
         <div className="account-project-links">
           <ul className="list-inline">
-            {links.map(link => (
-              <li key={link.type}>
-                <a
-                  className="link-with-icon"
-                  href={link.href}
-                  title={link.name}
-                  target="_blank"
-                  rel="nofollow">
-                  <i className={`icon-color-link icon-${link.type}`} />
-                </a>
-              </li>
+            {orderedLinks.map(link => (
+              <MetaLink iconOnly={true} key={link.id} link={link} />
             ))}
           </ul>
         </div>

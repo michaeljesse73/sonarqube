@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,6 +20,7 @@
 import * as React from 'react';
 import * as classNames from 'classnames';
 import { formatMeasure } from '../../helpers/measures';
+import { translate, translateWithParameters } from '../../helpers/l10n';
 import './Rating.css';
 
 interface Props {
@@ -31,11 +32,12 @@ interface Props {
 
 export default function Rating({ className, muted = false, small = false, value }: Props) {
   if (value === undefined) {
-    return <span>{'–'}</span>;
+    return <span aria-label={translate('metric.no_rating')}>{'–'}</span>;
   }
   const formatted = formatMeasure(value, 'RATING');
   return (
     <span
+      aria-label={translateWithParameters('metric.has_rating_X', formatted)}
       className={classNames(
         'rating',
         'rating-' + formatted,

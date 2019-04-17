@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -30,6 +30,7 @@
 
 .page {
   position: relative;
+  z-index: var(--normalZIndex);
   padding: 10px 20px;
 }
 
@@ -53,7 +54,7 @@
 }
 
 .page-container {
-  min-width: 1080px;
+  min-width: var(--minPageWidth);
 }
 
 .page-wrapper {
@@ -108,6 +109,7 @@
   margin-bottom: 10px;
   margin-left: 10px;
   line-height: var(--controlHeight);
+  text-align: right;
 }
 
 .page-actions .badge {
@@ -150,12 +152,12 @@
   color: var(--blue);
 }
 
-.page-footer-with-sidebar {
+.sidebar-page #footer {
   padding-left: calc(50vw - 370px + 10px) !important;
 }
 
-.page-footer-with-sidebar div,
-.page-footer-with-sidebar .page-footer-menu {
+.sidebar-page #footer div,
+.sidebar-page #footer .page-footer-menu {
   max-width: 980px;
 }
 
@@ -186,7 +188,6 @@
 }
 
 .page-sidebar-fixed {
-  width: 30%;
   min-width: 300px;
   flex-shrink: 0;
   padding-left: 40px;
@@ -227,17 +228,6 @@
   }
 }
 
-.page-sidebar-sticky .page-sidebar-sticky-inner .search-navigator-facets-list {
-  width: 260px;
-  margin-left: calc(50vw - 640px + 290px - 260px - 37px);
-}
-
-@media (max-width: 1335px) {
-  .page-sidebar-sticky .page-sidebar-sticky-inner .search-navigator-facets-list {
-    margin-left: 20px;
-  }
-}
-
 .layout-page {
   display: flex;
   align-items: stretch;
@@ -254,9 +244,12 @@
   flex-grow: 1;
   min-width: 740px;
   padding: 20px;
+  z-index: var(--pageMainZIndex);
 }
 
 .layout-page-main-inner {
+  position: relative;
+  z-index: var(--normalZIndex);
   min-width: 740px;
   max-width: 980px;
 }
@@ -308,6 +301,8 @@
 }
 
 .layout-page-main-header {
+  position: relative;
+  z-index: var(--aboveNormalZIndex);
   margin-bottom: 20px;
 }
 
@@ -339,7 +334,7 @@
     left: 301px;
   }
 
-  .page-footer-with-sidebar {
+  .sidebar-page #footer {
     padding-left: 310px !important;
   }
 }

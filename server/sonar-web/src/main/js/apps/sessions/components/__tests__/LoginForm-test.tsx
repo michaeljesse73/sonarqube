@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,20 +20,11 @@
 import * as React from 'react';
 import { shallow } from 'enzyme';
 import LoginForm from '../LoginForm';
-import { change, click, submit } from '../../../../helpers/testUtils';
-
-const identityProvider = {
-  backgroundColor: '#000',
-  iconPath: '/some/path',
-  key: 'foo',
-  name: 'foo'
-};
+import { change, click, submit, waitAndUpdate } from '../../../../helpers/testUtils';
 
 it('logs in with simple credentials', () => {
-  const onSubmit = jest.fn();
-  const wrapper = shallow(
-    <LoginForm onSonarCloud={false} identityProviders={[]} onSubmit={onSubmit} returnTo="" />
-  );
+  const onSubmit = jest.fn(() => Promise.resolve());
+  const wrapper = shallow(<LoginForm onSubmit={onSubmit} returnTo="" />);
   expect(wrapper).toMatchSnapshot();
 
   change(wrapper.find('#login'), 'admin');
@@ -43,27 +34,21 @@ it('logs in with simple credentials', () => {
   expect(onSubmit).toBeCalledWith('admin', 'admin');
 });
 
-it('logs in with identity provider', () => {
-  const wrapper = shallow(
-    <LoginForm
-      onSonarCloud={false}
-      identityProviders={[identityProvider]}
-      onSubmit={jest.fn()}
-      returnTo=""
-    />
-  );
+it('should display a spinner and disabled button while loading', async () => {
+  const onSubmit = jest.fn(() => Promise.resolve());
+  const wrapper = shallow(<LoginForm onSubmit={onSubmit} returnTo="" />);
+
+  change(wrapper.find('#login'), 'admin');
+  change(wrapper.find('#password'), 'admin');
+  submit(wrapper.find('form'));
+  wrapper.update();
   expect(wrapper).toMatchSnapshot();
+
+  await waitAndUpdate(wrapper);
 });
 
 it('expands more options', () => {
-  const wrapper = shallow(
-    <LoginForm
-      onSonarCloud={false}
-      identityProviders={[identityProvider]}
-      onSubmit={jest.fn()}
-      returnTo=""
-    />
-  );
+  const wrapper = shallow(<LoginForm collapsed={true} onSubmit={jest.fn()} returnTo="" />);
   expect(wrapper).toMatchSnapshot();
 
   click(wrapper.find('.js-more-options'));

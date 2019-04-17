@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -116,8 +116,8 @@ public class EncryptActionTest {
   public void fail_if_value_is_empty() {
     logInAsSystemAdministrator();
 
-    expectedException.expect(BadRequestException.class);
-    expectedException.expectMessage("Parameter 'value' must not be empty");
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("The 'value' parameter is missing");
 
     call("  ");
   }

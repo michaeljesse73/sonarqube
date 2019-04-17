@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,7 +18,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 .oauth-providers > ul {
-  width: 180px;
+  width: 200px;
   margin-left: auto;
   margin-right: auto;
 }
@@ -28,34 +28,10 @@
   margin-bottom: 30px;
 }
 
-.oauth-providers > ul > li > a {
-  display: block;
-  width: 180px;
-  line-height: 22px;
-  padding: 8px 12px;
-  border: 1px solid rgba(0, 0, 0, 0.15);
-  border-radius: 2px;
-  box-sizing: border-box;
-  background-color: var(--darkBlue);
-  color: #fff;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.oauth-providers > ul > li > a:hover,
-.oauth-providers > ul > li > a:focus {
-  box-shadow: 0 0 16px rgba(0, 0, 0, 0.2);
-}
-
-.oauth-providers > ul > li > a > span {
-  padding-left: 6px;
-}
-
 .oauth-providers-help {
   position: absolute;
-  top: 12px;
-  right: -32px;
+  top: 15px;
+  right: -24px;
 }
 
 .oauth-providers + .login-form {

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -31,13 +31,6 @@ public interface EsDbCompatibility {
    * Return {@code false} if at least one of the values is absent
    */
   boolean hasSameDbVendor();
-
-  /**
-   * Whether the effective DB schema version equals the version
-   * registered in Elasticsearch metadata.
-   * Return {@code false} if at least one of the values is absent
-   */
-  boolean hasSameDbSchemaVersion();
 
   /**
    * Stores in Elasticsearch the metadata about database

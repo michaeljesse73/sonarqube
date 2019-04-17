@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -18,27 +18,73 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import EditGroup from './EditGroup';
+import DeleteForm from './DeleteForm';
 import EditMembers from './EditMembers';
-import { Group } from '../../../app/types';
+import Form from './Form';
 import ActionsDropdown, {
   ActionsDropdownItem,
   ActionsDropdownDivider
 } from '../../../components/controls/ActionsDropdown';
-import ConfirmButton from '../../../components/controls/ConfirmButton';
-import { translate, translateWithParameters } from '../../../helpers/l10n';
+import { translate } from '../../../helpers/l10n';
+import { omitNil } from '../../../helpers/request';
 
 interface Props {
-  group: Group;
+  group: T.Group;
   onDelete: (name: string) => Promise<void>;
   onEdit: (data: { description?: string; id: number; name?: string }) => Promise<void>;
   onEditMembers: () => void;
   organization: string | undefined;
 }
 
-export default class ListItem extends React.PureComponent<Props> {
-  handleDelete = () => {
+interface State {
+  deleteForm: boolean;
+  editForm: boolean;
+}
+
+export default class ListItem extends React.PureComponent<Props, State> {
+  mounted = false;
+  state: State = { deleteForm: false, editForm: false };
+
+  componentDidMount() {
+    this.mounted = true;
+  }
+
+  componentWillUnmount() {
+    this.mounted = false;
+  }
+
+  handleDeleteClick = () => {
+    this.setState({ deleteForm: true });
+  };
+
+  handleEditClick = () => {
+    this.setState({ editForm: true });
+  };
+
+  closeDeleteForm = () => {
+    if (this.mounted) {
+      this.setState({ deleteForm: false });
+    }
+  };
+
+  closeEditForm = () => {
+    if (this.mounted) {
+      this.setState({ editForm: false });
+    }
+  };
+
+  handleDeleteFormSubmit = () => {
     return this.props.onDelete(this.props.group.name);
+  };
+
+  handleEditFormSubmit = ({ name, description }: { name: string; description: string }) => {
+    const { group } = this.props;
+    return this.props.onEdit({
+      description,
+      id: group.id,
+      // pass `name` only if it has changed, otherwise the WS fails
+      ...omitNil({ name: name !== group.name ? name : undefined })
+    });
   };
 
   render() {
@@ -71,32 +117,37 @@ export default class ListItem extends React.PureComponent<Props> {
         <td className="thin nowrap text-right">
           {!group.default && (
             <ActionsDropdown>
-              <EditGroup group={group} onEdit={this.props.onEdit}>
-                {({ onClick }) => (
-                  <ActionsDropdownItem className="js-group-update" onClick={onClick}>
-                    {translate('update_details')}
-                  </ActionsDropdownItem>
-                )}
-              </EditGroup>
+              <ActionsDropdownItem className="js-group-update" onClick={this.handleEditClick}>
+                {translate('update_details')}
+              </ActionsDropdownItem>
               <ActionsDropdownDivider />
-              <ConfirmButton
-                confirmButtonText={translate('delete')}
-                isDestructive={true}
-                modalBody={translateWithParameters('groups.delete_group.confirmation', group.name)}
-                modalHeader={translate('groups.delete_group')}
-                onConfirm={this.handleDelete}>
-                {({ onClick }) => (
-                  <ActionsDropdownItem
-                    className="js-group-delete"
-                    destructive={true}
-                    onClick={onClick}>
-                    {translate('delete')}
-                  </ActionsDropdownItem>
-                )}
-              </ConfirmButton>
+              <ActionsDropdownItem
+                className="js-group-delete"
+                destructive={true}
+                onClick={this.handleDeleteClick}>
+                {translate('delete')}
+              </ActionsDropdownItem>
             </ActionsDropdown>
           )}
         </td>
+
+        {this.state.deleteForm && (
+          <DeleteForm
+            group={group}
+            onClose={this.closeDeleteForm}
+            onSubmit={this.handleDeleteFormSubmit}
+          />
+        )}
+
+        {this.state.editForm && (
+          <Form
+            confirmButtonText={translate('update_verb')}
+            group={group}
+            header={translate('groups.update_group')}
+            onClose={this.closeEditForm}
+            onSubmit={this.handleEditFormSubmit}
+          />
+        )}
       </tr>
     );
   }

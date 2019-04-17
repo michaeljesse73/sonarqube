@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -51,24 +51,9 @@ export function sortProfiles(profiles: BaseProfile[]): Profile[] {
   return result;
 }
 
-export function createFakeProfile(overrides?: any) {
-  return {
-    key: 'key',
-    name: 'name',
-    isDefault: false,
-    isInherited: false,
-    language: 'js',
-    languageName: 'JavaScript',
-    activeRuleCount: 10,
-    activeDeprecatedRuleCount: 2,
-    projectCount: 3,
-    ...overrides
-  };
-}
-
 export function isStagnant(profile: Profile): boolean {
-  if (profile.userUpdatedAt) {
-    const updateDate = parseDate(profile.userUpdatedAt);
+  if (profile.rulesUpdatedAt) {
+    const updateDate = parseDate(profile.rulesUpdatedAt);
     if (isValidDate(updateDate)) {
       return differenceInYears(new Date(), updateDate) >= 1;
     }

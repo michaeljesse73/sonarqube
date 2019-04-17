@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,21 +21,28 @@ import * as React from 'react';
 import * as ReactModal from 'react-modal';
 import * as classNames from 'classnames';
 
-interface OwnProps {
-  medium?: boolean;
-  large?: boolean;
+ReactModal.setAppElement('#content');
+
+export interface ModalProps {
+  children: React.ReactNode;
+  size?: 'small' | 'medium' | 'large';
+  noBackdrop?: boolean;
 }
 
 type MandatoryProps = Pick<ReactModal.Props, 'contentLabel'>;
 
-type Props = Partial<ReactModal.Props> & MandatoryProps & OwnProps;
+type Props = Partial<ReactModal.Props> & MandatoryProps & ModalProps;
 
 export default function Modal(props: Props) {
   return (
     <ReactModal
-      className={classNames('modal', { 'modal-medium': props.medium, 'modal-large': props.large })}
+      className={classNames('modal', {
+        'modal-small': props.size === 'small',
+        'modal-medium': props.size === 'medium',
+        'modal-large': props.size === 'large'
+      })}
       isOpen={true}
-      overlayClassName="modal-overlay"
+      overlayClassName={classNames('modal-overlay', { 'modal-no-backdrop': props.noBackdrop })}
       {...props}
     />
   );

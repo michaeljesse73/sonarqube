@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -42,8 +42,8 @@ import org.sonar.server.tester.UserSessionRule;
 import org.sonar.server.ws.WsTester;
 
 import static com.google.common.collect.Lists.newArrayList;
-import static org.mockito.Matchers.anyInt;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -82,7 +82,7 @@ public class ShowActionTest {
   public void show_source() throws Exception {
     String fileKey = "src/Foo.java";
     userSessionRule.addProjectPermission(UserRole.CODEVIEWER, project);
-    when(componentDao.selectByKey(session, fileKey)).thenReturn(com.google.common.base.Optional.of(file));
+    when(componentDao.selectByKey(session, fileKey)).thenReturn(Optional.of(file));
     when(sourceService.getLinesAsHtml(eq(session), eq(file.uuid()), anyInt(), anyInt())).thenReturn(Optional.of(newArrayList(
       "/*",
       " * Header",
@@ -99,7 +99,7 @@ public class ShowActionTest {
   public void show_source_with_from_and_to_params() throws Exception {
     String fileKey = "src/Foo.java";
     userSessionRule.addProjectPermission(UserRole.CODEVIEWER, project);
-    when(componentDao.selectByKey(session, fileKey)).thenReturn(com.google.common.base.Optional.of(file));
+    when(componentDao.selectByKey(session, fileKey)).thenReturn(Optional.of(file));
     when(sourceService.getLinesAsHtml(session, file.uuid(), 3, 5)).thenReturn(Optional.of(newArrayList(
       " */",
       "",
@@ -116,7 +116,7 @@ public class ShowActionTest {
   public void show_source_accept_from_less_than_one() throws Exception {
     String fileKey = "src/Foo.java";
     userSessionRule.addProjectPermission(UserRole.CODEVIEWER, project);
-    when(componentDao.selectByKey(session, fileKey)).thenReturn(com.google.common.base.Optional.of(file));
+    when(componentDao.selectByKey(session, fileKey)).thenReturn(Optional.of(file));
     when(sourceService.getLinesAsHtml(session, file.uuid(), 1, 5)).thenReturn(Optional.of(newArrayList(
       " */",
       "",
@@ -133,7 +133,7 @@ public class ShowActionTest {
   @Test(expected = ForbiddenException.class)
   public void require_code_viewer() throws Exception {
     String fileKey = "src/Foo.java";
-    when(componentDao.selectByKey(session, fileKey)).thenReturn(com.google.common.base.Optional.of(file));
+    when(componentDao.selectByKey(session, fileKey)).thenReturn(Optional.of(file));
     tester.newGetRequest("api/sources", "show").setParam("key", fileKey).execute();
   }
 }

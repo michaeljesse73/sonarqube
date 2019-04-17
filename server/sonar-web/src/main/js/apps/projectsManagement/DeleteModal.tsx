@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,12 +19,14 @@
  */
 import * as React from 'react';
 import { bulkDeleteProjects } from '../../api/components';
-import { translate, translateWithParameters } from '../../helpers/l10n';
-import AlertWarnIcon from '../../components/icons-components/AlertWarnIcon';
 import Modal from '../../components/controls/Modal';
+import { Button, ResetButtonLink } from '../../components/ui/buttons';
+import { translate, translateWithParameters } from '../../helpers/l10n';
+import { toNotSoISOString } from '../../helpers/dates';
+import { Alert } from '../../components/ui/Alert';
 
 export interface Props {
-  analyzedBefore?: string;
+  analyzedBefore: Date | undefined;
   onClose: () => void;
   onConfirm: () => void;
   organization: string;
@@ -51,20 +53,16 @@ export default class DeleteModal extends React.PureComponent<Props, State> {
     this.mounted = false;
   }
 
-  handleCancelClick = (event: React.SyntheticEvent<HTMLAnchorElement>) => {
-    event.preventDefault();
-    this.props.onClose();
-  };
-
   handleConfirmClick = () => {
     this.setState({ loading: true });
+    const { analyzedBefore } = this.props;
     const parameters = this.props.selection.length
       ? {
           organization: this.props.organization,
           projects: this.props.selection.join()
         }
       : {
-          analyzedBefore: this.props.analyzedBefore,
+          analyzedBefore: analyzedBefore && toNotSoISOString(analyzedBefore),
           onProvisionedOnly: this.props.provisioned || undefined,
           organization: this.props.organization,
           qualifiers: this.props.qualifier,
@@ -85,15 +83,14 @@ export default class DeleteModal extends React.PureComponent<Props, State> {
   };
 
   renderWarning = () => (
-    <div className="alert alert-warning modal-alert">
-      <AlertWarnIcon className="spacer-right" />
+    <Alert variant="warning">
       {this.props.selection.length
         ? translateWithParameters(
             'projects_management.delete_selected_warning',
             this.props.selection.length
           )
         : translateWithParameters('projects_management.delete_all_warning', this.props.total)}
-    </div>
+    </Alert>
   );
 
   render() {
@@ -112,15 +109,15 @@ export default class DeleteModal extends React.PureComponent<Props, State> {
 
         <footer className="modal-foot">
           {this.state.loading && <i className="spinner spacer-right" />}
-          <button
+          <Button
             className="button-red"
             disabled={this.state.loading}
             onClick={this.handleConfirmClick}>
             {translate('delete')}
-          </button>
-          <a className="js-modal-close" href="#" onClick={this.handleCancelClick}>
+          </Button>
+          <ResetButtonLink className="js-modal-close" onClick={this.props.onClose}>
             {translate('cancel')}
-          </a>
+          </ResetButtonLink>
         </footer>
       </Modal>
     );

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -31,9 +31,17 @@ public class ScannerProperties {
 
   public static final String BRANCHES_DOC_LINK = "https://redirect.sonarsource.com/doc/branches.html";
 
+  public static final String ORGANIZATION = "sonar.organization";
+
   public static final String BRANCH_NAME = "sonar.branch.name";
   public static final String BRANCH_TARGET = "sonar.branch.target";
-  public static final String ORGANIZATION = "sonar.organization";
+
+  public static final String PULL_REQUEST_KEY = "sonar.pullrequest.key";
+  public static final String PULL_REQUEST_BRANCH = "sonar.pullrequest.branch";
+  public static final String PULL_REQUEST_BASE = "sonar.pullrequest.base";
+
+  public static final String LINKS_SOURCES_DEV = "sonar.links.scm_dev";
+  public static final String DISABLE_PROJECT_AND_ORG_AUTODETECTION = "sonar.keys_autodetection.disabled";
 
   private ScannerProperties() {
     // only static stuff
@@ -68,8 +76,26 @@ public class ScannerProperties {
       PropertyDefinition.builder(BRANCH_TARGET)
         .name("Optional name of target branch to merge into")
         .description(
-          "Defines what is the target branch of the branch being analyzed. The main branch cannot have a target. "
-            + "If no target is defined for other branches, the main branch is used as a target.")
+          "Defines the target branch of the branch being analyzed. The main branch cannot have a target. "
+            + "If no target is defined, the main branch is used as the target.")
+        .hidden()
+        .build(),
+      PropertyDefinition.builder(PULL_REQUEST_BRANCH)
+        .name("Optional name of pull request")
+        .description("Provide a name for the pull request being analyzed. It might match an existing pull request of the project, otherwise a new pull request will be created.")
+        .hidden()
+        .build(),
+      PropertyDefinition.builder(PULL_REQUEST_BASE)
+        .name("Optional name of target branch to merge into")
+        .description(
+          "Defines the target branch of the pull request being analyzed. "
+            + "If no target is defined, the main branch is used as the target.")
+        .hidden()
+        .build(),
+      PropertyDefinition.builder(DISABLE_PROJECT_AND_ORG_AUTODETECTION)
+        .name("Disables project and organization auto-detection")
+        .description("Disables auto-detection of project and organization keys from scanner execution environment.")
+        .type(BOOLEAN)
         .hidden()
         .build());
   }

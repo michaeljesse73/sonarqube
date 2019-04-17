@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -92,47 +92,6 @@ public class LanguageDetectionTest {
 
     LanguageDetection detection = new LanguageDetection(settings.asConfig(), languages);
     assertThat(detectLanguage(detection, "abc.abap")).isEqualTo("abap");
-  }
-
-  @Test
-  public void language_with_no_extension() throws Exception {
-    // abap does not declare any file extensions.
-    // When analyzing an ABAP project, then all source files must be parsed.
-    LanguagesRepository languages = new DefaultLanguagesRepository(new Languages(new MockLanguage("java", "java"), new MockLanguage("abap")));
-
-    // No side-effect on non-ABAP projects
-    LanguageDetection detection = new LanguageDetection(settings.asConfig(), languages);
-    assertThat(detectLanguage(detection, "abc")).isNull();
-    assertThat(detectLanguage(detection, "abc.abap")).isNull();
-    assertThat(detectLanguage(detection, "abc.java")).isEqualTo("java");
-
-    settings.setProperty(CoreProperties.PROJECT_LANGUAGE_PROPERTY, "abap");
-    detection = new LanguageDetection(settings.asConfig(), languages);
-    assertThat(detectLanguage(detection, "abc")).isEqualTo("abap");
-    assertThat(detectLanguage(detection, "abc.txt")).isEqualTo("abap");
-    assertThat(detectLanguage(detection, "abc.java")).isEqualTo("abap");
-  }
-
-  @Test
-  public void force_language_using_deprecated_property() throws Exception {
-    LanguagesRepository languages = new DefaultLanguagesRepository(new Languages(new MockLanguage("java", "java"), new MockLanguage("php", "php")));
-
-    settings.setProperty(CoreProperties.PROJECT_LANGUAGE_PROPERTY, "java");
-    LanguageDetection detection = new LanguageDetection(settings.asConfig(), languages);
-    assertThat(detectLanguage(detection, "abc")).isNull();
-    assertThat(detectLanguage(detection, "abc.php")).isNull();
-    assertThat(detectLanguage(detection, "abc.java")).isEqualTo("java");
-    assertThat(detectLanguage(detection, "src/abc.java")).isEqualTo("java");
-  }
-
-  @Test
-  public void fail_if_invalid_language() {
-    thrown.expect(MessageException.class);
-    thrown.expectMessage("You must install a plugin that supports the language 'unknown'");
-
-    LanguagesRepository languages = new DefaultLanguagesRepository(new Languages(new MockLanguage("java", "java"), new MockLanguage("php", "php")));
-    settings.setProperty(CoreProperties.PROJECT_LANGUAGE_PROPERTY, "unknown");
-    new LanguageDetection(settings.asConfig(), languages);
   }
 
   @Test

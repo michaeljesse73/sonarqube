@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -24,21 +24,24 @@ import ComponentBreadcrumbs from '../ComponentBreadcrumbs';
 const baseIssue = {
   component: 'comp',
   componentLongName: 'comp-name',
+  flows: [],
   organization: 'org',
   project: 'proj',
-  projectName: 'proj-name'
+  projectName: 'proj-name',
+  secondaryLocations: []
 };
 
 it('renders', () => {
-  expect(shallow(<ComponentBreadcrumbs issue={baseIssue} />)).toMatchSnapshot();
+  expect(
+    shallow(
+      <ComponentBreadcrumbs component={undefined} issue={baseIssue} organization={undefined} />
+    )
+  ).toMatchSnapshot();
 });
 
 it('renders with sub-project', () => {
   const issue = { ...baseIssue, subProject: 'sub-proj', subProjectName: 'sub-proj-name' };
-  expect(shallow(<ComponentBreadcrumbs issue={issue} />)).toMatchSnapshot();
-});
-
-it('renders with branch', () => {
-  const issue = { ...baseIssue, subProject: 'sub-proj', subProjectName: 'sub-proj-name' };
-  expect(shallow(<ComponentBreadcrumbs branch="feature" issue={issue} />)).toMatchSnapshot();
+  expect(
+    shallow(<ComponentBreadcrumbs component={undefined} issue={issue} organization={undefined} />)
+  ).toMatchSnapshot();
 });

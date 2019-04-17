@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -120,7 +120,7 @@ describe('Setup Page', () => {
     await waitAndUpdate(wrapper);
     expect(wrapper).toMatchSnapshot();
 
-    click(wrapper.find('button'));
+    click(wrapper.find('Button'));
     expect(migrateDatabase).toBeCalled();
     await waitAndUpdate(wrapper);
     expect(wrapper).toMatchSnapshot();

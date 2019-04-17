@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -20,10 +20,13 @@
 package org.sonarqube.wsgenerator;
 
 import com.sonar.orchestrator.Orchestrator;
+import com.sonar.orchestrator.OrchestratorBuilder;
 import com.sonar.orchestrator.http.HttpCall;
 import com.sonar.orchestrator.http.HttpResponse;
 import com.sonar.orchestrator.locator.FileLocation;
 import java.io.File;
+
+import static com.sonar.orchestrator.container.Edition.COMMUNITY;
 
 public class ApiDefinitionDownloader {
 
@@ -32,9 +35,13 @@ public class ApiDefinitionDownloader {
   }
 
   public static String downloadApiDefinition() {
-    Orchestrator orchestrator = Orchestrator
-      .builderEnv()
-      .setZipFile(FileLocation.byWildcardMavenFilename(new File("../sonar-application/target"), "sonarqube-*.zip").getFile())
+    OrchestratorBuilder builder = Orchestrator.builderEnv();
+    builder.setEdition(COMMUNITY);
+    builder.setZipFile(FileLocation.byWildcardMavenFilename(new File("../sonar-application/build/distributions"), "sonar-application-*.zip").getFile())
+      .setOrchestratorProperty("orchestrator.workspaceDir", "build");
+    Orchestrator orchestrator = builder
+      // Enable organizations ws
+      .setServerProperty("sonar.sonarcloud.enabled", "true")
       .build();
 
     orchestrator.start();

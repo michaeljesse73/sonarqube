@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,9 +19,11 @@
  */
 package org.sonar.server.component;
 
+import com.google.common.collect.ImmutableSet;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import javax.annotation.Nullable;
 import org.sonar.api.i18n.I18n;
 import org.sonar.api.resources.Qualifiers;
@@ -41,10 +43,12 @@ import org.sonar.server.permission.PermissionTemplateService;
 
 import static java.util.Collections.singletonList;
 import static org.sonar.api.resources.Qualifiers.PROJECT;
-import static org.sonar.core.component.ComponentKeys.isValidModuleKey;
+import static org.sonar.core.component.ComponentKeys.isValidProjectKey;
 import static org.sonar.server.ws.WsUtils.checkRequest;
 
 public class ComponentUpdater {
+
+  private static final Set<String> MAIN_BRANCH_QUALIFIERS = ImmutableSet.of(Qualifiers.PROJECT, Qualifiers.APP);
 
   private final DbClient dbClient;
   private final I18n i18n;
@@ -68,23 +72,36 @@ public class ComponentUpdater {
    * - Create component
    * - Apply default permission template
    * - Add component to favorite if the component has the 'Project Creators' permission
-   * - Index component if es indexes
+   * - Index component in es indexes
    */
   public ComponentDto create(DbSession dbSession, NewComponent newComponent, @Nullable Integer userId) {
-    checkKeyFormat(newComponent.qualifier(), newComponent.key());
-    ComponentDto componentDto = createRootComponent(dbSession, newComponent);
-    if (isRootProject(componentDto)) {
-      createBranch(dbSession, componentDto.uuid());
-    }
-    removeDuplicatedProjects(dbSession, componentDto.getDbKey());
-    handlePermissionTemplate(dbSession, componentDto, newComponent.getOrganizationUuid(), userId);
-    projectIndexers.commitAndIndex(dbSession, singletonList(componentDto), Cause.PROJECT_CREATION);
+    ComponentDto componentDto = createWithoutCommit(dbSession, newComponent, userId);
+    commitAndIndex(dbSession, componentDto);
     return componentDto;
   }
 
+  /**
+   * Create component without committing.
+   * Don't forget to call commitAndIndex(...) when ready to commit.
+   */
+  public ComponentDto createWithoutCommit(DbSession dbSession, NewComponent newComponent, @Nullable Integer userId) {
+    checkKeyFormat(newComponent.qualifier(), newComponent.key());
+    ComponentDto componentDto = createRootComponent(dbSession, newComponent);
+    if (isRootProject(componentDto)) {
+      createMainBranch(dbSession, componentDto.uuid());
+    }
+    removeDuplicatedProjects(dbSession, componentDto.getDbKey());
+    handlePermissionTemplate(dbSession, componentDto, userId);
+    return componentDto;
+  }
+
+  public void commitAndIndex(DbSession dbSession, ComponentDto componentDto) {
+    projectIndexers.commitAndIndex(dbSession, singletonList(componentDto), Cause.PROJECT_CREATION);
+  }
+
   private ComponentDto createRootComponent(DbSession session, NewComponent newComponent) {
-    checkBranchFormat(newComponent.qualifier(), newComponent.branch());
-    String keyWithBranch = ComponentKeys.createKey(newComponent.key(), newComponent.branch());
+    checkLegacyBranchFormat(newComponent.qualifier(), newComponent.deprecatedBranch());
+    String keyWithBranch = ComponentKeys.createKey(newComponent.key(), newComponent.deprecatedBranch());
     checkRequest(!dbClient.componentDao().selectByKey(session, keyWithBranch).isPresent(),
       "Could not create %s, key already exists: %s", getQualifierToDisplay(newComponent.qualifier()), keyWithBranch);
 
@@ -98,7 +115,6 @@ public class ComponentUpdater {
       .setModuleUuidPath(ComponentDto.UUID_PATH_SEPARATOR + uuid + ComponentDto.UUID_PATH_SEPARATOR)
       .setProjectUuid(uuid)
       .setDbKey(keyWithBranch)
-      .setDeprecatedKey(keyWithBranch)
       .setName(newComponent.name())
       .setLongName(newComponent.name())
       .setScope(Scopes.PROJECT)
@@ -111,19 +127,18 @@ public class ComponentUpdater {
   }
 
   private static boolean isRootProject(ComponentDto componentDto) {
-    return Scopes.PROJECT.equals(componentDto.scope()) && Qualifiers.PROJECT.equals(componentDto.qualifier());
+    return Scopes.PROJECT.equals(componentDto.scope())
+      && MAIN_BRANCH_QUALIFIERS.contains(componentDto.qualifier());
   }
 
-  private BranchDto createBranch(DbSession session, String componentUuid) {
+  private void createMainBranch(DbSession session, String componentUuid) {
     BranchDto branch = new BranchDto()
       .setBranchType(BranchType.LONG)
       .setUuid(componentUuid)
       .setKey(BranchDto.DEFAULT_MAIN_BRANCH_NAME)
       .setMergeBranchUuid(null)
       .setProjectUuid(componentUuid);
-
     dbClient.branchDao().upsert(session, branch);
-    return branch;
   }
 
   /**
@@ -139,21 +154,21 @@ public class ComponentUpdater {
     }
   }
 
-  private void handlePermissionTemplate(DbSession dbSession, ComponentDto componentDto, String organizationUuid, @Nullable Integer userId) {
-    permissionTemplateService.applyDefault(dbSession, organizationUuid, componentDto, userId);
+  private void handlePermissionTemplate(DbSession dbSession, ComponentDto componentDto, @Nullable Integer userId) {
+    permissionTemplateService.applyDefault(dbSession, componentDto, userId);
     if (componentDto.qualifier().equals(PROJECT)
-      && permissionTemplateService.hasDefaultTemplateWithPermissionOnProjectCreator(dbSession, organizationUuid, componentDto)) {
-      favoriteUpdater.add(dbSession, componentDto, userId);
+      && permissionTemplateService.hasDefaultTemplateWithPermissionOnProjectCreator(dbSession, componentDto)) {
+      favoriteUpdater.add(dbSession, componentDto, userId, false);
     }
   }
 
   private void checkKeyFormat(String qualifier, String key) {
-    checkRequest(isValidModuleKey(key),
+    checkRequest(isValidProjectKey(key),
       "Malformed key for %s: %s. Allowed characters are alphanumeric, '-', '_', '.' and ':', with at least one non-digit.", getQualifierToDisplay(qualifier), key);
   }
 
-  private void checkBranchFormat(String qualifier, @Nullable String branch) {
-    checkRequest(branch == null || ComponentKeys.isValidBranch(branch),
+  private void checkLegacyBranchFormat(String qualifier, @Nullable String branch) {
+    checkRequest(branch == null || ComponentKeys.isValidLegacyBranch(branch),
       "Malformed branch for %s: %s. Allowed characters are alphanumeric, '-', '_', '.' and '/', with at least one non-digit.", getQualifierToDisplay(qualifier), branch);
   }
 

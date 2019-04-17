@@ -14,6 +14,8 @@
     r.plugin_config_key as "configKey",
     r.priority as "severity",
     r.is_template as "isTemplate",
+    r.is_external as "isExternal",
+    r.is_ad_hoc as "isAdHoc",
     r.language as "language",
     r.template_id as "templateId",
     r.def_remediation_function as "defRemediationFunction",
@@ -21,6 +23,7 @@
     r.def_remediation_base_effort as "defRemediationBaseEffort",
     r.gap_description as "gapDescription",
     r.system_tags as "systemTagsField",
+    r.security_standards as "securityStandardsField",
     r.rule_type as "type",
     r.plugin_key as "pluginKey",
     r.scope,
@@ -37,13 +40,17 @@
     r.created_at as "createdAtFromDefinition",
     r.updated_at as "updatedAtFromDefinition",
     rm.note_data as "noteData",
-    rm.note_user_login as "noteUserLogin",
+    rm.note_user_uuid as "noteUserUuid",
     rm.note_created_at as "noteCreatedAt",
     rm.note_updated_at as "noteUpdatedAt",
     rm.remediation_function as "remediationFunction",
     rm.remediation_gap_mult as "remediationGapMultiplier",
     rm.remediation_base_effort as "remediationBaseEffort",
     rm.tags as "tagsField",
+    rm.ad_hoc_name as "adHocName",
+    rm.ad_hoc_description as "adHocDescription",
+    rm.ad_hoc_severity as "adHocSeverity",
+    rm.ad_hoc_type as "adHocType",
     rm.created_at as "createdAtFromMetadata",
     rm.updated_at as "updatedAtFromMetadata"
   </sql>
@@ -186,14 +193,18 @@
       rm.rule_id as "ruleId",
       rm.organization_uuid as "organizationUuid",
       rm.note_data as "noteData",
-      rm.note_user_login as "noteUserLogin",
+      rm.note_user_uuid as "noteUserUuid",
       rm.note_created_at as "noteCreatedAt",
       rm.note_updated_at as "noteUpdatedAt",
       rm.remediation_function as "remediationFunction",
       rm.remediation_gap_mult as "remediationGapMultiplier",
       rm.remediation_base_effort as "remediationBaseEffort",
       rm.tags as "tagsField",
-      rm.created_at as "createdAt",
+      rm.ad_hoc_name as "adHocName",
+      rm.ad_hoc_description as "adHocDescription",
+      rm.ad_hoc_severity as "adHocSeverity",
+      rm.ad_hoc_type as "adHocType",
+    rm.created_at as "createdAt",
       rm.updated_at as "updatedAt"
     from
       rules_metadata rm
@@ -250,7 +261,9 @@
       r.priority as "severity",
       r.status as "status",
       r.is_template as "isTemplate",
+      r.is_external as "isExternal",
       r.system_tags as "systemTags",
+      r.security_standards as "securityStandards",
       t.plugin_rule_key as "templateRuleKey",
       t.plugin_name as "templateRepository",
       r.plugin_config_key as "internalKey",
@@ -283,6 +296,18 @@
       r.updated_at desc
   </select>
 
+  <select id="selectByTypeAndLanguages" parameterType="map" resultType="Rule">
+    select
+    <include refid="selectJoinedTablesColumns"/>
+    from
+    rules r
+    <include refid="outerJoinRulesMetadata"/>
+    where
+      r.status != 'REMOVED' and r.is_external=${_false} and r.is_template=${_false}
+      and r.rule_type in <foreach collection="types" item="type" separator="," open="(" close=")">#{type, jdbcType=INTEGER}</foreach>
+      and r.language in <foreach collection="languages" item="language" separator="," open="(" close=")">#{language, jdbcType=VARCHAR}</foreach>
+  </select>
+
   <insert id="insertDefinition" parameterType="org.sonar.db.rule.RuleDefinitionDto" keyColumn="id" useGeneratedKeys="true" keyProperty="id">
     insert into rules (
       plugin_key,
@@ -295,6 +320,8 @@
       plugin_config_key,
       priority,
       is_template,
+      is_external,
+      is_ad_hoc,
       language,
       template_id,
       def_remediation_function,
@@ -302,6 +329,7 @@
       def_remediation_base_effort,
       gap_description,
       system_tags,
+      security_standards,
       rule_type,
       scope,
       created_at,
@@ -318,6 +346,8 @@
       #{configKey,jdbcType=VARCHAR},
       #{severity,jdbcType=INTEGER},
       #{isTemplate,jdbcType=BOOLEAN},
+      #{isExternal,jdbcType=BOOLEAN},
+      #{isAdHoc,jdbcType=BOOLEAN},
       #{language,jdbcType=VARCHAR},
       #{templateId,jdbcType=INTEGER},
       #{defRemediationFunction,jdbcType=VARCHAR},
@@ -325,6 +355,7 @@
       #{defRemediationBaseEffort,jdbcType=VARCHAR},
       #{gapDescription,jdbcType=VARCHAR},
       #{systemTagsField,jdbcType=VARCHAR},
+      #{securityStandardsField,jdbcType=VARCHAR},
       #{type,jdbcType=TINYINT},
       #{scope,jdbcType=VARCHAR},
       #{createdAt,jdbcType=BIGINT},
@@ -344,6 +375,8 @@
       plugin_config_key=#{configKey,jdbcType=VARCHAR},
       priority=#{severity,jdbcType=INTEGER},
       is_template=#{isTemplate,jdbcType=BOOLEAN},
+      is_external=#{isExternal,jdbcType=BOOLEAN},
+      is_ad_hoc=#{isAdHoc,jdbcType=BOOLEAN},
       language=#{language,jdbcType=VARCHAR},
       template_id=#{templateId,jdbcType=INTEGER},
       def_remediation_function=#{defRemediationFunction,jdbcType=VARCHAR},
@@ -351,6 +384,7 @@
       def_remediation_base_effort=#{defRemediationBaseEffort,jdbcType=VARCHAR},
       gap_description=#{gapDescription,jdbcType=VARCHAR},
       system_tags=#{systemTagsField,jdbcType=VARCHAR},
+      security_standards=#{securityStandardsField,jdbcType=VARCHAR},
       scope=#{scope,jdbcType=VARCHAR},
       rule_type=#{type,jdbcType=TINYINT},
       updated_at=#{updatedAt,jdbcType=BIGINT}
@@ -373,13 +407,17 @@
       rule_id,
       organization_uuid,
       note_data,
-      note_user_login,
+      note_user_uuid,
       note_created_at,
       note_updated_at,
       remediation_function,
       remediation_gap_mult,
       remediation_base_effort,
       tags,
+      ad_hoc_name,
+      ad_hoc_description,
+      ad_hoc_severity,
+      ad_hoc_type,
       created_at,
       updated_at
     )
@@ -387,13 +425,17 @@
       #{ruleId,jdbcType=INTEGER},
       #{organizationUuid,jdbcType=VARCHAR},
       #{noteData,jdbcType=CLOB},
-      #{noteUserLogin,jdbcType=VARCHAR},
+      #{noteUserUuid,jdbcType=VARCHAR},
       #{noteCreatedAt,jdbcType=BIGINT},
       #{noteUpdatedAt,jdbcType=BIGINT},
       #{remediationFunction,jdbcType=VARCHAR},
       #{remediationGapMultiplier,jdbcType=VARCHAR},
       #{remediationBaseEffort,jdbcType=VARCHAR},
       #{tagsField,jdbcType=VARCHAR},
+      #{adHocName,jdbcType=VARCHAR},
+      #{adHocDescription,jdbcType=CLOB},
+      #{adHocSeverity,jdbcType=VARCHAR},
+      #{adHocType,jdbcType=TINYINT},
       #{createdAt,jdbcType=BIGINT},
       #{updatedAt,jdbcType=BIGINT}
     )
@@ -402,13 +444,17 @@
   <update id="updateMetadata" parameterType="org.sonar.db.rule.RuleMetadataDto">
     update rules_metadata set
       note_data=#{noteData,jdbcType=CLOB},
-      note_user_login=#{noteUserLogin,jdbcType=VARCHAR},
+      note_user_uuid=#{noteUserUuid,jdbcType=VARCHAR},
       note_created_at=#{noteCreatedAt,jdbcType=BIGINT},
       note_updated_at=#{noteUpdatedAt,jdbcType=BIGINT},
       remediation_function=#{remediationFunction,jdbcType=VARCHAR},
       remediation_gap_mult=#{remediationGapMultiplier,jdbcType=VARCHAR},
       remediation_base_effort=#{remediationBaseEffort,jdbcType=VARCHAR},
       tags=#{tagsField,jdbcType=VARCHAR},
+      ad_hoc_name=#{adHocName,jdbcType=VARCHAR},
+      ad_hoc_description=#{adHocDescription,jdbcType=CLOB},
+      ad_hoc_severity=#{adHocSeverity,jdbcType=VARCHAR},
+      ad_hoc_type=#{adHocType,jdbcType=TINYINT},
       updated_at=#{updatedAt,jdbcType=BIGINT}
     where
       rule_id=#{ruleId,jdbcType=INTEGER}

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,6 +19,7 @@
  */
 import * as React from 'react';
 import Form, { MetricProps } from './Form';
+import { Button } from '../../../components/ui/buttons';
 import { translate } from '../../../helpers/l10n';
 
 interface Props {
@@ -56,9 +57,9 @@ export default class CreateButton extends React.PureComponent<Props, State> {
   render() {
     return (
       <>
-        <button id="metrics-create" onClick={this.handleClick}>
+        <Button id="metrics-create" onClick={this.handleClick}>
           {translate('custom_metrics.create_metric')}
-        </button>
+        </Button>
         {this.state.modal && (
           <Form
             confirmButtonText={translate('create')}

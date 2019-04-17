@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -34,30 +34,30 @@ interface Props {
   onQueryChange: (change: RawQuery) => void;
   organization?: { key: string };
   property: string;
-  query: { [x: string]: any };
+  query: T.Dict<any>;
   value?: any;
 }
 
 export default function IssuesFilter(props: Props) {
   return (
     <Filter
-      facet={props.facet}
-      maxFacetValue={props.maxFacetValue}
-      onQueryChange={props.onQueryChange}
-      value={props.value}
-      property={props.property}
       className={props.className}
-      options={[1, 2, 3, 4, 5]}
-      query={props.query}
-      renderOption={renderOption}
-      organization={props.organization}
+      facet={props.facet}
       getFacetValueForOption={getFacetValueForOption}
-      highlightUnder={1}
       header={
         <FilterHeader name={translate('metric_domain', props.name)}>
           {props.headerDetail}
         </FilterHeader>
       }
+      highlightUnder={1}
+      maxFacetValue={props.maxFacetValue}
+      onQueryChange={props.onQueryChange}
+      options={[1, 2, 3, 4, 5]}
+      organization={props.organization}
+      property={props.property}
+      query={props.query}
+      renderOption={renderOption}
+      value={props.value}
     />
   );
 }
@@ -69,9 +69,7 @@ function getFacetValueForOption(facet: Facet, option: number) {
 function renderOption(option: number, selected: boolean) {
   return (
     <span>
-      <Rating value={option} small={true} muted={!selected} />
-      {option > 1 &&
-        option < 5 && <span className="note spacer-left">{translate('and_worse')}</span>}
+      <Rating muted={!selected} small={true} value={option} />
     </span>
   );
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -33,6 +33,7 @@ import org.sonar.core.util.UuidFactoryFast;
 import org.sonar.db.organization.OrganizationDto;
 import org.sonar.db.rule.RuleDto.Format;
 import org.sonar.db.rule.RuleDto.Scope;
+import org.sonar.db.user.UserDto;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.collect.ImmutableSet.copyOf;
@@ -41,12 +42,14 @@ import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang.RandomStringUtils.randomAlphabetic;
 import static org.apache.commons.lang.RandomStringUtils.randomAlphanumeric;
 import static org.apache.commons.lang.math.RandomUtils.nextInt;
+import static org.sonar.api.rule.RuleKey.EXTERNAL_RULE_REPO_PREFIX;
 
 /**
  * Utility class for tests involving rules
  */
 public class RuleTesting {
 
+  public static final RuleKey EXTERNAL_XOO = RuleKey.of(EXTERNAL_RULE_REPO_PREFIX + "xoo", "x1");
   public static final RuleKey XOO_X1 = RuleKey.of("xoo", "x1");
   public static final RuleKey XOO_X2 = RuleKey.of("xoo", "x2");
   public static final RuleKey XOO_X3 = RuleKey.of("xoo", "x3");
@@ -69,11 +72,14 @@ public class RuleTesting {
       .setName("name_" + randomAlphanumeric(5))
       .setDescription("description_" + randomAlphanumeric(5))
       .setDescriptionFormat(Format.HTML)
-      .setType(RuleType.values()[nextInt(RuleType.values().length)])
+      // exclude security hotspots
+      .setType(RuleType.values()[nextInt(RuleType.values().length - 1)])
       .setStatus(RuleStatus.READY)
       .setConfigKey("configKey_" + randomAlphanumeric(5))
       .setSeverity(Severity.ALL.get(nextInt(Severity.ALL.size())))
       .setIsTemplate(false)
+      .setIsExternal(false)
+      .setIsAdHoc(false)
       .setSystemTags(newHashSet("tag_" + randomAlphanumeric(5), "tag_" + randomAlphanumeric(5)))
       .setLanguage("lang_" + randomAlphanumeric(3))
       .setGapDescription("gapDescription_" + randomAlphanumeric(5))
@@ -94,9 +100,13 @@ public class RuleTesting {
       .setRemediationFunction("LINEAR_OFFSET")
       .setTags(newHashSet("tag_" + randomAlphanumeric(5), "tag_" + randomAlphanumeric(5)))
       .setNoteData("noteData_" + randomAlphanumeric(5))
-      .setNoteUserLogin("noteLogin_" + randomAlphanumeric(5))
+      .setNoteUserUuid("noteUserUuid_" + randomAlphanumeric(5))
       .setNoteCreatedAt(System.currentTimeMillis() - 200)
       .setNoteUpdatedAt(System.currentTimeMillis() - 150)
+      .setAdHocName("adHocName_" + randomAlphanumeric(5))
+      .setAdHocDescription("adHocDescription_" + randomAlphanumeric(5))
+      .setAdHocSeverity(Severity.ALL.get(nextInt(Severity.ALL.size())))
+      .setAdHocType(RuleType.values()[nextInt(RuleType.values().length - 1)])
       .setCreatedAt(System.currentTimeMillis() - 100)
       .setUpdatedAt(System.currentTimeMillis() - 50);
   }
@@ -105,6 +115,11 @@ public class RuleTesting {
     return newRuleMetadata()
       .setRuleId(rule.getId())
       .setOrganizationUuid(organization.getUuid());
+  }
+
+  public static RuleMetadataDto newRuleMetadata(RuleDefinitionDto rule, UserDto noteUser, OrganizationDto organization) {
+    return newRuleMetadata(rule, organization)
+      .setNoteUserUuid(noteUser.getUuid());
   }
 
   public static RuleParamDto newRuleParam(RuleDefinitionDto rule) {
@@ -304,6 +319,10 @@ public class RuleTesting {
 
   public static Consumer<RuleDefinitionDto> setType(RuleType type) {
     return rule -> rule.setType(type);
+  }
+  
+  public static Consumer<RuleDefinitionDto> setIsExternal(boolean isExternal) {
+    return rule -> rule.setIsExternal(isExternal);
   }
 
   public static Consumer<RuleDefinitionDto> setIsTemplate(boolean isTemplate) {

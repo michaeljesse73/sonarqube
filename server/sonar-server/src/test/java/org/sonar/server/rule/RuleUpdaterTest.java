@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -30,7 +30,6 @@ import javax.annotation.Nonnull;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
-import org.sonar.api.config.internal.MapSettings;
 import org.sonar.api.rule.RuleKey;
 import org.sonar.api.rule.RuleStatus;
 import org.sonar.api.rule.Severity;
@@ -47,11 +46,11 @@ import org.sonar.db.rule.RuleDefinitionDto;
 import org.sonar.db.rule.RuleDto;
 import org.sonar.db.rule.RuleParamDto;
 import org.sonar.db.rule.RuleTesting;
+import org.sonar.db.user.UserDto;
 import org.sonar.server.es.EsTester;
 import org.sonar.server.es.SearchOptions;
 import org.sonar.server.qualityprofile.QProfileTesting;
 import org.sonar.server.rule.index.RuleIndex;
-import org.sonar.server.rule.index.RuleIndexDefinition;
 import org.sonar.server.rule.index.RuleIndexer;
 import org.sonar.server.rule.index.RuleQuery;
 import org.sonar.server.tester.UserSessionRule;
@@ -79,7 +78,7 @@ public class RuleUpdaterTest {
   public DbTester db = DbTester.create(system2);
 
   @Rule
-  public EsTester es = new EsTester(new RuleIndexDefinition(new MapSettings().asConfig()));
+  public EsTester es = EsTester.create();
 
   private RuleIndex ruleIndex = new RuleIndex(es.client(), system2);
   private RuleIndexer ruleIndexer = new RuleIndexer(es.client(), db.getDbClient());
@@ -107,7 +106,7 @@ public class RuleUpdaterTest {
     RuleDto ruleDto = RuleTesting.newDto(RULE_KEY, db.getDefaultOrganization())
       // the following fields are not supposed to be updated
       .setNoteData("my *note*")
-      .setNoteUserLogin("me")
+      .setNoteUserUuid("me")
       .setTags(ImmutableSet.of("tag1"))
       .setRemediationFunction(DebtRemediationFunction.Type.CONSTANT_ISSUE.name())
       .setRemediationGapMultiplier("1d")
@@ -123,7 +122,7 @@ public class RuleUpdaterTest {
     dbSession.clearCache();
     RuleDto rule = db.getDbClient().ruleDao().selectOrFailByKey(dbSession, db.getDefaultOrganization(), RULE_KEY);
     assertThat(rule.getNoteData()).isEqualTo("my *note*");
-    assertThat(rule.getNoteUserLogin()).isEqualTo("me");
+    assertThat(rule.getNoteUserUuid()).isEqualTo("me");
     assertThat(rule.getTags()).containsOnly("tag1");
     assertThat(rule.getRemediationFunction()).isEqualTo(DebtRemediationFunction.Type.CONSTANT_ISSUE.name());
     assertThat(rule.getRemediationGapMultiplier()).isEqualTo("1d");
@@ -132,11 +131,12 @@ public class RuleUpdaterTest {
 
   @Test
   public void set_markdown_note() {
-    userSessionRule.logIn("me");
+    UserDto user = db.users().insertUser();
+    userSessionRule.logIn(user);
 
     RuleDto ruleDto = RuleTesting.newDto(RULE_KEY, db.getDefaultOrganization())
       .setNoteData(null)
-      .setNoteUserLogin(null)
+      .setNoteUserUuid(null)
 
       // the following fields are not supposed to be updated
       .setTags(ImmutableSet.of("tag1"))
@@ -155,7 +155,7 @@ public class RuleUpdaterTest {
     dbSession.clearCache();
     RuleDto rule = db.getDbClient().ruleDao().selectOrFailByKey(dbSession, db.getDefaultOrganization(), RULE_KEY);
     assertThat(rule.getNoteData()).isEqualTo("my *note*");
-    assertThat(rule.getNoteUserLogin()).isEqualTo("me");
+    assertThat(rule.getNoteUserUuid()).isEqualTo(user.getUuid());
     assertThat(rule.getNoteCreatedAt()).isNotNull();
     assertThat(rule.getNoteUpdatedAt()).isNotNull();
     // no other changes
@@ -169,7 +169,7 @@ public class RuleUpdaterTest {
   public void remove_markdown_note() {
     RuleDto ruleDto = RuleTesting.newDto(RULE_KEY, db.getDefaultOrganization())
       .setNoteData("my *note*")
-      .setNoteUserLogin("me");
+      .setNoteUserUuid("me");
     db.rules().insert(ruleDto.getDefinition());
     db.rules().insertOrUpdateMetadata(ruleDto.getMetadata().setRuleId(ruleDto.getId()));
     dbSession.commit();
@@ -182,7 +182,7 @@ public class RuleUpdaterTest {
     dbSession.clearCache();
     RuleDto rule = db.getDbClient().ruleDao().selectOrFailByKey(dbSession, db.getDefaultOrganization(), RULE_KEY);
     assertThat(rule.getNoteData()).isNull();
-    assertThat(rule.getNoteUserLogin()).isNull();
+    assertThat(rule.getNoteUserUuid()).isNull();
     assertThat(rule.getNoteCreatedAt()).isNull();
     assertThat(rule.getNoteUpdatedAt()).isNull();
   }

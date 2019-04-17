@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -21,38 +21,33 @@ import * as React from 'react';
 import * as classNames from 'classnames';
 import { Link } from 'react-router';
 import { LocationDescriptor } from 'history';
+import Dropdown from './Dropdown';
+import DropdownIcon from '../icons-components/DropdownIcon';
 import SettingsIcon from '../icons-components/SettingsIcon';
+import { Button } from '../ui/buttons';
 
 interface Props {
   className?: string;
   children: React.ReactNode;
-  menuClassName?: string;
-  menuPosition?: 'left' | 'right';
-  // TODO: replace with `onOpen` & `onClose`
-  onToggleClick?: () => void;
+  onOpen?: () => void;
   small?: boolean;
   toggleClassName?: string;
 }
 
-export default function ActionsDropdown({ menuPosition = 'right', ...props }: Props) {
+export default function ActionsDropdown(props: Props) {
   return (
-    <div className={classNames('dropdown', props.className)}>
-      <button
+    <Dropdown
+      className={props.className}
+      onOpen={props.onOpen}
+      overlay={<ul className="menu">{props.children}</ul>}>
+      <Button
         className={classNames('dropdown-toggle', props.toggleClassName, {
           'button-small': props.small
-        })}
-        data-toggle="dropdown"
-        onClick={props.onToggleClick}>
-        <SettingsIcon className="text-text-bottom" />
-        <i className="icon-dropdown little-spacer-left" />
-      </button>
-      <ul
-        className={classNames('dropdown-menu', props.menuClassName, {
-          'dropdown-menu-right': menuPosition === 'right'
         })}>
-        {props.children}
-      </ul>
-    </div>
+        <SettingsIcon size={props.small ? 12 : 14} />
+        <DropdownIcon className="little-spacer-left" />
+      </Button>
+    </Dropdown>
   );
 }
 

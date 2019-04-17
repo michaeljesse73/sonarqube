@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -23,7 +23,8 @@ import ProjectCardOverall from './ProjectCardOverall';
 import { Project } from '../types';
 
 interface Props {
-  organization?: { key: string };
+  height: number;
+  organization: T.Organization | undefined;
   project: Project;
   type?: string;
 }

@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,7 +25,6 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.CheckForNull;
-import org.sonar.api.batch.ScannerSide;
 import org.sonar.api.rule.RuleKey;
 import org.sonar.api.utils.Duration;
 
@@ -113,13 +112,6 @@ public interface Issue extends Serializable {
   Integer line();
 
   /**
-   * @deprecated since 5.5, replaced by {@link #gap()}
-   */
-  @Deprecated
-  @CheckForNull
-  Double effortToFix();
-
-  /**
    * Arbitrary distance to threshold for resolving the issue.
    * <br>
    * For examples:
@@ -146,14 +138,7 @@ public interface Issue extends Serializable {
   String resolution();
 
   /**
-   * @deprecated since 5.5, manual issue feature has been dropped.
-   */
-  @Deprecated
-  @CheckForNull
-  String reporter();
-
-  /**
-   * Login of the user who is assigned to this issue. Null if the issue is not assigned.
+   * UUID of the user who is assigned to this issue. Null if the issue is not assigned.
    */
   @CheckForNull
   String assignee();
@@ -185,18 +170,11 @@ public interface Issue extends Serializable {
   String authorLogin();
 
   /**
-   * @deprecated since 5.5 Action plans are dropped in 5.5. This field has no effect
+   * Non-null list of comments, ordered by chronological order.
+   *
+   * @deprecated since 7.2, comments are not more available
    */
   @Deprecated
-  @CheckForNull
-  String actionPlanKey();
-
-  /**
-   * Non-null list of comments, ordered by chronological order.
-   * <br>
-   * IMPORTANT: existing comments are not loaded when this method is called when analyzing project
-   * (from {@link ScannerSide}).
-   */
   List<IssueComment> comments();
 
   /**
@@ -211,12 +189,6 @@ public interface Issue extends Serializable {
    * @since 6.6
    */
   boolean isCopied();
-
-  /**
-   * @deprecated since 5.5, replaced by {@link #effort()}
-   */
-  @Deprecated
-  Duration debt();
 
   /**
    * @since 5.5

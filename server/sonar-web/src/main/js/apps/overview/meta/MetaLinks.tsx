@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -19,17 +19,16 @@
  */
 import * as React from 'react';
 import MetaLink from './MetaLink';
-import { getProjectLinks, ProjectLink } from '../../../api/projectLinks';
-import { orderLinks } from '../../project-admin/links/utils';
-import { LightComponent } from '../../../app/types';
+import { orderLinks } from '../../projectLinks/utils';
+import { getProjectLinks } from '../../../api/projectLinks';
 import { translate } from '../../../helpers/l10n';
 
 interface Props {
-  component: LightComponent;
+  component: T.LightComponent;
 }
 
 interface State {
-  links?: ProjectLink[];
+  links?: T.ProjectLink[];
 }
 
 export default class MetaLinks extends React.PureComponent<Props, State> {
@@ -74,7 +73,9 @@ export default class MetaLinks extends React.PureComponent<Props, State> {
       <div className="overview-meta-card">
         <h4 className="overview-meta-header">{translate('overview.external_links')}</h4>
         <ul className="overview-meta-list">
-          {orderedLinks.map(link => <MetaLink key={link.id} link={link} />)}
+          {orderedLinks.map(link => (
+            <MetaLink key={link.id} link={link} />
+          ))}
         </ul>
       </div>
     );

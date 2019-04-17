@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -22,16 +22,21 @@ package org.sonar.scanner.bootstrap;
 import java.time.Clock;
 import java.util.List;
 import java.util.Map;
+import org.apache.commons.lang.StringUtils;
+import org.sonar.api.CoreProperties;
 import org.sonar.api.Plugin;
 import org.sonar.api.SonarQubeSide;
 import org.sonar.api.SonarQubeVersion;
 import org.sonar.api.internal.ApiVersion;
 import org.sonar.api.internal.SonarRuntimeImpl;
+import org.sonar.api.utils.MessageException;
 import org.sonar.api.utils.System2;
 import org.sonar.api.utils.UriReader;
 import org.sonar.api.utils.Version;
 import org.sonar.api.utils.log.Logger;
 import org.sonar.api.utils.log.Loggers;
+import org.sonar.core.extension.CoreExtensionRepositoryImpl;
+import org.sonar.core.extension.CoreExtensionsLoader;
 import org.sonar.core.platform.ComponentContainer;
 import org.sonar.core.platform.PluginClassloaderFactory;
 import org.sonar.core.platform.PluginInfo;
@@ -39,35 +44,35 @@ import org.sonar.core.platform.PluginLoader;
 import org.sonar.core.platform.PluginRepository;
 import org.sonar.core.util.DefaultHttpDownloader;
 import org.sonar.core.util.UuidFactoryImpl;
+import org.sonar.scanner.extension.ScannerCoreExtensionsInstaller;
 import org.sonar.scanner.platform.DefaultServer;
 import org.sonar.scanner.repository.DefaultMetricsRepositoryLoader;
 import org.sonar.scanner.repository.MetricsRepositoryLoader;
 import org.sonar.scanner.repository.MetricsRepositoryProvider;
-import org.sonar.scanner.repository.settings.DefaultSettingsLoader;
-import org.sonar.scanner.repository.settings.SettingsLoader;
-import org.sonar.scanner.storage.StoragesManager;
-import org.sonar.scanner.task.TaskContainer;
+import org.sonar.scanner.repository.settings.DefaultGlobalSettingsLoader;
+import org.sonar.scanner.repository.settings.GlobalSettingsLoader;
+import org.sonar.scanner.scan.ProjectScanContainer;
 
 public class GlobalContainer extends ComponentContainer {
   private static final Logger LOG = Loggers.get(GlobalContainer.class);
-  private final Map<String, String> bootstrapProperties;
+  private final Map<String, String> scannerProperties;
 
-  private GlobalContainer(Map<String, String> bootstrapProperties) {
+  private GlobalContainer(Map<String, String> scannerProperties) {
     super();
-    this.bootstrapProperties = bootstrapProperties;
+    this.scannerProperties = scannerProperties;
   }
 
-  public static GlobalContainer create(Map<String, String> bootstrapProperties, List<?> extensions) {
-    GlobalContainer container = new GlobalContainer(bootstrapProperties);
+  public static GlobalContainer create(Map<String, String> scannerProperties, List<?> extensions) {
+    GlobalContainer container = new GlobalContainer(scannerProperties);
     container.add(extensions);
     return container;
   }
 
   @Override
   protected void doBeforeStart() {
-    GlobalProperties bootstrapProps = new GlobalProperties(bootstrapProperties);
-    GlobalAnalysisMode globalMode = new GlobalAnalysisMode(bootstrapProps);
-    add(bootstrapProps);
+    RawScannerProperties rawScannerProperties = new RawScannerProperties(scannerProperties);
+    GlobalAnalysisMode globalMode = new GlobalAnalysisMode(rawScannerProperties);
+    add(rawScannerProperties);
     add(globalMode);
     addBootstrapComponents();
   }
@@ -80,32 +85,49 @@ public class GlobalContainer extends ComponentContainer {
       PluginLoader.class,
       PluginClassloaderFactory.class,
       ScannerPluginJarExploder.class,
-      ScannerPluginPredicate.class,
       ExtensionInstaller.class,
 
       new SonarQubeVersion(apiVersion),
       SonarRuntimeImpl.forSonarQube(apiVersion, SonarQubeSide.SCANNER),
-      StoragesManager.class,
-      MutableGlobalSettings.class,
+      new GlobalServerSettingsProvider(),
       new GlobalConfigurationProvider(),
       new ScannerWsClientProvider(),
       DefaultServer.class,
       new GlobalTempFolderProvider(),
       DefaultHttpDownloader.class,
       UriReader.class,
-      new FileCacheProvider(),
+      PluginFiles.class,
       System2.INSTANCE,
       Clock.systemDefaultZone(),
       new MetricsRepositoryProvider(),
       UuidFactoryImpl.INSTANCE);
     addIfMissing(ScannerPluginInstaller.class, PluginInstaller.class);
-    addIfMissing(DefaultSettingsLoader.class, SettingsLoader.class);
+    add(CoreExtensionRepositoryImpl.class, CoreExtensionsLoader.class, ScannerCoreExtensionsInstaller.class);
+    addIfMissing(DefaultGlobalSettingsLoader.class, GlobalSettingsLoader.class);
     addIfMissing(DefaultMetricsRepositoryLoader.class, MetricsRepositoryLoader.class);
   }
 
   @Override
   protected void doAfterStart() {
     installPlugins();
+    loadCoreExtensions();
+
+    long startTime = System.currentTimeMillis();
+    String taskKey = StringUtils.defaultIfEmpty(scannerProperties.get(CoreProperties.TASK), CoreProperties.SCAN_TASK);
+    if (taskKey.equals("views")) {
+      throw MessageException.of("The task 'views' was removed with SonarQube 7.1. " +
+        "You can safely remove this call since portfolios and applications are automatically re-calculated.");
+    } else if (!taskKey.equals(CoreProperties.SCAN_TASK)) {
+      throw MessageException.of("Tasks support was removed in SonarQube 7.6.");
+    }
+    String analysisMode = StringUtils.defaultIfEmpty(scannerProperties.get("sonar.analysis.mode"), "publish");
+    if (!analysisMode.equals("publish")) {
+      throw MessageException.of("The preview mode, along with the 'sonar.analysis.mode' parameter, is no more supported. You should stop using this parameter.");
+    }
+
+    new ProjectScanContainer(this).execute();
+
+    LOG.info("Analysis total time: {}", formatTime(System.currentTimeMillis() - startTime));
   }
 
   private void installPlugins() {
@@ -116,11 +138,9 @@ public class GlobalContainer extends ComponentContainer {
     }
   }
 
-  public void executeTask(Map<String, String> taskProperties, Object... components) {
-    long startTime = System.currentTimeMillis();
-    new TaskContainer(this, taskProperties, components).execute();
-
-    LOG.info("Task total time: {}", formatTime(System.currentTimeMillis() - startTime));
+  private void loadCoreExtensions() {
+    CoreExtensionsLoader loader = getComponentByType(CoreExtensionsLoader.class);
+    loader.load();
   }
 
   static String formatTime(long time) {

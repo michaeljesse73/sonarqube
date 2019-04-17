@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -33,6 +33,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamException;
@@ -171,7 +172,7 @@ public class QProfileBackuperImpl implements QProfileBackuper {
       BulkChangeResult changes = profileReset.reset(dbSession, targetProfile, ruleActivations);
       return new QProfileRestoreSummary(targetProfile, changes);
     } catch (XMLStreamException e) {
-      throw new IllegalStateException("Fail to restore Quality profile backup", e);
+      throw new IllegalArgumentException("Fail to restore Quality profile backup, XML document is not well formed", e);
     }
   }
 
@@ -182,6 +183,15 @@ public class QProfileBackuperImpl implements QProfileBackuper {
     Map<RuleKey, RuleDefinitionDto> ruleDefinitionsByKey = db.ruleDao().selectDefinitionByKeys(dbSession, ruleKeys)
       .stream()
       .collect(MoreCollectors.uniqueIndex(RuleDefinitionDto::getKey));
+
+    List<RuleDefinitionDto> externalRules = ruleDefinitionsByKey.values().stream()
+      .filter(RuleDefinitionDto::isExternal)
+      .collect(Collectors.toList());
+
+    if (!externalRules.isEmpty()) {
+      throw new IllegalArgumentException("The quality profile cannot be restored as it contains rules from external rule engines: "
+        + externalRules.stream().map(r -> r.getKey().toString()).collect(Collectors.joining(", ")));
+    }
 
     return rules.stream()
       .map(r -> {

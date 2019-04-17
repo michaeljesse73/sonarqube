@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -25,10 +25,7 @@ import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
-import org.apache.commons.codec.digest.DigestUtils;
 import org.sonar.core.user.DefaultUser;
-
-import static java.util.Objects.requireNonNull;
 
 /**
  * @since 3.2
@@ -36,23 +33,48 @@ import static java.util.Objects.requireNonNull;
 public class UserDto {
   public static final char SCM_ACCOUNTS_SEPARATOR = '\n';
 
+  /** Technical unique identifier, can't be null */
+  private String uuid;
   private Integer id;
   private String login;
   private String name;
   private String email;
   private boolean active = true;
   private String scmAccounts;
-  private String externalIdentity;
+  private String externalId;
+  private String externalLogin;
   private String externalIdentityProvider;
+  // Hashed password that may be null in case of external authentication
   private String cryptedPassword;
+  // Salt used for SHA1, null when bcrypt is used or for external authentication
   private String salt;
-  private Long createdAt;
-  private Long updatedAt;
+  // Hash method used to generate cryptedPassword, my be null in case of external authentication
+  private String hashMethod;
   private String homepageType;
   private String homepageParameter;
   private boolean local = true;
   private boolean root = false;
   private boolean onboarded = false;
+  private String organizationUuid;
+
+  /**
+   * Date of the last time the user has accessed to the server.
+   * Can be null when user has never been authenticated, or has not been authenticated since the creation of the column in SonarQube 7.7.
+   */
+  @Nullable
+  private Long lastConnectionDate;
+
+  private Long createdAt;
+  private Long updatedAt;
+
+  public String getUuid() {
+    return uuid;
+  }
+
+  UserDto setUuid(String uuid) {
+    this.uuid = uuid;
+    return this;
+  }
 
   public Integer getId() {
     return id;
@@ -139,12 +161,21 @@ public class UserDto {
     }
   }
 
-  public String getExternalIdentity() {
-    return externalIdentity;
+  public String getExternalId() {
+    return externalId;
   }
 
-  public UserDto setExternalIdentity(String authorithy) {
-    this.externalIdentity = authorithy;
+  public UserDto setExternalId(String externalId) {
+    this.externalId = externalId;
+    return this;
+  }
+
+  public String getExternalLogin() {
+    return externalLogin;
+  }
+
+  public UserDto setExternalLogin(String externalLogin) {
+    this.externalLogin = externalLogin;
     return this;
   }
 
@@ -186,21 +217,13 @@ public class UserDto {
     return this;
   }
 
-  public Long getCreatedAt() {
-    return createdAt;
+  @CheckForNull
+  public String getHashMethod() {
+    return hashMethod;
   }
 
-  UserDto setCreatedAt(long createdAt) {
-    this.createdAt = createdAt;
-    return this;
-  }
-
-  public Long getUpdatedAt() {
-    return updatedAt;
-  }
-
-  UserDto setUpdatedAt(long updatedAt) {
-    this.updatedAt = updatedAt;
+  public UserDto setHashMethod(@Nullable String hashMethod) {
+    this.hashMethod = hashMethod;
     return this;
   }
 
@@ -249,10 +272,42 @@ public class UserDto {
     return this;
   }
 
-  public static String encryptPassword(String password, String salt) {
-    requireNonNull(password, "Password cannot be empty");
-    requireNonNull(salt, "Salt cannot be empty");
-    return DigestUtils.sha1Hex("--" + salt + "--" + password + "--");
+  @CheckForNull
+  public String getOrganizationUuid() {
+    return organizationUuid;
+  }
+
+  public UserDto setOrganizationUuid(@Nullable String organizationUuid) {
+    this.organizationUuid = organizationUuid;
+    return this;
+  }
+
+  @CheckForNull
+  public Long getLastConnectionDate() {
+    return lastConnectionDate;
+  }
+
+  public UserDto setLastConnectionDate(@Nullable Long lastConnectionDate) {
+    this.lastConnectionDate = lastConnectionDate;
+    return this;
+  }
+
+  public Long getCreatedAt() {
+    return createdAt;
+  }
+
+  UserDto setCreatedAt(long createdAt) {
+    this.createdAt = createdAt;
+    return this;
+  }
+
+  public Long getUpdatedAt() {
+    return updatedAt;
+  }
+
+  UserDto setUpdatedAt(long updatedAt) {
+    this.updatedAt = updatedAt;
+    return this;
   }
 
   public DefaultUser toUser() {

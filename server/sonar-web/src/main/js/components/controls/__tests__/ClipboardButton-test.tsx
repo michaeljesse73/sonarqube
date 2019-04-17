@@ -1,6 +1,6 @@
 /*
  * SonarQube
- * Copyright (C) 2009-2018 SonarSource SA
+ * Copyright (C) 2009-2019 SonarSource SA
  * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
@@ -31,5 +31,5 @@ it('should display correctly', () => {
   expect(wrapper).toMatchSnapshot();
   jest.runAllTimers();
   wrapper.update();
-  expect(wrapper.find('Tooltip')).toHaveLength(0);
+  expect(wrapper).toMatchSnapshot();
 });
