@@ -17,21 +17,20 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
+import { debounce, difference, size, sortBy } from 'lodash';
 import * as React from 'react';
-import { debounce, difference, sortBy, size } from 'lodash';
+import { translate } from 'sonar-ui-common/helpers/l10n';
+import { searchProjectTags } from '../../../api/components';
+import { Facet } from '../types';
 import Filter from './Filter';
 import FilterHeader from './FilterHeader';
 import SearchableFilterFooter from './SearchableFilterFooter';
 import SearchableFilterOption from './SearchableFilterOption';
-import { searchProjectTags } from '../../../api/components';
-import { translate } from '../../../helpers/l10n';
-import { Facet } from '../types';
-import { RawQuery } from '../../../helpers/query';
 
 interface Props {
   facet?: Facet;
   maxFacetValue?: number;
-  onQueryChange: (change: RawQuery) => void;
+  onQueryChange: (change: T.RawQuery) => void;
   organization?: { key: string };
   property?: string;
   query: T.Dict<any>;

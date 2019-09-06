@@ -24,14 +24,17 @@ import java.util.Map;
 import java.util.Optional;
 import org.slf4j.LoggerFactory;
 import org.sonar.application.es.EsInstallation;
-import org.sonar.application.es.EsInstallationImpl;
 import org.sonar.application.es.EsLogging;
 import org.sonar.application.es.EsSettings;
 import org.sonar.application.es.EsYmlSettings;
 import org.sonar.process.ProcessId;
+import org.sonar.process.ProcessProperties;
 import org.sonar.process.Props;
 import org.sonar.process.System2;
 
+import static org.sonar.process.ProcessProperties.Property.WEB_GRACEFUL_STOP_TIMEOUT;
+import static org.sonar.process.ProcessProperties.parseTimeoutMs;
+import static org.sonar.process.ProcessProperties.Property.CE_GRACEFUL_STOP_TIMEOUT;
 import static org.sonar.process.ProcessProperties.Property.CE_JAVA_ADDITIONAL_OPTS;
 import static org.sonar.process.ProcessProperties.Property.CE_JAVA_OPTS;
 import static org.sonar.process.ProcessProperties.Property.HTTPS_PROXY_HOST;
@@ -69,11 +72,13 @@ public class CommandFactoryImpl implements CommandFactory {
   private final Props props;
   private final File tempDir;
   private final System2 system2;
+  private final JavaVersion javaVersion;
 
-  public CommandFactoryImpl(Props props, File tempDir, System2 system2) {
+  public CommandFactoryImpl(Props props, File tempDir, System2 system2, JavaVersion javaVersion) {
     this.props = props;
     this.tempDir = tempDir;
     this.system2 = system2;
+    this.javaVersion = javaVersion;
     String javaToolOptions = system2.getenv(ENV_VAR_JAVA_TOOL_OPTIONS);
     if (javaToolOptions != null && !javaToolOptions.trim().isEmpty()) {
       LoggerFactory.getLogger(CommandFactoryImpl.class)
@@ -113,9 +118,7 @@ public class CommandFactoryImpl implements CommandFactory {
     return new JavaCommand<EsJvmOptions>(ProcessId.ELASTICSEARCH, esInstallation.getHomeDirectory())
       .setEsInstallation(esInstallation)
       .setReadsArgumentsFromFile(false)
-      .setJvmOptions(new EsJvmOptions(esInstallation)
-        .addFromMandatoryProperty(props, SEARCH_JAVA_OPTS.getKey())
-        .addFromMandatoryProperty(props, SEARCH_JAVA_ADDITIONAL_OPTS.getKey())
+      .setJvmOptions(esInstallation.getEsJvmOptions()
         .add("-Delasticsearch")
         .add("-Des.path.home=" + esInstallation.getHomeDirectory().getAbsolutePath())
         .add("-Des.path.conf=" + esInstallation.getConfDirectory().getAbsolutePath()))
@@ -128,7 +131,7 @@ public class CommandFactoryImpl implements CommandFactory {
   }
 
   private EsInstallation createEsInstallation() {
-    EsInstallationImpl esInstallation = new EsInstallationImpl(props);
+    EsInstallation esInstallation = new EsInstallation(props);
     if (!esInstallation.getExecutable().exists()) {
       throw new IllegalStateException("Cannot find elasticsearch binary");
     }
@@ -136,7 +139,7 @@ public class CommandFactoryImpl implements CommandFactory {
 
     esInstallation
       .setLog4j2Properties(new EsLogging().createProperties(props, esInstallation.getLogDirectory()))
-      .setEsJvmOptions(new EsJvmOptions(esInstallation)
+      .setEsJvmOptions(new EsJvmOptions(props, tempDir)
         .addFromMandatoryProperty(props, SEARCH_JAVA_OPTS.getKey())
         .addFromMandatoryProperty(props, SEARCH_JAVA_ADDITIONAL_OPTS.getKey()))
       .setEsYmlSettings(new EsYmlSettings(settingsMap))
@@ -150,7 +153,7 @@ public class CommandFactoryImpl implements CommandFactory {
   public JavaCommand createWebCommand(boolean leader) {
     File homeDir = props.nonNullValueAsFile(PATH_HOME.getKey());
 
-    WebJvmOptions jvmOptions = new WebJvmOptions(tempDir)
+    WebJvmOptions jvmOptions = new WebJvmOptions(tempDir, javaVersion)
       .addFromMandatoryProperty(props, WEB_JAVA_OPTS.getKey())
       .addFromMandatoryProperty(props, WEB_JAVA_ADDITIONAL_OPTS.getKey());
     addProxyJvmOptions(jvmOptions);
@@ -159,6 +162,7 @@ public class CommandFactoryImpl implements CommandFactory {
       .setReadsArgumentsFromFile(true)
       .setArguments(props.rawProperties())
       .setJvmOptions(jvmOptions)
+      .setGracefulStopTimeoutMs(getGracefulStopTimeoutMs(props, WEB_GRACEFUL_STOP_TIMEOUT))
       // required for logback tomcat valve
       .setEnvVariable(PATH_LOGS.getKey(), props.nonNullValue(PATH_LOGS.getKey()))
       .setArgument("sonar.cluster.web.startupLeader", Boolean.toString(leader))
@@ -176,7 +180,7 @@ public class CommandFactoryImpl implements CommandFactory {
   public JavaCommand createCeCommand() {
     File homeDir = props.nonNullValueAsFile(PATH_HOME.getKey());
 
-    CeJvmOptions jvmOptions = new CeJvmOptions(tempDir)
+    CeJvmOptions jvmOptions = new CeJvmOptions(tempDir, javaVersion)
       .addFromMandatoryProperty(props, CE_JAVA_OPTS.getKey())
       .addFromMandatoryProperty(props, CE_JAVA_ADDITIONAL_OPTS.getKey());
     addProxyJvmOptions(jvmOptions);
@@ -185,6 +189,7 @@ public class CommandFactoryImpl implements CommandFactory {
       .setReadsArgumentsFromFile(true)
       .setArguments(props.rawProperties())
       .setJvmOptions(jvmOptions)
+      .setGracefulStopTimeoutMs(getGracefulStopTimeoutMs(props, CE_GRACEFUL_STOP_TIMEOUT))
       .setClassName("org.sonar.ce.app.CeServer")
       .addClasspath("./lib/common/*");
     String driverPath = props.value(JDBC_DRIVER_PATH.getKey());
@@ -193,6 +198,14 @@ public class CommandFactoryImpl implements CommandFactory {
     }
     command.suppressEnvVariable(ENV_VAR_JAVA_TOOL_OPTIONS);
     return command;
+  }
+
+  private static long getGracefulStopTimeoutMs(Props props, ProcessProperties.Property property) {
+    String value = Optional.ofNullable(props.value(property.getKey()))
+      .orElse(property.getDefaultValue());
+    // give some time to CE/Web to shutdown itself after graceful stop timed out
+    long gracePeriod = 30 * 1_000L;
+    return parseTimeoutMs(property, value) + gracePeriod;
   }
 
   private <T extends JvmOptions> void addProxyJvmOptions(JvmOptions<T> jvmOptions) {

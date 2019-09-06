@@ -138,14 +138,6 @@ public interface ComponentMapper {
    */
   List<String> selectProjectsFromView(@Param("viewUuidLikeQuery") String viewUuidLikeQuery, @Param("projectViewUuid") String projectViewUuid);
 
-  List<ComponentDto> selectGhostProjects(@Param("organizationUuid") String organizationUuid, @Nullable @Param("query") String query, RowBounds rowBounds);
-
-  long countGhostProjects(@Param("organizationUuid") String organizationUuid, @Nullable @Param("query") String query);
-
-  List<ComponentDto> selectComponentsHavingSameKeyOrderedById(String key);
-
-  List<ComponentDto> selectProjectsByNameQuery(@Param("nameQuery") @Nullable String nameQuery, @Param("includeModules") boolean includeModules);
-
   void scrollForIndexing(@Param("projectUuid") @Nullable String projectUuid, ResultHandler<ComponentDto> handler);
 
   void scrollAllFilesForFileMove(@Param("projectUuid") String projectUuid, ResultHandler<FileMoveRowDto> handler);
@@ -166,7 +158,8 @@ public interface ComponentMapper {
 
   void updateTags(ComponentDto component);
 
-  List<KeyWithUuidDto> selectComponentKeysHavingIssuesToMerge(@Param("mergeBranchUuid") String mergeBranchUuid);
+  List<KeyWithUuidDto> selectAllSiblingComponentKeysHavingOpenIssues(@Param("referenceBranchUuid") String referenceBranchUuid,
+    @Param("currentBranchUuid") String currentBranchUuid);
 
   List<ProjectNclocDistributionDto> selectPrivateProjectsWithNcloc(@Param("organizationUuid") String organizationUuid);
 

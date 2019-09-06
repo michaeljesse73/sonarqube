@@ -17,15 +17,16 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { omit, sortBy, without } from 'lodash';
-import { searchAssignees, Query, ReferencedUser, SearchedAssignee, Facet } from '../utils';
-import Avatar from '../../../components/ui/Avatar';
-import { translate } from '../../../helpers/l10n';
-import { highlightTerm } from '../../../helpers/search';
+import * as React from 'react';
+import { translate, translateWithParameters } from 'sonar-ui-common/helpers/l10n';
+import { highlightTerm } from 'sonar-ui-common/helpers/search';
 import ListStyleFacet from '../../../components/facet/ListStyleFacet';
+import Avatar from '../../../components/ui/Avatar';
+import { isUserActive } from '../../../helpers/users';
+import { Facet, Query, searchAssignees } from '../utils';
 
-export interface Props {
+interface Props {
   assigned: boolean;
   assignees: string[];
   fetching: boolean;
@@ -36,7 +37,7 @@ export interface Props {
   organization: string | undefined;
   query: Query;
   stats: T.Dict<number> | undefined;
-  referencedUsers: T.Dict<ReferencedUser>;
+  referencedUsers: T.Dict<T.UserBase>;
 }
 
 export default class AssigneeFacet extends React.PureComponent<Props> {
@@ -71,11 +72,14 @@ export default class AssigneeFacet extends React.PureComponent<Props> {
       return translate('unassigned');
     } else {
       const user = this.props.referencedUsers[assignee];
-      return user ? user.name : assignee;
+      if (!user) {
+        return assignee;
+      }
+      return isUserActive(user) ? user.name : translateWithParameters('user.x_deleted', user.login);
     }
   };
 
-  loadSearchResultCount = (assignees: SearchedAssignee[]) => {
+  loadSearchResultCount = (assignees: T.UserBase[]) => {
     return this.props.loadSearchResultCount('assignees', {
       assigned: undefined,
       assignees: assignees.map(assignee => assignee.login)
@@ -99,28 +103,35 @@ export default class AssigneeFacet extends React.PureComponent<Props> {
     }
 
     const user = this.props.referencedUsers[assignee];
+
     return user ? (
       <>
-        <Avatar className="little-spacer-right" hash={user.avatar} name={user.name} size={16} />
-        {user.name}
+        <Avatar
+          className="little-spacer-right"
+          hash={user.avatar}
+          name={user.name || user.login}
+          size={16}
+        />
+        {isUserActive(user) ? user.name : translateWithParameters('user.x_deleted', user.login)}
       </>
     ) : (
       assignee
     );
   };
 
-  renderSearchResult = (result: SearchedAssignee, query: string) => {
+  renderSearchResult = (result: T.UserBase, query: string) => {
+    const displayName = isUserActive(result)
+      ? result.name
+      : translateWithParameters('user.x_deleted', result.login);
     return (
       <>
-        {result.avatar !== undefined && (
-          <Avatar
-            className="little-spacer-right"
-            hash={result.avatar}
-            name={result.name}
-            size={16}
-          />
-        )}
-        {highlightTerm(result.name, query)}
+        <Avatar
+          className="little-spacer-right"
+          hash={result.avatar}
+          name={result.name || result.login}
+          size={16}
+        />
+        {highlightTerm(displayName, query)}
       </>
     );
   };
@@ -132,12 +143,12 @@ export default class AssigneeFacet extends React.PureComponent<Props> {
     }
 
     return (
-      <ListStyleFacet<SearchedAssignee>
+      <ListStyleFacet<T.UserBase>
         facetHeader={translate('issues.facet.assignees')}
         fetching={this.props.fetching}
         getFacetItemText={this.getAssigneeName}
         getSearchResultKey={user => user.login}
-        getSearchResultText={user => user.name}
+        getSearchResultText={user => user.name || user.login}
         // put "not assigned" item first
         getSortedItems={this.getSortedItems}
         loadSearchResultCount={this.loadSearchResultCount}

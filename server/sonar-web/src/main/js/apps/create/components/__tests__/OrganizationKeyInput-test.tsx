@@ -17,11 +17,11 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { shallow } from 'enzyme';
-import OrganizationKeyInput from '../OrganizationKeyInput';
+import * as React from 'react';
+import { waitAndUpdate } from 'sonar-ui-common/helpers/testUtils';
 import { getOrganization } from '../../../../api/organizations';
-import { waitAndUpdate } from '../../../../helpers/testUtils';
+import OrganizationKeyInput from '../OrganizationKeyInput';
 
 jest.mock('../../../../api/organizations', () => ({
   getOrganization: jest.fn().mockResolvedValue(undefined)
@@ -31,11 +31,12 @@ beforeEach(() => {
   (getOrganization as jest.Mock<any>).mockClear();
 });
 
-it('should render correctly', () => {
+it('should render correctly', async () => {
   const wrapper = shallow(<OrganizationKeyInput initialValue="key" onChange={jest.fn()} />);
   expect(wrapper).toMatchSnapshot();
   wrapper.setState({ touched: true });
-  expect(wrapper.find('ValidationInput').prop('isValid')).toMatchSnapshot();
+  await waitAndUpdate(wrapper);
+  expect(wrapper.find('ValidationInput').prop('isValid')).toBe(true);
 });
 
 it('should not display any status when the key is not defined', async () => {

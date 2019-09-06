@@ -17,11 +17,11 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { shallow } from 'enzyme';
-import InputForText from '../InputForText';
-import { change } from '../../../../../helpers/testUtils';
+import * as React from 'react';
+import { change } from 'sonar-ui-common/helpers/testUtils';
 import { DefaultSpecializedInputProps } from '../../../utils';
+import InputForText from '../InputForText';
 
 it('should render textarea', () => {
   const onChange = jest.fn();

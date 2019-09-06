@@ -17,17 +17,16 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { orderBy, without } from 'lodash';
-import { formatFacetStat, Query } from '../utils';
+import * as React from 'react';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import FacetBox from '../../../components/facet/FacetBox';
 import FacetHeader from '../../../components/facet/FacetHeader';
 import FacetItem from '../../../components/facet/FacetItem';
 import FacetItemsList from '../../../components/facet/FacetItemsList';
-import StatusHelper from '../../../components/shared/StatusHelper';
-import { translate } from '../../../helpers/l10n';
-import DeferredSpinner from '../../../components/common/DeferredSpinner';
 import MultipleSelectionHint from '../../../components/facet/MultipleSelectionHint';
+import StatusHelper from '../../../components/shared/StatusHelper';
+import { formatFacetStat, Query } from '../utils';
 
 interface Props {
   fetching: boolean;
@@ -38,14 +37,14 @@ interface Props {
   statuses: string[];
 }
 
-const STATUSES = ['OPEN', 'RESOLVED', 'REOPENED', 'CLOSED', 'CONFIRMED'];
+const STATUSES = ['OPEN', 'CONFIRMED', 'REOPENED', 'RESOLVED'];
+const HOTSPOT_STATUSES = ['TO_REVIEW', 'REVIEWED', 'IN_REVIEW'];
+const COMMON_STATUSES = ['CLOSED'];
 
 export default class StatusFacet extends React.PureComponent<Props> {
   property = 'statuses';
 
-  static defaultProps = {
-    open: true
-  };
+  static defaultProps = { open: true };
 
   handleItemClick = (itemValue: string, multiple: boolean) => {
     const { statuses } = this.props;
@@ -100,6 +99,7 @@ export default class StatusFacet extends React.PureComponent<Props> {
     return (
       <FacetBox property={this.property}>
         <FacetHeader
+          fetching={this.props.fetching}
           name={translate('issues.facet', this.property)}
           onClear={this.handleClear}
           onClick={this.handleHeaderClick}
@@ -107,10 +107,17 @@ export default class StatusFacet extends React.PureComponent<Props> {
           values={values}
         />
 
-        <DeferredSpinner loading={this.props.fetching} />
         {this.props.open && (
           <>
-            <FacetItemsList>{STATUSES.map(this.renderItem)}</FacetItemsList>
+            <FacetItemsList title={translate('issues')}>
+              {STATUSES.map(this.renderItem)}
+            </FacetItemsList>
+            <FacetItemsList title={translate('issue.type.SECURITY_HOTSPOT.plural')}>
+              {HOTSPOT_STATUSES.map(this.renderItem)}
+            </FacetItemsList>
+            <FacetItemsList title={translate('issues.issues_and_hotspots')}>
+              {COMMON_STATUSES.map(this.renderItem)}
+            </FacetItemsList>
             <MultipleSelectionHint options={Object.keys(stats).length} values={statuses.length} />
           </>
         )}

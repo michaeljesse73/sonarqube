@@ -1,9 +1,9 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`should render modal 1`] = `
+exports[`should render modal properly 1`] = `
 <Modal
   contentLabel="users.update"
-  onRequestClose={[Function]}
+  onRequestClose={[MockFunction]}
 >
   <header
     className="modal-head"
@@ -13,27 +13,32 @@ exports[`should render modal 1`] = `
     </h2>
   </header>
   <div
-    className="modal-body"
+    className="modal-body modal-container"
   >
-    <DeferredSpinner
-      loading={true}
-      timeout={100}
-    >
-      <SelectList
-        elements={Array []}
-        onSearch={[Function]}
-        onSelect={[Function]}
-        onUnselect={[Function]}
-        renderElement={[Function]}
-        selectedElements={Array []}
-      />
-    </DeferredSpinner>
+    <SelectList
+      elements={
+        Array [
+          "foo",
+        ]
+      }
+      needToReload={false}
+      onSearch={[Function]}
+      onSelect={[Function]}
+      onUnselect={[Function]}
+      renderElement={[Function]}
+      selectedElements={
+        Array [
+          "foo",
+        ]
+      }
+      withPaging={true}
+    />
   </div>
   <footer
     className="modal-foot"
   >
     <ResetButtonLink
-      onClick={[Function]}
+      onClick={[MockFunction]}
     >
       Done
     </ResetButtonLink>
@@ -41,51 +46,18 @@ exports[`should render modal 1`] = `
 </Modal>
 `;
 
-exports[`should render modal 2`] = `
-<Modal
-  contentLabel="users.update"
-  onRequestClose={[Function]}
+exports[`should render modal properly 2`] = `
+<div
+  className="select-list-list-item"
 >
-  <header
-    className="modal-head"
-  >
-    <h2>
-      users.update
-    </h2>
-  </header>
-  <div
-    className="modal-body"
-  >
-    <DeferredSpinner
-      loading={false}
-      timeout={100}
-    >
-      <SelectList
-        elements={
-          Array [
-            "foo",
-          ]
-        }
-        onSearch={[Function]}
-        onSelect={[Function]}
-        onUnselect={[Function]}
-        renderElement={[Function]}
-        selectedElements={
-          Array [
-            "foo",
-          ]
-        }
-      />
-    </DeferredSpinner>
-  </div>
-  <footer
-    className="modal-foot"
-  >
-    <ResetButtonLink
-      onClick={[Function]}
-    >
-      Done
-    </ResetButtonLink>
-  </footer>
-</Modal>
+  test1
+</div>
+`;
+
+exports[`should render modal properly 3`] = `
+<div
+  className="select-list-list-item"
+>
+  test_foo
+</div>
 `;

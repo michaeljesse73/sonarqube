@@ -22,8 +22,6 @@ package org.sonar.scanner.mediumtest.branch;
 import com.google.common.collect.ImmutableMap;
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.Map;
 import org.apache.commons.io.FileUtils;
 import org.junit.Before;
@@ -31,13 +29,15 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
+import org.sonar.api.SonarEdition;
 import org.sonar.api.batch.fs.internal.DefaultInputFile;
-import org.sonar.scanner.mediumtest.ScannerMediumTester;
+import org.sonar.api.utils.MessageException;
 import org.sonar.scanner.mediumtest.AnalysisResult;
+import org.sonar.scanner.mediumtest.ScannerMediumTester;
+import org.sonar.api.utils.MessageException;
+import org.sonar.scanner.mediumtest.ScannerMediumTester;
 import org.sonar.xoo.XooPlugin;
 import org.sonar.xoo.rule.XooRulesDefinition;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 public class DeprecatedBranchMediumTest {
 
@@ -60,7 +60,7 @@ public class DeprecatedBranchMediumTest {
   private Map<String, String> commonProps;
 
   @Before
-  public void prepare() throws IOException {
+  public void prepare() {
     baseDir = temp.getRoot();
 
     commonProps = ImmutableMap.<String, String>builder()
@@ -82,67 +82,15 @@ public class DeprecatedBranchMediumTest {
     File xooFile = new File(srcDir, "sample.xoo");
     FileUtils.write(xooFile, "Sample xoo\ncontent");
 
-    AnalysisResult result = tester.newAnalysis()
+    thrown.expect(MessageException.class);
+    thrown.expectMessage("The 'sonar.branch' parameter is no longer supported. You should stop using it. " +
+      "Branch analysis is available in Developer Edition and above. See https://redirect.sonarsource.com/editions/developer.html for more information.");
+
+    tester.newAnalysis()
       .properties(ImmutableMap.<String, String>builder()
         .putAll(commonProps)
         .put("sonar.branch", "branch")
         .build())
       .execute();
-
-    assertThat(result.inputFiles()).hasSize(1);
-    assertThat(result.inputFile("src/sample.xoo").key()).isEqualTo("com.foo.project:src/sample.xoo");
-
-    DefaultInputFile inputfile = (DefaultInputFile) result.inputFile("src/sample.xoo");
-    assertThat(result.getReportReader().readComponent(inputfile.scannerId()).getProjectRelativePath()).isEqualTo("src/sample.xoo");
-
-    assertThat(result.getReportReader().readMetadata().getDeprecatedBranch()).isEqualTo("branch");
-
-    result = tester.newAnalysis()
-      .properties(ImmutableMap.<String, String>builder()
-        .putAll(commonProps)
-        .put("sonar.branch", "")
-        .build())
-      .execute();
-
-    assertThat(result.inputFiles()).hasSize(1);
-    assertThat(result.inputFile("src/sample.xoo").key()).isEqualTo("com.foo.project:src/sample.xoo");
   }
-
-  @Test
-  public void scanMultiModuleWithBranch() throws IOException {
-    Path srcDir = baseDir.toPath().resolve("moduleA").resolve("src");
-    Files.createDirectories(srcDir);
-
-    File xooFile = new File(srcDir.toFile(), "sample.xoo");
-    FileUtils.write(xooFile, "Sample xoo\ncontent");
-
-    AnalysisResult result = tester.newAnalysis()
-      .properties(ImmutableMap.<String, String>builder()
-        .putAll(commonProps)
-        .put("sonar.branch", "branch")
-        .put("sonar.modules", "moduleA")
-        .build())
-      .execute();
-
-    assertThat(result.inputFiles()).hasSize(1);
-    assertThat(result.inputFile("moduleA/src/sample.xoo").key()).isEqualTo("com.foo.project:moduleA/src/sample.xoo");
-
-    // no branch in the report
-    DefaultInputFile inputfile = (DefaultInputFile) result.inputFile("moduleA/src/sample.xoo");
-    assertThat(result.getReportReader().readComponent(inputfile.scannerId()).getProjectRelativePath()).isEqualTo("moduleA/src/sample.xoo");
-
-    assertThat(result.getReportReader().readMetadata().getDeprecatedBranch()).isEqualTo("branch");
-
-    result = tester.newAnalysis()
-      .properties(ImmutableMap.<String, String>builder()
-        .putAll(commonProps)
-        .put("sonar.branch", "")
-        .put("sonar.modules", "moduleA")
-        .build())
-      .execute();
-
-    assertThat(result.inputFiles()).hasSize(1);
-    assertThat(result.inputFile("moduleA/src/sample.xoo").key()).isEqualTo("com.foo.project:moduleA/src/sample.xoo");
-  }
-
 }

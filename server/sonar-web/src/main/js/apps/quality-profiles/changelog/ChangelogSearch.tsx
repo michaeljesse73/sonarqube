@@ -18,9 +18,9 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
+import { Button } from 'sonar-ui-common/components/controls/buttons';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import DateRangeInput from '../../../components/controls/DateRangeInput';
-import { Button } from '../../../components/ui/buttons';
-import { translate } from '../../../helpers/l10n';
 
 interface Props {
   dateRange: { from?: Date; to?: Date } | undefined;
@@ -33,7 +33,7 @@ export default class ChangelogSearch extends React.PureComponent<Props> {
     return (
       <div className="display-inline-block" id="quality-profile-changelog-form">
         <DateRangeInput onChange={this.props.onDateRangeChange} value={this.props.dateRange} />
-        <Button className="spacer-left vertical-top" onClick={this.props.onReset}>
+        <Button className="spacer-left text-top" onClick={this.props.onReset}>
           {translate('reset_verb')}
         </Button>
       </div>

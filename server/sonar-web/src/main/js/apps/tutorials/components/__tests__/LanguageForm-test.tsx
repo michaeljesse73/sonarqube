@@ -17,10 +17,10 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { shallow } from 'enzyme';
-import LanguageForm from '../LanguageForm';
+import * as React from 'react';
 import { isSonarCloud } from '../../../../helpers/system';
+import LanguageForm from '../LanguageForm';
 
 jest.mock('../../../../helpers/system', () => ({ isSonarCloud: jest.fn() }));
 
@@ -35,22 +35,6 @@ it('selects java', () => {
   (wrapper.find('RadioToggle').prop('onCheck') as Function)('java');
   wrapper.update();
   expect(wrapper).toMatchSnapshot();
-
-  (wrapper
-    .find('RadioToggle')
-    .at(1)
-    .prop('onCheck') as Function)('maven');
-  wrapper.update();
-  expect(wrapper).toMatchSnapshot();
-  expect(onDone).lastCalledWith({ language: 'java', javaBuild: 'maven' });
-
-  (wrapper
-    .find('RadioToggle')
-    .at(1)
-    .prop('onCheck') as Function)('gradle');
-  wrapper.update();
-  expect(wrapper).toMatchSnapshot();
-  expect(onDone).lastCalledWith({ language: 'java', javaBuild: 'gradle' });
 });
 
 it('selects c#', () => {
@@ -73,42 +57,6 @@ it('selects c-family', () => {
   (wrapper.find('RadioToggle').prop('onCheck') as Function)('c-family');
   wrapper.update();
   expect(wrapper).toMatchSnapshot();
-
-  (wrapper
-    .find('RadioToggle')
-    .at(1)
-    .prop('onCheck') as Function)('msvc');
-  wrapper.update();
-  expect(wrapper).toMatchSnapshot();
-
-  (wrapper.find('NewProjectForm').prop('onDone') as Function)('project-foo');
-  expect(onDone).lastCalledWith({
-    language: 'c-family',
-    cFamilyCompiler: 'msvc',
-    projectKey: 'project-foo'
-  });
-
-  (wrapper
-    .find('RadioToggle')
-    .at(1)
-    .prop('onCheck') as Function)('clang-gcc');
-  wrapper.update();
-  expect(wrapper).toMatchSnapshot();
-
-  (wrapper
-    .find('RadioToggle')
-    .at(2)
-    .prop('onCheck') as Function)('linux');
-  wrapper.update();
-  expect(wrapper).toMatchSnapshot();
-
-  (wrapper.find('NewProjectForm').prop('onDone') as Function)('project-foo');
-  expect(onDone).lastCalledWith({
-    language: 'c-family',
-    cFamilyCompiler: 'clang-gcc',
-    os: 'linux',
-    projectKey: 'project-foo'
-  });
 });
 
 it('selects other', () => {
@@ -118,14 +66,4 @@ it('selects other', () => {
   (wrapper.find('RadioToggle').prop('onCheck') as Function)('other');
   wrapper.update();
   expect(wrapper).toMatchSnapshot();
-
-  (wrapper
-    .find('RadioToggle')
-    .at(1)
-    .prop('onCheck') as Function)('mac');
-  wrapper.update();
-  expect(wrapper).toMatchSnapshot();
-
-  (wrapper.find('NewProjectForm').prop('onDone') as Function)('project-foo');
-  expect(onDone).lastCalledWith({ language: 'other', os: 'mac', projectKey: 'project-foo' });
 });

@@ -18,8 +18,14 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import FacetMeasureValue from './FacetMeasureValue';
-import BubblesIcon from '../../../components/icons-components/BubblesIcon';
+import BubblesIcon from 'sonar-ui-common/components/icons/BubblesIcon';
+import {
+  getLocalizedCategoryMetricName,
+  getLocalizedMetricDomain,
+  getLocalizedMetricName,
+  hasMessage,
+  translate
+} from 'sonar-ui-common/helpers/l10n';
 import FacetBox from '../../../components/facet/FacetBox';
 import FacetHeader from '../../../components/facet/FacetHeader';
 import FacetItem from '../../../components/facet/FacetItem';
@@ -31,13 +37,7 @@ import {
   hasFacetStat,
   sortMeasures
 } from '../utils';
-import {
-  getLocalizedCategoryMetricName,
-  getLocalizedMetricDomain,
-  getLocalizedMetricName,
-  translate,
-  hasMessage
-} from '../../../helpers/l10n';
+import FacetMeasureValue from './FacetMeasureValue';
 
 interface Props {
   domain: { name: string; measures: T.MeasureEnhanced[] };

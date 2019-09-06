@@ -19,30 +19,25 @@
  */
 package org.sonar.scanner.cpd;
 
-import org.apache.commons.lang.StringUtils;
 import org.sonar.api.CoreProperties;
-import org.sonar.api.batch.fs.internal.DefaultInputProject;
 import org.sonar.api.config.Configuration;
 import org.sonar.duplications.block.BlockChunker;
+import org.sonar.api.batch.fs.internal.DefaultInputProject;
 
 public class CpdSettings {
   private final Configuration settings;
-  private final String branch;
 
-  public CpdSettings(Configuration config, DefaultInputProject project) {
+  public CpdSettings(Configuration config) {
     this.settings = config;
-    this.branch = project.getBranch();
   }
 
   public boolean isCrossProjectDuplicationEnabled() {
-    return settings.getBoolean(CoreProperties.CPD_CROSS_PROJECT).orElse(false)
-      // No cross project duplication for branches
-      && StringUtils.isBlank(branch);
+    return settings.getBoolean(CoreProperties.CPD_CROSS_PROJECT).orElse(false);
   }
 
   /**
-   * Not applicable to Java, as the {@link BlockChunker} that it uses does not record start and end units of each block. 
-   * Also, it uses statements instead of tokens. 
+   * Not applicable to Java, as the {@link BlockChunker} that it uses does not record start and end units of each block.
+   * Also, it uses statements instead of tokens.
    */
   int getMinimumTokens(String languageKey) {
     return settings.getInt("sonar.cpd." + languageKey + ".minimumTokens").orElse(100);

@@ -19,8 +19,6 @@
  */
 package org.sonar.ce.task.projectanalysis.scm;
 
-import java.util.Map;
-
 /**
  * Represents changeset information for a file. If SCM information is present, it will be the author, revision and date fetched from SCM
  * for every line. Otherwise, it's a date that corresponds the the analysis date in which the line was modified. 
@@ -45,8 +43,8 @@ public interface ScmInfo {
   boolean hasChangesetForLine(int lineNumber);
 
   /**
-   * Return all ChangeSets, in order, for all lines that have changesets.
+   * Return all ChangeSets, index by line number. Some values might be null.
    */
-  Map<Integer, Changeset> getAllChangesets();
+  Changeset[] getAllChangesets();
 
 }

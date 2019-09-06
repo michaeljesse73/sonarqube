@@ -18,7 +18,10 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
+import { lazyLoad } from 'sonar-ui-common/components/lazyLoad';
 import GlobalFooterContainer from './GlobalFooterContainer';
+
+const PageTracker = lazyLoad(() => import('./PageTracker'));
 
 interface Props {
   children?: React.ReactNode;
@@ -26,11 +29,15 @@ interface Props {
 
 export default function SimpleSessionsContainer({ children }: Props) {
   return (
-    <div className="global-container">
-      <div className="page-wrapper" id="container">
-        {children}
+    <>
+      <PageTracker />
+
+      <div className="global-container">
+        <div className="page-wrapper" id="container">
+          {children}
+        </div>
+        <GlobalFooterContainer hideLoggedInInfo={true} />
       </div>
-      <GlobalFooterContainer hideLoggedInInfo={true} />
-    </div>
+    </>
   );
 }

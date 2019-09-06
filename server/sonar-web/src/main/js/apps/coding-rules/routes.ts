@@ -17,13 +17,12 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import { RouterState, RedirectFunction } from 'react-router';
+import { RedirectFunction, RouterState } from 'react-router';
+import { lazyLoad } from 'sonar-ui-common/components/lazyLoad';
 import { parseQuery, serializeQuery } from './query';
-import { lazyLoad } from '../../components/lazyLoad';
-import { RawQuery } from '../../helpers/query';
 
-function parseHash(hash: string): RawQuery {
-  const query: RawQuery = {};
+function parseHash(hash: string): T.RawQuery {
+  const query: T.RawQuery = {};
   const parts = hash.split('|');
   parts.forEach(part => {
     const tokens = part.split('=');

@@ -18,13 +18,13 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import QualityGateConditions from './QualityGateConditions';
-import EmptyQualityGate from './EmptyQualityGate';
-import { translate } from '../../../helpers/l10n';
-import Level from '../../../components/ui/Level';
-import HelpTooltip from '../../../components/controls/HelpTooltip';
+import HelpTooltip from 'sonar-ui-common/components/controls/HelpTooltip';
+import { Alert } from 'sonar-ui-common/components/ui/Alert';
+import Level from 'sonar-ui-common/components/ui/Level';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import DocTooltip from '../../../components/docs/DocTooltip';
-import { Alert } from '../../../components/ui/Alert';
+import EmptyQualityGate from './EmptyQualityGate';
+import QualityGateConditions from './QualityGateConditions';
 
 interface Props {
   branchLike?: T.BranchLike;
@@ -62,7 +62,7 @@ export default function QualityGate({ branchLike, component, measures }: Props) 
         {level === 'WARN' && (
           <HelpTooltip
             className="little-spacer-left"
-            overlay={translate('quality_gates.conditions.warning.tootlip')}
+            overlay={translate('quality_gates.conditions.warning.tooltip')}
           />
         )}
       </div>

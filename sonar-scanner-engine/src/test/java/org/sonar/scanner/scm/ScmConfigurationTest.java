@@ -32,13 +32,13 @@ import org.junit.runner.RunWith;
 import org.mockito.Answers;
 import org.sonar.api.CoreProperties;
 import org.sonar.api.batch.AnalysisMode;
-import org.sonar.api.batch.fs.internal.InputModuleHierarchy;
 import org.sonar.api.batch.scm.ScmProvider;
 import org.sonar.api.config.Configuration;
 import org.sonar.api.notifications.AnalysisWarnings;
 import org.sonar.api.utils.MessageException;
 import org.sonar.api.utils.log.LogTester;
 import org.sonar.core.config.ScannerProperties;
+import org.sonar.scanner.fs.InputModuleHierarchy;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.any;
@@ -48,7 +48,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
-import static org.sonar.scanner.scm.ScmConfiguration.MESSAGE_SCM_EXLUSIONS_IS_DISABLED_BY_CONFIGURATION;
+import static org.sonar.scanner.scm.ScmConfiguration.MESSAGE_SCM_EXCLUSIONS_IS_DISABLED_BY_CONFIGURATION;
 import static org.sonar.scanner.scm.ScmConfiguration.MESSAGE_SCM_STEP_IS_DISABLED_BY_CONFIGURATION;
 
 @RunWith(DataProviderRunner.class)
@@ -110,7 +110,7 @@ public class ScmConfigurationTest {
 
     underTest.start();
 
-    assertThat(logTester.logs()).contains(MESSAGE_SCM_EXLUSIONS_IS_DISABLED_BY_CONFIGURATION);
+    assertThat(logTester.logs()).contains(MESSAGE_SCM_EXCLUSIONS_IS_DISABLED_BY_CONFIGURATION);
   }
 
   @Test

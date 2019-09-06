@@ -18,13 +18,13 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import MetaTagsSelector from './MetaTagsSelector';
-import Dropdown from '../../../components/controls/Dropdown';
-import TagsList from '../../../components/tags/TagsList';
-import { ButtonLink } from '../../../components/ui/buttons';
-import { PopupPlacement } from '../../../components/ui/popups';
+import { ButtonLink } from 'sonar-ui-common/components/controls/buttons';
+import Dropdown from 'sonar-ui-common/components/controls/Dropdown';
+import { PopupPlacement } from 'sonar-ui-common/components/ui/popups';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import { setProjectTags } from '../../../api/components';
-import { translate } from '../../../helpers/l10n';
+import TagsList from '../../../components/tags/TagsList';
+import MetaTagsSelector from './MetaTagsSelector';
 
 interface Props {
   component: T.Component;

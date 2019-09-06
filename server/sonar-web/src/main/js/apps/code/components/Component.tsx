@@ -19,14 +19,15 @@
  */
 import * as classNames from 'classnames';
 import * as React from 'react';
-import ComponentName from './ComponentName';
-import ComponentMeasure from './ComponentMeasure';
-import ComponentPin from './ComponentPin';
-import { WorkspaceContext } from '../../../components/workspace/context';
 import { withScrollTo } from '../../../components/hoc/withScrollTo';
+import { WorkspaceContext } from '../../../components/workspace/context';
+import ComponentMeasure from './ComponentMeasure';
+import ComponentName from './ComponentName';
+import ComponentPin from './ComponentPin';
 
 interface Props {
   branchLike?: T.BranchLike;
+  canBePinned?: boolean;
   canBrowse?: boolean;
   component: T.ComponentMeasure;
   metrics: T.Metric[];
@@ -39,6 +40,7 @@ export class Component extends React.PureComponent<Props> {
   render() {
     const {
       branchLike,
+      canBePinned = true,
       canBrowse = false,
       component,
       metrics,
@@ -52,21 +54,23 @@ export class Component extends React.PureComponent<Props> {
     return (
       <tr className={classNames({ selected })}>
         <td className="blank" />
-        <td className="thin nowrap">
-          <span className="spacer-right">
+        {canBePinned && (
+          <td className="thin nowrap">
             {isFile && (
-              <WorkspaceContext.Consumer>
-                {({ openComponent }) => (
-                  <ComponentPin
-                    branchLike={branchLike}
-                    component={component}
-                    openComponent={openComponent}
-                  />
-                )}
-              </WorkspaceContext.Consumer>
+              <span className="spacer-right">
+                <WorkspaceContext.Consumer>
+                  {({ openComponent }) => (
+                    <ComponentPin
+                      branchLike={branchLike}
+                      component={component}
+                      openComponent={openComponent}
+                    />
+                  )}
+                </WorkspaceContext.Consumer>
+              </span>
             )}
-          </span>
-        </td>
+          </td>
+        )}
         <td className="code-name-cell">
           <ComponentName
             branchLike={branchLike}
@@ -78,8 +82,17 @@ export class Component extends React.PureComponent<Props> {
         </td>
 
         {metrics.map(metric => (
-          <td className="thin nowrap text-right" key={metric.key}>
-            <div className="code-components-cell">
+          <td
+            className={classNames('thin', {
+              'text-center': metric.type === 'RATING',
+              'nowrap text-right': metric.type !== 'RATING'
+            })}
+            key={metric.key}>
+            <div
+              className={classNames({
+                'code-components-rating-cell': metric.type === 'RATING',
+                'code-components-cell': metric.type !== 'RATING'
+              })}>
               <ComponentMeasure component={component} metric={metric} />
             </div>
           </td>

@@ -17,31 +17,28 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
+import { groupBy, keyBy, sortBy } from 'lodash';
 import * as React from 'react';
 import { Link } from 'react-router';
-import { keyBy, sortBy, groupBy } from 'lodash';
-import MeasuresOverlayMeasure from './MeasuresOverlayMeasure';
-import { ResetButtonLink } from '../../ui/buttons';
+import { ResetButtonLink } from 'sonar-ui-common/components/controls/buttons';
+import Modal from 'sonar-ui-common/components/controls/Modal';
+import IssueTypeIcon from 'sonar-ui-common/components/icons/IssueTypeIcon';
+import QualifierIcon from 'sonar-ui-common/components/icons/QualifierIcon';
+import TagsIcon from 'sonar-ui-common/components/icons/TagsIcon';
+import DuplicationsRating from 'sonar-ui-common/components/ui/DuplicationsRating';
+import { getLocalizedMetricName, translate } from 'sonar-ui-common/helpers/l10n';
+import { formatMeasure } from 'sonar-ui-common/helpers/measures';
 import { getFacets } from '../../../api/issues';
 import { getMeasures } from '../../../api/measures';
 import { getAllMetrics } from '../../../api/metrics';
-import Modal from '../../controls/Modal';
+import { getBranchLikeQuery } from '../../../helpers/branches';
+import { ISSUE_TYPES, SEVERITIES } from '../../../helpers/constants';
+import { enhanceMeasuresWithMetrics, getDisplayMetrics } from '../../../helpers/measures';
+import { getBranchLikeUrl } from '../../../helpers/urls';
 import Measure from '../../measure/Measure';
-import QualifierIcon from '../../icons-components/QualifierIcon';
 import SeverityHelper from '../../shared/SeverityHelper';
 import CoverageRating from '../../ui/CoverageRating';
-import DuplicationsRating from '../../ui/DuplicationsRating';
-import IssueTypeIcon from '../../ui/IssueTypeIcon';
-import { SEVERITIES, ISSUE_TYPES } from '../../../helpers/constants';
-import { translate, getLocalizedMetricName } from '../../../helpers/l10n';
-import {
-  formatMeasure,
-  getDisplayMetrics,
-  enhanceMeasuresWithMetrics
-} from '../../../helpers/measures';
-import { getBranchLikeUrl } from '../../../helpers/urls';
-import { getBranchLikeQuery } from '../../../helpers/branches';
-import TagsIcon from '../../icons-components/TagsIcon';
+import MeasuresOverlayMeasure from './MeasuresOverlayMeasure';
 
 interface Props {
   branchLike: T.BranchLike | undefined;
@@ -381,7 +378,7 @@ export default class MeasuresOverlay extends React.PureComponent<Props, State> {
     const { loading } = this.state;
 
     return (
-      <Modal contentLabel="" onRequestClose={this.props.onClose} size={'large'}>
+      <Modal contentLabel="" onRequestClose={this.props.onClose} size="large">
         <div className="modal-container source-viewer-measures-modal">
           <div className="source-viewer-header-component source-viewer-measures-component">
             <div className="source-viewer-header-component-project">

@@ -18,14 +18,14 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
+import { ResetButtonLink, SubmitButton } from 'sonar-ui-common/components/controls/buttons';
+import Modal from 'sonar-ui-common/components/controls/Modal';
+import Select from 'sonar-ui-common/components/controls/Select';
+import { Alert } from 'sonar-ui-common/components/ui/Alert';
+import { translate, translateWithParameters } from 'sonar-ui-common/helpers/l10n';
+import { formatMeasure } from 'sonar-ui-common/helpers/measures';
+import { bulkActivateRules, bulkDeactivateRules, Profile } from '../../../api/quality-profiles';
 import { Query, serializeQuery } from '../query';
-import Modal from '../../../components/controls/Modal';
-import Select from '../../../components/controls/Select';
-import { Alert } from '../../../components/ui/Alert';
-import { SubmitButton, ResetButtonLink } from '../../../components/ui/buttons';
-import { Profile, bulkActivateRules, bulkDeactivateRules } from '../../../api/quality-profiles';
-import { translate, translateWithParameters } from '../../../helpers/l10n';
-import { formatMeasure } from '../../../helpers/measures';
 
 interface Props {
   action: string;

@@ -30,7 +30,6 @@ import org.sonar.api.Properties;
 import org.sonar.api.Property;
 import org.sonar.api.PropertyType;
 import org.sonar.api.batch.AnalysisMode;
-import org.sonar.api.batch.fs.internal.InputModuleHierarchy;
 import org.sonar.api.batch.scm.ScmProvider;
 import org.sonar.api.config.Configuration;
 import org.sonar.api.notifications.AnalysisWarnings;
@@ -38,6 +37,7 @@ import org.sonar.api.utils.MessageException;
 import org.sonar.api.utils.log.Logger;
 import org.sonar.api.utils.log.Loggers;
 import org.sonar.core.config.ScannerProperties;
+import org.sonar.scanner.fs.InputModuleHierarchy;
 
 import static org.sonar.api.CoreProperties.SCM_PROVIDER_KEY;
 
@@ -59,7 +59,7 @@ public class ScmConfiguration implements Startable {
   public static final String FORCE_RELOAD_KEY = "sonar.scm.forceReloadAll";
 
   static final String MESSAGE_SCM_STEP_IS_DISABLED_BY_CONFIGURATION = "SCM Step is disabled by configuration";
-  static final String MESSAGE_SCM_EXLUSIONS_IS_DISABLED_BY_CONFIGURATION = "Exclusions based on SCM info is disabled by configuration";
+  static final String MESSAGE_SCM_EXCLUSIONS_IS_DISABLED_BY_CONFIGURATION = "Exclusions based on SCM info is disabled by configuration";
 
   private final Configuration settings;
   private final AnalysisWarnings analysisWarnings;
@@ -107,7 +107,7 @@ public class ScmConfiguration implements Startable {
       }
     }
     if (isExclusionDisabled()) {
-      LOG.info(MESSAGE_SCM_EXLUSIONS_IS_DISABLED_BY_CONFIGURATION);
+      LOG.info(MESSAGE_SCM_EXCLUSIONS_IS_DISABLED_BY_CONFIGURATION);
     }
   }
 

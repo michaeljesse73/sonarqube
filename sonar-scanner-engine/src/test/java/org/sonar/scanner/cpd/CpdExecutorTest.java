@@ -36,9 +36,6 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.mockito.ArgumentMatchers;
-import org.sonar.api.batch.fs.internal.DefaultInputFile;
-import org.sonar.api.batch.fs.internal.DefaultInputProject;
-import org.sonar.api.batch.fs.internal.TestInputFileBuilder;
 import org.sonar.api.utils.log.LogTester;
 import org.sonar.api.utils.log.LoggerLevel;
 import org.sonar.core.util.CloseableIterator;
@@ -47,6 +44,9 @@ import org.sonar.duplications.block.ByteArray;
 import org.sonar.duplications.index.CloneGroup;
 import org.sonar.duplications.index.ClonePart;
 import org.sonar.scanner.cpd.index.SonarCpdBlockIndex;
+import org.sonar.api.batch.fs.internal.DefaultInputFile;
+import org.sonar.api.batch.fs.internal.DefaultInputProject;
+import org.sonar.api.batch.fs.internal.TestInputFileBuilder;
 import org.sonar.scanner.protocol.output.ScannerReport.Duplicate;
 import org.sonar.scanner.protocol.output.ScannerReport.Duplication;
 import org.sonar.scanner.protocol.output.ScannerReportReader;
@@ -102,7 +102,7 @@ public class CpdExecutorTest {
   @Test
   public void dont_fail_if_nothing_to_save() {
     executor.saveDuplications(batchComponent1, Collections.<CloneGroup>emptyList());
-    assertThat(reader.readComponentDuplications(batchComponent1.scannerId())).hasSize(0);
+    assertThat(reader.readComponentDuplications(batchComponent1.scannerId())).isExhausted();
   }
 
   @Test
@@ -157,7 +157,7 @@ public class CpdExecutorTest {
     }
     executor.saveDuplications(batchComponent1, dups);
 
-    assertThat(reader.readComponentDuplications(batchComponent1.scannerId())).hasSize(CpdExecutor.MAX_CLONE_GROUP_PER_FILE);
+    assertThat(reader.readComponentDuplications(batchComponent1.scannerId())).toIterable().hasSize(CpdExecutor.MAX_CLONE_GROUP_PER_FILE);
 
     assertThat(logTester.logs(LoggerLevel.WARN))
       .contains("Too many duplication groups on file " + batchComponent1 + ". Keep only the first " + CpdExecutor.MAX_CLONE_GROUP_PER_FILE + " groups.");
@@ -243,7 +243,7 @@ public class CpdExecutorTest {
   }
 
   private Duplication[] readDuplications(DefaultInputFile file, int expected) {
-    assertThat(reader.readComponentDuplications(file.scannerId())).hasSize(expected);
+    assertThat(reader.readComponentDuplications(file.scannerId())).toIterable().hasSize(expected);
     Duplication[] duplications = new Duplication[expected];
     CloseableIterator<Duplication> dups = reader.readComponentDuplications(file.scannerId());
 

@@ -17,22 +17,21 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
+import { uniq } from 'lodash';
 import { connect } from 'react-redux';
 import { Dispatch } from 'redux';
-import { uniq } from 'lodash';
+import { lazyLoad } from 'sonar-ui-common/components/lazyLoad';
 import { searchIssues } from '../../../api/issues';
 import { getOrganizations } from '../../../api/organizations';
 import throwGlobalError from '../../../app/utils/throwGlobalError';
+import { parseIssueFromResponse } from '../../../helpers/issues';
+import { receiveOrganizations } from '../../../store/organizations';
 import {
-  getCurrentUser,
   areThereCustomOrganizations,
+  getCurrentUser,
   getMyOrganizations,
   Store
 } from '../../../store/rootReducer';
-import { lazyLoad } from '../../../components/lazyLoad';
-import { parseIssueFromResponse } from '../../../helpers/issues';
-import { RawQuery } from '../../../helpers/query';
-import { receiveOrganizations } from '../../../store/organizations';
 
 interface StateProps {
   currentUser: T.CurrentUser;
@@ -55,7 +54,7 @@ const fetchIssueOrganizations = (organizationKeys: string[]) => (dispatch: Dispa
   );
 };
 
-const fetchIssues = (query: RawQuery, requestOrganizations = true) => (
+const fetchIssues = (query: T.RawQuery, requestOrganizations = true) => (
   // use `Function` to be able to do `dispatch(...).then(...)`
   dispatch: Function,
   getState: () => Store
@@ -81,7 +80,7 @@ const fetchIssues = (query: RawQuery, requestOrganizations = true) => (
 };
 
 interface DispatchProps {
-  fetchIssues: (query: RawQuery, requestOrganizations?: boolean) => Promise<void>;
+  fetchIssues: (query: T.RawQuery, requestOrganizations?: boolean) => Promise<void>;
 }
 
 // have to type cast this, because of async action
@@ -90,4 +89,4 @@ const mapDispatchToProps = { fetchIssues: fetchIssues as any } as DispatchProps;
 export default connect(
   mapStateToProps,
   mapDispatchToProps
-)(lazyLoad(() => import('./App')));
+)(lazyLoad(() => import('./App'), 'IssuesAppContainer'));

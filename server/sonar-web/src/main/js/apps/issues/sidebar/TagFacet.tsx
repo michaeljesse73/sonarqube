@@ -17,15 +17,15 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { omit } from 'lodash';
-import { Query, Facet } from '../utils';
+import * as React from 'react';
+import TagsIcon from 'sonar-ui-common/components/icons/TagsIcon';
+import { translate } from 'sonar-ui-common/helpers/l10n';
+import { highlightTerm } from 'sonar-ui-common/helpers/search';
 import { searchIssueTags } from '../../../api/issues';
-import * as theme from '../../../app/theme';
-import TagsIcon from '../../../components/icons-components/TagsIcon';
-import { translate } from '../../../helpers/l10n';
+import { colors } from '../../../app/theme';
 import ListStyleFacet from '../../../components/facet/ListStyleFacet';
-import { highlightTerm } from '../../../helpers/search';
+import { Facet, Query } from '../utils';
 
 interface Props {
   component: T.Component | undefined;
@@ -66,7 +66,7 @@ export default class TagFacet extends React.PureComponent<Props> {
   renderTag = (tag: string) => {
     return (
       <>
-        <TagsIcon className="little-spacer-right" fill={theme.gray60} />
+        <TagsIcon className="little-spacer-right" fill={colors.gray60} />
         {tag}
       </>
     );
@@ -74,7 +74,7 @@ export default class TagFacet extends React.PureComponent<Props> {
 
   renderSearchResult = (tag: string, term: string) => (
     <>
-      <TagsIcon className="little-spacer-right" fill={theme.gray60} />
+      <TagsIcon className="little-spacer-right" fill={colors.gray60} />
       {highlightTerm(tag, term)}
     </>
   );

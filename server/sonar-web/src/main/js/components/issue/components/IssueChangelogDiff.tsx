@@ -18,17 +18,11 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import { formatMeasure } from '../../../helpers/measures';
-import { translate, translateWithParameters } from '../../../helpers/l10n';
-
-export interface ChangelogDiff {
-  key: string;
-  newValue?: string;
-  oldValue?: string;
-}
+import { translate, translateWithParameters } from 'sonar-ui-common/helpers/l10n';
+import { formatMeasure } from 'sonar-ui-common/helpers/measures';
 
 interface Props {
-  diff: ChangelogDiff;
+  diff: T.IssueChangelogDiff;
 }
 
 export default function IssueChangelogDiff({ diff }: Props) {
@@ -62,6 +56,8 @@ export default function IssueChangelogDiff({ diff }: Props) {
         )}
       </p>
     );
+  } else if (diff.key === 'line') {
+    return <p>{translateWithParameters('issue.changelog.line_removed_X', diff.oldValue || '')}</p>;
   }
 
   let message;

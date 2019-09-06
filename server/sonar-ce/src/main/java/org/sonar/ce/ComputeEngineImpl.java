@@ -49,8 +49,23 @@ public class ComputeEngineImpl implements ComputeEngine, ComputeEngineStatus {
   }
 
   @Override
+  public void stopProcessing() {
+    checkState(this.status.ordinal() >= Status.STARTED.ordinal(), "stopProcessing() must not be called before startup()");
+    checkState(this.status.ordinal() <= Status.STOPPING.ordinal(), "stopProcessing() can not be called after shutdown()");
+    checkState(this.status.ordinal() <= Status.STOPPING_WORKERS.ordinal(), "stopProcessing() can not be called multiple times");
+
+    try {
+      this.status = Status.STOPPING_WORKERS;
+      this.computeEngineContainer.stopWorkers();
+    } finally {
+      this.status = Status.WORKERS_STOPPED;
+    }
+  }
+
+  @Override
   public void shutdown() {
-    checkStateAsShutdown(this.status);
+    checkState(this.status.ordinal() >= Status.STARTED.ordinal(), "shutdown() must not be called before startup()");
+    checkState(this.status.ordinal() <= Status.STOPPING.ordinal(), "shutdown() can not be called multiple times");
 
     try {
       this.status = Status.STOPPING;
@@ -60,10 +75,6 @@ public class ComputeEngineImpl implements ComputeEngine, ComputeEngineStatus {
     }
   }
 
-  private static void checkStateAsShutdown(Status currentStatus) {
-    checkState(currentStatus.ordinal() >= Status.STARTED.ordinal(), "shutdown() must not be called before startup()");
-    checkState(currentStatus.ordinal() <= Status.STOPPING.ordinal(), "shutdown() can not be called multiple times");
-  }
 
   @Override
   public Status getStatus() {

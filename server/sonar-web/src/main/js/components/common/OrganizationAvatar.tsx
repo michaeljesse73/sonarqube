@@ -17,9 +17,9 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import * as classNames from 'classnames';
-import GenericAvatar from '../ui/GenericAvatar';
+import * as React from 'react';
+import GenericAvatar from 'sonar-ui-common/components/ui/GenericAvatar';
 import './OrganizationAvatar.css';
 
 interface Props {

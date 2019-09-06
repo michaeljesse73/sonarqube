@@ -20,17 +20,17 @@
 import * as React from 'react';
 import Helmet from 'react-helmet';
 import { connect } from 'react-redux';
-import { FixedNavBar, TopNavBar } from './components/NavBars';
+import { addWhitePageClass, removeWhitePageClass } from 'sonar-ui-common/helpers/pages';
+import { getBaseUrl } from 'sonar-ui-common/helpers/urls';
+import { getGlobalSettingValue, Store } from '../../../store/rootReducer';
 import FeaturedProjects from './components/FeaturedProjects';
 import Footer from './components/Footer';
 import { Languages } from './components/Languages';
 import LoginButtons from './components/LoginButtons';
+import { FixedNavBar, TopNavBar } from './components/NavBars';
 import Statistics from './components/Statistics';
-import { requestHomepageData, HomepageData, FeaturedProject } from './utils';
-import { getGlobalSettingValue, Store } from '../../../store/rootReducer';
-import { addWhitePageClass, removeWhitePageClass } from '../../../helpers/pages';
-import { getBaseUrl } from '../../../helpers/urls';
 import './new_style.css';
+import { FeaturedProject, HomepageData, requestHomepageData } from './utils';
 
 interface Props {
   homePageDataUrl?: string;

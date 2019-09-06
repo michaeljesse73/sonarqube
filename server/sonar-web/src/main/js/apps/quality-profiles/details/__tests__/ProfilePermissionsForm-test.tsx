@@ -17,16 +17,16 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-/* eslint-disable import/first, import/order */
+/* eslint-disable import/first */
 jest.mock('../../../../api/quality-profiles', () => ({
   addUser: jest.fn(() => Promise.resolve()),
   addGroup: jest.fn(() => Promise.resolve())
 }));
 
-import * as React from 'react';
 import { shallow } from 'enzyme';
+import * as React from 'react';
+import { submit } from 'sonar-ui-common/helpers/testUtils';
 import ProfilePermissionsForm from '../ProfilePermissionsForm';
-import { submit } from '../../../../helpers/testUtils';
 
 const addUser = require('../../../../api/quality-profiles').addUser as jest.Mock<any>;
 const addGroup = require('../../../../api/quality-profiles').addGroup as jest.Mock<any>;

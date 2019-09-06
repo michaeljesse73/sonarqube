@@ -17,17 +17,13 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
+import * as differenceInDays from 'date-fns/difference_in_days';
 import { shallow } from 'enzyme';
+import * as React from 'react';
 import { InjectedIntlProps } from 'react-intl';
 import { LeakPeriodLegend } from '../LeakPeriodLegend';
-import { differenceInDays } from '../../../../helpers/dates';
 
-jest.mock('../../../../helpers/dates', () => {
-  const dates = require.requireActual('../../../../helpers/dates');
-  dates.differenceInDays = jest.fn().mockReturnValue(10);
-  return dates;
-});
+jest.mock('date-fns/difference_in_days', () => jest.fn().mockReturnValue(10));
 
 const PROJECT = {
   key: 'foo',

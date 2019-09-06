@@ -29,6 +29,7 @@ import org.sonar.api.rule.RuleKey;
 import org.sonar.api.utils.Duration;
 
 import static java.util.Arrays.asList;
+import static java.util.Collections.unmodifiableList;
 
 /**
  * @since 3.6
@@ -73,14 +74,30 @@ public interface Issue extends Serializable {
    */
   String RESOLUTION_WONT_FIX = "WONTFIX";
 
-  List<String> RESOLUTIONS = asList(RESOLUTION_FALSE_POSITIVE, RESOLUTION_WONT_FIX, RESOLUTION_FIXED, RESOLUTION_REMOVED);
+  List<String> RESOLUTIONS = unmodifiableList(asList(RESOLUTION_FALSE_POSITIVE, RESOLUTION_WONT_FIX, RESOLUTION_FIXED, RESOLUTION_REMOVED));
+
+  /**
+   * @since 7.8
+   */
+  String STATUS_TO_REVIEW = "TO_REVIEW";
+
+  /**
+   * @since 7.8
+   */
+  String STATUS_IN_REVIEW = "IN_REVIEW";
+
+  /**
+   * @since 7.8
+   */
+  String STATUS_REVIEWED = "REVIEWED";
 
   /**
    * Return all available statuses
    *
    * @since 4.4
    */
-  List<String> STATUSES = asList(STATUS_OPEN, STATUS_CONFIRMED, STATUS_REOPENED, STATUS_RESOLVED, STATUS_CLOSED);
+  List<String> STATUSES = unmodifiableList(asList(STATUS_OPEN, STATUS_CONFIRMED, STATUS_REOPENED, STATUS_RESOLVED, STATUS_CLOSED,
+    STATUS_TO_REVIEW, STATUS_IN_REVIEW, STATUS_REVIEWED));
 
   /**
    * Unique generated key. It looks like "d2de809c-1512-4ae2-9f34-f5345c9f1a13".

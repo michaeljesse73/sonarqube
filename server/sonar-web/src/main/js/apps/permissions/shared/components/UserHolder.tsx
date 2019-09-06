@@ -17,13 +17,13 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { without } from 'lodash';
-import PermissionCell from './PermissionCell';
+import * as React from 'react';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import Avatar from '../../../../components/ui/Avatar';
-import { translate } from '../../../../helpers/l10n';
-import { isPermissionDefinitionGroup } from '../../utils';
 import { isSonarCloud } from '../../../../helpers/system';
+import { isPermissionDefinitionGroup } from '../../utils';
+import PermissionCell from './PermissionCell';
 
 interface Props {
   onToggle: (user: T.PermissionUser, permission: string) => Promise<void>;
@@ -108,11 +108,22 @@ export default class UserHolder extends React.PureComponent<Props, State> {
             size={36}
           />
           <div className="display-inline-block text-middle">
-            <div>
-              <strong>{user.name}</strong>
-              <span className="note spacer-left">{user.login}</span>
-            </div>
-            <div className="little-spacer-top">{user.email}</div>
+            {isSonarCloud() ? (
+              <>
+                <div>
+                  <strong>{user.name}</strong>
+                </div>
+                <div className="note little-spacer-top">{user.login}</div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <strong>{user.name}</strong>
+                  <span className="note spacer-left">{user.login}</span>
+                </div>
+                <div className="little-spacer-top">{user.email}</div>
+              </>
+            )}
           </div>
         </td>
         {permissionCells}

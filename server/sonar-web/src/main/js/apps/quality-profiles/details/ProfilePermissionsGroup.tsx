@@ -19,12 +19,12 @@
  */
 import * as React from 'react';
 import { FormattedMessage } from 'react-intl';
-import { Group } from './ProfilePermissions';
+import { Button, DeleteButton, ResetButtonLink } from 'sonar-ui-common/components/controls/buttons';
+import SimpleModal, { ChildrenProps } from 'sonar-ui-common/components/controls/SimpleModal';
+import GroupIcon from 'sonar-ui-common/components/icons/GroupIcon';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import { removeGroup } from '../../../api/quality-profiles';
-import SimpleModal, { ChildrenProps } from '../../../components/controls/SimpleModal';
-import GroupIcon from '../../../components/icons-components/GroupIcon';
-import { DeleteButton, Button, ResetButtonLink } from '../../../components/ui/buttons';
-import { translate } from '../../../helpers/l10n';
+import { Group } from './ProfilePermissions';
 
 interface Props {
   group: Group;

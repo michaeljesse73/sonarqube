@@ -24,6 +24,7 @@ import com.google.common.collect.Collections2;
 import com.tngtech.java.junit.dataprovider.DataProvider;
 import com.tngtech.java.junit.dataprovider.DataProviderRunner;
 import com.tngtech.java.junit.dataprovider.UseDataProvider;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collection;
@@ -36,7 +37,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.sonar.api.issue.DefaultTransitions;
 import org.sonar.api.rule.RuleKey;
-import org.sonar.api.rules.RuleType;
 import org.sonar.core.issue.DefaultIssue;
 import org.sonar.core.issue.FieldDiffs;
 import org.sonar.core.issue.IssueChangeContext;
@@ -52,88 +52,85 @@ import static org.sonar.api.issue.Issue.RESOLUTION_REMOVED;
 import static org.sonar.api.issue.Issue.RESOLUTION_WONT_FIX;
 import static org.sonar.api.issue.Issue.STATUS_CLOSED;
 import static org.sonar.api.issue.Issue.STATUS_CONFIRMED;
+import static org.sonar.api.issue.Issue.STATUS_IN_REVIEW;
 import static org.sonar.api.issue.Issue.STATUS_OPEN;
 import static org.sonar.api.issue.Issue.STATUS_REOPENED;
 import static org.sonar.api.issue.Issue.STATUS_RESOLVED;
+import static org.sonar.api.issue.Issue.STATUS_REVIEWED;
+import static org.sonar.api.issue.Issue.STATUS_TO_REVIEW;
 
 @RunWith(DataProviderRunner.class)
 public class IssueWorkflowTest {
 
   private IssueFieldsSetter updater = new IssueFieldsSetter();
-  private IssueWorkflow workflow = new IssueWorkflow(new FunctionExecutor(updater), updater);
 
-  @Test
-  public void init_state_machine() {
-    assertThat(workflow.machine()).isNull();
-    workflow.start();
-    assertThat(workflow.machine()).isNotNull();
-    assertThat(workflow.machine().state(STATUS_OPEN)).isNotNull();
-    assertThat(workflow.machine().state(STATUS_CONFIRMED)).isNotNull();
-    assertThat(workflow.machine().state(STATUS_CLOSED)).isNotNull();
-    assertThat(workflow.machine().state(STATUS_REOPENED)).isNotNull();
-    assertThat(workflow.machine().state(STATUS_RESOLVED)).isNotNull();
-    workflow.stop();
-  }
+  private IssueWorkflow underTest = new IssueWorkflow(new FunctionExecutor(updater), updater);
 
   @Test
   public void list_statuses() {
-    workflow.start();
-    // order is important for UI
-    assertThat(workflow.statusKeys()).containsSubsequence(STATUS_OPEN, STATUS_CONFIRMED, STATUS_REOPENED, STATUS_RESOLVED, STATUS_CLOSED);
+    underTest.start();
+
+    List<String> expectedStatus = new ArrayList<>();
+    // issues statuses
+    expectedStatus.addAll(Arrays.asList(STATUS_OPEN, STATUS_CONFIRMED, STATUS_REOPENED, STATUS_RESOLVED, STATUS_CLOSED));
+    // hostpots statuses
+    expectedStatus.addAll(Arrays.asList(STATUS_TO_REVIEW, STATUS_IN_REVIEW, STATUS_REVIEWED));
+
+    assertThat(underTest.statusKeys()).containsExactlyInAnyOrder(expectedStatus.toArray(new String[]{}));
   }
 
   @Test
   public void list_out_transitions_from_status_open() {
-    workflow.start();
+    underTest.start();
 
     DefaultIssue issue = new DefaultIssue().setStatus(STATUS_OPEN);
-    List<Transition> transitions = workflow.outTransitions(issue);
+    List<Transition> transitions = underTest.outTransitions(issue);
     assertThat(keys(transitions)).containsOnly("confirm", "falsepositive", "resolve", "wontfix");
   }
 
   @Test
   public void list_out_transitions_from_status_confirmed() {
-    workflow.start();
+    underTest.start();
 
     DefaultIssue issue = new DefaultIssue().setStatus(STATUS_CONFIRMED);
-    List<Transition> transitions = workflow.outTransitions(issue);
+    List<Transition> transitions = underTest.outTransitions(issue);
     assertThat(keys(transitions)).containsOnly("unconfirm", "falsepositive", "resolve", "wontfix");
   }
 
   @Test
   public void list_out_transitions_from_status_resolved() {
-    workflow.start();
+    underTest.start();
 
     DefaultIssue issue = new DefaultIssue().setStatus(STATUS_RESOLVED);
-    List<Transition> transitions = workflow.outTransitions(issue);
+    List<Transition> transitions = underTest.outTransitions(issue);
     assertThat(keys(transitions)).containsOnly("reopen");
   }
 
   @Test
   public void list_out_transitions_from_status_reopen() {
-    workflow.start();
+    underTest.start();
 
     DefaultIssue issue = new DefaultIssue().setStatus(STATUS_REOPENED);
-    List<Transition> transitions = workflow.outTransitions(issue);
+    List<Transition> transitions = underTest.outTransitions(issue);
     assertThat(keys(transitions)).containsOnly("confirm", "resolve", "falsepositive", "wontfix");
   }
 
   @Test
   public void list_no_out_transition_from_status_closed() {
-    workflow.start();
+    underTest.start();
 
     DefaultIssue issue = new DefaultIssue().setStatus(STATUS_CLOSED).setRuleKey(RuleKey.of("java", "R1  "));
-    List<Transition> transitions = workflow.outTransitions(issue);
+    List<Transition> transitions = underTest.outTransitions(issue);
     assertThat(transitions).isEmpty();
   }
 
   @Test
   public void fail_if_unknown_status_when_listing_transitions() {
-    workflow.start();
+    underTest.start();
 
     DefaultIssue issue = new DefaultIssue().setStatus("xxx");
     try {
-      workflow.outTransitions(issue);
+      underTest.outTransitions(issue);
       fail();
     } catch (IllegalArgumentException e) {
       assertThat(e).hasMessage("Unknown status: xxx");
@@ -142,7 +139,7 @@ public class IssueWorkflowTest {
 
   @Test
   public void automatically_close_resolved_issue() {
-    workflow.start();
+    underTest.start();
 
     DefaultIssue issue = new DefaultIssue()
       .setKey("ABCDE")
@@ -152,7 +149,7 @@ public class IssueWorkflowTest {
       .setNew(false)
       .setBeingClosed(true);
     Date now = new Date();
-    workflow.doAutomaticTransition(issue, IssueChangeContext.createScan(now));
+    underTest.doAutomaticTransition(issue, IssueChangeContext.createScan(now));
     assertThat(issue.resolution()).isEqualTo(RESOLUTION_FIXED);
     assertThat(issue.status()).isEqualTo(STATUS_CLOSED);
     assertThat(issue.closeDate()).isNotNull();
@@ -170,10 +167,10 @@ public class IssueWorkflowTest {
       })
       .toArray(DefaultIssue[]::new);
     Date now = new Date();
-    workflow.start();
+    underTest.start();
 
     Arrays.stream(issues).forEach(issue -> {
-      workflow.doAutomaticTransition(issue, IssueChangeContext.createScan(now));
+      underTest.doAutomaticTransition(issue, IssueChangeContext.createScan(now));
 
       assertThat(issue.status()).isEqualTo(previousStatus);
       assertThat(issue.updateDate()).isEqualTo(DateUtils.truncate(now, Calendar.SECOND));
@@ -196,10 +193,10 @@ public class IssueWorkflowTest {
       })
       .toArray(DefaultIssue[]::new);
     Date now = new Date();
-    workflow.start();
+    underTest.start();
 
     Arrays.stream(issues).forEach(issue -> {
-      workflow.doAutomaticTransition(issue, IssueChangeContext.createScan(now));
+      underTest.doAutomaticTransition(issue, IssueChangeContext.createScan(now));
 
       assertThat(issue.status()).isEqualTo(previousStatus);
       assertThat(issue.updateDate()).isEqualTo(DateUtils.truncate(now, Calendar.SECOND));
@@ -220,10 +217,10 @@ public class IssueWorkflowTest {
       })
       .toArray(DefaultIssue[]::new);
     Date now = new Date();
-    workflow.start();
+    underTest.start();
 
     Arrays.stream(issues).forEach(issue -> {
-      workflow.doAutomaticTransition(issue, IssueChangeContext.createScan(now));
+      underTest.doAutomaticTransition(issue, IssueChangeContext.createScan(now));
 
       assertThat(issue.status()).isEqualTo(randomPreviousStatus);
       assertThat(issue.resolution()).isEqualTo(resolutionBeforeClosed);
@@ -244,10 +241,10 @@ public class IssueWorkflowTest {
       })
       .toArray(DefaultIssue[]::new);
     Date now = new Date();
-    workflow.start();
+    underTest.start();
 
     Arrays.stream(issues).forEach(issue -> {
-      workflow.doAutomaticTransition(issue, IssueChangeContext.createScan(now));
+      underTest.doAutomaticTransition(issue, IssueChangeContext.createScan(now));
 
       assertThat(issue.status()).isEqualTo(randomPreviousStatus);
       assertThat(issue.resolution()).isNull();
@@ -272,10 +269,10 @@ public class IssueWorkflowTest {
       })
       .toArray(DefaultIssue[]::new);
     Date now = new Date();
-    workflow.start();
+    underTest.start();
 
     Arrays.stream(issues).forEach(issue -> {
-      workflow.doAutomaticTransition(issue, IssueChangeContext.createScan(now));
+      underTest.doAutomaticTransition(issue, IssueChangeContext.createScan(now));
 
       assertThat(issue.status()).isEqualTo(randomPreviousStatus);
       assertThat(issue.resolution()).isEqualTo(resolutionBeforeClosed);
@@ -285,60 +282,23 @@ public class IssueWorkflowTest {
     });
   }
 
+  @DataProvider
+  public static Object[][] allResolutionsBeforeClosing() {
+    return Arrays.stream(ALL_RESOLUTIONS_BEFORE_CLOSING)
+      .map(t -> new Object[] {t})
+      .toArray(Object[][]::new);
+  }
+
   @Test
   public void do_not_automatically_reopen_closed_issue_which_have_no_previous_status_in_changelog() {
     DefaultIssue[] issues = Arrays.stream(SUPPORTED_RESOLUTIONS_FOR_UNCLOSING)
       .map(IssueWorkflowTest::newClosedIssue)
       .toArray(DefaultIssue[]::new);
     Date now = new Date();
-    workflow.start();
+    underTest.start();
 
     Arrays.stream(issues).forEach(issue -> {
-      workflow.doAutomaticTransition(issue, IssueChangeContext.createScan(now));
-
-      assertThat(issue.status()).isEqualTo(STATUS_CLOSED);
-      assertThat(issue.updateDate()).isNull();
-    });
-  }
-
-  @Test
-  @UseDataProvider("allStatusesLeadingToClosed")
-  public void do_not_automatically_reopen_closed_issues_of_security_hotspots(String previousStatus) {
-    DefaultIssue[] issues = Arrays.stream(SUPPORTED_RESOLUTIONS_FOR_UNCLOSING)
-      .map(resolution -> {
-        DefaultIssue issue = newClosedIssue(resolution);
-        setStatusPreviousToClosed(issue, previousStatus);
-        issue.setType(RuleType.SECURITY_HOTSPOT);
-        return issue;
-      })
-      .toArray(DefaultIssue[]::new);
-    Date now = new Date();
-    workflow.start();
-
-    Arrays.stream(issues).forEach(issue -> {
-      workflow.doAutomaticTransition(issue, IssueChangeContext.createScan(now));
-
-      assertThat(issue.status()).isEqualTo(STATUS_CLOSED);
-      assertThat(issue.updateDate()).isNull();
-    });
-  }
-
-  @Test
-  @UseDataProvider("allStatusesLeadingToClosed")
-  public void do_not_automatically_reopen_closed_issues_of_manual_vulnerability(String previousStatus) {
-    DefaultIssue[] issues = Arrays.stream(SUPPORTED_RESOLUTIONS_FOR_UNCLOSING)
-      .map(resolution -> {
-        DefaultIssue issue = newClosedIssue(resolution);
-        setStatusPreviousToClosed(issue, previousStatus);
-        issue.setIsFromHotspot(true);
-        return issue;
-      })
-      .toArray(DefaultIssue[]::new);
-    Date now = new Date();
-    workflow.start();
-
-    Arrays.stream(issues).forEach(issue -> {
-      workflow.doAutomaticTransition(issue, IssueChangeContext.createScan(now));
+      underTest.doAutomaticTransition(issue, IssueChangeContext.createScan(now));
 
       assertThat(issue.status()).isEqualTo(STATUS_CLOSED);
       assertThat(issue.updateDate()).isNull();
@@ -352,6 +312,7 @@ public class IssueWorkflowTest {
     RESOLUTION_WONT_FIX,
     RESOLUTION_FALSE_POSITIVE
   };
+
   private static final String[] SUPPORTED_RESOLUTIONS_FOR_UNCLOSING = new String[] {RESOLUTION_FIXED, RESOLUTION_REMOVED};
 
   @DataProvider
@@ -361,11 +322,112 @@ public class IssueWorkflowTest {
       .toArray(Object[][]::new);
   }
 
-  @DataProvider
-  public static Object[][] allResolutionsBeforeClosing() {
-    return Arrays.stream(ALL_RESOLUTIONS_BEFORE_CLOSING)
-      .map(t -> new Object[] {t})
-      .toArray(Object[][]::new);
+  @Test
+  public void close_open_dead_issue() {
+    underTest.start();
+
+    DefaultIssue issue = new DefaultIssue()
+      .setKey("ABCDE")
+      .setResolution(null)
+      .setStatus(STATUS_OPEN)
+      .setNew(false)
+      .setBeingClosed(true);
+    Date now = new Date();
+    underTest.doAutomaticTransition(issue, IssueChangeContext.createScan(now));
+    assertThat(issue.resolution()).isEqualTo(RESOLUTION_FIXED);
+    assertThat(issue.status()).isEqualTo(STATUS_CLOSED);
+    assertThat(issue.closeDate()).isNotNull();
+    assertThat(issue.updateDate()).isEqualTo(DateUtils.truncate(now, Calendar.SECOND));
+  }
+
+  @Test
+  public void close_reopened_dead_issue() {
+    underTest.start();
+
+    DefaultIssue issue = new DefaultIssue()
+      .setKey("ABCDE")
+      .setResolution(null)
+      .setStatus(STATUS_REOPENED)
+      .setNew(false)
+      .setBeingClosed(true);
+    Date now = new Date();
+    underTest.doAutomaticTransition(issue, IssueChangeContext.createScan(now));
+    assertThat(issue.resolution()).isEqualTo(RESOLUTION_FIXED);
+    assertThat(issue.status()).isEqualTo(STATUS_CLOSED);
+    assertThat(issue.closeDate()).isNotNull();
+    assertThat(issue.updateDate()).isEqualTo(DateUtils.truncate(now, Calendar.SECOND));
+  }
+
+  @Test
+  public void close_confirmed_dead_issue() {
+    underTest.start();
+
+    DefaultIssue issue = new DefaultIssue()
+      .setKey("ABCDE")
+      .setResolution(null)
+      .setStatus(STATUS_CONFIRMED)
+      .setNew(false)
+      .setBeingClosed(true);
+    Date now = new Date();
+    underTest.doAutomaticTransition(issue, IssueChangeContext.createScan(now));
+    assertThat(issue.resolution()).isEqualTo(RESOLUTION_FIXED);
+    assertThat(issue.status()).isEqualTo(STATUS_CLOSED);
+    assertThat(issue.closeDate()).isNotNull();
+    assertThat(issue.updateDate()).isEqualTo(DateUtils.truncate(now, Calendar.SECOND));
+  }
+
+  @Test
+  public void fail_if_unknown_status_on_automatic_trans() {
+    underTest.start();
+
+    DefaultIssue issue = new DefaultIssue()
+      .setKey("ABCDE")
+      .setResolution(RESOLUTION_FIXED)
+      .setStatus("xxx")
+      .setNew(false)
+      .setBeingClosed(true);
+    try {
+      underTest.doAutomaticTransition(issue, IssueChangeContext.createScan(new Date()));
+      fail();
+    } catch (IllegalStateException e) {
+      assertThat(e).hasMessage("Unknown status: xxx [issue=ABCDE]");
+    }
+  }
+
+  @Test
+  public void flag_as_false_positive() {
+    DefaultIssue issue = new DefaultIssue()
+      .setKey("ABCDE")
+      .setStatus(STATUS_OPEN)
+      .setRuleKey(RuleKey.of("squid", "AvoidCycle"))
+      .setAssigneeUuid("morgan");
+
+    underTest.start();
+    underTest.doManualTransition(issue, DefaultTransitions.FALSE_POSITIVE, IssueChangeContext.createScan(new Date()));
+
+    assertThat(issue.resolution()).isEqualTo(RESOLUTION_FALSE_POSITIVE);
+    assertThat(issue.status()).isEqualTo(STATUS_RESOLVED);
+
+    // should remove assignee
+    assertThat(issue.assignee()).isNull();
+  }
+
+  @Test
+  public void wont_fix() {
+    DefaultIssue issue = new DefaultIssue()
+      .setKey("ABCDE")
+      .setStatus(STATUS_OPEN)
+      .setRuleKey(RuleKey.of("squid", "AvoidCycle"))
+      .setAssigneeUuid("morgan");
+
+    underTest.start();
+    underTest.doManualTransition(issue, DefaultTransitions.WONT_FIX, IssueChangeContext.createScan(new Date()));
+
+    assertThat(issue.resolution()).isEqualTo(RESOLUTION_WONT_FIX);
+    assertThat(issue.status()).isEqualTo(STATUS_RESOLVED);
+
+    // should remove assignee
+    assertThat(issue.assignee()).isNull();
   }
 
   private static DefaultIssue newClosedIssue(String resolution) {
@@ -408,114 +470,6 @@ public class IssueWorkflowTest {
 
   private static String emptyIfNull(@Nullable String newResolution) {
     return newResolution == null ? "" : newResolution;
-  }
-
-  @Test
-  public void close_open_dead_issue() {
-    workflow.start();
-
-    DefaultIssue issue = new DefaultIssue()
-      .setKey("ABCDE")
-      .setResolution(null)
-      .setStatus(STATUS_OPEN)
-      .setNew(false)
-      .setBeingClosed(true);
-    Date now = new Date();
-    workflow.doAutomaticTransition(issue, IssueChangeContext.createScan(now));
-    assertThat(issue.resolution()).isEqualTo(RESOLUTION_FIXED);
-    assertThat(issue.status()).isEqualTo(STATUS_CLOSED);
-    assertThat(issue.closeDate()).isNotNull();
-    assertThat(issue.updateDate()).isEqualTo(DateUtils.truncate(now, Calendar.SECOND));
-  }
-
-  @Test
-  public void close_reopened_dead_issue() {
-    workflow.start();
-
-    DefaultIssue issue = new DefaultIssue()
-      .setKey("ABCDE")
-      .setResolution(null)
-      .setStatus(STATUS_REOPENED)
-      .setNew(false)
-      .setBeingClosed(true);
-    Date now = new Date();
-    workflow.doAutomaticTransition(issue, IssueChangeContext.createScan(now));
-    assertThat(issue.resolution()).isEqualTo(RESOLUTION_FIXED);
-    assertThat(issue.status()).isEqualTo(STATUS_CLOSED);
-    assertThat(issue.closeDate()).isNotNull();
-    assertThat(issue.updateDate()).isEqualTo(DateUtils.truncate(now, Calendar.SECOND));
-  }
-
-  @Test
-  public void close_confirmed_dead_issue() {
-    workflow.start();
-
-    DefaultIssue issue = new DefaultIssue()
-      .setKey("ABCDE")
-      .setResolution(null)
-      .setStatus(STATUS_CONFIRMED)
-      .setNew(false)
-      .setBeingClosed(true);
-    Date now = new Date();
-    workflow.doAutomaticTransition(issue, IssueChangeContext.createScan(now));
-    assertThat(issue.resolution()).isEqualTo(RESOLUTION_FIXED);
-    assertThat(issue.status()).isEqualTo(STATUS_CLOSED);
-    assertThat(issue.closeDate()).isNotNull();
-    assertThat(issue.updateDate()).isEqualTo(DateUtils.truncate(now, Calendar.SECOND));
-  }
-
-  @Test
-  public void fail_if_unknown_status_on_automatic_trans() {
-    workflow.start();
-
-    DefaultIssue issue = new DefaultIssue()
-      .setKey("ABCDE")
-      .setResolution(RESOLUTION_FIXED)
-      .setStatus("xxx")
-      .setNew(false)
-      .setBeingClosed(true);
-    try {
-      workflow.doAutomaticTransition(issue, IssueChangeContext.createScan(new Date()));
-      fail();
-    } catch (IllegalStateException e) {
-      assertThat(e).hasMessage("Unknown status: xxx [issue=ABCDE]");
-    }
-  }
-
-  @Test
-  public void flag_as_false_positive() {
-    DefaultIssue issue = new DefaultIssue()
-      .setKey("ABCDE")
-      .setStatus(STATUS_OPEN)
-      .setRuleKey(RuleKey.of("squid", "AvoidCycle"))
-      .setAssigneeUuid("morgan");
-
-    workflow.start();
-    workflow.doManualTransition(issue, DefaultTransitions.FALSE_POSITIVE, IssueChangeContext.createScan(new Date()));
-
-    assertThat(issue.resolution()).isEqualTo(RESOLUTION_FALSE_POSITIVE);
-    assertThat(issue.status()).isEqualTo(STATUS_RESOLVED);
-
-    // should remove assignee
-    assertThat(issue.assignee()).isNull();
-  }
-
-  @Test
-  public void wont_fix() {
-    DefaultIssue issue = new DefaultIssue()
-      .setKey("ABCDE")
-      .setStatus(STATUS_OPEN)
-      .setRuleKey(RuleKey.of("squid", "AvoidCycle"))
-      .setAssigneeUuid("morgan");
-
-    workflow.start();
-    workflow.doManualTransition(issue, DefaultTransitions.WONT_FIX, IssueChangeContext.createScan(new Date()));
-
-    assertThat(issue.resolution()).isEqualTo(RESOLUTION_WONT_FIX);
-    assertThat(issue.status()).isEqualTo(STATUS_RESOLVED);
-
-    // should remove assignee
-    assertThat(issue.assignee()).isNull();
   }
 
   private Collection<String> keys(List<Transition> transitions) {

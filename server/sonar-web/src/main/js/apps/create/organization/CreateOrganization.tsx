@@ -17,57 +17,52 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import * as classNames from 'classnames';
-import { differenceInMinutes } from 'date-fns';
+import * as differenceInMinutes from 'date-fns/difference_in_minutes';
 import { times } from 'lodash';
-import { connect } from 'react-redux';
+import * as React from 'react';
 import { Helmet } from 'react-helmet';
+import { connect } from 'react-redux';
 import { withRouter, WithRouterProps } from 'react-router';
-import { createOrganization, updateOrganization } from './actions';
+import Tabs from 'sonar-ui-common/components/controls/Tabs';
+import DeferredSpinner from 'sonar-ui-common/components/ui/DeferredSpinner';
+import { translate, translateWithParameters } from 'sonar-ui-common/helpers/l10n';
+import { addWhitePageClass, removeWhitePageClass } from 'sonar-ui-common/helpers/pages';
+import { get, remove } from 'sonar-ui-common/helpers/storage';
+import { slugify } from 'sonar-ui-common/helpers/strings';
 import {
-  ORGANIZATION_IMPORT_REDIRECT_TO_PROJECT_TIMESTAMP,
-  parseQuery,
-  serializeQuery,
-  Query,
-  ORGANIZATION_IMPORT_BINDING_IN_PROGRESS_TIMESTAMP,
-  Step,
-  BIND_ORGANIZATION_REDIRECT_TO_ORG_TIMESTAMP,
-  BIND_ORGANIZATION_KEY
-} from './utils';
-import AlmApplicationInstalling from './AlmApplicationInstalling';
-import AutoOrganizationCreate from './AutoOrganizationCreate';
-import AutoPersonalOrganizationBind from './AutoPersonalOrganizationBind';
-import ManualOrganizationCreate from './ManualOrganizationCreate';
-import RemoteOrganizationChoose from './RemoteOrganizationChoose';
-import A11ySkipTarget from '../../../app/components/a11y/A11ySkipTarget';
-import DeferredSpinner from '../../../components/common/DeferredSpinner';
-import Tabs from '../../../components/controls/Tabs';
-import { whenLoggedIn } from '../../../components/hoc/whenLoggedIn';
-import { withUserOrganizations } from '../../../components/hoc/withUserOrganizations';
-import { deleteOrganization } from '../../organizations/actions';
-import {
+  bindAlmOrganization,
   getAlmAppInfo,
   getAlmOrganization,
   GetAlmOrganizationResponse,
-  listUnboundApplications,
-  bindAlmOrganization
+  listUnboundApplications
 } from '../../../api/alm-integration';
 import { getSubscriptionPlans } from '../../../api/billing';
 import * as api from '../../../api/organizations';
-import {
-  hasAdvancedALMIntegration,
-  isPersonal,
-  sanitizeAlmId
-} from '../../../helpers/almIntegrations';
-import { translate, translateWithParameters } from '../../../helpers/l10n';
-import { addWhitePageClass, removeWhitePageClass } from '../../../helpers/pages';
-import { get, remove } from '../../../helpers/storage';
-import { slugify } from '../../../helpers/strings';
+import A11ySkipTarget from '../../../app/components/a11y/A11ySkipTarget';
+import addGlobalSuccessMessage from '../../../app/utils/addGlobalSuccessMessage';
+import { whenLoggedIn } from '../../../components/hoc/whenLoggedIn';
+import { withUserOrganizations } from '../../../components/hoc/withUserOrganizations';
+import { hasAdvancedALMIntegration, sanitizeAlmId } from '../../../helpers/almIntegrations';
 import { getOrganizationUrl } from '../../../helpers/urls';
 import { skipOnboarding } from '../../../store/users';
-import addGlobalSuccessMessage from '../../../app/utils/addGlobalSuccessMessage';
+import { deleteOrganization } from '../../organizations/actions';
 import '../../tutorials/styles.css'; // TODO remove me
+import { createOrganization } from './actions';
+import AlmApplicationInstalling from './AlmApplicationInstalling';
+import AutoOrganizationCreate from './AutoOrganizationCreate';
+import ManualOrganizationCreate from './ManualOrganizationCreate';
+import RemoteOrganizationChoose from './RemoteOrganizationChoose';
+import {
+  BIND_ORGANIZATION_KEY,
+  BIND_ORGANIZATION_REDIRECT_TO_ORG_TIMESTAMP,
+  ORGANIZATION_IMPORT_BINDING_IN_PROGRESS_TIMESTAMP,
+  ORGANIZATION_IMPORT_REDIRECT_TO_PROJECT_TIMESTAMP,
+  parseQuery,
+  Query,
+  serializeQuery,
+  Step
+} from './utils';
 
 interface Props {
   createOrganization: (
@@ -75,9 +70,6 @@ interface Props {
   ) => Promise<string>;
   currentUser: T.LoggedInUser;
   deleteOrganization: (key: string) => Promise<void>;
-  updateOrganization: (
-    organization: T.Organization & { installationId?: string }
-  ) => Promise<string>;
   userOrganizations: T.Organization[];
   skipOnboarding: () => void;
 }
@@ -287,11 +279,9 @@ export class CreateOrganization extends React.PureComponent<Props & WithRouterPr
     );
   }
 
-  getHeader = (bindingExistingOrg: boolean, importPersonalOrg: boolean) => {
+  getHeader = (bindingExistingOrg: boolean) => {
     if (bindingExistingOrg) {
       return translate('onboarding.binding_organization');
-    } else if (importPersonalOrg) {
-      return translate('onboarding.import_organization.personal.page.header');
     } else {
       return translate('onboarding.create_organization.page.header');
     }
@@ -336,8 +326,8 @@ export class CreateOrganization extends React.PureComponent<Props & WithRouterPr
     });
   };
 
-  renderContent = (almInstallId?: string, importPersonalOrg?: T.Organization) => {
-    const { currentUser, location } = this.props;
+  renderContent = (almInstallId?: string) => {
+    const { location } = this.props;
     const { state } = this;
     const { organization, step, subscriptionPlans } = state;
     const { tab = 'auto' } = (location.state || {}) as LocationState;
@@ -364,21 +354,6 @@ export class CreateOrganization extends React.PureComponent<Props & WithRouterPr
     }
 
     const { almApplication, almOrganization, boundOrganization } = state;
-
-    if (importPersonalOrg && almOrganization && almApplication) {
-      return (
-        <AutoPersonalOrganizationBind
-          {...commonProps}
-          almApplication={almApplication}
-          almInstallId={almInstallId}
-          almOrganization={almOrganization}
-          handleCancelImport={this.handleCancelImport}
-          importPersonalOrg={importPersonalOrg}
-          subscriptionPlans={subscriptionPlans}
-          updateOrganization={this.props.updateOrganization}
-        />
-      );
-    }
 
     return (
       <>
@@ -419,8 +394,7 @@ export class CreateOrganization extends React.PureComponent<Props & WithRouterPr
             onOrgCreated={this.handleOrgCreated}
             onUpgradeFail={this.deleteOrganization}
             unboundOrganizations={this.props.userOrganizations.filter(
-              ({ actions = {}, alm, key }) =>
-                !alm && key !== currentUser.personalOrganization && actions.admin
+              ({ actions = {}, alm }) => !alm && actions.admin
             )}
           />
         ) : (
@@ -438,19 +412,15 @@ export class CreateOrganization extends React.PureComponent<Props & WithRouterPr
   };
 
   render() {
-    const { currentUser, location } = this.props;
+    const { location } = this.props;
     const query = parseQuery(location.query);
 
     if (this.state.almOrgLoading) {
       return <AlmApplicationInstalling almKey={query.almKey} />;
     }
 
-    const { almOrganization, bindingExistingOrg, subscriptionPlans } = this.state;
-    const importPersonalOrg = isPersonal(almOrganization)
-      ? this.props.userOrganizations.find(o => o.key === currentUser.personalOrganization)
-      : undefined;
-    const header = this.getHeader(bindingExistingOrg, !!importPersonalOrg);
-
+    const { bindingExistingOrg, subscriptionPlans } = this.state;
+    const header = this.getHeader(bindingExistingOrg);
     const startedPrice = subscriptionPlans && subscriptionPlans[0] && subscriptionPlans[0].price;
 
     return (
@@ -463,17 +433,13 @@ export class CreateOrganization extends React.PureComponent<Props & WithRouterPr
             <h1 className="page-title huge big-spacer-bottom">
               <strong>{header}</strong>
             </h1>
-            {!importPersonalOrg && startedPrice !== undefined && (
+            {startedPrice !== undefined && (
               <p className="page-description">
                 {translate('onboarding.create_organization.page.description')}
               </p>
             )}
           </header>
-          {this.state.loading ? (
-            <DeferredSpinner />
-          ) : (
-            this.renderContent(query.almInstallId, importPersonalOrg)
-          )}
+          {this.state.loading ? <DeferredSpinner /> : this.renderContent(query.almInstallId)}
         </div>
       </>
     );
@@ -483,7 +449,6 @@ export class CreateOrganization extends React.PureComponent<Props & WithRouterPr
 const mapDispatchToProps = {
   createOrganization: createOrganization as any,
   deleteOrganization: deleteOrganization as any,
-  updateOrganization: updateOrganization as any,
   skipOnboarding: skipOnboarding as any
 };
 

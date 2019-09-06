@@ -17,21 +17,21 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
+import { sortBy } from 'lodash';
 import * as React from 'react';
 import { Link } from 'react-router';
-import { sortBy } from 'lodash';
+import Dropdown from 'sonar-ui-common/components/controls/Dropdown';
+import Tooltip from 'sonar-ui-common/components/controls/Tooltip';
+import DropdownIcon from 'sonar-ui-common/components/icons/DropdownIcon';
+import { translate, translateWithParameters } from 'sonar-ui-common/helpers/l10n';
+import { getBaseUrl } from 'sonar-ui-common/helpers/urls';
 import OrganizationAvatar from '../../../components/common/OrganizationAvatar';
-import Dropdown from '../../../components/controls/Dropdown';
-import Tooltip from '../../../components/controls/Tooltip';
-import DropdownIcon from '../../../components/icons-components/DropdownIcon';
 import OrganizationListItem from '../../../components/ui/OrganizationListItem';
 import {
-  sanitizeAlmId,
+  getUserAlmKey,
   hasAdvancedALMIntegration,
-  getUserAlmKey
+  sanitizeAlmId
 } from '../../../helpers/almIntegrations';
-import { translate, translateWithParameters } from '../../../helpers/l10n';
-import { getBaseUrl } from '../../../helpers/urls';
 
 export interface Props {
   currentUser: T.CurrentUser;
@@ -45,6 +45,7 @@ export default function OrganizationNavigationHeader({
   organizations
 }: Props) {
   const other = organizations.filter(o => o.key !== organization.key);
+  const isAdmin = organization.actions && organization.actions.admin;
 
   let almKey;
   let tooltipContent;
@@ -66,10 +67,14 @@ export default function OrganizationNavigationHeader({
     tooltipContent = (
       <>
         <p>{translateWithParameters('organization.not_bound_to_x', translate(almKey))}</p>
-        <hr className="spacer-top spacer-bottom" />
-        <Link to={`/organizations/${organization.key}/edit`}>
-          {translate('organization.go_to_settings_to_bind')}
-        </Link>
+        {isAdmin && (
+          <>
+            <hr className="spacer-top spacer-bottom" />
+            <Link to={`/organizations/${organization.key}/edit`}>
+              {translate('organization.go_to_settings_to_bind')}
+            </Link>
+          </>
+        )}
       </>
     );
     tooltipIconSrc = `${getBaseUrl()}/images/sonarcloud/${almKey}-unbound.svg`;

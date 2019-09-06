@@ -18,13 +18,13 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import { getPermissionTemplates, bulkApplyTemplate } from '../../api/permissions';
-import { translate, translateWithParameters } from '../../helpers/l10n';
-import Modal from '../../components/controls/Modal';
-import Select from '../../components/controls/Select';
-import { Button, ResetButtonLink } from '../../components/ui/buttons';
-import { toNotSoISOString } from '../../helpers/dates';
-import { Alert } from '../../components/ui/Alert';
+import { ResetButtonLink, SubmitButton } from 'sonar-ui-common/components/controls/buttons';
+import Modal from 'sonar-ui-common/components/controls/Modal';
+import Select from 'sonar-ui-common/components/controls/Select';
+import { Alert } from 'sonar-ui-common/components/ui/Alert';
+import { toNotSoISOString } from 'sonar-ui-common/helpers/dates';
+import { translate, translateWithParameters } from 'sonar-ui-common/helpers/l10n';
+import { bulkApplyTemplate, getPermissionTemplates } from '../../api/permissions';
 
 export interface Props {
   analyzedBefore: Date | undefined;
@@ -88,6 +88,7 @@ export default class BulkApplyTemplateModal extends React.PureComponent<Props, S
         ? {
             organization: this.props.organization,
             projects: this.props.selection.join(),
+            qualifiers: this.props.qualifier,
             templateId: permissionTemplate
           }
         : {
@@ -171,11 +172,11 @@ export default class BulkApplyTemplateModal extends React.PureComponent<Props, S
         <footer className="modal-foot">
           {submitting && <i className="spinner spacer-right" />}
           {!loading && !done && permissionTemplates && (
-            <Button disabled={submitting} onClick={this.handleConfirmClick}>
+            <SubmitButton disabled={submitting} onClick={this.handleConfirmClick}>
               {translate('apply')}
-            </Button>
+            </SubmitButton>
           )}
-          <ResetButtonLink className="js-modal-close" onClick={this.props.onClose}>
+          <ResetButtonLink onClick={this.props.onClose}>
             {done ? translate('close') : translate('cancel')}
           </ResetButtonLink>
         </footer>

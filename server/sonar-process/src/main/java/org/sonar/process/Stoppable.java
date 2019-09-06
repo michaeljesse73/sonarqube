@@ -23,4 +23,6 @@ public interface Stoppable {
 
   void stopAsync();
 
+  void hardStopAsync();
+
 }

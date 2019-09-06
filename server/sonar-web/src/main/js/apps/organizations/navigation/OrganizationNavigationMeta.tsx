@@ -18,11 +18,11 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import HomePageSelect from '../../../components/controls/HomePageSelect';
 import DocTooltip from '../../../components/docs/DocTooltip';
-import { translate } from '../../../helpers/l10n';
-import { isSonarCloud } from '../../../helpers/system';
 import { hasPrivateAccess, isPaidOrganization } from '../../../helpers/organizations';
+import { isSonarCloud } from '../../../helpers/system';
 
 interface Props {
   currentUser: T.CurrentUser;
@@ -53,7 +53,7 @@ export default function OrganizationNavigationMeta({
           <DocTooltip
             className="spacer-right"
             doc={import(/* webpackMode: "eager" */ 'Docs/tooltips/organizations/subscription-paid-plan.md')}>
-            <div className="outline-badge">{translate('organization.paid_plan.badge')}</div>
+            <div className="badge">{translate('organization.paid_plan.badge')}</div>
           </DocTooltip>
         )}
       <div className="text-muted">

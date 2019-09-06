@@ -18,14 +18,14 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import PlanSelect, { Plan } from './PlanSelect';
-import BillingFormShim from '../components/BillingFormShim';
-import DeferredSpinner from '../../../components/common/DeferredSpinner';
-import Step from '../../tutorials/components/Step';
-import { SubmitButton } from '../../../components/ui/buttons';
+import { SubmitButton } from 'sonar-ui-common/components/controls/buttons';
+import DeferredSpinner from 'sonar-ui-common/components/ui/DeferredSpinner';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import { withCurrentUser } from '../../../components/hoc/withCurrentUser';
-import { getExtensionStart } from '../../../app/components/extensions/utils';
-import { translate } from '../../../helpers/l10n';
+import { getExtensionStart } from '../../../helpers/extensions';
+import Step from '../../tutorials/components/Step';
+import BillingFormShim from '../components/BillingFormShim';
+import PlanSelect, { Plan } from './PlanSelect';
 
 const BillingForm = withCurrentUser(BillingFormShim);
 

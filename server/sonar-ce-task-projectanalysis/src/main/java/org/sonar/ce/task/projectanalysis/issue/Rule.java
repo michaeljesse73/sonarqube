@@ -34,6 +34,9 @@ public interface Rule {
 
   String getName();
 
+  @CheckForNull
+  String getLanguage();
+
   RuleStatus getStatus();
 
   /**

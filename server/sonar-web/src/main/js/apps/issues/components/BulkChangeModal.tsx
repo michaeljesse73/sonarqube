@@ -17,27 +17,26 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
-import * as classNames from 'classnames';
-import { FormattedMessage } from 'react-intl';
 import { pickBy, sortBy } from 'lodash';
-import { searchAssignees } from '../utils';
-import Avatar from '../../../components/ui/Avatar';
-import Checkbox from '../../../components/controls/Checkbox';
-import HelpTooltip from '../../../components/controls/HelpTooltip';
-import IssueTypeIcon from '../../../components/ui/IssueTypeIcon';
-import MarkdownTips from '../../../components/common/MarkdownTips';
-import Modal from '../../../components/controls/Modal';
-import Radio from '../../../components/controls/Radio';
-import SearchSelect from '../../../components/controls/SearchSelect';
-import Select from '../../../components/controls/Select';
-import SeverityHelper from '../../../components/shared/SeverityHelper';
+import * as React from 'react';
+import { FormattedMessage } from 'react-intl';
+import { ResetButtonLink, SubmitButton } from 'sonar-ui-common/components/controls/buttons';
+import Checkbox from 'sonar-ui-common/components/controls/Checkbox';
+import HelpTooltip from 'sonar-ui-common/components/controls/HelpTooltip';
+import Modal from 'sonar-ui-common/components/controls/Modal';
+import Radio from 'sonar-ui-common/components/controls/Radio';
+import SearchSelect from 'sonar-ui-common/components/controls/SearchSelect';
+import Select from 'sonar-ui-common/components/controls/Select';
+import IssueTypeIcon from 'sonar-ui-common/components/icons/IssueTypeIcon';
+import { Alert } from 'sonar-ui-common/components/ui/Alert';
+import { translate, translateWithParameters } from 'sonar-ui-common/helpers/l10n';
+import { bulkChangeIssues, searchIssueTags } from '../../../api/issues';
 import throwGlobalError from '../../../app/utils/throwGlobalError';
-import { Alert } from '../../../components/ui/Alert';
-import { searchIssueTags, bulkChangeIssues } from '../../../api/issues';
-import { SubmitButton, ResetButtonLink } from '../../../components/ui/buttons';
-import { translate, translateWithParameters } from '../../../helpers/l10n';
-import { isLoggedIn } from '../../../helpers/users';
+import MarkdownTips from '../../../components/common/MarkdownTips';
+import SeverityHelper from '../../../components/shared/SeverityHelper';
+import Avatar from '../../../components/ui/Avatar';
+import { isLoggedIn, isUserActive } from '../../../helpers/users';
+import { searchAssignees } from '../utils';
 
 interface AssigneeOption {
   avatar?: string;
@@ -162,7 +161,11 @@ export default class BulkChangeModal extends React.PureComponent<Props, State> {
 
   handleAssigneeSearch = (query: string) => {
     return searchAssignees(query, this.state.organization).then(({ results }) =>
-      results.map(r => ({ avatar: r.avatar, label: r.name, value: r.login }))
+      results.map(r => ({
+        avatar: r.avatar,
+        label: isUserActive(r) ? r.name : translateWithParameters('user.x_deleted', r.login),
+        value: r.login
+      }))
     );
   };
 
@@ -264,7 +267,7 @@ export default class BulkChangeModal extends React.PureComponent<Props, State> {
       </div>
       <div className="modal-body">
         <div className="text-center">
-          <i className="spinner spinner-margin" />
+          <i className="spinner spacer" />
         </div>
       </div>
       <div className="modal-foot">
@@ -496,7 +499,7 @@ export default class BulkChangeModal extends React.PureComponent<Props, State> {
           <h2>{translateWithParameters('issue_bulk_change.form.title', issues.length)}</h2>
         </div>
 
-        <div className={classNames('modal-body', { 'modal-container': limitReached })}>
+        <div className="modal-body modal-container">
           {limitReached && (
             <Alert variant="warning">
               <FormattedMessage
@@ -533,7 +536,7 @@ export default class BulkChangeModal extends React.PureComponent<Props, State> {
 
   render() {
     return (
-      <Modal contentLabel="modal" onRequestClose={this.props.onClose} size={'small'}>
+      <Modal contentLabel="modal" onRequestClose={this.props.onClose} size="small">
         {this.state.loading ? this.renderLoading() : this.renderForm()}
       </Modal>
     );

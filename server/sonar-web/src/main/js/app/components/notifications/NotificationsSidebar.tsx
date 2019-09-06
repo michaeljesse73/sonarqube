@@ -17,15 +17,15 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import * as classNames from 'classnames';
-import ClearIcon from '../../../components/icons-components/ClearIcon';
-import DateFormatter from '../../../components/intl/DateFormatter';
-import DeferredSpinner from '../../../components/common/DeferredSpinner';
-import Modal from '../../../components/controls/Modal';
+import * as differenceInSeconds from 'date-fns/difference_in_seconds';
+import * as React from 'react';
+import { ClearButton } from 'sonar-ui-common/components/controls/buttons';
+import Modal from 'sonar-ui-common/components/controls/Modal';
+import DeferredSpinner from 'sonar-ui-common/components/ui/DeferredSpinner';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import { PrismicFeatureNews } from '../../../api/news';
-import { differenceInSeconds } from '../../../helpers/dates';
-import { translate } from '../../../helpers/l10n';
+import DateFormatter from '../../../components/intl/DateFormatter';
 
 export interface Props {
   fetchMoreFeatureNews: () => void;
@@ -39,14 +39,17 @@ export interface Props {
 
 export default function NotificationsSidebar(props: Props) {
   const { loading, loadingMore, news, notificationsLastReadDate, paging } = props;
+  const header = translate('embed_docs.whats_new');
   return (
-    <Modal onRequestClose={props.onClose}>
+    <Modal contentLabel={header} onRequestClose={props.onClose}>
       <div className="notifications-sidebar">
         <div className="notifications-sidebar-top">
-          <h3>{translate('embed_docs.whats_new')}</h3>
-          <a className="close" href="#" onClick={props.onClose}>
-            <ClearIcon />
-          </a>
+          <h3>{header}</h3>
+          <ClearButton
+            className="button-tiny"
+            iconProps={{ size: 12, thin: true }}
+            onClick={props.onClose}
+          />
         </div>
         <div className="notifications-sidebar-content">
           {loading ? (
@@ -70,7 +73,7 @@ export default function NotificationsSidebar(props: Props) {
                 {translate('show_more')}
               </a>
               {loadingMore && (
-                <DeferredSpinner className="vertical-bottom spacer-left position-absolute" />
+                <DeferredSpinner className="text-bottom spacer-left position-absolute" />
               )}
             </div>
           </div>

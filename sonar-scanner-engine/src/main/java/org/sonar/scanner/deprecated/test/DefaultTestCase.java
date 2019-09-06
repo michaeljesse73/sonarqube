@@ -19,7 +19,6 @@
  */
 package org.sonar.scanner.deprecated.test;
 
-import com.google.common.base.Preconditions;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +32,8 @@ import org.sonar.api.test.TestPlan;
 import org.sonar.api.test.Testable;
 import org.sonar.api.test.exception.CoverageAlreadyExistsException;
 import org.sonar.api.test.exception.IllegalDurationException;
+
+import static org.sonar.api.utils.Preconditions.checkArgument;
 
 public class DefaultTestCase implements MutableTestCase {
 
@@ -125,7 +126,7 @@ public class DefaultTestCase implements MutableTestCase {
 
   @Override
   public MutableTestCase setCoverageBlock(InputFile mainFile, List<Integer> lines) {
-    Preconditions.checkArgument(mainFile.type() == Type.MAIN, "Test file can only cover a main file");
+    checkArgument(mainFile.type() == Type.MAIN, "Test file can only cover a main file");
     DefaultInputFile coveredFile = (DefaultInputFile) mainFile;
     if (coverageBlocksByTestedFile.containsKey(coveredFile)) {
       throw new CoverageAlreadyExistsException("The link between " + name() + " and " + coveredFile.key() + " already exists");

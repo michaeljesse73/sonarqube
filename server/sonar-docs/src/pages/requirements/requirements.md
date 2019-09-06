@@ -3,9 +3,9 @@ title: Prerequisites and Overview
 url: /requirements/requirements/
 ---
 ## Prerequisite
-The only prerequisite for running SonarQube is to have Java (Oracle JRE 8 or OpenJDK 8) installed on your machine.
+The only prerequisite for running SonarQube is to have Java (Oracle JRE 11 or OpenJDK 11) installed on your machine.
 
-![](/images/exclamation.svg) **Note:** _On Mac OS X it is highly recommended to install Oracle JDK 8 instead of the corresponding Oracle JRE since the JRE installation does not fully set up your Java environment properly. See [this post](http://stackoverflow.com/questions/15624667/mac-osx-java-terminal-version-incorrect) for more information._
+![](/images/exclamation.svg) **Note:** _On Mac OS X it is highly recommended to install Oracle JDK 11 instead of the corresponding Oracle JRE since the JRE installation does not fully set up your Java environment properly. See [this post](http://stackoverflow.com/questions/15624667/mac-osx-java-terminal-version-incorrect) for more information._
 
 ## Hardware Requirements
 1. A small-scale (individual or small team) instance of the SonarQube server requires at least 2GB of RAM to run efficiently and 1GB of free RAM for the OS. If you are installing an instance for a large teams or Enterprise, please consider the additional recommendations below.
@@ -14,64 +14,52 @@ The only prerequisite for running SonarQube is to have Java (Oracle JRE 8 or Ope
 4. SonarQube does not support 32-bit systems on the server side. SonarQube does, however, support 32-bit systems on the scanner side.
 
 ### Enterprise Hardware Recommendations
-For large teams or Enterprise-scale installations of SonarQube, additional hardware is required. At the Enterprise level, monitoring your SonarQube instance/instance-administration/java-process-memory is essential and should guide further hardware upgrades as your instance grows. A starting configuration should include at least:
+For large teams or Enterprise-scale installations of SonarQube, additional hardware is required. At the Enterprise level, [monitoring your SonarQube instance](/instance-administration/monitoring/) is essential and should guide further hardware upgrades as your instance grows. A starting configuration should include at least:
 
 * 8 cores, to allow the main SonarQube platform to run with multiple Compute Engine workers
 * 16GB of RAM
-For additional requirements and recommendations relating to database and ElasticSearch, see Hardware Recommendations/requirements/hardware-recommendations.
+For additional requirements and recommendations relating to database and ElasticSearch, see [Hardware Recommendations](/requirements/hardware-recommendations/).
 
 ## Supported Platforms
 ### Java
-The SonarQube Java analyzer is able to analyze any kind of Java source files regardless of the version of Java they comply to. But SonarQube analysis and the SonarQube Server require specific versions of the JVM.
+The SonarQube Java analyzer is able to analyze any kind of Java source files regardless of the version of Java they comply to. However, SonarQube analysis requires version 8+ of the JVM and the SonarQube Server requires version 11+.
 
-We recommend using the Critical Path Update (CPU) releases.
+We recommend using the Critical Patch Update (CPU) releases.
 
-| Java           |                          |
-| -------------- | ------------------------ |
-| Oracle JRE     | ![](/images/cross.svg) 9 |
-|                | ![](/images/check.svg) 8 |
-|                | ![](/images/cross.svg) 7 |
-| Open JDK       | ![](/images/cross.svg) 9 |
-|                | ![](/images/check.svg) 8 |
-|                | ![](/images/cross.svg) 7 |
-| IBM JRE        | ![](/images/cross.svg)   |
-| GCJ            | ![](/images/cross.svg)   |
-| Oracle JRockit | ![](/images/cross.svg)   |
+| Java           | Server                    | Analysis                  |
+| -------------- | ------------------------- | ------------------------- |
+| Oracle JRE     | ![](/images/check.svg) 11 | ![](/images/check.svg) 11 |
+|                | ![](/images/cross.svg) 8  | ![](/images/check.svg) 8  |
+| OpenJDK        | ![](/images/check.svg) 11 | ![](/images/check.svg) 11 |
+|                | ![](/images/cross.svg) 8  | ![](/images/check.svg) 8  |
 
 | Database                                                    |                                                                                                                                                                                                                                                                   |
 | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [PostgreSQL](http://www.postgresql.org/)                    | ![](/images/check.svg) 9.3 - 9.6                                                                                                                                                                                                                                  |
-|                                                             | ![](/images/check.svg) 10                                                                                                                                                                                                                                         |
+| [PostgreSQL](http://www.postgresql.org/)                    | ![](/images/check.svg) 10                                                                                                                                                                                                                                  |
+|                                                             | ![](/images/check.svg) 9.3–9.6                                                                                                                                                                                                                                         |
 |                                                             | ![](/images/exclamation.svg) Must be configured to use UTF-8 charset                                                                                                                                                                                              |
-| [Microsoft SQL Server](http://www.microsoft.com/sqlserver/) | ![](/images/cross.svg) 2012 (MSSQL Server 11.0)                                                                                                                                                                                                                   |
-|                                                             | ![](/images/check.svg) 2014 (MSSQL Server 12.0) with bundled Microsoft JDBC driver. Express Edition is supported.                                                                                                                                                 |
+| [Microsoft SQL Server](http://www.microsoft.com/sqlserver/) | ![](/images/check.svg) 2017 (MSSQL Server 14.0) with bundled Microsoft JDBC driver. Express Edition is supported.                                                                                                                                                 |
 |                                                             | ![](/images/check.svg) 2016 (MSSQL Server 13.0) with bundled Microsoft JDBC driver. Express Edition is supported.                                                                                                                                                 |
-|                                                             | ![](/images/check.svg) 2017 (MSSQL Server 14.0) with bundled Microsoft JDBC driver. Express Edition is supported.                                                                                                                                                 |
+|                                                             | ![](/images/check.svg) 2014 (MSSQL Server 12.0) with bundled Microsoft JDBC driver. Express Edition is supported.                                                                                                                                                 |
 |                                                             | ![](/images/exclamation.svg) Collation must be case-sensitive (CS) and accent-sensitive (AS) (example: Latin1_General_CS_AS)                                                                                                                                      |
 |                                                             | ![](/images/exclamation.svg) READ_COMMITTED_SNAPSHOT must be set on the SonarQube database to avoid potential deadlocks under heavy load                                                                                                                          |
 |                                                             | ![](/images/info.svg) Both Windows authentication (“Integrated Security”) and SQL Server authentication are supported. See the Microsoft SQL Server section in Installing/installation/installing-the-server page for instructions on configuring authentication. |
-| [Oracle] (http://www.oracle.com/database/)                  | ![](/images/cross.svg) 10G                                                                                                                                                                                                                                        |
-|                                                             | ![](/images/check.svg) 11G with backward-compatible [Oracle 12.2.x](http://www.oracle.com/technetwork/database/features/jdbc/jdbc-ucp-122-3110062.html) drivers                                                                                                   |
-|                                                             | ![](/images/check.svg) 12C with [Oracle 12.2.x](http://www.oracle.com/technetwork/database/features/jdbc/jdbc-ucp-122-3110062.html) drivers                                                                                                                       |
-|                                                             | ![](/images/check.svg) XE Editions are supported
+| [Oracle](http://www.oracle.com/database/)                   | ![](/images/check.svg) 19C                                                                                                                                                                                                                                        |
+|                                                             | ![](/images/check.svg) 18C                                                                                                                                                                                                                                        |
+|                                                             | ![](/images/check.svg) 12C                                                                                                    |
+|                                                             | ![](/images/check.svg) 11G                                                                                                    |
+|                                                             | ![](/images/check.svg) XE Editions                                                                                                                           
 |                                                             | ![](/images/exclamation.svg) Must be configured to use a UTF8-family charset (see NLS_CHARACTERSET)                                                                                                                                                               |
-|                                                             | ![](/images/exclamation.svg) The driver ojdbc14.jar is not supported                                                                                                                                                                                              |
+|                                                             | ![](/images/exclamation.svg) The driver ojdbc14.jar is not supported    
+|                                                             | ![](/images/info.svg) We recommend using the latest Oracle JDBC driver                                                                                                                                |
 |                                                             | ![](/images/exclamation.svg) Only the thin mode is supported, not OCI                                                                                                                                                                                             |
-| [MySQL](http://www.mysql.com/)                              | Not recommended for large instances                                                                                                                                                                                                                               |
-|                                                             | ![](/images/check.svg) 5.6                                                                                                                                                                                                                                       |
-|                                                             | ![](/images/check.svg) 5.7                                                                                                                                                                                                                                       |
-|                                                             | ![](/images/exclamation.svg) Must be configured to use UTF8 charset and a case-sensitive (CS) collation                                                                                                                                                           |
-|                                                             | ![](/images/exclamation.svg) Only InnoDB storage engine is supported, but not MyISAM                                                                                                                                                                              |
-|                                                             | ![](/images/exclamation.svg)Only the bundled mysql-connector-java jar is supported                                                                                                                                                                                |
 
 ### Web Browser
 To get the full experience SonarQube has to offer, you must enable JavaScript in your browser.
 
-|                             |                                         |
+| Browser                     |                                         |
 | --------------------------- | --------------------------------------- |
-| Microsoft Internet Explorer | ![](/images/cross.svg) IE 9             |
-|                             | ![](/images/cross.svg) IE 10            |
-|                             | ![](/images/check.svg) IE 11            |
+| Microsoft Internet Explorer | ![](/images/check.svg) IE 11            |
 | Microsoft Edge              | ![](/images/check.svg) Latest           |
 | Mozilla Firefox             | ![](/images/check.svg) Latest           |
 | Google Chrome               | ![](/images/check.svg) Latest           |
@@ -93,7 +81,7 @@ If you're running on Linux, you must ensure that:
 * `vm.max_map_count` is greater or equals to 262144
 * `fs.file-max` is greater or equals to 65536
 * the user running SonarQube can open at least 65536 file descriptors
-* the user running SonarQube can open at least 2048 threads
+* the user running SonarQube can open at least 4096 threads
 
 You can see the values with the following commands:
 ```
@@ -108,7 +96,7 @@ You can set them dynamically for the current session by running  the following c
 sysctl -w vm.max_map_count=262144
 sysctl -w fs.file-max=65536
 ulimit -n 65536
-ulimit -u 2048
+ulimit -u 4096
 ```
 
 To set these values more permanently, you must update either _/etc/sysctl.d/99-sonarqube.conf_ (or _/etc/sysctl.conf_ as you wish) to reflect these values.
@@ -116,7 +104,7 @@ To set these values more permanently, you must update either _/etc/sysctl.d/99-s
 If the user running SonarQube (`sonarqube` in this example) does not have the permission to have at least 65536 open descriptors, you must insert this line in _/etc/security/limits.d/99-sonarqube.conf_ (or _/etc/security/limits.conf_ as you wish):
 ```
 sonarqube   -   nofile   65536
-sonarqube   -   nproc    2048
+sonarqube   -   nproc    4096
 ```
 
 You can get more detail in the [Elasticsearch documentation](https://www.elastic.co/guide/en/elasticsearch/reference/5.6/system-config.html).
@@ -126,7 +114,7 @@ If you are using `systemd` to start SonarQube, you must specify those limits ins
 [Service]
 ...
 LimitNOFILE=65536
-LimitNPROC=2048
+LimitNPROC=4096
 ...
 ```
 

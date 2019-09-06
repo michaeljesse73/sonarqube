@@ -19,13 +19,13 @@
  */
 import * as React from 'react';
 import { Link } from 'react-router';
-import ChangeProjectsForm from './ChangeProjectsForm';
-import { Profile } from '../types';
+import { Button } from 'sonar-ui-common/components/controls/buttons';
+import ListFooter from 'sonar-ui-common/components/controls/ListFooter';
+import QualifierIcon from 'sonar-ui-common/components/icons/QualifierIcon';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import { getProfileProjects } from '../../../api/quality-profiles';
-import QualifierIcon from '../../../components/icons-components/QualifierIcon';
-import { Button } from '../../../components/ui/buttons';
-import ListFooter from '../../../components/controls/ListFooter';
-import { translate } from '../../../helpers/l10n';
+import { Profile } from '../types';
+import ChangeProjectsForm from './ChangeProjectsForm';
 
 interface Props {
   organization: string | null;

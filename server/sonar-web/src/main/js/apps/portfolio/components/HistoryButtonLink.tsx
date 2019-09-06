@@ -19,7 +19,8 @@
  */
 import * as React from 'react';
 import { Link } from 'react-router';
-import HistoryIcon from '../../../components/icons-components/HistoryIcon';
+import HistoryIcon from 'sonar-ui-common/components/icons/HistoryIcon';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import { getMeasureHistoryUrl } from '../../../helpers/urls';
 
 interface Props {
@@ -29,10 +30,9 @@ interface Props {
 
 export default function HistoryButtonLink({ component, metric }: Props) {
   return (
-    <Link
-      className="button button-small spacer-left text-text-bottom"
-      to={getMeasureHistoryUrl(component, metric)}>
-      <HistoryIcon size={14} />
+    <Link to={getMeasureHistoryUrl(component, metric)}>
+      <HistoryIcon className="little-spacer-right" size={14} />
+      <span>{translate('portfolio.activity_link')}</span>
     </Link>
   );
 }

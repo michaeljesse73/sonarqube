@@ -19,13 +19,13 @@
  */
 import * as React from 'react';
 import { Link } from 'react-router';
-import GlobalFooterSonarCloud from './GlobalFooterSonarCloud';
-import GlobalFooterBranding from './GlobalFooterBranding';
-import InstanceMessage from '../../components/common/InstanceMessage';
+import { Alert } from 'sonar-ui-common/components/ui/Alert';
+import { translate, translateWithParameters } from 'sonar-ui-common/helpers/l10n';
 import { EDITIONS } from '../../apps/marketplace/utils';
-import { translate, translateWithParameters } from '../../helpers/l10n';
+import InstanceMessage from '../../components/common/InstanceMessage';
 import { isSonarCloud } from '../../helpers/system';
-import { Alert } from '../../components/ui/Alert';
+import GlobalFooterBranding from './GlobalFooterBranding';
+import GlobalFooterSonarCloud from './GlobalFooterSonarCloud';
 
 interface Props {
   hideLoggedInInfo?: boolean;
@@ -75,9 +75,7 @@ export default function GlobalFooter({
           <a href="http://www.sonarqube.org">{translate('footer.community')}</a>
         </li>
         <li className="page-footer-menu-item">
-          <a href="https://redirect.sonarsource.com/doc/home.html">
-            {translate('footer.documentation')}
-          </a>
+          <Link to="/documentation">{translate('footer.documentation')}</Link>
         </li>
         <li className="page-footer-menu-item">
           <a href="https://redirect.sonarsource.com/doc/community.html">

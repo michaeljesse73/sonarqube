@@ -19,55 +19,51 @@
  */
 package org.sonar.process;
 
+import com.google.common.annotations.VisibleForTesting;
+import java.util.function.BooleanSupplier;
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.sonar.process.sharedmemoryfile.ProcessCommands;
 
-/**
- * This watchdog asks for graceful termination of process when the file
- * &lt;process_key&gt;.stop is created in temp directory.
- */
 public class StopWatcher extends Thread {
-
-  private final ProcessCommands commands;
-  private final Stoppable stoppable;
+  private static final Logger LOG = LoggerFactory.getLogger(StopWatcher.class);
+  private final Runnable stopCommand;
+  private final BooleanSupplier shouldStopTest;
   private final long delayMs;
-  private boolean watching = true;
+  private volatile boolean watching = true;
 
-  public StopWatcher(ProcessCommands commands, Stoppable stoppable) {
-    this(commands, stoppable, 500L);
+  public StopWatcher(String threadName, Runnable stopCommand, BooleanSupplier shouldStopTest) {
+    this(threadName, stopCommand, shouldStopTest, 500L);
   }
 
-  StopWatcher(ProcessCommands commands, Stoppable stoppable, long delayMs) {
-    super("Stop Watcher");
-    this.commands = commands;
-    this.stoppable = stoppable;
+  @VisibleForTesting
+  StopWatcher(String threadName, Runnable stopCommand, BooleanSupplier shouldStopTest, long delayMs) {
+    super(threadName);
+    this.stopCommand = stopCommand;
+    this.shouldStopTest = shouldStopTest;
     this.delayMs = delayMs;
   }
 
   @Override
   public void run() {
-    try {
-      while (watching) {
-        if (commands.askedForStop()) {
-          LoggerFactory.getLogger(getClass()).info("Stopping process");
-          stoppable.stopAsync();
+    while (watching) {
+      if (shouldStopTest.getAsBoolean()) {
+        LOG.trace("{} triggering stop command", this.getName());
+        stopCommand.run();
+        watching = false;
+      } else {
+        try {
+          Thread.sleep(delayMs);
+        } catch (InterruptedException ignored) {
           watching = false;
-        } else {
-          try {
-            Thread.sleep(delayMs);
-          } catch (InterruptedException ignored) {
-            watching = false;
-            // restore interrupted flag
-            Thread.currentThread().interrupt();
-          }
+          // restore interrupted flag
+          Thread.currentThread().interrupt();
         }
       }
-    } finally {
-      commands.endWatch();
     }
   }
 
   public void stopWatching() {
+    super.interrupt();
     watching = false;
   }
 }

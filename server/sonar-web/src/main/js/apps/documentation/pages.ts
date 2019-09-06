@@ -19,19 +19,45 @@
  */
 import remark from 'remark';
 import visit from 'unist-util-visit';
-import { DocumentationEntry, DocumentationEntryScope } from './utils';
+import { filterContent, ParsedContent, separateFrontMatter } from '../../helpers/markdown';
 import * as Docs from './documentation.directory-loader';
-import { separateFrontMatter, filterContent } from '../../helpers/markdown';
+import { DocumentationEntry, DocumentationEntryScope } from './utils';
 
-export default function getPages(): DocumentationEntry[] {
-  return ((Docs as unknown) as Array<{ content: string; path: string }>).map(file => {
-    const parsed = separateFrontMatter(file.content);
+export default function getPages(
+  parsedOverrides: T.Dict<ParsedContent> = {}
+): DocumentationEntry[] {
+  // Get entries, merge with overrides if applicable.
+  const pages = ((Docs as unknown) as Array<{ content: string; path: string }>).map(file => {
+    let parsed = separateFrontMatter(file.content);
+
+    if (parsedOverrides[file.path]) {
+      const parsedOverride = parsedOverrides[file.path];
+      parsed = {
+        content: parsedOverride.content,
+        frontmatter: { ...parsed.frontmatter, ...parsedOverride.frontmatter }
+      };
+      delete parsedOverrides[file.path];
+    }
+
+    return { parsed, file };
+  });
+
+  // Add new entries.
+  Object.keys(parsedOverrides).forEach(path => {
+    const parsed = parsedOverrides[path];
+    pages.push({
+      parsed,
+      file: { content: parsed.content, path }
+    });
+  });
+
+  return pages.map(({ parsed, file }) => {
     const content = filterContent(parsed.content);
     const text = getText(content);
 
     return {
       relativeName: file.path,
-      url: parsed.frontmatter.url || `/${file.path}`,
+      url: parsed.frontmatter.url || `/${file.path}/`,
       title: parsed.frontmatter.title,
       navTitle: parsed.frontmatter.nav || undefined,
       order: Number(parsed.frontmatter.order || -1),
@@ -39,7 +65,7 @@ export default function getPages(): DocumentationEntry[] {
         ? (parsed.frontmatter.scope.toLowerCase() as DocumentationEntryScope)
         : undefined,
       text,
-      content: file.content
+      content
     };
   });
 }

@@ -17,16 +17,16 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import * as classNames from 'classnames';
-import { Link } from 'react-router';
+import * as React from 'react';
 import { FormattedMessage } from 'react-intl';
-import HelpTooltip from '../../../components/controls/HelpTooltip';
-import HelpIcon from '../../../components/icons-components/HelpIcon';
-import { getQualityGateUrl, getQualityGatesUrl } from '../../../helpers/urls';
+import { Link } from 'react-router';
+import HelpTooltip from 'sonar-ui-common/components/controls/HelpTooltip';
+import HelpIcon from 'sonar-ui-common/components/icons/HelpIcon';
+import { translate } from 'sonar-ui-common/helpers/l10n';
+import { colors } from '../../../app/theme';
 import { isSonarCloud } from '../../../helpers/system';
-import { translate } from '../../../helpers/l10n';
-import { transparentWhite } from '../../../app/theme';
+import { getQualityGatesUrl, getQualityGateUrl } from '../../../helpers/urls';
 
 interface Props {
   component: T.Component;
@@ -69,7 +69,7 @@ export default function LargeQualityGateBadge({ component, level }: Props) {
               }}
             />
           }>
-          <HelpIcon fill={transparentWhite} size={12} />
+          <HelpIcon fill={colors.transparentWhite} size={12} />
         </HelpTooltip>
       </div>
       {level !== undefined && (

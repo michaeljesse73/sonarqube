@@ -20,9 +20,9 @@
 import * as React from 'react';
 import Helmet from 'react-helmet';
 import { Link } from 'react-router';
-import SQPageContainer from './components/SQPageContainer';
+import { getBaseUrl } from 'sonar-ui-common/helpers/urls';
 import { isLoggedIn } from '../../../helpers/users';
-import { getBaseUrl } from '../../../helpers/urls';
+import SQPageContainer from './components/SQPageContainer';
 import './style.css';
 
 const LANGUAGES = [

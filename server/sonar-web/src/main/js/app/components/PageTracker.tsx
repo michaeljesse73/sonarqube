@@ -18,51 +18,74 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import * as GoogleAnalytics from 'react-ga';
-import { withRouter, WithRouterProps } from 'react-router';
+import Helmet from 'react-helmet';
 import { connect } from 'react-redux';
-import { getGlobalSettingValue, Store } from '../../store/rootReducer';
+import { Location, withRouter } from '../../components/hoc/withRouter';
+import { gtm } from '../../helpers/analytics';
+import { installScript } from '../../helpers/extensions';
+import { getWebAnalyticsPageHandlerFromCache } from '../../helpers/extensionsHandler';
+import { getInstance } from '../../helpers/system';
+import { getAppState, getGlobalSettingValue, Store } from '../../store/rootReducer';
 
-interface StateProps {
-  trackingId?: string;
+interface Props {
+  location: Location;
+  trackingIdGTM?: string;
+  webAnalytics?: string;
 }
 
-type Props = WithRouterProps & StateProps;
+interface State {
+  lastLocation?: string;
+}
 
-export class PageTracker extends React.PureComponent<Props> {
+export class PageTracker extends React.Component<Props, State> {
+  state: State = {};
+
   componentDidMount() {
-    if (this.props.trackingId) {
-      GoogleAnalytics.initialize(this.props.trackingId);
-      this.trackPage();
+    const { trackingIdGTM, webAnalytics } = this.props;
+
+    if (webAnalytics && !getWebAnalyticsPageHandlerFromCache()) {
+      installScript(webAnalytics, 'head');
     }
-  }
 
-  componentDidUpdate(prevProps: Props) {
-    const currentPage = this.props.location.pathname;
-    const prevPage = prevProps.location.pathname;
-
-    if (currentPage !== prevPage) {
-      this.trackPage();
+    if (trackingIdGTM) {
+      gtm(trackingIdGTM);
     }
   }
 
   trackPage = () => {
-    const { location, trackingId } = this.props;
-    if (trackingId) {
-      // More info on the "title and page not in sync" issue: https://github.com/nfl/react-helmet/issues/189
-      setTimeout(() => GoogleAnalytics.pageview(location.pathname), 500);
+    const { location, trackingIdGTM } = this.props;
+    const { lastLocation } = this.state;
+    const { dataLayer } = window as any;
+    const locationChanged = location.pathname !== lastLocation;
+    const webAnalyticsPageChange = getWebAnalyticsPageHandlerFromCache();
+
+    if (webAnalyticsPageChange && locationChanged) {
+      this.setState({ lastLocation: location.pathname });
+      setTimeout(() => webAnalyticsPageChange(location.pathname), 500);
+    } else if (dataLayer && dataLayer.push && trackingIdGTM && location.pathname !== '/') {
+      this.setState({ lastLocation: location.pathname });
+      setTimeout(() => dataLayer.push({ event: 'render-end' }), 500);
     }
   };
 
   render() {
-    return null;
+    const { trackingIdGTM, webAnalytics } = this.props;
+
+    return (
+      <Helmet
+        defaultTitle={getInstance()}
+        onChangeClientState={trackingIdGTM || webAnalytics ? this.trackPage : undefined}>
+        {this.props.children}
+      </Helmet>
+    );
   }
 }
 
-const mapStateToProps = (state: Store): StateProps => {
-  const trackingId = getGlobalSettingValue(state, 'sonar.analytics.trackingId');
+const mapStateToProps = (state: Store) => {
+  const trackingIdGTM = getGlobalSettingValue(state, 'sonar.analytics.gtm.trackingId');
   return {
-    trackingId: trackingId && trackingId.value
+    trackingIdGTM: trackingIdGTM && trackingIdGTM.value,
+    webAnalytics: getAppState(state).webAnalyticsJsPath
   };
 };
 

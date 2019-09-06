@@ -43,13 +43,12 @@ import org.sonar.api.server.ServerSide;
 import org.sonar.api.utils.log.Logger;
 import org.sonar.api.utils.log.Loggers;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
-import static com.google.common.base.Strings.isNullOrEmpty;
 import static java.lang.String.format;
 import static java.util.Arrays.asList;
 import static java.util.Arrays.stream;
 import static java.util.Objects.requireNonNull;
+import static org.sonar.api.utils.Preconditions.checkArgument;
+import static org.sonar.api.utils.Preconditions.checkState;
 
 /**
  * Defines a web service.
@@ -64,14 +63,13 @@ import static java.util.Objects.requireNonNull;
  *   public void define(Context context) {
  *     NewController controller = context.createController("api/hello");
  *     controller.setDescription("Web service example");
- *
  *     // create the URL /api/hello/show
  *     controller.createAction("show")
  *       .setDescription("Entry point")
  *       .setHandler(new RequestHandler() {
  *         {@literal @}Override
  *         public void handle(Request request, Response response) {
- *           // read request parameters and generates response output
+ *           // read request parameters and generate response output
  *           response.newJsonWriter()
  *             .beginObject()
  *             .prop("hello", request.mandatoryParam("key"))
@@ -80,7 +78,6 @@ import static java.util.Objects.requireNonNull;
  *         }
  *      })
  *      .createParam("key").setDescription("Example key").setRequired(true);
- *
  *    // important to apply changes
  *    controller.done();
  *   }
@@ -381,13 +378,11 @@ public interface WebService extends Definable<WebService.Context> {
       return createParam(Param.PAGE)
         .setDescription(PAGE_PARAM_DESCRIPTION)
         .setExampleValue("42")
-        .setDeprecatedKey("pageIndex", "5.2")
         .setDefaultValue("1");
     }
 
     public NewParam createPageSize(int defaultPageSize, int maxPageSize) {
       return createParam(Param.PAGE_SIZE)
-        .setDeprecatedKey("pageSize", "5.2")
         .setDefaultValue(String.valueOf(defaultPageSize))
         .setMaximumValue(maxPageSize)
         .setDescription("Page size. Must be greater than 0 and less or equal than " + maxPageSize)
@@ -396,6 +391,7 @@ public interface WebService extends Definable<WebService.Context> {
 
     /**
      * Add predefined parameters related to pagination of results with a maximum page size.
+     *
      * @since 7.1
      */
     public NewAction addPagingParamsSince(int defaultPageSize, int maxPageSize, String version) {
@@ -474,7 +470,6 @@ public interface WebService extends Definable<WebService.Context> {
 
       return createParam(Param.SORT)
         .setDescription("Sort field")
-        .setDeprecatedKey("sort", "5.4")
         .setDefaultValue(defaultValue)
         .setPossibleValues(possibleValues);
     }
@@ -523,8 +518,8 @@ public interface WebService extends Definable<WebService.Context> {
       this.changelog = newAction.changelog;
 
       checkState(this.handler != null, "RequestHandler is not set on action %s", path);
-      logWarningIf(isNullOrEmpty(this.description), "Description is not set on action " + path);
-      logWarningIf(isNullOrEmpty(this.since), "Since is not set on action " + path);
+      logWarningIf(this.description == null || this.description.isEmpty(), "Description is not set on action " + path);
+      logWarningIf(this.since == null || this.since.isEmpty(), "Since is not set on action " + path);
       logWarningIf(!this.post && this.responseExample == null, "The response example is not set on action " + path);
 
       Map<String, Param> paramsBuilder = new HashMap<>();
@@ -664,8 +659,8 @@ public interface WebService extends Definable<WebService.Context> {
     }
 
     /**
-     * @since 5.3
      * @see Param#since()
+     * @since 5.3
      */
     public NewParam setSince(@Nullable String since) {
       this.since = since;
@@ -693,8 +688,8 @@ public interface WebService extends Definable<WebService.Context> {
 
     /**
      * @param deprecatedSince Version when the old key was replaced/deprecated. Ex: 5.6
-     * @since 6.4
      * @see Param#deprecatedKey()
+     * @since 6.4
      */
     public NewParam setDeprecatedKey(@Nullable String key, @Nullable String deprecatedSince) {
       this.deprecatedKey = key;
@@ -708,8 +703,8 @@ public interface WebService extends Definable<WebService.Context> {
     }
 
     /**
-     * @since 5.6
      * @see Param#description()
+     * @since 5.6
      */
     public NewParam setDescription(@Nullable String description, Object... descriptionArgument) {
       this.description = description == null ? null : String.format(description, descriptionArgument);
@@ -719,8 +714,8 @@ public interface WebService extends Definable<WebService.Context> {
     /**
      * Is the parameter required or optional ? Default value is false (optional).
      *
-     * @since 4.4
      * @see Param#isRequired()
+     * @since 4.4
      */
     public NewParam setRequired(boolean b) {
       this.required = b;
@@ -732,8 +727,8 @@ public interface WebService extends Definable<WebService.Context> {
      * displayed only when the check-box "Show Internal API" is selected. By default
      * a parameter is not internal.
      *
-     * @since 6.2
      * @see Param#isInternal()
+     * @since 6.2
      */
     public NewParam setInternal(boolean b) {
       this.internal = b;
@@ -741,8 +736,8 @@ public interface WebService extends Definable<WebService.Context> {
     }
 
     /**
-     * @since 4.4
      * @see Param#exampleValue()
+     * @since 4.4
      */
     public NewParam setExampleValue(@Nullable Object s) {
       this.exampleValue = (s != null) ? s.toString() : null;
@@ -753,8 +748,8 @@ public interface WebService extends Definable<WebService.Context> {
      * Exhaustive list of possible values when it makes sense, for example
      * list of severities.
      *
-     * @since 4.4
      * @see Param#possibleValues()
+     * @since 4.4
      */
     public <T> NewParam setPossibleValues(@Nullable T... values) {
       return setPossibleValues(values == null ? Collections.emptyList() : asList(values));
@@ -762,6 +757,7 @@ public interface WebService extends Definable<WebService.Context> {
 
     /**
      * Shortcut for {@code setPossibleValues("true", "false", "yes", "no")}
+     *
      * @since 4.4
      */
     public NewParam setBooleanPossibleValues() {
@@ -772,8 +768,8 @@ public interface WebService extends Definable<WebService.Context> {
      * Exhaustive list of possible values when it makes sense, for example
      * list of severities.
      *
-     * @since 4.4
      * @see Param#possibleValues()
+     * @since 4.4
      */
     public <T> NewParam setPossibleValues(@Nullable Collection<T> values) {
       if (values == null || values.isEmpty()) {
@@ -788,8 +784,8 @@ public interface WebService extends Definable<WebService.Context> {
     }
 
     /**
-     * @since 4.4
      * @see Param#defaultValue()
+     * @since 4.4
      */
     public NewParam setDefaultValue(@Nullable Object o) {
       this.defaultValue = (o != null) ? o.toString() : null;
@@ -797,8 +793,8 @@ public interface WebService extends Definable<WebService.Context> {
     }
 
     /**
-     * @since 6.4
      * @see Param#maxValuesAllowed()
+     * @since 6.4
      */
     public NewParam setMaxValuesAllowed(@Nullable Integer maxValuesAllowed) {
       this.maxValuesAllowed = maxValuesAllowed;
@@ -806,8 +802,8 @@ public interface WebService extends Definable<WebService.Context> {
     }
 
     /**
-     * @since 7.0
      * @see Param#maximumLength()
+     * @since 7.0
      */
     public NewParam setMaximumLength(@Nullable Integer maximumLength) {
       this.maximumLength = maximumLength;
@@ -815,8 +811,8 @@ public interface WebService extends Definable<WebService.Context> {
     }
 
     /**
-     * @since 7.0
      * @see Param#minimumLength()
+     * @since 7.0
      */
     public NewParam setMinimumLength(@Nullable Integer minimumLength) {
       this.minimumLength = minimumLength;
@@ -824,8 +820,8 @@ public interface WebService extends Definable<WebService.Context> {
     }
 
     /**
-     * @since 7.0
      * @see Param#maximumValue()
+     * @since 7.0
      */
     public NewParam setMaximumValue(@Nullable Integer maximumValue) {
       this.maximumValue = maximumValue;

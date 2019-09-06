@@ -17,17 +17,17 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-/* eslint-disable import/first, import/order */
+/* eslint-disable import/first */
 jest.mock('../../../api/components', () => ({
   createProject: jest.fn(({ name }: { name: string }) =>
     Promise.resolve({ project: { key: name, name } })
   )
 }));
 
-import * as React from 'react';
 import { shallow } from 'enzyme';
+import * as React from 'react';
+import { change, submit, waitAndUpdate } from 'sonar-ui-common/helpers/testUtils';
 import CreateProjectForm from '../CreateProjectForm';
-import { change, submit, waitAndUpdate } from '../../../helpers/testUtils';
 
 const createProject = require('../../../api/components').createProject as jest.Mock<any>;
 

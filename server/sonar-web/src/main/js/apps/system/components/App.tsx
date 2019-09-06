@@ -18,30 +18,32 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import { withRouter, WithRouterProps } from 'react-router';
 import Helmet from 'react-helmet';
-import ClusterSysInfos from './ClusterSysInfos';
-import PageHeader from './PageHeader';
-import StandaloneSysInfos from './StandaloneSysInfos';
-import SystemUpgradeNotif from './system-upgrade/SystemUpgradeNotif';
+import { withRouter, WithRouterProps } from 'react-router';
+import { translate } from 'sonar-ui-common/helpers/l10n';
+import { getSystemInfo } from '../../../api/system';
 import Suggestions from '../../../app/components/embed-docs-modal/Suggestions';
-import { translate } from '../../../helpers/l10n';
-import { ClusterSysInfo, getSystemInfo, SysInfo } from '../../../api/system';
+import '../styles.css';
 import {
+  getClusterVersion,
   getServerId,
   getSystemLogsLevel,
+  getVersion,
   isCluster,
   parseQuery,
   Query,
   serializeQuery
 } from '../utils';
-import '../styles.css';
+import ClusterSysInfos from './ClusterSysInfos';
+import PageHeader from './PageHeader';
+import StandaloneSysInfos from './StandaloneSysInfos';
+import SystemUpgradeNotif from './system-upgrade/SystemUpgradeNotif';
 
 type Props = WithRouterProps;
 
 interface State {
   loading: boolean;
-  sysInfoData?: SysInfo;
+  sysInfoData?: T.SysInfoCluster | T.SysInfoStandalone;
 }
 
 class App extends React.PureComponent<Props, State> {
@@ -60,7 +62,7 @@ class App extends React.PureComponent<Props, State> {
   fetchSysInfo = () => {
     this.setState({ loading: true });
     getSystemInfo().then(
-      (sysInfoData: SysInfo) => {
+      sysInfoData => {
         if (this.mounted) {
           this.setState({ loading: false, sysInfoData });
         }
@@ -100,7 +102,7 @@ class App extends React.PureComponent<Props, State> {
       return (
         <ClusterSysInfos
           expandedCards={query.expandedCards}
-          sysInfoData={sysInfoData as ClusterSysInfo}
+          sysInfoData={sysInfoData}
           toggleCard={this.toggleSysInfoCards}
         />
       );
@@ -121,14 +123,19 @@ class App extends React.PureComponent<Props, State> {
         <Suggestions suggestions="system_info" />
         <Helmet title={translate('system_info.page')} />
         <SystemUpgradeNotif />
-        <PageHeader
-          isCluster={isCluster(sysInfoData)}
-          loading={loading}
-          logLevel={getSystemLogsLevel(sysInfoData)}
-          onLogLevelChange={this.fetchSysInfo}
-          serverId={getServerId(sysInfoData)}
-          showActions={sysInfoData !== undefined}
-        />
+        {sysInfoData && (
+          <PageHeader
+            isCluster={isCluster(sysInfoData)}
+            loading={loading}
+            logLevel={getSystemLogsLevel(sysInfoData)}
+            onLogLevelChange={this.fetchSysInfo}
+            serverId={getServerId(sysInfoData)}
+            showActions={sysInfoData !== undefined}
+            version={
+              isCluster(sysInfoData) ? getClusterVersion(sysInfoData) : getVersion(sysInfoData)
+            }
+          />
+        )}
         {this.renderSysInfo()}
       </div>
     );

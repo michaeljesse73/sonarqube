@@ -22,9 +22,9 @@ package org.sonar.scanner.scan;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Optional;
-import org.sonar.api.batch.fs.internal.DefaultInputProject;
 import org.sonar.api.config.Configuration;
 import org.sonar.api.utils.MessageException;
+import org.sonar.api.batch.fs.internal.DefaultInputProject;
 
 import static org.sonar.core.config.ScannerProperties.BRANCH_NAME;
 import static org.sonar.core.config.ScannerProperties.ORGANIZATION;
@@ -40,6 +40,7 @@ public class ScanProperties {
   public static final String SONAR_REPORT_EXPORT_PATH = "sonar.report.export.path";
   public static final String PRELOAD_FILE_METADATA_KEY = "sonar.preloadFileMetadata";
   public static final String FORCE_RELOAD_KEY = "sonar.scm.forceReloadAll";
+  public static final String SCM_REVISION = "sonar.scm.revision";
 
   private final Configuration configuration;
   private final DefaultInputProject project;
@@ -63,6 +64,10 @@ public class ScanProperties {
 
   public Optional<String> branch() {
     return configuration.get(BRANCH_NAME);
+  }
+
+  public Optional<String> get(String propertyKey) {
+    return configuration.get(propertyKey);
   }
 
   public Path metadataFilePath() {

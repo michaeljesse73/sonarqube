@@ -21,14 +21,15 @@ package org.sonar.ce.task.projectanalysis.notification;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
+import javax.annotation.CheckForNull;
 import org.sonar.api.config.EmailSettings;
 import org.sonar.api.notifications.Notification;
-import org.sonar.plugins.emailnotifications.api.EmailMessage;
-import org.sonar.plugins.emailnotifications.api.EmailTemplate;
+import org.sonar.server.issue.notification.EmailMessage;
+import org.sonar.server.issue.notification.EmailTemplate;
 
 import static org.sonar.api.utils.DateUtils.formatDateTime;
 
-public class ReportAnalysisFailureNotificationEmailTemplate extends EmailTemplate {
+public class ReportAnalysisFailureNotificationEmailTemplate implements EmailTemplate {
   private static final char LINE_RETURN = '\n';
   private static final char TAB = '\t';
 
@@ -41,22 +42,23 @@ public class ReportAnalysisFailureNotificationEmailTemplate extends EmailTemplat
   }
 
   @Override
+  @CheckForNull
   public EmailMessage format(Notification notification) {
-    if (!ReportAnalysisFailureNotification.TYPE.equals(notification.getType())) {
+    if (!(notification instanceof ReportAnalysisFailureNotification)) {
       return null;
     }
 
-    ReportAnalysisFailureNotification taskFailureNotification = serializer.fromNotification(notification);
+    ReportAnalysisFailureNotificationBuilder taskFailureNotification = serializer.fromNotification((ReportAnalysisFailureNotification) notification);
     String projectUuid = taskFailureNotification.getProject().getUuid();
     String projectFullName = computeProjectFullName(taskFailureNotification.getProject());
 
     return new EmailMessage()
       .setMessageId(notification.getType() + "/" + projectUuid)
       .setSubject(subject(projectFullName))
-      .setMessage(message(projectFullName, taskFailureNotification));
+      .setPlainTextMessage(message(projectFullName, taskFailureNotification));
   }
 
-  private static String computeProjectFullName(ReportAnalysisFailureNotification.Project project) {
+  private static String computeProjectFullName(ReportAnalysisFailureNotificationBuilder.Project project) {
     String branchName = project.getBranchName();
     if (branchName != null) {
       return String.format("%s (%s)", project.getName(), branchName);
@@ -68,9 +70,9 @@ public class ReportAnalysisFailureNotificationEmailTemplate extends EmailTemplat
     return String.format("%s: Background task in failure", projectFullName);
   }
 
-  private String message(String projectFullName, ReportAnalysisFailureNotification taskFailureNotification) {
-    ReportAnalysisFailureNotification.Project project = taskFailureNotification.getProject();
-    ReportAnalysisFailureNotification.Task task = taskFailureNotification.getTask();
+  private String message(String projectFullName, ReportAnalysisFailureNotificationBuilder taskFailureNotification) {
+    ReportAnalysisFailureNotificationBuilder.Project project = taskFailureNotification.getProject();
+    ReportAnalysisFailureNotificationBuilder.Task task = taskFailureNotification.getTask();
 
     StringBuilder res = new StringBuilder();
     res.append("Project:").append(TAB).append(projectFullName).append(LINE_RETURN);

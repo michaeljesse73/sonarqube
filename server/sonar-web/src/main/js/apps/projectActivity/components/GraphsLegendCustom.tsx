@@ -18,10 +18,10 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import GraphsLegendItem from './GraphsLegendItem';
-import Tooltip from '../../../components/controls/Tooltip';
+import Tooltip from 'sonar-ui-common/components/controls/Tooltip';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import { hasDataValues, Serie } from '../utils';
-import { translate } from '../../../helpers/l10n';
+import GraphsLegendItem from './GraphsLegendItem';
 
 interface Props {
   removeMetric: (metric: string) => void;

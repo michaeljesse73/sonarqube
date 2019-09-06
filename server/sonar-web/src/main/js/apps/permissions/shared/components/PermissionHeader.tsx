@@ -17,14 +17,14 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import * as classNames from 'classnames';
-import HelpTooltip from '../../../../components/controls/HelpTooltip';
+import * as React from 'react';
+import HelpTooltip from 'sonar-ui-common/components/controls/HelpTooltip';
+import Tooltip from 'sonar-ui-common/components/controls/Tooltip';
+import { Alert } from 'sonar-ui-common/components/ui/Alert';
+import { translate, translateWithParameters } from 'sonar-ui-common/helpers/l10n';
 import InstanceMessage from '../../../../components/common/InstanceMessage';
-import { translate, translateWithParameters } from '../../../../helpers/l10n';
 import { isPermissionDefinitionGroup } from '../../utils';
-import Tooltip from '../../../../components/controls/Tooltip';
-import { Alert } from '../../../../components/ui/Alert';
 
 interface Props {
   onSelectPermission?: (permission: string) => void;
@@ -48,11 +48,11 @@ export default class PermissionHeader extends React.PureComponent<Props> {
 
     if (isPermissionDefinitionGroup(permission)) {
       return permission.permissions.map(permission => (
-        <>
+        <React.Fragment key={permission.key}>
           <b className="little-spacer-right">{permission.name}:</b>
           <InstanceMessage key={permission.key} message={permission.description} />
           <br />
-        </>
+        </React.Fragment>
       ));
     } else {
       if (this.props.showPublicProjectsWarning && ['user', 'codeviewer'].includes(permission.key)) {

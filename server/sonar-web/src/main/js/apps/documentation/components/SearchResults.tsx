@@ -17,14 +17,17 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
-import lunr, { LunrBuilder, LunrIndex, LunrToken } from 'lunr';
+import { DocNavigationItem } from 'Docs/@types/types';
 import { sortBy } from 'lodash';
-import SearchResultEntry, { SearchResult } from './SearchResultEntry';
-import { DocumentationEntry, getUrlsList, DocsNavigationItem } from '../utils';
+import lunr, { LunrBuilder, LunrIndex, LunrToken } from 'lunr';
+import * as React from 'react';
+import { isDefined } from 'sonar-ui-common/helpers/types';
+import { getUrlsList } from '../navTreeUtils';
+import { DocumentationEntry } from '../utils';
+import SearchResultEntry from './SearchResultEntry';
 
 interface Props {
-  navigation: DocsNavigationItem[];
+  navigation: DocNavigationItem[];
   pages: DocumentationEntry[];
   query: string;
   splat: string;
@@ -60,6 +63,11 @@ export default class SearchResults extends React.PureComponent<Props> {
       )
       .map(match => {
         const page = this.props.pages.find(page => page.relativeName === match.ref);
+
+        if (!page) {
+          return null;
+        }
+
         const highlights: T.Dict<[number, number][]> = {};
         let longestTerm = '';
         let exactMatch = false;
@@ -91,7 +99,7 @@ export default class SearchResults extends React.PureComponent<Props> {
 
         return { exactMatch, highlights, longestTerm, page, query };
       })
-      .filter(result => result.page) as SearchResult[];
+      .filter(isDefined);
 
     // Re-order results by the length of the longest matched term and by exact
     // match (if applicable). The longer the matched term is, the higher the

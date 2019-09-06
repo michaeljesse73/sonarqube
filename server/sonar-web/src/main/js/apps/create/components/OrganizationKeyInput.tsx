@@ -17,13 +17,13 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import * as classNames from 'classnames';
 import { debounce } from 'lodash';
+import * as React from 'react';
+import ValidationInput from 'sonar-ui-common/components/controls/ValidationInput';
+import { translate } from 'sonar-ui-common/helpers/l10n';
+import { getHostUrl } from 'sonar-ui-common/helpers/urls';
 import { getOrganization } from '../../../api/organizations';
-import ValidationInput from '../../../components/controls/ValidationInput';
-import { translate } from '../../../helpers/l10n';
-import { getHostUrl } from '../../../helpers/urls';
 
 interface Props {
   initialValue?: string;

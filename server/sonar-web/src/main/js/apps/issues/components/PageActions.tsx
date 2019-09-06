@@ -18,12 +18,12 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
+import ReloadButton from 'sonar-ui-common/components/controls/ReloadButton';
+import { translate } from 'sonar-ui-common/helpers/l10n';
+import HomePageSelect from '../../../components/controls/HomePageSelect';
+import { isSonarCloud } from '../../../helpers/system';
 import IssuesCounter from './IssuesCounter';
 import TotalEffort from './TotalEffort';
-import HomePageSelect from '../../../components/controls/HomePageSelect';
-import ReloadButton from '../../../components/controls/ReloadButton';
-import { translate } from '../../../helpers/l10n';
-import { isSonarCloud } from '../../../helpers/system';
 
 interface Props {
   canSetHome: boolean;

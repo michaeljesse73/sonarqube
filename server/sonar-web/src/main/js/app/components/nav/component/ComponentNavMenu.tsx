@@ -17,20 +17,20 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
+import * as classNames from 'classnames';
 import * as React from 'react';
 import { Link } from 'react-router';
-import * as classNames from 'classnames';
-import Dropdown from '../../../../components/controls/Dropdown';
-import NavBarTabs from '../../../../components/nav/NavBarTabs';
-import {
-  isShortLivingBranch,
-  isPullRequest,
-  isMainBranch,
-  getBranchLikeQuery
-} from '../../../../helpers/branches';
-import { translate } from '../../../../helpers/l10n';
-import DropdownIcon from '../../../../components/icons-components/DropdownIcon';
+import Dropdown from 'sonar-ui-common/components/controls/Dropdown';
+import DropdownIcon from 'sonar-ui-common/components/icons/DropdownIcon';
+import NavBarTabs from 'sonar-ui-common/components/ui/NavBarTabs';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import { withAppState } from '../../../../components/hoc/withAppState';
+import {
+  getBranchLikeQuery,
+  isMainBranch,
+  isPullRequest,
+  isShortLivingBranch
+} from '../../../../helpers/branches';
 import { isSonarCloud } from '../../../../helpers/system';
 
 const SETTINGS_URLS = [
@@ -154,50 +154,33 @@ export class ComponentNavMenu extends React.PureComponent<Props> {
     );
   }
 
-  renderSecurityReportsLink() {
-    return (
-      <ul className="menu">
-        <li>
-          <Link
-            activeClassName="active"
-            to={{ pathname: '/project/security_reports/owasp_top_10', query: this.getQuery() }}>
-            {translate('security_reports.owaspTop10.page')}
-          </Link>
-        </li>
-        <li>
-          <Link
-            activeClassName="active"
-            to={{ pathname: '/project/security_reports/sans_top_25', query: this.getQuery() }}>
-            {translate('security_reports.sansTop25.page')}
-          </Link>
-        </li>
-      </ul>
-    );
-  }
-
   renderSecurityReports() {
-    const { branchLike } = this.props;
+    const { branchLike, component } = this.props;
+    const { extensions = [] } = component;
 
     if (isShortLivingBranch(branchLike) || isPullRequest(branchLike)) {
       return null;
     }
 
-    const { location = { pathname: '' } } = this.props;
-    const isActive = location.pathname.startsWith('/project/security_reports');
+    const hasSecurityReportsEnabled = extensions.some(extension =>
+      extension.key.startsWith('securityreport/')
+    );
+
+    if (!hasSecurityReportsEnabled) {
+      return null;
+    }
+
     return (
-      <Dropdown overlay={this.renderSecurityReportsLink()} tagName="li">
-        {({ onToggleClick, open }) => (
-          <a
-            aria-expanded={open}
-            aria-haspopup="true"
-            className={classNames('dropdown-toggle', { active: isActive || open })}
-            href="#"
-            onClick={onToggleClick}>
-            {translate('layout.security_reports')}
-            <DropdownIcon className="little-spacer-left" />
-          </a>
-        )}
-      </Dropdown>
+      <li>
+        <Link
+          activeClassName="active"
+          to={{
+            pathname: '/project/extension/securityreport/securityreport',
+            query: this.getQuery()
+          }}>
+          {translate('layout.security_reports')}
+        </Link>
+      </li>
     );
   }
 
@@ -452,14 +435,24 @@ export class ComponentNavMenu extends React.PureComponent<Props> {
 
   renderExtensions() {
     const extensions = this.props.component.extensions || [];
-    if (!extensions.length || (this.props.branchLike && !isMainBranch(this.props.branchLike))) {
+    const withoutSecurityExtension = extensions.filter(
+      extension => !extension.key.startsWith('securityreport/')
+    );
+    if (
+      withoutSecurityExtension.length === 0 ||
+      (this.props.branchLike && !isMainBranch(this.props.branchLike))
+    ) {
       return null;
     }
 
     return (
       <Dropdown
         data-test="extensions"
-        overlay={<ul className="menu">{extensions.map(e => this.renderExtension(e, false))}</ul>}
+        overlay={
+          <ul className="menu">
+            {withoutSecurityExtension.map(e => this.renderExtension(e, false))}
+          </ul>
+        }
         tagName="li">
         {({ onToggleClick, open }) => (
           <a

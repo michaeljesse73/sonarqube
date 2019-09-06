@@ -19,20 +19,21 @@
  */
 import * as React from 'react';
 import { Link } from 'react-router';
-import BubblesIcon from '../../../components/icons-components/BubblesIcon';
+import MeasuresIcon from 'sonar-ui-common/components/icons/MeasuresIcon';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import { getComponentDrilldownUrl } from '../../../helpers/urls';
 
 interface Props {
   component: string;
+  label?: string;
   metric: string;
 }
 
-export default function MeasuresButtonLink({ component, metric }: Props) {
+export default function MeasuresButtonLink({ component, label, metric }: Props) {
   return (
-    <Link
-      className="button button-small spacer-left text-text-bottom"
-      to={getComponentDrilldownUrl({ componentKey: component, metric })}>
-      <BubblesIcon size={14} />
+    <Link to={getComponentDrilldownUrl({ componentKey: component, metric })}>
+      <MeasuresIcon className="little-spacer-right" size={14} />
+      <span>{label || translate('portfolio.measures_link')}</span>
     </Link>
   );
 }

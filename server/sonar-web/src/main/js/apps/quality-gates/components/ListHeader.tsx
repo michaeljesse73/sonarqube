@@ -18,11 +18,11 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import CreateQualityGateForm from './CreateQualityGateForm';
-import { Button } from '../../../components/ui/buttons';
+import { Button } from 'sonar-ui-common/components/controls/buttons';
+import ModalButton from 'sonar-ui-common/components/controls/ModalButton';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import DocTooltip from '../../../components/docs/DocTooltip';
-import ModalButton from '../../../components/controls/ModalButton';
-import { translate } from '../../../helpers/l10n';
+import CreateQualityGateForm from './CreateQualityGateForm';
 
 interface Props {
   canCreate: boolean;
@@ -44,7 +44,7 @@ export default function ListHeader({ canCreate, refreshQualityGates, organizatio
               />
             )}>
             {({ onClick }) => (
-              <Button id="quality-gate-add" onClick={onClick}>
+              <Button data-test="quality-gates__add" onClick={onClick}>
                 {translate('create')}
               </Button>
             )}

@@ -17,13 +17,13 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
+import * as differenceInHours from 'date-fns/difference_in_hours';
 import * as React from 'react';
 import { DateSource } from 'react-intl';
+import Tooltip from 'sonar-ui-common/components/controls/Tooltip';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import DateFromNow from './DateFromNow';
 import DateTimeFormatter from './DateTimeFormatter';
-import Tooltip from '../controls/Tooltip';
-import { differenceInHours } from '../../helpers/dates';
-import { translate } from '../../helpers/l10n';
 
 interface Props {
   children?: (formattedDate: string) => React.ReactNode;

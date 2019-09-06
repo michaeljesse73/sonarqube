@@ -17,10 +17,8 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { map } from 'lodash';
-import HealthCard from './info-items/HealthCard';
-import { SysInfo } from '../../../api/system';
+import * as React from 'react';
 import {
   getHealth,
   getHealthCauses,
@@ -28,10 +26,11 @@ import {
   getStandaloneSecondarySections,
   ignoreInfoFields
 } from '../utils';
+import HealthCard from './info-items/HealthCard';
 
 interface Props {
   expandedCards: string[];
-  sysInfoData: SysInfo;
+  sysInfoData: T.SysInfoStandalone;
   toggleCard: (toggledCard: string) => void;
 }
 

@@ -17,10 +17,10 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-/* eslint-disable import/order */
-import * as React from 'react';
+
 import { shallow } from 'enzyme';
-import { click } from '../../../../../helpers/testUtils';
+import * as React from 'react';
+import { click } from 'sonar-ui-common/helpers/testUtils';
 import PendingPluginsActionNotif from '../PendingPluginsActionNotif';
 
 jest.mock('../../../../../api/plugins', () => ({
@@ -42,12 +42,6 @@ it('should not display anything', () => {
   expect(getWrapper({ pending: { installing: [], updating: [], removing: [] } }).type()).toBeNull();
 });
 
-it('should open the restart form', () => {
-  const wrapper = getWrapper();
-  click(wrapper.find('.js-restart'));
-  expect(wrapper.find('RestartForm').exists()).toBeTruthy();
-});
-
 it('should cancel all pending and refresh them', async () => {
   const refreshPending = jest.fn();
   const wrapper = getWrapper({ refreshPending });
@@ -61,6 +55,7 @@ it('should cancel all pending and refresh them', async () => {
 function getWrapper(props = {}) {
   return shallow(
     <PendingPluginsActionNotif
+      fetchSystemStatus={jest.fn()}
       pending={{
         installing: [
           {
@@ -90,6 +85,7 @@ function getWrapper(props = {}) {
         ]
       }}
       refreshPending={() => {}}
+      systemStatus="UP"
       {...props}
     />
   );

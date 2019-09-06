@@ -18,11 +18,11 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import RemoveExtendedDescriptionModal from './RemoveExtendedDescriptionModal';
+import { Button, ResetButtonLink } from 'sonar-ui-common/components/controls/buttons';
+import { translate, translateWithParameters } from 'sonar-ui-common/helpers/l10n';
 import { updateRule } from '../../../api/rules';
 import MarkdownTips from '../../../components/common/MarkdownTips';
-import { Button, ResetButtonLink } from '../../../components/ui/buttons';
-import { translate, translateWithParameters } from '../../../helpers/l10n';
+import RemoveExtendedDescriptionModal from './RemoveExtendedDescriptionModal';
 
 interface Props {
   canWrite: boolean | undefined;
@@ -112,6 +112,7 @@ export default class RuleDetailsDescription extends React.PureComponent<Props, S
       {this.props.ruleDetails.htmlNote !== undefined && (
         <div
           className="rule-desc spacer-bottom markdown"
+          // Safe: defined by rule creator (instance admin?)
           dangerouslySetInnerHTML={{ __html: this.props.ruleDetails.htmlNote }}
         />
       )}
@@ -193,6 +194,7 @@ export default class RuleDetailsDescription extends React.PureComponent<Props, S
         {hasDescription ? (
           <div
             className="coding-rules-detail-description rule-desc markdown"
+            // Safe: defined by rule creator (instance admin?)
             dangerouslySetInnerHTML={{ __html: ruleDetails.htmlDesc || '' }}
           />
         ) : (

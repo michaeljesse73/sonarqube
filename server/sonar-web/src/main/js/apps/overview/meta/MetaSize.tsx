@@ -17,14 +17,14 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import * as classNames from 'classnames';
-import DrilldownLink from '../../../components/shared/DrilldownLink';
+import * as React from 'react';
+import SizeRating from 'sonar-ui-common/components/ui/SizeRating';
+import { translate } from 'sonar-ui-common/helpers/l10n';
+import { formatMeasure } from 'sonar-ui-common/helpers/measures';
 import LanguageDistributionContainer from '../../../components/charts/LanguageDistributionContainer';
-import SizeRating from '../../../components/ui/SizeRating';
-import { formatMeasure } from '../../../helpers/measures';
+import DrilldownLink from '../../../components/shared/DrilldownLink';
 import { getMetricName } from '../utils';
-import { translate } from '../../../helpers/l10n';
 
 interface Props {
   branchLike?: T.BranchLike;

@@ -21,12 +21,17 @@ package org.sonar.application;
 
 public interface Scheduler {
 
-  void schedule();
+  void schedule() throws InterruptedException;
+
+  /**
+   * Gracefully stops all processes and waits for them to be down.
+   */
+  void stop();
 
   /**
    * Stops all processes and waits for them to be down.
    */
-  void terminate();
+  void hardStop();
 
   /**
    * Blocks until all processes are down

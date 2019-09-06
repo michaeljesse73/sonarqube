@@ -17,21 +17,21 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { uniq } from 'lodash';
-import UserScmAccountInput from './UserScmAccountInput';
+import * as React from 'react';
+import { Button, ResetButtonLink, SubmitButton } from 'sonar-ui-common/components/controls/buttons';
+import SimpleModal from 'sonar-ui-common/components/controls/SimpleModal';
+import { Alert } from 'sonar-ui-common/components/ui/Alert';
+import { translate, translateWithParameters } from 'sonar-ui-common/helpers/l10n';
+import { parseError } from 'sonar-ui-common/helpers/request';
 import { createUser, updateUser } from '../../../api/users';
 import throwGlobalError from '../../../app/utils/throwGlobalError';
-import Modal from '../../../components/controls/Modal';
-import { Button, ResetButtonLink, SubmitButton } from '../../../components/ui/buttons';
-import { translate, translateWithParameters } from '../../../helpers/l10n';
-import { parseError } from '../../../helpers/request';
-import { Alert } from '../../../components/ui/Alert';
+import UserScmAccountInput from './UserScmAccountInput';
 
 export interface Props {
-  user?: T.User;
   onClose: () => void;
   onUpdateUsers: () => void;
+  user?: T.User;
 }
 
 interface State {
@@ -41,7 +41,6 @@ interface State {
   name: string;
   password: string;
   scmAccounts: string[];
-  submitting: boolean;
 }
 
 export default class UserForm extends React.PureComponent<Props, State> {
@@ -54,10 +53,9 @@ export default class UserForm extends React.PureComponent<Props, State> {
       this.state = {
         email: user.email || '',
         login: user.login,
-        name: user.name,
+        name: user.name || '',
         password: '',
-        scmAccounts: user.scmAccounts || [],
-        submitting: false
+        scmAccounts: user.scmAccounts || []
       };
     } else {
       this.state = {
@@ -65,8 +63,7 @@ export default class UserForm extends React.PureComponent<Props, State> {
         login: '',
         name: '',
         password: '',
-        scmAccounts: [],
-        submitting: false
+        scmAccounts: []
       };
     }
   }
@@ -79,12 +76,12 @@ export default class UserForm extends React.PureComponent<Props, State> {
     this.mounted = false;
   }
 
-  handleError = (error: { response: Response }) => {
-    if (!this.mounted || ![400, 500].includes(error.response.status)) {
-      return throwGlobalError(error);
+  handleError = (response: Response) => {
+    if (!this.mounted || ![400, 500].includes(response.status)) {
+      return throwGlobalError(response);
     } else {
-      return parseError(error).then(
-        errorMsg => this.setState({ error: errorMsg, submitting: false }),
+      return parseError(response).then(
+        errorMsg => this.setState({ error: errorMsg }),
         throwGlobalError
       );
     }
@@ -102,10 +99,8 @@ export default class UserForm extends React.PureComponent<Props, State> {
   handlePasswordChange = (event: React.SyntheticEvent<HTMLInputElement>) =>
     this.setState({ password: event.currentTarget.value });
 
-  handleCreateUser = (event: React.SyntheticEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    this.setState({ submitting: true });
-    createUser({
+  handleCreateUser = () => {
+    return createUser({
       email: this.state.email || undefined,
       login: this.state.login,
       name: this.state.name,
@@ -117,13 +112,12 @@ export default class UserForm extends React.PureComponent<Props, State> {
     }, this.handleError);
   };
 
-  handleUpdateUser = (event: React.SyntheticEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    this.setState({ submitting: true });
-    updateUser({
-      email: this.state.email,
+  handleUpdateUser = () => {
+    const { user } = this.props;
+    return updateUser({
+      email: user!.local ? this.state.email : undefined,
       login: this.state.login,
-      name: this.state.name,
+      name: user!.local ? this.state.name : undefined,
       scmAccount: uniq(this.state.scmAccounts)
     }).then(() => {
       this.props.onUpdateUsers();
@@ -149,125 +143,132 @@ export default class UserForm extends React.PureComponent<Props, State> {
 
   render() {
     const { user } = this.props;
-    const { error, submitting } = this.state;
+    const { error } = this.state;
 
     const header = user ? translate('users.update_user') : translate('users.create_user');
     return (
-      <Modal contentLabel={header} onRequestClose={this.props.onClose} size="small">
-        <form
-          autoComplete="off"
-          id="user-form"
-          onSubmit={this.props.user ? this.handleUpdateUser : this.handleCreateUser}>
-          <header className="modal-head">
-            <h2>{header}</h2>
-          </header>
+      <SimpleModal
+        header={header}
+        onClose={this.props.onClose}
+        onSubmit={user ? this.handleUpdateUser : this.handleCreateUser}
+        size="small">
+        {({ onCloseClick, onFormSubmit, submitting }) => (
+          <form autoComplete="off" id="user-form" onSubmit={onFormSubmit}>
+            <header className="modal-head">
+              <h2>{header}</h2>
+            </header>
 
-          <div className="modal-body">
-            {error && <Alert variant="error">{error}</Alert>}
+            <div className="modal-body modal-container">
+              {error && <Alert variant="error">{error}</Alert>}
 
-            {!user && (
+              {!error && user && !user.local && (
+                <Alert variant="warning">{translate('users.cannot_update_delegated_user')}</Alert>
+              )}
+
+              {!user && (
+                <div className="modal-field">
+                  <label htmlFor="create-user-login">
+                    {translate('login')}
+                    <em className="mandatory">*</em>
+                  </label>
+                  {/* keep this fake field to hack browser autofill */}
+                  <input className="hidden" name="login-fake" type="text" />
+                  <input
+                    autoFocus={true}
+                    id="create-user-login"
+                    maxLength={255}
+                    minLength={3}
+                    name="login"
+                    onChange={this.handleLoginChange}
+                    required={true}
+                    type="text"
+                    value={this.state.login}
+                  />
+                  <p className="note">{translateWithParameters('users.minimum_x_characters', 3)}</p>
+                </div>
+              )}
               <div className="modal-field">
-                <label htmlFor="create-user-login">
-                  {translate('login')}
+                <label htmlFor="create-user-name">
+                  {translate('name')}
                   <em className="mandatory">*</em>
                 </label>
                 {/* keep this fake field to hack browser autofill */}
-                <input className="hidden" name="login-fake" type="text" />
+                <input className="hidden" name="name-fake" type="text" />
                 <input
-                  autoFocus={true}
-                  id="create-user-login"
-                  maxLength={255}
-                  minLength={3}
-                  name="login"
-                  onChange={this.handleLoginChange}
+                  autoFocus={!!user}
+                  disabled={user && !user.local}
+                  id="create-user-name"
+                  maxLength={200}
+                  name="name"
+                  onChange={this.handleNameChange}
                   required={true}
                   type="text"
-                  value={this.state.login}
+                  value={this.state.name}
                 />
-                <p className="note">{translateWithParameters('users.minimum_x_characters', 3)}</p>
               </div>
-            )}
-            <div className="modal-field">
-              <label htmlFor="create-user-name">
-                {translate('name')}
-                <em className="mandatory">*</em>
-              </label>
-              {/* keep this fake field to hack browser autofill */}
-              <input className="hidden" name="name-fake" type="text" />
-              <input
-                autoFocus={!!user}
-                id="create-user-name"
-                maxLength={200}
-                name="name"
-                onChange={this.handleNameChange}
-                required={true}
-                type="text"
-                value={this.state.name}
-              />
-            </div>
-            <div className="modal-field">
-              <label htmlFor="create-user-email">{translate('users.email')}</label>
-              {/* keep this fake field to hack browser autofill */}
-              <input className="hidden" name="email-fake" type="email" />
-              <input
-                id="create-user-email"
-                maxLength={100}
-                name="email"
-                onChange={this.handleEmailChange}
-                type="email"
-                value={this.state.email}
-              />
-            </div>
-            {!user && (
               <div className="modal-field">
-                <label htmlFor="create-user-password">
-                  {translate('password')}
-                  <em className="mandatory">*</em>
-                </label>
+                <label htmlFor="create-user-email">{translate('users.email')}</label>
                 {/* keep this fake field to hack browser autofill */}
-                <input className="hidden" name="password-fake" type="password" />
+                <input className="hidden" name="email-fake" type="email" />
                 <input
-                  id="create-user-password"
-                  maxLength={50}
-                  name="password"
-                  onChange={this.handlePasswordChange}
-                  required={true}
-                  type="password"
-                  value={this.state.password}
+                  disabled={user && !user.local}
+                  id="create-user-email"
+                  maxLength={100}
+                  name="email"
+                  onChange={this.handleEmailChange}
+                  type="email"
+                  value={this.state.email}
                 />
               </div>
-            )}
-            <div className="modal-field">
-              <label>{translate('my_profile.scm_accounts')}</label>
-              {this.state.scmAccounts.map((scm, idx) => (
-                <UserScmAccountInput
-                  idx={idx}
-                  key={idx}
-                  onChange={this.handleUpdateScmAccount}
-                  onRemove={this.handleRemoveScmAccount}
-                  scmAccount={scm}
-                />
-              ))}
-              <div className="spacer-bottom">
-                <Button className="js-scm-account-add" onClick={this.handleAddScmAccount}>
-                  {translate('add_verb')}
-                </Button>
+              {!user && (
+                <div className="modal-field">
+                  <label htmlFor="create-user-password">
+                    {translate('password')}
+                    <em className="mandatory">*</em>
+                  </label>
+                  {/* keep this fake field to hack browser autofill */}
+                  <input className="hidden" name="password-fake" type="password" />
+                  <input
+                    id="create-user-password"
+                    maxLength={50}
+                    name="password"
+                    onChange={this.handlePasswordChange}
+                    required={true}
+                    type="password"
+                    value={this.state.password}
+                  />
+                </div>
+              )}
+              <div className="modal-field">
+                <label>{translate('my_profile.scm_accounts')}</label>
+                {this.state.scmAccounts.map((scm, idx) => (
+                  <UserScmAccountInput
+                    idx={idx}
+                    key={idx}
+                    onChange={this.handleUpdateScmAccount}
+                    onRemove={this.handleRemoveScmAccount}
+                    scmAccount={scm}
+                  />
+                ))}
+                <div className="spacer-bottom">
+                  <Button className="js-scm-account-add" onClick={this.handleAddScmAccount}>
+                    {translate('add_verb')}
+                  </Button>
+                </div>
+                <p className="note">{translate('user.login_or_email_used_as_scm_account')}</p>
               </div>
-              <p className="note">{translate('user.login_or_email_used_as_scm_account')}</p>
             </div>
-          </div>
 
-          <footer className="modal-foot">
-            {submitting && <i className="spinner spacer-right" />}
-            <SubmitButton className="js-confirm" disabled={submitting}>
-              {user ? translate('update_verb') : translate('create')}
-            </SubmitButton>
-            <ResetButtonLink className="js-modal-close" onClick={this.props.onClose}>
-              {translate('cancel')}
-            </ResetButtonLink>
-          </footer>
-        </form>
-      </Modal>
+            <footer className="modal-foot">
+              {submitting && <i className="spinner spacer-right" />}
+              <SubmitButton disabled={submitting}>
+                {user ? translate('update_verb') : translate('create')}
+              </SubmitButton>
+              <ResetButtonLink onClick={onCloseClick}>{translate('cancel')}</ResetButtonLink>
+            </footer>
+          </form>
+        )}
+      </SimpleModal>
     );
   }
 }

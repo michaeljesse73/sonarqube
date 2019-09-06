@@ -18,9 +18,12 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import SubscriptionContainer from './SubscriptionContainer';
-import { getReportStatus, ReportStatus, getReportUrl } from '../../../api/report';
-import { translate } from '../../../helpers/l10n';
+import { Button } from 'sonar-ui-common/components/controls/buttons';
+import Dropdown from 'sonar-ui-common/components/controls/Dropdown';
+import DropdownIcon from 'sonar-ui-common/components/icons/DropdownIcon';
+import { translate } from 'sonar-ui-common/helpers/l10n';
+import { getReportStatus, getReportUrl, ReportStatus } from '../../../api/report';
+import Subscription from './Subscription';
 
 interface Props {
   component: { key: string; name: string };
@@ -44,7 +47,7 @@ export default class Report extends React.PureComponent<Props, State> {
     this.mounted = false;
   }
 
-  loadStatus() {
+  loadStatus = () => {
     getReportStatus(this.props.component.key).then(
       status => {
         if (this.mounted) {
@@ -57,52 +60,51 @@ export default class Report extends React.PureComponent<Props, State> {
         }
       }
     );
-  }
-
-  renderHeader = () => <h4>{translate('report.page')}</h4>;
+  };
 
   render() {
     const { component } = this.props;
     const { status, loading } = this.state;
 
-    if (loading) {
-      return (
-        <div>
-          {this.renderHeader()}
-          <i className="spinner" />
-        </div>
-      );
-    }
-
-    if (!status) {
+    if (loading || !status) {
       return null;
     }
 
-    return (
-      <div>
-        {this.renderHeader()}
-
-        {!status.canDownload && (
-          <div className="note js-report-cant-download">{translate('report.cant_download')}</div>
-        )}
-
-        {status.canDownload && (
-          <div className="js-report-can-download">
-            {translate('report.can_download')}
-            <div className="spacer-top">
+    return status.canSubscribe ? (
+      <Dropdown
+        overlay={
+          <ul className="menu">
+            <li>
               <a
-                className="button js-report-download"
                 download={component.name + ' - Executive Report.pdf'}
                 href={getReportUrl(component.key)}
                 target="_blank">
                 {translate('report.print')}
               </a>
-            </div>
-          </div>
-        )}
-
-        {status.canSubscribe && <SubscriptionContainer component={component.key} status={status} />}
-      </div>
+            </li>
+            <li>
+              <Subscription
+                component={component.key}
+                onSubscribe={this.loadStatus}
+                status={status}
+              />
+            </li>
+          </ul>
+        }
+        tagName="li">
+        <Button className="dropdown-toggle">
+          {translate('portfolio.pdf_report')}
+          <DropdownIcon className="spacer-left icon-half-transparent" />
+        </Button>
+      </Dropdown>
+    ) : (
+      <a
+        className="button"
+        download={component.name + ' - Executive Report.pdf'}
+        href={getReportUrl(component.key)}
+        target="_blank">
+        {translate('report.print')}
+      </a>
     );
   }
 }

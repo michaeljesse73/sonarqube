@@ -17,13 +17,13 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-/* eslint-disable import/order */
-import * as React from 'react';
+
 import { shallow } from 'enzyme';
-import { AllProjects } from '../AllProjects';
-import { get, save } from '../../../../helpers/storage';
+import * as React from 'react';
+import { get, save } from 'sonar-ui-common/helpers/storage';
+import { waitAndUpdate } from 'sonar-ui-common/helpers/testUtils';
 import { isSonarCloud } from '../../../../helpers/system';
-import { waitAndUpdate } from '../../../../helpers/testUtils';
+import { AllProjects } from '../AllProjects';
 
 jest.mock('../ProjectsList', () => ({
   // eslint-disable-next-line
@@ -52,7 +52,7 @@ jest.mock('../../utils', () => {
   return utils;
 });
 
-jest.mock('../../../../helpers/storage', () => ({
+jest.mock('sonar-ui-common/helpers/storage', () => ({
   get: jest.fn(() => null),
   save: jest.fn()
 }));
@@ -188,12 +188,20 @@ it('renders correctly empty organization', async () => {
   expect(wrapper).toMatchSnapshot();
 });
 
+it('handles favorite projects', () => {
+  const wrapper = shallowRender();
+  expect(wrapper.state('projects')).toMatchSnapshot();
+
+  wrapper.instance().handleFavorite('foo', true);
+  expect(wrapper.state('projects')).toMatchSnapshot();
+});
+
 function shallowRender(
   props: Partial<AllProjects['props']> = {},
   push = jest.fn(),
   replace = jest.fn()
 ) {
-  const wrapper = shallow(
+  const wrapper = shallow<AllProjects>(
     <AllProjects
       currentUser={{ isLoggedIn: true }}
       isFavorite={false}
@@ -205,7 +213,7 @@ function shallowRender(
   );
   wrapper.setState({
     loading: false,
-    projects: [{ key: 'foo', measures: {}, name: 'Foo' }],
+    projects: [{ key: 'foo', measures: {}, name: 'Foo', tags: [], visibility: 'public' }],
     total: 0
   });
   return wrapper;

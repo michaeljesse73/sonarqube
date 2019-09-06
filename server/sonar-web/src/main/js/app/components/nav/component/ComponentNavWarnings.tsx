@@ -19,9 +19,9 @@
  */
 import * as React from 'react';
 import { FormattedMessage } from 'react-intl';
-import { lazyLoad } from '../../../../components/lazyLoad';
-import WarningIcon from '../../../../components/icons-components/WarningIcon';
-import { translate, translateWithParameters } from '../../../../helpers/l10n';
+import { lazyLoad } from 'sonar-ui-common/components/lazyLoad';
+import { Alert } from 'sonar-ui-common/components/ui/Alert';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 
 const AnalysisWarningsModal = lazyLoad(() =>
   import('../../../../components/common/AnalysisWarningsModal')
@@ -51,23 +51,25 @@ export default class ComponentNavWarnings extends React.PureComponent<Props, Sta
   render() {
     return (
       <>
-        <div className="badge badge-focus badge-medium display-inline-flex-center js-component-analysis-warnings">
-          <WarningIcon className="spacer-right" />
+        <Alert className="js-component-analysis-warnings flex-1" display="inline" variant="warning">
           <FormattedMessage
-            defaultMessage={translate('component_navigation.last_analsys_had_warnings')}
-            id="component_navigation.last_analsys_had_warnings"
+            defaultMessage={translate('component_navigation.last_analysis_had_warnings')}
+            id="component_navigation.last_analysis_had_warnings"
             values={{
               warnings: (
                 <a href="#" onClick={this.handleClick}>
-                  {translateWithParameters(
-                    'component_navigation.x_warnings',
-                    String(this.props.warnings.length)
-                  )}
+                  <FormattedMessage
+                    defaultMessage={translate('component_navigation.x_warnings')}
+                    id="component_navigation.x_warnings"
+                    values={{
+                      warningsCount: this.props.warnings.length
+                    }}
+                  />
                 </a>
               )
             }}
           />
-        </div>
+        </Alert>
         {this.state.modal && (
           <AnalysisWarningsModal onClose={this.handleCloseModal} warnings={this.props.warnings} />
         )}

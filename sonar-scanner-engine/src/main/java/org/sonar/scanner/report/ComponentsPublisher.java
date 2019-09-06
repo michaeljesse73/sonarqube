@@ -44,7 +44,6 @@ public class ComponentsPublisher implements ReportPublisherStep {
   private final InputComponentStore inputComponentStore;
   private final DefaultInputProject project;
 
-
   public ComponentsPublisher(DefaultInputProject project, InputComponentStore inputComponentStore) {
     this.project = project;
     this.inputComponentStore = inputComponentStore;
@@ -123,7 +122,7 @@ public class ComponentsPublisher implements ReportPublisherStep {
   }
 
   private static void writeProjectLink(ScannerReport.Component.Builder componentBuilder, Map<String, String> properties, ComponentLink.Builder linkBuilder, String linkProp,
-                                       ComponentLinkType linkType) {
+    ComponentLinkType linkType) {
     String link = properties.get(linkProp);
     if (StringUtils.isNotBlank(link)) {
       linkBuilder.setType(linkType);
@@ -140,11 +139,7 @@ public class ComponentsPublisher implements ReportPublisherStep {
 
   @CheckForNull
   private static String getName(AbstractProjectOrModule module) {
-    if (StringUtils.isNotEmpty(module.definition().getBranch())) {
-      return module.definition().getName() + " " + module.definition().getBranch();
-    } else {
-      return module.definition().getOriginalName();
-    }
+    return module.definition().getOriginalName();
   }
 
   @CheckForNull

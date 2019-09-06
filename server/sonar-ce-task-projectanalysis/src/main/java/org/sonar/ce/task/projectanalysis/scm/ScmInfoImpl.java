@@ -19,25 +19,28 @@
  */
 package org.sonar.ce.task.projectanalysis.scm;
 
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.Comparator;
-import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import javax.annotation.concurrent.Immutable;
-import static com.google.common.base.Preconditions.checkState;
+import org.sonar.api.utils.Preconditions;
 
 @Immutable
 public class ScmInfoImpl implements ScmInfo {
   private final Changeset latestChangeset;
-  private final Map<Integer, Changeset> lineChangesets;
+  private final Changeset[] lineChangesets;
 
-  public ScmInfoImpl(Map<Integer, Changeset> lineChangesets) {
-    checkState(!lineChangesets.isEmpty(), "A ScmInfo must have at least one Changeset and does not support any null one");
-    this.lineChangesets = Collections.unmodifiableMap(lineChangesets);
+  public ScmInfoImpl(Changeset[] lineChangesets) {
+    Preconditions.checkNotNull(lineChangesets);
+    Preconditions.checkState(lineChangesets.length > 0, "ScmInfo cannot be empty");
+    this.lineChangesets = lineChangesets;
     this.latestChangeset = computeLatestChangeset(lineChangesets);
   }
 
-  private static Changeset computeLatestChangeset(Map<Integer, Changeset> lineChangesets) {
-    return lineChangesets.values().stream().max(Comparator.comparingLong(Changeset::getDate))
+  private static Changeset computeLatestChangeset(Changeset[] lineChangesets) {
+    return Arrays.stream(lineChangesets).filter(Objects::nonNull).max(Comparator.comparingLong(Changeset::getDate))
       .orElseThrow(() -> new IllegalStateException("Expecting at least one Changeset to be present"));
   }
 
@@ -48,7 +51,11 @@ public class ScmInfoImpl implements ScmInfo {
 
   @Override
   public Changeset getChangesetForLine(int lineNumber) {
-    Changeset changeset = lineChangesets.get(lineNumber);
+    if (lineNumber < 1 || lineNumber > lineChangesets.length) {
+      throw new IllegalArgumentException("There's no changeset on line " + lineNumber);
+
+    }
+    Changeset changeset = lineChangesets[lineNumber - 1];
     if (changeset != null) {
       return changeset;
     }
@@ -57,11 +64,11 @@ public class ScmInfoImpl implements ScmInfo {
 
   @Override
   public boolean hasChangesetForLine(int lineNumber) {
-    return lineChangesets.containsKey(lineNumber);
+    return lineNumber > 0 && lineNumber - 1 < lineChangesets.length && lineChangesets[lineNumber - 1] != null;
   }
 
   @Override
-  public Map<Integer, Changeset> getAllChangesets() {
+  public Changeset[] getAllChangesets() {
     return lineChangesets;
   }
 
@@ -69,7 +76,7 @@ public class ScmInfoImpl implements ScmInfo {
   public String toString() {
     return "ScmInfoImpl{" +
       "latestChangeset=" + latestChangeset +
-      ", lineChangesets=" + lineChangesets +
-      '}';
+      ", lineChangesets={" + IntStream.range(0, lineChangesets.length).mapToObj(i -> i + 1 + "=" + lineChangesets[i]).collect(Collectors.joining(", "))
+      + "}}";
   }
 }

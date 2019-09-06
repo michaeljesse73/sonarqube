@@ -19,14 +19,14 @@
  */
 import * as React from 'react';
 import { connect } from 'react-redux';
-import OnboardingModal from './OnboardingModal';
-import { skipOnboarding } from '../../../store/users';
 import { OnboardingContext } from '../../../app/components/OnboardingContext';
 import { Router } from '../../../components/hoc/withRouter';
+import { skipOnboarding } from '../../../store/users';
+import OnboardingModal from './OnboardingModal';
 
 interface Props {
   router: Router;
-  skipOnboarding: () => void;
+  skipOnboarding: VoidFunction;
 }
 
 export class OnboardingPage extends React.PureComponent<Props> {

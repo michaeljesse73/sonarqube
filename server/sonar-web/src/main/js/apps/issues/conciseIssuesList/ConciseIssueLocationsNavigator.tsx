@@ -17,14 +17,14 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { uniq } from 'lodash';
+import * as React from 'react';
+import { getLocations } from '../utils';
 import ConciseIssueLocationsNavigatorLocation from './ConciseIssueLocationsNavigatorLocation';
 import CrossFileLocationsNavigator from './CrossFileLocationsNavigator';
-import { getLocations } from '../utils';
 
 interface Props {
-  issue: Pick<T.Issue, 'component' | 'key' | 'flows' | 'secondaryLocations'>;
+  issue: Pick<T.Issue, 'component' | 'key' | 'flows' | 'secondaryLocations' | 'type'>;
   onLocationSelect: (index: number) => void;
   scroll: (element: Element) => void;
   selectedFlowIndex: number | undefined;
@@ -39,6 +39,9 @@ export default class ConciseIssueLocationsNavigator extends React.PureComponent<
       return null;
     }
 
+    const isTaintAnalysis =
+      this.props.issue.type === 'VULNERABILITY' && this.props.issue.flows.length > 0;
+
     const locationComponents = [
       this.props.issue.component,
       ...locations.map(location => location.component)
@@ -48,6 +51,7 @@ export default class ConciseIssueLocationsNavigator extends React.PureComponent<
     if (isCrossFile) {
       return (
         <CrossFileLocationsNavigator
+          isTaintAnalysis={isTaintAnalysis}
           issue={this.props.issue}
           locations={locations}
           onLocationSelect={this.props.onLocationSelect}
@@ -61,11 +65,13 @@ export default class ConciseIssueLocationsNavigator extends React.PureComponent<
           {locations.map((location, index) => (
             <ConciseIssueLocationsNavigatorLocation
               index={index}
+              isTaintAnalysis={isTaintAnalysis}
               key={index}
               message={location.msg}
               onClick={this.props.onLocationSelect}
               scroll={this.props.scroll}
               selected={index === this.props.selectedLocationIndex}
+              totalCount={locations.length}
             />
           ))}
         </div>

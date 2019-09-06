@@ -13,13 +13,13 @@ SonarCloud can autonomously scan your code, by simply reading it from your repos
 ## Prerequisites
 
 * The first version of this Beta feature works only for GitHub repositories. 
-* The automatic analysis can be activated only on projects which were set up through the SonarCloud web interface.
+* The automatic analysis can be activated only on projects which are bound to their remote repository. This implies that the the project was set up through the SonarCloud web interface by selecting a repository (i.e. not "manually").
 
 ## What to expect
 
 Once activated, SonarCloud will automatically analyze: 
 * the default branch of the repository
-* the pull requests (PR) on that default branch
+* the pull requests (PR)
 
 It will take care of doing it whenever you push on your repository.
 
@@ -49,7 +49,7 @@ If you're starting from scratch:
 
 1. Do the [setup for your project](/#sonarcloud#/projects/create) (from the `+ > Analyze new project` top right menu)
     * ![](/images/exclamation.svg) Remember that your project must absolutely be created by selecting a GitHub repository - otherwise it won't work.
-1. Once the setup is done on SonarCloud, you end up on the project home page which shows a tutorial. Ignore it and simply add a `.sonarcloud.properties` file in the base directory of your default branch (or on a PR which targets this default branch). 
+1. Once the setup is done on SonarCloud, you end up on the project home page which shows a tutorial. Ignore it and simply add a `.sonarcloud.properties` file in the base directory of your default branch or on a PR. 
 1. After a while, the analysis results will be visible in SonarCloud (and your PR will be annotated with comments if you pushed the file on a PR)
 
 Here are the supported optional settings for the `.sonarcloud.properties` file:
@@ -77,7 +77,6 @@ Note that you can just push an empty `.sonarcloud.properties` file, this will wo
 
 * There is no visual feedback (yet) in the UI when SonarCloud runs an analysis.
 * A consequence of the previous point is that if - for any reason, SonarCloud fails to successfully run the analysis, nothing will be displayed. In that case, just come on [the forum](https://community.sonarsource.com/tags/c/help/sc/autoscan) and ask a question, we'll monitor that closely.
-* Pull requests from forks are not analyzed (only PRs from the same repository)
 * Code coverage information is not supported
 * Import of external rule engine reports is not supported
 

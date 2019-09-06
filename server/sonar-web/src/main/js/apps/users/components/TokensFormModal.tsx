@@ -18,9 +18,11 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
+import { FormattedMessage } from 'react-intl';
+import { ResetButtonLink } from 'sonar-ui-common/components/controls/buttons';
+import Modal from 'sonar-ui-common/components/controls/Modal';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import TokensForm from './TokensForm';
-import Modal from '../../../components/controls/Modal';
-import { translate } from '../../../helpers/l10n';
 
 interface Props {
   user: T.User;
@@ -28,31 +30,28 @@ interface Props {
   updateTokensCount: (login: string, tokensCount: number) => void;
 }
 
-export default class TokensFormModal extends React.PureComponent<Props> {
-  handleCloseClick = (evt: React.SyntheticEvent<HTMLAnchorElement>) => {
-    evt.preventDefault();
-    this.props.onClose();
-  };
-
-  render() {
-    const header = translate('users.tokens');
-    return (
-      <Modal contentLabel={header} onRequestClose={this.props.onClose}>
-        <header className="modal-head">
-          <h2>{header}</h2>
-        </header>
-        <div className="modal-body modal-container">
-          <TokensForm
-            login={this.props.user.login}
-            updateTokensCount={this.props.updateTokensCount}
+export default function TokensFormModal(props: Props) {
+  return (
+    <Modal contentLabel={translate('users.tokens')} onRequestClose={props.onClose}>
+      <header className="modal-head">
+        <h2>
+          <FormattedMessage
+            defaultMessage={translate('users.user_X_tokens')}
+            id="users.user_X_tokens"
+            values={{ user: <em>{props.user.name}</em> }}
           />
-        </div>
-        <footer className="modal-foot">
-          <a className="js-modal-close" href="#" onClick={this.handleCloseClick}>
-            {translate('Done')}
-          </a>
-        </footer>
-      </Modal>
-    );
-  }
+        </h2>
+      </header>
+      <div className="modal-body modal-container">
+        <TokensForm
+          deleteConfirmation="inline"
+          login={props.user.login}
+          updateTokensCount={props.updateTokensCount}
+        />
+      </div>
+      <footer className="modal-foot">
+        <ResetButtonLink onClick={props.onClose}>{translate('Done')}</ResetButtonLink>
+      </footer>
+    </Modal>
+  );
 }

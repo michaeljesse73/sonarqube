@@ -19,11 +19,10 @@
  */
 package org.sonar.server.issue.notification;
 
-import org.sonar.api.utils.Durations;
-import org.sonar.db.DbClient;
-import org.sonar.db.user.UserDto;
-
+import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
+import org.sonar.api.utils.Durations;
+import org.sonar.db.user.UserDto;
 
 import static org.sonar.server.issue.notification.AbstractNewIssuesEmailTemplate.FIELD_ASSIGNEE;
 
@@ -31,8 +30,8 @@ public class MyNewIssuesNotification extends NewIssuesNotification {
 
   public static final String MY_NEW_ISSUES_NOTIF_TYPE = "my-new-issues";
 
-  MyNewIssuesNotification(DbClient dbClient, Durations durations) {
-    super(MY_NEW_ISSUES_NOTIF_TYPE, dbClient, durations);
+  public MyNewIssuesNotification(Durations durations, DetailsSupplier detailsSupplier) {
+    super(MY_NEW_ISSUES_NOTIF_TYPE, durations, detailsSupplier);
   }
 
   public MyNewIssuesNotification setAssignee(@Nullable UserDto assignee) {
@@ -41,6 +40,11 @@ public class MyNewIssuesNotification extends NewIssuesNotification {
     }
     setFieldValue(FIELD_ASSIGNEE, assignee.getLogin());
     return this;
+  }
+
+  @CheckForNull
+  public String getAssignee() {
+    return getFieldValue(FIELD_ASSIGNEE);
   }
 
   @Override

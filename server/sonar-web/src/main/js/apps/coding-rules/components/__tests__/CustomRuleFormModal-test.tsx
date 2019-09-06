@@ -17,13 +17,25 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { shallow } from 'enzyme';
-import CustomRuleFormModal from '../CustomRuleFormModal';
+import * as React from 'react';
+import { submit, waitAndUpdate } from 'sonar-ui-common/helpers/testUtils';
+import { createRule } from '../../../../api/rules';
 import { mockRule } from '../../../../helpers/testMocks';
+import CustomRuleFormModal from '../CustomRuleFormModal';
+
+jest.mock('../../../../api/rules', () => ({ createRule: jest.fn() }));
 
 it('should render correctly', () => {
   expect(shallowRender()).toMatchSnapshot();
+});
+
+it('should handle re-activation', async () => {
+  (createRule as jest.Mock).mockRejectedValue({ status: 409 });
+  const wrapper = shallowRender();
+  submit(wrapper.find('form'));
+  await waitAndUpdate(wrapper);
+  expect(wrapper).toMatchSnapshot();
 });
 
 function shallowRender(props: Partial<CustomRuleFormModal['props']> = {}) {

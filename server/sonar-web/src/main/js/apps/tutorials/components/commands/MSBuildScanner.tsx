@@ -18,7 +18,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import { translate } from '../../../../helpers/l10n';
+import { FormattedMessage } from 'react-intl';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 
 interface Props {
   className?: string;
@@ -28,14 +29,17 @@ export default function MSBuildScanner(props: Props) {
   return (
     <div className={props.className}>
       <h4 className="spacer-bottom">{translate('onboarding.analysis.msbuild.header')}</h4>
-      <p
-        className="spacer-bottom markdown"
-        dangerouslySetInnerHTML={{ __html: translate('onboarding.analysis.msbuild.text') }}
-      />
+      <p className="spacer-bottom markdown">
+        <FormattedMessage
+          defaultMessage={translate('onboarding.analysis.msbuild.text')}
+          id="onboarding.analysis.msbuild.text"
+          values={{ code: <code>%PATH%</code> }}
+        />
+      </p>
       <p>
         <a
           className="button"
-          href="http://redirect.sonarsource.com/doc/install-configure-scanner-msbuild.html"
+          href="https://sonarcloud.io/documentation/analysis/scan/sonarscanner-for-msbuild/"
           rel="noopener noreferrer"
           target="_blank">
           {translate('download_verb')}

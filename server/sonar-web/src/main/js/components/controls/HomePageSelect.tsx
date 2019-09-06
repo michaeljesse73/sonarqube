@@ -17,15 +17,16 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import * as classNames from 'classnames';
+import * as React from 'react';
 import { connect } from 'react-redux';
-import Tooltip from './Tooltip';
-import HomeIcon from '../icons-components/HomeIcon';
-import { translate } from '../../helpers/l10n';
+import { ButtonLink } from 'sonar-ui-common/components/controls/buttons';
+import Tooltip from 'sonar-ui-common/components/controls/Tooltip';
+import HomeIcon from 'sonar-ui-common/components/icons/HomeIcon';
+import { translate } from 'sonar-ui-common/helpers/l10n';
+import { isLoggedIn } from '../../helpers/users';
 import { getCurrentUser, Store } from '../../store/rootReducer';
 import { setHomePage } from '../../store/users';
-import { isLoggedIn } from '../../helpers/users';
 
 interface StateProps {
   currentUser: T.CurrentUser;
@@ -41,9 +42,7 @@ interface Props extends StateProps, DispatchProps {
 }
 
 class HomePageSelect extends React.PureComponent<Props> {
-  handleClick = (event: React.SyntheticEvent<HTMLAnchorElement>) => {
-    event.preventDefault();
-    event.currentTarget.blur();
+  handleClick = () => {
     this.props.setHomePage(this.props.currentPage);
   };
 
@@ -61,20 +60,18 @@ class HomePageSelect extends React.PureComponent<Props> {
     return (
       <Tooltip overlay={tooltip}>
         {checked ? (
-          <span className={classNames('display-inline-block', this.props.className)}>
+          <span
+            aria-label={tooltip}
+            className={classNames('display-inline-block', this.props.className)}>
             <HomeIcon filled={checked} />
           </span>
         ) : (
-          <a
-            className={classNames(
-              'link-no-underline',
-              'display-inline-block',
-              this.props.className
-            )}
-            href="#"
+          <ButtonLink
+            aria-label={tooltip}
+            className={classNames('link-no-underline', 'set-homepage-link', this.props.className)}
             onClick={this.handleClick}>
             <HomeIcon filled={checked} />
-          </a>
+          </ButtonLink>
         )}
       </Tooltip>
     );

@@ -41,20 +41,16 @@ export function hasAdvancedALMIntegration(user: T.CurrentUser) {
   );
 }
 
-export function isBitbucket(almKey?: string) {
-  return almKey && almKey.startsWith('bitbucket');
+export function isBitbucket(almKey?: string): boolean {
+  return almKey ? almKey.startsWith('bitbucket') : false;
 }
 
-export function isGithub(almKey?: string) {
+export function isGithub(almKey?: string): boolean {
   return almKey === 'github';
 }
 
-export function isVSTS(almKey?: string) {
+export function isVSTS(almKey?: string): boolean {
   return almKey === 'microsoft';
-}
-
-export function isPersonal(organization?: T.AlmOrganization) {
-  return Boolean(organization && organization.personal);
 }
 
 export function sanitizeAlmId(almKey: string) {

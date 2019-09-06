@@ -18,11 +18,11 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import ProjectOverviewFacet from './ProjectOverviewFacet';
-import DomainFacet from './DomainFacet';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import A11ySkipTarget from '../../../app/components/a11y/A11ySkipTarget';
 import { groupByDomains, KNOWN_DOMAINS, PROJECT_OVERVEW, Query } from '../utils';
-import { translate } from '../../../helpers/l10n';
+import DomainFacet from './DomainFacet';
+import ProjectOverviewFacet from './ProjectOverviewFacet';
 
 interface Props {
   measures: T.MeasureEnhanced[];

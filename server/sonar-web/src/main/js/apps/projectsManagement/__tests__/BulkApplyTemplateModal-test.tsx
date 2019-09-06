@@ -17,12 +17,12 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-/* eslint-disable import/order */
-import * as React from 'react';
+
 import { mount, shallow } from 'enzyme';
+import * as React from 'react';
+import { parseDate } from 'sonar-ui-common/helpers/dates';
+import { click, waitAndUpdate } from 'sonar-ui-common/helpers/testUtils';
 import BulkApplyTemplateModal, { Props } from '../BulkApplyTemplateModal';
-import { click, waitAndUpdate } from '../../../helpers/testUtils';
-import { parseDate } from '../../../helpers/dates';
 
 jest.mock('../../../api/permissions', () => ({
   bulkApplyTemplate: jest.fn(() => Promise.resolve()),
@@ -55,7 +55,7 @@ it('bulk applies template to all results', async () => {
   });
   expect(wrapper).toMatchSnapshot();
 
-  click(wrapper.find('Button'));
+  click(wrapper.find('SubmitButton'));
   expect(bulkApplyTemplate).toBeCalledWith({
     analyzedBefore: '2017-04-08T00:00:00+0000',
     onProvisionedOnly: true,
@@ -71,7 +71,7 @@ it('bulk applies template to all results', async () => {
 });
 
 it('bulk applies template to selected results', async () => {
-  const wrapper = shallow(render({ selection: ['proj1', 'proj2'] }));
+  const wrapper = shallow(render({ qualifier: 'VW', selection: ['proj1', 'proj2'] }));
   (wrapper.instance() as BulkApplyTemplateModal).mounted = true;
   expect(wrapper).toMatchSnapshot();
 
@@ -82,12 +82,13 @@ it('bulk applies template to selected results', async () => {
   });
   expect(wrapper).toMatchSnapshot();
 
-  click(wrapper.find('Button'));
+  click(wrapper.find('SubmitButton'));
   expect(wrapper).toMatchSnapshot();
   await new Promise(setImmediate);
   expect(bulkApplyTemplate).toBeCalledWith({
     organization: 'org',
     projects: 'proj1,proj2',
+    qualifiers: 'VW',
     templateId: 'foo'
   });
 
@@ -98,7 +99,7 @@ it('bulk applies template to selected results', async () => {
 it('closes', () => {
   const onClose = jest.fn();
   const wrapper = shallow(render({ onClose }));
-  click(wrapper.find('.js-modal-close'));
+  click(wrapper.find('ResetButtonLink'));
   expect(onClose).toBeCalled();
 });
 

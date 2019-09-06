@@ -17,14 +17,14 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { differenceWith } from 'lodash';
+import * as React from 'react';
+import { AsyncSelect } from 'sonar-ui-common/components/controls/Select';
+import { translate } from 'sonar-ui-common/helpers/l10n';
+import { getSuggestions } from '../../../api/components';
+import Organization from '../../../components/shared/Organization';
 import ProjectNotifications from './ProjectNotifications';
 import { NotificationProject } from './types';
-import { getSuggestions } from '../../../api/components';
-import { AsyncSelect } from '../../../components/controls/Select';
-import Organization from '../../../components/shared/Organization';
-import { translate } from '../../../helpers/l10n';
 
 export interface Props {
   addNotification: (n: T.Notification) => void;

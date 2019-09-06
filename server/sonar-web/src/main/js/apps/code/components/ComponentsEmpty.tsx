@@ -18,12 +18,16 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import { translate } from '../../../helpers/l10n';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 
-export default function ComponentsEmpty() {
+interface Props {
+  canBePinned?: boolean;
+}
+
+export default function ComponentsEmpty({ canBePinned = true }: Props) {
   return (
     <tr>
-      <td />
+      {canBePinned && <td />}
       <td className="note" colSpan={2}>
         {translate('no_results')}
       </td>

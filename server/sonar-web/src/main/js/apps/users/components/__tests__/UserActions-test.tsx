@@ -17,9 +17,9 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { shallow } from 'enzyme';
-import { click } from '../../../../helpers/testUtils';
+import * as React from 'react';
+import { click } from 'sonar-ui-common/helpers/testUtils';
 import UserActions from '../UserActions';
 
 const user = {
@@ -34,14 +34,6 @@ it('should render correctly', () => {
   expect(getWrapper()).toMatchSnapshot();
 });
 
-it('should display change password action', () => {
-  expect(
-    getWrapper({ user: { ...user, local: true } })
-      .find('.js-user-change-password')
-      .exists()
-  ).toBeTruthy();
-});
-
 it('should open the update form', () => {
   const wrapper = getWrapper();
   click(wrapper.find('.js-user-update'));
@@ -50,7 +42,29 @@ it('should open the update form', () => {
       .first()
       .find('UserForm')
       .exists()
-  ).toBeTruthy();
+  ).toBe(true);
+});
+
+it('should open the password form', () => {
+  const wrapper = getWrapper({ user: { ...user, local: true } });
+  click(wrapper.find('.js-user-change-password'));
+  expect(
+    wrapper
+      .first()
+      .find('PasswordForm')
+      .exists()
+  ).toBe(true);
+});
+
+it('should open the deactivate form', () => {
+  const wrapper = getWrapper();
+  click(wrapper.find('.js-user-deactivate'));
+  expect(
+    wrapper
+      .first()
+      .find('DeactivateForm')
+      .exists()
+  ).toBe(true);
 });
 
 function getWrapper(props = {}) {

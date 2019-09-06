@@ -19,18 +19,16 @@
  */
 package org.sonar.ce.task.projectanalysis.issue;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
-import org.sonar.api.rules.RuleType;
-import org.sonar.ce.task.projectanalysis.analysis.AnalysisMetadataHolder;
 import org.sonar.ce.task.projectanalysis.component.Component;
 import org.sonar.ce.task.projectanalysis.component.CrawlerDepthLimit;
-import org.sonar.ce.task.projectanalysis.component.MergeBranchComponentUuids;
+import org.sonar.ce.task.projectanalysis.component.MergeAndTargetBranchComponentUuids;
 import org.sonar.ce.task.projectanalysis.component.TypeAwareVisitorAdapter;
 import org.sonar.ce.task.projectanalysis.util.cache.DiskCache;
 import org.sonar.core.issue.DefaultIssue;
+import org.sonar.core.util.stream.MoreCollectors;
 
 import static org.sonar.ce.task.projectanalysis.component.ComponentVisitor.Order.POST_ORDER;
 
@@ -40,21 +38,18 @@ public class IntegrateIssuesVisitor extends TypeAwareVisitorAdapter {
   private final IssueLifecycle issueLifecycle;
   private final IssueVisitors issueVisitors;
   private final IssueTrackingDelegator issueTracking;
-  private final ShortBranchIssueMerger issueStatusCopier;
-  private final AnalysisMetadataHolder analysisMetadataHolder;
-  private final MergeBranchComponentUuids mergeBranchComponentUuids;
+  private final SiblingsIssueMerger issueStatusCopier;
+  private final MergeAndTargetBranchComponentUuids mergeAndTargetBranchComponentUuids;
 
-  public IntegrateIssuesVisitor(IssueCache issueCache, IssueLifecycle issueLifecycle, IssueVisitors issueVisitors,
-    AnalysisMetadataHolder analysisMetadataHolder, IssueTrackingDelegator issueTracking, ShortBranchIssueMerger issueStatusCopier,
-    MergeBranchComponentUuids mergeBranchComponentUuids) {
+  public IntegrateIssuesVisitor(IssueCache issueCache, IssueLifecycle issueLifecycle, IssueVisitors issueVisitors, IssueTrackingDelegator issueTracking,
+    SiblingsIssueMerger issueStatusCopier, MergeAndTargetBranchComponentUuids mergeAndTargetBranchComponentUuids) {
     super(CrawlerDepthLimit.FILE, POST_ORDER);
     this.issueCache = issueCache;
     this.issueLifecycle = issueLifecycle;
     this.issueVisitors = issueVisitors;
-    this.analysisMetadataHolder = analysisMetadataHolder;
     this.issueTracking = issueTracking;
     this.issueStatusCopier = issueStatusCopier;
-    this.mergeBranchComponentUuids = mergeBranchComponentUuids;
+    this.mergeAndTargetBranchComponentUuids = mergeAndTargetBranchComponentUuids;
   }
 
   @Override
@@ -73,24 +68,17 @@ public class IntegrateIssuesVisitor extends TypeAwareVisitorAdapter {
   }
 
   private void fillNewOpenIssues(Component component, Stream<DefaultIssue> newIssues, DiskCache<DefaultIssue>.DiskAppender cacheAppender) {
-    List<DefaultIssue> list = new ArrayList<>();
+    List<DefaultIssue> newIssuesList = newIssues
+      .peek(issueLifecycle::initNewOpenIssue)
+      .collect(MoreCollectors.toList());
 
-    newIssues.forEach(issue -> {
-      issueLifecycle.initNewOpenIssue(issue);
-      if (analysisMetadataHolder.isLongLivingBranch() || issue.type() != RuleType.SECURITY_HOTSPOT) {
-        list.add(issue);
-      }
-    });
-
-    if (list.isEmpty()) {
+    if (newIssuesList.isEmpty()) {
       return;
     }
 
-    if (analysisMetadataHolder.isLongLivingBranch()) {
-      issueStatusCopier.tryMerge(component, list);
-    }
+    issueStatusCopier.tryMerge(component, newIssuesList);
 
-    for (DefaultIssue issue : list) {
+    for (DefaultIssue issue : newIssuesList) {
       process(component, issue, cacheAppender);
     }
   }
@@ -99,7 +87,7 @@ public class IntegrateIssuesVisitor extends TypeAwareVisitorAdapter {
     for (Map.Entry<DefaultIssue, DefaultIssue> entry : matched.entrySet()) {
       DefaultIssue raw = entry.getKey();
       DefaultIssue base = entry.getValue();
-      issueLifecycle.copyExistingOpenIssueFromLongLivingBranch(raw, base, mergeBranchComponentUuids.getMergeBranchName());
+      issueLifecycle.copyExistingOpenIssueFromLongLivingBranch(raw, base, mergeAndTargetBranchComponentUuids.getMergeBranchName());
       process(component, raw, cacheAppender);
     }
   }
@@ -109,9 +97,7 @@ public class IntegrateIssuesVisitor extends TypeAwareVisitorAdapter {
       DefaultIssue raw = entry.getKey();
       DefaultIssue base = entry.getValue();
       issueLifecycle.mergeExistingOpenIssue(raw, base);
-      if (analysisMetadataHolder.isLongLivingBranch() || raw.type() != RuleType.SECURITY_HOTSPOT) {
-        process(component, raw, cacheAppender);
-      }
+      process(component, raw, cacheAppender);
     }
   }
 

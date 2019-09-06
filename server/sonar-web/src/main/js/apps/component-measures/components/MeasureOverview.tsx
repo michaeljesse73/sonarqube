@@ -18,17 +18,17 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
+import DeferredSpinner from 'sonar-ui-common/components/ui/DeferredSpinner';
+import PageActions from 'sonar-ui-common/components/ui/PageActions';
+import { getComponentLeaves } from '../../../api/components';
+import A11ySkipTarget from '../../../app/components/a11y/A11ySkipTarget';
+import SourceViewer from '../../../components/SourceViewer/SourceViewer';
+import { getBranchLikeQuery, isSameBranchLike } from '../../../helpers/branches';
+import BubbleChart from '../drilldown/BubbleChart';
+import { enhanceComponent, getBubbleMetrics, hasFullMeasures, isFileType } from '../utils';
 import Breadcrumbs from './Breadcrumbs';
 import LeakPeriodLegend from './LeakPeriodLegend';
 import MeasureContentHeader from './MeasureContentHeader';
-import A11ySkipTarget from '../../../app/components/a11y/A11ySkipTarget';
-import PageActions from '../../../components/ui/PageActions';
-import BubbleChart from '../drilldown/BubbleChart';
-import DeferredSpinner from '../../../components/common/DeferredSpinner';
-import SourceViewer from '../../../components/SourceViewer/SourceViewer';
-import { getComponentLeaves } from '../../../api/components';
-import { enhanceComponent, getBubbleMetrics, isFileType, hasFullMeasures } from '../utils';
-import { getBranchLikeQuery, isSameBranchLike } from '../../../helpers/branches';
 
 interface Props {
   branchLike?: T.BranchLike;
@@ -38,6 +38,7 @@ interface Props {
   leakPeriod?: T.Period;
   loading: boolean;
   metrics: T.Dict<T.Metric>;
+  onIssueChange?: (issue: T.Issue) => void;
   rootComponent: T.ComponentMeasure;
   updateLoading: (param: T.Dict<boolean>) => void;
   updateSelected: (component: string) => void;
@@ -117,7 +118,11 @@ export default class MeasureOverview extends React.PureComponent<Props, State> {
     if (isFileType(component)) {
       return (
         <div className="measure-details-viewer">
-          <SourceViewer branchLike={branchLike} component={component.key} />
+          <SourceViewer
+            branchLike={branchLike}
+            component={component.key}
+            onIssueChange={this.props.onIssueChange}
+          />
         </div>
       );
     }

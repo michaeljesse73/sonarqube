@@ -17,16 +17,17 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { Location } from 'history';
-import SourceViewer from '../../../components/SourceViewer/SourceViewer';
+import * as React from 'react';
+import { scrollToElement } from 'sonar-ui-common/helpers/scrolling';
 import withKeyboardNavigation from '../../../components/hoc/withKeyboardNavigation';
-import { scrollToElement } from '../../../helpers/scrolling';
+import SourceViewer from '../../../components/SourceViewer/SourceViewer';
 
 interface Props {
   branchLike?: T.BranchLike;
   component: string;
   location: Pick<Location, 'query'>;
+  onIssueChange?: (issue: T.Issue) => void;
 }
 
 export class SourceViewerWrapper extends React.PureComponent<Props> {
@@ -53,7 +54,9 @@ export class SourceViewerWrapper extends React.PureComponent<Props> {
         branchLike={branchLike}
         component={component}
         highlightedLine={finalLine}
+        onIssueChange={this.props.onIssueChange}
         onLoaded={this.scrollToLine}
+        showMeasures={true}
       />
     );
   }

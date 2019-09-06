@@ -17,19 +17,19 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
+import * as classNames from 'classnames';
 import * as React from 'react';
 import { Link } from 'react-router';
-import * as classNames from 'classnames';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import BranchStatus from '../../../../components/common/BranchStatus';
 import BranchIcon from '../../../../components/icons-components/BranchIcon';
 import {
-  isShortLivingBranch,
   getBranchLikeDisplayName,
   getBranchLikeKey,
   isMainBranch,
-  isPullRequest
+  isPullRequest,
+  isShortLivingBranch
 } from '../../../../helpers/branches';
-import { translate } from '../../../../helpers/l10n';
 import { getBranchLikeUrl } from '../../../../helpers/urls';
 
 export interface Props {
@@ -65,7 +65,7 @@ export default function ComponentNavBranchesMenuItem({ branchLike, ...props }: P
           />
           {displayName}
           {isMainBranch(branchLike) && (
-            <div className="outline-badge spacer-left">{translate('branches.main_branch')}</div>
+            <div className="badge spacer-left">{translate('branches.main_branch')}</div>
           )}
         </div>
         <div className="big-spacer-left note">

@@ -43,10 +43,11 @@ import org.sonar.db.ResultSetIterator;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.sonar.api.utils.DateUtils.longToDate;
 import static org.sonar.db.DatabaseUtils.getLong;
-import static org.sonar.server.issue.index.SecurityStandardHelper.getCwe;
-import static org.sonar.server.issue.index.SecurityStandardHelper.getOwaspTop10;
-import static org.sonar.server.issue.index.SecurityStandardHelper.getSansTop25;
-import static org.sonar.server.issue.index.SecurityStandardHelper.getSecurityStandards;
+import static org.sonar.server.security.SecurityStandardHelper.getCwe;
+import static org.sonar.server.security.SecurityStandardHelper.getOwaspTop10;
+import static org.sonar.server.security.SecurityStandardHelper.getSansTop25;
+import static org.sonar.server.security.SecurityStandardHelper.getSecurityStandards;
+import static org.sonar.server.security.SecurityStandardHelper.getSonarSourceSecurityCategories;
 
 /**
  * Scrolls over table ISSUES and reads documents to populate
@@ -237,6 +238,7 @@ class IssueIteratorForSingleChunk implements IssueIterator {
       List<String> cwe = getCwe(standards);
       doc.setCwe(cwe);
       doc.setSansTop25(getSansTop25(cwe));
+      doc.setSonarSourceSecurityCategories(getSonarSourceSecurityCategories(cwe));
       return doc;
     }
 

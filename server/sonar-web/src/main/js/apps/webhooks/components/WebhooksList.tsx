@@ -17,10 +17,10 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { sortBy } from 'lodash';
+import * as React from 'react';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import WebhookItem from './WebhookItem';
-import { translate } from '../../../helpers/l10n';
 
 interface Props {
   onDelete: (webhook: string) => Promise<void>;
@@ -34,6 +34,7 @@ export default class WebhooksList extends React.PureComponent<Props> {
       <tr>
         <th>{translate('name')}</th>
         <th>{translate('webhooks.url')}</th>
+        <th>{translate('webhooks.secret_header')}</th>
         <th>{translate('webhooks.last_execution')}</th>
         <th />
       </tr>

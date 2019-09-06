@@ -17,10 +17,10 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { shallow } from 'enzyme';
-import BulkChange from '../BulkChange';
+import * as React from 'react';
 import { mockEvent, mockQualityProfile } from '../../../../helpers/testMocks';
+import BulkChange from '../BulkChange';
 
 const profile = mockQualityProfile({
   actions: {
@@ -37,11 +37,11 @@ it('should render correctly', () => {
   expect(wrapper).toMatchSnapshot();
 });
 
-it('should not render anything', () => {
+it('should not a disabled button when edition is not possible', () => {
   const wrapper = shallowRender({
     referencedProfiles: { key: { ...profile, actions: { ...profile.actions, edit: false } } }
   });
-  expect(wrapper.type()).toBeNull();
+  expect(wrapper).toMatchSnapshot();
 });
 
 it('should display BulkChangeModal', () => {

@@ -17,12 +17,12 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-/* eslint-disable import/order */
-import * as React from 'react';
+
 import { shallow } from 'enzyme';
-import { UsersApp } from '../UsersApp';
-import { waitAndUpdate } from '../../../helpers/testUtils';
+import * as React from 'react';
+import { waitAndUpdate } from 'sonar-ui-common/helpers/testUtils';
 import { Location } from '../../../components/hoc/withRouter';
+import { UsersApp } from '../UsersApp';
 
 jest.mock('../../../api/users', () => ({
   getIdentityProviders: jest.fn(() =>

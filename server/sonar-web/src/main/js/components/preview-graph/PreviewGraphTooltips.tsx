@@ -18,10 +18,10 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import PreviewGraphTooltipsContent from './PreviewGraphTooltipsContent';
-import DateFormatter from '../intl/DateFormatter';
-import { Popup, PopupPlacement } from '../ui/popups';
+import { Popup, PopupPlacement } from 'sonar-ui-common/components/ui/popups';
 import { Serie } from '../../apps/projectActivity/utils';
+import DateFormatter from '../intl/DateFormatter';
+import PreviewGraphTooltipsContent from './PreviewGraphTooltipsContent';
 
 interface Props {
   formatValue: (value: number | string) => string;

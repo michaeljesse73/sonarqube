@@ -17,10 +17,10 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { shallow } from 'enzyme';
-import { NoFavoriteProjects } from '../NoFavoriteProjects';
+import * as React from 'react';
 import { isSonarCloud } from '../../../../helpers/system';
+import { NoFavoriteProjects } from '../NoFavoriteProjects';
 
 jest.mock('../../../../helpers/system', () => ({ isSonarCloud: jest.fn() }));
 
@@ -31,7 +31,14 @@ it('renders', () => {
   ).toMatchSnapshot();
 });
 
-it('renders for SonarCloud', () => {
+it('renders for SonarCloud without organizations', () => {
+  (isSonarCloud as jest.Mock).mockImplementation(() => true);
+  expect(
+    shallow(<NoFavoriteProjects openProjectOnboarding={jest.fn()} organizations={[]} />)
+  ).toMatchSnapshot();
+});
+
+it('renders for SonarCloud with organizations', () => {
   (isSonarCloud as jest.Mock).mockImplementation(() => true);
   const organizations: T.Organization[] = [
     { actions: { admin: true }, key: 'org1', name: 'org1', projectVisibility: 'public' },

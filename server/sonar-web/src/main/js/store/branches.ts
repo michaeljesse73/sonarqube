@@ -17,11 +17,17 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import { ActionType } from './utils/actions';
 import { getBranchLikeKey } from '../helpers/branches';
+import { ActionType } from './utils/actions';
+
+export interface BranchStatusData {
+  conditions?: T.QualityGateStatusCondition[];
+  ignoredConditions?: boolean;
+  status?: T.Status;
+}
 
 export interface State {
-  byComponent: T.Dict<T.Dict<{ status?: T.Status }>>;
+  byComponent: T.Dict<T.Dict<BranchStatusData>>;
 }
 
 const enum Actions {
@@ -33,14 +39,23 @@ type Action = ActionType<typeof registerBranchStatusAction, Actions.RegisterBran
 export function registerBranchStatusAction(
   branchLike: T.BranchLike,
   component: string,
-  status: T.Status
+  status: T.Status,
+  conditions?: T.QualityGateStatusCondition[],
+  ignoredConditions?: boolean
 ) {
-  return { type: Actions.RegisterBranchStatus, branchLike, component, status };
+  return {
+    type: Actions.RegisterBranchStatus,
+    branchLike,
+    component,
+    conditions,
+    ignoredConditions,
+    status
+  };
 }
 
 export default function(state: State = { byComponent: {} }, action: Action): State {
   if (action.type === Actions.RegisterBranchStatus) {
-    const { component, branchLike, status } = action;
+    const { component, conditions, branchLike, ignoredConditions, status } = action;
     const branchLikeKey = getBranchLikeKey(branchLike);
     return {
       byComponent: {
@@ -48,6 +63,8 @@ export default function(state: State = { byComponent: {} }, action: Action): Sta
         [component]: {
           ...(state.byComponent[component] || {}),
           [branchLikeKey]: {
+            conditions,
+            ignoredConditions,
             status
           }
         }
@@ -62,11 +79,7 @@ export function getBranchStatusByBranchLike(
   state: State,
   component: string,
   branchLike: T.BranchLike
-) {
+): BranchStatusData {
   const branchLikeKey = getBranchLikeKey(branchLike);
-  return (
-    state.byComponent[component] &&
-    state.byComponent[component][branchLikeKey] &&
-    state.byComponent[component][branchLikeKey].status
-  );
+  return state.byComponent[component] && state.byComponent[component][branchLikeKey];
 }

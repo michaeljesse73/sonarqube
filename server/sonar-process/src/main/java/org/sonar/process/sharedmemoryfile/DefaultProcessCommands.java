@@ -26,7 +26,7 @@ import org.slf4j.LoggerFactory;
  * Default implementation of {@link ProcessCommands} based on a {@link AllProcessesCommands} of which will request a
  * single {@link ProcessCommands} to use as delegate for the specified processNumber.
  */
-public class DefaultProcessCommands implements ProcessCommands {
+public class DefaultProcessCommands implements ProcessCommands, AutoCloseable {
   private final AllProcessesCommands allProcessesCommands;
   private final ProcessCommands delegate;
 
@@ -38,14 +38,14 @@ public class DefaultProcessCommands implements ProcessCommands {
   /**
    * Main DefaultProcessCommands will clear the shared memory space of the specified process number when created and will
    * then write and/or read to it.
-   * Therefor there should be only one main DefaultProcessCommands.
+   * Therefore there should be only one main DefaultProcessCommands.
    */
   public static DefaultProcessCommands main(File directory, int processNumber) {
     return new DefaultProcessCommands(directory, processNumber, true);
   }
 
   /**
-   * Secondary DefaultProcessCommands will read and write to the shared memory space but will not clear it. Therefor, there
+   * Secondary DefaultProcessCommands will read and write to the shared memory space but will not clear it. Therefore, there
    * can be any number of them.
    */
   public static DefaultProcessCommands secondary(File directory, int processNumber) {
@@ -109,6 +109,16 @@ public class DefaultProcessCommands implements ProcessCommands {
   @Override
   public boolean askedForStop() {
     return delegate.askedForStop();
+  }
+
+  @Override
+  public void askForHardStop() {
+    delegate.askForHardStop();
+  }
+
+  @Override
+  public boolean askedForHardStop() {
+    return delegate.askedForHardStop();
   }
 
   @Override

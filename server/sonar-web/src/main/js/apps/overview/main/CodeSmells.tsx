@@ -18,17 +18,16 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import enhance, { ComposedProps } from './enhance';
-import DateFromNow from '../../../components/intl/DateFromNow';
-import { getMetricName } from '../utils';
-import { translate, translateWithParameters } from '../../../helpers/l10n';
-import { formatMeasure } from '../../../helpers/measures';
-import CodeSmellIcon from '../../../components/icons-components/CodeSmellIcon';
+import CodeSmellIcon from 'sonar-ui-common/components/icons/CodeSmellIcon';
+import { formatMeasure } from 'sonar-ui-common/helpers/measures';
+import DocTooltip from '../../../components/docs/DocTooltip';
 import DrilldownLink from '../../../components/shared/DrilldownLink';
+import { getMetricName } from '../utils';
+import enhance, { ComposedProps } from './enhance';
 
 export class CodeSmells extends React.PureComponent<ComposedProps> {
   renderHeader() {
-    return this.props.renderHeader('Maintainability', translate('metric.code_smells.name'));
+    return this.props.renderHeader('Maintainability');
   }
 
   renderDebt(metric: string) {
@@ -43,27 +42,8 @@ export class CodeSmells extends React.PureComponent<ComposedProps> {
     );
   }
 
-  renderTimelineStartDate() {
-    if (!this.props.historyStartDate) {
-      return null;
-    }
-    return (
-      <DateFromNow date={this.props.historyStartDate}>
-        {fromNow => (
-          <span className="overview-domain-timeline-date">
-            {translateWithParameters('overview.started_x', fromNow)}
-          </span>
-        )}
-      </DateFromNow>
-    );
-  }
-
-  renderTimeline(range: string, displayDate?: boolean) {
-    return this.props.renderTimeline(
-      'sqale_index',
-      range,
-      displayDate ? this.renderTimelineStartDate() : null
-    );
+  renderTimeline(range: string) {
+    return this.props.renderTimeline('sqale_index', range);
   }
 
   renderLeak() {
@@ -77,7 +57,7 @@ export class CodeSmells extends React.PureComponent<ComposedProps> {
         <div className="overview-domain-measures">
           <div className="overview-domain-measure">
             <div className="overview-domain-measure-value">
-              <span style={{ marginLeft: 30 }}>{this.renderDebt('new_technical_debt')}</span>
+              <span className="offset-left">{this.renderDebt('new_technical_debt')}</span>
               {this.props.renderRating('new_maintainability_rating')}
             </div>
             <div className="overview-domain-measure-label">{getMetricName('new_effort')}</div>
@@ -92,7 +72,6 @@ export class CodeSmells extends React.PureComponent<ComposedProps> {
             </div>
           </div>
         </div>
-
         {this.renderTimeline('after')}
       </div>
     );
@@ -104,27 +83,34 @@ export class CodeSmells extends React.PureComponent<ComposedProps> {
         <div className="overview-domain-measures">
           <div className="overview-domain-measure">
             <div className="overview-domain-measure-value">
-              {this.renderDebt('sqale_index')}
+              <span className="offset-left">{this.renderDebt('sqale_index')}</span>
               {this.props.renderRating('sqale_rating')}
             </div>
-            <div className="overview-domain-measure-label">
+            <div className="overview-domain-measure-label display-flex-center display-flex-justify-center">
               {getMetricName('effort')}
-              {this.props.renderHistoryLink('sqale_index')}
+              <DocTooltip
+                className="little-spacer-left"
+                doc={import(/* webpackMode: "eager" */ 'Docs/tooltips/metrics/debt.md')}
+              />
             </div>
+            {this.props.renderHistoryLink('sqale_index')}
           </div>
           <div className="overview-domain-measure">
             <div className="overview-domain-measure-value">
               {this.props.renderIssues('code_smells', 'CODE_SMELL')}
             </div>
-            <div className="overview-domain-measure-label offset-left">
+            <div className="overview-domain-measure-label display-flex-center display-flex-justify-center">
               <CodeSmellIcon className="little-spacer-right " />
               {getMetricName('code_smells')}
-              {this.props.renderHistoryLink('code_smells')}
+              <DocTooltip
+                className="little-spacer-left"
+                doc={import(/* webpackMode: "eager" */ 'Docs/tooltips/metrics/code-smells.md')}
+              />
             </div>
+            {this.props.renderHistoryLink('code_smells')}
           </div>
         </div>
-
-        {this.renderTimeline('before', true)}
+        {this.renderTimeline('before')}
       </div>
     );
   }

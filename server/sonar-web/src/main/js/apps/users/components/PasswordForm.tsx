@@ -18,19 +18,19 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
+import { ResetButtonLink, SubmitButton } from 'sonar-ui-common/components/controls/buttons';
+import Modal from 'sonar-ui-common/components/controls/Modal';
+import { Alert } from 'sonar-ui-common/components/ui/Alert';
+import { translate } from 'sonar-ui-common/helpers/l10n';
+import { parseError } from 'sonar-ui-common/helpers/request';
 import { changePassword } from '../../../api/users';
 import addGlobalSuccessMessage from '../../../app/utils/addGlobalSuccessMessage';
 import throwGlobalError from '../../../app/utils/throwGlobalError';
-import Modal from '../../../components/controls/Modal';
-import { SubmitButton, ResetButtonLink } from '../../../components/ui/buttons';
-import { translate } from '../../../helpers/l10n';
-import { parseError } from '../../../helpers/request';
-import { Alert } from '../../../components/ui/Alert';
 
 interface Props {
   isCurrentUser: boolean;
-  user: T.User;
   onClose: () => void;
+  user: T.User;
 }
 
 interface State {
@@ -58,11 +58,11 @@ export default class PasswordForm extends React.PureComponent<Props, State> {
     this.mounted = false;
   }
 
-  handleError = (error: { response: Response }) => {
-    if (!this.mounted || error.response.status !== 400) {
-      return throwGlobalError(error);
+  handleError = (response: Response) => {
+    if (!this.mounted || response.status !== 400) {
+      return throwGlobalError(response);
     } else {
-      return parseError(error).then(
+      return parseError(response).then(
         errorMsg => this.setState({ error: errorMsg, submitting: false }),
         throwGlobalError
       );
@@ -164,14 +164,10 @@ export default class PasswordForm extends React.PureComponent<Props, State> {
           </div>
           <footer className="modal-foot">
             {submitting && <i className="spinner spacer-right" />}
-            <SubmitButton
-              className="js-confirm"
-              disabled={submitting || !newPassword || newPassword !== confirmPassword}>
+            <SubmitButton disabled={submitting || !newPassword || newPassword !== confirmPassword}>
               {translate('change_verb')}
             </SubmitButton>
-            <ResetButtonLink className="js-modal-close" onClick={this.props.onClose}>
-              {translate('cancel')}
-            </ResetButtonLink>
+            <ResetButtonLink onClick={this.props.onClose}>{translate('cancel')}</ResetButtonLink>
           </footer>
         </form>
       </Modal>

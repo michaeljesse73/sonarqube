@@ -17,22 +17,22 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
+import * as isSameDay from 'date-fns/is_same_day';
 import { max } from 'lodash';
-import { injectIntl, InjectedIntlProps } from 'react-intl';
-import { Query } from '../utils';
+import * as React from 'react';
+import { InjectedIntlProps, injectIntl } from 'react-intl';
+import BarChart from 'sonar-ui-common/components/charts/BarChart';
+import { parseDate } from 'sonar-ui-common/helpers/dates';
+import { translate } from 'sonar-ui-common/helpers/l10n';
+import { formatMeasure } from 'sonar-ui-common/helpers/measures';
+import DateRangeInput from '../../../components/controls/DateRangeInput';
 import FacetBox from '../../../components/facet/FacetBox';
 import FacetHeader from '../../../components/facet/FacetHeader';
 import FacetItem from '../../../components/facet/FacetItem';
 import { longFormatterOption } from '../../../components/intl/DateFormatter';
 import DateFromNow from '../../../components/intl/DateFromNow';
 import DateTimeFormatter from '../../../components/intl/DateTimeFormatter';
-import BarChart from '../../../components/charts/BarChart';
-import DateRangeInput from '../../../components/controls/DateRangeInput';
-import { isSameDay, parseDate } from '../../../helpers/dates';
-import { translate } from '../../../helpers/l10n';
-import { formatMeasure } from '../../../helpers/measures';
-import DeferredSpinner from '../../../components/common/DeferredSpinner';
+import { Query } from '../utils';
 
 interface Props {
   component: T.Component | undefined;
@@ -279,6 +279,7 @@ class CreationDateFacet extends React.PureComponent<Props & InjectedIntlProps> {
     return (
       <FacetBox property={this.property}>
         <FacetHeader
+          fetching={this.props.fetching}
           name={translate('issues.facet', this.property)}
           onClear={this.handleClear}
           onClick={this.handleHeaderClick}
@@ -286,7 +287,6 @@ class CreationDateFacet extends React.PureComponent<Props & InjectedIntlProps> {
           values={this.getValues()}
         />
 
-        <DeferredSpinner loading={this.props.fetching} />
         {this.props.open && this.renderInner()}
       </FacetBox>
     );

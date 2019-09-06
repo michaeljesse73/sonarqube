@@ -17,16 +17,17 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
+import * as classNames from 'classnames';
 import * as React from 'react';
-import Modal from '../../../components/controls/Modal';
-import Select from '../../../components/controls/Select';
-import SeverityHelper from '../../../components/shared/SeverityHelper';
+import { ResetButtonLink, SubmitButton } from 'sonar-ui-common/components/controls/buttons';
+import Modal from 'sonar-ui-common/components/controls/Modal';
+import Select from 'sonar-ui-common/components/controls/Select';
+import { Alert } from 'sonar-ui-common/components/ui/Alert';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import { activateRule, Profile } from '../../../api/quality-profiles';
+import SeverityHelper from '../../../components/shared/SeverityHelper';
 import { SEVERITIES } from '../../../helpers/constants';
-import { translate } from '../../../helpers/l10n';
 import { sortProfiles } from '../../quality-profiles/utils';
-import { SubmitButton, ResetButtonLink } from '../../../components/ui/buttons';
-import { Alert } from '../../../components/ui/Alert';
 
 interface Props {
   activation?: T.RuleActivation;
@@ -159,7 +160,7 @@ export default class ActivationFormModal extends React.PureComponent<Props, Stat
             <h2>{this.props.modalHeader}</h2>
           </div>
 
-          <div className="modal-body">
+          <div className={classNames('modal-body', { 'modal-container': params.length > 0 })}>
             {!isUpdateMode && activeInAllProfiles && (
               <Alert variant="info">{translate('coding_rules.active_in_all_profiles')}</Alert>
             )}
@@ -224,6 +225,7 @@ export default class ActivationFormModal extends React.PureComponent<Props, Stat
                   )}
                   <div
                     className="note"
+                    // Safe: defined by rule creator (instance admin?)
                     dangerouslySetInnerHTML={{ __html: param.htmlDesc || '' }}
                   />
                 </div>

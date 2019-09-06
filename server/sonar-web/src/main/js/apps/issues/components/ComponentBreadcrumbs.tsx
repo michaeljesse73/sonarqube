@@ -18,9 +18,9 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import { getSelectedLocation } from '../utils';
+import { collapsePath, limitComponentName } from 'sonar-ui-common/helpers/path';
 import Organization from '../../../components/shared/Organization';
-import { collapsePath, limitComponentName } from '../../../helpers/path';
+import { getSelectedLocation } from '../utils';
 
 interface Props {
   component?: T.Component;

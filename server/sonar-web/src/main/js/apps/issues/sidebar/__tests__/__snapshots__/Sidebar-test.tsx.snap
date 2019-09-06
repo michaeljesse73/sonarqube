@@ -2,14 +2,14 @@
 
 exports[`should render facets for developer 1`] = `
 Array [
-  "TypeFacet",
+  "Connect(TypeFacet)",
   "SeverityFacet",
   "ResolutionFacet",
   "StatusFacet",
+  "StandardFacet",
   "InjectIntl(CreationDateFacet)",
   "Connect(LanguageFacet)",
   "RuleFacet",
-  "StandardFacet",
   "TagFacet",
   "ProjectFacet",
   "DirectoryFacet",
@@ -20,14 +20,14 @@ Array [
 
 exports[`should render facets for directory 1`] = `
 Array [
-  "TypeFacet",
+  "Connect(TypeFacet)",
   "SeverityFacet",
   "ResolutionFacet",
   "StatusFacet",
+  "StandardFacet",
   "InjectIntl(CreationDateFacet)",
   "Connect(LanguageFacet)",
   "RuleFacet",
-  "StandardFacet",
   "TagFacet",
   "FileFacet",
   "AssigneeFacet",
@@ -37,14 +37,14 @@ Array [
 
 exports[`should render facets for global page 1`] = `
 Array [
-  "TypeFacet",
+  "Connect(TypeFacet)",
   "SeverityFacet",
   "ResolutionFacet",
   "StatusFacet",
+  "StandardFacet",
   "InjectIntl(CreationDateFacet)",
   "Connect(LanguageFacet)",
   "RuleFacet",
-  "StandardFacet",
   "TagFacet",
   "ProjectFacet",
   "AssigneeFacet",
@@ -54,14 +54,14 @@ Array [
 
 exports[`should render facets for module 1`] = `
 Array [
-  "TypeFacet",
+  "Connect(TypeFacet)",
   "SeverityFacet",
   "ResolutionFacet",
   "StatusFacet",
+  "StandardFacet",
   "InjectIntl(CreationDateFacet)",
   "Connect(LanguageFacet)",
   "RuleFacet",
-  "StandardFacet",
   "TagFacet",
   "DirectoryFacet",
   "FileFacet",
@@ -72,14 +72,14 @@ Array [
 
 exports[`should render facets for project 1`] = `
 Array [
-  "TypeFacet",
+  "Connect(TypeFacet)",
   "SeverityFacet",
   "ResolutionFacet",
   "StatusFacet",
+  "StandardFacet",
   "InjectIntl(CreationDateFacet)",
   "Connect(LanguageFacet)",
   "RuleFacet",
-  "StandardFacet",
   "TagFacet",
   "DirectoryFacet",
   "FileFacet",
@@ -90,14 +90,14 @@ Array [
 
 exports[`should render facets when my issues are selected 1`] = `
 Array [
-  "TypeFacet",
+  "Connect(TypeFacet)",
   "SeverityFacet",
   "ResolutionFacet",
   "StatusFacet",
+  "StandardFacet",
   "InjectIntl(CreationDateFacet)",
   "Connect(LanguageFacet)",
   "RuleFacet",
-  "StandardFacet",
   "TagFacet",
   "ProjectFacet",
   "AuthorFacet",

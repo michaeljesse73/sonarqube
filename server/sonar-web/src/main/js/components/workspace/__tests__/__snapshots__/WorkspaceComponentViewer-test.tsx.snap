@@ -28,8 +28,9 @@ exports[`should render 1`] = `
       }
     }
   >
-    <LazyLoader
+    <SourceViewer
       component="foo"
+      onIssueChange={[Function]}
       onLoaded={[Function]}
     />
   </div>

@@ -43,6 +43,13 @@
     where name=#{name, jdbcType=VARCHAR}
   </select>
 
+  <select id="selectByUuid" parameterType="String" resultType="QualityGate">
+    select
+    <include refid="gateColumns"/>
+    from quality_gates
+    where uuid=#{uuid, jdbcType=VARCHAR}
+  </select>
+
   <select id="selectByUuidAndOrganization" parameterType="Map" resultType="org.sonar.db.qualitygate.QGateWithOrgDto">
     SELECT
       <include refid="qateWithOrgColumns"/>
@@ -74,6 +81,15 @@
       org_quality_gates oqg ON oqg.quality_gate_uuid = qg.uuid AND oqg.organization_uuid = #{organizationUuid, jdbcType=VARCHAR}
     WHERE
       qg.id = #{id, jdbcType=BIGINT}
+  </select>
+
+  <select id="selectByProjectUuid" parameterType="Map" resultType="org.sonar.db.qualitygate.QualityGateDto">
+    SELECT
+    <include refid="gateColumns"/>
+    FROM
+    quality_gates qg
+    INNER JOIN
+    project_qgates pqg ON pqg.quality_gate_uuid = qg.uuid AND pqg.project_uuid = #{projectUuid, jdbcType=VARCHAR}
   </select>
 
   <select id="selectById" parameterType="long" resultType="QualityGate">

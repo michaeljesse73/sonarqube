@@ -19,18 +19,18 @@
  */
 import * as React from 'react';
 import { Link } from 'react-router';
-import TaskType from './TaskType';
-import QualifierIcon from '../../../components/icons-components/QualifierIcon';
+import LongLivingBranchIcon from 'sonar-ui-common/components/icons/LongLivingBranchIcon';
+import PullRequestIcon from 'sonar-ui-common/components/icons/PullRequestIcon';
+import QualifierIcon from 'sonar-ui-common/components/icons/QualifierIcon';
+import ShortLivingBranchIcon from 'sonar-ui-common/components/icons/ShortLivingBranchIcon';
 import Organization from '../../../components/shared/Organization';
 import {
-  getProjectUrl,
-  getShortLivingBranchUrl,
   getLongLivingBranchUrl,
-  getPullRequestUrl
+  getProjectUrl,
+  getPullRequestUrl,
+  getShortLivingBranchUrl
 } from '../../../helpers/urls';
-import ShortLivingBranchIcon from '../../../components/icons-components/ShortLivingBranchIcon';
-import LongLivingBranchIcon from '../../../components/icons-components/LongLivingBranchIcon';
-import PullRequestIcon from '../../../components/icons-components/PullRequestIcon';
+import TaskType from './TaskType';
 
 interface Props {
   task: T.Task;

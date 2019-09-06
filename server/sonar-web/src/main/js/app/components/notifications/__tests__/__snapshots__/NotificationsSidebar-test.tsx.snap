@@ -124,6 +124,7 @@ exports[`#Notification should render correctly 2`] = `
 
 exports[`#NotificationSidebar should render correctly if there are new features 1`] = `
 <Modal
+  contentLabel="embed_docs.whats_new"
   onRequestClose={[MockFunction]}
 >
   <div
@@ -135,13 +136,16 @@ exports[`#NotificationSidebar should render correctly if there are new features 
       <h3>
         embed_docs.whats_new
       </h3>
-      <a
-        className="close"
-        href="#"
+      <ClearButton
+        className="button-tiny"
+        iconProps={
+          Object {
+            "size": 12,
+            "thin": true,
+          }
+        }
         onClick={[MockFunction]}
-      >
-        <ClearIcon />
-      </a>
+      />
     </div>
     <div
       className="notifications-sidebar-content"
@@ -161,6 +165,7 @@ exports[`#NotificationSidebar should render correctly if there are new features 
 
 exports[`#NotificationSidebar should render correctly if there are new features 2`] = `
 <Modal
+  contentLabel="embed_docs.whats_new"
   onRequestClose={[MockFunction]}
 >
   <div
@@ -172,13 +177,16 @@ exports[`#NotificationSidebar should render correctly if there are new features 
       <h3>
         embed_docs.whats_new
       </h3>
-      <a
-        className="close"
-        href="#"
+      <ClearButton
+        className="button-tiny"
+        iconProps={
+          Object {
+            "size": 12,
+            "thin": true,
+          }
+        }
         onClick={[MockFunction]}
-      >
-        <ClearIcon />
-      </a>
+      />
     </div>
     <div
       className="notifications-sidebar-content"

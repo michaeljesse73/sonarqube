@@ -17,14 +17,14 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import * as classNames from 'classnames';
 import { sortBy } from 'lodash';
-import Tooltip from '../../../components/controls/Tooltip';
-import DateTooltipFormatter from '../../../components/intl/DateTooltipFormatter';
+import * as React from 'react';
+import Tooltip from 'sonar-ui-common/components/controls/Tooltip';
+import { translate, translateWithParameters } from 'sonar-ui-common/helpers/l10n';
 import { getApplicationLeak } from '../../../api/application';
-import { translate, translateWithParameters } from '../../../helpers/l10n';
 import DateFromNow from '../../../components/intl/DateFromNow';
+import DateTooltipFormatter from '../../../components/intl/DateTooltipFormatter';
 
 interface Props {
   branch?: T.LongLivingBranch;
@@ -88,7 +88,7 @@ export default class ApplicationLeakPeriodLegend extends React.Component<Props, 
         ))}
       </ul>
     ) : (
-      <i className="spinner spinner-margin" />
+      <i className="spinner spacer" />
     );
 
   render() {

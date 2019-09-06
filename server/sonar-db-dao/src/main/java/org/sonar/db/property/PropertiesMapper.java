@@ -23,10 +23,14 @@ import java.util.List;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.ibatis.annotations.Param;
+import org.sonar.db.EmailSubscriberDto;
 
 public interface PropertiesMapper {
 
   Set<Subscriber> findUsersForNotification(@Param("notifKey") String notificationKey, @Nullable @Param("projectKey") String projectKey);
+
+  Set<EmailSubscriberDto> findEmailRecipientsForNotification(@Param("notifKey") String notificationKey, @Nullable @Param("projectKey") String projectKey,
+    @Nullable @Param("logins") List<String> logins);
 
   List<PropertyDto> selectGlobalProperties();
 
@@ -49,9 +53,7 @@ public interface PropertiesMapper {
   List<Long> selectIdsByOrganizationAndUser(@Param("organizationUuid") String organizationUuid, @Param("userId") int userId);
 
   List<Long> selectIdsByOrganizationAndMatchingLogin(@Param("organizationUuid") String organizationUuid, @Param("login") String login,
-                                                     @Param("propertyKeys") List<String> propertyKeys);
-
-  List<PropertyDto> selectGlobalPropertiesByKeyQuery(@Param("textQuery") String textQuery);
+    @Param("propertyKeys") List<String> propertyKeys);
 
   void insertAsEmpty(@Param("key") String key, @Nullable @Param("userId") Integer userId, @Nullable @Param("componentId") Long componentId,
     @Param("now") long now);

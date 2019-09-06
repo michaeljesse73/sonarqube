@@ -17,11 +17,11 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
+import { graphql } from 'gatsby';
 import * as React from 'react';
 import Helmet from 'react-helmet';
-import { graphql } from 'gatsby';
+import { MarkdownHeading, MarkdownRemark, MarkdownRemarkConnection } from '../@types/graphql-types';
 import HeaderList from '../components/HeaderList';
-import { MarkdownRemark, MarkdownRemarkConnection, MarkdownHeading } from '../@types/graphql-types';
 
 interface Props {
   data: {
@@ -42,17 +42,27 @@ export default class Page extends React.PureComponent<Props> {
 
     for (let i = 0; i < collapsables.length; i++) {
       collapsables[i].classList.add('close');
-      const firstChild = collapsables[i].firstElementChild;
-      if (firstChild) {
-        firstChild.outerHTML = firstChild.outerHTML
-          .replace(/<h2/gi, '<a href="#"')
-          .replace(/<\/h2>/gi, '</a>');
-        firstChild.addEventListener('click', (event: Event & { currentTarget: HTMLElement }) => {
-          event.preventDefault();
-          if (event.currentTarget.parentElement) {
-            event.currentTarget.parentElement.classList.toggle('close');
-          }
-        });
+      const customBlockWrapper = collapsables[i].querySelector('.custom-block-body');
+      if (customBlockWrapper) {
+        let firstChild = customBlockWrapper.firstElementChild;
+        if (firstChild) {
+          firstChild.outerHTML = firstChild.outerHTML
+            .replace(/<h2/gi, '<a href="#"')
+            .replace(/<\/h2>/gi, '</a>');
+
+          // We changed the element. It's reference is no longer correct in some
+          // browsers. Fetch it again.
+          firstChild = customBlockWrapper.firstElementChild;
+          firstChild!.addEventListener('click', (event: Event & { currentTarget: HTMLElement }) => {
+            event.preventDefault();
+            if (
+              event.currentTarget.parentElement &&
+              event.currentTarget.parentElement.parentElement
+            ) {
+              event.currentTarget.parentElement.parentElement.classList.toggle('close');
+            }
+          });
+        }
       }
     }
   }
@@ -94,7 +104,11 @@ export default class Page extends React.PureComponent<Props> {
         </Helmet>
         <HeaderList headers={realHeadingsList} />
         <h1>{pageTitle || mainTitle}</h1>
-        <div className="markdown-content" dangerouslySetInnerHTML={{ __html: htmlPageContent }} />
+        <div
+          className="markdown-content"
+          // Safe: comes from the backend
+          dangerouslySetInnerHTML={{ __html: htmlPageContent }}
+        />
       </>
     );
   }
@@ -153,11 +167,21 @@ function replaceDynamicLinks(content: string) {
  */
 function removeExtraHeadings(content: string, headings: MarkdownHeading[]) {
   return headings
-    .filter(heading => content.indexOf(`<div class="collapse"><h2>${heading.value}</h2>`) < 0)
+    .filter(
+      heading =>
+        content.indexOf(
+          `<div class="custom-block collapse"><div class="custom-block-body"><h2>${
+            heading.value
+          }</h2>`
+        ) < 0
+    )
     .filter(heading => !heading.value || !heading.value.match(/Table of content/i))
     .filter(heading => {
       const regex = new RegExp(
-        `<!-- sonarcloud -->[\\s\\S]*<h2>${heading.value}<\\/h2>[\\s\\S]*<!-- /sonarcloud -->`,
+        `<!-- sonarcloud -->[\\s\\S]*<h2>${heading.value!.replace(
+          /[.*+?^${}()|[\]\\]/g,
+          '\\$&'
+        )}<\\/h2>[\\s\\S]*<!-- /sonarcloud -->`,
         'gim'
       );
       return !content.match(regex);

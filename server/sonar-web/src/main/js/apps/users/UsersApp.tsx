@@ -19,15 +19,15 @@
  */
 import * as React from 'react';
 import Helmet from 'react-helmet';
+import ListFooter from 'sonar-ui-common/components/controls/ListFooter';
+import { translate } from 'sonar-ui-common/helpers/l10n';
+import { getIdentityProviders, searchUsers } from '../../api/users';
+import Suggestions from '../../app/components/embed-docs-modal/Suggestions';
+import { Location, Router, withRouter } from '../../components/hoc/withRouter';
 import Header from './Header';
 import Search from './Search';
 import UsersList from './UsersList';
 import { parseQuery, Query, serializeQuery } from './utils';
-import ListFooter from '../../components/controls/ListFooter';
-import Suggestions from '../../app/components/embed-docs-modal/Suggestions';
-import { getIdentityProviders, searchUsers } from '../../api/users';
-import { translate } from '../../helpers/l10n';
-import { withRouter, Location, Router } from '../../components/hoc/withRouter';
 
 interface Props {
   currentUser: { isLoggedIn: boolean; login?: string };

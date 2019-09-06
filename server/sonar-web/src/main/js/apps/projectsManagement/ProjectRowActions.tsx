@@ -18,16 +18,19 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import RestoreAccessModal from './RestoreAccessModal';
-import ApplyTemplate from '../permissions/project/components/ApplyTemplate';
-import { getComponentShow, Project } from '../../api/components';
+import ActionsDropdown, {
+  ActionsDropdownItem
+} from 'sonar-ui-common/components/controls/ActionsDropdown';
+import DeferredSpinner from 'sonar-ui-common/components/ui/DeferredSpinner';
+import { translate } from 'sonar-ui-common/helpers/l10n';
+import { Project } from '../../api/components';
 import { getComponentNavigation } from '../../api/nav';
-import ActionsDropdown, { ActionsDropdownItem } from '../../components/controls/ActionsDropdown';
-import { translate } from '../../helpers/l10n';
 import { getComponentPermissionsUrl } from '../../helpers/urls';
+import ApplyTemplate from '../permissions/project/components/ApplyTemplate';
+import RestoreAccessModal from './RestoreAccessModal';
 
 export interface Props {
-  currentUser: { login: string };
+  currentUser: Pick<T.LoggedInUser, 'login'>;
   organization: string | undefined;
   project: Project;
 }
@@ -52,24 +55,17 @@ export default class ProjectRowActions extends React.PureComponent<Props, State>
   }
 
   fetchPermissions = () => {
-    this.setState({ loading: false });
-    // call `getComponentNavigation` to check if user has the "Administer" permission
-    // call `getComponentShow` to check if user has the "Browse" permission
-    Promise.all([
-      getComponentNavigation({ component: this.props.project.key }),
-      getComponentShow({ component: this.props.project.key })
-    ]).then(
-      ([navResponse]) => {
+    this.setState({ loading: true });
+    getComponentNavigation({ component: this.props.project.key }).then(
+      ({ configuration }) => {
         if (this.mounted) {
-          const hasAccess = Boolean(
-            navResponse.configuration && navResponse.configuration.showPermissions
-          );
+          const hasAccess = Boolean(configuration && configuration.showPermissions);
           this.setState({ hasAccess, loading: false });
         }
       },
       () => {
         if (this.mounted) {
-          this.setState({ hasAccess: false, loading: false });
+          this.setState({ loading: false });
         }
       }
     );
@@ -102,23 +98,33 @@ export default class ProjectRowActions extends React.PureComponent<Props, State>
   };
 
   render() {
-    const { hasAccess } = this.state;
+    const { hasAccess, loading } = this.state;
 
     return (
       <>
         <ActionsDropdown onOpen={this.handleDropdownOpen}>
-          {hasAccess === true && (
-            <ActionsDropdownItem to={getComponentPermissionsUrl(this.props.project.key)}>
-              {translate('edit_permissions')}
+          {loading ? (
+            <ActionsDropdownItem>
+              <DeferredSpinner />
             </ActionsDropdownItem>
-          )}
+          ) : (
+            <>
+              {hasAccess === true && (
+                <ActionsDropdownItem
+                  className="js-edit-permissions"
+                  to={getComponentPermissionsUrl(this.props.project.key)}>
+                  {translate('edit_permissions')}
+                </ActionsDropdownItem>
+              )}
 
-          {hasAccess === false && (
-            <ActionsDropdownItem
-              className="js-restore-access"
-              onClick={this.handleRestoreAccessClick}>
-              {translate('global_permissions.restore_access')}
-            </ActionsDropdownItem>
+              {hasAccess === false && (
+                <ActionsDropdownItem
+                  className="js-restore-access"
+                  onClick={this.handleRestoreAccessClick}>
+                  {translate('global_permissions.restore_access')}
+                </ActionsDropdownItem>
+              )}
+            </>
           )}
 
           <ActionsDropdownItem

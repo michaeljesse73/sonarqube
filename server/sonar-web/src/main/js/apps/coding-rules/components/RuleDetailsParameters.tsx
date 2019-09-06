@@ -18,7 +18,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import { translate } from '../../../helpers/l10n';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 
 interface Props {
   params: T.RuleParameter[];
@@ -29,7 +29,9 @@ export default class RuleDetailsParameters extends React.PureComponent<Props> {
     <tr className="coding-rules-detail-parameter" key={param.key}>
       <td className="coding-rules-detail-parameter-name">{param.key}</td>
       <td className="coding-rules-detail-parameter-description">
-        <p dangerouslySetInnerHTML={{ __html: param.htmlDesc || '' }} />
+        <p // Safe: defined by rule creator (instance admin?)
+          dangerouslySetInnerHTML={{ __html: param.htmlDesc || '' }}
+        />
         {param.defaultValue !== undefined && (
           <div className="note spacer-top">
             {translate('coding_rules.parameters.default_value')}

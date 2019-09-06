@@ -17,13 +17,13 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
+import { intersection } from 'lodash';
 import * as React from 'react';
+import withKeyboardNavigation from '../../../components/hoc/withKeyboardNavigation';
+import { getCodeMetrics } from '../utils';
 import Component from './Component';
 import ComponentsEmpty from './ComponentsEmpty';
 import ComponentsHeader from './ComponentsHeader';
-import withKeyboardNavigation from '../../../components/hoc/withKeyboardNavigation';
-import { getCodeMetrics } from '../utils';
-import { isDefined } from '../../../helpers/types';
 
 interface Props {
   baseComponent?: T.ComponentMeasure;
@@ -37,13 +37,20 @@ interface Props {
 export class Components extends React.PureComponent<Props> {
   render() {
     const { baseComponent, branchLike, components, rootComponent, selected } = this.props;
-    const metricKeys = getCodeMetrics(rootComponent.qualifier, branchLike);
-    const metrics = metricKeys.map(metric => this.props.metrics[metric]).filter(isDefined);
+    const metricKeys = intersection(
+      getCodeMetrics(rootComponent.qualifier, branchLike),
+      Object.keys(this.props.metrics)
+    );
+    const metrics = metricKeys.map(metric => this.props.metrics[metric]);
+    const colSpan = metrics.length + 4;
+    const canBePinned = baseComponent && !['APP', 'VW', 'SVW'].includes(baseComponent.qualifier);
+
     return (
       <table className="data boxed-padding zebra">
         {baseComponent && (
           <ComponentsHeader
             baseComponent={baseComponent}
+            canBePinned={canBePinned}
             metrics={metricKeys}
             rootComponent={rootComponent}
           />
@@ -52,6 +59,7 @@ export class Components extends React.PureComponent<Props> {
           <tbody>
             <Component
               branchLike={branchLike}
+              canBePinned={canBePinned}
               component={baseComponent}
               key={baseComponent.key}
               metrics={metrics}
@@ -59,7 +67,7 @@ export class Components extends React.PureComponent<Props> {
             />
             <tr className="blank">
               <td colSpan={3}>&nbsp;</td>
-              <td colSpan={10}>&nbsp;</td>
+              <td colSpan={colSpan}>&nbsp;</td>
             </tr>
           </tbody>
         )}
@@ -68,6 +76,7 @@ export class Components extends React.PureComponent<Props> {
             components.map((component, index, list) => (
               <Component
                 branchLike={branchLike}
+                canBePinned={canBePinned}
                 canBrowse={true}
                 component={component}
                 key={component.key}
@@ -78,12 +87,12 @@ export class Components extends React.PureComponent<Props> {
               />
             ))
           ) : (
-            <ComponentsEmpty />
+            <ComponentsEmpty canBePinned={canBePinned} />
           )}
 
           <tr className="blank">
             <td colSpan={3} />
-            <td colSpan={10} />
+            <td colSpan={colSpan} />
           </tr>
         </tbody>
       </table>

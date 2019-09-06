@@ -17,15 +17,16 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import { getJSON, post, postJSON, RequestData } from '../helpers/request';
-import { RawIssue } from '../helpers/issues';
+import { getJSON, post, postJSON, RequestData } from 'sonar-ui-common/helpers/request';
 import throwGlobalError from '../app/utils/throwGlobalError';
+import getCoverageStatus from '../components/SourceViewer/helpers/getCoverageStatus';
+import { RawIssue } from '../helpers/issues';
 
 export interface IssueResponse {
   components?: Array<{ key: string; name: string }>;
   issue: RawIssue;
   rules?: Array<{}>;
-  users?: Array<{ login: string }>;
+  users?: Array<T.UserBase>;
 }
 
 interface IssuesResponse {
@@ -36,13 +37,9 @@ interface IssuesResponse {
     values: { count: number; val: string }[];
   }>;
   issues: RawIssue[];
-  paging: {
-    pageIndex: number;
-    pageSize: number;
-    total: number;
-  };
+  paging: T.Paging;
   rules?: Array<{}>;
-  users?: { login: string }[];
+  users?: Array<T.UserBase>;
 }
 
 type FacetName =
@@ -108,8 +105,8 @@ export function searchIssueTags(data: {
     .catch(throwGlobalError);
 }
 
-export function getIssueChangelog(issue: string): Promise<any> {
-  return getJSON('/api/issues/changelog', { issue }).then(r => r.changelog, throwGlobalError);
+export function getIssueChangelog(issue: string): Promise<{ changelog: T.IssueChangelog[] }> {
+  return getJSON('/api/issues/changelog', { issue }).catch(throwGlobalError);
 }
 
 export function getIssueFilters() {
@@ -165,4 +162,22 @@ export function searchIssueAuthors(data: {
   q?: string;
 }): Promise<string[]> {
   return getJSON('/api/issues/authors', data).then(r => r.authors, throwGlobalError);
+}
+
+export function getIssueFlowSnippets(issueKey: string): Promise<T.Dict<T.SnippetsByComponent>> {
+  return getJSON('/api/sources/issue_snippets', { issueKey }).then(result => {
+    Object.keys(result).forEach(k => {
+      if (result[k].sources) {
+        result[k].sources = result[k].sources.reduce(
+          (lineMap: T.Dict<T.SourceLine>, line: T.SourceLine) => {
+            line.coverageStatus = getCoverageStatus(line);
+            lineMap[line.line] = line;
+            return lineMap;
+          },
+          {}
+        );
+      }
+    });
+    return result;
+  }, throwGlobalError);
 }

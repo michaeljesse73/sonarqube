@@ -18,19 +18,18 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import DeferredSpinner from '../../../components/common/DeferredSpinner';
-import DropdownIcon from '../../../components/icons-components/DropdownIcon';
+import { ResetButtonLink, SubmitButton } from 'sonar-ui-common/components/controls/buttons';
+import DropdownIcon from 'sonar-ui-common/components/icons/DropdownIcon';
+import DeferredSpinner from 'sonar-ui-common/components/ui/DeferredSpinner';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import OrganizationAvatarInput from '../components/OrganizationAvatarInput';
 import OrganizationKeyInput from '../components/OrganizationKeyInput';
 import OrganizationUrlInput from '../components/OrganizationUrlInput';
-import { ResetButtonLink, SubmitButton } from '../../../components/ui/buttons';
-import { translate } from '../../../helpers/l10n';
 
 type RequiredOrganization = Required<T.OrganizationBase>;
 
 interface Props {
   infoBlock?: React.ReactNode;
-  keyReadOnly?: boolean;
   onContinue: (organization: T.Organization) => Promise<void>;
   organization?: T.Organization;
   submitText: string;
@@ -132,12 +131,10 @@ export default class OrganizationDetailsForm extends React.PureComponent<Props, 
 
   render() {
     const { submitting } = this.state;
-    const { infoBlock, keyReadOnly } = this.props;
+    const { infoBlock } = this.props;
     return (
       <form id="organization-form" onSubmit={this.handleSubmit}>
-        {!keyReadOnly && (
-          <OrganizationKeyInput initialValue={this.state.key} onChange={this.handleKeyUpdate} />
-        )}
+        <OrganizationKeyInput initialValue={this.state.key} onChange={this.handleKeyUpdate} />
         <div className="big-spacer-top">
           <ResetButtonLink onClick={this.handleAdditionalClick}>
             {translate(

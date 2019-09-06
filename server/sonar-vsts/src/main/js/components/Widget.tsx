@@ -17,11 +17,11 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
+import { getMeasuresAndMeta } from '@sqapi/measures';
 import * as React from 'react';
-import QGWidget from './QGWidget';
-import LoginForm from './LoginForm';
-import { getMeasuresAndMeta } from '../../../../../sonar-web/src/main/js/api/measures';
 import { Settings } from '../utils';
+import LoginForm from './LoginForm';
+import QGWidget from './QGWidget';
 
 interface Props {
   settings: Settings;

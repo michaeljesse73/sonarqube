@@ -10,7 +10,7 @@ exports[`should render correctly if there are new features, and the user has not
       className="navbar-latest-notification-wrapper"
     >
       <span
-        className="badge badge-new"
+        className="badge badge-info"
       >
         new
       </span>
@@ -30,8 +30,8 @@ exports[`should render correctly if there are new features, and the user has not
       onClick={[Function]}
     >
       <ClearIcon
-        fill="#8a8c8f"
-        size={10}
+        size={12}
+        thin={true}
       />
     </a>
   </li>

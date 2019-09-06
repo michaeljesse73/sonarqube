@@ -25,6 +25,7 @@ import java.util.Set;
 import javax.annotation.Nullable;
 import org.sonar.db.Dao;
 import org.sonar.db.DbSession;
+import org.sonar.db.EmailSubscriberDto;
 
 import static org.sonar.db.DatabaseUtils.executeLargeInputs;
 import static org.sonar.db.DatabaseUtils.executeLargeInputsIntoSet;
@@ -174,15 +175,15 @@ public class AuthorizationDao implements Dao {
       partitionSize -> partitionSize / 3);
   }
 
-  public List<String> selectQualityProfileAdministratorLogins(DbSession dbSession) {
-    return mapper(dbSession).selectLoginsWithGlobalPermission(ADMINISTER_QUALITY_PROFILES.getKey());
+  public Set<EmailSubscriberDto> selectQualityProfileAdministratorLogins(DbSession dbSession) {
+    return mapper(dbSession).selectEmailSubscribersWithGlobalPermission(ADMINISTER_QUALITY_PROFILES.getKey());
   }
 
   /**
    * Used by license notifications
    */
-  public List<String> selectGlobalAdministratorLogins(DbSession dbSession) {
-    return mapper(dbSession).selectLoginsWithGlobalPermission(ADMINISTER.getKey());
+  public Set<EmailSubscriberDto> selectGlobalAdministerEmailSubscribers(DbSession dbSession) {
+    return mapper(dbSession).selectEmailSubscribersWithGlobalPermission(ADMINISTER.getKey());
   }
 
   public Set<String> keepAuthorizedLoginsOnProject(DbSession dbSession, Set<String> logins, String projectKey, String permission) {

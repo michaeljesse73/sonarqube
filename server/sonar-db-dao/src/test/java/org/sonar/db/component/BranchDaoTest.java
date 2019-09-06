@@ -28,7 +28,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.sonar.api.utils.System2;
-import org.sonar.api.utils.internal.TestSystem2;
+import org.sonar.api.impl.utils.TestSystem2;
 import org.sonar.db.DbSession;
 import org.sonar.db.DbTester;
 import org.sonar.db.protobuf.DbProjectBranches;
@@ -499,7 +499,7 @@ public class BranchDaoTest {
 
     assertThat(underTest.selectByUuid(db.getSession(), branch1.uuid()).get())
       .extracting(BranchDto::getUuid)
-      .containsExactlyInAnyOrder(branch1.uuid());
+      .isEqualTo(branch1.uuid());
     assertThat(underTest.selectByUuid(db.getSession(), project.uuid())).isNotPresent();
     assertThat(underTest.selectByUuid(db.getSession(), "unknown")).isNotPresent();
   }

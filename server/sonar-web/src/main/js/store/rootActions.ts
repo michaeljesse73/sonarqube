@@ -17,18 +17,21 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import { Dispatch } from 'redux';
 import { InjectedRouter } from 'react-router';
+import { Dispatch } from 'redux';
+import * as auth from '../api/auth';
+import { getLanguages } from '../api/languages';
+import { getAllMetrics } from '../api/metrics';
+import { getOrganization, getOrganizationNavigation, getOrganizations } from '../api/organizations';
+import { getQualityGateProjectStatus } from '../api/quality-gates';
+import { getBranchLikeQuery } from '../helpers/branches';
+import { extractStatusConditionsFromProjectStatus } from '../helpers/qualityGates';
 import { requireAuthorization as requireAuthorizationAction } from './appState';
 import { registerBranchStatusAction } from './branches';
 import { addGlobalErrorMessage } from './globalMessages';
 import { receiveLanguages } from './languages';
 import { receiveMetrics } from './metrics';
 import { receiveOrganizations } from './organizations';
-import * as auth from '../api/auth';
-import { getLanguages } from '../api/languages';
-import { getAllMetrics } from '../api/metrics';
-import { getOrganizations, getOrganization, getOrganizationNavigation } from '../api/organizations';
 
 export function fetchLanguages() {
   return (dispatch: Dispatch) => {
@@ -61,6 +64,23 @@ export const fetchOrganization = (key: string) => (dispatch: Dispatch) => {
     }
   );
 };
+
+export function fetchBranchStatus(branchLike: T.BranchLike, projectKey: string) {
+  return (dispatch: Dispatch<any>) => {
+    getQualityGateProjectStatus({ projectKey, ...getBranchLikeQuery(branchLike) }).then(
+      projectStatus => {
+        const { ignoredConditions, status } = projectStatus;
+        const conditions = extractStatusConditionsFromProjectStatus(projectStatus);
+        dispatch(
+          registerBranchStatusAction(branchLike, projectKey, status, conditions, ignoredConditions)
+        );
+      },
+      () => {
+        dispatch(addGlobalErrorMessage('Fetching Quality Gate status failed'));
+      }
+    );
+  };
+}
 
 export function doLogin(login: string, password: string) {
   return (dispatch: Dispatch<any>) =>

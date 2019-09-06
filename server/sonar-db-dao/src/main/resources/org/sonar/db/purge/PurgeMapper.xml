@@ -83,6 +83,38 @@
       )
   </select>
 
+  <select id="selectDisabledComponentsWithFileSource" parameterType="map" resultType="String">
+    select
+      file_uuid
+    from file_sources fs
+    inner join projects p on
+      p.uuid = fs.file_uuid
+      and p.enabled = ${_false}
+      and p.project_uuid=#{projectUuid,jdbcType=VARCHAR}
+  </select>
+
+  <select id="selectDisabledComponentsWithUnresolvedIssues" parameterType="map" resultType="String">
+    select
+      i.component_uuid
+    from issues i
+    inner join projects p on
+      p.uuid = i.component_uuid
+      and p.enabled = ${_false}
+      and p.project_uuid=#{projectUuid,jdbcType=VARCHAR}
+    where
+      resolution is null
+  </select>
+
+  <select id="selectDisabledComponentsWithLiveMeasures" parameterType="map" resultType="String">
+    select
+      lm.component_uuid
+    from live_measures lm
+    inner join projects p on
+      p.uuid = lm.component_uuid
+      and p.enabled = ${_false}
+      and p.project_uuid=#{projectUuid,jdbcType=VARCHAR}
+  </select>
+
   <delete id="deleteAnalysisMeasures" parameterType="map">
     delete from project_measures
     where
@@ -153,7 +185,7 @@
   <delete id="deleteAnalysisProperties" parameterType="map">
     DELETE FROM analysis_properties
     WHERE
-      snapshot_uuid IN
+      analysis_uuid IN
       <foreach collection="analysisUuids" open="(" close=")" item="analysisUuid" separator=",">
         #{analysisUuid,jdbcType=VARCHAR}
       </foreach>
@@ -278,14 +310,6 @@
       issues.project_uuid = #{projectUuid,jdbcType=VARCHAR}
   </delete>
 
-  <!-- Mysql -->
-  <delete id="deleteIssueChangesByProjectUuid" databaseId="mysql" parameterType="map">
-    delete ic from issue_changes as ic, issues as i
-    where
-      ic.issue_key=i.kee
-      and i.component_uuid = #{projectUuid,jdbcType=VARCHAR}
-  </delete>
-
   <delete id="deleteIssuesByProjectUuid" parameterType="map">
     delete from issues
     where project_uuid = #{projectUuid,jdbcType=VARCHAR}
@@ -317,6 +341,17 @@
     </choose>
   </select>
 
+  <select id="selectDisabledComponentsWithoutIssues" resultType="IdUuidPair" parameterType="String">
+    SELECT
+      p.id, p.uuid
+    FROM
+      projects p
+    WHERE
+      p.enabled = ${_false}
+      AND p.project_uuid=#{projectUuid,jdbcType=VARCHAR}
+      AND NOT EXISTS (SELECT 1 FROM issues i WHERE i.component_uuid = p.uuid)
+  </select>
+
   <delete id="deleteIssuesFromKeys" parameterType="map">
     DELETE FROM issues
     WHERE kee IN
@@ -333,64 +368,79 @@
     </foreach>
   </delete>
 
-  <delete id="deleteCeScannerContextOfCeActivityByRootUuid">
+  <delete id="deleteCeScannerContextOfCeActivityByRootUuidOrBefore">
     delete from ce_scanner_context
     where
-      task_uuid in (
-        select
-          uuid
-        from ce_activity
-        where
-          component_uuid=#{rootUuid,jdbcType=VARCHAR}
-          or main_component_uuid=#{rootUuid,jdbcType=VARCHAR}
-      )
+    task_uuid in (
+      select
+        uuid
+      from ce_activity
+      <include refid="whereClauseCeActivityByRootUuidOrBefore" />
+    )
   </delete>
 
-  <delete id="deleteCeTaskCharacteristicsOfCeActivityByRootUuid">
+  <delete id="deleteCeTaskCharacteristicsOfCeActivityByRootUuidOrBefore">
     delete from ce_task_characteristics
     where
-      task_uuid in (
-        select
-          uuid
-        from ce_activity
-        where
-          component_uuid=#{rootUuid,jdbcType=VARCHAR}
-          or main_component_uuid=#{rootUuid,jdbcType=VARCHAR}
-      )
+    task_uuid in (
+      select
+        uuid
+      from ce_activity
+      <include refid="whereClauseCeActivityByRootUuidOrBefore" />
+    )
   </delete>
 
-  <delete id="deleteCeTaskInputOfCeActivityByRootUuid">
+  <delete id="deleteCeTaskInputOfCeActivityByRootUuidOrBefore">
     delete from ce_task_input
     where
-      task_uuid in (
-        select
-          uuid
-        from ce_activity
-        where
-          component_uuid=#{rootUuid,jdbcType=VARCHAR}
-          or main_component_uuid=#{rootUuid,jdbcType=VARCHAR}
-      )
+    task_uuid in (
+      select
+        uuid
+      from ce_activity
+      <include refid="whereClauseCeActivityByRootUuidOrBefore" />
+    )
   </delete>
 
-  <delete id="deleteCeTaskMessageOfCeActivityByRootUuid">
+  <delete id="deleteCeTaskMessageOfCeActivityByRootUuidOrBefore">
     delete from ce_task_message
     where
-      task_uuid in (
-        select
-          uuid
-        from ce_activity
-        where
-          component_uuid=#{rootUuid,jdbcType=VARCHAR}
-          or main_component_uuid=#{rootUuid,jdbcType=VARCHAR}
-      )
+    task_uuid in (
+      select
+        uuid
+      from ce_activity
+      <include refid="whereClauseCeActivityByRootUuidOrBefore" />
+    )
   </delete>
 
-  <delete id="deleteCeActivityByRootUuid">
-      delete from ce_activity
-      where
+  <delete id="deleteCeActivityByRootUuidOrBefore">
+    delete from ce_activity
+      <include refid="whereClauseCeActivityByRootUuidOrBefore" />
+  </delete>
+
+  <sql id="whereClauseCeActivityByRootUuidOrBefore">
+    where
+    <choose>
+      <when test="rootUuid != null and createdAtBefore != null">
+        created_at &lt; #{createdAtBefore,jdbcType=BIGINT}
+        and (
+          component_uuid=#{rootUuid,jdbcType=VARCHAR}
+          or main_component_uuid=#{rootUuid,jdbcType=VARCHAR}
+        )
+      </when>
+      <when test="createdAtBefore != null">
+        created_at &lt; #{createdAtBefore,jdbcType=BIGINT}
+      </when>
+      <when test="rootUuid != null">
         component_uuid=#{rootUuid,jdbcType=VARCHAR}
         or main_component_uuid=#{rootUuid,jdbcType=VARCHAR}
-  </delete>
+      </when>
+      <!-- safety net when both variables are null to never generate a
+           delete statement deleting the whole table -->
+      <otherwise>
+        1 = 2
+      </otherwise>
+    </choose>
+  </sql>
 
   <delete id="deleteCeScannerContextOfCeQueueByRootUuid">
     delete from ce_scanner_context

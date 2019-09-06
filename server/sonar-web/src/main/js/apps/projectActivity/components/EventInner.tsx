@@ -17,13 +17,13 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import * as classNames from 'classnames';
-import { isRichQualityGateEvent, RichQualityGateEventInner } from './RichQualityGateEventInner';
-import { isDefinitionChangeEvent, DefinitionChangeEventInner } from './DefinitionChangeEventInner';
+import * as React from 'react';
+import ProjectEventIcon from 'sonar-ui-common/components/icons/ProjectEventIcon';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import { ComponentContext } from '../../../app/components/ComponentContext';
-import ProjectEventIcon from '../../../components/icons-components/ProjectEventIcon';
-import { translate } from '../../../helpers/l10n';
+import { DefinitionChangeEventInner, isDefinitionChangeEvent } from './DefinitionChangeEventInner';
+import { isRichQualityGateEvent, RichQualityGateEventInner } from './RichQualityGateEventInner';
 
 interface Props {
   event: T.AnalysisEvent;

@@ -17,10 +17,10 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import * as getYear from 'date-fns/get_year';
+import * as React from 'react';
 import { Link } from 'react-router';
-import { translate } from '../../helpers/l10n';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 
 export default function GlobalFooterSonarCloud() {
   return (

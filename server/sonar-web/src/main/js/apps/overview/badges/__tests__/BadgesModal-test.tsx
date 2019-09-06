@@ -17,18 +17,22 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { shallow } from 'enzyme';
-import BadgesModal from '../BadgesModal';
-import { click } from '../../../../helpers/testUtils';
+import * as React from 'react';
+import { click } from 'sonar-ui-common/helpers/testUtils';
+import { Location } from 'sonar-ui-common/helpers/urls';
 import { isSonarCloud } from '../../../../helpers/system';
-import { Location } from '../../../../helpers/urls';
+import BadgesModal from '../BadgesModal';
 
-jest.mock('../../../../helpers/urls', () => ({
+jest.mock('sonar-ui-common/helpers/urls', () => ({
   getHostUrl: () => 'host',
-  getProjectUrl: () => ({ pathname: '/dashboard' } as Location),
   getPathUrlAsString: (l: Location) => l.pathname
 }));
+
+jest.mock('../../../../helpers/urls', () => ({
+  getProjectUrl: () => ({ pathname: '/dashboard' } as Location)
+}));
+
 jest.mock('../../../../helpers/system', () => ({ isSonarCloud: jest.fn() }));
 
 const shortBranch: T.ShortLivingBranch = {

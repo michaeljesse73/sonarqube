@@ -17,14 +17,14 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { shallow } from 'enzyme';
-import OrganizationNavigationHeader, { Props } from '../OrganizationNavigationHeader';
+import * as React from 'react';
 import {
-  mockOrganizationWithAlm,
   mockCurrentUser,
-  mockLoggedInUser
+  mockLoggedInUser,
+  mockOrganizationWithAlm
 } from '../../../../helpers/testMocks';
+import OrganizationNavigationHeader, { Props } from '../OrganizationNavigationHeader';
 
 it('renders', () => {
   expect(shallowRender()).toMatchSnapshot();
@@ -39,6 +39,38 @@ it('renders with alm integration', () => {
 it('renders for external user w/o alm integration', () => {
   expect(
     shallowRender({ currentUser: mockLoggedInUser({ externalProvider: 'github' }) })
+  ).toMatchSnapshot();
+});
+
+it('renders with the organization tooltip for an admin user of an organization', () => {
+  expect(
+    shallowRender({
+      currentUser: mockLoggedInUser({
+        externalProvider: 'github'
+      }),
+      organization: {
+        actions: { admin: true },
+        key: 'org1',
+        name: 'org1',
+        projectVisibility: 'public'
+      }
+    }).find('Tooltip')
+  ).toMatchSnapshot();
+});
+
+it('renders without the organization tooltip for a non-admin user of an organization', () => {
+  expect(
+    shallowRender({
+      currentUser: mockLoggedInUser({
+        externalProvider: 'github'
+      }),
+      organization: {
+        actions: { admin: false },
+        key: 'org1',
+        name: 'org1',
+        projectVisibility: 'public'
+      }
+    }).find('Tooltip')
   ).toMatchSnapshot();
 });
 

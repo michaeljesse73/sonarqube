@@ -18,15 +18,15 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import Risk from './Risk';
-import Reliability from './Reliability';
-import Security from './Security';
-import Maintainability from './Maintainability';
+import { translate, translateWithParameters } from 'sonar-ui-common/helpers/l10n';
+import { Project } from '../types';
+import { localizeSorting } from '../utils';
 import Coverage from './Coverage';
 import Duplications from './Duplications';
-import { localizeSorting } from '../utils';
-import { Project } from '../types';
-import { translate, translateWithParameters } from '../../../helpers/l10n';
+import Maintainability from './Maintainability';
+import Reliability from './Reliability';
+import Risk from './Risk';
+import Security from './Security';
 
 interface Props {
   displayOrganizations?: boolean;

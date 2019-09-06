@@ -17,14 +17,12 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
+import { getProjectUrl } from '@sqhelpers/urls';
 import * as classNames from 'classnames';
+import * as React from 'react';
+import Tooltip from 'sonar-ui-common/components/controls/Tooltip';
+import { getPathUrlAsString } from 'sonar-ui-common/helpers/urls';
 import SonarCloudIcon from './SonarCloudIcon';
-import Tooltip from '../../../../../sonar-web/src/main/js/components/controls/Tooltip';
-import {
-  getPathUrlAsString,
-  getProjectUrl
-} from '../../../../../sonar-web/src/main/js/helpers/urls';
 
 interface Props {
   component: T.ComponentMeasure;

@@ -26,7 +26,12 @@ exports[`renders 1`] = `
         <th
           className="text-center portfolio-sub-components-cell"
         >
-          metric_domain.Security
+          portfolio.metric_domain.vulnerabilities
+        </th>
+        <th
+          className="text-center portfolio-sub-components-cell"
+        >
+          portfolio.metric_domain.security_hotspots
         </th>
         <th
           className="text-center portfolio-sub-components-cell"
@@ -97,6 +102,14 @@ exports[`renders 1`] = `
           className="text-center"
         >
           <Measure
+            metricKey="security_review_rating"
+            metricType="RATING"
+          />
+        </td>
+        <td
+          className="text-center"
+        >
+          <Measure
             metricKey="sqale_rating"
             metricType="RATING"
             value="4"
@@ -121,6 +134,7 @@ exports[`renders 1`] = `
           >
             <rect
               className="bar-chart-bar"
+              fill="#4b9fd5"
               height="10"
               width={50}
               x="0"
@@ -185,6 +199,14 @@ exports[`renders 1`] = `
           className="text-center"
         >
           <Measure
+            metricKey="security_review_rating"
+            metricType="RATING"
+          />
+        </td>
+        <td
+          className="text-center"
+        >
+          <Measure
             metricKey="sqale_rating"
             metricType="RATING"
             value="4"
@@ -209,6 +231,7 @@ exports[`renders 1`] = `
           >
             <rect
               className="bar-chart-bar"
+              fill="#4b9fd5"
               height="10"
               width={25}
               x="0"
@@ -273,6 +296,14 @@ exports[`renders 1`] = `
           className="text-center"
         >
           <Measure
+            metricKey="security_review_rating"
+            metricType="RATING"
+          />
+        </td>
+        <td
+          className="text-center"
+        >
+          <Measure
             metricKey="sqale_rating"
             metricType="RATING"
             value="4"
@@ -297,6 +328,7 @@ exports[`renders 1`] = `
           >
             <rect
               className="bar-chart-bar"
+              fill="#4b9fd5"
               height="10"
               width={38}
               x="0"

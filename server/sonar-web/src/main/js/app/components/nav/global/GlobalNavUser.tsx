@@ -17,17 +17,17 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { sortBy } from 'lodash';
+import * as React from 'react';
 import { Link } from 'react-router';
-import * as theme from '../../../theme';
+import Dropdown from 'sonar-ui-common/components/controls/Dropdown';
+import { translate } from 'sonar-ui-common/helpers/l10n';
+import { getBaseUrl } from 'sonar-ui-common/helpers/urls';
+import { Router, withRouter } from '../../../../components/hoc/withRouter';
 import Avatar from '../../../../components/ui/Avatar';
 import OrganizationListItem from '../../../../components/ui/OrganizationListItem';
-import { translate } from '../../../../helpers/l10n';
-import { getBaseUrl } from '../../../../helpers/urls';
-import Dropdown from '../../../../components/controls/Dropdown';
 import { isLoggedIn } from '../../../../helpers/users';
-import { withRouter, Router } from '../../../../components/hoc/withRouter';
+import { rawSizes } from '../../../theme';
 
 interface Props {
   appState: { organizationsEnabled?: boolean };
@@ -102,7 +102,7 @@ export class GlobalNavUser extends React.PureComponent<Props> {
           <Avatar
             hash={currentUser.avatar}
             name={currentUser.name}
-            size={theme.globalNavContentHeightRaw}
+            size={rawSizes.globalNavContentHeightRaw}
           />
         </a>
       </Dropdown>

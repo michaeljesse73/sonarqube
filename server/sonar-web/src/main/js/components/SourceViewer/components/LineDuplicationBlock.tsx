@@ -17,19 +17,19 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import * as classNames from 'classnames';
-import Tooltip from '../../controls/Tooltip';
-import Toggler from '../../controls/Toggler';
-import { translate } from '../../../helpers/l10n';
+import * as React from 'react';
+import Toggler from 'sonar-ui-common/components/controls/Toggler';
+import Tooltip from 'sonar-ui-common/components/controls/Tooltip';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 
 interface Props {
   duplicated: boolean;
   index: number;
   line: T.SourceLine;
-  onPopupToggle: (x: { index?: number; line: number; name: string; open?: boolean }) => void;
+  onPopupToggle: (linePopup: T.LinePopup) => void;
   popupOpen: boolean;
-  renderDuplicationPopup: (index: number, line: number) => JSX.Element;
+  renderDuplicationPopup: (index: number, line: number) => React.ReactNode;
 }
 
 export default class LineDuplicationBlock extends React.PureComponent<Props> {

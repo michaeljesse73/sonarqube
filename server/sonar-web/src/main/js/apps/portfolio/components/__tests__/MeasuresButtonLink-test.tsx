@@ -17,12 +17,15 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { shallow } from 'enzyme';
+import * as React from 'react';
 import MeasuresButtonLink from '../MeasuresButtonLink';
 
 it('renders', () => {
-  expect(
-    shallow(<MeasuresButtonLink component="foo" metric="security_rating" />)
-  ).toMatchSnapshot();
+  expect(shallowRender()).toMatchSnapshot();
+  expect(shallowRender({ label: 'Foo' })).toMatchSnapshot();
 });
+
+function shallowRender(props = {}) {
+  return shallow(<MeasuresButtonLink component="foo" metric="security_rating" {...props} />);
+}

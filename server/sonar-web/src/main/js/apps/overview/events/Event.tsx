@@ -19,10 +19,10 @@
  */
 import * as React from 'react';
 import { FormattedMessage } from 'react-intl';
-import { isRichQualityGateEvent } from '../../projectActivity/components/RichQualityGateEventInner';
-import Level from '../../../components/ui/Level';
-import { translate } from '../../../helpers/l10n';
+import Level from 'sonar-ui-common/components/ui/Level';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import { isDefinitionChangeEvent } from '../../projectActivity/components/DefinitionChangeEventInner';
+import { isRichQualityGateEvent } from '../../projectActivity/components/RichQualityGateEventInner';
 
 interface Props {
   event: T.AnalysisEvent;
@@ -32,7 +32,7 @@ export default function Event({ event }: Props) {
   if (event.category === 'VERSION') {
     return (
       <span
-        className="overview-analysis-event badge"
+        className="overview-analysis-event analysis-version"
         title={`${translate('version')} ${event.name}`}>
         {event.name}
       </span>

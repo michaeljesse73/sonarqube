@@ -18,9 +18,10 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import { setSimpleSettingValue, resetSettingValue } from '../../../api/settings';
-import { Button, SubmitButton, ResetButtonLink } from '../../../components/ui/buttons';
-import { translate, translateWithParameters } from '../../../helpers/l10n';
+import { Button, ResetButtonLink, SubmitButton } from 'sonar-ui-common/components/controls/buttons';
+import { translate, translateWithParameters } from 'sonar-ui-common/helpers/l10n';
+import { resetSettingValue, setSimpleSettingValue } from '../../../api/settings';
+import { sanitizeTranslation } from '../../settings/utils';
 
 interface Props {
   branch?: string;
@@ -96,7 +97,9 @@ export default class SettingForm extends React.PureComponent<Props, State> {
         <div className="modal-body">
           <div
             className="big-spacer-bottom markdown"
-            dangerouslySetInnerHTML={{ __html: translate(`property.${setting.key}.description`) }}
+            dangerouslySetInnerHTML={{
+              __html: sanitizeTranslation(translate(`property.${setting.key}.description`))
+            }}
           />
           <div className="modal-field">
             <input

@@ -17,11 +17,11 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { shallow } from 'enzyme';
-import { ProfileActions } from '../ProfileActions';
+import * as React from 'react';
+import { click, waitAndUpdate } from 'sonar-ui-common/helpers/testUtils';
 import { mockQualityProfile, mockRouter } from '../../../../helpers/testMocks';
-import { click, waitAndUpdate } from '../../../../helpers/testUtils';
+import { ProfileActions } from '../ProfileActions';
 
 const PROFILE = mockQualityProfile({
   activeRuleCount: 68,
@@ -67,7 +67,7 @@ it('should copy profile', async () => {
     updateProfiles
   });
 
-  click(wrapper.find('[id="quality-profile-copy"]'));
+  click(wrapper.find('[data-test="quality-profiles__copy"]').parent());
   expect(wrapper.find('CopyProfileForm').exists()).toBe(true);
 
   wrapper.find('CopyProfileForm').prop<Function>('onCopy')(name);
@@ -91,7 +91,7 @@ it('should extend profile', async () => {
     updateProfiles
   });
 
-  click(wrapper.find('[id="quality-profile-extend"]'));
+  click(wrapper.find('[data-test="quality-profiles__extend"]').parent());
   expect(wrapper.find('ExtendProfileForm').exists()).toBe(true);
 
   wrapper.find('ExtendProfileForm').prop<Function>('onExtend')(name);

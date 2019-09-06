@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import { getJSON } from '../helpers/request';
+import { getJSON } from 'sonar-ui-common/helpers/request';
 import throwGlobalError from '../app/utils/throwGlobalError';
 
 export interface License {
@@ -42,10 +42,10 @@ export function isValidLicense(): Promise<{ isValidLicense: boolean }> {
 }
 
 export function showLicense(): Promise<License> {
-  return getJSON('/api/editions/show_license').catch((e: { response: Response }) => {
-    if (e.response && e.response.status === 404) {
+  return getJSON('/api/editions/show_license').catch((response: Response) => {
+    if (response && response.status === 404) {
       return Promise.resolve(undefined);
     }
-    return throwGlobalError(e);
+    return throwGlobalError(response);
   });
 }

@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import { getJSON, post, postJSON } from '../helpers/request';
+import { getJSON, post, postJSON } from 'sonar-ui-common/helpers/request';
 import throwGlobalError from '../app/utils/throwGlobalError';
 
 export function getOrganizations(data: {
@@ -39,7 +39,7 @@ export function getOrganization(key: string): Promise<T.Organization | undefined
 
 interface GetOrganizationNavigation {
   adminPages: T.Extension[];
-  alm?: { key: string; membersSync: boolean; url: string };
+  alm?: { key: string; membersSync: boolean; personal: boolean; url: string };
   canUpdateProjectsVisibilityToPrivate: boolean;
   isDefault: boolean;
   pages: T.Extension[];
@@ -50,6 +50,12 @@ export function getOrganizationNavigation(key: string): Promise<GetOrganizationN
     r => r.organization,
     throwGlobalError
   );
+}
+
+export function getOrganizationsThatPreventDeletion(): Promise<{
+  organizations: T.Organization[];
+}> {
+  return getJSON('/api/organizations/prevent_user_deletion').catch(throwGlobalError);
 }
 
 export function createOrganization(

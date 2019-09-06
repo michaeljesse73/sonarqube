@@ -18,10 +18,11 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import { translate } from '../../../helpers/l10n';
-import BugIcon from '../../../components/icons-components/BugIcon';
-import VulnerabilityIcon from '../../../components/icons-components/VulnerabilityIcon';
-import CodeSmellIcon from '../../../components/icons-components/CodeSmellIcon';
+import BugIcon from 'sonar-ui-common/components/icons/BugIcon';
+import CodeSmellIcon from 'sonar-ui-common/components/icons/CodeSmellIcon';
+import SecurityHotspotIcon from 'sonar-ui-common/components/icons/SecurityHotspotIcon';
+import VulnerabilityIcon from 'sonar-ui-common/components/icons/VulnerabilityIcon';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 
 export default function AboutQualityModel() {
   return (
@@ -31,6 +32,7 @@ export default function AboutQualityModel() {
       <div className="boxed-group-inner clearfix">
         <div className="flex-columns">
           <div className="flex-column flex-column-third">
+            <h3>{translate('metric_domain.Reliability')}</h3>
             <div className="pull-left little-spacer-right">
               <BugIcon />
             </div>
@@ -41,6 +43,7 @@ export default function AboutQualityModel() {
           </div>
 
           <div className="flex-column flex-column-third">
+            <h3>{translate('metric_domain.Security')}</h3>
             <div className="pull-left little-spacer-right">
               <VulnerabilityIcon />
             </div>
@@ -48,9 +51,18 @@ export default function AboutQualityModel() {
               <strong>{translate('issue.type.VULNERABILITY.plural')}</strong>{' '}
               {translate('about_page.quality_model.vulnerabilities')}
             </p>
+            <br />
+            <div className="pull-left little-spacer-right">
+              <SecurityHotspotIcon />
+            </div>
+            <p className="about-page-text overflow-hidden">
+              <strong>{translate('issue.type.SECURITY_HOTSPOT.plural')}</strong>{' '}
+              {translate('about_page.quality_model.security_hotspots')}
+            </p>
           </div>
 
           <div className="flex-column flex-column-third">
+            <h3>{translate('metric_domain.Maintainability')}</h3>
             <div className="pull-left little-spacer-right">
               <CodeSmellIcon />
             </div>

@@ -17,17 +17,16 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { shallow } from 'enzyme';
-import { ComponentNavLicenseNotif } from '../ComponentNavLicenseNotif';
+import * as React from 'react';
+import { waitAndUpdate } from 'sonar-ui-common/helpers/testUtils';
 import { isValidLicense } from '../../../../../api/marketplace';
-import { waitAndUpdate } from '../../../../../helpers/testUtils';
+import { ComponentNavLicenseNotif } from '../ComponentNavLicenseNotif';
 
-jest.mock('../../../../../helpers/l10n', () => {
-  const l10n = require.requireActual('../../../../../helpers/l10n');
-  l10n.hasMessage = jest.fn(() => true);
-  return l10n;
-});
+jest.mock('sonar-ui-common/helpers/l10n', () => ({
+  ...jest.requireActual('sonar-ui-common/helpers/l10n'),
+  hasMessage: jest.fn().mockReturnValue(true)
+}));
 
 jest.mock('../../../../../api/marketplace', () => ({
   isValidLicense: jest.fn().mockResolvedValue({ isValidLicense: false })

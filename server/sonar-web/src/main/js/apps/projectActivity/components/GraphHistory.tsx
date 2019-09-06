@@ -19,12 +19,13 @@
  */
 import * as React from 'react';
 import { AutoSizer } from 'react-virtualized/dist/commonjs/AutoSizer';
-import GraphsTooltips from './GraphsTooltips';
+import AdvancedTimeline from 'sonar-ui-common/components/charts/AdvancedTimeline';
+import { formatMeasure } from 'sonar-ui-common/helpers/measures';
+import { getShortType } from '../../../helpers/measures';
+import { MeasureHistory, Serie } from '../utils';
 import GraphsLegendCustom from './GraphsLegendCustom';
 import GraphsLegendStatic from './GraphsLegendStatic';
-import AdvancedTimeline from '../../../components/charts/AdvancedTimeline';
-import { formatMeasure, getShortType } from '../../../helpers/measures';
-import { MeasureHistory, Serie } from '../utils';
+import GraphsTooltips from './GraphsTooltips';
 
 interface Props {
   events: T.AnalysisEvent[];

@@ -28,13 +28,13 @@ option optimize_for = SPEED;
 
 message SearchMyProjectsWsResponse {
   message Project {
-    optional string id = 1;
     optional string key = 2;
     optional string name = 4;
     optional string description = 5;
     optional string lastAnalysisDate = 6;
     optional string qualityGate = 7;
     repeated Link links = 8;
+    optional string revision = 9;
   }
 
   message Link {
@@ -65,12 +65,12 @@ message SearchWsResponse {
 
   message Component {
     optional string organization = 1;
-    optional string id = 2;
     optional string key = 3;
     optional string name = 4;
     optional string qualifier = 5;
     optional string visibility = 6;
     optional string lastAnalysisDate = 7;
+    optional string revision = 8;
   }
 }
 

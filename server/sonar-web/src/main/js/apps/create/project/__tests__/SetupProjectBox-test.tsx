@@ -17,12 +17,12 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { shallow } from 'enzyme';
-import SetupProjectBox from '../SetupProjectBox';
-import { waitAndUpdate, submit } from '../../../../helpers/testUtils';
+import * as React from 'react';
+import { submit, waitAndUpdate } from 'sonar-ui-common/helpers/testUtils';
 import { provisionProject } from '../../../../api/alm-integration';
 import { mockOrganizationWithAlm } from '../../../../helpers/testMocks';
+import SetupProjectBox from '../SetupProjectBox';
 
 jest.mock('../../../../api/alm-integration', () => ({
   provisionProject: jest

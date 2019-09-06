@@ -34,9 +34,9 @@ import org.sonar.ce.task.projectanalysis.component.BranchPersisterImpl;
 import org.sonar.ce.task.projectanalysis.component.ConfigurationRepositoryImpl;
 import org.sonar.ce.task.projectanalysis.component.DbIdsRepositoryImpl;
 import org.sonar.ce.task.projectanalysis.component.DisabledComponentsHolderImpl;
-import org.sonar.ce.task.projectanalysis.component.MergeBranchComponentUuids;
+import org.sonar.ce.task.projectanalysis.component.MergeAndTargetBranchComponentUuids;
 import org.sonar.ce.task.projectanalysis.component.ReportModulesPath;
-import org.sonar.ce.task.projectanalysis.component.ShortBranchComponentsWithIssues;
+import org.sonar.ce.task.projectanalysis.component.SiblingComponentsWithOpenIssues;
 import org.sonar.ce.task.projectanalysis.component.TreeRootHolderImpl;
 import org.sonar.ce.task.projectanalysis.dbmigration.DbMigrationModule;
 import org.sonar.ce.task.projectanalysis.duplication.CrossProjectDuplicationStatusHolderImpl;
@@ -77,12 +77,12 @@ import org.sonar.ce.task.projectanalysis.issue.RuleRepositoryImpl;
 import org.sonar.ce.task.projectanalysis.issue.RuleTagsCopier;
 import org.sonar.ce.task.projectanalysis.issue.ScmAccountToUser;
 import org.sonar.ce.task.projectanalysis.issue.ScmAccountToUserLoader;
-import org.sonar.ce.task.projectanalysis.issue.ShortBranchIssueMerger;
-import org.sonar.ce.task.projectanalysis.issue.ShortBranchIssuesLoader;
 import org.sonar.ce.task.projectanalysis.issue.ShortBranchOrPullRequestTrackerExecution;
+import org.sonar.ce.task.projectanalysis.issue.SiblingsIssueMerger;
+import org.sonar.ce.task.projectanalysis.issue.SiblingsIssuesLoader;
 import org.sonar.ce.task.projectanalysis.issue.TrackerBaseInputFactory;
 import org.sonar.ce.task.projectanalysis.issue.TrackerExecution;
-import org.sonar.ce.task.projectanalysis.issue.TrackerMergeBranchInputFactory;
+import org.sonar.ce.task.projectanalysis.issue.TrackerMergeOrTargetBranchInputFactory;
 import org.sonar.ce.task.projectanalysis.issue.TrackerRawInputFactory;
 import org.sonar.ce.task.projectanalysis.issue.UpdateConflictResolver;
 import org.sonar.ce.task.projectanalysis.issue.commonrule.BranchCoverageRule;
@@ -99,6 +99,7 @@ import org.sonar.ce.task.projectanalysis.measure.MeasureComputersVisitor;
 import org.sonar.ce.task.projectanalysis.measure.MeasureRepositoryImpl;
 import org.sonar.ce.task.projectanalysis.measure.MeasureToMeasureDto;
 import org.sonar.ce.task.projectanalysis.metric.MetricModule;
+import org.sonar.ce.task.projectanalysis.notification.NotificationFactory;
 import org.sonar.ce.task.projectanalysis.organization.DefaultOrganizationLoader;
 import org.sonar.ce.task.projectanalysis.period.PeriodHolderImpl;
 import org.sonar.ce.task.projectanalysis.qualitygate.EvaluationResultTextConverterImpl;
@@ -110,6 +111,7 @@ import org.sonar.ce.task.projectanalysis.qualitymodel.NewMaintainabilityMeasures
 import org.sonar.ce.task.projectanalysis.qualitymodel.NewReliabilityAndSecurityRatingMeasuresVisitor;
 import org.sonar.ce.task.projectanalysis.qualitymodel.RatingSettings;
 import org.sonar.ce.task.projectanalysis.qualitymodel.ReliabilityAndSecurityRatingMeasuresVisitor;
+import org.sonar.ce.task.projectanalysis.qualitymodel.SecurityReviewRatingVisitor;
 import org.sonar.ce.task.projectanalysis.qualityprofile.ActiveRulesHolderImpl;
 import org.sonar.ce.task.projectanalysis.qualityprofile.QProfileStatusRepositoryImpl;
 import org.sonar.ce.task.projectanalysis.scm.ScmInfoDbLoader;
@@ -195,8 +197,8 @@ public final class ProjectAnalysisTaskContainerPopulator implements ContainerPop
       MeasureComputersHolderImpl.class,
       MutableTaskResultHolderImpl.class,
       BatchReportReaderImpl.class,
-      MergeBranchComponentUuids.class,
-      ShortBranchComponentsWithIssues.class,
+      MergeAndTargetBranchComponentUuids.class,
+      SiblingComponentsWithOpenIssues.class,
 
       // repositories
       LanguageRepositoryImpl.class,
@@ -264,13 +266,14 @@ public final class ProjectAnalysisTaskContainerPopulator implements ContainerPop
       NewMaintainabilityMeasuresVisitor.class,
       ReliabilityAndSecurityRatingMeasuresVisitor.class,
       NewReliabilityAndSecurityRatingMeasuresVisitor.class,
+      SecurityReviewRatingVisitor.class,
       LastCommitVisitor.class,
       MeasureComputersVisitor.class,
 
       UpdateConflictResolver.class,
       TrackerBaseInputFactory.class,
       TrackerRawInputFactory.class,
-      TrackerMergeBranchInputFactory.class,
+      TrackerMergeOrTargetBranchInputFactory.class,
       ClosedIssuesInputFactory.class,
       Tracker.class,
       TrackerExecution.class,
@@ -280,8 +283,8 @@ public final class ProjectAnalysisTaskContainerPopulator implements ContainerPop
       BaseIssuesLoader.class,
       IssueTrackingDelegator.class,
       BranchPersisterImpl.class,
-      ShortBranchIssuesLoader.class,
-      ShortBranchIssueMerger.class,
+      SiblingsIssuesLoader.class,
+      SiblingsIssueMerger.class,
 
       // filemove
       ScoreMatrixDumperImpl.class,
@@ -302,7 +305,10 @@ public final class ProjectAnalysisTaskContainerPopulator implements ContainerPop
       SmallChangesetQualityGateSpecialCase.class,
 
       // webhooks
-      WebhookPostTask.class);
+      WebhookPostTask.class,
+
+      // notifications
+      NotificationFactory.class);
   }
 
 }

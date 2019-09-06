@@ -1139,6 +1139,41 @@ public final class CoreMetrics {
     .setDeleteHistoricalData(true)
     .create();
 
+  /**
+   * @since 7.8
+   */
+  public static final String SECURITY_HOTSPOTS_KEY = "security_hotspots";
+
+  /**
+   * @since 7.8
+   */
+  public static final Metric<Integer> SECURITY_HOTSPOTS = new Metric.Builder(SECURITY_HOTSPOTS_KEY, "Security Hotspots", Metric.ValueType.INT)
+    .setDescription("Security Hotspots")
+    .setDirection(Metric.DIRECTION_WORST)
+    .setQualitative(false)
+    .setDomain(DOMAIN_SECURITY)
+    .setBestValue(0.0)
+    .setOptimizedBestValue(true)
+    .create();
+
+  /**
+   * @since 7.8
+   */
+  public static final String NEW_SECURITY_HOTSPOTS_KEY = "new_security_hotspots";
+
+  /**
+   * @since 7.8
+   */
+  public static final Metric<Integer> NEW_SECURITY_HOTSPOTS = new Metric.Builder(NEW_SECURITY_HOTSPOTS_KEY, "New Security Hotspots", Metric.ValueType.INT)
+    .setDescription("New Security Hotspots")
+    .setDirection(Metric.DIRECTION_WORST)
+    .setQualitative(true)
+    .setDomain(DOMAIN_SECURITY)
+    .setBestValue(0.0)
+    .setOptimizedBestValue(true)
+    .setDeleteHistoricalData(true)
+    .create();
+
   // --------------------------------------------------------------------------------------------------------------------
   //
   // MAINTAINABILITY CHARACTERISTIC
@@ -1469,6 +1504,23 @@ public final class CoreMetrics {
     .setQualitative(true)
     .setBestValue(1.0)
     .setWorstValue(5.0)
+    .create();
+
+  /**
+   * @since 7.8
+   */
+  public static final String SECURITY_REVIEW_RATING_KEY = "security_review_rating";
+
+  /**
+   * @since 7.8
+   */
+  public static final Metric<Integer> SECURITY_REVIEW_RATING = new Metric.Builder(SECURITY_REVIEW_RATING_KEY, "Security Review Rating", Metric.ValueType.RATING)
+    .setDescription("Security Review Rating")
+    .setDomain(DOMAIN_SECURITY)
+    .setDirection(Metric.DIRECTION_WORST)
+    .setQualitative(true)
+    .setBestValue(1d)
+    .setWorstValue(5d)
     .create();
 
   // --------------------------------------------------------------------------------------------------------------------

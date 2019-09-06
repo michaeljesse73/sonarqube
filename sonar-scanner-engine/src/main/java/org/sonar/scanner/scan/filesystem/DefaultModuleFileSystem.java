@@ -19,18 +19,17 @@
  */
 package org.sonar.scanner.scan.filesystem;
 
-import com.google.common.annotations.VisibleForTesting;
 import org.sonar.api.batch.fs.internal.DefaultFileSystem;
 import org.sonar.api.batch.fs.internal.DefaultInputModule;
+import org.sonar.api.batch.fs.internal.predicates.DefaultFilePredicates;
 
 public class DefaultModuleFileSystem extends DefaultFileSystem {
 
   public DefaultModuleFileSystem(ModuleInputComponentStore moduleInputFileCache, DefaultInputModule module) {
-    super(module.getBaseDir(), moduleInputFileCache);
+    super(module.getBaseDir(), moduleInputFileCache, new DefaultFilePredicates(module.getBaseDir()));
     initFields(module);
   }
 
-  @VisibleForTesting
   public DefaultModuleFileSystem(DefaultInputModule module) {
     super(module.getBaseDir());
     initFields(module);

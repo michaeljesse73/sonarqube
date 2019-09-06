@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import { createStore, applyMiddleware, compose } from 'redux';
+import { applyMiddleware, compose, createStore } from 'redux';
 import thunk, { ThunkMiddleware } from 'redux-thunk';
 
 type RootReducer = typeof import('../rootReducer').default;
@@ -30,8 +30,8 @@ if (process.env.NODE_ENV === 'development') {
   const { createLogger } = require('redux-logger');
   middlewares.push(createLogger());
 
-  const { devToolsExtension } = window as any;
-  composed.push(devToolsExtension ? devToolsExtension() : (f: Function) => f);
+  const { __REDUX_DEVTOOLS_EXTENSION__ } = window as any;
+  composed.push(__REDUX_DEVTOOLS_EXTENSION__ ? __REDUX_DEVTOOLS_EXTENSION__() : (f: Function) => f);
 }
 
 const finalCreateStore = compose(

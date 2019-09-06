@@ -17,32 +17,32 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
+import { differenceBy } from 'lodash';
 import * as React from 'react';
 import { connect } from 'react-redux';
-import { differenceBy } from 'lodash';
-import { ComponentContext } from './ComponentContext';
-import ComponentContainerNotFound from './ComponentContainerNotFound';
-import ComponentNav from './nav/component/ComponentNav';
 import { getBranches, getPullRequests } from '../../api/branches';
-import { getTasksForComponent, getAnalysisStatus } from '../../api/ce';
+import { getAnalysisStatus, getTasksForComponent } from '../../api/ce';
 import { getComponentData } from '../../api/components';
 import { getComponentNavigation } from '../../api/nav';
-import {
-  fetchOrganization,
-  requireAuthorization,
-  registerBranchStatus
-} from '../../store/rootActions';
 import { STATUSES } from '../../apps/background-tasks/constants';
+import { Location, Router, withRouter } from '../../components/hoc/withRouter';
 import {
-  isPullRequest,
+  getBranchLikeQuery,
   isBranch,
-  isMainBranch,
   isLongLivingBranch,
-  isShortLivingBranch,
-  getBranchLikeQuery
+  isMainBranch,
+  isPullRequest,
+  isShortLivingBranch
 } from '../../helpers/branches';
 import { isSonarCloud } from '../../helpers/system';
-import { withRouter, Router, Location } from '../../components/hoc/withRouter';
+import {
+  fetchOrganization,
+  registerBranchStatus,
+  requireAuthorization
+} from '../../store/rootActions';
+import ComponentContainerNotFound from './ComponentContainerNotFound';
+import { ComponentContext } from './ComponentContext';
+import ComponentNav from './nav/component/ComponentNav';
 
 interface Props {
   children: React.ReactElement;
@@ -114,28 +114,30 @@ export class ComponentContainer extends React.PureComponent<Props, State> {
       getComponentNavigation({ component: key, branch, pullRequest }),
       getComponentData({ component: key, branch, pullRequest })
     ])
-      .then(([nav, data]) => {
-        const component = this.addQualifier({ ...nav, ...data });
+      .then(([nav, { component }]) => {
+        const componentWithQualifier = this.addQualifier({ ...nav, ...component });
 
         if (isSonarCloud()) {
-          this.props.fetchOrganization(component.organization);
+          this.props.fetchOrganization(componentWithQualifier.organization);
         }
-        return component;
-      })
+        return componentWithQualifier;
+      }, onError)
       .then(this.fetchBranches)
-      .then(({ branchLike, branchLikes, component }) => {
-        if (this.mounted) {
-          this.setState({
-            branchLike,
-            branchLikes,
-            component,
-            loading: false
-          });
-          this.fetchStatus(component);
-          this.fetchWarnings(component, branchLike);
-        }
-      })
-      .catch(onError);
+      .then(
+        ({ branchLike, branchLikes, component }) => {
+          if (this.mounted) {
+            this.setState({
+              branchLike,
+              branchLikes,
+              component,
+              loading: false
+            });
+            this.fetchStatus(component);
+            this.fetchWarnings(component, branchLike);
+          }
+        },
+        () => {}
+      );
   }
 
   fetchBranches = (

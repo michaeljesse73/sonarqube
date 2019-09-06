@@ -46,25 +46,14 @@ public class AbstractTracker<RAW extends Trackable, BASE extends Trackable> {
       SearchKey rawKey = searchKeyFactory.apply(raw);
       Collection<BASE> bases = baseSearch.get(rawKey);
       bases.stream()
-        .sorted(comparing(this::statusRank).reversed()
-          .thenComparing(comparing(Trackable::getCreationDate)))
+        // Choose the more recently updated issue first to get the latest changes in siblings
+        .sorted(comparing(Trackable::getUpdateDate).reversed())
         .findFirst()
         .ifPresent(match -> {
           tracking.match(raw, match);
           baseSearch.remove(rawKey, match);
         });
     });
-  }
-
-  private int statusRank(BASE i) {
-    switch (i.getStatus()) {
-      case Issue.STATUS_RESOLVED:
-        return 2;
-      case Issue.STATUS_CONFIRMED:
-        return 1;
-      default:
-        return 0;
-    }
   }
 
   protected interface SearchKey {

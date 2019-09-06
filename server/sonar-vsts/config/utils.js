@@ -17,39 +17,46 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-const cssMinimizeOptions = {
-  discardComments: { removeAll: true }
-};
-
-const cssLoader = ({ production }) => ({
+const cssLoader = () => ({
   loader: 'css-loader',
   options: {
     importLoaders: 1,
-    minimize: production && cssMinimizeOptions,
+    modules: 'global',
     url: false
   }
 });
 
-const theme = require('../../sonar-web/src/main/js/app/theme');
-
 const customProperties = {};
-Object.keys(theme).forEach(key => {
-  if (typeof theme[key] === 'string') {
-    customProperties[`--${key}`] = theme[key];
-  }
-});
+const parseCustomProperties = theme => {
+  Object.keys(theme).forEach(key => {
+    if (typeof theme[key] === 'object') {
+      parseCustomProperties(theme[key]);
+    } else if (typeof theme[key] === 'string') {
+      if (!customProperties[`--${key}`]) {
+        customProperties[`--${key}`] = theme[key];
+      } else {
+        console.error(
+          `Custom CSS property "${key}" already exists with value "${
+            customProperties[`--${key}`]
+          }".`
+        );
+        process.exit(1);
+      }
+    }
+  });
+};
 
-const postcssLoader = () => ({
+parseCustomProperties(require('../../sonar-web/src/main/js/app/theme'));
+
+const postcssLoader = production => ({
   loader: 'postcss-loader',
   options: {
     ident: 'postcss',
     plugins: () => [
       require('autoprefixer'),
-      require('postcss-custom-properties')({
-        importFrom: { customProperties },
-        preserve: false
-      }),
-      require('postcss-calc')
+      require('postcss-custom-properties')({ importFrom: { customProperties }, preserve: false }),
+      require('postcss-calc'),
+      ...(production ? [require('cssnano')({ calc: false, svgo: false })] : [])
     ]
   }
 });

@@ -18,11 +18,11 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import DeferredSpinner from '../../../components/common/DeferredSpinner';
-import SimpleModal from '../../../components/controls/SimpleModal';
-import Select, { Creatable } from '../../../components/controls/Select';
-import { SubmitButton, ResetButtonLink } from '../../../components/ui/buttons';
-import { translate } from '../../../helpers/l10n';
+import { ResetButtonLink, SubmitButton } from 'sonar-ui-common/components/controls/buttons';
+import Select, { Creatable } from 'sonar-ui-common/components/controls/Select';
+import SimpleModal from 'sonar-ui-common/components/controls/SimpleModal';
+import DeferredSpinner from 'sonar-ui-common/components/ui/DeferredSpinner';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 
 export interface MetricProps {
   description: string;
@@ -106,7 +106,7 @@ export default class Form extends React.PureComponent<Props, State> {
               <h2>{this.props.header}</h2>
             </header>
 
-            <div className="modal-body">
+            <div className="modal-body modal-container">
               <div className="modal-field">
                 <label htmlFor="create-metric-key">
                   {translate('key')}

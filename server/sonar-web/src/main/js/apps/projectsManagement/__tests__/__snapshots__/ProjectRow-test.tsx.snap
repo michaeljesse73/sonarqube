@@ -1,7 +1,9 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`renders 1`] = `
-<tr>
+<tr
+  data-project-key="project"
+>
   <td
     className="thin"
   >
@@ -50,7 +52,12 @@ exports[`renders 1`] = `
     />
   </td>
   <td
-    className="nowrap"
+    className="nowrap hide-overflow"
+    style={
+      Object {
+        "maxWidth": 400,
+      }
+    }
   >
     <span
       className="note"
@@ -90,7 +97,9 @@ exports[`renders 1`] = `
 `;
 
 exports[`renders 2`] = `
-<tr>
+<tr
+  data-project-key="project"
+>
   <td
     className="thin"
   >
@@ -139,7 +148,12 @@ exports[`renders 2`] = `
     />
   </td>
   <td
-    className="nowrap"
+    className="nowrap hide-overflow"
+    style={
+      Object {
+        "maxWidth": 400,
+      }
+    }
   >
     <span
       className="note"

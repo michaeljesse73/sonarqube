@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-/* eslint-disable import/first, import/order */
+/* eslint-disable import/first */
 jest.mock('../../../api/quality-profiles', () => ({
   associateProject: jest.fn(() => Promise.resolve()),
   dissociateProject: jest.fn(() => Promise.resolve()),
@@ -32,8 +32,8 @@ jest.mock('../../../app/utils/handleRequiredAuthorization', () => ({
   default: jest.fn()
 }));
 
-import * as React from 'react';
 import { shallow } from 'enzyme';
+import * as React from 'react';
 import App from '../App';
 
 const associateProject = require('../../../api/quality-profiles').associateProject as jest.Mock<

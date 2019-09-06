@@ -17,10 +17,10 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import * as classNames from 'classnames';
+import * as React from 'react';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import DocTooltip from '../../../components/docs/DocTooltip';
-import { translate } from '../../../helpers/l10n';
 
 interface Props {
   className?: string;
@@ -29,7 +29,7 @@ interface Props {
 
 export default function BuiltInQualityProfileBadge({ className, tooltip = true }: Props) {
   const badge = (
-    <div className={classNames('outline-badge', className)}>
+    <div className={classNames('badge badge-info', className)}>
       {translate('quality_profiles.built_in')}
     </div>
   );

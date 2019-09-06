@@ -25,9 +25,11 @@ import java.util.Map;
 import org.apache.commons.lang.StringUtils;
 import org.sonar.api.CoreProperties;
 import org.sonar.api.Plugin;
+import org.sonar.api.SonarEdition;
 import org.sonar.api.SonarQubeSide;
 import org.sonar.api.SonarQubeVersion;
-import org.sonar.api.internal.ApiVersion;
+import org.sonar.api.SonarRuntime;
+import org.sonar.api.internal.MetadataLoader;
 import org.sonar.api.internal.SonarRuntimeImpl;
 import org.sonar.api.utils.MessageException;
 import org.sonar.api.utils.System2;
@@ -77,8 +79,21 @@ public class GlobalContainer extends ComponentContainer {
     addBootstrapComponents();
   }
 
+  private static void checkJavaVersion() {
+    try {
+      String.class.getMethod("isBlank");
+    } catch (NoSuchMethodException e) {
+      LOG.warn("SonarScanner will require Java 11+ to run starting in SonarQube 8.x");
+    }
+  }
+
   private void addBootstrapComponents() {
-    Version apiVersion = ApiVersion.load(System2.INSTANCE);
+    Version apiVersion = MetadataLoader.loadVersion(System2.INSTANCE);
+    SonarEdition edition = MetadataLoader.loadEdition(System2.INSTANCE);
+    if (edition != SonarEdition.SONARCLOUD) {
+      checkJavaVersion();
+    }
+    LOG.debug("{} {}", edition.getLabel(), apiVersion);
     add(
       // plugins
       ScannerPluginRepository.class,
@@ -86,9 +101,7 @@ public class GlobalContainer extends ComponentContainer {
       PluginClassloaderFactory.class,
       ScannerPluginJarExploder.class,
       ExtensionInstaller.class,
-
       new SonarQubeVersion(apiVersion),
-      SonarRuntimeImpl.forSonarQube(apiVersion, SonarQubeSide.SCANNER),
       new GlobalServerSettingsProvider(),
       new GlobalConfigurationProvider(),
       new ScannerWsClientProvider(),
@@ -101,6 +114,7 @@ public class GlobalContainer extends ComponentContainer {
       Clock.systemDefaultZone(),
       new MetricsRepositoryProvider(),
       UuidFactoryImpl.INSTANCE);
+    addIfMissing(SonarRuntimeImpl.forSonarQube(apiVersion, SonarQubeSide.SCANNER, edition), SonarRuntime.class);
     addIfMissing(ScannerPluginInstaller.class, PluginInstaller.class);
     add(CoreExtensionRepositoryImpl.class, CoreExtensionsLoader.class, ScannerCoreExtensionsInstaller.class);
     addIfMissing(DefaultGlobalSettingsLoader.class, GlobalSettingsLoader.class);
@@ -124,7 +138,6 @@ public class GlobalContainer extends ComponentContainer {
     if (!analysisMode.equals("publish")) {
       throw MessageException.of("The preview mode, along with the 'sonar.analysis.mode' parameter, is no more supported. You should stop using this parameter.");
     }
-
     new ProjectScanContainer(this).execute();
 
     LOG.info("Analysis total time: {}", formatTime(System.currentTimeMillis() - startTime));

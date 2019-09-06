@@ -17,12 +17,12 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { shallow } from 'enzyme';
-import ExtendProfileForm from '../ExtendProfileForm';
-import { createQualityProfile, changeProfileParent } from '../../../../api/quality-profiles';
+import * as React from 'react';
+import { click, waitAndUpdate } from 'sonar-ui-common/helpers/testUtils';
+import { changeProfileParent, createQualityProfile } from '../../../../api/quality-profiles';
 import { mockQualityProfile } from '../../../../helpers/testMocks';
-import { click } from '../../../../helpers/testUtils';
+import ExtendProfileForm from '../ExtendProfileForm';
 
 jest.mock('../../../../api/quality-profiles', () => ({
   createQualityProfile: jest.fn().mockResolvedValue({ profile: { key: 'new-profile' } }),
@@ -46,7 +46,7 @@ it('should correctly create a new profile and extend the existing one', async ()
 
   wrapper.setState({ name }).update();
   click(wrapper.find('SubmitButton'));
-  await Promise.resolve(setImmediate);
+  await waitAndUpdate(wrapper);
 
   const data = new FormData();
   data.append('language', profile.language);

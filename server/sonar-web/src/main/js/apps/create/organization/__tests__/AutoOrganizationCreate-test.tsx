@@ -17,13 +17,13 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { shallow } from 'enzyme';
+import * as React from 'react';
+import { click, waitAndUpdate } from 'sonar-ui-common/helpers/testUtils';
+import { bindAlmOrganization } from '../../../../api/alm-integration';
+import { mockAlmApplication, mockAlmOrganization } from '../../../../helpers/testMocks';
 import AutoOrganizationCreate from '../AutoOrganizationCreate';
 import { Step } from '../utils';
-import { bindAlmOrganization } from '../../../../api/alm-integration';
-import { mockAlmOrganization, mockAlmApplication } from '../../../../helpers/testMocks';
-import { waitAndUpdate, click } from '../../../../helpers/testUtils';
 
 jest.mock('../../../../api/alm-integration', () => ({
   bindAlmOrganization: jest.fn().mockResolvedValue({})
@@ -50,9 +50,10 @@ it('should render prefilled and create org', async () => {
   wrapper.setProps({ organization });
   wrapper.find('PlanStep').prop<Function>('createOrganization')();
 
-  const alm = {
+  const alm: T.Organization['alm'] = {
     key: 'github',
     membersSync: true,
+    personal: false,
     url: 'http://github.com/thing'
   };
   expect(createOrganization).toBeCalledWith({ ...organization, alm, installationId: 'id-foo' });
@@ -62,7 +63,7 @@ it('should allow to cancel org import', () => {
   const handleCancelImport = jest.fn().mockResolvedValue({ key: 'foo' });
   const wrapper = shallowRender({ handleCancelImport });
 
-  click(wrapper.find('DeleteButton'));
+  click(wrapper.find('ClearButton'));
   expect(handleCancelImport).toBeCalled();
 });
 
@@ -107,7 +108,7 @@ function shallowRender(props: Partial<AutoOrganizationCreate['props']> = {}) {
     <AutoOrganizationCreate
       almApplication={mockAlmApplication()}
       almInstallId="id-foo"
-      almOrganization={{ ...organization, personal: false }}
+      almOrganization={organization}
       createOrganization={jest.fn()}
       handleCancelImport={jest.fn()}
       handleOrgDetailsFinish={jest.fn()}

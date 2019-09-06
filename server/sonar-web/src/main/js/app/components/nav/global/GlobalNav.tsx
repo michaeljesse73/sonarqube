@@ -19,33 +19,33 @@
  */
 import * as React from 'react';
 import { connect } from 'react-redux';
-import GlobalNavBranding, { SonarCloudNavBranding } from './GlobalNavBranding';
-import GlobalNavMenu from './GlobalNavMenu';
-import GlobalNavExplore from './GlobalNavExplore';
-import GlobalNavUserContainer from './GlobalNavUserContainer';
-import Search from '../../search/Search';
-import EmbedDocsPopupHelper from '../../embed-docs-modal/EmbedDocsPopupHelper';
-import * as theme from '../../../theme';
-import NavBar from '../../../../components/nav/NavBar';
-import { lazyLoad } from '../../../../components/lazyLoad';
+import { lazyLoad } from 'sonar-ui-common/components/lazyLoad';
+import NavBar from 'sonar-ui-common/components/ui/NavBar';
+import { parseDate } from 'sonar-ui-common/helpers/dates';
 import {
-  fetchPrismicRefs,
   fetchPrismicFeatureNews,
+  fetchPrismicRefs,
   PrismicFeatureNews
 } from '../../../../api/news';
+import { isSonarCloud } from '../../../../helpers/system';
+import { isLoggedIn } from '../../../../helpers/users';
 import {
+  getAppState,
   getCurrentUser,
   getCurrentUserSetting,
-  getAppState,
   getGlobalSettingValue,
   Store
 } from '../../../../store/rootReducer';
-import { isSonarCloud } from '../../../../helpers/system';
-import { isLoggedIn } from '../../../../helpers/users';
-import { OnboardingContext } from '../../OnboardingContext';
 import { setCurrentUserSetting } from '../../../../store/users';
-import { parseDate } from '../../../../helpers/dates';
+import { rawSizes } from '../../../theme';
+import EmbedDocsPopupHelper from '../../embed-docs-modal/EmbedDocsPopupHelper';
+import { OnboardingContext } from '../../OnboardingContext';
+import Search from '../../search/Search';
 import './GlobalNav.css';
+import GlobalNavBranding, { SonarCloudNavBranding } from './GlobalNavBranding';
+import GlobalNavExplore from './GlobalNavExplore';
+import GlobalNavMenu from './GlobalNavMenu';
+import GlobalNavUserContainer from './GlobalNavUserContainer';
 
 const GlobalNavPlus = lazyLoad(() => import('./GlobalNavPlus'), 'GlobalNavPlus');
 const NotificationsSidebar = lazyLoad(
@@ -174,7 +174,7 @@ export class GlobalNav extends React.PureComponent<Props, State> {
     const { appState, currentUser } = this.props;
     const { news } = this.state;
     return (
-      <NavBar className="navbar-global" height={theme.globalNavHeightRaw} id="global-navigation">
+      <NavBar className="navbar-global" height={rawSizes.globalNavHeightRaw} id="global-navigation">
         {isSonarCloud() ? <SonarCloudNavBranding /> : <GlobalNavBranding />}
 
         <GlobalNavMenu {...this.props} />

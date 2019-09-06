@@ -32,11 +32,11 @@ import org.junit.rules.TemporaryFolder;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.sonar.api.batch.fs.InputFile;
+import org.sonar.api.notifications.AnalysisWarnings;
+import org.sonar.api.utils.PathUtils;
 import org.sonar.api.batch.fs.internal.DefaultInputFile;
 import org.sonar.api.batch.fs.internal.FileMetadata;
 import org.sonar.api.batch.fs.internal.TestInputFileBuilder;
-import org.sonar.api.notifications.AnalysisWarnings;
-import org.sonar.api.utils.PathUtils;
 import org.sonar.scanner.issue.ignore.IgnoreIssuesFilter;
 import org.sonar.scanner.issue.ignore.pattern.IssueExclusionPatternInitializer;
 import org.sonar.scanner.issue.ignore.scanner.IssueExclusionsLoader;
@@ -59,7 +59,7 @@ public class MetadataGeneratorTest {
   private MetadataGenerator generator;
 
   @Before
-  public void setUp() throws IOException {
+  public void setUp() {
     MockitoAnnotations.initMocks(this);
     metadata = new FileMetadata();
     IssueExclusionsLoader issueExclusionsLoader = new IssueExclusionsLoader(mock(IssueExclusionPatternInitializer.class), mock(IgnoreIssuesFilter.class),

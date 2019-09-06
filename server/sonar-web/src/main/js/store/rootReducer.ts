@@ -18,6 +18,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import { combineReducers } from 'redux';
+import settingsApp, * as fromSettingsApp from '../apps/settings/store/rootReducer';
 import appState from './appState';
 import branches, * as fromBranches from './branches';
 import globalMessages, * as fromGlobalMessages from './globalMessages';
@@ -25,7 +26,6 @@ import languages, * as fromLanguages from './languages';
 import metrics, * as fromMetrics from './metrics';
 import organizations, * as fromOrganizations from './organizations';
 import users, * as fromUsers from './users';
-import settingsApp, * as fromSettingsApp from '../apps/settings/store/rootReducer';
 
 export type Store = {
   appState: T.AppState;
@@ -79,6 +79,10 @@ export function getMetrics(state: Store) {
 
 export function getMetricsKey(state: Store) {
   return fromMetrics.getMetricsKey(state.metrics);
+}
+
+export function getMetricByKey(state: Store, key: string) {
+  return fromMetrics.getMetricByKey(state.metrics, key);
 }
 
 export function getOrganizationByKey(state: Store, key: string) {

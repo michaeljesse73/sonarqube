@@ -1,3 +1,5 @@
+import org.apache.tools.ant.filters.ReplaceTokens
+
 sonarqube {
   properties {
     property 'sonar.projectName', "${projectTitle} :: Application"
@@ -9,10 +11,8 @@ configurations {
   jsw
   scanner
   web
+  shutdowner
   jdbc_mssql {
-    transitive = false
-  }
-  jdbc_mysql {
     transitive = false
   }
   jdbc_postgresql {
@@ -26,19 +26,18 @@ configurations {
   }
 }
 
-ext {
-  slangVersion = '1.5.0.315'
-  dotnetVersion = '7.11.0.8083'
-}
-
 dependencies {
   // please keep list ordered
+  compile 'org.slf4j:slf4j-api'
 
   compile 'org.elasticsearch.client:transport'
   compile project(':server:sonar-ce')
   compile project(':server:sonar-main')
   compile project(':server:sonar-process')
-  compile project(':server:sonar-server')
+  compile project(':server:sonar-webserver')
+  compile project(':sonar-core')
+  compile project(path: ':sonar-plugin-api', configuration: 'shadow')
+  compile project(':sonar-plugin-api-impl')
 
   compileOnly 'com.google.code.findbugs:jsr305'
 
@@ -46,35 +45,33 @@ dependencies {
   scanner project(path: ':sonar-scanner-engine-shaded', configuration: 'shadow')
   web project(':server:sonar-vsts')
   web project(':server:sonar-web')
+  shutdowner project(':sonar-shutdowner')
 
   jdbc_h2 'com.h2database:h2'
   jdbc_mssql 'com.microsoft.sqlserver:mssql-jdbc'
-  jdbc_mysql 'mysql:mysql-connector-java'
   jdbc_postgresql 'org.postgresql:postgresql'
 
-  bundledPlugin 'org.sonarsource.css:sonar-css-plugin:1.0.3.724@jar'
-  bundledPlugin "org.sonarsource.dotnet:sonar-csharp-plugin:${dotnetVersion}@jar"
-  bundledPlugin "org.sonarsource.dotnet:sonar-vbnet-plugin:${dotnetVersion}@jar"
-  bundledPlugin 'org.sonarsource.flex:sonar-flex-plugin:2.4.0.1222@jar'
-  bundledPlugin 'org.sonarsource.go:sonar-go-plugin:1.1.0.1612@jar'
-  bundledPlugin 'org.sonarsource.html:sonar-html-plugin:3.1.0.1615@jar'
-  bundledPlugin 'org.sonarsource.java:sonar-java-plugin:5.11.0.17289@jar'
-  bundledPlugin 'org.sonarsource.jacoco:sonar-jacoco-plugin:1.0.1.143@jar'
-  bundledPlugin 'org.sonarsource.javascript:sonar-javascript-plugin:5.1.1.7506@jar'
+  bundledPlugin 'org.sonarsource.auth.github:sonar-auth-github-plugin:1.5.0.870@jar'
+  bundledPlugin 'org.sonarsource.auth.saml:sonar-auth-saml-plugin:1.1.0.181@jar'
+  bundledPlugin 'org.sonarsource.css:sonar-css-plugin@jar'
+  bundledPlugin "org.sonarsource.dotnet:sonar-csharp-plugin@jar"
+  bundledPlugin "org.sonarsource.dotnet:sonar-vbnet-plugin@jar"
+  bundledPlugin 'org.sonarsource.flex:sonar-flex-plugin@jar'
+  bundledPlugin 'org.sonarsource.go:sonar-go-plugin@jar'
+  bundledPlugin 'org.sonarsource.html:sonar-html-plugin@jar'
+  bundledPlugin 'org.sonarsource.java:sonar-java-plugin@jar'
+  bundledPlugin 'org.sonarsource.jacoco:sonar-jacoco-plugin:1.0.2.475@jar'
+  bundledPlugin 'org.sonarsource.javascript:sonar-javascript-plugin@jar'
   bundledPlugin 'org.sonarsource.ldap:sonar-ldap-plugin:2.2.0.608@jar'
-  bundledPlugin 'org.sonarsource.php:sonar-php-plugin:3.0.0.4537@jar'
-  bundledPlugin 'org.sonarsource.python:sonar-python-plugin:1.13.0.2922@jar'
-  bundledPlugin "org.sonarsource.slang:sonar-kotlin-plugin:${slangVersion}@jar"
-  bundledPlugin "org.sonarsource.slang:sonar-ruby-plugin:${slangVersion}@jar"
+  bundledPlugin 'org.sonarsource.php:sonar-php-plugin@jar'
+  bundledPlugin 'org.sonarsource.python:sonar-python-plugin@jar'
+  bundledPlugin "org.sonarsource.slang:sonar-kotlin-plugin@jar"
+  bundledPlugin "org.sonarsource.slang:sonar-ruby-plugin@jar"
   bundledPlugin 'org.sonarsource.scm.git:sonar-scm-git-plugin:1.8.0.1574@jar'
   bundledPlugin 'org.sonarsource.scm.svn:sonar-scm-svn-plugin:1.9.0.1295@jar'
-  bundledPlugin "org.sonarsource.slang:sonar-scala-plugin:${slangVersion}@jar"
-  bundledPlugin 'org.sonarsource.typescript:sonar-typescript-plugin:1.9.0.3766@jar'
-  bundledPlugin 'org.sonarsource.xml:sonar-xml-plugin:2.0.1.2020@jar'
-
-  testCompile 'junit:junit'
-  testCompile 'org.assertj:assertj-core'
-  testCompile 'org.mockito:mockito-core'
+  bundledPlugin "org.sonarsource.slang:sonar-scala-plugin@jar"
+  bundledPlugin 'org.sonarsource.typescript:sonar-typescript-plugin@jar'
+  bundledPlugin 'org.sonarsource.xml:sonar-xml-plugin@jar'
 }
 
 jar {
@@ -92,6 +89,7 @@ task zip(type: Zip, dependsOn: [configurations.compile]) {
 
   into("${archiveDir}/") {
     from file('src/main/assembly')
+      exclude 'conf/sonar.properties'
       exclude 'elasticsearch-patch'
       // elasticsearch script will be replaced by patched version below
       exclude 'elasticsearch/bin/elasticsearch'
@@ -118,6 +116,8 @@ task zip(type: Zip, dependsOn: [configurations.compile]) {
       exclude 'elasticsearch/lib/tools/**'
       exclude 'elasticsearch/modules/aggs-matrix-stats/**'
       exclude 'elasticsearch/modules/ingest-common/**'
+      exclude 'elasticsearch/modules/ingest-geoip/**'
+      exclude 'elasticsearch/modules/ingest-user-agent/**'
       exclude 'elasticsearch/modules/lang-expression/**'
       exclude 'elasticsearch/modules/lang-groovy/**'
       exclude 'elasticsearch/modules/lang-mustache/**'
@@ -125,6 +125,20 @@ task zip(type: Zip, dependsOn: [configurations.compile]) {
       exclude 'elasticsearch/modules/tribe/**'
       exclude 'elasticsearch/modules/x-pack-*/**'
   }
+
+  into("${archiveDir}/conf/") {
+    from file('src/main/assembly/conf/sonar.properties')
+      filter(ReplaceTokens, tokens: [
+              'searchDefaultHeapSize': '512MB',
+              'searchJavaOpts'       : '-Xmx512m -Xms512m -XX:+HeapDumpOnOutOfMemoryError',
+              'ceDefaultHeapSize'    : '512MB',
+              'ceJavaOpts'           : '-Xmx512m -Xms128m -XX:+HeapDumpOnOutOfMemoryError',
+              'webDefaultHeapSize'   : '512MB',
+              'webJavaOpts'          : '-Xmx512m -Xms128m -XX:+HeapDumpOnOutOfMemoryError'
+      ])
+  }
+    
+  
   into("${archiveDir}/elasticsearch/") {
     from file('src/main/assembly/elasticsearch-patch')
       include 'bin/elasticsearch'
@@ -149,24 +163,33 @@ task zip(type: Zip, dependsOn: [configurations.compile]) {
     from configurations.compile
   }
   into("${archiveDir}/web/") {
+    duplicatesStrategy DuplicatesStrategy.FAIL
     // FIXME use configurations.web with correct artifacts
-    from tasks.getByPath(':server:sonar-web:yarn_run').outputs
+    from(tasks.getByPath(':server:sonar-web:yarn_run').outputs) { a ->
+      if (official) {
+         project(':private:branding').fileTree('src').visit { b ->
+           if (!b.isDirectory) {
+             a.exclude b.relativePath.toString()
+           }
+         }
+      }
+    }
     from tasks.getByPath(':server:sonar-vsts:yarn_run').outputs
     if (official) {
-      from project(':private:branding').file('.')
+      from project(':private:branding').file('src')
     }
   }
   into("${archiveDir}/lib/jdbc/mssql/") {
     from configurations.jdbc_mssql
-  }
-  into("${archiveDir}/lib/jdbc/mysql/") {
-    from configurations.jdbc_mysql
   }
   into("${archiveDir}/lib/jdbc/postgresql/") {
     from configurations.jdbc_postgresql
   }
   into("${archiveDir}/lib/jdbc/h2/") {
     from configurations.jdbc_h2
+  }
+  into("${archiveDir}/lib/") {
+    from configurations.shutdowner
   }
 }
 // Create the empty dir required by elasticsearch
@@ -175,9 +198,9 @@ zip.doFirst {
 }
 // Check the size of the archive
 zip.doLast {
-  def minLength = 191000000
-  def maxLength = 198000000
-  def length = new File(distsDir, archiveName).length()
+  def minLength = 198000000
+  def maxLength = 206000000
+  def length = archiveFile.get().asFile.length()
   if (length < minLength)
     throw new GradleException("$archiveName size ($length) too small. Min is $minLength")
   if (length > maxLength)

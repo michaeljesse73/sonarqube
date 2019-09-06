@@ -17,27 +17,27 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import * as classNames from 'classnames';
+import * as React from 'react';
 import remark from 'remark';
+import remarkCustomBlocks from 'remark-custom-blocks';
 import reactRenderer from 'remark-react';
 import slug from 'remark-slug';
-import remarkCustomBlocks from 'remark-custom-blocks';
-import DocLink from './DocLink';
+import { scrollToElement } from 'sonar-ui-common/helpers/scrolling';
+import DocCollapsibleBlock from './DocCollapsibleBlock';
 import DocImg from './DocImg';
+import DocLink from './DocLink';
+import './DocMarkdownBlock.css';
 import DocToc from './DocToc';
 import DocTooltipLink from './DocTooltipLink';
-import DocCollapsibleBlock from './DocCollapsibleBlock';
-import { separateFrontMatter, filterContent } from '../../helpers/markdown';
-import { scrollToElement } from '../../helpers/scrolling';
 
 interface Props {
   childProps?: T.Dict<string>;
   className?: string;
-  content: string | undefined;
-  displayH1?: boolean;
+  content: string;
   isTooltip?: boolean;
   stickyToc?: boolean;
+  title?: string;
 }
 
 export default class DocMarkdownBlock extends React.PureComponent<Props> {
@@ -57,9 +57,7 @@ export default class DocMarkdownBlock extends React.PureComponent<Props> {
   };
 
   render() {
-    const { childProps, content, className, displayH1, stickyToc, isTooltip } = this.props;
-    const parsed = separateFrontMatter(content || '');
-    const filteredContent = filterContent(parsed.content);
+    const { childProps, content, className, title, stickyToc, isTooltip } = this.props;
 
     const md = remark();
 
@@ -91,10 +89,10 @@ export default class DocMarkdownBlock extends React.PureComponent<Props> {
         className={classNames('markdown', className, { 'has-toc': stickyToc })}
         ref={ref => (this.node = ref)}>
         <div className="markdown-content">
-          {displayH1 && <h1 className="documentation-title">{parsed.frontmatter.title}</h1>}
-          {md.processSync(filteredContent).contents}
+          {title !== undefined && <h1 className="documentation-title">{title}</h1>}
+          {md.processSync(content).contents}
         </div>
-        {stickyToc && <DocToc content={filteredContent} onAnchorClick={this.handleAnchorClick} />}
+        {stickyToc && <DocToc content={content} onAnchorClick={this.handleAnchorClick} />}
       </div>
     );
   }

@@ -18,7 +18,21 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import { Dispatch } from 'redux';
-import { receiveValues } from './values';
+import { translate } from 'sonar-ui-common/helpers/l10n';
+import { parseError } from 'sonar-ui-common/helpers/request';
+import {
+  getDefinitions,
+  getValues,
+  resetSettingValue,
+  setSettingValue
+} from '../../../api/settings';
+import { closeAllGlobalMessages } from '../../../store/globalMessages';
+import {
+  getSettingsAppChangedValue,
+  getSettingsAppDefinition,
+  Store
+} from '../../../store/rootReducer';
+import { isEmptyValue } from '../utils';
 import { receiveDefinitions } from './definitions';
 import {
   cancelChange,
@@ -27,21 +41,7 @@ import {
   startLoading,
   stopLoading
 } from './settingsPage';
-import {
-  getDefinitions,
-  getValues,
-  setSettingValue,
-  resetSettingValue
-} from '../../../api/settings';
-import { parseError } from '../../../helpers/request';
-import { closeAllGlobalMessages } from '../../../store/globalMessages';
-import { isEmptyValue } from '../utils';
-import { translate } from '../../../helpers/l10n';
-import {
-  getSettingsAppDefinition,
-  getSettingsAppChangedValue,
-  Store
-} from '../../../store/rootReducer';
+import { receiveValues } from './values';
 
 export function fetchSettings(component?: string) {
   return (dispatch: Dispatch) => {
@@ -130,9 +130,9 @@ export function resetValue(key: string, component?: string) {
 }
 
 function handleError(key: string, dispatch: Dispatch) {
-  return (error: { response: Response }) => {
+  return (response: Response) => {
     dispatch(stopLoading(key));
-    return parseError(error).then(message => {
+    return parseError(response).then(message => {
       dispatch(failValidation(key, message));
       return Promise.reject();
     });

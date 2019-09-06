@@ -4,7 +4,6 @@ url: /project-administration/webhooks/
 ---
 
 Webhooks notify external services when a project analysis is complete. An HTTP POST request including a JSON payload is sent to each URL. URLs may be specified at both the project and global levels. Project-level specification does not replace global-level webhooks. All hooks at both levels are called.
-Plugins
 
 The HTTP(S) call:
 
@@ -24,7 +23,7 @@ If configured, all 20 will be executed.
 
 ### Delivery
 
-The Webhook administration console shows the result and timestamp of the most recent delivery of each webhook with the payload available via the list icon. Results and payloads of earlier deliveries are available from the tools menu to the right of each webhook
+The Webhook administration console shows the result and timestamp of the most recent delivery of each webhook with the payload available via the list icon. Results and payloads of earlier deliveries are available from the tools menu to the right of each webhook.
 
 Response records are purged after 30 days.
 
@@ -32,7 +31,7 @@ The URL must respond within 10 seconds or the delivery is marked as failed.
 
 ### Payload
 
-An HTTP header "X-SonarQube-Project" with the project key is sent to allow quick identification of the project involved
+An HTTP header "X-SonarQube-Project" with the project key is sent to allow quick identification of the project involved.
 
 The Payload is a JSON document which includes:
 
@@ -47,10 +46,15 @@ The Payload is a JSON document which includes:
 
 ```
 {
+    "serverUrl": "http://localhost:9000",
+    "taskId": "AVh21JS2JepAEhwQ-b3u",
+    "status": "SUCCESS",
     "analysedAt": "2016-11-18T10:46:28+0100",
+    "revision": "c739069ec7105e01303e8b3065a81141aad9f129",
     "project": {
-        "key": "org.sonarqube:example",
-        "name": "Example"
+        "key": "myproject",
+        "name": "My Project",
+        "url": "https://mycompany.com/sonarqube/dashboard?id=myproject"
     },
     "properties": {
     },
@@ -90,12 +94,37 @@ The Payload is a JSON document which includes:
         ],
         "name": "SonarQube way",
         "status": "OK"
-    },
-    "serverUrl": "http://localhost:9000",
-    "status": "SUCCESS",
-    "taskId": "AVh21JS2JepAEhwQ-b3u"
+    }
 }
 ```
+
+## Securing your webhooks
+
+After you've configured your server to receive payloads, you want to be sure that the payloads you receive are initiated by {instance} and not by hackers. You can do this by validating a hash signature that ensures that requests originate from {instance}. 
+
+### Setting your secret
+
+To set your secret in {instance}:
+
+1. From the project or organization where you're securing your webhooks, navigate to the webhooks settings at **Administration > webhooks**
+1. You can either click **Create** to create a new webhook or click an existing webhook's settings drop-down and click **Update**.
+1. Enter a random string in the **Secret** text box. This is used as the key to generate the HMAC hex digest value in the `X-Sonar-Webhook-HMAC-SHA256` header.
+1. Click **Update**. 
+
+### Validating {instance} Payloads
+
+After setting your secret, it's used by {instance} to create a hash signature with each payload that's passed using the `X-Sonar-Webhook-HMAC-SHA256` HTTP header. The header value needs to match the signature you are expecting to receive. {instance} uses a HMAC lower-case SHA256 digest to compute the signature of the request body. Here's some sample Java code for your server:
+
+```
+private static boolean isValidSignature(YourHttpRequest request) {
+  String receivedSignature = request.getHeader("X-Sonar-Webhook-HMAC-SHA256");
+  // See Apache commons-codec
+  String expectedSignature = new HmacUtils(HmacAlgorithms.HMAC_SHA_256, "your_secret").hmacHex(request.getBody())
+  return Objects.equals(expectedSignature, receivedSignature);  
+}
+```
+
+If the signatures don't match, then the payload should be ignored.
 
 ## Additional parameters
 
@@ -106,14 +135,13 @@ If you provide additional properties to your SonarScanner using the pattern `son
 For example these additional parameters:
 
 ```
-sonar-scanner -Dsonar.analysis.scmRevision=628f5175ada0d685fd7164baa7c6382c1f25cab4 -Dsonar.analysis.buildNumber=12345
+sonar-scanner -Dsonar.analysis.buildNumber=12345
 ```
 
 Would add this to the payload:
 
 ```
 "properties": {
-  "sonar.analysis.scmRevision": "628f5175ada0d685fd7164baa7c6382c1f25cab4",
   "sonar.analysis.buildNumber": "12345"
 }
 ```

@@ -3,27 +3,76 @@ title: Release Upgrade Notes
 url: /setup/upgrade-notes/
 ---
 
+## Release 7.9.1 LTS Upgrade Notes  
+**Upgrade on Microsoft SQL Server fixed**  
+Upgrade failure and performance issues with Microsoft SQL Server have been fixed ([SONAR-12260](https://jira.sonarsource.com/browse/SONAR-12260), [SONAR-12251](https://jira.sonarsource.com/browse/SONAR-12251)).
+
+**Pylint execution on Windows fixed**  
+Automatic execution of Pylint during python analysis on Windows has been fixed. Note that automatic execution of pylint during analysis remains deprecated on all OSes. ([SONAR-12274](https://jira.sonarsource.com/browse/SONAR-12274)).
+
+[Full Release Notes](https://jira.sonarsource.com/secure/ReleaseNote.jspa?projectId=10930&version=15029)
+
+
+## Release 7.9 LTS Upgrade Notes  
+**Upgrade can fail on Microsoft SQL Server**  
+Migration from SonarQube v6.7.x to v7.9 fails on Microsoft SQL Server ([SONAR-12260](https://jira.sonarsource.com/browse/SONAR-12260)). 
+
+**MySQL No Longer Supported**  
+SonarQube no longer supports MySQL. To migrate from MySQL to a supported database, see the free [MySQL Migrator tool](https://github.com/SonarSource/mysql-migrator).
+
+**Java 11 Required**  
+The SonarQube server now requires Java 11. Analyses may continue to use Java 8 if necessary.
+
+**Pylint should be run manually**  
+Running Pylint automatically during python analysis has been deprecated. Additionally, it is broken in this version on Windows. If needed, Pylint must be run ahead of time and the resulting report passed in to analysis. 
+
+[Full Release Notes](https://jira.sonarsource.com/secure/ReleaseNote.jspa?projectId=10930&version=14945)
+
+
 ## Release 7.8 Upgrade Notes
-**Google Analytics Support**
-Support for Google Analytics is now available via property in `sonar.properties`. ([SONAR-11793](https://jira.sonarsource.com/browse/SONAR-11793))
+**MySQL Deprecation and Migration**  
+This is the last version that will support MySQL. To migrate from MySQL to a supported database, see the free [MySQL Migrator tool](https://github.com/SonarSource/mysql-migrator).
 
-**Additional authentication methods embedded**
-The SAML and GitHub Authentication plugins are now embedded in all versions ([SONAR-11894](https://jira.sonarsource.com/browse/SONAR-11894))
+**Elasticsearch bootstrap checks enforced**  
+SonarQube will now fail to start if Elasticsearch's bootstrap checks fail. That means you may need to [adjust the maximum number of open files and processes](/requirements/requirements/) for the SonarQube user as part of this upgrade ([SONAR-11264](https://jira.sonarsource.com/browse/SONAR-11264)). 
 
-**Scanner version compatibility**
+**Scanner version compatibility**  
 Only the following scanner versions are compatible with SonarQube 7.8:
 * SonarQube Scanner CLI 2.9+
 * SonarQube Scanner Maven 3.3.0.603+
 * SonarQube Scanner Gradle 2.3+
 
+**Analysis fails with old branch parameter**
+`sonar.branch` was deprecated in 6.7. With this version analysis fails when it is used. Where it is still in use, simply remove the `sonar.branch` property and update your `sonar.projectKey` value to `key:branch`.
+
+**Notifications changes**  
+Several changes have been made to notificatons. The notifications algorithm has been replaced with one that offers better performance during background task processing. Issue change notifications spawned by analysis or bulk change now generate only one email per event rather than one email per issue. The ability to subscribe globally to new issues notifications and notifications for issues resolved as False Positive or Won't fix has been dropped, as have all such subscriptions. Issue-related notifications on PRs have also been dropped.
+
+**Webhook payloads now signed**  
+It is now possible to verify that webhook payloads actually come from SonarQube via the `X-Sonar-Webhook-HMAC-SHA256` HTTP header. ([SONAR-12000](https://jira.sonarsource.com/browse/SONAR-12000))
+
+**Graceful shutdown**  
+The SonarQube server now shuts down gracefully. I.E. it completes any currently-processing background tasks before shutting down. This may mean that shutdown takes longer than previously. ([SONAR-12043](https://jira.sonarsource.com/browse/SONAR-12043))
+
+**Duplication density correction**  
+A bug affecting the calculation of duplication density has been fixed. Each project's duplication density value will likely rise at the next analysis, possibly affecting Quality Gate status. ([SONAR-12188](https://jira.sonarsource.com/browse/SONAR-12188))
+
+**Additional authentication methods embedded**  
+The SAML and GitHub Authentication plugins are now embedded in all editions ([SONAR-11894](https://jira.sonarsource.com/browse/SONAR-11894))
+
+**Deprecated web services dropped**  
+Web services that were deprecated in 5.x versions have been dropped. ([SONAR-11876](https://jira.sonarsource.com/browse/SONAR-11876))
+
+[Full Release Notes](https://jira.sonarsource.com/secure/ReleaseNote.jspa?projectId=10930&version=14939)
+
 ## Release 7.7 Upgrade Notes
-**Deprecated parameters dropped**
+**Deprecated parameters dropped**  
 `sonar.language`, and  `sonar.profile`, both deprecated since 4.5, are dropped in this version as is `sonar.analysis.mode`, which as been deprecated since 6.6. These now-unrecognized parameters will simply be ignored, rather than failing analysis.
 
 **PR decoration below GitHub Enterprise 2.14 swapped for GitHub checks**  
 This version adds support for GitHub Enterprise (GHE) checks, which were introduced in GHE 2.14, and drops support for PR decoration in GHE versions prior to 2.14. To use the new checks implementation, an application will need to be created in GHE, and further configuration will be required via the SonarQube UI. ([Details in the docs.](/instance-administration/github-application/).)
 
-**ElasticSearch update requires index rebuild, potentially more filespace**
+**ElasticSearch update requires index rebuild, potentially more filespace**  
 While it is generally possible to keep ElasticSearch indices in an upgrade (see [Configuring the Elasticsearch storage path](/setup/install-server/)), this version's upgrade of ElasticSearch will force all indices to be rebuilt. Additionally, more filespace may be required for this version's data ([SONAR-11826](https://jira.sonarsource.com/browse/SONAR-11826)).
 
 **32-bit architecture support dropped**  
@@ -44,7 +93,7 @@ This version drops the concept of module from the interface. There is no longer 
 **Multi-Module analysis properties removed**  
 Multi-module analysis configuration may need to be changed ([MMF-365](https://jira.sonarsource.com/browse/MMF-365)):
 
-* When the following inclusion / exclusion types are specified in the analysis properties at project level, they must be relative to the project / analysis root: source files, test files, coverage, and duplications. Paths specified at project level will continue to be re-applied at module level but will raise a warning. This backward-compatibile behavior is considered deprecated and will be dropped in a future version. 
+* When exclusions based on file paths are specified in the analysis properties at project level, those file paths must be relative to the project / analysis root. Paths specified at project level will continue to be re-applied at module level but will raise a warning. This backward-compatibile behavior is considered deprecated and will be dropped in a future version. 
 * Specifying source encoding, and issue inclusions / exclusions at module level is no longer supported.
 
 **Incompatibility with Findbugs plugin version 3.9.1 and earlier**  
@@ -69,9 +118,11 @@ The deadlock that could occur with the combination of
 
 has been fixed ([SONAR-11467](https://jira.sonarsource.com/browse/SONAR-11467)).
 
-
 **DB Connection Pool Defaults Restored**  
 Database connection pool defaults have been restored to their pre-SonarQube 7.4 values. They were inadvertently affected by a change of connection pooling in 7.4 ([SONAR-11539](https://jira.sonarsource.com/browse/SONAR-11539)). 
+
+**Database Name in JDBC URL Now Case-Sensitive**
+For MSSQL users, a driver upgrade rendered the database name case-sensitive in the JDBC URL ([SONAR-11443](https://jira.sonarsource.com/browse/SONAR-11443)).
 
 [Full Release Notes](https://jira.sonarsource.com/jira/secure/ReleaseNote.jspa?projectId=10930&version=14693)
 

@@ -17,31 +17,30 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { map } from 'lodash';
+import * as React from 'react';
+import AlertErrorIcon from 'sonar-ui-common/components/icons/AlertErrorIcon';
+import AlertSuccessIcon from 'sonar-ui-common/components/icons/AlertSuccessIcon';
+import { HEALTH_FIELD, STATE_FIELD } from '../../utils';
 import HealthItem from './HealthItem';
-import AlertErrorIcon from '../../../../components/icons-components/AlertErrorIcon';
-import AlertSuccessIcon from '../../../../components/icons-components/AlertSuccessIcon';
-import { HealthType, SysValue, SysValueObject } from '../../../../api/system';
-import { HEALTH_FIELD } from '../../utils';
 
-interface Props {
+export interface Props {
   name: string;
-  value: SysValue;
+  value: T.SysInfoValue;
 }
 
 export default function SysInfoItem({ name, value }: Props): JSX.Element {
-  if (name === HEALTH_FIELD || name === 'State') {
-    return <HealthItem className="no-margin" health={value as HealthType} />;
+  if (name === HEALTH_FIELD || name === STATE_FIELD) {
+    return <HealthItem className="no-margin" health={value as T.HealthType} />;
   }
   if (value instanceof Array) {
     return <code>{JSON.stringify(value)}</code>;
   }
   switch (typeof value) {
     case 'boolean':
-      return <BooleanItem value={value as boolean} />;
+      return <BooleanItem value={value} />;
     case 'object':
-      return <ObjectItem value={value as SysValueObject} />;
+      return <ObjectItem value={value} />;
     default:
       return <code>{value}</code>;
   }
@@ -55,7 +54,7 @@ function BooleanItem({ value }: { value: boolean }) {
   }
 }
 
-function ObjectItem({ value }: { value: SysValueObject }) {
+function ObjectItem({ value }: { value: T.SysInfoValueObject }) {
   return (
     <table className="data">
       <tbody>

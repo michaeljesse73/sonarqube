@@ -18,15 +18,15 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
+import { ResetButtonLink, SubmitButton } from 'sonar-ui-common/components/controls/buttons';
+import Modal from 'sonar-ui-common/components/controls/Modal';
+import { translate, translateWithParameters } from 'sonar-ui-common/helpers/l10n';
 import { deactivateUser } from '../../../api/users';
-import Modal from '../../../components/controls/Modal';
-import { SubmitButton, ResetButtonLink } from '../../../components/ui/buttons';
-import { translate, translateWithParameters } from '../../../helpers/l10n';
 
 export interface Props {
   onClose: () => void;
   onUpdateUsers: () => void;
-  user: T.User;
+  user: T.UserActive;
 }
 
 interface State {

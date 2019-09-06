@@ -17,19 +17,20 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
+import * as differenceInDays from 'date-fns/difference_in_days';
 import * as React from 'react';
 import { connect } from 'react-redux';
-import { OnboardingContext } from './OnboardingContext';
-import { differenceInDays, parseDate, toShortNotSoISOString } from '../../helpers/dates';
-import { getCurrentUser, getAppState, Store } from '../../store/rootReducer';
-import { skipOnboarding } from '../../store/users';
+import { lazyLoad } from 'sonar-ui-common/components/lazyLoad';
+import { parseDate, toShortNotSoISOString } from 'sonar-ui-common/helpers/dates';
+import { hasMessage } from 'sonar-ui-common/helpers/l10n';
+import { get, save } from 'sonar-ui-common/helpers/storage';
 import { showLicense } from '../../api/marketplace';
-import { hasMessage } from '../../helpers/l10n';
-import { save, get } from '../../helpers/storage';
+import { Location, Router, withRouter } from '../../components/hoc/withRouter';
 import { isSonarCloud } from '../../helpers/system';
-import { lazyLoad } from '../../components/lazyLoad';
 import { isLoggedIn } from '../../helpers/users';
-import { withRouter, Router, Location } from '../../components/hoc/withRouter';
+import { getAppState, getCurrentUser, Store } from '../../store/rootReducer';
+import { skipOnboarding } from '../../store/users';
+import { OnboardingContext } from './OnboardingContext';
 
 const OnboardingModal = lazyLoad(() => import('../../apps/tutorials/onboarding/OnboardingModal'));
 const LicensePromptModal = lazyLoad(

@@ -7,15 +7,15 @@ buildscript {
   dependencies {
     // Ordered alphabeticly to avoid duplication
     classpath 'com.github.ben-manes:gradle-versions-plugin:0.21.0'
-    classpath 'com.github.jengelman.gradle.plugins:shadow:2.0.4'
-    classpath 'com.google.protobuf:protobuf-gradle-plugin:0.8.6'
+    classpath 'com.github.jengelman.gradle.plugins:shadow:5.0.0'
+    classpath 'com.google.protobuf:protobuf-gradle-plugin:0.8.8'
     classpath 'com.moowork.gradle:gradle-node-plugin:1.2.0'
     classpath 'gradle.plugin.nl.javadude.gradle.plugins:license-gradle-plugin:0.14.0'
     classpath 'io.spring.gradle:dependency-management-plugin:1.0.4.RELEASE'
     classpath 'net.rdrei.android.buildtimetracker:gradle-plugin:0.11.0'
     classpath 'org.jfrog.buildinfo:build-info-extractor-gradle:4.7.5'
     classpath "org.owasp:dependency-check-gradle:4.0.2"
-    classpath 'org.sonarsource.scanner.gradle:sonarqube-gradle-plugin:2.7'
+    classpath 'org.sonarsource.scanner.gradle:sonarqube-gradle-plugin:2.7.1'
   }
 }
 
@@ -33,14 +33,26 @@ if (project.hasProperty('time-tracker')) {
   }
 }
 
-// Analyze SonarQube with SonarQube!
-ext.versionInSources = version
+ext {
+  slangVersion = '1.5.0.315'
+  dotnetVersion = '7.15.0.8572'
+
+  // Analyze SonarQube with SonarQube!
+  versionInSources = version
+}
+
 apply plugin: 'org.sonarqube'
 sonarqube {
   properties {
     property 'sonar.projectName', projectTitle
     property 'sonar.projectVersion', versionInSources
+    property 'sonar.buildString', version
   }
+}
+
+
+if (!JavaVersion.current().java11Compatible) {
+  throw new GradleException("JDK 11+ is required to perform this build. It's currently " + System.getProperty("java.home") + ".")
 }
 
 allprojects {
@@ -48,6 +60,7 @@ allprojects {
   apply plugin: 'maven-publish'
 
   ext.buildNumber = System.getProperty("buildNumber")
+  ext.versionWithoutBuildNumber = version
   // Replaces the version defined in sources, usually x.y-SNAPSHOT, by a version identifying the build.
   if (version.endsWith('-SNAPSHOT') && ext.buildNumber != null) {
     def versionSuffix = (version.toString().count('.') == 1 ? ".0.${ext.buildNumber}" : ".${ext.buildNumber}")
@@ -80,8 +93,9 @@ allprojects {
 subprojects {
   apply plugin: 'com.github.hierynomus.license'
   apply plugin: 'io.spring.dependency-management'
-  apply plugin: 'java'
   apply plugin: 'jacoco'
+  apply plugin: 'java'
+  apply plugin: 'java-test-fixtures'
   apply plugin: 'idea'
   apply plugin: 'org.owasp.dependencycheck'
 
@@ -101,6 +115,33 @@ subprojects {
   // Central place for definition dependency versions and exclusions.
   dependencyManagement {
     dependencies {
+      // language plugin list
+      dependency 'com.sonarsource.abap:sonar-abap-plugin:3.8.0.2034'
+      dependency 'com.sonarsource.slang:sonar-apex-plugin:1.5.0.315'
+      dependency "org.sonarsource.dotnet:sonar-csharp-plugin:${dotnetVersion}"
+      dependency 'com.sonarsource.cpp:sonar-cfamily-plugin:6.3.0.11371'
+      dependency 'com.sonarsource.cobol:sonar-cobol-plugin:4.4.0.3403'
+      dependency 'org.sonarsource.css:sonar-css-plugin:1.1.1.1010'
+      dependency 'org.sonarsource.flex:sonar-flex-plugin:2.5.1.1831'
+      dependency 'org.sonarsource.go:sonar-go-plugin:1.1.1.2000'
+      dependency 'org.sonarsource.java:sonar-java-plugin:5.13.1.18282'
+      dependency 'org.sonarsource.javascript:sonar-javascript-plugin:5.2.1.7778'
+      dependency "org.sonarsource.slang:sonar-kotlin-plugin:${slangVersion}"
+      dependency 'org.sonarsource.php:sonar-php-plugin:3.2.0.4868'
+      dependency 'com.sonarsource.pli:sonar-pli-plugin:1.10.0.1880'
+      dependency 'com.sonarsource.plsql:sonar-plsql-plugin:3.4.1.2576'
+      dependency 'org.sonarsource.python:sonar-python-plugin:1.14.1.3143'
+      dependency 'com.sonarsource.rpg:sonar-rpg-plugin:2.3.0.1187'
+      dependency "org.sonarsource.slang:sonar-ruby-plugin:${slangVersion}"
+      dependency "org.sonarsource.slang:sonar-scala-plugin:${slangVersion}"
+      dependency 'com.sonarsource.swift:sonar-swift-plugin:4.1.0.3087'
+      dependency 'org.sonarsource.typescript:sonar-typescript-plugin:1.9.0.3766'
+      dependency 'com.sonarsource.tsql:sonar-tsql-plugin:1.4.0.3334'
+      dependency "org.sonarsource.dotnet:sonar-vbnet-plugin:${dotnetVersion}"
+      dependency 'com.sonarsource.plugins.vb:sonar-vb-plugin:2.6.0.1875'
+      dependency 'org.sonarsource.html:sonar-html-plugin:3.1.0.1615'
+      dependency 'org.sonarsource.xml:sonar-xml-plugin:2.0.1.2020'
+      
       // please keep this list alphabetically ordered
       dependencySet(group: 'ch.qos.logback', version: '1.2.3') {
         entry 'logback-access'
@@ -110,15 +151,15 @@ subprojects {
       dependency('commons-beanutils:commons-beanutils:1.8.3') {
         exclude 'commons-logging:commons-logging'
       }
-      dependency 'commons-codec:commons-codec:1.8'
+      dependency 'commons-codec:commons-codec:1.12'
       dependency 'commons-dbutils:commons-dbutils:1.5'
       dependency 'commons-io:commons-io:2.6'
       dependency 'commons-lang:commons-lang:2.6'
-      dependencySet(group: 'com.fasterxml.jackson.core', version: '2.9.8') {
+      dependencySet(group: 'com.fasterxml.jackson.core', version: '2.9.9') {
         entry 'jackson-core'
-        entry 'jackson-databind'
         entry 'jackson-annotations'
       }
+      dependency 'com.fasterxml.jackson.core:jackson-databind:2.9.9.2'
       dependency 'com.eclipsesource.minimal-json:minimal-json:0.9.5'
       dependency 'com.github.kevinsawicki:http-request:5.4.1'
       dependency 'com.googlecode.java-diff-utils:diffutils:1.2'
@@ -126,7 +167,7 @@ subprojects {
         exclude 'junit:junit'
       }
       dependency 'com.google.code.findbugs:jsr305:3.0.2'
-      dependency 'com.google.code.gson:gson:2.8.4'
+      dependency 'com.google.code.gson:gson:2.8.5'
       dependency 'com.google.guava:guava:18.0'
       dependency "com.google.protobuf:protobuf-java:${protobufVersion}"
       dependency 'com.h2database:h2:1.3.176'
@@ -135,20 +176,26 @@ subprojects {
         entry 'hazelcast-client'
       }
       dependency 'com.ibm.icu:icu4j:3.4.4'
-      dependency 'com.microsoft.sqlserver:mssql-jdbc:6.2.2.jre8'
-      dependency 'com.oracle.jdbc:ojdbc8:12.2.0.1.0'
-      dependencySet(group: 'com.squareup.okhttp3', version: '3.14.0') {
+      dependency 'com.microsoft.sqlserver:mssql-jdbc:7.2.2.jre11'
+      dependency 'com.oracle.jdbc:ojdbc8:19.3'
+      dependencySet(group: 'com.squareup.okhttp3', version: '3.14.2') {
         entry 'okhttp'
         entry 'mockwebserver'
       }
       dependency 'com.tngtech.java:junit-dataprovider:1.9.2'
       dependency 'info.picocli:picocli:3.6.1'
-      dependency 'io.jsonwebtoken:jjwt:0.9.0'
-      dependency 'javax.servlet:javax.servlet-api:3.0.1'
+      dependency 'io.jsonwebtoken:jjwt-api:0.10.5'
+      dependency 'io.jsonwebtoken:jjwt-impl:0.10.5'
+      dependency 'io.jsonwebtoken:jjwt-jackson:0.10.5'
+      dependency 'io.netty:netty-all:4.0.51.Final'
+      dependency 'com.sun.mail:javax.mail:1.5.6'
+      dependency 'javax.annotation:javax.annotation-api:1.3.1'
+      dependency 'javax.servlet:javax.servlet-api:3.1.0'
       dependency 'javax.xml.bind:jaxb-api:2.3.0'
       dependency 'junit:junit:4.12'
-      dependency 'mysql:mysql-connector-java:5.1.46'
       dependency 'net.jpountz.lz4:lz4:1.3.0'
+      dependency 'net.lightbody.bmp:littleproxy:1.1.0-beta-bmp-17'
+      dependency 'org.awaitility:awaitility:3.1.6'
       dependency 'org.apache.commons:commons-csv:1.4'
       dependency 'org.apache.commons:commons-email:1.5'
       dependency 'org.apache.commons:commons-dbcp2:2.5.0'
@@ -161,14 +208,14 @@ subprojects {
         entry 'log4j-to-slf4j'
         entry 'log4j-core'
       }
-      dependencySet(group: 'org.apache.tomcat.embed', version: '8.5.38') {
+      dependencySet(group: 'org.apache.tomcat.embed', version: '8.5.41') {
         entry 'tomcat-embed-core'
         entry('tomcat-embed-jasper') {
           exclude 'org.eclipse.jdt.core.compiler:ecj'
         }
       }
-      dependency 'org.assertj:assertj-core:3.9.1'
-      dependency 'org.assertj:assertj-guava:3.2.0'
+      dependency 'org.assertj:assertj-core:3.12.2'
+      dependency 'org.assertj:assertj-guava:3.2.1'
       dependency('org.codehaus.sonar:sonar-channel:4.1') {
         exclude 'org.slf4j:slf4j-api'
       }
@@ -188,32 +235,27 @@ subprojects {
       dependency('org.codehaus.woodstox:stax2-api:3.1.4') {
         exclude 'stax:stax-api'
       }
-      dependency('org.dbunit:dbunit:2.4.5') {
-        exclude 'commons-lang:commons-lang'
-        exclude 'xerces:xmlParserAPIs'
-        exclude 'xerces:xercesImpl'
-      }
       dependencySet(group: 'org.eclipse.jetty', version: '9.4.6.v20170531') {
         entry 'jetty-proxy'
         entry 'jetty-server'
         entry 'jetty-servlet'
       }
-      dependency('org.elasticsearch.client:transport:6.6.2') {
+      dependency('org.elasticsearch.client:transport:6.8.0') {
         exclude 'org.elasticsearch.plugin:lang-mustache-client'
         exclude 'commons-logging:commons-logging'
         exclude 'org.elasticsearch.plugin:reindex-client'
         exclude 'org.elasticsearch.plugin:rank-eval-client'
       }
-      dependency('org.elasticsearch:mocksocket:1.0')
-      // at this date, version 6.6.2 of this module has not been published to Maven central
-      dependency('org.codelibs.elasticsearch.module:analysis-common:6.6.1')
+      dependency 'org.elasticsearch:mocksocket:1.0'
+      dependency 'org.codelibs.elasticsearch.module:analysis-common:6.8.0'
       dependency 'org.freemarker:freemarker:2.3.20'
       dependency 'org.hamcrest:hamcrest-all:1.3'
+      dependency 'org.jsoup:jsoup:1.11.3'
       dependency 'org.mindrot:jbcrypt:0.4'
-      dependency('org.mockito:mockito-core:2.15.0') {
+      dependency('org.mockito:mockito-core:2.22.0') {
         exclude 'org.hamcrest:hamcrest-core'
       }
-      dependency 'org.mybatis:mybatis:3.4.6'
+      dependency 'org.mybatis:mybatis:3.5.1'
       dependency 'org.nanohttpd:nanohttpd:2.3.0'
       dependency 'org.picocontainer:picocontainer:2.15'
       dependencySet(group: 'org.slf4j', version: '1.7.25') {
@@ -225,23 +267,34 @@ subprojects {
       dependency 'org.postgresql:postgresql:42.2.5'
       dependency 'org.reflections:reflections:0.9.9'
       dependency 'org.simpleframework:simple:4.1.21'
-      dependency 'org.sonarsource.orchestrator:sonar-orchestrator:3.24.0.1993'
+      dependency 'org.sonarsource.orchestrator:sonar-orchestrator:3.27.0.2172'
       dependency 'org.sonarsource.update-center:sonar-update-center-common:1.18.0.487'
       dependency 'org.subethamail:subethasmtp:3.1.7'
-      dependency 'xml-apis:xml-apis:1.4.01'
+      dependency 'org.yaml:snakeyaml:1.17'
+      dependency 'xml-apis:xml-apis:1.4.01'  
 
       // please keep this list alphabetically ordered
     }
   }
 
-  sourceCompatibility = 1.8
+  // global exclusions
+  configurations.all {
+    // do not conflict with com.sun.mail:javax.mail
+    exclude group: 'javax.mail', module: 'mail'
+  }
+
   tasks.withType(JavaCompile) {
+    options.compilerArgs.addAll(['--release', '8'])
     options.encoding = 'UTF-8'
+    // redudant, just for IDEs to set the correct language level
+    sourceCompatibility = 1.8
+    targetCompatibility = 1.8
   }
 
   tasks.withType(Javadoc) {
     options.addStringOption('Xdoclint:none', '-quiet')
     options.encoding = 'UTF-8'
+    title = project.name + ' ' + versionWithoutBuildNumber
   }
 
   task sourcesJar(type: Jar, dependsOn: classes) {
@@ -260,7 +313,23 @@ subprojects {
     // when needed (see protobuf modules for example)
   }
 
+  jacocoTestReport {
+    reports {
+      xml.enabled true
+      csv.enabled false
+      html.enabled false
+    }
+  }
 
+  normalization {
+    runtimeClasspath {
+      // Following classpath resources contain volatile data that changes in each CI build (build number, commit id, time),
+      // so we exclude them from calculation of build cache key of test tasks:
+      ignore 'META-INF/MANIFEST.MF'
+      ignore 'sonar-api-version.txt'
+      ignore 'sq-version.txt'
+    }
+  }
   test {
     jvmArgs '-Dfile.encoding=UTF8'
     maxHeapSize = '1G'
@@ -270,20 +339,16 @@ subprojects {
       exceptionFormat 'full' // log the full stack trace (default is the 1st line of the stack trace)
     }
     jacoco {
-      append = false
-      enabled = project.hasProperty('jacocoEnabled')
-      includes = ['com.sonar.*', 'com.sonarsource.*', 'org.sonar.*', 'org.sonarqube.*', 'org.sonarsource.*', 'io.sonarcloud.*']
+      enabled = true // do not disable recording of code coverage, so that remote Gradle cache entry can be used locally
+      includes = ['com.sonar.*', 'com.sonarsource.*', 'org.sonar.*', 'org.sonarqube.*', 'org.sonarsource.*']
     }
     if (project.hasProperty('maxParallelTests')) {
-      // WARNING this is not compatible with jacocoEnabled
       maxParallelForks = project.maxParallelTests as int
     }
     if (project.hasProperty('parallelTests')) {
-      // WARNING this is not compatible with jacocoEnabled
       // See https://guides.gradle.org/performance/#parallel_test_execution
       maxParallelForks = Runtime.runtime.availableProcessors().intdiv(2) ?: 1
     }
-
   }
 
   def protoMainSrc = 'src/main/protobuf'
@@ -381,6 +446,26 @@ subprojects {
     }
   }
 }
+
+
+// Yarn doesn't support concurrent access to its global cache,
+// i.e. parallel execution of several "yarn install" tasks,
+// since these tasks are independent, we can establish arbitrary total order
+// to prevent their concurrent execution.
+// Note that "task1.mustRunAfter(task2)" ordering has an effect only when both
+// tasks are scheduled for execution, therefore should be established between
+// all pairs of "yarn install" tasks to define their total order and to prevent
+// their concurrent execution even in case when one or more of these tasks not
+// scheduled.
+def yarnInstallTasks = allprojects.findResults { it -> it.tasks.findByName('yarn') }
+yarnInstallTasks.drop(1).eachWithIndex { it, i -> it.mustRunAfter(yarnInstallTasks[0..i]) }
+
+// by default, Yarn will update lock file if it is not up to date with "package.json"
+// using option "--frozen-lockfile" will disable this behavior and "yarn install" will fail if lock file is out of date
+// all "yarn install" tasks should be executed with this option for reproducibility of builds
+// and to prevent developers from forgetting to update lock file when they update "package.json"
+yarnInstallTasks.each { it -> it.args = ['--frozen-lockfile'] }
+
 
 artifactory {
   clientConfig.setIncludeEnvVars(true)

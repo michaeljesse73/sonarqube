@@ -17,25 +17,27 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import * as classNames from 'classnames';
-import { DayModifiers, Modifier, Modifiers } from 'react-day-picker';
-import { InjectedIntlProps, injectIntl } from 'react-intl';
-import { range } from 'lodash';
 import * as addMonths from 'date-fns/add_months';
 import * as setMonth from 'date-fns/set_month';
 import * as setYear from 'date-fns/set_year';
 import * as subMonths from 'date-fns/sub_months';
-import OutsideClickHandler from './OutsideClickHandler';
-import Select from './Select';
-import { lazyLoad } from '../lazyLoad';
-import * as theme from '../../app/theme';
-import CalendarIcon from '../icons-components/CalendarIcon';
-import ChevronLeftIcon from '../icons-components/ChevronLeftIcon';
-import ChevronRightIcon from '../icons-components/ChevronRightcon';
-import ClearIcon from '../icons-components/ClearIcon';
-import { ButtonIcon } from '../ui/buttons';
-import { getShortMonthName, getWeekDayName, getShortWeekDayName } from '../../helpers/l10n';
+import { range } from 'lodash';
+import * as React from 'react';
+import { DayModifiers, Modifier, Modifiers } from 'react-day-picker';
+import { InjectedIntlProps, injectIntl } from 'react-intl';
+import { ButtonIcon, ClearButton } from 'sonar-ui-common/components/controls/buttons';
+import OutsideClickHandler from 'sonar-ui-common/components/controls/OutsideClickHandler';
+import Select from 'sonar-ui-common/components/controls/Select';
+import CalendarIcon from 'sonar-ui-common/components/icons/CalendarIcon';
+import ChevronLeftIcon from 'sonar-ui-common/components/icons/ChevronLeftIcon';
+import ChevronRightIcon from 'sonar-ui-common/components/icons/ChevronRightIcon';
+import { lazyLoad } from 'sonar-ui-common/components/lazyLoad';
+import {
+  getShortMonthName,
+  getShortWeekDayName,
+  getWeekDayName
+} from 'sonar-ui-common/helpers/l10n';
 import './DayPicker.css';
 import './styles.css';
 
@@ -164,12 +166,11 @@ export default class DateInput extends React.PureComponent<Props, State> {
           />
           <CalendarIcon className="date-input-control-icon" fill="" />
           {this.props.value !== undefined && (
-            <ButtonIcon
+            <ClearButton
               className="button-tiny date-input-control-reset"
-              color={theme.gray60}
-              onClick={this.handleResetClick}>
-              <ClearIcon size={12} />
-            </ButtonIcon>
+              iconProps={{ size: 12 }}
+              onClick={this.handleResetClick}
+            />
           )}
           {this.state.open && (
             <div className="date-input-calendar">

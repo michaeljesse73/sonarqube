@@ -22,8 +22,8 @@ package org.sonar.scanner.cpd;
 import java.util.Optional;
 import org.junit.Before;
 import org.junit.Test;
-import org.sonar.api.batch.fs.internal.DefaultInputProject;
 import org.sonar.api.config.Configuration;
+import org.sonar.api.batch.fs.internal.DefaultInputProject;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -33,13 +33,11 @@ import static org.mockito.Mockito.when;
 public class CpdSettingsTest {
   private CpdSettings cpdSettings;
   private Configuration configuration;
-  private DefaultInputProject project;
 
   @Before
   public void setUp() {
-    project = mock(DefaultInputProject.class);
     configuration = mock(Configuration.class);
-    cpdSettings = new CpdSettings(configuration, project);
+    cpdSettings = new CpdSettings(configuration);
   }
 
   @Test

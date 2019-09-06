@@ -17,11 +17,12 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { minBy } from 'lodash';
+import * as React from 'react';
 import { AutoSizer } from 'react-virtualized/dist/commonjs/AutoSizer';
-import PreviewGraphTooltips from './PreviewGraphTooltips';
-import AdvancedTimeline from '../charts/AdvancedTimeline';
+import AdvancedTimeline from 'sonar-ui-common/components/charts/AdvancedTimeline';
+import { translate } from 'sonar-ui-common/helpers/l10n';
+import { formatMeasure } from 'sonar-ui-common/helpers/measures';
 import {
   DEFAULT_GRAPH,
   generateSeries,
@@ -32,9 +33,10 @@ import {
   Serie,
   splitSeriesInGraphs
 } from '../../apps/projectActivity/utils';
-import { formatMeasure, getShortType } from '../../helpers/measures';
 import { getBranchLikeQuery } from '../../helpers/branches';
-import { withRouter, Router } from '../hoc/withRouter';
+import { getShortType } from '../../helpers/measures';
+import { Router, withRouter } from '../hoc/withRouter';
+import PreviewGraphTooltips from './PreviewGraphTooltips';
 
 interface History {
   [x: string]: Array<{ date: Date; value?: string }>;
@@ -184,6 +186,7 @@ class PreviewGraph extends React.PureComponent<Props, State> {
 
     return (
       <div
+        aria-label={translate('overview.project_activity.click_to_see')}
         className="overview-analysis-graph big-spacer-bottom spacer-top"
         onClick={this.handleClick}
         role="link"

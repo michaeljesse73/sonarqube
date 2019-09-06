@@ -18,8 +18,9 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import WebhookItemLatestDelivery from './WebhookItemLatestDelivery';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import WebhookActions from './WebhookActions';
+import WebhookItemLatestDelivery from './WebhookItemLatestDelivery';
 
 interface Props {
   onDelete: (webhook: string) => Promise<void>;
@@ -32,6 +33,7 @@ export default function WebhookItem({ onDelete, onUpdate, webhook }: Props) {
     <tr>
       <td>{webhook.name}</td>
       <td>{webhook.url}</td>
+      <td>{webhook.secret ? translate('yes') : translate('no')}</td>
       <td>
         <WebhookItemLatestDelivery webhook={webhook} />
       </td>

@@ -19,13 +19,11 @@
  */
 package org.sonar.scanner.scan;
 
-import com.google.common.base.Joiner;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
-import org.sonar.api.batch.AnalysisMode;
 import org.sonar.api.batch.bootstrap.ProjectDefinition;
 import org.sonar.api.batch.bootstrap.ProjectReactor;
 import org.sonar.api.utils.MessageException;
@@ -45,58 +43,50 @@ import static org.sonar.core.config.ScannerProperties.PULL_REQUEST_KEY;
 
 /**
  * This class aims at validating project reactor
+ *
  * @since 3.6
  */
 public class ProjectReactorValidator {
-  private final AnalysisMode mode;
   private final GlobalConfiguration settings;
 
   // null = branch plugin is not available
   @Nullable
   private final BranchParamsValidator branchParamsValidator;
 
-  public ProjectReactorValidator(AnalysisMode mode, GlobalConfiguration settings, @Nullable BranchParamsValidator branchParamsValidator) {
-    this.mode = mode;
+  public ProjectReactorValidator(GlobalConfiguration settings, @Nullable BranchParamsValidator branchParamsValidator) {
     this.settings = settings;
     this.branchParamsValidator = branchParamsValidator;
   }
 
-  public ProjectReactorValidator(AnalysisMode mode, GlobalConfiguration settings) {
-    this(mode, settings, null);
+  public ProjectReactorValidator(GlobalConfiguration settings) {
+    this(settings, null);
   }
 
   public void validate(ProjectReactor reactor) {
     List<String> validationMessages = new ArrayList<>();
 
     for (ProjectDefinition moduleDef : reactor.getProjects()) {
-      if (mode.isIssues()) {
-        validateModuleIssuesMode(moduleDef, validationMessages);
-      } else {
-        validateModule(moduleDef, validationMessages);
-      }
+      validateModule(moduleDef, validationMessages);
     }
 
-    String deprecatedBranchName = reactor.getRoot().getBranch();
-
     if (isBranchFeatureAvailable()) {
-      branchParamsValidator.validate(validationMessages, deprecatedBranchName);
+      branchParamsValidator.validate(validationMessages);
     } else {
       validateBranchParamsWhenPluginAbsent(validationMessages);
       validatePullRequestParamsWhenPluginAbsent(validationMessages);
     }
 
-    validateLegacyBranch(validationMessages, deprecatedBranchName);
-
     if (!validationMessages.isEmpty()) {
-      throw MessageException.of("Validation of project reactor failed:\n  o " + Joiner.on("\n  o ").join(validationMessages));
+      throw MessageException.of("Validation of project reactor failed:\n  o " +
+        String.join("\n  o ", validationMessages));
     }
   }
 
   private void validateBranchParamsWhenPluginAbsent(List<String> validationMessages) {
     for (String param : Arrays.asList(BRANCH_NAME, BRANCH_TARGET)) {
       if (isNotEmpty(settings.get(param).orElse(null))) {
-        validationMessages.add(format("To use the property \"%s\", the branch plugin is required but not installed. "
-          + "See the documentation of branch support: %s.", param, BRANCHES_DOC_LINK));
+        validationMessages.add(format("To use the property \"%s\" and analyze branches, Developer Edition or above is required. "
+          + "See %s for more information.", param, BRANCHES_DOC_LINK));
       }
     }
   }
@@ -104,28 +94,13 @@ public class ProjectReactorValidator {
   private void validatePullRequestParamsWhenPluginAbsent(List<String> validationMessages) {
     Stream.of(PULL_REQUEST_KEY, PULL_REQUEST_BRANCH, PULL_REQUEST_BASE)
       .filter(param -> nonNull(settings.get(param).orElse(null)))
-      .forEach(param -> validationMessages.add(format("To use the property \"%s\", the branch plugin is required but not installed. "
-        + "See the documentation of branch support: %s.", param, BRANCHES_DOC_LINK)));
-  }
-
-  private static void validateModuleIssuesMode(ProjectDefinition moduleDef, List<String> validationMessages) {
-    if (!ComponentKeys.isValidProjectKeyIssuesMode(moduleDef.getKey())) {
-      validationMessages.add(format("\"%s\" is not a valid project or module key. "
-        + "Allowed characters in issues mode are alphanumeric, '-', '_', '.', '/' and ':', with at least one non-digit.", moduleDef.getKey()));
-    }
+      .forEach(param -> validationMessages.add(format("To use the property \"%s\" and analyze pull requests, Developer Edition or above is required. "
+        + "See %s for more information.", param, BRANCHES_DOC_LINK)));
   }
 
   private static void validateModule(ProjectDefinition moduleDef, List<String> validationMessages) {
     if (!ComponentKeys.isValidProjectKey(moduleDef.getKey())) {
-      validationMessages.add(format("\"%s\" is not a valid project or module key. "
-        + "Allowed characters are alphanumeric, '-', '_', '.' and ':', with at least one non-digit.", moduleDef.getKey()));
-    }
-  }
-
-  private static void validateLegacyBranch(List<String> validationMessages, @Nullable String branch) {
-    if (isNotEmpty(branch) && !ComponentKeys.isValidLegacyBranch(branch)) {
-      validationMessages.add(format("\"%s\" is not a valid branch name. "
-        + "Allowed characters are alphanumeric, '-', '_', '.' and '/'.", branch));
+      validationMessages.add(format("\"%s\" is not a valid project or module key. It cannot be empty nor contain whitespaces.", moduleDef.getKey()));
     }
   }
 

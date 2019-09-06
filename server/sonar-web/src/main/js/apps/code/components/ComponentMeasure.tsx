@@ -19,8 +19,8 @@
  */
 import * as React from 'react';
 import Measure from '../../../components/measure/Measure';
-import { isDiffMetric } from '../../../helpers/measures';
 import { getLeakValue } from '../../../components/measure/utils';
+import { isDiffMetric } from '../../../helpers/measures';
 
 interface Props {
   component: T.ComponentMeasure;
@@ -41,7 +41,7 @@ export default class ComponentMeasure extends React.PureComponent<Props> {
       component.measures.find(measure => measure.metric === finalMetricKey);
 
     if (!measure) {
-      return <span />;
+      return measure === false ? <span /> : <span>—</span>;
     }
 
     const value = isDiffMetric(metric.key) ? getLeakValue(measure) : measure.value;

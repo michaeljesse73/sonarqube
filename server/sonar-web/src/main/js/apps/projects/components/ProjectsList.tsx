@@ -21,18 +21,19 @@ import * as React from 'react';
 import { AutoSizer } from 'react-virtualized/dist/commonjs/AutoSizer';
 import { List, ListRowProps } from 'react-virtualized/dist/commonjs/List';
 import { WindowScroller } from 'react-virtualized/dist/commonjs/WindowScroller';
-import ProjectCard from './ProjectCard';
-import NoFavoriteProjects from './NoFavoriteProjects';
-import EmptyInstance from './EmptyInstance';
-import EmptyFavoriteSearch from './EmptyFavoriteSearch';
-import EmptySearch from '../../../components/common/EmptySearch';
-import { Project } from '../types';
-import { Query } from '../query';
 import { OnboardingContext } from '../../../app/components/OnboardingContext';
+import EmptySearch from '../../../components/common/EmptySearch';
+import { Query } from '../query';
+import { Project } from '../types';
+import EmptyFavoriteSearch from './EmptyFavoriteSearch';
+import EmptyInstance from './EmptyInstance';
+import NoFavoriteProjects from './NoFavoriteProjects';
+import ProjectCard from './ProjectCard';
 
 interface Props {
   cardType?: string;
   currentUser: T.CurrentUser;
+  handleFavorite: (component: string, isFavorite: boolean) => void;
   isFavorite: boolean;
   isFiltered: boolean;
   organization: T.Organization | undefined;
@@ -75,6 +76,8 @@ export default class ProjectsList extends React.PureComponent<Props> {
     return (
       <div key={key} style={{ ...style, height }}>
         <ProjectCard
+          currentUser={this.props.currentUser}
+          handleFavorite={this.props.handleFavorite}
           height={height}
           key={project.key}
           organization={this.props.organization}

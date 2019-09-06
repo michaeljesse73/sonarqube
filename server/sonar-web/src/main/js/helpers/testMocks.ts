@@ -17,12 +17,13 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import { InjectedRouter } from 'react-router';
-import { Store, createStore } from 'redux';
+/* eslint-disable sonarjs/no-duplicate-string */
 import { Location } from 'history';
+import { InjectedRouter } from 'react-router';
+import { createStore, Store } from 'redux';
+import { DocumentationEntry } from '../apps/documentation/utils';
 import { ParsedAnalysis } from '../apps/projectActivity/utils';
 import { Profile } from '../apps/quality-profiles/types';
-import { DocumentationEntry } from '../apps/documentation/utils';
 
 export function mockAlmApplication(overrides: Partial<T.AlmApplication> = {}): T.AlmApplication {
   return {
@@ -98,6 +99,169 @@ export function mockAppState(overrides: Partial<T.AppState> = {}): T.AppState {
   };
 }
 
+export function mockBaseSysInfo(overrides: Partial<any> = {}): T.SysInfoBase {
+  return {
+    Health: 'GREEN' as T.HealthType,
+    'Health Causes': [],
+    System: {
+      Version: '7.8'
+    },
+    Database: {
+      Database: 'PostgreSQL',
+      'Database Version': '10.3',
+      Username: 'sonar',
+      URL: 'jdbc:postgresql://localhost/sonar',
+      Driver: 'PostgreSQL JDBC Driver',
+      'Driver Version': '42.2.5'
+    },
+    'Compute Engine Tasks': {
+      'Total Pending': 0,
+      'Total In Progress': 0
+    },
+    'Search State': { State: 'GREEN', Nodes: 3 },
+    'Search Indexes': {
+      'Index components - Docs': 30445,
+      'Index components - Shards': 10
+    },
+    ...overrides
+  };
+}
+
+export function mockClusterSysInfo(overrides: Partial<any> = {}): T.SysInfoCluster {
+  const baseInfo = mockBaseSysInfo(overrides);
+  return {
+    ...baseInfo,
+    System: {
+      ...baseInfo.System,
+      'High Availability': true,
+      'Server ID': 'asd564-asd54a-5dsfg45'
+    },
+    Settings: {
+      'sonar.cluster.enabled': 'true',
+      'sonar.cluster.node.name': 'server9.example.com'
+    },
+    'Application Nodes': [
+      {
+        Name: 'server9.example.com',
+        Host: '10.0.0.0',
+        Health: 'GREEN' as T.HealthType,
+        'Health Causes': [],
+        System: {
+          Version: '7.8'
+        },
+        Plugins: {
+          java: '5.13.0.17924 [SonarJava]'
+        },
+        'Web JVM State': {
+          'Max Memory (MB)': 1024,
+          'Free Memory (MB)': 122
+        },
+        'Web Database Connection': {
+          'Pool Active Connections': 1
+        },
+        'Web Logging': { 'Logs Level': 'DEBUG' },
+        'Web JVM Properties': {
+          'file.encoding': 'UTF-8',
+          'file.separator': '/'
+        },
+        'Compute Engine Tasks': {
+          Pending: 0,
+          'In Progress': 0
+        },
+        'Compute Engine JVM State': {
+          'Max Memory (MB)': 1024,
+          'Free Memory (MB)': 78
+        },
+        'Compute Engine Database Connection': {
+          'Pool Initial Size': 0,
+          'Pool Active Connections': 0
+        },
+        'Compute Engine Logging': {
+          'Logs Level': 'INFO'
+        },
+        'Compute Engine JVM Properties': {
+          'file.encoding': 'UTF-8',
+          'file.separator': '/'
+        }
+      },
+      {
+        Name: 'server9.example.com',
+        Host: '10.0.0.0',
+        Health: 'GREEN' as T.HealthType,
+        'Health Causes': [],
+        System: {
+          Version: '7.8'
+        },
+        Plugins: {
+          java: '5.13.0.17924 [SonarJava]'
+        },
+        'Web JVM State': {
+          'Max Memory (MB)': 1024,
+          'Free Memory (MB)': 111
+        },
+        'Web Database Connection': {
+          'Pool Active Connections': 0,
+          'Pool Max Connections': 60
+        },
+        'Web Logging': { 'Logs Level': 'INFO' },
+        'Web JVM Properties': {
+          'file.encoding': 'UTF-8',
+          'file.separator': '/'
+        },
+        'Compute Engine Tasks': {
+          Pending: 0,
+          'In Progress': 0
+        },
+        'Compute Engine JVM State': {
+          'Max Memory (MB)': 1024,
+          'Free Memory (MB)': 89
+        },
+        'Compute Engine Database Connection': {
+          'Pool Initial Size': 0,
+          'Pool Active Connections': 0
+        },
+        'Compute Engine Logging': {
+          'Logs Level': 'INFO'
+        },
+        'Compute Engine JVM Properties': {
+          'file.encoding': 'UTF-8',
+          'file.separator': '/'
+        }
+      }
+    ],
+    'Search Nodes': [
+      {
+        Name: 'server.example.com',
+        Host: '10.0.0.0',
+        'Search State': {
+          'CPU Usage (%)': 0,
+          'Disk Available': '93 GB'
+        }
+      },
+      {
+        Name: 'server.example.com',
+        Host: '10.0.0.0',
+        'Search State': {
+          'CPU Usage (%)': 0,
+          'Disk Available': '93 GB'
+        }
+      },
+      {
+        Name: 'server.example.com',
+        Host: '10.0.0.0',
+        'Search State': {
+          'CPU Usage (%)': 0,
+          'Disk Available': '93 GB'
+        }
+      }
+    ],
+    Statistics: {
+      ncloc: 989880
+    },
+    ...overrides
+  };
+}
+
 export function mockComponent(overrides: Partial<T.Component> = {}): T.Component {
   return {
     breadcrumbs: [],
@@ -142,6 +306,16 @@ export function mockComponentMeasure(
   };
 }
 
+export function mockCondition(overrides: Partial<T.Condition> = {}): T.Condition {
+  return {
+    error: '10',
+    id: 1,
+    metric: 'coverage',
+    op: 'LT',
+    ...overrides
+  };
+}
+
 export function mockQualityGateStatusCondition(
   overrides: Partial<T.QualityGateStatusCondition> = {}
 ): T.QualityGateStatusCondition {
@@ -151,6 +325,38 @@ export function mockQualityGateStatusCondition(
     level: 'ERROR',
     metric: 'foo',
     op: 'GT',
+    ...overrides
+  };
+}
+
+export function mockSnippetsByComponent(
+  component = 'main.js',
+  lines: number[] = [16]
+): T.SnippetsByComponent {
+  const sources = lines.reduce((lines: { [key: number]: T.SourceLine }, line) => {
+    lines[line] = mockSourceLine({ line });
+    return lines;
+  }, {});
+  return {
+    component: mockSourceViewerFile({
+      key: component,
+      path: component
+    }),
+    sources
+  };
+}
+
+export function mockSourceLine(overrides: Partial<T.SourceLine> = {}): T.SourceLine {
+  return {
+    line: 16,
+    code: '<span class="k">import</span> java.util.<span class="sym-9 sym">ArrayList</span>;',
+    coverageStatus: 'covered',
+    coveredConditions: 2,
+    scmRevision: '80f564becc0c0a1c9abaa006eca83a4fd278c3f0',
+    scmAuthor: 'simon.brandhof@sonarsource.com',
+    scmDate: '2018-12-11T10:48:39+0100',
+    duplicated: false,
+    isNew: true,
     ...overrides
   };
 }
@@ -211,12 +417,7 @@ export function mockIssue(withLocations = false, overrides: Partial<T.Issue> = {
     type: 'BUG'
   };
 
-  function loc(): T.FlowLocation {
-    return {
-      component: 'main.js',
-      textRange: { startLine: 1, startOffset: 1, endLine: 2, endOffset: 2 }
-    };
-  }
+  const loc = mockFlowLocation;
 
   if (withLocations) {
     issue.flows = [[loc(), loc(), loc()], [loc(), loc()]];
@@ -268,6 +469,23 @@ export function mockMeasure(overrides: Partial<T.Measure> = {}): T.Measure {
   };
 }
 
+export function mockMeasureEnhanced(overrides: Partial<T.MeasureEnhanced> = {}): T.MeasureEnhanced {
+  return {
+    bestValue: true,
+    leak: '1',
+    metric: mockMetric({ ...(overrides.metric || {}) }),
+    periods: [
+      {
+        bestValue: true,
+        index: 1,
+        value: '1.0'
+      }
+    ],
+    value: '1.0',
+    ...overrides
+  };
+}
+
 export function mockOrganization(overrides: Partial<T.Organization> = {}): T.Organization {
   return { key: 'foo', name: 'Foo', ...overrides };
 }
@@ -284,7 +502,13 @@ export function mockOrganizationWithAlm(
   almOverrides: Partial<T.Organization['alm']> = {}
 ): T.Organization {
   return mockOrganization({
-    alm: { key: 'github', membersSync: false, url: 'https://github.com/foo', ...almOverrides },
+    alm: {
+      key: 'github',
+      membersSync: false,
+      personal: false,
+      url: 'https://github.com/foo',
+      ...almOverrides
+    },
     ...overrides
   });
 }
@@ -303,6 +527,7 @@ export function mockPullRequest(overrides: Partial<T.PullRequest> = {}): T.PullR
     base: 'master',
     branch: 'feature/foo/bar',
     key: '1001',
+    target: 'master',
     title: 'Foo Bar feature',
     ...overrides
   };
@@ -323,6 +548,19 @@ export function mockQualityProfile(overrides: Partial<Profile> = {}): Profile {
     name: 'name',
     projectCount: 3,
     organization: 'foo',
+    ...overrides
+  };
+}
+
+export function mockQualityProfileInheritance(
+  overrides: Partial<T.ProfileInheritanceDetails> = {}
+): T.ProfileInheritanceDetails {
+  return {
+    activeRuleCount: 4,
+    isBuiltIn: false,
+    key: 'foo',
+    name: 'Foo',
+    overridingRuleCount: 0,
     ...overrides
   };
 }
@@ -410,15 +648,97 @@ export function mockRuleDetails(overrides: Partial<T.RuleDetails> = {}): T.RuleD
   };
 }
 
+export function mockRuleDetailsParameter(
+  overrides: Partial<T.RuleParameter> = {}
+): T.RuleParameter {
+  return {
+    defaultValue: '1',
+    htmlDesc: 'description',
+    key: '1',
+    type: 'number',
+    ...overrides
+  };
+}
+
 export function mockShortLivingBranch(
   overrides: Partial<T.ShortLivingBranch> = {}
 ): T.ShortLivingBranch {
   return {
     analysisDate: '2018-01-01',
     isMain: false,
-    name: 'release-1.0',
+    name: 'feature/foo',
     mergeBranch: 'master',
     type: 'SHORT',
+    ...overrides
+  };
+}
+
+export function mockSourceViewerFile(
+  overrides: Partial<T.SourceViewerFile> = {}
+): T.SourceViewerFile {
+  return {
+    key: 'foo',
+    measures: {
+      coverage: '85.2',
+      duplicationDensity: '1.0',
+      issues: '12',
+      lines: '56'
+    },
+    path: 'foo/bar.ts',
+    project: 'my-project',
+    projectName: 'MyProject',
+    q: 'FIL',
+    uuid: 'foo-bar',
+    ...overrides
+  };
+}
+
+export function mockStandaloneSysInfo(overrides: Partial<any> = {}): T.SysInfoStandalone {
+  const baseInfo = mockBaseSysInfo(overrides);
+  return {
+    ...baseInfo,
+    System: {
+      ...baseInfo.System,
+      'High Availability': false,
+      'Server ID': 'asd564-asd54a-5dsfg45'
+    },
+    Settings: {
+      'sonar.cluster.enabled': 'true',
+      'sonar.cluster.node.name': 'server9.example.com'
+    },
+    'Web JVM State': {
+      'Max Memory (MB)': 1024,
+      'Free Memory (MB)': 111
+    },
+    'Web Database Connection': {
+      'Pool Active Connections': 0,
+      'Pool Max Connections': 60
+    },
+    'Web Logging': { 'Logs Level': 'INFO', 'Logs Dir': '/logs' },
+    'Web JVM Properties': {
+      'file.encoding': 'UTF-8',
+      'file.separator': '/'
+    },
+    'Compute Engine Tasks': {
+      Pending: 0,
+      'In Progress': 0
+    },
+    'Compute Engine JVM State': {
+      'Max Memory (MB)': 1024,
+      'Free Memory (MB)': 89
+    },
+    'Compute Engine Database Connection': {
+      'Pool Initial Size': 0,
+      'Pool Active Connections': 0
+    },
+    'Compute Engine Logging': {
+      'Logs Level': 'DEBUG',
+      'Logs Dir': '/logs'
+    },
+    'Compute Engine JVM Properties': {
+      'file.encoding': 'UTF-8',
+      'file.separator': '/'
+    },
     ...overrides
   };
 }
@@ -429,7 +749,7 @@ export function mockLongLivingBranch(
   return {
     analysisDate: '2018-01-01',
     isMain: false,
-    name: 'master',
+    name: 'branch-6.7',
     type: 'LONG',
     ...overrides
   };
@@ -437,6 +757,38 @@ export function mockLongLivingBranch(
 
 export function mockStore(state: any = {}, reducer = (state: any) => state): Store {
   return createStore(reducer, state);
+}
+
+export function mockUser(overrides: Partial<T.User> = {}): T.User {
+  return {
+    active: true,
+    local: true,
+    login: 'john.doe',
+    name: 'John Doe',
+    ...overrides
+  };
+}
+
+export function mockDocumentationMarkdown(
+  overrides: Partial<{ content: string; title: string; key: string }> = {}
+): string {
+  const content =
+    overrides.content ||
+    `
+## Lorem Ipsum
+
+Donec at est elit. In finibus justo ut augue rhoncus, vitae consequat mauris mattis.
+Nunc ante est, volutpat ac volutpat ac, pharetra in libero.
+`;
+
+  const frontMatter = `
+---
+${overrides.title ? 'title: ' + overrides.title : ''}
+${overrides.key ? 'key: ' + overrides.key : ''}
+---`;
+
+  return `${frontMatter}
+${content}`;
 }
 
 export function mockDocumentationEntry(
@@ -466,6 +818,19 @@ export function mockLanguage(overrides: Partial<T.Language> = {}): T.Language {
   return {
     key: 'css',
     name: 'CSS',
+    ...overrides
+  };
+}
+
+export function mockFlowLocation(overrides: Partial<T.FlowLocation> = {}): T.FlowLocation {
+  return {
+    component: 'main.js',
+    textRange: {
+      startLine: 1,
+      startOffset: 1,
+      endLine: 2,
+      endOffset: 2
+    },
     ...overrides
   };
 }

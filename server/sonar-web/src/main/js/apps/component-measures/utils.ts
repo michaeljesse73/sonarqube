@@ -18,11 +18,9 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import { groupBy, memoize, sortBy, toPairs } from 'lodash';
-import { domains } from './config/domains';
-import { bubbles } from './config/bubbles';
-import { getLocalizedMetricName } from '../../helpers/l10n';
+import { getLocalizedMetricName } from 'sonar-ui-common/helpers/l10n';
+import { cleanQuery, parseAsString, serializeString } from 'sonar-ui-common/helpers/query';
 import { enhanceMeasure } from '../../components/measure/utils';
-import { cleanQuery, parseAsString, RawQuery, serializeString } from '../../helpers/query';
 import {
   isLongLivingBranch,
   isMainBranch,
@@ -30,6 +28,8 @@ import {
   isShortLivingBranch
 } from '../../helpers/branches';
 import { getDisplayMetrics, isDiffMetric } from '../../helpers/measures';
+import { bubbles } from './config/bubbles';
+import { domains } from './config/domains';
 
 export type View = 'list' | 'tree' | 'treemap';
 
@@ -198,7 +198,7 @@ export interface Query {
 }
 
 export const parseQuery = memoize(
-  (urlQuery: RawQuery): Query => {
+  (urlQuery: T.RawQuery): Query => {
     const metric = parseAsString(urlQuery['metric']) || DEFAULT_METRIC;
     return {
       metric,

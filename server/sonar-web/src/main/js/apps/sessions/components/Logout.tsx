@@ -19,22 +19,22 @@
  */
 import * as React from 'react';
 import { connect } from 'react-redux';
+import { translate } from 'sonar-ui-common/helpers/l10n';
+import { getBaseUrl } from 'sonar-ui-common/helpers/urls';
 import GlobalMessagesContainer from '../../../app/components/GlobalMessagesContainer';
 import RecentHistory from '../../../app/components/RecentHistory';
 import { doLogout } from '../../../store/rootActions';
-import { translate } from '../../../helpers/l10n';
-import { getBaseUrl } from '../../../helpers/urls';
 
 interface Props {
   doLogout: () => Promise<void>;
 }
 
-class Logout extends React.PureComponent<Props> {
+export class Logout extends React.PureComponent<Props> {
   componentDidMount() {
     this.props.doLogout().then(
       () => {
         RecentHistory.clear();
-        window.location.href = getBaseUrl() + '/';
+        window.location.replace(getBaseUrl() + '/');
       },
       () => {}
     );

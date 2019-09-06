@@ -89,8 +89,9 @@ public class MassUpdate {
 
     progress.start();
     try {
-      select.scroll(row -> callSingleHandler(handler, updates.iterator().next(), row));
-      closeUpdates();
+      UpsertImpl update = updates.iterator().next();
+      select.scroll(row -> callSingleHandler(handler, update, row));
+      closeStatements();
 
       // log the total number of processed rows
       progress.log();
@@ -105,7 +106,7 @@ public class MassUpdate {
     progress.start();
     try {
       select.scroll(row -> callMultiHandler(handler, updates, row));
-      closeUpdates();
+      closeStatements();
 
       // log the total number of processed rows
       progress.log();
@@ -132,13 +133,14 @@ public class MassUpdate {
     counter.getAndIncrement();
   }
 
-  private void closeUpdates() throws SQLException {
+  private void closeStatements() throws SQLException {
     for (UpsertImpl update : updates) {
       if (update.getBatchCount() > 0L) {
         update.execute().commit();
       }
       update.close();
     }
+    select.close();
   }
 
 }

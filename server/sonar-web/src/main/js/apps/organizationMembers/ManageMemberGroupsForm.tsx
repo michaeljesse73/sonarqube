@@ -17,14 +17,14 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { keyBy, pickBy, some } from 'lodash';
-import OrganizationGroupCheckbox from '../organizations/components/OrganizationGroupCheckbox';
-import SimpleModal from '../../components/controls/SimpleModal';
-import { SubmitButton, ResetButtonLink } from '../../components/ui/buttons';
+import * as React from 'react';
+import { ResetButtonLink, SubmitButton } from 'sonar-ui-common/components/controls/buttons';
+import SimpleModal from 'sonar-ui-common/components/controls/SimpleModal';
+import DeferredSpinner from 'sonar-ui-common/components/ui/DeferredSpinner';
+import { translate, translateWithParameters } from 'sonar-ui-common/helpers/l10n';
 import { getUserGroups, UserGroup } from '../../api/users';
-import { translate, translateWithParameters } from '../../helpers/l10n';
-import DeferredSpinner from '../../components/common/DeferredSpinner';
+import OrganizationGroupCheckbox from '../organizations/components/OrganizationGroupCheckbox';
 
 interface Props {
   onClose: () => void;
@@ -58,7 +58,10 @@ export default class ManageMemberGroupsForm extends React.PureComponent<Props, S
 
   loadUserGroups = () => {
     this.setState({ loading: true });
-    getUserGroups(this.props.member.login, this.props.organization.key).then(
+    getUserGroups({
+      login: this.props.member.login,
+      organization: this.props.organization.key
+    }).then(
       response => {
         if (this.mounted) {
           this.setState({ loading: false, userGroups: keyBy(response.groups, 'name') });

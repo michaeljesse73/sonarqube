@@ -18,9 +18,9 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import SimpleModal from '../../../components/controls/SimpleModal';
-import { SubmitButton, ResetButtonLink } from '../../../components/ui/buttons';
-import { translate } from '../../../helpers/l10n';
+import { ResetButtonLink, SubmitButton } from 'sonar-ui-common/components/controls/buttons';
+import SimpleModal from 'sonar-ui-common/components/controls/SimpleModal';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 
 interface Props {
   onCancel: () => void;
@@ -43,10 +43,7 @@ export default function RemoveExtendedDescriptionModal({ onCancel, onSubmit }: P
 
           <footer className="modal-foot">
             {submitting && <i className="spinner spacer-right" />}
-            <SubmitButton
-              className="button-red"
-              disabled={submitting}
-              id="coding-rules-detail-extend-description-remove-submit">
+            <SubmitButton className="button-red" disabled={submitting}>
               {translate('remove')}
             </SubmitButton>
             <ResetButtonLink onClick={onCloseClick}>{translate('cancel')}</ResetButtonLink>

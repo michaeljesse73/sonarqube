@@ -17,10 +17,37 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { shallow } from 'enzyme';
+import * as React from 'react';
+import FavoriteButton from 'sonar-ui-common/components/controls/FavoriteButton';
 import Favorite from '../Favorite';
 
+jest.mock('../../../api/favorites', () => ({
+  addFavorite: jest.fn(() => Promise.resolve()),
+  removeFavorite: jest.fn(() => Promise.resolve())
+}));
+
 it('renders', () => {
-  expect(shallow(<Favorite component="foo" favorite={true} qualifier="TRK" />)).toMatchSnapshot();
+  expect(shallowRender()).toMatchSnapshot();
 });
+
+it('calls handleFavorite when given', async () => {
+  const handleFavorite = jest.fn();
+  const wrapper = shallowRender(handleFavorite);
+  const favoriteBase = wrapper.find(FavoriteButton);
+  const toggleFavorite = favoriteBase.prop<Function>('toggleFavorite');
+
+  toggleFavorite();
+  await new Promise(setImmediate);
+  expect(handleFavorite).toHaveBeenCalledWith('foo', false);
+
+  toggleFavorite();
+  await new Promise(setImmediate);
+  expect(handleFavorite).toHaveBeenCalledWith('foo', true);
+});
+
+function shallowRender(handleFavorite?: () => void) {
+  return shallow(
+    <Favorite component="foo" favorite={true} handleFavorite={handleFavorite} qualifier="TRK" />
+  );
+}

@@ -17,10 +17,10 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { shallow } from 'enzyme';
+import * as React from 'react';
+import { mockEvent, mockQualityProfile, mockRule } from '../../../../helpers/testMocks';
 import RuleListItem from '../RuleListItem';
-import { mockEvent, mockRule } from '../../../../helpers/testMocks';
 
 it('should render', () => {
   expect(shallowRender()).toMatchSnapshot();
@@ -33,9 +33,92 @@ it('should open rule', () => {
   expect(onOpen).toBeCalledWith('javascript:S1067');
 });
 
+it('should render deactivate button', () => {
+  const wrapper = shallowRender();
+  const instance = wrapper.instance();
+
+  expect(instance.renderDeactivateButton('NONE')).toMatchSnapshot();
+  expect(instance.renderDeactivateButton('', 'coding_rules.need_extend_or_copy')).toMatchSnapshot();
+});
+
+describe('renderActions', () => {
+  it('should be null when there is no selected profile', () => {
+    const wrapper = shallowRender({
+      isLoggedIn: true
+    });
+
+    expect(wrapper.instance().renderActions()).toBeNull();
+  });
+
+  it('should be null when I am not logged in', () => {
+    const wrapper = shallowRender({
+      isLoggedIn: false,
+      selectedProfile: mockQualityProfile()
+    });
+
+    expect(wrapper.instance().renderActions()).toBeNull();
+  });
+
+  it('should be null when the user does not have the sufficient permissions', () => {
+    const wrapper = shallowRender({
+      isLoggedIn: true,
+      selectedProfile: mockQualityProfile()
+    });
+
+    expect(wrapper.instance().renderActions()).toBeNull();
+  });
+
+  it('should disable the button when I am on a built-in profile', () => {
+    const wrapper = shallowRender({
+      selectedProfile: mockQualityProfile({
+        actions: {
+          copy: true
+        },
+        isBuiltIn: true
+      })
+    });
+
+    expect(wrapper.instance().renderActions()).toMatchSnapshot();
+  });
+
+  it('should render the deactivate button', () => {
+    const wrapper = shallowRender({
+      activation: {
+        inherit: 'NONE',
+        severity: 'warning'
+      },
+      selectedProfile: mockQualityProfile({
+        actions: {
+          edit: true
+        },
+        isBuiltIn: false
+      })
+    });
+
+    expect(wrapper.instance().renderActions()).toMatchSnapshot();
+  });
+
+  it('should render the activate button', () => {
+    const wrapper = shallowRender({
+      rule: mockRule({
+        isTemplate: false
+      }),
+      selectedProfile: mockQualityProfile({
+        actions: {
+          edit: true
+        },
+        isBuiltIn: false
+      })
+    });
+
+    expect(wrapper.instance().renderActions()).toMatchSnapshot();
+  });
+});
+
 function shallowRender(props?: Partial<RuleListItem['props']>) {
-  return shallow(
+  return shallow<RuleListItem>(
     <RuleListItem
+      isLoggedIn={true}
       onActivate={jest.fn()}
       onDeactivate={jest.fn()}
       onFilterChange={jest.fn()}

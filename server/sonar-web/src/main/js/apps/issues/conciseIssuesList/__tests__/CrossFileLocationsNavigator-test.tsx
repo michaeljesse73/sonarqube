@@ -17,10 +17,10 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { shallow } from 'enzyme';
+import * as React from 'react';
+import { click } from 'sonar-ui-common/helpers/testUtils';
 import CrossFileLocationsNavigator from '../CrossFileLocationsNavigator';
-import { click } from '../../../../helpers/testUtils';
 
 const location1: T.FlowLocation = {
   component: 'foo',
@@ -46,7 +46,8 @@ const location3: T.FlowLocation = {
 it('should render', () => {
   const wrapper = shallow(
     <CrossFileLocationsNavigator
-      issue={{ key: 'abcd' }}
+      isTaintAnalysis={false}
+      issue={{ key: 'abcd', type: 'BUG' }}
       locations={[location1, location2, location3]}
       onLocationSelect={jest.fn()}
       scroll={jest.fn()}
@@ -63,7 +64,8 @@ it('should render', () => {
 it('should render all locations', () => {
   const wrapper = shallow(
     <CrossFileLocationsNavigator
-      issue={{ key: 'abcd' }}
+      isTaintAnalysis={false}
+      issue={{ key: 'abcd', type: 'BUG' }}
       locations={[location1, location2]}
       onLocationSelect={jest.fn()}
       scroll={jest.fn()}
@@ -76,7 +78,8 @@ it('should render all locations', () => {
 it('should expand all locations', () => {
   const wrapper = shallow(
     <CrossFileLocationsNavigator
-      issue={{ key: 'abcd' }}
+      isTaintAnalysis={false}
+      issue={{ key: 'abcd', type: 'BUG' }}
       locations={[location1, location2, location3]}
       onLocationSelect={jest.fn()}
       scroll={jest.fn()}
@@ -92,7 +95,8 @@ it('should expand all locations', () => {
 it('should collapse locations when issue changes', () => {
   const wrapper = shallow(
     <CrossFileLocationsNavigator
-      issue={{ key: 'abcd' }}
+      isTaintAnalysis={false}
+      issue={{ key: 'abcd', type: 'BUG' }}
       locations={[location1, location2, location3]}
       onLocationSelect={jest.fn()}
       scroll={jest.fn()}

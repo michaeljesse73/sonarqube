@@ -18,10 +18,10 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import ProfileLink from '../components/ProfileLink';
+import HelpTooltip from 'sonar-ui-common/components/controls/HelpTooltip';
+import { translate, translateWithParameters } from 'sonar-ui-common/helpers/l10n';
 import BuiltInQualityProfileBadge from '../components/BuiltInQualityProfileBadge';
-import HelpTooltip from '../../../components/controls/HelpTooltip';
-import { translate, translateWithParameters } from '../../../helpers/l10n';
+import ProfileLink from '../components/ProfileLink';
 
 interface Props {
   className?: string;
@@ -30,30 +30,33 @@ interface Props {
   extendsBuiltIn?: boolean;
   language: string;
   organization: string | null;
-  profile: {
-    activeRuleCount: number;
-    isBuiltIn: boolean;
-    key: string;
-    language: string;
-    name: string;
-    overridingRuleCount?: number;
-  };
+  profile: T.ProfileInheritanceDetails;
+  type?: string;
 }
 
-export default function ProfileInheritanceBox({ displayLink = true, ...props }: Props) {
-  const { profile, className, extendsBuiltIn } = props;
-  const offset = 25 * props.depth;
+export default function ProfileInheritanceBox(props: Props) {
+  const {
+    className,
+    depth,
+    extendsBuiltIn,
+    language,
+    organization,
+    profile,
+    displayLink = true,
+    type = 'current'
+  } = props;
+  const offset = 25 * depth;
 
   return (
-    <tr className={className}>
+    <tr className={className} data-test={`quality-profiles__inheritance-${type}`}>
       <td>
         <div style={{ paddingLeft: offset }}>
           {displayLink ? (
             <ProfileLink
               className="text-middle"
-              language={props.language}
+              language={language}
               name={profile.name}
-              organization={props.organization}>
+              organization={organization}>
               {profile.name}
             </ProfileLink>
           ) : (

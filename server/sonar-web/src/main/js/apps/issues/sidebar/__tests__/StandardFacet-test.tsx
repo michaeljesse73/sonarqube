@@ -17,14 +17,51 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { shallow } from 'enzyme';
-import StandardFacet, { Props } from '../StandardFacet';
-import { click } from '../../../../helpers/testUtils';
+import * as React from 'react';
+import { click } from 'sonar-ui-common/helpers/testUtils';
+import { getStandards } from '../../../../helpers/security-standard';
 import { Query } from '../../utils';
+import StandardFacet from '../StandardFacet';
+
+jest.mock('../../../../helpers/security-standard', () => ({
+  ...require.requireActual('../../../../helpers/security-standard'),
+  getStandards: jest.fn().mockResolvedValue({
+    owaspTop10: {
+      a1: {
+        title: 'Injection'
+      },
+      a2: {
+        title: 'Broken Authentication'
+      }
+    },
+    sansTop25: {
+      'insecure-interaction': {
+        title: 'Insecure Interaction Between Components'
+      }
+    },
+    cwe: {
+      unknown: {
+        title: 'No CWE associated'
+      },
+      '1004': {
+        title: "Sensitive Cookie Without 'HttpOnly' Flag"
+      }
+    },
+    sonarsourceSecurity: {
+      'sql-injection': {
+        title: 'SQL Injection'
+      },
+      'command-injection': {
+        title: 'Command Injection'
+      }
+    }
+  })
+}));
 
 it('should render closed', () => {
   expect(shallowRender()).toMatchSnapshot();
+  expect(getStandards).not.toBeCalled();
 });
 
 it('should toggle standards facet', () => {
@@ -38,7 +75,13 @@ it('should clear standards facet', () => {
   const onChange = jest.fn();
   const wrapper = shallowRender({ onChange });
   wrapper.children('FacetHeader').prop<Function>('onClear')();
-  expect(onChange).toBeCalledWith({ cwe: [], owaspTop10: [], sansTop25: [], standards: [] });
+  expect(onChange).toBeCalledWith({
+    cwe: [],
+    owaspTop10: [],
+    sansTop25: [],
+    sonarsourceSecurity: [],
+    standards: []
+  });
 });
 
 it('should render sub-facets', () => {
@@ -53,9 +96,13 @@ it('should render sub-facets', () => {
       owaspTop10Stats: { a1: 15, a3: 5 },
       sansTop25: ['risky-resource'],
       sansTop25Open: true,
-      sansTop25Stats: { foo: 12, 'risky-resource': 10 }
+      sansTop25Stats: { foo: 12, 'risky-resource': 10 },
+      sonarsourceSecurity: ['sql-injection'],
+      sonarsourceSecurityOpen: true,
+      sonarsourceSecurityStats: { 'sql-injection': 12 }
     })
   ).toMatchSnapshot();
+  expect(getStandards).toBeCalled();
 });
 
 it('should render empty sub-facet', () => {
@@ -79,12 +126,16 @@ it('should select items', () => {
     owaspTop10Stats: { a1: 15, a3: 5 },
     sansTop25: ['risky-resource'],
     sansTop25Open: true,
-    sansTop25Stats: { foo: 12, 'risky-resource': 10 }
+    sansTop25Stats: { foo: 12, 'risky-resource': 10 },
+    sonarsourceSecurity: ['command-injection'],
+    sonarsourceSecurityOpen: true,
+    sonarsourceSecurityStats: { 'sql-injection': 10 }
   });
 
   selectAndCheck('owaspTop10', 'a1');
   selectAndCheck('owaspTop10', 'a1', true, ['a1', 'a3']);
   selectAndCheck('sansTop25', 'foo');
+  selectAndCheck('sonarsourceSecurity', 'sql-injection');
 
   function selectAndCheck(facet: string, value: string, multiple = false, expectedValue = [value]) {
     wrapper
@@ -102,27 +153,32 @@ it('should toggle sub-facets', () => {
   expect(onToggle).lastCalledWith('owaspTop10');
   click(wrapper.find('FacetBox[property="sansTop25"]').children('FacetHeader'));
   expect(onToggle).lastCalledWith('sansTop25');
+  click(wrapper.find('FacetBox[property="sonarsourceSecurity"]').children('FacetHeader'));
+  expect(onToggle).lastCalledWith('sonarsourceSecurity');
 });
 
 it('should display correct selection', () => {
   const wrapper = shallowRender({
     open: true,
-    owaspTop10: ['a1', 'a3', 'unknown'],
+    owaspTop10: ['a1', 'a3'],
     sansTop25: ['risky-resource', 'foo'],
-    cwe: ['42', '1111', 'unknown']
+    cwe: ['42', '1111', 'unknown'],
+    sonarsourceSecurity: ['sql-injection', 'others']
   });
   checkValues('standards', [
+    'SONAR SQL Injection',
+    'Others',
     'OWASP A1 - a1 title',
     'OWASP A3',
-    'Not OWAPS',
     'SANS Risky Resource Management',
     'SANS foo',
     'CWE-42 - cwe-42 title',
     'CWE-1111',
     'Unknown CWE'
   ]);
-  checkValues('owaspTop10', ['A1 - a1 title', 'A3', 'Not OWAPS']);
+  checkValues('owaspTop10', ['A1 - a1 title', 'A3']);
   checkValues('sansTop25', ['Risky Resource Management', 'foo']);
+  checkValues('sonarsourceSecurity', ['SQL Injection', 'Others']);
 
   function checkValues(property: string, values: string[]) {
     expect(
@@ -134,7 +190,7 @@ it('should display correct selection', () => {
   }
 });
 
-function shallowRender(props: Partial<Props> = {}) {
+function shallowRender(props: Partial<StandardFacet['props']> = {}) {
   const wrapper = shallow(
     <StandardFacet
       cwe={[]}
@@ -143,6 +199,7 @@ function shallowRender(props: Partial<Props> = {}) {
       fetchingCwe={false}
       fetchingOwaspTop10={false}
       fetchingSansTop25={false}
+      fetchingSonarSourceSecurity={false}
       loadSearchResultCount={jest.fn()}
       onChange={jest.fn()}
       onToggle={jest.fn()}
@@ -154,16 +211,21 @@ function shallowRender(props: Partial<Props> = {}) {
       sansTop25={[]}
       sansTop25Open={false}
       sansTop25Stats={{}}
+      sonarsourceSecurity={[]}
+      sonarsourceSecurityOpen={false}
+      sonarsourceSecurityStats={{}}
       {...props}
-    />,
-    // disable loading of standards.json
-    { disableLifecycleMethods: true }
+    />
   );
   wrapper.setState({
     standards: {
-      owaspTop10: { a1: { title: 'a1 title' }, unknown: { title: 'Not OWAPS' } },
+      owaspTop10: { a1: { title: 'a1 title' } },
       sansTop25: { 'risky-resource': { title: 'Risky Resource Management' } },
-      cwe: { 42: { title: 'cwe-42 title' }, unknown: { title: 'Unknown CWE' } }
+      cwe: { 42: { title: 'cwe-42 title' }, unknown: { title: 'Unknown CWE' } },
+      sonarsourceSecurity: {
+        'sql-injection': { title: 'SQL Injection' },
+        others: { title: 'Others' }
+      }
     }
   });
   return wrapper;

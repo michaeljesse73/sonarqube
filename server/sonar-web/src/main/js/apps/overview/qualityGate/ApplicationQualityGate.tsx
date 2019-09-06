@@ -17,14 +17,14 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { keyBy } from 'lodash';
-import ApplicationQualityGateProject from './ApplicationQualityGateProject';
-import Level from '../../../components/ui/Level';
+import * as React from 'react';
+import HelpTooltip from 'sonar-ui-common/components/controls/HelpTooltip';
+import Level from 'sonar-ui-common/components/ui/Level';
+import { translate } from 'sonar-ui-common/helpers/l10n';
+import { ApplicationProject, getApplicationQualityGate } from '../../../api/quality-gates';
 import DocTooltip from '../../../components/docs/DocTooltip';
-import HelpTooltip from '../../../components/controls/HelpTooltip';
-import { getApplicationQualityGate, ApplicationProject } from '../../../api/quality-gates';
-import { translate } from '../../../helpers/l10n';
+import ApplicationQualityGateProject from './ApplicationQualityGateProject';
 
 interface Props {
   branch?: T.LongLivingBranch;
@@ -99,7 +99,7 @@ export default class ApplicationQualityGate extends React.PureComponent<Props, S
           {status === 'WARN' && (
             <HelpTooltip
               className="little-spacer-left"
-              overlay={translate('quality_gates.conditions.warning.tootlip')}
+              overlay={translate('quality_gates.conditions.warning.tooltip')}
             />
           )}
         </h2>

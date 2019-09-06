@@ -18,7 +18,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import FavoriteBase from './FavoriteBase';
+import FavoriteButton from 'sonar-ui-common/components/controls/FavoriteButton';
 import { addFavorite, removeFavorite } from '../../api/favorites';
 
 interface Props {
@@ -26,14 +26,65 @@ interface Props {
   component: string;
   favorite: boolean;
   qualifier: string;
+  handleFavorite?: (component: string, isFavorite: boolean) => void;
 }
 
-export default function Favorite({ component, ...other }: Props) {
-  return (
-    <FavoriteBase
-      {...other}
-      addFavorite={() => addFavorite(component)}
-      removeFavorite={() => removeFavorite(component)}
-    />
-  );
+interface State {
+  favorite: boolean;
 }
+
+export default class Favorite extends React.PureComponent<Props, State> {
+  mounted = false;
+
+  constructor(props: Props) {
+    super(props);
+
+    this.state = {
+      favorite: props.favorite
+    };
+  }
+
+  componentDidMount() {
+    this.mounted = true;
+  }
+
+  componentDidUpdate(_prevProps: Props, prevState: State) {
+    if (prevState.favorite !== this.props.favorite) {
+      this.setState({ favorite: this.props.favorite });
+    }
+  }
+
+  componentWillUnmount() {
+    this.mounted = false;
+  }
+
+  toggleFavorite = () => {
+    const newFavorite = !this.state.favorite;
+    const apiMethod = newFavorite ? addFavorite : removeFavorite;
+
+    return apiMethod(this.props.component).then(() => {
+      if (this.mounted) {
+        this.setState({ favorite: newFavorite }, () => {
+          if (this.props.handleFavorite) {
+            this.props.handleFavorite(this.props.component, newFavorite);
+          }
+        });
+      }
+    });
+  };
+
+  render() {
+    const { className, qualifier } = this.props;
+    const { favorite } = this.state;
+
+    return (
+      <FavoriteButton
+        className={className}
+        favorite={favorite}
+        qualifier={qualifier}
+        toggleFavorite={this.toggleFavorite}
+      />
+    );
+  }
+}
+/*  */

@@ -23,10 +23,11 @@ import com.google.common.annotations.VisibleForTesting;
 import java.time.Clock;
 import java.util.List;
 import javax.annotation.CheckForNull;
+import org.sonar.api.SonarEdition;
 import org.sonar.api.SonarQubeSide;
 import org.sonar.api.SonarQubeVersion;
 import org.sonar.api.config.EmailSettings;
-import org.sonar.api.internal.ApiVersion;
+import org.sonar.api.internal.MetadataLoader;
 import org.sonar.api.internal.SonarRuntimeImpl;
 import org.sonar.api.profiles.AnnotationProfileParser;
 import org.sonar.api.profiles.XMLProfileParser;
@@ -58,7 +59,6 @@ import org.sonar.ce.monitoring.DistributedCEQueueStatusImpl;
 import org.sonar.ce.platform.CECoreExtensionsInstaller;
 import org.sonar.ce.platform.ComputeEngineExtensionInstaller;
 import org.sonar.ce.platform.DatabaseCompatibility;
-import org.sonar.ce.queue.CeQueueCleaner;
 import org.sonar.ce.queue.PurgeCeActivities;
 import org.sonar.ce.task.projectanalysis.ProjectAnalysisTaskModule;
 import org.sonar.ce.task.projectanalysis.analysis.ProjectConfigurationFactory;
@@ -91,7 +91,6 @@ import org.sonar.server.component.index.ComponentIndexer;
 import org.sonar.server.config.ConfigurationProvider;
 import org.sonar.server.es.EsModule;
 import org.sonar.server.es.ProjectIndexersImpl;
-import org.sonar.server.event.NewAlerts;
 import org.sonar.server.extension.CoreExtensionBootstraper;
 import org.sonar.server.extension.CoreExtensionStopper;
 import org.sonar.server.favorite.FavoriteUpdater;
@@ -99,14 +98,11 @@ import org.sonar.server.issue.IssueFieldsSetter;
 import org.sonar.server.issue.IssueStorage;
 import org.sonar.server.issue.index.IssueIndexer;
 import org.sonar.server.issue.index.IssueIteratorFactory;
-import org.sonar.server.issue.notification.ChangesOnMyIssueNotificationDispatcher;
-import org.sonar.server.issue.notification.DoNotFixNotificationDispatcher;
-import org.sonar.server.issue.notification.IssueChangesEmailTemplate;
+import org.sonar.server.issue.notification.IssuesChangesNotificationModule;
 import org.sonar.server.issue.notification.MyNewIssuesEmailTemplate;
-import org.sonar.server.issue.notification.MyNewIssuesNotificationDispatcher;
+import org.sonar.server.issue.notification.MyNewIssuesNotificationHandler;
 import org.sonar.server.issue.notification.NewIssuesEmailTemplate;
-import org.sonar.server.issue.notification.NewIssuesNotificationDispatcher;
-import org.sonar.server.issue.notification.NewIssuesNotificationFactory;
+import org.sonar.server.issue.notification.NewIssuesNotificationHandler;
 import org.sonar.server.issue.workflow.FunctionExecutor;
 import org.sonar.server.issue.workflow.IssueWorkflow;
 import org.sonar.server.l18n.ServerI18n;
@@ -116,12 +112,10 @@ import org.sonar.server.metric.CoreCustomMetrics;
 import org.sonar.server.metric.DefaultMetricFinder;
 import org.sonar.server.notification.DefaultNotificationManager;
 import org.sonar.server.notification.NotificationService;
-import org.sonar.server.notification.email.AlertsEmailTemplate;
 import org.sonar.server.notification.email.EmailNotificationChannel;
 import org.sonar.server.organization.BillingValidationsProxyImpl;
 import org.sonar.server.organization.DefaultOrganizationProviderImpl;
 import org.sonar.server.organization.OrganizationFlagsImpl;
-import org.sonar.server.platform.DefaultServerUpgradeStatus;
 import org.sonar.server.platform.OfficialDistribution;
 import org.sonar.server.platform.ServerFileSystemImpl;
 import org.sonar.server.platform.ServerImpl;
@@ -141,6 +135,8 @@ import org.sonar.server.plugins.ServerExtensionInstaller;
 import org.sonar.server.property.InternalPropertiesImpl;
 import org.sonar.server.qualitygate.QualityGateEvaluatorImpl;
 import org.sonar.server.qualitygate.QualityGateFinder;
+import org.sonar.server.qualitygate.notification.QGChangeEmailTemplate;
+import org.sonar.server.qualitygate.notification.QGChangeNotificationHandler;
 import org.sonar.server.qualityprofile.index.ActiveRuleIndexer;
 import org.sonar.server.rule.DefaultRuleFinder;
 import org.sonar.server.rule.index.RuleIndex;
@@ -252,11 +248,21 @@ public class ComputeEngineContainerImpl implements ComputeEngineContainer {
   }
 
   @Override
-  public ComputeEngineContainer stop() {
+  public ComputeEngineContainer stopWorkers() {
     if (level4 != null) {
       // try to graceful stop in-progress tasks
       CeProcessingScheduler ceProcessingScheduler = level4.getComponentByType(CeProcessingScheduler.class);
-      ceProcessingScheduler.stopScheduling();
+      ceProcessingScheduler.gracefulStopScheduling();
+    }
+    return this;
+  }
+
+  @Override
+  public ComputeEngineContainer stop() {
+    if (level4 != null) {
+      // try to graceful but quick stop in-progress tasks
+      CeProcessingScheduler ceProcessingScheduler = level4.getComponentByType(CeProcessingScheduler.class);
+      ceProcessingScheduler.hardStopScheduling();
     }
     this.level1.stopComponents();
     return this;
@@ -268,13 +274,14 @@ public class ComputeEngineContainerImpl implements ComputeEngineContainer {
   }
 
   private static void populateLevel1(ComponentContainer container, Props props, ComputeEngineStatus computeEngineStatus) {
-    Version apiVersion = ApiVersion.load(System2.INSTANCE);
+    Version apiVersion = MetadataLoader.loadVersion(System2.INSTANCE);
+    SonarEdition edition = MetadataLoader.loadEdition(System2.INSTANCE);
     container.add(
       props.rawProperties(),
       ThreadLocalSettings.class,
       new ConfigurationProvider(),
       new SonarQubeVersion(apiVersion),
-      SonarRuntimeImpl.forSonarQube(ApiVersion.load(System2.INSTANCE), SonarQubeSide.COMPUTE_ENGINE),
+      SonarRuntimeImpl.forSonarQube(apiVersion, SonarQubeSide.COMPUTE_ENGINE, edition),
       CeProcessLogging.class,
       UuidFactoryImpl.INSTANCE,
       NetworkUtilsImpl.INSTANCE,
@@ -321,7 +328,6 @@ public class ComputeEngineContainerImpl implements ComputeEngineContainer {
 
       // add ReadOnlyPropertiesDao at level2 again so that it shadows PropertiesDao
       ReadOnlyPropertiesDao.class,
-      DefaultServerUpgradeStatus.class,
 
       // plugins
       PluginClassloaderFactory.class,
@@ -385,8 +391,8 @@ public class ComputeEngineContainerImpl implements ComputeEngineContainer {
       // components,
       FavoriteUpdater.class,
       ProjectIndexersImpl.class,
-      NewAlerts.class,
-      NewAlerts.newMetadata(),
+      QGChangeNotificationHandler.class,
+      QGChangeNotificationHandler.newMetadata(),
       ProjectMeasuresIndexer.class,
       ComponentIndexer.class,
 
@@ -403,19 +409,14 @@ public class ComputeEngineContainerImpl implements ComputeEngineContainer {
       IssueWorkflow.class, // used in Web Services and CE's DebtCalculator
       NewIssuesEmailTemplate.class,
       MyNewIssuesEmailTemplate.class,
-      IssueChangesEmailTemplate.class,
-      ChangesOnMyIssueNotificationDispatcher.class,
-      ChangesOnMyIssueNotificationDispatcher.newMetadata(),
-      NewIssuesNotificationDispatcher.class,
-      NewIssuesNotificationDispatcher.newMetadata(),
-      MyNewIssuesNotificationDispatcher.class,
-      MyNewIssuesNotificationDispatcher.newMetadata(),
-      DoNotFixNotificationDispatcher.class,
-      DoNotFixNotificationDispatcher.newMetadata(),
-      NewIssuesNotificationFactory.class, // used by SendIssueNotificationsStep
+      NewIssuesNotificationHandler.class,
+      NewIssuesNotificationHandler.newMetadata(),
+      MyNewIssuesNotificationHandler.class,
+      MyNewIssuesNotificationHandler.newMetadata(),
+      IssuesChangesNotificationModule.class,
 
       // Notifications
-      AlertsEmailTemplate.class,
+      QGChangeEmailTemplate.class,
       EmailSettings.class,
       NotificationService.class,
       DefaultNotificationManager.class,
@@ -481,8 +482,7 @@ public class ComputeEngineContainerImpl implements ComputeEngineContainer {
   private static Object[] startupComponents() {
     return new Object[] {
       ServerLifecycleNotifier.class,
-      PurgeCeActivities.class,
-      CeQueueCleaner.class
+      PurgeCeActivities.class
     };
   }
 

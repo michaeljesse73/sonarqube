@@ -17,28 +17,29 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import * as classNames from 'classnames';
+import * as React from 'react';
 import { Link } from 'react-router';
+import { testPathAgainstUrl } from '../navTreeUtils';
 import { DocumentationEntry } from '../utils';
 
 interface Props {
-  indent: boolean;
+  depth?: number;
   node: DocumentationEntry | undefined;
   splat: string;
 }
 
-export function MenuItem({ indent, node, splat }: Props) {
+export function MenuItem({ depth = 0, node, splat }: Props) {
   if (!node) {
     return null;
   }
 
-  const active = node.url === '/' + splat;
+  const active = testPathAgainstUrl(node.url, splat);
+  const maxDepth = Math.min(depth, 3);
   return (
     <Link
-      className={classNames('list-group-item', { active })}
+      className={classNames('list-group-item', { active, [`depth-${maxDepth}`]: depth > 0 })}
       key={node.url}
-      style={{ paddingLeft: indent ? 31 : 10 }}
       to={'/documentation' + node.url}>
       <h3 className="list-group-item-heading">{node.navTitle || node.title}</h3>
     </Link>

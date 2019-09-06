@@ -18,15 +18,14 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
+import { ButtonLink } from 'sonar-ui-common/components/controls/buttons';
+import DropdownIcon from 'sonar-ui-common/components/icons/DropdownIcon';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import DateFormatter from '../../../../components/intl/DateFormatter';
-import DropdownIcon from '../../../../components/icons-components/DropdownIcon';
-import { ButtonLink } from '../../../../components/ui/buttons';
-import { SystemUpgrade } from '../../../../api/system';
-import { translate } from '../../../../helpers/l10n';
 
 interface Props {
   className?: string;
-  upgrades: SystemUpgrade[];
+  upgrades: T.SystemUpgrade[];
 }
 
 interface State {

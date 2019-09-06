@@ -18,11 +18,11 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import PluginChangeLog from './PluginChangeLog';
-import Dropdown from '../../../components/controls/Dropdown';
-import EllipsisIcon from '../../../components/icons-components/EllipsisIcon';
-import { ButtonLink } from '../../../components/ui/buttons';
+import { ButtonLink } from 'sonar-ui-common/components/controls/buttons';
+import Dropdown from 'sonar-ui-common/components/controls/Dropdown';
+import EllipsisIcon from 'sonar-ui-common/components/icons/EllipsisIcon';
 import { Release, Update } from '../../../api/plugins';
+import PluginChangeLog from './PluginChangeLog';
 
 interface Props {
   release: Release;
@@ -34,7 +34,7 @@ export default function PluginChangeLogButton({ release, update }: Props) {
     <Dropdown
       className="display-inline-block little-spacer-left"
       overlay={<PluginChangeLog release={release} update={update} />}>
-      <ButtonLink className="js-changelog issue-rule">
+      <ButtonLink className="js-changelog">
         <EllipsisIcon />
       </ButtonLink>
     </Dropdown>

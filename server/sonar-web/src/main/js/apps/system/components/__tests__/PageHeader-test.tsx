@@ -17,34 +17,29 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { shallow } from 'enzyme';
-import PageHeader from '../PageHeader';
+import * as React from 'react';
+import PageHeader, { Props } from '../PageHeader';
+
+jest.mock('sonar-ui-common/helpers/dates', () => ({
+  toShortNotSoISOString: () => '2019-01-01'
+}));
 
 it('should render correctly', () => {
-  expect(
-    shallow(
-      <PageHeader
-        isCluster={true}
-        loading={false}
-        logLevel="INFO"
-        onLogLevelChange={() => {}}
-        showActions={true}
-      />
-    )
-  ).toMatchSnapshot();
+  expect(shallowRender()).toMatchSnapshot();
+  expect(shallowRender({ loading: true, showActions: false })).toMatchSnapshot();
+  expect(shallowRender({ serverId: 'foo-bar', version: '7.7.0.1234' })).toMatchSnapshot();
 });
 
-it('should show a loading spinner and no actions', () => {
-  expect(
-    shallow(
-      <PageHeader
-        isCluster={true}
-        loading={true}
-        logLevel="INFO"
-        onLogLevelChange={() => {}}
-        showActions={false}
-      />
-    )
-  ).toMatchSnapshot();
-});
+function shallowRender(props: Partial<Props> = {}) {
+  return shallow(
+    <PageHeader
+      isCluster={true}
+      loading={false}
+      logLevel="INFO"
+      onLogLevelChange={jest.fn()}
+      showActions={true}
+      {...props}
+    />
+  );
+}

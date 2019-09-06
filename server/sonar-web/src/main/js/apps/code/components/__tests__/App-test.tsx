@@ -17,12 +17,12 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { shallow } from 'enzyme';
-import { App } from '../App';
+import * as React from 'react';
+import { waitAndUpdate } from 'sonar-ui-common/helpers/testUtils';
+import { mockIssue, mockPullRequest, mockRouter } from '../../../../helpers/testMocks';
 import { retrieveComponent } from '../../utils';
-import { mockRouter } from '../../../../helpers/testMocks';
-import { waitAndUpdate } from '../../../../helpers/testUtils';
+import { App } from '../App';
 
 jest.mock('../../utils', () => ({
   retrieveComponent: jest.fn().mockResolvedValue({
@@ -45,7 +45,7 @@ beforeEach(() => {
 });
 
 it('should have correct title for APP based component', async () => {
-  const wrapper = getWrapper();
+  const wrapper = shallowRender();
   await waitAndUpdate(wrapper);
   expect(wrapper.find('HelmetWrapper')).toMatchSnapshot();
 });
@@ -58,7 +58,7 @@ it('should have correct title for portfolio base component', async () => {
     page: 0,
     total: 1
   });
-  const wrapper = getWrapper();
+  const wrapper = shallowRender();
   await waitAndUpdate(wrapper);
   expect(wrapper.find('HelmetWrapper')).toMatchSnapshot();
 });
@@ -71,13 +71,24 @@ it('should have correct title for project component', async () => {
     page: 0,
     total: 1
   });
-  const wrapper = getWrapper();
+  const wrapper = shallowRender();
   await waitAndUpdate(wrapper);
   expect(wrapper.find('HelmetWrapper')).toMatchSnapshot();
 });
 
-const getWrapper = () => {
-  return shallow(
+it('should refresh branch status if issues are updated', async () => {
+  const fetchBranchStatus = jest.fn();
+  const branchLike = mockPullRequest();
+  const wrapper = shallowRender({ branchLike, fetchBranchStatus });
+  const instance = wrapper.instance();
+  await waitAndUpdate(wrapper);
+
+  instance.handleIssueChange(mockIssue());
+  expect(fetchBranchStatus).toBeCalledWith(branchLike, 'foo');
+});
+
+function shallowRender(props: Partial<App['props']> = {}) {
+  return shallow<App>(
     <App
       component={{
         breadcrumbs: [],
@@ -86,10 +97,12 @@ const getWrapper = () => {
         organization: 'foo',
         qualifier: 'FOO'
       }}
+      fetchBranchStatus={jest.fn()}
       fetchMetrics={jest.fn()}
       location={{ query: { branch: 'b', id: 'foo', line: '7' } }}
       metrics={METRICS}
       router={mockRouter()}
+      {...props}
     />
   );
-};
+}

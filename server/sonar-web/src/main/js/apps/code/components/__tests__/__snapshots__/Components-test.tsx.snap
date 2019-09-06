@@ -12,14 +12,10 @@ exports[`renders correctly 1`] = `
         "qualifier": "TRK",
       }
     }
+    canBePinned={true}
     metrics={
       Array [
-        "ncloc",
-        "bugs",
-        "vulnerabilities",
-        "code_smells",
         "coverage",
-        "duplicated_lines_density",
       ]
     }
     rootComponent={
@@ -32,6 +28,7 @@ exports[`renders correctly 1`] = `
   />
   <tbody>
     <withScrollTo(Component)
+      canBePinned={true}
       component={
         Object {
           "key": "foo",
@@ -67,7 +64,7 @@ exports[`renders correctly 1`] = `
          
       </td>
       <td
-        colSpan={10}
+        colSpan={5}
       >
          
       </td>
@@ -75,6 +72,7 @@ exports[`renders correctly 1`] = `
   </tbody>
   <tbody>
     <withScrollTo(Component)
+      canBePinned={true}
       canBrowse={true}
       component={
         Object {
@@ -109,7 +107,7 @@ exports[`renders correctly 1`] = `
         colSpan={3}
       />
       <td
-        colSpan={10}
+        colSpan={5}
       />
     </tr>
   </tbody>
@@ -131,16 +129,7 @@ exports[`renders correctly for a search 1`] = `
         }
       }
       key="foo"
-      metrics={
-        Array [
-          Object {
-            "id": "1",
-            "key": "coverage",
-            "name": "Coverage",
-            "type": "PERCENT",
-          },
-        ]
-      }
+      metrics={Array []}
       rootComponent={
         Object {
           "key": "foo",
@@ -156,7 +145,7 @@ exports[`renders correctly for a search 1`] = `
         colSpan={3}
       />
       <td
-        colSpan={10}
+        colSpan={4}
       />
     </tr>
   </tbody>
@@ -175,16 +164,8 @@ exports[`renders correctly for leak 1`] = `
         "qualifier": "TRK",
       }
     }
-    metrics={
-      Array [
-        "new_lines",
-        "bugs",
-        "vulnerabilities",
-        "code_smells",
-        "new_coverage",
-        "new_duplicated_lines_density",
-      ]
-    }
+    canBePinned={true}
+    metrics={Array []}
     rootComponent={
       Object {
         "key": "foo",
@@ -203,6 +184,7 @@ exports[`renders correctly for leak 1`] = `
           "type": "SHORT",
         }
       }
+      canBePinned={true}
       component={
         Object {
           "key": "foo",
@@ -229,7 +211,7 @@ exports[`renders correctly for leak 1`] = `
          
       </td>
       <td
-        colSpan={10}
+        colSpan={4}
       >
          
       </td>
@@ -245,6 +227,7 @@ exports[`renders correctly for leak 1`] = `
           "type": "SHORT",
         }
       }
+      canBePinned={true}
       canBrowse={true}
       component={
         Object {
@@ -270,7 +253,7 @@ exports[`renders correctly for leak 1`] = `
         colSpan={3}
       />
       <td
-        colSpan={10}
+        colSpan={4}
       />
     </tr>
   </tbody>

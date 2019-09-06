@@ -19,23 +19,23 @@
  */
 import * as React from 'react';
 import { Link } from 'react-router';
-import ComponentNavBranchesMenuItem from './ComponentNavBranchesMenuItem';
+import { DropdownOverlay } from 'sonar-ui-common/components/controls/Dropdown';
+import HelpTooltip from 'sonar-ui-common/components/controls/HelpTooltip';
+import SearchBox from 'sonar-ui-common/components/controls/SearchBox';
+import { translate } from 'sonar-ui-common/helpers/l10n';
+import { scrollToElement } from 'sonar-ui-common/helpers/scrolling';
+import { Router, withRouter } from '../../../../components/hoc/withRouter';
 import {
-  sortBranchesAsTree,
-  isLongLivingBranch,
-  isShortLivingBranch,
-  isSameBranchLike,
   getBranchLikeKey,
+  isBranch,
+  isLongLivingBranch,
   isPullRequest,
-  isBranch
+  isSameBranchLike,
+  isShortLivingBranch,
+  sortBranchesAsTree
 } from '../../../../helpers/branches';
-import { scrollToElement } from '../../../../helpers/scrolling';
-import { translate } from '../../../../helpers/l10n';
 import { getBranchLikeUrl } from '../../../../helpers/urls';
-import SearchBox from '../../../../components/controls/SearchBox';
-import HelpTooltip from '../../../../components/controls/HelpTooltip';
-import { DropdownOverlay } from '../../../../components/controls/Dropdown';
-import { withRouter, Router } from '../../../../components/hoc/withRouter';
+import ComponentNavBranchesMenuItem from './ComponentNavBranchesMenuItem';
 
 interface Props {
   branchLikes: T.BranchLike[];

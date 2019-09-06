@@ -17,30 +17,54 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import classNames from 'classnames';
-import PageLink from './PageLink';
+import * as React from 'react';
+import { MarkdownRemark } from '../@types/graphql-types';
 import ChevronDownIcon from './icons/ChevronDownIcon';
 import ChevronUpIcon from './icons/ChevronUpIcon';
-import { MarkdownRemark } from '../@types/graphql-types';
+import PageLink from './PageLink';
 
 interface Props {
-  children: MarkdownRemark[];
+  children: (MarkdownRemark | JSX.Element)[];
   location: Location;
-  onToggle: (title: string) => void;
-  open: boolean;
+  openByDefault: boolean;
   title: string;
 }
 
-export default class CategoryLink extends React.PureComponent<Props> {
+interface State {
+  open: boolean;
+}
+
+export default class CategoryLink extends React.PureComponent<Props, State> {
+  state: State;
+
+  static defaultProps = {
+    openByDefault: false
+  };
+
+  constructor(props: Props) {
+    super(props);
+
+    this.state = {
+      open: props.openByDefault
+    };
+  }
+
   handleToggle = (event: React.MouseEvent<HTMLAnchorElement>) => {
     event.preventDefault();
     event.stopPropagation();
-    this.props.onToggle(this.props.title);
+    this.setState(prevState => ({
+      open: !prevState.open
+    }));
+  };
+
+  isMarkdownRemark = (child: any): child is MarkdownRemark => {
+    return child.id !== undefined;
   };
 
   render() {
-    const { children, location, title, open } = this.props;
+    const { children, location, title } = this.props;
+    const { open } = this.state;
     return (
       <div>
         <a
@@ -52,9 +76,20 @@ export default class CategoryLink extends React.PureComponent<Props> {
         </a>
         {children && open && (
           <div className="sub-menu">
-            {children.map(page => (
-              <PageLink className="sub-menu-link" key={page.id} location={location} node={page} />
-            ))}
+            {children.map((child, i) => {
+              if (this.isMarkdownRemark(child)) {
+                return (
+                  <PageLink
+                    className="sub-menu-link"
+                    key={child.id}
+                    location={location}
+                    node={child}
+                  />
+                );
+              } else {
+                return <React.Fragment key={`child-${i}`}>{child}</React.Fragment>;
+              }
+            })}
           </div>
         )}
       </div>

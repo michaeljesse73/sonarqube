@@ -41,8 +41,8 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.sonar.api.rule.RuleStatus;
-import org.sonar.api.server.ws.internal.PartImpl;
-import org.sonar.api.server.ws.internal.ValidatingRequest;
+import org.sonar.api.impl.ws.PartImpl;
+import org.sonar.api.impl.ws.ValidatingRequest;
 import org.sonar.api.utils.DateUtils;
 
 import static com.google.common.base.Strings.repeat;
@@ -591,7 +591,7 @@ public class RequestTest {
   @Test
   public void fail_if_multi_param_is_not_defined() {
     expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("BUG - parameter 'unknown' is undefined for action 'my_action'");
+    expectedException.expectMessage("Parameter 'unknown' not found for action 'my_action'");
 
     underTest.multiParam("unknown");
   }

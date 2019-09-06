@@ -17,12 +17,12 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { sortBy } from 'lodash';
-import Select from '../../../components/controls/Select';
-import { translate } from '../../../helpers/l10n';
+import * as React from 'react';
+import Select from 'sonar-ui-common/components/controls/Select';
+import { translate } from 'sonar-ui-common/helpers/l10n';
+import { getBaseUrl } from 'sonar-ui-common/helpers/urls';
 import { sanitizeAlmId } from '../../../helpers/almIntegrations';
-import { getBaseUrl } from '../../../helpers/urls';
 
 interface Props {
   hideIcons?: boolean;
@@ -77,9 +77,7 @@ export function getOptionRenderer(hideIcons?: boolean) {
           {organization.name}
           <span className="note little-spacer-left">{organization.key}</span>
         </span>
-        {isPaidOrg && (
-          <div className="outline-badge">{translate('organization.paid_plan.badge')}</div>
-        )}
+        {isPaidOrg && <div className="badge">{translate('organization.paid_plan.badge')}</div>}
       </div>
     );
   };

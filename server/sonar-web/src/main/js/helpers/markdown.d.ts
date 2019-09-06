@@ -21,9 +21,14 @@ interface FrontMatter {
   [x: string]: string;
 }
 
+interface ParsedContent {
+  content: string;
+  frontmatter: FrontMatter;
+}
+
 export function getFrontMatter(content: string): FrontMatter;
 
-export function separateFrontMatter(content: string): { content: string; frontmatter: FrontMatter };
+export function separateFrontMatter(content: string): ParsedContent;
 
 /** Removes SonarQube/SonarCloud only content */
 export function filterContent(content: string): string;

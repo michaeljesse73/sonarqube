@@ -18,10 +18,6 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 declare namespace T {
-  export type Dict<T> = { [key: string]: T };
-
-  export type Omit<T, K extends keyof T> = Pick<T, Exclude<keyof T, K>>;
-
   // Type ordered alphabetically to prevent merge conflicts
 
   export interface A11ySkipLink {
@@ -102,6 +98,7 @@ declare namespace T {
     settings: T.Dict<string>;
     standalone?: boolean;
     version: string;
+    webAnalyticsJsPath?: string;
   }
 
   export interface Branch {
@@ -225,7 +222,10 @@ declare namespace T {
     value: string;
   }
 
-  type CurrentUserSettingNames = 'notifications.optOut' | 'notifications.readDate';
+  type CurrentUserSettingNames =
+    | 'notifications.optOut'
+    | 'notifications.readDate'
+    | 'newsbox.dismiss.hotspots';
 
   export interface CustomMeasure {
     createdAt?: string;
@@ -239,12 +239,7 @@ declare namespace T {
     };
     projectKey: string;
     pending?: boolean;
-    user: {
-      active?: boolean;
-      email?: string;
-      login: string;
-      name: string;
-    };
+    user: T.UserBase;
     value: string;
     updatedAt?: string;
   }
@@ -254,7 +249,7 @@ declare namespace T {
   }
 
   export interface DuplicationBlock {
-    _ref: string;
+    _ref?: string;
     from: number;
     size: number;
   }
@@ -270,6 +265,8 @@ declare namespace T {
 
   export type EditionKey = 'community' | 'developer' | 'enterprise' | 'datacenter';
 
+  export type ExpandDirection = 'up' | 'down';
+
   export interface Extension {
     key: string;
     name: string;
@@ -283,6 +280,7 @@ declare namespace T {
   export interface FlowLocation {
     component: string;
     componentName?: string;
+    index?: number;
     msg?: string;
     textRange: TextRange;
   }
@@ -294,6 +292,8 @@ declare namespace T {
     membersCount: number;
     name: string;
   }
+
+  export type HealthType = 'RED' | 'YELLOW' | 'GREEN';
 
   export type HomePage =
     | { type: 'APPLICATION'; branch: string | undefined; component: string }
@@ -325,23 +325,10 @@ declare namespace T {
     name: string;
   }
 
-  export interface SecurityHotspot {
-    activeRules: number;
-    category?: string;
-    cwe?: string;
-    distribution?: Array<SecurityHotspot>;
-    openSecurityHotspots: number;
-    toReviewSecurityHotspots: number;
-    totalRules: number;
-    vulnerabilities: number;
-    vulnerabilityRating?: number;
-    wontFixSecurityHotspots: number;
-  }
-
   export interface Issue {
     actions: string[];
     assignee?: string;
-    assigneeActive?: string;
+    assigneeActive?: boolean;
     assigneeAvatar?: string;
     assigneeLogin?: string;
     assigneeName?: string;
@@ -379,7 +366,22 @@ declare namespace T {
     tags?: string[];
     textRange?: TextRange;
     transitions: string[];
-    type: IssueType;
+    type: T.IssueType;
+  }
+
+  export interface IssueChangelog {
+    avatar?: string;
+    creationDate: string;
+    diffs: IssueChangelogDiff[];
+    user: string;
+    isUserActive: boolean;
+    userName: string;
+  }
+
+  export interface IssueChangelogDiff {
+    key: string;
+    newValue?: string;
+    oldValue?: string;
   }
 
   export interface IssueComment {
@@ -395,8 +397,9 @@ declare namespace T {
     updatable: boolean;
   }
 
-  export type IssueType = 'BUG' | 'VULNERABILITY' | 'CODE_SMELL' | 'SECURITY_HOTSPOT';
-
+  export interface IssuesByLine {
+    [key: number]: Issue[];
+  }
   export interface Language {
     key: string;
     name: string;
@@ -415,20 +418,28 @@ declare namespace T {
     index?: number;
     line: number;
     startLine?: number;
+    text?: string;
     to: number;
   }
 
-  export interface LoggedInUser extends CurrentUser {
-    avatar?: string;
-    email?: string;
+  export interface LineMap {
+    [line: number]: SourceLine;
+  }
+
+  export interface LinePopup {
+    index?: number;
+    line: number;
+    name: string;
+    open?: boolean;
+  }
+
+  export interface LoggedInUser extends CurrentUser, UserActive {
     externalIdentity?: string;
     externalProvider?: string;
     groups: string[];
     homepage?: HomePage;
     isLoggedIn: true;
     local?: boolean;
-    login: string;
-    name: string;
     personalOrganization?: string;
     scmAccounts: string[];
     settings?: CurrentUserSetting[];
@@ -505,10 +516,9 @@ declare namespace T {
 
   export interface Organization extends OrganizationBase {
     actions?: OrganizationActions;
-    alm?: { key: string; membersSync: boolean; url: string };
+    alm?: { key: string; membersSync: boolean; personal: boolean; url: string };
     adminPages?: Extension[];
     canUpdateProjectsVisibilityToPrivate?: boolean;
-    guarded?: boolean;
     isDefault?: boolean;
     key: string;
     pages?: Extension[];
@@ -524,10 +534,7 @@ declare namespace T {
     url?: string;
   }
 
-  export interface OrganizationMember {
-    login: string;
-    name: string;
-    avatar?: string;
+  export interface OrganizationMember extends UserActive {
     groupCount?: number;
   }
 
@@ -587,11 +594,7 @@ declare namespace T {
     permissions: string[];
   }
 
-  export interface PermissionUser {
-    avatar?: string;
-    email?: string;
-    login: string;
-    name: string;
+  export interface PermissionUser extends UserActive {
     permissions: string[];
   }
 
@@ -611,6 +614,14 @@ declare namespace T {
     }>;
   }
 
+  export interface ProfileInheritanceDetails {
+    activeRuleCount: number;
+    isBuiltIn: boolean;
+    key: string;
+    name: string;
+    overridingRuleCount?: number;
+  }
+
   export interface ProjectLink {
     id: string;
     name?: string;
@@ -625,6 +636,7 @@ declare namespace T {
     key: string;
     isOrphan?: true;
     status?: { qualityGateStatus: Status };
+    target: string;
     title: string;
     url?: string;
   }
@@ -734,8 +746,6 @@ declare namespace T {
 
   export type RuleType = 'BUG' | 'VULNERABILITY' | 'CODE_SMELL' | 'SECURITY_HOTSPOT' | 'UNKNOWN';
 
-  export type Status = 'ERROR' | 'OK';
-
   export type Setting = SettingValue & { definition: SettingDefinition };
 
   export type SettingType =
@@ -790,6 +800,21 @@ declare namespace T {
     type: 'SHORT';
   }
 
+  export interface Snippet {
+    start: number;
+    end: number;
+    index: number;
+    toDelete?: boolean;
+  }
+
+  export interface SnippetGroup extends SnippetsByComponent {
+    locations: T.FlowLocation[];
+  }
+  export interface SnippetsByComponent {
+    component: SourceViewerFile;
+    sources: { [line: number]: SourceLine };
+  }
+
   export interface SourceLine {
     code?: string;
     conditions?: number;
@@ -827,6 +852,14 @@ declare namespace T {
     uuid: string;
   }
 
+  export type Standards = {
+    [key in StandardType]: T.Dict<{ title: string; description?: string }>
+  };
+
+  export type StandardType = 'owaspTop10' | 'sansTop25' | 'cwe' | 'sonarsourceSecurity';
+
+  export type Status = 'ERROR' | 'OK';
+
   export interface SubscriptionPlan {
     maxNcloc: number;
     price: number;
@@ -836,6 +869,88 @@ declare namespace T {
     link: string;
     scope?: 'sonarcloud';
     text: string;
+  }
+
+  export interface SysInfoAppNode extends SysInfoBase {
+    'Compute Engine Logging': SysInfoLogging;
+    Name: string;
+    'Web Logging': SysInfoLogging;
+  }
+
+  export interface SysInfoBase extends SysInfoValueObject {
+    Health: HealthType;
+    'Health Causes': string[];
+    Plugins?: Dict<string>;
+    System: {
+      Version: string;
+    };
+  }
+
+  export interface SysInfoCluster extends SysInfoBase {
+    'Application Nodes': SysInfoAppNode[];
+    'Search Nodes': SysInfoSearchNode[];
+    Settings: Dict<string>;
+    Statistics?: {
+      ncloc: number;
+    };
+    System: {
+      'High Availability': true;
+      'Server ID': string;
+      Version: string;
+    };
+  }
+
+  export interface SysInfoLogging extends Dict<string> {
+    'Logs Level': string;
+  }
+
+  export interface SysInfoSearchNode extends SysInfoValueObject {
+    Name: string;
+  }
+
+  export interface SysInfoSection extends Dict<SysInfoValueObject> {}
+
+  export interface SysInfoStandalone extends SysInfoBase {
+    'Compute Engine Logging': SysInfoLogging;
+    Settings: Dict<string>;
+    Statistics?: {
+      ncloc: number;
+    } & Dict<string | number>;
+    System: {
+      'High Availability': false;
+      'Server ID': string;
+      Version: string;
+    };
+    'Web Logging': SysInfoLogging;
+  }
+
+  export type SysInfoValue =
+    | boolean
+    | string
+    | number
+    | undefined
+    | HealthType
+    | SysInfoValueObject
+    | SysInfoValueArray;
+
+  export interface SysInfoValueArray extends Array<SysInfoValue> {}
+
+  export interface SysInfoValueObject extends Dict<SysInfoValue> {}
+
+  export type SysStatus =
+    | 'STARTING'
+    | 'UP'
+    | 'DOWN'
+    | 'RESTARTING'
+    | 'DB_MIGRATION_NEEDED'
+    | 'DB_MIGRATION_RUNNING';
+
+  export interface SystemUpgrade {
+    version: string;
+    description: string;
+    releaseDate: string;
+    changeLogUrl: string;
+    downloadUrl: string;
   }
 
   export interface Task {
@@ -887,19 +1002,31 @@ declare namespace T {
     endOffset: number;
   }
 
-  export interface User {
-    active: boolean;
-    avatar?: string;
-    email?: string;
+  export interface User extends UserBase {
     externalIdentity?: string;
     externalProvider?: string;
     groups?: string[];
     lastConnectionDate?: string;
     local: boolean;
-    login: string;
-    name: string;
     scmAccounts?: string[];
     tokensCount?: number;
+  }
+
+  export interface UserActive extends UserBase {
+    active?: true;
+    name: string;
+  }
+
+  export interface UserBase {
+    active?: boolean;
+    avatar?: string;
+    email?: string;
+    login: string;
+    name?: string;
+  }
+
+  export interface UserSelected extends UserActive {
+    selected: boolean;
   }
 
   export interface UserToken {
@@ -919,6 +1046,7 @@ declare namespace T {
     key: string;
     latestDelivery?: WebhookDelivery;
     name: string;
+    secret?: string;
     url: string;
   }
 

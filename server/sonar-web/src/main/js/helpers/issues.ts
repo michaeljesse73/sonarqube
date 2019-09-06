@@ -18,15 +18,11 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import { flatten, sortBy } from 'lodash';
-import { SEVERITIES } from './constants';
+import { ISSUE_TYPES } from './constants';
 
 interface Comment {
   login: string;
   [x: string]: any;
-}
-
-interface User {
-  login: string;
 }
 
 interface Rule {}
@@ -59,8 +55,8 @@ export interface RawIssue extends IssueBase {
   textRange?: T.TextRange;
 }
 
-export function sortBySeverity(issues: T.Issue[]): T.Issue[] {
-  return sortBy(issues, issue => SEVERITIES.indexOf(issue.severity));
+export function sortByType(issues: T.Issue[]): T.Issue[] {
+  return sortBy(issues, issue => ISSUE_TYPES.indexOf(issue.type));
 }
 
 function injectRelational(
@@ -83,7 +79,7 @@ function injectRelational(
   return newFields;
 }
 
-function injectCommentsRelational(issue: RawIssue, users?: User[]) {
+function injectCommentsRelational(issue: RawIssue, users?: T.UserBase[]) {
   if (!issue.comments) {
     return {};
   }
@@ -158,7 +154,7 @@ function orderLocations(locations: T.FlowLocation[]) {
 export function parseIssueFromResponse(
   issue: RawIssue,
   components?: Component[],
-  users?: User[],
+  users?: T.UserBase[],
   rules?: Rule[]
 ): T.Issue {
   const { secondaryLocations, flows } = splitFlows(issue, components);

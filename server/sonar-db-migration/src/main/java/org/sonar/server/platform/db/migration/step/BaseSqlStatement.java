@@ -95,7 +95,7 @@ class BaseSqlStatement<CHILD extends SqlStatement> implements SqlStatement<CHILD
   @SuppressWarnings("unchecked")
   public CHILD setDouble(int columnIndex, @Nullable Double value) throws SQLException {
     if (value == null) {
-      pstmt.setNull(columnIndex, Types.DECIMAL);
+      pstmt.setNull(columnIndex, Types.DOUBLE);
     } else {
       pstmt.setDouble(columnIndex, value);
     }

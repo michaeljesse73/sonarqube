@@ -18,6 +18,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
+import { Facet, Query, ReferencedComponent, ReferencedLanguage, ReferencedRule } from '../utils';
 import AssigneeFacet from './AssigneeFacet';
 import AuthorFacet from './AuthorFacet';
 import CreationDateFacet from './CreationDateFacet';
@@ -32,19 +33,10 @@ import StandardFacet from './StandardFacet';
 import StatusFacet from './StatusFacet';
 import TagFacet from './TagFacet';
 import TypeFacet from './TypeFacet';
-import {
-  Query,
-  Facet,
-  ReferencedComponent,
-  ReferencedUser,
-  ReferencedLanguage,
-  ReferencedRule,
-  STANDARDS
-} from '../utils';
 
 export interface Props {
   component: T.Component | undefined;
-  facets: T.Dict<Facet>;
+  facets: T.Dict<Facet | undefined>;
   hideAuthorFacet?: boolean;
   loadSearchResultCount: (property: string, changes: Partial<Query>) => Promise<Facet>;
   loadingFacets: T.Dict<boolean>;
@@ -58,7 +50,7 @@ export interface Props {
   referencedComponentsByKey: T.Dict<ReferencedComponent>;
   referencedLanguages: T.Dict<ReferencedLanguage>;
   referencedRules: T.Dict<ReferencedRule>;
-  referencedUsers: T.Dict<ReferencedUser>;
+  referencedUsers: T.Dict<T.UserBase>;
 }
 
 export default class Sidebar extends React.PureComponent<Props> {
@@ -87,7 +79,7 @@ export default class Sidebar extends React.PureComponent<Props> {
         )}
         <FileFacet
           fetching={loadingFacets.files === true}
-          files={query.files}
+          fileUuids={query.files}
           open={!!openFacets.files}
           referencedComponents={this.props.referencedComponentsById}
           stats={facets.files}
@@ -143,6 +135,29 @@ export default class Sidebar extends React.PureComponent<Props> {
           stats={facets.statuses}
           statuses={query.statuses}
         />
+        <StandardFacet
+          cwe={query.cwe}
+          cweOpen={!!openFacets.cwe}
+          cweStats={facets.cwe}
+          fetchingCwe={this.props.loadingFacets.cwe === true}
+          fetchingOwaspTop10={this.props.loadingFacets.owaspTop10 === true}
+          fetchingSansTop25={this.props.loadingFacets.sansTop25 === true}
+          fetchingSonarSourceSecurity={this.props.loadingFacets.sonarsourceSecurity === true}
+          loadSearchResultCount={this.props.loadSearchResultCount}
+          onChange={this.props.onFilterChange}
+          onToggle={this.props.onFacetToggle}
+          open={!!openFacets.standards}
+          owaspTop10={query.owaspTop10}
+          owaspTop10Open={!!openFacets.owaspTop10}
+          owaspTop10Stats={facets.owaspTop10}
+          query={query}
+          sansTop25={query.sansTop25}
+          sansTop25Open={!!openFacets.sansTop25}
+          sansTop25Stats={facets.sansTop25}
+          sonarsourceSecurity={query.sonarsourceSecurity}
+          sonarsourceSecurityOpen={!!openFacets.sonarsourceSecurity}
+          sonarsourceSecurityStats={facets.sonarsourceSecurity}
+        />
         <CreationDateFacet
           component={component}
           createdAfter={query.createdAfter}
@@ -179,25 +194,6 @@ export default class Sidebar extends React.PureComponent<Props> {
           referencedRules={this.props.referencedRules}
           rules={query.rules}
           stats={facets.rules}
-        />
-        <StandardFacet
-          cwe={query.cwe}
-          cweOpen={!!openFacets.cwe}
-          cweStats={facets.cwe}
-          fetchingCwe={this.props.loadingFacets.cwe === true}
-          fetchingOwaspTop10={this.props.loadingFacets.owaspTop10 === true}
-          fetchingSansTop25={this.props.loadingFacets.sansTop25 === true}
-          loadSearchResultCount={this.props.loadSearchResultCount}
-          onChange={this.props.onFilterChange}
-          onToggle={this.props.onFacetToggle}
-          open={!!openFacets[STANDARDS]}
-          owaspTop10={query.owaspTop10}
-          owaspTop10Open={!!openFacets.owaspTop10}
-          owaspTop10Stats={facets.owaspTop10}
-          query={query}
-          sansTop25={query.sansTop25}
-          sansTop25Open={!!openFacets.sansTop25}
-          sansTop25Stats={facets.sansTop25}
         />
         <TagFacet
           component={component}

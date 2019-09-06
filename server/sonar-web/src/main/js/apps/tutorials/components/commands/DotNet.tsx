@@ -18,12 +18,13 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import MSBuildScanner from './MSBuildScanner';
+import { FormattedMessage } from 'react-intl';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import CodeSnippet from '../../../../components/common/CodeSnippet';
 import InstanceMessage from '../../../../components/common/InstanceMessage';
-import { translate } from '../../../../helpers/l10n';
+import MSBuildScanner from './MSBuildScanner';
 
-interface Props {
+export interface Props {
   host: string;
   organization?: string;
   projectKey: string;
@@ -52,20 +53,27 @@ export default function DotNet(props: Props) {
         {translate('onboarding.analysis.msbuild.execute')}
       </h4>
       <InstanceMessage message={translate('onboarding.analysis.msbuild.execute.text')}>
-        {transformedMessage => (
-          <p
-            className="spacer-bottom markdown"
-            dangerouslySetInnerHTML={{ __html: transformedMessage }}
-          />
-        )}
+        {transformedMessage => <p className="spacer-bottom markdown">{transformedMessage}</p>}
       </InstanceMessage>
       <CodeSnippet isOneLine={true} snippet={command1} />
       <CodeSnippet isOneLine={false} snippet={command2} />
       <CodeSnippet isOneLine={props.small} snippet={command3} />
-      <p
-        className="big-spacer-top markdown"
-        dangerouslySetInnerHTML={{ __html: translate('onboarding.analysis.msbuild.docs') }}
-      />
+      <p className="big-spacer-top markdown">
+        <FormattedMessage
+          defaultMessage={translate('onboarding.analysis.docs')}
+          id="onboarding.analysis.docs"
+          values={{
+            link: (
+              <a
+                href="http://redirect.sonarsource.com/doc/install-configure-scanner-msbuild.html"
+                rel="noopener noreferrer"
+                target="_blank">
+                {translate('onboarding.analysis.msbuild.docs_link')}
+              </a>
+            )
+          }}
+        />
+      </p>
     </div>
   );
 }

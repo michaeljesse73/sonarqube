@@ -60,9 +60,9 @@ public abstract class CoreExtensionsInstaller {
   }
 
   /**
-   * @param container the container into which extensions will be installed
-   * @param extensionFilter filters extensions added to {@link CoreExtension.Context}. When it returns false, the
-   *                        extension is ignored as if it had never been added to the context.
+   * @param container            the container into which extensions will be installed
+   * @param extensionFilter      filters extensions added to {@link CoreExtension.Context}. When it returns false, the
+   *                             extension is ignored as if it had never been added to the context.
    * @param additionalSideFilter applied on top of filtering on {@link #supportedAnnotationType} to decide whether
    *                             extension should be added to container as an object or only as a PropertyDefinition.
    */

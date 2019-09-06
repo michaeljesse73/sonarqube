@@ -17,12 +17,14 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
+import * as classNames from 'classnames';
 import * as React from 'react';
 import { FormattedMessage } from 'react-intl';
-import DrilldownLink from '../../../components/shared/DrilldownLink';
-import { translate } from '../../../helpers/l10n';
-import { formatMeasure, findMeasure } from '../../../helpers/measures';
+import { translate } from 'sonar-ui-common/helpers/l10n';
+import { formatMeasure } from 'sonar-ui-common/helpers/measures';
 import { getLeakValue } from '../../../components/measure/utils';
+import DrilldownLink from '../../../components/shared/DrilldownLink';
+import { findMeasure } from '../../../helpers/measures';
 import { MEASUREMENTS_MAP, MeasurementType } from '../utils';
 
 interface Props {
@@ -72,7 +74,7 @@ export default class MeasurementLabel extends React.Component<Props> {
     return (
       <>
         {value === undefined ? (
-          <span>—</span>
+          <span className={classNames(className, 'measure-empty')}>—</span>
         ) : (
           <>
             <span className="big-spacer-right">

@@ -17,21 +17,21 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import * as classNames from 'classnames';
+import * as React from 'react';
 import { connect } from 'react-redux';
-import * as theme from '../../app/theme';
-import Tooltip from '../controls/Tooltip';
-import { translate } from '../../helpers/l10n';
-import { isSonarCloud } from '../../helpers/system';
+import Tooltip from 'sonar-ui-common/components/controls/Tooltip';
+import VisibleIcon from 'sonar-ui-common/components/icons/VisibleIcon';
+import { translate } from 'sonar-ui-common/helpers/l10n';
+import { colors } from '../../app/theme';
 import { isCurrentUserMemberOf, isPaidOrganization } from '../../helpers/organizations';
+import { isSonarCloud } from '../../helpers/system';
 import {
   getCurrentUser,
-  getOrganizationByKey,
   getMyOrganizations,
+  getOrganizationByKey,
   Store
 } from '../../store/rootReducer';
-import VisibleIcon from '../icons-components/VisibleIcon';
 import DocTooltip from '../docs/DocTooltip';
 
 interface StateToProps {
@@ -71,14 +71,13 @@ export function PrivacyBadge({
 
   let icon = null;
   if (isPaidOrganization(organization) && visibility === 'public') {
-    icon = <VisibleIcon className="little-spacer-right" fill={theme.blue} />;
+    icon = <VisibleIcon className="little-spacer-right" fill={colors.blue} />;
   }
 
   const badge = (
     <div
-      className={classNames('outline-badge', className, {
-        'badge-info': Boolean(icon),
-        'badge-icon': Boolean(icon)
+      className={classNames('badge', className, {
+        'badge-info': Boolean(icon)
       })}>
       {icon}
       {translate('visibility', visibility)}

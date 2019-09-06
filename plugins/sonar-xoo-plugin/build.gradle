@@ -7,13 +7,13 @@ dependencies {
   compile 'commons-io:commons-io'
   compile 'commons-lang:commons-lang'
   compile 'org.apache.commons:commons-csv'
+  compileOnly project(path: ':sonar-plugin-api', configuration: 'shadow')
   compileOnly 'com.google.code.findbugs:jsr305'
-  runtime project(path: ':sonar-plugin-api', configuration: 'shadow')
-  compileOnly project(path: ':sonar-plugin-api')
 
   testCompile 'junit:junit'
   testCompile 'org.assertj:assertj-core'
   testCompile 'org.mockito:mockito-core'
+  testCompile project(':sonar-plugin-api-impl')
 }
 
 jar {

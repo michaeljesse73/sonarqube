@@ -20,50 +20,43 @@
 package org.sonar.process;
 
 import java.io.File;
+import java.util.function.Predicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.sonar.process.sharedmemoryfile.DefaultProcessCommands;
 import org.sonar.process.sharedmemoryfile.ProcessCommands;
 
-public class ProcessEntryPoint implements Stoppable {
+import static org.sonar.process.Lifecycle.State.STOPPED;
+
+public class ProcessEntryPoint {
 
   public static final String PROPERTY_PROCESS_KEY = "process.key";
   public static final String PROPERTY_PROCESS_INDEX = "process.index";
-  public static final String PROPERTY_TERMINATION_TIMEOUT_MS = "process.terminationTimeout";
+  public static final String PROPERTY_GRACEFUL_STOP_TIMEOUT_MS = "process.gracefulStopTimeout";
   public static final String PROPERTY_SHARED_PATH = "process.sharedDir";
+  // 1 second
+  private static final long HARD_STOP_TIMEOUT_MS = 1_000L;
 
   private final Props props;
   private final String processKey;
-  private final int processNumber;
-  private final File sharedDir;
   private final Lifecycle lifecycle = new Lifecycle();
   private final ProcessCommands commands;
   private final SystemExit exit;
-  private volatile Monitored monitored;
-  private volatile StopperThread stopperThread;
   private final StopWatcher stopWatcher;
-
+  private final StopWatcher hardStopWatcher;
   // new Runnable() is important to avoid conflict of call to ProcessEntryPoint#stop() with Thread#stop()
-  private Thread shutdownHook = new Thread(new Runnable() {
-    @Override
-    public void run() {
-      exit.setInShutdownHook();
-      stop();
-    }
-  });
+  private final Runtime runtime;
+  private Monitored monitored;
+  private volatile StopperThread stopperThread;
 
-  ProcessEntryPoint(Props props, SystemExit exit, ProcessCommands commands) {
-    this(props, getProcessNumber(props), getSharedDir(props), exit, commands);
-  }
-
-  private ProcessEntryPoint(Props props, int processNumber, File sharedDir, SystemExit exit, ProcessCommands commands) {
+  public ProcessEntryPoint(Props props, SystemExit exit, ProcessCommands commands, Runtime runtime) {
     this.props = props;
     this.processKey = props.nonNullValue(PROPERTY_PROCESS_KEY);
-    this.processNumber = processNumber;
-    this.sharedDir = sharedDir;
     this.exit = exit;
     this.commands = commands;
-    this.stopWatcher = new StopWatcher(commands, this);
+    this.stopWatcher = createStopWatcher(commands, this);
+    this.hardStopWatcher = createHardStopWatcher(commands, this);
+    this.runtime = runtime;
   }
 
   public ProcessCommands getCommands() {
@@ -72,18 +65,6 @@ public class ProcessEntryPoint implements Stoppable {
 
   public Props getProps() {
     return props;
-  }
-
-  public String getKey() {
-    return processKey;
-  }
-
-  public int getProcessNumber() {
-    return processNumber;
-  }
-
-  public File getSharedDir() {
-    return sharedDir;
   }
 
   /**
@@ -99,25 +80,28 @@ public class ProcessEntryPoint implements Stoppable {
     try {
       launch(logger);
     } catch (Exception e) {
-      logger.warn("Fail to start {}", getKey(), e);
-    } finally {
-      stop();
+      logger.warn("Fail to start {}", processKey, e);
+      hardStop();
     }
   }
 
   private void launch(Logger logger) throws InterruptedException {
-    logger.info("Starting {}", getKey());
-    Runtime.getRuntime().addShutdownHook(shutdownHook);
+    logger.info("Starting {}", processKey);
+    runtime.addShutdownHook(new Thread(() -> {
+      exit.setInShutdownHook();
+      stop();
+    }));
     stopWatcher.start();
+    hardStopWatcher.start();
 
     monitored.start();
-    Monitored.Status status = waitForNotDownStatus();
+    Monitored.Status status = waitForStatus(s -> s != Monitored.Status.DOWN);
     if (status == Monitored.Status.UP || status == Monitored.Status.OPERATIONAL) {
       // notify monitor that process is ready
       commands.setUp();
 
       if (lifecycle.tryToMoveTo(Lifecycle.State.STARTED)) {
-        Monitored.Status newStatus = waitForOperational(status);
+        Monitored.Status newStatus = waitForStatus(s -> s == Monitored.Status.OPERATIONAL || s == Monitored.Status.FAILED);
         if (newStatus == Monitored.Status.OPERATIONAL && lifecycle.tryToMoveTo(Lifecycle.State.OPERATIONAL)) {
           commands.setOperational();
         }
@@ -125,64 +109,60 @@ public class ProcessEntryPoint implements Stoppable {
         monitored.awaitStop();
       }
     } else {
-      stop();
+      logger.trace("Fail to start. Hard stopping...");
+      hardStop();
     }
   }
 
-  private Monitored.Status waitForNotDownStatus() throws InterruptedException {
-    Monitored.Status status = Monitored.Status.DOWN;
-    while (status == Monitored.Status.DOWN) {
+  private Monitored.Status waitForStatus(Predicate<Monitored.Status> statusPredicate) throws InterruptedException {
+    Monitored.Status status = monitored.getStatus();
+    while (!statusPredicate.test(status)) {
+      Thread.sleep(20);
       status = monitored.getStatus();
-      Thread.sleep(20L);
     }
     return status;
   }
 
-  private Monitored.Status waitForOperational(Monitored.Status currentStatus) throws InterruptedException {
-    Monitored.Status status = currentStatus;
-    // wait for operation or stop waiting if going to OPERATIONAL failed
-    while (status != Monitored.Status.OPERATIONAL && status != Monitored.Status.FAILED) {
-      status = monitored.getStatus();
-      Thread.sleep(20L);
-    }
-    return status;
-  }
-
-  boolean isStarted() {
-    return lifecycle.getState() == Lifecycle.State.STARTED;
+  void stop() {
+    stopAsync();
+    monitored.awaitStop();
   }
 
   /**
-   * Blocks until stopped in a timely fashion (see {@link org.sonar.process.StopperThread})
+   * Blocks until stopped in a timely fashion (see {@link HardStopperThread})
    */
-  void stop() {
-    stopAsync();
-    try {
-      // stopperThread is not null for sure
-      // join() does nothing if thread already finished
-      stopperThread.join();
-      lifecycle.tryToMoveTo(Lifecycle.State.STOPPED);
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-    }
-    exit.exit(0);
+  void hardStop() {
+    hardStopAsync();
+    monitored.awaitStop();
   }
 
-  @Override
-  public void stopAsync() {
+  private void stopAsync() {
     if (lifecycle.tryToMoveTo(Lifecycle.State.STOPPING)) {
-      stopperThread = new StopperThread(monitored, commands, Long.parseLong(props.nonNullValue(PROPERTY_TERMINATION_TIMEOUT_MS)));
-      stopperThread.start();
+      LoggerFactory.getLogger(ProcessEntryPoint.class).info("Gracefully stopping process");
       stopWatcher.stopWatching();
+      long terminationTimeoutMs = Long.parseLong(props.nonNullValue(PROPERTY_GRACEFUL_STOP_TIMEOUT_MS));
+      stopperThread = new StopperThread(monitored, this::terminate, terminationTimeoutMs);
+      stopperThread.start();
     }
   }
 
-  Lifecycle.State getState() {
-    return lifecycle.getState();
+  private void hardStopAsync() {
+    if (lifecycle.tryToMoveTo(Lifecycle.State.HARD_STOPPING)) {
+      LoggerFactory.getLogger(ProcessEntryPoint.class).info("Hard stopping process");
+      if (stopperThread != null) {
+        stopperThread.stopIt();
+      }
+      hardStopWatcher.stopWatching();
+      stopWatcher.stopWatching();
+      new HardStopperThread(monitored, this::terminate).start();
+    }
   }
 
-  Thread getShutdownHook() {
-    return shutdownHook;
+  private void terminate() {
+    lifecycle.tryToMoveTo(STOPPED);
+    hardStopWatcher.stopWatching();
+    stopWatcher.stopWatching();
+    commands.endWatch();
   }
 
   public static ProcessEntryPoint createForArguments(String[] args) {
@@ -190,7 +170,7 @@ public class ProcessEntryPoint implements Stoppable {
     File sharedDir = getSharedDir(props);
     int processNumber = getProcessNumber(props);
     ProcessCommands commands = DefaultProcessCommands.main(sharedDir, processNumber);
-    return new ProcessEntryPoint(props, processNumber, sharedDir, new SystemExit(), commands);
+    return new ProcessEntryPoint(props, new SystemExit(), commands, Runtime.getRuntime());
   }
 
   private static int getProcessNumber(Props props) {
@@ -199,5 +179,46 @@ public class ProcessEntryPoint implements Stoppable {
 
   private static File getSharedDir(Props props) {
     return props.nonNullValueAsFile(PROPERTY_SHARED_PATH);
+  }
+
+  /**
+   * This watchdog is looking for hard stop to be requested via {@link ProcessCommands#askedForHardStop()}.
+   */
+  private static StopWatcher createHardStopWatcher(ProcessCommands commands, ProcessEntryPoint processEntryPoint) {
+    return new StopWatcher("HardStop Watcher", processEntryPoint::hardStopAsync, commands::askedForHardStop);
+  }
+
+  /**
+   * This watchdog is looking for graceful stop to be requested via {@link ProcessCommands#askedForStop()} ()}.
+   */
+  private static StopWatcher createStopWatcher(ProcessCommands commands, ProcessEntryPoint processEntryPoint) {
+    return new StopWatcher("Stop Watcher", processEntryPoint::stopAsync, commands::askedForStop);
+  }
+
+  /**
+   * Stops process in a graceful fashion
+   */
+  private static class StopperThread extends AbstractStopperThread {
+
+    private StopperThread(Monitored monitored, Runnable postAction, long terminationTimeoutMs) {
+      super("Stopper", () -> {
+        monitored.stop();
+        postAction.run();
+      }, terminationTimeoutMs);
+    }
+  }
+
+  /**
+   * Stops process in a short time fashion
+   */
+  private static class HardStopperThread extends AbstractStopperThread {
+
+    private HardStopperThread(Monitored monitored, Runnable postAction) {
+      super(
+        "HardStopper", () -> {
+          monitored.hardStop();
+          postAction.run();
+        }, HARD_STOP_TIMEOUT_MS);
+    }
   }
 }

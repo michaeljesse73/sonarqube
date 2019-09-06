@@ -18,9 +18,9 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import PluginChangeLogItem from './PluginChangeLogItem';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import { Release, Update } from '../../../api/plugins';
-import { translate } from '../../../helpers/l10n';
+import PluginChangeLogItem from './PluginChangeLogItem';
 
 export interface Props {
   release: Release;

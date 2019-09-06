@@ -20,15 +20,15 @@
 package org.sonar.application;
 
 import java.io.IOException;
+import org.sonar.api.SonarEdition;
+import org.sonar.api.internal.MetadataLoader;
 import org.sonar.application.command.CommandFactory;
 import org.sonar.application.command.CommandFactoryImpl;
+import org.sonar.application.command.JavaVersion;
 import org.sonar.application.config.AppSettings;
 import org.sonar.application.config.AppSettingsLoader;
 import org.sonar.application.config.AppSettingsLoaderImpl;
-import org.sonar.application.process.ProcessLauncher;
-import org.sonar.application.process.ProcessLauncherImpl;
-import org.sonar.application.process.StopRequestWatcher;
-import org.sonar.application.process.StopRequestWatcherImpl;
+import org.sonar.core.extension.ServiceLoaderWrapper;
 import org.sonar.process.System2;
 import org.sonar.process.SystemExit;
 
@@ -38,64 +38,82 @@ import static org.sonar.process.ProcessProperties.Property.CLUSTER_NAME;
 public class App {
 
   private final SystemExit systemExit = new SystemExit();
-  private StopRequestWatcher stopRequestWatcher;
+  private final JavaVersion javaVersion;
+  private StopRequestWatcher stopRequestWatcher = null;
+  private StopRequestWatcher hardStopRequestWatcher = null;
 
-  public void start(String[] cliArguments) throws IOException {
-    AppSettingsLoader settingsLoader = new AppSettingsLoaderImpl(cliArguments);
+  public App(JavaVersion javaVersion) {
+    this.javaVersion = javaVersion;
+  }
+
+  public void start(String[] cliArguments) throws IOException, InterruptedException {
+    AppSettingsLoader settingsLoader = new AppSettingsLoaderImpl(cliArguments, new ServiceLoaderWrapper());
     AppSettings settings = settingsLoader.load();
     // order is important - logging must be configured before any other components (AppFileSystem, ...)
     AppLogging logging = new AppLogging(settings);
     logging.configure();
     AppFileSystem fileSystem = new AppFileSystem(settings);
+    checkJavaVersion();
 
     try (AppState appState = new AppStateFactory(settings).create()) {
       appState.registerSonarQubeVersion(getSonarqubeVersion());
       appState.registerClusterName(settings.getProps().nonNullValue(CLUSTER_NAME.getKey()));
       AppReloader appReloader = new AppReloaderImpl(settingsLoader, fileSystem, appState, logging);
       fileSystem.reset();
-      CommandFactory commandFactory = new CommandFactoryImpl(settings.getProps(), fileSystem.getTempDir(), System2.INSTANCE);
+      CommandFactory commandFactory = new CommandFactoryImpl(settings.getProps(), fileSystem.getTempDir(), System2.INSTANCE, JavaVersion.INSTANCE);
 
       try (ProcessLauncher processLauncher = new ProcessLauncherImpl(fileSystem.getTempDir())) {
         Scheduler scheduler = new SchedulerImpl(settings, appReloader, commandFactory, processLauncher, appState);
 
-        // intercepts CTRL-C
-        Runtime.getRuntime().addShutdownHook(new ShutdownHook(scheduler));
-
         scheduler.schedule();
 
         stopRequestWatcher = StopRequestWatcherImpl.create(settings, scheduler, fileSystem);
+        hardStopRequestWatcher = HardStopRequestWatcherImpl.create(scheduler, fileSystem);
+
+        // intercepts CTRL-C
+        Runtime.getRuntime().addShutdownHook(new ShutdownHook(scheduler));
+
         stopRequestWatcher.startWatching();
+        hardStopRequestWatcher.startWatching();
 
         scheduler.awaitTermination();
-        stopRequestWatcher.stopWatching();
+        hardStopRequestWatcher.stopWatching();
       }
     }
 
     systemExit.exit(0);
   }
 
-  public static void main(String... args) throws IOException {
-    new App().start(args);
+  private void checkJavaVersion() {
+    if (MetadataLoader.loadEdition(org.sonar.api.utils.System2.INSTANCE) == SonarEdition.SONARCLOUD) {
+      return;
+    }
+
+    if (!javaVersion.isAtLeastJava11()) {
+      throw new IllegalStateException("SonarQube requires Java 11+ to run");
+    }
+  }
+
+  public static void main(String[] args) throws Exception {
+    new App(JavaVersion.INSTANCE).start(args);
   }
 
   private class ShutdownHook extends Thread {
     private final Scheduler scheduler;
 
     public ShutdownHook(Scheduler scheduler) {
-      super("SonarQube Shutdown Hook");
+      super("Shutdown Hook");
       this.scheduler = scheduler;
     }
 
     @Override
     public void run() {
       systemExit.setInShutdownHook();
-
-      if (stopRequestWatcher != null) {
-        stopRequestWatcher.stopWatching();
-      }
+      stopRequestWatcher.stopWatching();
+      hardStopRequestWatcher.stopWatching();
 
       // blocks until everything is corrected terminated
-      scheduler.terminate();
+      scheduler.stop();
     }
   }
 }

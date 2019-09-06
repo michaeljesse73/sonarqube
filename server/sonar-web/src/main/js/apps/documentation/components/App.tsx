@@ -17,46 +17,148 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
+import * as navigationTreeSonarCloud from 'Docs/../static/SonarCloudNavigationTree.json';
+import * as navigationTreeSonarQube from 'Docs/../static/SonarQubeNavigationTree.json';
+import { DocNavigationItem } from 'Docs/@types/types';
 import * as React from 'react';
 import Helmet from 'react-helmet';
 import { Link } from 'react-router';
-import * as navigationTreeSonarQube from 'Docs/../static/SonarQubeNavigationTree.json';
-import * as navigationTreeSonarCloud from 'Docs/../static/SonarCloudNavigationTree.json';
-import Sidebar from './Sidebar';
-import getPages from '../pages';
+import DeferredSpinner from 'sonar-ui-common/components/ui/DeferredSpinner';
+import { translate } from 'sonar-ui-common/helpers/l10n';
+import { addSideBarClass, removeSideBarClass } from 'sonar-ui-common/helpers/pages';
+import { isDefined } from 'sonar-ui-common/helpers/types';
+import { getInstalledPlugins } from '../../../api/plugins';
+import { getPluginStaticFileContent } from '../../../api/static';
 import A11ySkipTarget from '../../../app/components/a11y/A11ySkipTarget';
 import NotFound from '../../../app/components/NotFound';
 import ScreenPositionHelper from '../../../components/common/ScreenPositionHelper';
 import DocMarkdownBlock from '../../../components/docs/DocMarkdownBlock';
-import { translate } from '../../../helpers/l10n';
+import { ParsedContent, separateFrontMatter } from '../../../helpers/markdown';
 import { isSonarCloud } from '../../../helpers/system';
-import { addSideBarClass, removeSideBarClass } from '../../../helpers/pages';
-import { DocsNavigationItem } from '../utils';
+import { getUrlsList } from '../navTreeUtils';
+import getPages from '../pages';
 import '../styles.css';
+import { DocumentationEntry } from '../utils';
+import Sidebar from './Sidebar';
 
 interface Props {
   params: { splat?: string };
 }
 
-export default class App extends React.PureComponent<Props> {
+interface State {
+  loading: boolean;
+  pages: DocumentationEntry[];
+  tree: DocNavigationItem[];
+}
+
+const LANGUAGES_BASE_URL = 'analysis/languages';
+
+export default class App extends React.PureComponent<Props, State> {
   mounted = false;
-  pages = getPages();
+  state: State = {
+    loading: false,
+    pages: [],
+    tree: []
+  };
 
   componentDidMount() {
+    this.mounted = true;
     addSideBarClass();
+
+    this.setState({ loading: true });
+
+    const tree = isSonarCloud()
+      ? ((navigationTreeSonarCloud as any).default as DocNavigationItem[])
+      : ((navigationTreeSonarQube as any).default as DocNavigationItem[]);
+
+    this.getLanguagePluginsDocumentation(tree).then(
+      overrides => {
+        if (this.mounted) {
+          this.setState({
+            loading: false,
+            pages: getPages(overrides),
+            tree
+          });
+        }
+      },
+      () => {
+        if (this.mounted) {
+          this.setState({
+            loading: false
+          });
+        }
+      }
+    );
   }
 
   componentWillUnmount() {
+    this.mounted = false;
     removeSideBarClass();
   }
 
+  getLanguagePluginsDocumentation = (tree: DocNavigationItem[]) => {
+    return getInstalledPlugins()
+      .then(plugins =>
+        Promise.all(
+          plugins.map(plugin => {
+            if (plugin.documentationPath) {
+              const matchArray = /^static\/(.*)/.exec(plugin.documentationPath);
+
+              if (matchArray && matchArray.length > 1) {
+                // eslint-disable-next-line promise/no-nesting
+                return getPluginStaticFileContent(plugin.key, matchArray[1]).then(
+                  content => content,
+                  () => undefined
+                );
+              }
+            }
+            return undefined;
+          })
+        )
+      )
+      .then(contents => contents.filter(isDefined))
+      .then(contents => {
+        const regex = new RegExp(`/${LANGUAGES_BASE_URL}/\\w+/$`);
+        const overridablePaths = getUrlsList(tree).filter(
+          path => regex.test(path) && path !== `/${LANGUAGES_BASE_URL}/overview/`
+        );
+
+        const parsedContent: T.Dict<ParsedContent> = {};
+
+        contents.forEach(content => {
+          const parsed = separateFrontMatter(content);
+          if (
+            parsed &&
+            parsed.frontmatter &&
+            parsed.frontmatter.key &&
+            overridablePaths.includes(`/${LANGUAGES_BASE_URL}/${parsed.frontmatter.key}/`)
+          ) {
+            parsedContent[`${LANGUAGES_BASE_URL}/${parsed.frontmatter.key}`] = parsed;
+          }
+        });
+
+        return parsedContent;
+      });
+  };
+
   render() {
-    const tree = isSonarCloud()
-      ? ((navigationTreeSonarCloud as any).default as DocsNavigationItem[])
-      : ((navigationTreeSonarQube as any).default as DocsNavigationItem[]);
+    const { loading, pages, tree } = this.state;
     const { splat = '' } = this.props.params;
-    const page = this.pages.find(p => p.url === '/' + splat);
-    const mainTitle = translate('documentation.page_title');
+
+    if (loading) {
+      return (
+        <div className="page page-limited">
+          <DeferredSpinner />
+        </div>
+      );
+    }
+
+    const page = pages.find(p => p.url === '/' + splat);
+    const mainTitle = translate(
+      'documentation.page_title',
+      isSonarCloud() ? 'sonarcloud' : 'sonarqube'
+    );
+    const isIndex = splat === 'index';
 
     if (!page) {
       return (
@@ -69,8 +171,6 @@ export default class App extends React.PureComponent<Props> {
         </>
       );
     }
-
-    const isIndex = splat === 'index';
 
     return (
       <div className="layout-page">
@@ -94,7 +194,7 @@ export default class App extends React.PureComponent<Props> {
                       <h1>{translate('documentation.page')}</h1>
                     </Link>
                   </div>
-                  <Sidebar navigation={tree} pages={this.pages} splat={splat} />
+                  <Sidebar navigation={tree} pages={pages} splat={splat} />
                 </div>
               </div>
             </div>
@@ -109,8 +209,8 @@ export default class App extends React.PureComponent<Props> {
               <DocMarkdownBlock
                 className="documentation-content cut-margins boxed-group-inner"
                 content={page.content}
-                displayH1={true}
                 stickyToc={true}
+                title={page.title}
               />
             </div>
           </div>

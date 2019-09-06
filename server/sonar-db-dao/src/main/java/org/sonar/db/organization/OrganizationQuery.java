@@ -32,8 +32,6 @@ public class OrganizationQuery {
   private final Set<String> keys;
   @Nullable
   private final Integer userId;
-  private final boolean onlyTeam;
-  private final boolean onlyPersonal;
   private final boolean withAnalyses;
   @Nullable
   private final Long analyzedAfter;
@@ -41,11 +39,6 @@ public class OrganizationQuery {
   private OrganizationQuery(Builder builder) {
     this.keys = builder.keys;
     this.userId = builder.member;
-    this.onlyPersonal = builder.onlyPersonal;
-    this.onlyTeam = builder.onlyTeam;
-    if (this.onlyPersonal && this.onlyTeam) {
-      throw new IllegalArgumentException("Only one of onlyPersonal and onlyTeam can be true");
-    }
     this.withAnalyses = builder.withAnalyses;
     this.analyzedAfter = builder.analyzedAfter;
   }
@@ -58,14 +51,6 @@ public class OrganizationQuery {
   @CheckForNull
   public Integer getMember() {
     return userId;
-  }
-
-  public boolean isOnlyTeam() {
-    return onlyTeam;
-  }
-
-  public boolean isOnlyPersonal() {
-    return onlyPersonal;
   }
 
   public boolean isWithAnalyses() {
@@ -89,8 +74,6 @@ public class OrganizationQuery {
     private Set<String> keys;
     @Nullable
     private Integer member;
-    private boolean onlyTeam = false;
-    private boolean onlyPersonal = false;
     private boolean withAnalyses = false;
     @Nullable
     private Long analyzedAfter;
@@ -110,16 +93,6 @@ public class OrganizationQuery {
 
     public Builder setMember(@Nullable Integer userId) {
       this.member = userId;
-      return this;
-    }
-
-    public Builder setOnlyTeam() {
-      this.onlyTeam = true;
-      return this;
-    }
-
-    public Builder setOnlyPersonal() {
-      this.onlyPersonal = true;
       return this;
     }
 

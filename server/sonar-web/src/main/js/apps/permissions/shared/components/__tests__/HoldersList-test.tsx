@@ -17,8 +17,8 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { shallow } from 'enzyme';
+import * as React from 'react';
 import HoldersList from '../HoldersList';
 
 const permissions = [
@@ -51,7 +51,7 @@ const elementsContainer = (
     onToggleGroup={jest.fn(() => Promise.resolve())}
     onToggleUser={jest.fn(() => Promise.resolve())}
     permissions={permissions}
-    selectedPermission={'bar'}
+    selectedPermission="bar"
     users={users}
   />
 );

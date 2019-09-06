@@ -31,17 +31,31 @@ public class ProjectQgateAssociationDao implements Dao {
   }
 
   /**
-   * @return quality gate id if a specific Quality Gate has been defined for the given component id. <br>
+   * @return quality gate uuid if a specific Quality Gate has been defined for the given component uuid. <br>
    * Returns <code>{@link Optional#empty()}</code> otherwise (ex: default quality gate applies)
    */
-  public Optional<Long> selectQGateIdByComponentId(DbSession dbSession, long componentId) {
-    String id = mapper(dbSession).selectQGateIdByComponentId(componentId);
-
-    return id == null ? Optional.empty() : Optional.of(Long.valueOf(id));
+  public Optional<String> selectQGateUuidByComponentUuid(DbSession dbSession, String componentUuid) {
+    String uuid = mapper(dbSession).selectQGateUuidByComponentUuid(componentUuid);
+    return Optional.ofNullable(uuid);
   }
 
   private static ProjectQgateAssociationMapper mapper(DbSession session) {
     return session.getMapper(ProjectQgateAssociationMapper.class);
   }
 
+  public void deleteByProjectUuid(DbSession dbSession, String projectUuid) {
+    mapper(dbSession).deleteByProjectUuid(projectUuid);
+  }
+
+  public void deleteByQGateUuid(DbSession dbSession, String qGateUuid) {
+    mapper(dbSession).deleteByQGateUuid(qGateUuid);
+  }
+
+  public void insertProjectQGateAssociation(DbSession dbSession, String projectUuid, String qGateUuid) {
+    mapper(dbSession).insertProjectQGateAssociation(projectUuid, qGateUuid);
+  }
+
+  public void updateProjectQGateAssociation(DbSession dbSession, String projectUuid, String qGateUuid) {
+    mapper(dbSession).updateProjectQGateAssociation(projectUuid, qGateUuid);
+  }
 }

@@ -17,14 +17,17 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { find, without } from 'lodash';
-import SelectList, { Filter } from '../../../components/SelectList/SelectList';
-import { translate } from '../../../helpers/l10n';
+import * as React from 'react';
+import SelectList, {
+  SelectListFilter,
+  SelectListSearchParams
+} from 'sonar-ui-common/components/controls/SelectList';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import {
-  searchGates,
   associateGateWithProject,
-  dissociateGateWithProject
+  dissociateGateWithProject,
+  searchProjects
 } from '../../../api/quality-gates';
 
 interface Props {
@@ -34,91 +37,131 @@ interface Props {
 }
 
 interface State {
-  projects: Array<{ id: string; name: string; selected: boolean }>;
+  needToReload: boolean;
+  lastSearchParams?: SelectListSearchParams;
+  projects: Array<{ id: string; key: string; name: string; selected: boolean }>;
+  projectsTotalCount?: number;
   selectedProjects: string[];
 }
 
 export default class Projects extends React.PureComponent<Props, State> {
   mounted = false;
-  state: State = { projects: [], selectedProjects: [] };
+
+  constructor(props: Props) {
+    super(props);
+
+    this.state = {
+      needToReload: false,
+      projects: [],
+      selectedProjects: []
+    };
+  }
 
   componentDidMount() {
     this.mounted = true;
-    this.handleSearch('', Filter.Selected);
   }
 
   componentWillUnmount() {
     this.mounted = false;
   }
 
-  handleSearch = (query: string, selected: string) => {
-    return searchGates({
+  fetchProjects = (searchParams: SelectListSearchParams) =>
+    searchProjects({
       gateId: this.props.qualityGate.id,
       organization: this.props.organization,
-      pageSize: 100,
-      query: query !== '' ? query : undefined,
-      selected
+      page: searchParams.page,
+      pageSize: searchParams.pageSize,
+      query: searchParams.query !== '' ? searchParams.query : undefined,
+      selected: searchParams.filter
     }).then(data => {
       if (this.mounted) {
-        this.setState({
-          projects: data.results,
-          selectedProjects: data.results
+        this.setState(prevState => {
+          const more = searchParams.page != null && searchParams.page > 1;
+
+          const projects = more ? [...prevState.projects, ...data.results] : data.results;
+          const newSelectedProjects = data.results
             .filter(project => project.selected)
-            .map(project => project.id)
+            .map(project => project.id);
+          const selectedProjects = more
+            ? [...prevState.selectedProjects, ...newSelectedProjects]
+            : newSelectedProjects;
+
+          return {
+            lastSearchParams: searchParams,
+            needToReload: false,
+            projects,
+            projectsTotalCount: data.paging.total,
+            selectedProjects
+          };
         });
       }
     });
-  };
 
-  handleSelect = (id: string) => {
-    return associateGateWithProject({
+  handleSelect = (id: string) =>
+    associateGateWithProject({
       gateId: this.props.qualityGate.id,
       organization: this.props.organization,
       projectId: id
     }).then(() => {
       if (this.mounted) {
-        this.setState(state => ({
-          selectedProjects: [...state.selectedProjects, id]
+        this.setState(prevState => ({
+          needToReload: true,
+          selectedProjects: [...prevState.selectedProjects, id]
         }));
       }
     });
-  };
 
-  handleUnselect = (id: string) => {
-    return dissociateGateWithProject({
+  handleUnselect = (id: string) =>
+    dissociateGateWithProject({
       gateId: this.props.qualityGate.id,
       organization: this.props.organization,
       projectId: id
-    }).then(
-      () => {
-        if (this.mounted) {
-          this.setState(state => ({
-            selectedProjects: without(state.selectedProjects, id)
-          }));
-        }
-      },
-      () => {}
-    );
-  };
+    }).then(() => {
+      if (this.mounted) {
+        this.setState(prevState => ({
+          needToReload: true,
+          selectedProjects: without(prevState.selectedProjects, id)
+        }));
+      }
+    });
 
   renderElement = (id: string): React.ReactNode => {
     const project = find(this.state.projects, { id });
-    return project === undefined ? id : project.name;
+    return (
+      <div className="select-list-list-item">
+        {project === undefined ? (
+          id
+        ) : (
+          <>
+            {project.name}
+            <br />
+            <span className="note">{project.key}</span>
+          </>
+        )}
+      </div>
+    );
   };
 
   render() {
     return (
       <SelectList
         elements={this.state.projects.map(project => project.id)}
+        elementsTotalCount={this.state.projectsTotalCount}
         labelAll={translate('quality_gates.projects.all')}
         labelSelected={translate('quality_gates.projects.with')}
         labelUnselected={translate('quality_gates.projects.without')}
-        onSearch={this.handleSearch}
+        needToReload={
+          this.state.needToReload &&
+          this.state.lastSearchParams &&
+          this.state.lastSearchParams.filter !== SelectListFilter.All
+        }
+        onSearch={this.fetchProjects}
         onSelect={this.handleSelect}
         onUnselect={this.handleUnselect}
         readOnly={!this.props.canEdit}
         renderElement={this.renderElement}
         selectedElements={this.state.selectedProjects}
+        withPaging={true}
       />
     );
   }

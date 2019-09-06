@@ -18,12 +18,12 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import DeliveryItem from './DeliveryItem';
-import AlertErrorIcon from '../../../components/icons-components/AlertErrorIcon';
-import AlertSuccessIcon from '../../../components/icons-components/AlertSuccessIcon';
-import DateTimeFormatter from '../../../components/intl/DateTimeFormatter';
-import BoxedGroupAccordion from '../../../components/controls/BoxedGroupAccordion';
+import BoxedGroupAccordion from 'sonar-ui-common/components/controls/BoxedGroupAccordion';
+import AlertErrorIcon from 'sonar-ui-common/components/icons/AlertErrorIcon';
+import AlertSuccessIcon from 'sonar-ui-common/components/icons/AlertSuccessIcon';
 import { getDelivery } from '../../../api/webhooks';
+import DateTimeFormatter from '../../../components/intl/DateTimeFormatter';
+import DeliveryItem from './DeliveryItem';
 
 interface Props {
   delivery: T.WebhookDelivery;

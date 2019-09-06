@@ -22,18 +22,28 @@ package org.sonar.process;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
+import org.sonar.core.extension.CoreExtension;
+import org.sonar.core.extension.ServiceLoaderWrapper;
+
+import static java.lang.String.format;
+
+import static com.google.common.base.Preconditions.checkState;
 
 /**
  * Constants shared by search, web server and app processes.
  * They are almost all the properties defined in conf/sonar.properties.
  */
 public class ProcessProperties {
+
+  private final ServiceLoaderWrapper serviceLoaderWrapper;
 
   public enum Property {
     JDBC_URL("sonar.jdbc.url"),
@@ -57,7 +67,7 @@ public class ProcessProperties {
     SEARCH_HOST("sonar.search.host", InetAddress.getLoopbackAddress().getHostAddress()),
     SEARCH_PORT("sonar.search.port", "9001"),
     SEARCH_HTTP_PORT("sonar.search.httpPort"),
-    SEARCH_JAVA_OPTS("sonar.search.javaOpts", "-Xms512m -Xmx512m -XX:+HeapDumpOnOutOfMemoryError"),
+    SEARCH_JAVA_OPTS("sonar.search.javaOpts", "-Xmx512m -Xms512m -XX:+HeapDumpOnOutOfMemoryError"),
     SEARCH_JAVA_ADDITIONAL_OPTS("sonar.search.javaAdditionalOpts", ""),
     SEARCH_REPLICAS("sonar.search.replicas"),
     SEARCH_MINIMUM_MASTER_NODES("sonar.search.minimumMasterNodes"),
@@ -66,9 +76,11 @@ public class ProcessProperties {
     WEB_JAVA_OPTS("sonar.web.javaOpts", "-Xmx512m -Xms128m -XX:+HeapDumpOnOutOfMemoryError"),
     WEB_JAVA_ADDITIONAL_OPTS("sonar.web.javaAdditionalOpts", ""),
     WEB_PORT("sonar.web.port"),
+    WEB_GRACEFUL_STOP_TIMEOUT("sonar.web.gracefulStopTimeOutInMs", "" + 4 * 60 * 1_000L),
 
     CE_JAVA_OPTS("sonar.ce.javaOpts", "-Xmx512m -Xms128m -XX:+HeapDumpOnOutOfMemoryError"),
     CE_JAVA_ADDITIONAL_OPTS("sonar.ce.javaAdditionalOpts", ""),
+    CE_GRACEFUL_STOP_TIMEOUT("sonar.ce.gracefulStopTimeOutInMs", "" + 6 * 60 * 60 * 1_000L),
 
     HTTP_PROXY_HOST("http.proxyHost"),
     HTTPS_PROXY_HOST("https.proxyHost"),
@@ -76,7 +88,7 @@ public class ProcessProperties {
     HTTPS_PROXY_PORT("https.proxyPort"),
     HTTP_PROXY_USER("http.proxyUser"),
     HTTP_PROXY_PASSWORD("http.proxyPassword"),
-    HTTP_NON_PROXY_HOSTS("http.nonProxyHosts"),
+    HTTP_NON_PROXY_HOSTS("http.nonProxyHosts", "localhost|127.*|[::1]"),
     HTTP_AUTH_NLM_DOMAN("http.auth.ntlm.domain"),
     SOCKS_PROXY_HOST("socksProxyHost"),
     SOCKS_PROXY_PORT("socksProxyPort"),
@@ -110,11 +122,8 @@ public class ProcessProperties {
     SONARCLOUD_ENABLED("sonar.sonarcloud.enabled", "false"),
     SONARCLOUD_HOMEPAGE_URL("sonar.homepage.url", ""),
     SONAR_PRISMIC_ACCESS_TOKEN("sonar.prismic.accessToken", ""),
-    SONAR_ANALYTICS_TRACKING_ID("sonar.analytics.trackingId", ""),
+    SONAR_ANALYTICS_GTM_TRACKING_ID("sonar.analytics.gtm.trackingId", ""),
     ONBOARDING_TUTORIAL_SHOW_TO_NEW_USERS("sonar.onboardingTutorial.showToNewUsers", "true"),
-
-    BITBUCKETCLOUD_APP_KEY("sonar.bitbucketcloud.appKey", "sonarcloud"),
-    BITBUCKETCLOUD_ENDPOINT("sonar.bitbucketcloud.endpoint", "https://api.bitbucket.org"),
 
     /**
      * Used by Orchestrator to ask for shutdown of monitor process
@@ -150,11 +159,11 @@ public class ProcessProperties {
     }
   }
 
-  private ProcessProperties() {
-    // only static stuff
+  public ProcessProperties(ServiceLoaderWrapper serviceLoaderWrapper) {
+    this.serviceLoaderWrapper = serviceLoaderWrapper;
   }
 
-  public static void completeDefaults(Props props) {
+  public void completeDefaults(Props props) {
     // init string properties
     for (Map.Entry<Object, Object> entry : defaults().entrySet()) {
       props.setDefault(entry.getKey().toString(), entry.getValue().toString());
@@ -163,12 +172,28 @@ public class ProcessProperties {
     fixPortIfZero(props, Property.SEARCH_HOST.getKey(), Property.SEARCH_PORT.getKey());
   }
 
-  public static Properties defaults() {
+  private Properties defaults() {
     Properties defaults = new Properties();
     defaults.putAll(Arrays.stream(Property.values())
       .filter(Property::hasDefaultValue)
       .collect(Collectors.toMap(Property::getKey, Property::getDefaultValue)));
+    defaults.putAll(loadDefaultsFromExtensions());
     return defaults;
+  }
+
+  private Map<String, String> loadDefaultsFromExtensions() {
+    Map<String, String> propertyDefaults = new HashMap<>();
+    Set<CoreExtension> extensions = serviceLoaderWrapper.load();
+    for (CoreExtension ext : extensions) {
+      for (Map.Entry<String, String> property : ext.getExtensionProperties().entrySet()) {
+        if (propertyDefaults.put(property.getKey(), property.getValue()) != null) {
+          throw new IllegalStateException(format("Configuration error: property definition named '%s' found in multiple extensions.",
+            property.getKey()));
+        }
+      }
+    }
+
+    return propertyDefaults;
   }
 
   private static void fixPortIfZero(Props props, String addressPropertyKey, String portPropertyKey) {
@@ -181,5 +206,11 @@ public class ProcessProperties {
         throw new IllegalStateException("Cannot resolve address [" + address + "] set by property [" + addressPropertyKey + "]", e);
       }
     }
+  }
+
+  public static long parseTimeoutMs(Property property, String value) {
+    long l = Long.parseLong(value);
+    checkState(l >= 1, "value of %s must be >= 1", property);
+    return l;
   }
 }

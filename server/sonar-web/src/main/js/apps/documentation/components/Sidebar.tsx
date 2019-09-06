@@ -17,14 +17,15 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
+import { DocNavigationItem } from 'Docs/@types/types';
 import * as React from 'react';
+import SearchBox from 'sonar-ui-common/components/controls/SearchBox';
+import { DocumentationEntry } from '../utils';
 import Menu from './Menu';
 import SearchResults from './SearchResults';
-import { DocumentationEntry, DocsNavigationItem } from '../utils';
-import SearchBox from '../../../components/controls/SearchBox';
 
 interface Props {
-  navigation: DocsNavigationItem[];
+  navigation: DocNavigationItem[];
   pages: DocumentationEntry[];
   splat: string;
 }

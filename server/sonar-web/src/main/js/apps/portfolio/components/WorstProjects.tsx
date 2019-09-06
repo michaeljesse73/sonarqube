@@ -17,15 +17,16 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
+import { max } from 'lodash';
 import * as React from 'react';
 import { Link } from 'react-router';
-import { max } from 'lodash';
-import { SubComponent } from '../types';
+import QualifierIcon from 'sonar-ui-common/components/icons/QualifierIcon';
+import { translate, translateWithParameters } from 'sonar-ui-common/helpers/l10n';
+import { formatMeasure } from 'sonar-ui-common/helpers/measures';
+import { colors } from '../../../app/theme';
 import Measure from '../../../components/measure/Measure';
-import QualifierIcon from '../../../components/icons-components/QualifierIcon';
-import { translate, translateWithParameters } from '../../../helpers/l10n';
-import { formatMeasure } from '../../../helpers/measures';
 import { getProjectUrl } from '../../../helpers/urls';
+import { SubComponent } from '../types';
 
 interface Props {
   component: string;
@@ -59,7 +60,10 @@ export default function WorstProjects({ component, subComponents, total }: Props
               {translate('metric_domain.Reliability')}
             </th>
             <th className="text-center portfolio-sub-components-cell">
-              {translate('metric_domain.Security')}
+              {translate('portfolio.metric_domain.vulnerabilities')}
+            </th>
+            <th className="text-center portfolio-sub-components-cell">
+              {translate('portfolio.metric_domain.security_hotspots')}
             </th>
             <th className="text-center portfolio-sub-components-cell">
               {translate('metric_domain.Maintainability')}
@@ -84,6 +88,7 @@ export default function WorstProjects({ component, subComponents, total }: Props
                 : renderCell(component.measures, 'releasability_rating', 'RATING')}
               {renderCell(component.measures, 'reliability_rating', 'RATING')}
               {renderCell(component.measures, 'security_rating', 'RATING')}
+              {renderCell(component.measures, 'security_review_rating', 'RATING')}
               {renderCell(component.measures, 'sqale_rating', 'RATING')}
               {renderNcloc(component.measures, maxLoc)}
             </tr>
@@ -125,7 +130,14 @@ function renderNcloc(measures: T.Dict<string | undefined>, maxLoc: number) {
       </span>
       {maxLoc > 0 && (
         <svg className="spacer-left" height="16" width="50">
-          <rect className="bar-chart-bar" height="10" width={barWidth} x="0" y="3" />
+          <rect
+            className="bar-chart-bar"
+            fill={colors.blue}
+            height="10"
+            width={barWidth}
+            x="0"
+            y="3"
+          />
         </svg>
       )}
     </td>

@@ -19,48 +19,48 @@
  */
 package org.sonar.ce.task.projectanalysis.step;
 
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import javax.annotation.CheckForNull;
 import org.sonar.api.issue.Issue;
+import org.sonar.api.notifications.Notification;
 import org.sonar.api.rules.RuleType;
 import org.sonar.api.utils.Duration;
 import org.sonar.ce.task.projectanalysis.analysis.AnalysisMetadataHolder;
 import org.sonar.ce.task.projectanalysis.analysis.Branch;
 import org.sonar.ce.task.projectanalysis.component.Component;
-import org.sonar.ce.task.projectanalysis.component.CrawlerDepthLimit;
-import org.sonar.ce.task.projectanalysis.component.DepthTraversalTypeAwareCrawler;
 import org.sonar.ce.task.projectanalysis.component.TreeRootHolder;
-import org.sonar.ce.task.projectanalysis.component.TypeAwareVisitorAdapter;
 import org.sonar.ce.task.projectanalysis.issue.IssueCache;
-import org.sonar.ce.task.projectanalysis.issue.RuleRepository;
+import org.sonar.ce.task.projectanalysis.notification.NotificationFactory;
 import org.sonar.ce.task.step.ComputationStep;
 import org.sonar.core.issue.DefaultIssue;
 import org.sonar.core.util.CloseableIterator;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
+import org.sonar.db.component.BranchType;
 import org.sonar.db.user.UserDto;
-import org.sonar.server.issue.notification.IssueChangeNotification;
+import org.sonar.server.issue.notification.IssuesChangesNotification;
 import org.sonar.server.issue.notification.MyNewIssuesNotification;
 import org.sonar.server.issue.notification.NewIssuesNotification;
-import org.sonar.server.issue.notification.NewIssuesNotificationFactory;
 import org.sonar.server.issue.notification.NewIssuesStatistics;
 import org.sonar.server.notification.NotificationService;
 
+import static java.util.Collections.singleton;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 import static java.util.stream.StreamSupport.stream;
-import static org.sonar.ce.task.projectanalysis.component.ComponentVisitor.Order.POST_ORDER;
+import static org.sonar.core.util.stream.MoreCollectors.toSet;
 import static org.sonar.db.component.BranchType.PULL_REQUEST;
+import static org.sonar.db.component.BranchType.SHORT;
 
 /**
  * Reads issues from disk cache and send related notifications. For performance reasons,
@@ -71,35 +71,36 @@ public class SendIssueNotificationsStep implements ComputationStep {
   /**
    * Types of the notifications sent by this step
    */
-  static final Set<String> NOTIF_TYPES = ImmutableSet.of(IssueChangeNotification.TYPE, NewIssuesNotification.TYPE, MyNewIssuesNotification.MY_NEW_ISSUES_NOTIF_TYPE);
+  static final Set<Class<? extends Notification>> NOTIF_TYPES = ImmutableSet.of(NewIssuesNotification.class, MyNewIssuesNotification.class, IssuesChangesNotification.class);
 
   private final IssueCache issueCache;
-  private final RuleRepository rules;
   private final TreeRootHolder treeRootHolder;
   private final NotificationService service;
   private final AnalysisMetadataHolder analysisMetadataHolder;
-  private final NewIssuesNotificationFactory newIssuesNotificationFactory;
+  private final NotificationFactory notificationFactory;
   private final DbClient dbClient;
 
-  private Map<String, Component> componentsByDbKey;
-
-  public SendIssueNotificationsStep(IssueCache issueCache, RuleRepository rules, TreeRootHolder treeRootHolder,
+  public SendIssueNotificationsStep(IssueCache issueCache, TreeRootHolder treeRootHolder,
     NotificationService service, AnalysisMetadataHolder analysisMetadataHolder,
-    NewIssuesNotificationFactory newIssuesNotificationFactory, DbClient dbClient) {
+    NotificationFactory notificationFactory, DbClient dbClient) {
     this.issueCache = issueCache;
-    this.rules = rules;
     this.treeRootHolder = treeRootHolder;
     this.service = service;
     this.analysisMetadataHolder = analysisMetadataHolder;
-    this.newIssuesNotificationFactory = newIssuesNotificationFactory;
+    this.notificationFactory = notificationFactory;
     this.dbClient = dbClient;
   }
 
   @Override
   public void execute(ComputationStep.Context context) {
+    BranchType branchType = analysisMetadataHolder.getBranch().getType();
+    if (branchType == PULL_REQUEST || branchType == SHORT) {
+      return;
+    }
+
     Component project = treeRootHolder.getRoot();
     NotificationStatistics notificationStatistics = new NotificationStatistics();
-    if (service.hasProjectSubscribersForTypes(project.getUuid(), NOTIF_TYPES)) {
+    if (service.hasProjectSubscribersForTypes(analysisMetadataHolder.getProject().getUuid(), NOTIF_TYPES)) {
       doExecute(notificationStatistics, project);
     }
     notificationStatistics.dumpTo(context);
@@ -107,21 +108,21 @@ public class SendIssueNotificationsStep implements ComputationStep {
 
   private void doExecute(NotificationStatistics notificationStatistics, Component project) {
     long analysisDate = analysisMetadataHolder.getAnalysisDate();
-    Predicate<DefaultIssue> isOnLeakPredicate = i -> i.isNew() && i.creationDate().getTime() >= truncateToSeconds(analysisDate);
-    NewIssuesStatistics newIssuesStats = new NewIssuesStatistics(isOnLeakPredicate);
-    Map<String, UserDto> usersDtoByUuids;
+    Predicate<DefaultIssue> onCurrentAnalysis = i -> i.isNew() && i.creationDate().getTime() >= truncateToSeconds(analysisDate);
+    NewIssuesStatistics newIssuesStats = new NewIssuesStatistics(onCurrentAnalysis);
+    Map<String, UserDto> assigneesByUuid;
     try (DbSession dbSession = dbClient.openSession(false)) {
       Iterable<DefaultIssue> iterable = issueCache::traverse;
-      List<String> assigneeUuids = stream(iterable.spliterator(), false).map(DefaultIssue::assignee).filter(Objects::nonNull).collect(toList());
-      usersDtoByUuids = dbClient.userDao().selectByUuids(dbSession, assigneeUuids).stream().collect(toMap(UserDto::getUuid, dto -> dto));
+      Set<String> assigneeUuids = stream(iterable.spliterator(), false).map(DefaultIssue::assignee).filter(Objects::nonNull).collect(Collectors.toSet());
+      assigneesByUuid = dbClient.userDao().selectByUuids(dbSession, assigneeUuids).stream().collect(toMap(UserDto::getUuid, dto -> dto));
     }
 
     try (CloseableIterator<DefaultIssue> issues = issueCache.traverse()) {
-      processIssues(newIssuesStats, issues, project, usersDtoByUuids, notificationStatistics);
+      processIssues(newIssuesStats, issues, assigneesByUuid, notificationStatistics);
     }
-    if (newIssuesStats.hasIssuesOnLeak()) {
-      sendNewIssuesNotification(newIssuesStats, project, analysisDate, notificationStatistics);
-      sendMyNewIssuesNotification(newIssuesStats, project, analysisDate, notificationStatistics);
+    if (newIssuesStats.hasIssuesOnCurrentAnalysis()) {
+      sendNewIssuesNotification(newIssuesStats, project, assigneesByUuid, analysisDate, notificationStatistics);
+      sendMyNewIssuesNotification(newIssuesStats, project, assigneesByUuid, analysisDate, notificationStatistics);
     }
   }
 
@@ -135,89 +136,96 @@ public class SendIssueNotificationsStep implements ComputationStep {
     return Date.from(instant).getTime();
   }
 
-  private void processIssues(NewIssuesStatistics newIssuesStats, CloseableIterator<DefaultIssue> issues, Component project, Map<String, UserDto> usersDtoByUuids,
-    NotificationStatistics notificationStatistics) {
+  private void processIssues(NewIssuesStatistics newIssuesStats, CloseableIterator<DefaultIssue> issues,
+    Map<String, UserDto> assigneesByUuid, NotificationStatistics notificationStatistics) {
+    int batchSize = 1000;
+    Set<DefaultIssue> changedIssuesToNotify = new HashSet<>(batchSize);
     while (issues.hasNext()) {
       DefaultIssue issue = issues.next();
       if (issue.type() != RuleType.SECURITY_HOTSPOT) {
         if (issue.isNew() && issue.resolution() == null) {
           newIssuesStats.add(issue);
         } else if (issue.isChanged() && issue.mustSendNotifications()) {
-          sendIssueChangeNotification(issue, project, usersDtoByUuids, notificationStatistics);
+          changedIssuesToNotify.add(issue);
         }
       }
+
+      if (changedIssuesToNotify.size() >= batchSize) {
+        sendIssuesChangesNotification(changedIssuesToNotify, assigneesByUuid, notificationStatistics);
+        changedIssuesToNotify.clear();
+      }
+    }
+
+    if (!changedIssuesToNotify.isEmpty()) {
+      sendIssuesChangesNotification(changedIssuesToNotify, assigneesByUuid, notificationStatistics);
     }
   }
 
-  private void sendIssueChangeNotification(DefaultIssue issue, Component project, Map<String, UserDto> usersDtoByUuids, NotificationStatistics notificationStatistics) {
-    IssueChangeNotification changeNotification = new IssueChangeNotification();
-    changeNotification.setRuleName(rules.getByKey(issue.ruleKey()).getName());
-    changeNotification.setIssue(issue);
-    changeNotification.setAssignee(usersDtoByUuids.get(issue.assignee()));
-    changeNotification.setProject(project.getKey(), project.getName(), getBranchName(), getPullRequest());
-    getComponentKey(issue).ifPresent(c -> changeNotification.setComponent(c.getKey(), c.getName()));
-    notificationStatistics.issueChangesDeliveries += service.deliver(changeNotification);
+  private void sendIssuesChangesNotification(Set<DefaultIssue> issues, Map<String, UserDto> assigneesByUuid, NotificationStatistics notificationStatistics) {
+    IssuesChangesNotification notification = notificationFactory.newIssuesChangesNotification(issues, assigneesByUuid);
+
+    notificationStatistics.issueChangesDeliveries += service.deliverEmails(singleton(notification));
     notificationStatistics.issueChanges++;
+
+    // compatibility with old API
+    notificationStatistics.issueChangesDeliveries += service.deliver(notification);
   }
 
-  private void sendNewIssuesNotification(NewIssuesStatistics statistics, Component project, long analysisDate, NotificationStatistics notificationStatistics) {
+  private void sendNewIssuesNotification(NewIssuesStatistics statistics, Component project, Map<String, UserDto> assigneesByUuid,
+    long analysisDate, NotificationStatistics notificationStatistics) {
     NewIssuesStatistics.Stats globalStatistics = statistics.globalStatistics();
-    NewIssuesNotification notification = newIssuesNotificationFactory
-      .newNewIssuesNotification()
+    NewIssuesNotification notification = notificationFactory
+      .newNewIssuesNotification(assigneesByUuid)
       .setProject(project.getKey(), project.getName(), getBranchName(), getPullRequest())
       .setProjectVersion(project.getProjectAttributes().getProjectVersion())
       .setAnalysisDate(new Date(analysisDate))
       .setStatistics(project.getName(), globalStatistics)
-      .setDebt(Duration.create(globalStatistics.effort().getOnLeak()));
-    notificationStatistics.newIssuesDeliveries += service.deliver(notification);
+      .setDebt(Duration.create(globalStatistics.effort().getOnCurrentAnalysis()));
+    notificationStatistics.newIssuesDeliveries += service.deliverEmails(singleton(notification));
     notificationStatistics.newIssues++;
+
+    // compatibility with old API
+    notificationStatistics.newIssuesDeliveries += service.deliver(notification);
   }
 
-  private void sendMyNewIssuesNotification(NewIssuesStatistics statistics, Component project, long analysisDate, NotificationStatistics notificationStatistics) {
+  private void sendMyNewIssuesNotification(NewIssuesStatistics statistics, Component project, Map<String, UserDto> assigneesByUuid, long analysisDate,
+    NotificationStatistics notificationStatistics) {
     Map<String, UserDto> userDtoByUuid = loadUserDtoByUuid(statistics);
-    statistics.getAssigneesStatistics().entrySet()
+    Set<MyNewIssuesNotification> myNewIssuesNotifications = statistics.getAssigneesStatistics().entrySet()
       .stream()
-      .filter(e -> e.getValue().hasIssuesOnLeak())
-      .forEach(e -> {
+      .filter(e -> e.getValue().hasIssuesOnCurrentAnalysis())
+      .map(e -> {
         String assigneeUuid = e.getKey();
         NewIssuesStatistics.Stats assigneeStatistics = e.getValue();
-        MyNewIssuesNotification myNewIssuesNotification = newIssuesNotificationFactory
-          .newMyNewIssuesNotification()
+        MyNewIssuesNotification myNewIssuesNotification = notificationFactory
+          .newMyNewIssuesNotification(assigneesByUuid)
           .setAssignee(userDtoByUuid.get(assigneeUuid));
         myNewIssuesNotification
           .setProject(project.getKey(), project.getName(), getBranchName(), getPullRequest())
           .setProjectVersion(project.getProjectAttributes().getProjectVersion())
           .setAnalysisDate(new Date(analysisDate))
           .setStatistics(project.getName(), assigneeStatistics)
-          .setDebt(Duration.create(assigneeStatistics.effort().getOnLeak()));
+          .setDebt(Duration.create(assigneeStatistics.effort().getOnCurrentAnalysis()));
 
-        notificationStatistics.myNewIssuesDeliveries += service.deliver(myNewIssuesNotification);
-        notificationStatistics.myNewIssues++;
-      });
+        return myNewIssuesNotification;
+      })
+      .collect(toSet(statistics.getAssigneesStatistics().size()));
+
+    notificationStatistics.myNewIssuesDeliveries += service.deliverEmails(myNewIssuesNotifications);
+    notificationStatistics.myNewIssues += myNewIssuesNotifications.size();
+
+    // compatibility with old API
+    myNewIssuesNotifications
+      .forEach(e -> notificationStatistics.myNewIssuesDeliveries += service.deliver(e));
   }
 
   private Map<String, UserDto> loadUserDtoByUuid(NewIssuesStatistics statistics) {
     List<Map.Entry<String, NewIssuesStatistics.Stats>> entriesWithIssuesOnLeak = statistics.getAssigneesStatistics().entrySet()
-      .stream().filter(e -> e.getValue().hasIssuesOnLeak()).collect(toList());
+      .stream().filter(e -> e.getValue().hasIssuesOnCurrentAnalysis()).collect(toList());
     List<String> assigneeUuids = entriesWithIssuesOnLeak.stream().map(Map.Entry::getKey).collect(toList());
     try (DbSession dbSession = dbClient.openSession(false)) {
       return dbClient.userDao().selectByUuids(dbSession, assigneeUuids).stream().collect(toMap(UserDto::getUuid, u -> u));
     }
-  }
-
-  private Optional<Component> getComponentKey(DefaultIssue issue) {
-    if (componentsByDbKey == null) {
-      final ImmutableMap.Builder<String, Component> builder = ImmutableMap.builder();
-      new DepthTraversalTypeAwareCrawler(
-        new TypeAwareVisitorAdapter(CrawlerDepthLimit.LEAVES, POST_ORDER) {
-          @Override
-          public void visitAny(Component component) {
-            builder.put(component.getDbKey(), component);
-          }
-        }).visit(this.treeRootHolder.getRoot());
-      this.componentsByDbKey = builder.build();
-    }
-    return Optional.ofNullable(componentsByDbKey.get(issue.componentKey()));
   }
 
   @Override

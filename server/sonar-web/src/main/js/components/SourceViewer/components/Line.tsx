@@ -17,24 +17,23 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import * as classNames from 'classnames';
 import { times } from 'lodash';
+import * as React from 'react';
+import './Line.css';
+import LineCode from './LineCode';
+import LineCoverage from './LineCoverage';
+import LineDuplicationBlock from './LineDuplicationBlock';
+import LineDuplications from './LineDuplications';
+import LineIssuesIndicator from './LineIssuesIndicator';
 import LineNumber from './LineNumber';
 import LineSCM from './LineSCM';
-import LineCoverage from './LineCoverage';
-import LineDuplications from './LineDuplications';
-import LineDuplicationBlock from './LineDuplicationBlock';
-import LineIssuesIndicator from './LineIssuesIndicator';
-import LineCode from './LineCode';
 
 interface Props {
   branchLike: T.BranchLike | undefined;
   displayAllIssues?: boolean;
   displayCoverage: boolean;
   displayDuplications: boolean;
-  displayIssueLocationsCount?: boolean;
-  displayIssueLocationsLink?: boolean;
   displayIssues: boolean;
   displayLocationMarkers?: boolean;
   duplications: number[];
@@ -47,9 +46,9 @@ interface Props {
   issues: T.Issue[];
   last: boolean;
   line: T.SourceLine;
-  linePopup: { index?: number; line: number; name: string } | undefined;
+  linePopup: T.LinePopup | undefined;
   loadDuplications: (line: T.SourceLine) => void;
-  onLinePopupToggle: (x: { index?: number; line: number; name: string; open?: boolean }) => void;
+  onLinePopupToggle: (linePopup: T.LinePopup) => void;
   onIssueChange: (issue: T.Issue) => void;
   onIssuePopupToggle: (issueKey: string, popupName: string, open?: boolean) => void;
   onIssuesClose: (line: T.SourceLine) => void;
@@ -60,17 +59,14 @@ interface Props {
   onSymbolClick: (symbols: string[]) => void;
   openIssues: boolean;
   previousLine: T.SourceLine | undefined;
-  renderDuplicationPopup: (index: number, line: number) => JSX.Element;
+  renderDuplicationPopup: (index: number, line: number) => React.ReactNode;
   scroll?: (element: HTMLElement) => void;
-  secondaryIssueLocations: Array<{
-    from: number;
-    to: number;
-    line: number;
-    index: number;
-    startLine: number;
-  }>;
+  secondaryIssueLocations: T.LinearIssueLocation[];
   selectedIssue: string | undefined;
+  verticalBuffer?: number;
 }
+
+const LINE_HEIGHT = 18;
 
 export default class Line extends React.PureComponent<Props> {
   isPopupOpen = (name: string, index?: number) => {
@@ -105,8 +101,12 @@ export default class Line extends React.PureComponent<Props> {
       'source-line-filtered-dark':
         displayCoverage &&
         (line.coverageStatus === 'uncovered' || line.coverageStatus === 'partially-covered'),
-      'source-line-last': this.props.last
+      'source-line-last': this.props.last === true
     });
+
+    const bottomPadding = this.props.verticalBuffer
+      ? this.props.verticalBuffer * LINE_HEIGHT
+      : undefined;
 
     return (
       <tr className={className} data-line-number={line.line}>
@@ -123,7 +123,15 @@ export default class Line extends React.PureComponent<Props> {
           previousLine={this.props.previousLine}
         />
 
-        {this.props.displayCoverage && <LineCoverage line={line} />}
+        {this.props.displayIssues && !this.props.displayAllIssues ? (
+          <LineIssuesIndicator
+            issues={this.props.issues}
+            line={line}
+            onClick={this.handleIssuesIndicatorClick}
+          />
+        ) : (
+          <td className="source-meta source-line-issues" />
+        )}
 
         {this.props.displayDuplications && (
           <LineDuplications line={line} onClick={this.props.loadDuplications} />
@@ -141,18 +149,10 @@ export default class Line extends React.PureComponent<Props> {
           />
         ))}
 
-        {this.props.displayIssues && !this.props.displayAllIssues && (
-          <LineIssuesIndicator
-            issues={this.props.issues}
-            line={line}
-            onClick={this.handleIssuesIndicatorClick}
-          />
-        )}
+        {this.props.displayCoverage && <LineCoverage line={line} />}
 
         <LineCode
           branchLike={this.props.branchLike}
-          displayIssueLocationsCount={this.props.displayIssueLocationsCount}
-          displayIssueLocationsLink={this.props.displayIssueLocationsLink}
           displayLocationMarkers={this.props.displayLocationMarkers}
           highlightedLocationMessage={this.props.highlightedLocationMessage}
           highlightedSymbols={this.props.highlightedSymbols}
@@ -165,6 +165,7 @@ export default class Line extends React.PureComponent<Props> {
           onIssueSelect={this.props.onIssueSelect}
           onLocationSelect={this.props.onLocationSelect}
           onSymbolClick={this.props.onSymbolClick}
+          padding={bottomPadding}
           scroll={this.props.scroll}
           secondaryIssueLocations={this.props.secondaryIssueLocations}
           selectedIssue={this.props.selectedIssue}

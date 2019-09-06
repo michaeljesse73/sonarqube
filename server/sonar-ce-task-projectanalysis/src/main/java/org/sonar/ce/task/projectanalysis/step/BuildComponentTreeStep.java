@@ -113,7 +113,8 @@ public class BuildComponentTreeStep implements ComputationStep {
   private static ProjectAttributes createProjectAttributes(ScannerReport.Metadata metadata, @Nullable SnapshotDto baseAnalysis) {
     String projectVersion = computeProjectVersion(trimToNull(metadata.getProjectVersion()), baseAnalysis);
     String buildString = trimToNull(metadata.getBuildString());
-    return new ProjectAttributes(projectVersion, buildString);
+    String scmRevisionId = trimToNull(metadata.getScmRevisionId());
+    return new ProjectAttributes(projectVersion, buildString, scmRevisionId);
   }
 
   private static String computeProjectVersion(@Nullable String projectVersion, @Nullable SnapshotDto baseAnalysis) {
@@ -134,7 +135,7 @@ public class BuildComponentTreeStep implements ComputationStep {
     Branch branch = analysisMetadataHolder.getBranch();
 
     // for non-legacy branches, the public key is different from the DB key.
-    if (!branch.isLegacyFeature() && !branch.isMain()) {
+    if (!branch.isMain()) {
       return new DefaultBranchImpl();
     }
     return branch;

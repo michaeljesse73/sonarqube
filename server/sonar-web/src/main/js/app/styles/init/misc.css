@@ -17,25 +17,6 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-.vertical-top {
-  vertical-align: top !important;
-}
-
-.vertical-bottom {
-  vertical-align: bottom !important;
-}
-
-.vertical-middle {
-  vertical-align: middle !important;
-}
-
-.vertical-text-top {
-  vertical-align: text-top !important;
-}
-
-.vertical-baseline {
-  vertical-align: baseline !important;
-}
 
 .nowrap {
   white-space: nowrap !important;
@@ -47,6 +28,13 @@ th.nowrap {
   white-space: nowrap !important;
 }
 
+table.hide-overflow td,
+td.hide-overflow,
+th.hide-overflow {
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
 .hidden {
   display: none !important;
   visibility: hidden !important;
@@ -55,6 +43,14 @@ th.nowrap {
 .note {
   color: var(--secondFontColor);
   font-size: var(--smallFontSize);
+}
+
+.nudged-up {
+  margin-top: -1px;
+}
+
+.spacer {
+  margin: 8px !important;
 }
 
 .spacer-left {
@@ -73,6 +69,10 @@ th.nowrap {
   margin-top: 8px !important;
 }
 
+.big-spacer {
+  margin: 16px !important;
+}
+
 .big-spacer-left {
   margin-left: 16px !important;
 }
@@ -89,6 +89,10 @@ th.nowrap {
   margin-top: 16px !important;
 }
 
+.huge-spacer {
+  margin: 40px !important;
+}
+
 .huge-spacer-bottom {
   margin-bottom: 40px !important;
 }
@@ -103,6 +107,10 @@ th.nowrap {
 
 .huge-spacer-right {
   margin-right: 40px !important;
+}
+
+.little-spacer {
+  margin: 4px !important;
 }
 
 .little-spacer-left {
@@ -307,6 +315,11 @@ td.big-spacer-top {
   align-items: center;
 }
 
+.display-flex-justify-center {
+  display: flex !important;
+  justify-content: center;
+}
+
 .display-flex-space-around {
   display: flex !important;
   justify-content: space-around;
@@ -418,10 +431,6 @@ td.big-spacer-top {
 
 .cursor-not-allowed {
   cursor: not-allowed !important;
-}
-
-.no-select {
-  user-select: none !important;
 }
 
 .no-outline,

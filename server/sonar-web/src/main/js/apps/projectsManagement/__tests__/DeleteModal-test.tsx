@@ -17,16 +17,16 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-/* eslint-disable import/first, import/order */
+/* eslint-disable import/first */
 jest.mock('../../../api/components', () => ({
   bulkDeleteProjects: jest.fn(() => Promise.resolve())
 }));
 
-import * as React from 'react';
 import { shallow } from 'enzyme';
+import * as React from 'react';
+import { parseDate } from 'sonar-ui-common/helpers/dates';
+import { click } from 'sonar-ui-common/helpers/testUtils';
 import DeleteModal, { Props } from '../DeleteModal';
-import { click } from '../../../helpers/testUtils';
-import { parseDate } from '../../../helpers/dates';
 
 const bulkDeleteProjects = require('../../../api/components').bulkDeleteProjects as jest.Mock<any>;
 
@@ -40,7 +40,7 @@ it('deletes all projects', async () => {
   (wrapper.instance() as DeleteModal).mounted = true;
   expect(wrapper).toMatchSnapshot();
 
-  click(wrapper.find('Button'));
+  click(wrapper.find('SubmitButton'));
   expect(wrapper).toMatchSnapshot();
   expect(bulkDeleteProjects).toBeCalledWith({
     analyzedBefore: '2017-04-08T00:00:00+0000',
@@ -60,7 +60,7 @@ it('deletes selected projects', async () => {
   (wrapper.instance() as DeleteModal).mounted = true;
   expect(wrapper).toMatchSnapshot();
 
-  click(wrapper.find('Button'));
+  click(wrapper.find('SubmitButton'));
   expect(wrapper).toMatchSnapshot();
   expect(bulkDeleteProjects).toBeCalledWith({ organization: 'org', projects: 'proj1,proj2' });
 
@@ -71,7 +71,7 @@ it('deletes selected projects', async () => {
 it('closes', () => {
   const onClose = jest.fn();
   const wrapper = shallowRender({ onClose });
-  click(wrapper.find('.js-modal-close'));
+  click(wrapper.find('ResetButtonLink'));
   expect(onClose).toBeCalled();
 });
 

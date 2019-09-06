@@ -17,10 +17,10 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import * as classNames from 'classnames';
-import SeverityIcon from '../../icons-components/SeverityIcon';
-import { sortBySeverity } from '../../../helpers/issues';
+import * as React from 'react';
+import IssueIcon from 'sonar-ui-common/components/icons/IssueIcon';
+import { sortByType } from '../../../helpers/issues';
 
 interface Props {
   issues: T.Issue[];
@@ -40,7 +40,7 @@ export default class LineIssuesIndicator extends React.PureComponent<Props> {
     const className = classNames('source-meta', 'source-line-issues', {
       'source-line-with-issues': hasIssues
     });
-    const mostImportantIssue = hasIssues ? sortBySeverity(issues)[0] : null;
+    const mostImportantIssue = hasIssues ? sortByType(issues)[0] : null;
 
     return (
       <td
@@ -49,7 +49,7 @@ export default class LineIssuesIndicator extends React.PureComponent<Props> {
         onClick={hasIssues ? this.handleClick : undefined}
         role={hasIssues ? 'button' : undefined}
         tabIndex={hasIssues ? 0 : undefined}>
-        {mostImportantIssue != null && <SeverityIcon severity={mostImportantIssue.severity} />}
+        {mostImportantIssue != null && <IssueIcon type={mostImportantIssue.type} />}
         {issues.length > 1 && <span className="source-line-issues-counter">{issues.length}</span>}
       </td>
     );

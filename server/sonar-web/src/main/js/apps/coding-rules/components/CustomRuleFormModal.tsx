@@ -18,18 +18,18 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import Modal from '../../../components/controls/Modal';
-import { translate } from '../../../helpers/l10n';
-import MarkdownTips from '../../../components/common/MarkdownTips';
-import { SEVERITIES, RULE_TYPES, RULE_STATUSES } from '../../../helpers/constants';
-import Select from '../../../components/controls/Select';
-import TypeHelper from '../../../components/shared/TypeHelper';
-import SeverityHelper from '../../../components/shared/SeverityHelper';
+import { ResetButtonLink, SubmitButton } from 'sonar-ui-common/components/controls/buttons';
+import Modal from 'sonar-ui-common/components/controls/Modal';
+import Select from 'sonar-ui-common/components/controls/Select';
+import { Alert } from 'sonar-ui-common/components/ui/Alert';
+import { csvEscape } from 'sonar-ui-common/helpers/csv';
+import { translate } from 'sonar-ui-common/helpers/l10n';
+import { latinize } from 'sonar-ui-common/helpers/strings';
 import { createRule, updateRule } from '../../../api/rules';
-import { csvEscape } from '../../../helpers/csv';
-import { latinize } from '../../../helpers/strings';
-import { SubmitButton, ResetButtonLink } from '../../../components/ui/buttons';
-import { Alert } from '../../../components/ui/Alert';
+import MarkdownTips from '../../../components/common/MarkdownTips';
+import SeverityHelper from '../../../components/shared/SeverityHelper';
+import TypeHelper from '../../../components/shared/TypeHelper';
+import { RULE_STATUSES, RULE_TYPES, SEVERITIES } from '../../../helpers/constants';
 
 interface Props {
   customRule?: T.RuleDetails;
@@ -304,38 +304,23 @@ export default class CustomRuleFormModal extends React.PureComponent<Props, Stat
       )}
       <div
         className="modal-field-description"
+        // Safe: defined by rule creator (instance admin?)
         dangerouslySetInnerHTML={{ __html: param.htmlDesc || '' }}
       />
     </div>
   );
 
-  renderSubmitButton = () => {
-    if (this.state.reactivating) {
-      return (
-        <SubmitButton
-          disabled={this.state.submitting}
-          id="coding-rules-custom-rule-creation-reactivate">
-          {translate('coding_rules.reactivate')}
-        </SubmitButton>
-      );
-    } else {
-      return (
-        <SubmitButton
-          disabled={this.state.submitting}
-          id="coding-rules-custom-rule-creation-create">
-          {translate(this.props.customRule ? 'save' : 'create')}
-        </SubmitButton>
-      );
-    }
-  };
-
   render() {
     const { customRule, templateRule } = this.props;
     const { reactivating, submitting } = this.state;
     const { params = [] } = templateRule;
-    const header = translate(
-      customRule ? 'coding_rules.update_custom_rule' : 'coding_rules.create_custom_rule'
-    );
+    const header = customRule
+      ? translate('coding_rules.update_custom_rule')
+      : translate('coding_rules.create_custom_rule');
+    let submit = this.props.customRule ? translate('save') : translate('create');
+    if (this.state.reactivating) {
+      submit = translate('coding_rules.reactivate');
+    }
     return (
       <Modal contentLabel={header} onRequestClose={this.props.onClose}>
         <form onSubmit={this.handleFormSubmit}>
@@ -362,7 +347,7 @@ export default class CustomRuleFormModal extends React.PureComponent<Props, Stat
 
           <div className="modal-foot">
             {submitting && <i className="spinner spacer-right" />}
-            {this.renderSubmitButton()}
+            <SubmitButton disabled={this.state.submitting}>{submit}</SubmitButton>
             <ResetButtonLink
               disabled={submitting}
               id="coding-rules-custom-rule-creation-cancel"

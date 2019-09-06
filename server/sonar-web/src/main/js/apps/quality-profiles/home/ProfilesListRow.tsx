@@ -19,16 +19,15 @@
  */
 import * as React from 'react';
 import { Link } from 'react-router';
-import ProfileLink from '../components/ProfileLink';
-import ProfileDate from '../components/ProfileDate';
-import ProfileActions from '../components/ProfileActions';
-import BuiltInQualityProfileBadge from '../components/BuiltInQualityProfileBadge';
-import { translate } from '../../../helpers/l10n';
-import { getRulesUrl } from '../../../helpers/urls';
-import { isStagnant } from '../utils';
-import { Profile } from '../types';
-import Tooltip from '../../../components/controls/Tooltip';
+import Tooltip from 'sonar-ui-common/components/controls/Tooltip';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import DocTooltip from '../../../components/docs/DocTooltip';
+import { getRulesUrl } from '../../../helpers/urls';
+import BuiltInQualityProfileBadge from '../components/BuiltInQualityProfileBadge';
+import ProfileActions from '../components/ProfileActions';
+import ProfileDate from '../components/ProfileDate';
+import ProfileLink from '../components/ProfileLink';
+import { Profile } from '../types';
 
 interface Props {
   organization: string | null;
@@ -95,7 +94,7 @@ export default class ProfilesListRow extends React.PureComponent<Props> {
         {profile.activeDeprecatedRuleCount > 0 && (
           <span className="spacer-right">
             <Tooltip overlay={translate('quality_profiles.deprecated_rules')}>
-              <Link className="badge badge-normal-size badge-danger-light" to={deprecatedRulesUrl}>
+              <Link className="badge badge-error" to={deprecatedRulesUrl}>
                 {profile.activeDeprecatedRuleCount}
               </Link>
             </Tooltip>
@@ -105,25 +104,6 @@ export default class ProfilesListRow extends React.PureComponent<Props> {
         <Link to={activeRulesUrl}>{profile.activeRuleCount}</Link>
       </div>
     );
-  }
-
-  renderUpdateDate() {
-    const date = <ProfileDate date={this.props.profile.rulesUpdatedAt} />;
-    if (isStagnant(this.props.profile)) {
-      return <span className="badge badge-normal-size badge-focus">{date}</span>;
-    } else {
-      return date;
-    }
-  }
-
-  renderUsageDate() {
-    const { lastUsed } = this.props.profile;
-    const date = <ProfileDate date={lastUsed} />;
-    if (!lastUsed) {
-      return <span className="badge badge-normal-size badge-focus">{date}</span>;
-    } else {
-      return date;
-    }
   }
 
   render() {
@@ -140,10 +120,10 @@ export default class ProfilesListRow extends React.PureComponent<Props> {
           {this.renderRules()}
         </td>
         <td className="quality-profiles-table-date thin nowrap text-middle text-right">
-          {this.renderUpdateDate()}
+          <ProfileDate date={this.props.profile.rulesUpdatedAt} />
         </td>
         <td className="quality-profiles-table-date thin nowrap text-middle text-right">
-          {this.renderUsageDate()}
+          <ProfileDate date={this.props.profile.lastUsed} />
         </td>
         <td className="quality-profiles-table-actions thin nowrap text-middle text-right">
           <ProfileActions

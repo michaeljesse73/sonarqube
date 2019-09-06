@@ -18,16 +18,15 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
+import { translate, translateWithParameters } from 'sonar-ui-common/helpers/l10n';
+import { IssueResponse } from '../../../api/issues';
+import { updateIssue } from '../actions';
 import IssueAssign from './IssueAssign';
 import IssueCommentAction from './IssueCommentAction';
 import IssueSeverity from './IssueSeverity';
 import IssueTags from './IssueTags';
 import IssueTransition from './IssueTransition';
 import IssueType from './IssueType';
-import { updateIssue } from '../actions';
-import { translate, translateWithParameters } from '../../../helpers/l10n';
-import { RawQuery } from '../../../helpers/query';
-import { IssueResponse } from '../../../api/issues';
 
 interface Props {
   issue: T.Issue;
@@ -51,7 +50,7 @@ export default class IssueActionsBar extends React.PureComponent<Props, State> {
   setIssueProperty = (
     property: keyof T.Issue,
     popup: string,
-    apiCall: (query: RawQuery) => Promise<IssueResponse>,
+    apiCall: (query: T.RawQuery) => Promise<IssueResponse>,
     value: string
   ) => {
     const { issue } = this.props;
@@ -127,17 +126,15 @@ export default class IssueActionsBar extends React.PureComponent<Props, State> {
               togglePopup={this.props.togglePopup}
             />
           </li>
-          {!isSecurityHotspot && (
-            <li className="issue-meta">
-              <IssueAssign
-                canAssign={canAssign}
-                isOpen={this.props.currentPopup === 'assign' && canAssign}
-                issue={issue}
-                onAssign={this.props.onAssign}
-                togglePopup={this.props.togglePopup}
-              />
-            </li>
-          )}
+          <li className="issue-meta">
+            <IssueAssign
+              canAssign={canAssign}
+              isOpen={this.props.currentPopup === 'assign' && canAssign}
+              issue={issue}
+              onAssign={this.props.onAssign}
+              togglePopup={this.props.togglePopup}
+            />
+          </li>
           {!isSecurityHotspot && issue.effort && (
             <li className="issue-meta">
               <span className="issue-meta-label">

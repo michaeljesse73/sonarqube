@@ -17,33 +17,35 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import * as classNames from 'classnames';
-import { connect } from 'react-redux';
-import Helmet from 'react-helmet';
-import { InjectedRouter } from 'react-router';
 import { Location } from 'history';
-import Components from './Components';
+import { debounce } from 'lodash';
+import * as React from 'react';
+import Helmet from 'react-helmet';
+import { connect } from 'react-redux';
+import { InjectedRouter } from 'react-router';
+import ListFooter from 'sonar-ui-common/components/controls/ListFooter';
+import { translate } from 'sonar-ui-common/helpers/l10n';
+import A11ySkipTarget from '../../../app/components/a11y/A11ySkipTarget';
+import Suggestions from '../../../app/components/embed-docs-modal/Suggestions';
+import { isPullRequest, isSameBranchLike, isShortLivingBranch } from '../../../helpers/branches';
+import { getCodeUrl, getProjectUrl } from '../../../helpers/urls';
+import { fetchBranchStatus, fetchMetrics } from '../../../store/rootActions';
+import { getMetrics } from '../../../store/rootReducer';
+import { addComponent, addComponentBreadcrumbs, clearBucket } from '../bucket';
+import '../code.css';
+import { loadMoreChildren, retrieveComponent, retrieveComponentChildren } from '../utils';
 import Breadcrumbs from './Breadcrumbs';
+import Components from './Components';
 import Search from './Search';
 import SourceViewerWrapper from './SourceViewerWrapper';
-import { addComponent, addComponentBreadcrumbs, clearBucket } from '../bucket';
-import { retrieveComponentChildren, retrieveComponent, loadMoreChildren } from '../utils';
-import A11ySkipTarget from '../../../app/components/a11y/A11ySkipTarget';
-import ListFooter from '../../../components/controls/ListFooter';
-import Suggestions from '../../../app/components/embed-docs-modal/Suggestions';
-import { fetchMetrics } from '../../../store/rootActions';
-import { getMetrics } from '../../../store/rootReducer';
-import { isSameBranchLike } from '../../../helpers/branches';
-import { translate } from '../../../helpers/l10n';
-import { getProjectUrl, getCodeUrl } from '../../../helpers/urls';
-import '../code.css';
 
 interface StateToProps {
   metrics: T.Dict<T.Metric>;
 }
 
 interface DispatchToProps {
+  fetchBranchStatus: (branchLike: T.BranchLike, projectKey: string) => Promise<void>;
   fetchMetrics: () => void;
 }
 
@@ -70,13 +72,18 @@ interface State {
 
 export class App extends React.PureComponent<Props, State> {
   mounted = false;
+  state: State;
 
-  state: State = {
-    breadcrumbs: [],
-    loading: true,
-    page: 0,
-    total: 0
-  };
+  constructor(props: Props) {
+    super(props);
+    this.state = {
+      breadcrumbs: [],
+      loading: true,
+      page: 0,
+      total: 0
+    };
+    this.refreshBranchStatus = debounce(this.refreshBranchStatus, 1000);
+  }
 
   componentDidMount() {
     this.mounted = true;
@@ -190,6 +197,10 @@ export class App extends React.PureComponent<Props, State> {
     this.setState({ highlighted });
   };
 
+  handleIssueChange = (_: T.Issue) => {
+    this.refreshBranchStatus();
+  };
+
   handleSearchClear = () => {
     this.setState({ searchResults: undefined });
   };
@@ -216,6 +227,13 @@ export class App extends React.PureComponent<Props, State> {
     const finalKey = selected || component.key;
 
     this.loadComponent(finalKey);
+  };
+
+  refreshBranchStatus = () => {
+    const { branchLike, component } = this.props;
+    if (branchLike && component && (isPullRequest(branchLike) || isShortLivingBranch(branchLike))) {
+      this.props.fetchBranchStatus(branchLike, component.key);
+    }
   };
 
   render() {
@@ -312,6 +330,7 @@ export class App extends React.PureComponent<Props, State> {
                 isFile={true}
                 location={location}
                 onGoToParent={this.handleGoToParent}
+                onIssueChange={this.handleIssueChange}
               />
             </div>
           )}
@@ -325,7 +344,10 @@ const mapStateToProps = (state: any): StateToProps => ({
   metrics: getMetrics(state)
 });
 
-const mapDispatchToProps: DispatchToProps = { fetchMetrics };
+const mapDispatchToProps: DispatchToProps = {
+  fetchBranchStatus: fetchBranchStatus as any,
+  fetchMetrics
+};
 
 export default connect<StateToProps, DispatchToProps, Props>(
   mapStateToProps,

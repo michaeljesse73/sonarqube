@@ -17,14 +17,11 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { shallow } from 'enzyme';
+import * as React from 'react';
 import HealthCauseItem from '../HealthCauseItem';
-import { HealthType } from '../../../../../api/system';
 
 it('should render correctly', () => {
-  expect(shallow(<HealthCauseItem health={HealthType.RED} healthCause="foo" />)).toMatchSnapshot();
-  expect(
-    shallow(<HealthCauseItem health={HealthType.YELLOW} healthCause="foo" />)
-  ).toMatchSnapshot();
+  expect(shallow(<HealthCauseItem health="RED" healthCause="foo" />)).toMatchSnapshot();
+  expect(shallow(<HealthCauseItem health="YELLOW" healthCause="foo" />)).toMatchSnapshot();
 });

@@ -19,15 +19,15 @@
  */
 import * as React from 'react';
 import Helmet from 'react-helmet';
-import MembersPageHeader from './MembersPageHeader';
-import MembersListHeader from './MembersListHeader';
-import MembersList from './MembersList';
+import ListFooter from 'sonar-ui-common/components/controls/ListFooter';
+import { translate } from 'sonar-ui-common/helpers/l10n';
+import { addMember, removeMember, searchMembers } from '../../api/organizations';
+import { addUserToGroup, removeUserFromGroup, searchUsersGroups } from '../../api/user_groups';
 import A11ySkipTarget from '../../app/components/a11y/A11ySkipTarget';
 import Suggestions from '../../app/components/embed-docs-modal/Suggestions';
-import ListFooter from '../../components/controls/ListFooter';
-import { translate } from '../../helpers/l10n';
-import { searchMembers, addMember, removeMember } from '../../api/organizations';
-import { searchUsersGroups, addUserToGroup, removeUserFromGroup } from '../../api/user_groups';
+import MembersList from './MembersList';
+import MembersListHeader from './MembersListHeader';
+import MembersPageHeader from './MembersPageHeader';
 
 interface Props {
   currentUser: T.LoggedInUser;
@@ -212,7 +212,6 @@ export default class OrganizationMembers extends React.PureComponent<Props, Stat
         {members !== undefined && paging !== undefined && (
           <>
             <MembersListHeader
-              currentUser={currentUser}
               handleSearch={this.handleSearchMembers}
               organization={organization}
               total={paging.total}

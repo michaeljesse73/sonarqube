@@ -17,11 +17,14 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { find, without } from 'lodash';
-import Modal from '../../../components/controls/Modal';
-import SelectList, { Filter } from '../../../components/SelectList/SelectList';
-import { translate } from '../../../helpers/l10n';
+import * as React from 'react';
+import Modal from 'sonar-ui-common/components/controls/Modal';
+import SelectList, {
+  SelectListFilter,
+  SelectListSearchParams
+} from 'sonar-ui-common/components/controls/SelectList';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import { getUserGroups, UserGroup } from '../../../api/users';
 import { addUserToGroup, removeUserFromGroup } from '../../../api/user_groups';
 
@@ -32,46 +35,89 @@ interface Props {
 }
 
 interface State {
+  needToReload: boolean;
+  lastSearchParams?: SelectListSearchParams;
   groups: UserGroup[];
+  groupsTotalCount?: number;
   selectedGroups: string[];
 }
 
-export default class GroupsForm extends React.PureComponent<Props> {
-  container?: HTMLDivElement | null;
-  state: State = { groups: [], selectedGroups: [] };
+export default class GroupsForm extends React.PureComponent<Props, State> {
+  mounted = false;
 
-  componentDidMount() {
-    this.handleSearch('', Filter.Selected);
+  constructor(props: Props) {
+    super(props);
+
+    this.state = {
+      needToReload: false,
+      groups: [],
+      selectedGroups: []
+    };
   }
 
-  handleSearch = (query: string, selected: Filter) => {
-    return getUserGroups(this.props.user.login, undefined, query, selected).then(data => {
-      this.setState({
-        groups: data.groups,
-        selectedGroups: data.groups.filter(group => group.selected).map(group => group.name)
-      });
-    });
-  };
+  componentDidMount() {
+    this.mounted = true;
+  }
 
-  handleSelect = (name: string) => {
-    return addUserToGroup({
+  componentWillUnmount() {
+    this.mounted = false;
+  }
+
+  fetchUsers = (searchParams: SelectListSearchParams) =>
+    getUserGroups({
+      login: this.props.user.login,
+      organization: undefined,
+      p: searchParams.page,
+      ps: searchParams.pageSize,
+      q: searchParams.query !== '' ? searchParams.query : undefined,
+      selected: searchParams.filter
+    }).then(data => {
+      if (this.mounted) {
+        this.setState(prevState => {
+          const more = searchParams.page != null && searchParams.page > 1;
+
+          const groups = more ? [...prevState.groups, ...data.groups] : data.groups;
+          const newSeletedGroups = data.groups.filter(gp => gp.selected).map(gp => gp.name);
+          const selectedGroups = more
+            ? [...prevState.selectedGroups, ...newSeletedGroups]
+            : newSeletedGroups;
+
+          return {
+            lastSearchParams: searchParams,
+            needToReload: false,
+            groups,
+            groupsTotalCount: data.paging.total,
+            selectedGroups
+          };
+        });
+      }
+    });
+
+  handleSelect = (name: string) =>
+    addUserToGroup({
       name,
       login: this.props.user.login
     }).then(() => {
-      this.setState((state: State) => ({ selectedGroups: [...state.selectedGroups, name] }));
+      if (this.mounted) {
+        this.setState((state: State) => ({
+          needToReload: true,
+          selectedGroups: [...state.selectedGroups, name]
+        }));
+      }
     });
-  };
 
-  handleUnselect = (name: string) => {
-    return removeUserFromGroup({
+  handleUnselect = (name: string) =>
+    removeUserFromGroup({
       name,
       login: this.props.user.login
     }).then(() => {
-      this.setState((state: State) => ({
-        selectedGroups: without(state.selectedGroups, name)
-      }));
+      if (this.mounted) {
+        this.setState((state: State) => ({
+          needToReload: true,
+          selectedGroups: without(state.selectedGroups, name)
+        }));
+      }
     });
-  };
 
   handleCloseClick = (event: React.SyntheticEvent<HTMLElement>) => {
     event.preventDefault();
@@ -109,14 +155,21 @@ export default class GroupsForm extends React.PureComponent<Props> {
           <h2>{header}</h2>
         </div>
 
-        <div className="modal-body">
+        <div className="modal-body modal-container">
           <SelectList
             elements={this.state.groups.map(group => group.name)}
-            onSearch={this.handleSearch}
+            elementsTotalCount={this.state.groupsTotalCount}
+            needToReload={
+              this.state.needToReload &&
+              this.state.lastSearchParams &&
+              this.state.lastSearchParams.filter !== SelectListFilter.All
+            }
+            onSearch={this.fetchUsers}
             onSelect={this.handleSelect}
             onUnselect={this.handleUnselect}
             renderElement={this.renderElement}
             selectedElements={this.state.selectedGroups}
+            withPaging={true}
           />
         </div>
 

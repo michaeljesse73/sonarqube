@@ -77,9 +77,9 @@ public class SymbolReferencesSensorTest {
     sensor.execute(context);
 
     assertThat(context.referencesForSymbolAt("foo:src/foo.xoo", 1, 2))
-      .containsOnly(new DefaultTextRange(new DefaultTextPointer(1, 7), new DefaultTextPointer(1,10)));
+      .containsOnly(new DefaultTextRange(new DefaultTextPointer(1, 7), new DefaultTextPointer(1, 10)));
     assertThat(context.referencesForSymbolAt("foo:src/foo.xoo", 1, 13))
-      .containsOnly(new DefaultTextRange(new DefaultTextPointer(1, 23), new DefaultTextPointer(1,33)));
+      .containsOnly(new DefaultTextRange(new DefaultTextPointer(1, 23), new DefaultTextPointer(1, 33)));
   }
 
 }

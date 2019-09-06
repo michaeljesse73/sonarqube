@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import { getJSON, post, postJSON } from '../helpers/request';
+import { getJSON, post, postJSON } from 'sonar-ui-common/helpers/request';
 import throwGlobalError from '../app/utils/throwGlobalError';
 
 export function fetchQualityGates(data: {
@@ -106,14 +106,17 @@ export function getGateForProject(data: {
   );
 }
 
-export function searchGates(data: {
+export function searchProjects(data: {
   gateId: number;
   organization?: string;
   page?: number;
   pageSize?: number;
   query?: string;
   selected?: string;
-}): Promise<{ more: boolean; results: Array<{ id: string; name: string; selected: boolean }> }> {
+}): Promise<{
+  paging: T.Paging;
+  results: Array<{ id: string; key: string; name: string; selected: boolean }>;
+}> {
   return getJSON('/api/qualitygates/search', data).catch(throwGlobalError);
 }
 

@@ -17,10 +17,10 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { shallow } from 'enzyme';
+import * as React from 'react';
+import { click } from 'sonar-ui-common/helpers/testUtils';
 import PageActions from '../PageActions';
-import { click } from '../../../../helpers/testUtils';
 
 jest.mock('../../utils', () => ({
   getFileNameSuffix: (suffix?: string) => `filesuffix(${suffix || ''})`
@@ -36,12 +36,6 @@ it('should render without restart and log download', () => {
   expect(
     getWrapper({ canDownloadLogs: false, canRestart: false, cluster: true })
   ).toMatchSnapshot();
-});
-
-it('should open restart modal', () => {
-  const wrapper = getWrapper();
-  click(wrapper.find('#restart-server-button'));
-  expect(wrapper.find('RestartForm')).toHaveLength(1);
 });
 
 it('should open change log level modal', () => {

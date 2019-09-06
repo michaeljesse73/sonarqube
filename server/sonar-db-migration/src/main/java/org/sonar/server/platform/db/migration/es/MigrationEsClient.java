@@ -19,10 +19,29 @@
  */
 package org.sonar.server.platform.db.migration.es;
 
+import java.util.Map;
+import java.util.Set;
+
 public interface MigrationEsClient {
 
   /**
    * This method is re-entrant and does not fail if indexName or otherIndexNames do not exist
    */
   void deleteIndexes(String name, String... otherNames);
+
+  /**
+   * Adds a new mapping to an existing Elasticsearch index. Does nothing if index does not exist.
+   *
+   * @param index name of the index that the mapping is added to
+   * @param type document type in the index
+   * @param mappingName name of the new mapping
+   * @param mappingType type of the new mapping
+   * @param options additional options to be applied to the mapping
+   */
+  void addMappingToExistingIndex(String index, String type, String mappingName, String mappingType, Map<String, String> options);
+
+  /**
+   * Returns the indices that have been touched by {@link #addMappingToExistingIndex(String, String, String, String, Map)}
+   */
+  Set<String> getUpdatedIndices();
 }

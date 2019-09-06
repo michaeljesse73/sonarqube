@@ -17,10 +17,10 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
+import { forEach } from 'lodash';
 import * as React from 'react';
 import { Link } from 'react-router';
-import { forEach } from 'lodash';
-import DetachIcon from '../icons-components/DetachIcon';
+import DetachIcon from 'sonar-ui-common/components/icons/DetachIcon';
 
 interface OwnProps {
   customProps?: T.Dict<string>;
@@ -58,7 +58,7 @@ export default function DocTooltipLink({ children, customProps, href, ...other }
       <a href={href} rel="noopener noreferrer" target="_blank" {...other}>
         {children}
       </a>
-      <DetachIcon className="little-spacer-left little-spacer-right vertical-baseline" size={12} />
+      <DetachIcon className="little-spacer-left little-spacer-right text-baseline" size={12} />
     </>
   );
 }

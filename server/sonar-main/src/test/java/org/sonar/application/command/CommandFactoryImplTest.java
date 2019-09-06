@@ -20,6 +20,7 @@
 package org.sonar.application.command;
 
 import ch.qos.logback.classic.spi.ILoggingEvent;
+import com.google.common.collect.ImmutableSet;
 import java.io.File;
 import java.io.IOException;
 import java.util.Properties;
@@ -32,15 +33,16 @@ import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.mockito.Mockito;
 import org.sonar.application.es.EsInstallation;
+import org.sonar.application.logging.ListAppender;
+import org.sonar.core.extension.ServiceLoaderWrapper;
 import org.sonar.process.ProcessId;
 import org.sonar.process.ProcessProperties;
 import org.sonar.process.Props;
 import org.sonar.process.System2;
-import org.sonar.application.logging.ListAppender;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.entry;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class CommandFactoryImplTest {
@@ -50,6 +52,8 @@ public class CommandFactoryImplTest {
   @Rule
   public TemporaryFolder temp = new TemporaryFolder();
 
+  private System2 system2 = Mockito.mock(System2.class);
+  private JavaVersion javaVersion = Mockito.mock(JavaVersion.class);
   private File homeDir;
   private File tempDir;
   private File logsDir;
@@ -71,22 +75,19 @@ public class CommandFactoryImplTest {
 
   @Test
   public void constructor_logs_no_warning_if_env_variable_JAVA_TOOL_OPTIONS_is_not_set() {
-    System2 system2 = Mockito.mock(System2.class);
-    when(system2.getenv(anyString())).thenReturn(null);
     attachMemoryAppenderToLoggerOf(CommandFactoryImpl.class);
 
-    new CommandFactoryImpl(new Props(new Properties()), tempDir, system2);
+    new CommandFactoryImpl(new Props(new Properties()), tempDir, system2, javaVersion);
 
     assertThat(listAppender.getLogs()).isEmpty();
   }
 
   @Test
   public void constructor_logs_warning_if_env_variable_JAVA_TOOL_OPTIONS_is_set() {
-    System2 system2 = Mockito.mock(System2.class);
     when(system2.getenv("JAVA_TOOL_OPTIONS")).thenReturn("sds");
     attachMemoryAppenderToLoggerOf(CommandFactoryImpl.class);
 
-    new CommandFactoryImpl(new Props(new Properties()), tempDir, system2);
+    new CommandFactoryImpl(new Props(new Properties()), tempDir, system2, javaVersion);
 
     assertThat(listAppender.getLogs())
       .extracting(ILoggingEvent::getMessage)
@@ -97,11 +98,10 @@ public class CommandFactoryImplTest {
 
   @Test
   public void constructor_logs_warning_if_env_variable_ES_JAVA_OPTS_is_set() {
-    System2 system2 = Mockito.mock(System2.class);
     when(system2.getenv("ES_JAVA_OPTS")).thenReturn("xyz");
     attachMemoryAppenderToLoggerOf(CommandFactoryImpl.class);
 
-    new CommandFactoryImpl(new Props(new Properties()), tempDir, system2);
+    new CommandFactoryImpl(new Props(new Properties()), tempDir, system2, javaVersion);
 
     assertThat(listAppender.getLogs())
       .extracting(ILoggingEvent::getMessage)
@@ -120,7 +120,6 @@ public class CommandFactoryImplTest {
 
   @Test
   public void createEsCommand_for_unix_returns_command_for_default_settings() throws Exception {
-    System2 system2 = Mockito.mock(System2.class);
     when(system2.isOsWindows()).thenReturn(false);
     prepareEsFileSystem();
 
@@ -152,12 +151,11 @@ public class CommandFactoryImplTest {
     assertThat(esCommand.getSuppressedEnvVariables()).containsOnly("JAVA_TOOL_OPTIONS", "ES_JAVA_OPTS");
 
     assertThat(esConfig.getEsJvmOptions().getAll())
-      .contains("-Djava.io.tmpdir=" + new File(tempDir, "es6").getAbsolutePath());
+      .contains("-Djava.io.tmpdir=" + tempDir.getAbsolutePath());
   }
 
   @Test
   public void createEsCommand_for_windows_returns_command_for_default_settings() throws Exception {
-    System2 system2 = Mockito.mock(System2.class);
     when(system2.isOsWindows()).thenReturn(true);
     prepareEsFileSystem();
 
@@ -190,7 +188,7 @@ public class CommandFactoryImplTest {
     assertThat(esCommand.getSuppressedEnvVariables()).containsOnly("JAVA_TOOL_OPTIONS", "ES_JAVA_OPTS");
 
     assertThat(esConfig.getEsJvmOptions().getAll())
-      .contains("-Djava.io.tmpdir=" + new File(tempDir, "es6").getAbsolutePath());
+      .contains("-Djava.io.tmpdir=" + tempDir.getAbsolutePath());
     assertThat(esCommand.getJvmOptions().getAll())
       .containsAll(esConfig.getEsJvmOptions().getAll())
       .contains("-Delasticsearch")
@@ -216,7 +214,7 @@ public class CommandFactoryImplTest {
     assertThat(esConfig.getEsJvmOptions().getAll())
       // enforced values
       .contains("-XX:+UseConcMarkSweepGC", "-Dfile.encoding=UTF-8")
-      .contains("-Djava.io.tmpdir=" + new File(tempDir, "es6").getAbsolutePath())
+      .contains("-Djava.io.tmpdir=" + tempDir.getAbsolutePath())
       // user settings
       .contains("-Xms10G", "-Xmx10G")
       // default values disabled
@@ -325,8 +323,10 @@ public class CommandFactoryImplTest {
     p.putAll(userProps);
 
     Props props = new Props(p);
-    ProcessProperties.completeDefaults(props);
-    return new CommandFactoryImpl(props, tempDir, system2);
+    ServiceLoaderWrapper serviceLoaderWrapper = mock(ServiceLoaderWrapper.class);
+    when(serviceLoaderWrapper.load()).thenReturn(ImmutableSet.of());
+    new ProcessProperties(serviceLoaderWrapper).completeDefaults(props);
+    return new CommandFactoryImpl(props, tempDir, system2, javaVersion);
   }
 
   private <T> void attachMemoryAppenderToLoggerOf(Class<T> loggerClass) {

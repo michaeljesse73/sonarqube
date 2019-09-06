@@ -18,14 +18,15 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import JavaMaven from './JavaMaven';
-import JavaGradle from './JavaGradle';
-import DotNet from './DotNet';
-import Msvc from './Msvc';
-import ClangGCC from './ClangGCC';
-import Other from './Other';
-import { getHostUrl } from '../../../../helpers/urls';
+import { getHostUrl } from 'sonar-ui-common/helpers/urls';
 import { LanguageConfig } from '../../utils';
+import { getProjectKey } from '../ProjectAnalysisStep';
+import ClangGCC from './ClangGCC';
+import DotNet from './DotNet';
+import JavaGradle from './JavaGradle';
+import JavaMaven from './JavaMaven';
+import Msvc from './Msvc';
+import Other from './Other';
 
 interface Props {
   component?: T.Component;
@@ -36,10 +37,6 @@ interface Props {
 }
 
 export default class AnalysisCommand extends React.PureComponent<Props> {
-  getProjectKey = ({ component, languageConfig } = this.props) => {
-    return (component && component.key) || languageConfig.projectKey;
-  };
-
   renderCommandForMaven = () => {
     const { component, token } = this.props;
     if (!token) {
@@ -71,8 +68,8 @@ export default class AnalysisCommand extends React.PureComponent<Props> {
   };
 
   renderCommandForDotNet = () => {
-    const { small, token } = this.props;
-    const projectKey = this.getProjectKey();
+    const { component, languageConfig, small, token } = this.props;
+    const projectKey = getProjectKey(languageConfig, component);
     if (!projectKey || !token) {
       return null;
     }
@@ -88,8 +85,8 @@ export default class AnalysisCommand extends React.PureComponent<Props> {
   };
 
   renderCommandForMSVC = () => {
-    const { small, token } = this.props;
-    const projectKey = this.getProjectKey();
+    const { component, languageConfig, small, token } = this.props;
+    const projectKey = getProjectKey(languageConfig, component);
     if (!projectKey || !token) {
       return null;
     }
@@ -105,8 +102,8 @@ export default class AnalysisCommand extends React.PureComponent<Props> {
   };
 
   renderCommandForClangGCC = () => {
-    const { languageConfig, small, token } = this.props;
-    const projectKey = this.getProjectKey();
+    const { component, languageConfig, small, token } = this.props;
+    const projectKey = getProjectKey(languageConfig, component);
     if (!languageConfig || !projectKey || !languageConfig.os || !token) {
       return null;
     }
@@ -123,8 +120,8 @@ export default class AnalysisCommand extends React.PureComponent<Props> {
   };
 
   renderCommandForOther = () => {
-    const { languageConfig, token } = this.props;
-    const projectKey = this.getProjectKey();
+    const { component, languageConfig, token } = this.props;
+    const projectKey = getProjectKey(languageConfig, component);
     if (!languageConfig || !projectKey || !languageConfig.os || !token) {
       return null;
     }

@@ -17,11 +17,11 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
+import { mount, shallow } from 'enzyme';
 import * as React from 'react';
-import { shallow, mount } from 'enzyme';
+import { click, keydown } from 'sonar-ui-common/helpers/testUtils';
 import SelectList from '../SelectList';
 import SelectListItem from '../SelectListItem';
-import { click, keydown } from '../../../helpers/testUtils';
 
 it('should render correctly without children', () => {
   const onSelect = jest.fn();

@@ -17,24 +17,23 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import * as classNames from 'classnames';
-import HealthCauseItem from './HealthCauseItem';
+import * as React from 'react';
+import Tooltip from 'sonar-ui-common/components/controls/Tooltip';
+import { translateWithParameters } from 'sonar-ui-common/helpers/l10n';
 import StatusIndicator from '../../../../components/common/StatusIndicator';
-import Tooltip from '../../../../components/controls/Tooltip';
-import { HealthType } from '../../../../api/system';
-import { translateWithParameters } from '../../../../helpers/l10n';
+import HealthCauseItem from './HealthCauseItem';
 
 interface Props {
   biggerHealth?: boolean;
   name?: string;
   className?: string;
-  health: HealthType;
+  health: T.HealthType;
   healthCauses?: string[];
 }
 
 export default function HealthItem({ biggerHealth, className, name, health, healthCauses }: Props) {
-  const hasHealthCauses = healthCauses && healthCauses.length > 0 && health !== HealthType.GREEN;
+  const hasHealthCauses = healthCauses && healthCauses.length > 0 && health !== 'GREEN';
   const statusIndicator = (
     <StatusIndicator color={health.toLowerCase()} size={biggerHealth ? 'big' : undefined} />
   );

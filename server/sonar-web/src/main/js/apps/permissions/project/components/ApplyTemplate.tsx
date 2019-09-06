@@ -18,13 +18,13 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import { getPermissionTemplates, applyTemplateToProject } from '../../../../api/permissions';
-import DeferredSpinner from '../../../../components/common/DeferredSpinner';
-import SimpleModal from '../../../../components/controls/SimpleModal';
-import Select from '../../../../components/controls/Select';
-import { SubmitButton, ResetButtonLink } from '../../../../components/ui/buttons';
-import { translateWithParameters, translate } from '../../../../helpers/l10n';
-import { Alert } from '../../../../components/ui/Alert';
+import { ResetButtonLink, SubmitButton } from 'sonar-ui-common/components/controls/buttons';
+import Select from 'sonar-ui-common/components/controls/Select';
+import SimpleModal from 'sonar-ui-common/components/controls/SimpleModal';
+import { Alert } from 'sonar-ui-common/components/ui/Alert';
+import DeferredSpinner from 'sonar-ui-common/components/ui/DeferredSpinner';
+import { translate, translateWithParameters } from 'sonar-ui-common/helpers/l10n';
+import { applyTemplateToProject, getPermissionTemplates } from '../../../../api/permissions';
 
 interface Props {
   onApply?: () => void;

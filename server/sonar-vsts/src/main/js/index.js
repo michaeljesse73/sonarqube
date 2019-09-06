@@ -20,6 +20,8 @@
 import { parse } from 'querystring';
 import React from 'react';
 import { render } from 'react-dom';
+import { ThemeProvider } from 'sonar-ui-common/components/theme';
+import * as theme from '../../../../sonar-web/src/main/js/app/theme';
 import Configuration from './components/Configuration';
 import Widget from './components/Widget';
 import { parseWidgetSettings } from './utils';
@@ -45,7 +47,9 @@ if (query.type === 'authenticated') {
 
     if (query.type === 'configuration') {
       render(
-        <Configuration contribution={query.contribution} widgetHelpers={WidgetHelpers} />,
+        <ThemeProvider theme={theme}>
+          <Configuration contribution={query.contribution} widgetHelpers={WidgetHelpers} />
+        </ThemeProvider>,
         container
       );
     } else {
@@ -61,7 +65,12 @@ if (query.type === 'authenticated') {
 function loadVSTSWidget(WidgetHelpers) {
   return widgetSettings => {
     try {
-      render(<Widget settings={parseWidgetSettings(widgetSettings)} />, container);
+      render(
+        <ThemeProvider theme={theme}>
+          <Widget settings={parseWidgetSettings(widgetSettings)} />
+        </ThemeProvider>,
+        container
+      );
     } catch (error) {
       return WidgetHelpers.WidgetStatusHelper.Failure(error);
     }

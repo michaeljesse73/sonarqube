@@ -36,12 +36,17 @@ case "$TARGET" in
 
 BUILD)
   git fetch --unshallow
-  ./gradlew build sonarqube --no-daemon --console plain \
-  -PjacocoEnabled=true \
-  -Dsonar.projectKey=org.sonarsource.sonarqube:sonarqube \
-  -Dsonar.organization=sonarsource \
-  -Dsonar.host.url=https://sonarcloud.io \
-  -Dsonar.login="$SONAR_TOKEN"
+  ./gradlew build --no-daemon --console plain
+
+  # the '-' at the end is needed when using set -u (the 'nounset' flag)
+  # see https://stackoverflow.com/a/9824943/641955
+  if [[ -n "${SONAR_TOKEN-}" ]]; then
+    ./gradlew jacocoTestReport sonarqube --no-daemon --console plain \
+      -Dsonar.projectKey=org.sonarsource.sonarqube:sonarqube \
+      -Dsonar.organization=sonarsource \
+      -Dsonar.host.url=https://sonarcloud.io \
+      -Dsonar.login="$SONAR_TOKEN"
+  fi
   ;;
 
 WEB_TESTS)

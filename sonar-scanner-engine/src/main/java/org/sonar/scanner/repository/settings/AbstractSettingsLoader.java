@@ -19,7 +19,6 @@
  */
 package org.sonar.scanner.repository.settings;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
@@ -31,11 +30,11 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.commons.lang.StringEscapeUtils;
+import org.sonar.api.impl.utils.ScannerUtils;
 import org.sonar.api.utils.log.Logger;
 import org.sonar.api.utils.log.Loggers;
 import org.sonar.api.utils.log.Profiler;
-import org.sonar.scanner.bootstrap.ScannerWsClient;
-import org.sonar.scanner.util.ScannerUtils;
+import org.sonar.scanner.bootstrap.DefaultScannerWsClient;
 import org.sonarqube.ws.Settings;
 import org.sonarqube.ws.client.GetRequest;
 import org.sonarqube.ws.client.HttpException;
@@ -43,9 +42,9 @@ import org.sonarqube.ws.client.HttpException;
 public abstract class AbstractSettingsLoader {
 
   private static final Logger LOG = Loggers.get(AbstractSettingsLoader.class);
-  private final ScannerWsClient wsClient;
+  private final DefaultScannerWsClient wsClient;
 
-  public AbstractSettingsLoader(final ScannerWsClient wsClient) {
+  public AbstractSettingsLoader(final DefaultScannerWsClient wsClient) {
     this.wsClient = wsClient;
   }
 
@@ -72,7 +71,6 @@ public abstract class AbstractSettingsLoader {
     }
   }
 
-  @VisibleForTesting
   static Map<String, String> toMap(List<Settings.Setting> settingsList) {
     Map<String, String> result = new LinkedHashMap<>();
     for (Settings.Setting s : settingsList) {

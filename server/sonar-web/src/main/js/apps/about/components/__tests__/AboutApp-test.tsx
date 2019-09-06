@@ -17,32 +17,33 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
+import { shallow } from 'enzyme';
 import * as React from 'react';
-import { mount } from 'enzyme';
-import { AboutApp } from '../AboutApp';
-import { addWhitePageClass, removeWhitePageClass } from '../../../../helpers/pages';
+import { addWhitePageClass, removeWhitePageClass } from 'sonar-ui-common/helpers/pages';
+import { waitAndUpdate } from 'sonar-ui-common/helpers/testUtils';
 import { searchProjects } from '../../../../api/components';
 import { getFacet } from '../../../../api/issues';
-import { mockLocation, mockAppState, mockCurrentUser } from '../../../../helpers/testMocks';
-import { waitAndUpdate } from '../../../../helpers/testUtils';
+import { mockAppState, mockCurrentUser, mockLocation } from '../../../../helpers/testMocks';
+import { AboutApp } from '../AboutApp';
 
-jest.mock('../../../../helpers/pages', () => ({
+jest.mock('sonar-ui-common/helpers/pages', () => ({
   addWhitePageClass: jest.fn(),
   removeWhitePageClass: jest.fn()
 }));
 
 jest.mock('../../../../api/components', () => ({
-  searchProjects: jest.fn().mockResolvedValue(5)
+  searchProjects: jest.fn().mockResolvedValue({ paging: { total: 5 } })
 }));
 
 jest.mock('../../../../api/issues', () => ({
-  getFacet: jest
-    .fn()
-    .mockResolvedValue([
-      { facet: { count: 5, val: 'CODE_SMELL' } },
-      { facet: { count: 10, val: 'BUG' } },
-      { facet: { count: 0, val: 'VULNERABILITY' } }
-    ])
+  getFacet: jest.fn().mockResolvedValue({
+    facet: [
+      { count: 5, val: 'CODE_SMELL' },
+      { count: 10, val: 'BUG' },
+      { count: 0, val: 'VULNERABILITY' },
+      { count: 5, val: 'SECURITY_HOTSPOT' }
+    ]
+  })
 }));
 
 jest.mock('../../../../app/components/GlobalContainer', () => ({
@@ -55,7 +56,7 @@ jest.mock('../../../../app/components/GlobalContainer', () => ({
 }));
 
 it('should render correctly', async () => {
-  const wrapper = mountRender();
+  const wrapper = shallowRender();
   await waitAndUpdate(wrapper);
 
   expect(wrapper).toMatchSnapshot();
@@ -65,21 +66,21 @@ it('should render correctly', async () => {
   expect(removeWhitePageClass).toBeCalled();
 });
 
-it('should load issues, projects, and custom text upon mounting', () => {
+it('should load issues, projects, and custom text upon shallowing', () => {
   const fetchAboutPageSettings = jest.fn();
-  mountRender({ fetchAboutPageSettings });
+  shallowRender({ fetchAboutPageSettings });
   expect(fetchAboutPageSettings).toBeCalled();
   expect(searchProjects).toBeCalled();
   expect(getFacet).toBeCalled();
 });
 
-function mountRender(props: Partial<AboutApp['props']> = {}) {
-  return mount(
+function shallowRender(props: Partial<AboutApp['props']> = {}) {
+  return shallow(
     <AboutApp
       appState={mockAppState()}
       currentUser={mockCurrentUser()}
       customText="Lorem ipsum"
-      fetchAboutPageSettings={jest.fn()}
+      fetchAboutPageSettings={jest.fn().mockResolvedValue('')}
       location={mockLocation()}
       {...props}
     />

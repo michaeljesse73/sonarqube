@@ -17,18 +17,17 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { shallow } from 'enzyme';
-import UpgradeOrganizationBox from '../UpgradeOrganizationBox';
-import { hasMessage } from '../../../../helpers/l10n';
+import * as React from 'react';
+import { hasMessage } from 'sonar-ui-common/helpers/l10n';
+import { click, waitAndUpdate } from 'sonar-ui-common/helpers/testUtils';
 import { getSubscriptionPlans } from '../../../../api/billing';
-import { waitAndUpdate, click } from '../../../../helpers/testUtils';
+import UpgradeOrganizationBox from '../UpgradeOrganizationBox';
 
-jest.mock('../../../../helpers/l10n', () => {
-  const l10n = require.requireActual('../../../../helpers/l10n');
-  l10n.hasMessage = jest.fn().mockReturnValue(true);
-  return l10n;
-});
+jest.mock('sonar-ui-common/helpers/l10n', () => ({
+  ...jest.requireActual('sonar-ui-common/helpers/l10n'),
+  hasMessage: jest.fn().mockReturnValue(true)
+}));
 
 jest.mock('../../../../api/billing', () => ({
   getSubscriptionPlans: jest.fn().mockResolvedValue([{ maxNcloc: 100000, price: 10 }])

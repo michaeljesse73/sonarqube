@@ -17,12 +17,19 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { shallow } from 'enzyme';
-import { Location } from 'history';
-import { App } from '../App';
-import { waitAndUpdate } from '../../../../helpers/testUtils';
+import * as React from 'react';
+import { waitAndUpdate } from 'sonar-ui-common/helpers/testUtils';
 import { getMeasuresAndMeta } from '../../../../api/measures';
+import {
+  mockComponent,
+  mockIssue,
+  mockLocation,
+  mockMainBranch,
+  mockPullRequest,
+  mockRouter
+} from '../../../../helpers/testMocks';
+import { App } from '../App';
 
 jest.mock('../../../../api/metrics', () => ({
   getAllMetrics: jest.fn().mockResolvedValue([
@@ -61,17 +68,6 @@ jest.mock('../../../../api/measures', () => ({
   getMeasuresAndMeta: jest.fn()
 }));
 
-const COMPONENT = { key: 'foo', name: 'Foo', qualifier: 'TRK' };
-
-const PROPS: App['props'] = {
-  branchLike: { isMain: true, name: 'master' },
-  component: COMPONENT,
-  location: { pathname: '/component_measures', query: { metric: 'coverage' } } as Location,
-  params: {},
-  router: { push: jest.fn() } as any,
-  routes: []
-};
-
 beforeEach(() => {
   (getMeasuresAndMeta as jest.Mock).mockResolvedValue({
     component: { measures: [{ metric: 'coverage', value: '80.0' }] },
@@ -80,19 +76,16 @@ beforeEach(() => {
 });
 
 it('should render correctly', async () => {
-  const wrapper = shallow(<App {...PROPS} />);
+  const wrapper = shallowRender();
   expect(wrapper.find('.spinner')).toHaveLength(1);
   await waitAndUpdate(wrapper);
   expect(wrapper).toMatchSnapshot();
 });
 
 it('should render a measure overview', async () => {
-  const wrapper = shallow(
-    <App
-      {...PROPS}
-      location={{ pathname: '/component_measures', query: { metric: 'Reliability' } } as Location}
-    />
-  );
+  const wrapper = shallowRender({
+    location: mockLocation({ pathname: '/component_measures', query: { metric: 'Reliability' } })
+  });
   expect(wrapper.find('.spinner')).toHaveLength(1);
   await waitAndUpdate(wrapper);
   expect(wrapper.find('MeasureOverviewContainer')).toHaveLength(1);
@@ -103,14 +96,39 @@ it('should render a message when there are no measures', async () => {
     component: { measures: [] },
     periods: [{ index: '1' }]
   });
-  const wrapper = shallow(<App {...PROPS} />);
+  const wrapper = shallowRender();
   await waitAndUpdate(wrapper);
   expect(wrapper).toMatchSnapshot();
 });
 
 it('should not render drilldown for estimated duplications', async () => {
-  const pullRequest = { base: 'master', branch: 'feature-x', key: '5', title: '' };
-  const wrapper = shallow(<App {...PROPS} branchLike={pullRequest} />);
+  const wrapper = shallowRender({ branchLike: mockPullRequest({ title: '' }) });
   await waitAndUpdate(wrapper);
   expect(wrapper).toMatchSnapshot();
 });
+
+it('should refresh branch status if issues are updated', async () => {
+  const fetchBranchStatus = jest.fn();
+  const branchLike = mockPullRequest();
+  const wrapper = shallowRender({ branchLike, fetchBranchStatus });
+  const instance = wrapper.instance();
+  await waitAndUpdate(wrapper);
+
+  instance.handleIssueChange(mockIssue());
+  expect(fetchBranchStatus).toBeCalledWith(branchLike, 'foo');
+});
+
+function shallowRender(props: Partial<App['props']> = {}) {
+  return shallow<App>(
+    <App
+      branchLike={mockMainBranch()}
+      component={mockComponent({ key: 'foo', name: 'Foo' })}
+      fetchBranchStatus={jest.fn()}
+      location={mockLocation({ pathname: '/component_measures', query: { metric: 'coverage' } })}
+      params={{}}
+      router={mockRouter()}
+      routes={[]}
+      {...props}
+    />
+  );
+}

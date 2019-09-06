@@ -17,15 +17,25 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { shallow } from 'enzyme';
+import * as React from 'react';
+import { click } from 'sonar-ui-common/helpers/testUtils';
 import Search, { Props } from '../Search';
-import { click } from '../../../helpers/testUtils';
 
 const organization: T.Organization = { key: 'org', name: 'org', projectVisibility: 'public' };
 
 it('renders', () => {
   expect(shallowRender()).toMatchSnapshot();
+});
+
+it('disables the delete and bulk apply buttons unless a project is selected', () => {
+  const wrapper = shallowRender();
+  expect(wrapper.find('Button.js-delete').prop('disabled')).toBe(true);
+  expect(wrapper.find('Button.js-bulk-apply-permission-template').prop('disabled')).toBe(true);
+
+  wrapper.setProps({ selection: ['foo'] });
+  expect(wrapper.find('Button.js-delete').prop('disabled')).toBe(false);
+  expect(wrapper.find('Button.js-bulk-apply-permission-template').prop('disabled')).toBe(false);
 });
 
 it('render qualifiers filter', () => {

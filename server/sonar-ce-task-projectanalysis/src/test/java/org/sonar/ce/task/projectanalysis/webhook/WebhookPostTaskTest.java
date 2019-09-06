@@ -31,6 +31,7 @@ import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.sonar.api.ce.posttask.Branch;
 import org.sonar.api.ce.posttask.CeTask;
+import org.sonar.api.ce.posttask.PostProjectAnalysisTask.LogStatistics;
 import org.sonar.api.ce.posttask.PostProjectAnalysisTaskTester;
 import org.sonar.api.ce.posttask.Project;
 import org.sonar.api.ce.posttask.QualityGate;
@@ -74,6 +75,11 @@ public class WebhookPostTaskTest {
   public void wireMocks() {
     when(payloadFactory.create(any(ProjectAnalysis.class))).thenReturn(webhookPayload);
     when(configurationRepository.getConfiguration()).thenReturn(configuration);
+  }
+
+  @Test
+  public void has_description() {
+    assertThat(underTest.getDescription()).isNotEmpty();
   }
 
   @Test
@@ -136,7 +142,8 @@ public class WebhookPostTaskTest {
         eq(new WebHooks.Analysis(project.getUuid(),
           analysisUUid,
           ceTask.getId())),
-        supplierCaptor.capture());
+        supplierCaptor.capture(),
+        any(LogStatistics.class));
 
     assertThat(supplierCaptor.getValue().get()).isSameAs(webhookPayload);
 
@@ -157,7 +164,7 @@ public class WebhookPostTaskTest {
     verify(payloadFactory).create(new ProjectAnalysis(
       new org.sonar.server.webhook.Project(project.getUuid(), project.getKey(), project.getName()),
       new org.sonar.server.webhook.CeTask(ceTask.getId(), org.sonar.server.webhook.CeTask.Status.valueOf(ceTask.getStatus().name())),
-      analysisUUid == null ? null : new Analysis(analysisUUid, date.getTime()),
+      analysisUUid == null ? null : new Analysis(analysisUUid, date.getTime(), null),
       new org.sonar.server.webhook.Branch(branch.isMain(), branch.getName().get(), org.sonar.server.webhook.Branch.Type.valueOf(branch.getType().name())),
       webQualityGate,
       analysisUUid == null ? null : date.getTime(),

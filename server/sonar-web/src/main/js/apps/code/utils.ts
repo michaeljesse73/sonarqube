@@ -17,22 +17,23 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
+import { getBreadcrumbs, getChildren, getComponent } from '../../api/components';
+import { getBranchLikeQuery, isPullRequest, isShortLivingBranch } from '../../helpers/branches';
 import {
   addComponent,
-  getComponent as getComponentFromBucket,
-  addComponentChildren,
-  getComponentChildren,
   addComponentBreadcrumbs,
-  getComponentBreadcrumbs
+  addComponentChildren,
+  getComponent as getComponentFromBucket,
+  getComponentBreadcrumbs,
+  getComponentChildren
 } from './bucket';
-import { getChildren, getComponent, getBreadcrumbs } from '../../api/components';
-import { getBranchLikeQuery, isShortLivingBranch, isPullRequest } from '../../helpers/branches';
 
 const METRICS = [
   'ncloc',
   'bugs',
   'vulnerabilities',
   'code_smells',
+  'security_hotspots',
   'coverage',
   'duplicated_lines_density'
 ];
@@ -43,6 +44,7 @@ const PORTFOLIO_METRICS = [
   'releasability_rating',
   'reliability_rating',
   'security_rating',
+  'security_review_rating',
   'sqale_rating',
   'ncloc'
 ];
@@ -52,6 +54,7 @@ const LEAK_METRICS = [
   'bugs',
   'vulnerabilities',
   'code_smells',
+  'security_hotspots',
   'new_coverage',
   'new_duplicated_lines_density'
 ];
@@ -121,7 +124,7 @@ function retrieveComponentBase(componentKey: string, qualifier: string, branchLi
     component: componentKey,
     metricKeys: metrics.join(),
     ...getBranchLikeQuery(branchLike)
-  }).then(component => {
+  }).then(({ component }) => {
     addComponent(component);
     return component;
   });

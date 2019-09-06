@@ -18,25 +18,27 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
+import HelpTooltip from 'sonar-ui-common/components/controls/HelpTooltip';
+import Level from 'sonar-ui-common/components/ui/Level';
+import { translate } from 'sonar-ui-common/helpers/l10n';
+import { Facet } from '../types';
 import Filter from './Filter';
 import FilterHeader from './FilterHeader';
-import { Facet } from '../types';
-import Level from '../../../components/ui/Level';
-import { translate } from '../../../helpers/l10n';
-import { RawQuery } from '../../../helpers/query';
-import HelpTooltip from '../../../components/controls/HelpTooltip';
 
 export interface Props {
   className?: string;
   facet?: Facet;
   maxFacetValue?: number;
-  onQueryChange: (change: RawQuery) => void;
+  onQueryChange: (change: T.RawQuery) => void;
   organization?: { key: string };
   query: T.Dict<any>;
   value?: any;
 }
 
 export default function QualityGateFilter(props: Props) {
+  const hasWarnStatus = props.facet && props.facet['WARN'] !== undefined;
+  const options = hasWarnStatus ? ['OK', 'WARN', 'ERROR'] : ['OK', 'ERROR'];
+
   return (
     <Filter
       facet={props.facet}
@@ -44,7 +46,7 @@ export default function QualityGateFilter(props: Props) {
       header={<FilterHeader name={translate('projects.facets.quality_gate')} />}
       maxFacetValue={props.maxFacetValue}
       onQueryChange={props.onQueryChange}
-      options={['OK', 'WARN', 'ERROR']}
+      options={options}
       organization={props.organization}
       property="gate"
       query={props.query}

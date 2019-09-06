@@ -17,16 +17,15 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
+import { Location } from 'history';
 import * as React from 'react';
 import { InjectedRouter } from 'react-router';
-import { Location } from 'history';
-import ProjectActivityApp from './ProjectActivityApp';
-import { getAllTimeMachineData } from '../../../api/time-machine';
+import { parseDate } from 'sonar-ui-common/helpers/dates';
 import { getAllMetrics } from '../../../api/metrics';
 import * as api from '../../../api/projectActivity';
-import * as actions from '../actions';
+import { getAllTimeMachineData } from '../../../api/time-machine';
 import { getBranchLikeQuery } from '../../../helpers/branches';
-import { parseDate } from '../../../helpers/dates';
+import * as actions from '../actions';
 import {
   customMetricsChanged,
   DEFAULT_GRAPH,
@@ -34,13 +33,13 @@ import {
   getProjectActivityGraph,
   isCustomGraph,
   MeasureHistory,
-  parseQuery,
   ParsedAnalysis,
+  parseQuery,
   Query,
   serializeQuery,
   serializeUrlQuery
 } from '../utils';
-import { RawQuery } from '../../../helpers/query';
+import ProjectActivityApp from './ProjectActivityApp';
 
 interface Props {
   branchLike?: T.BranchLike;
@@ -151,7 +150,7 @@ export default class ProjectActivityAppContainer extends React.PureComponent<Pro
     });
   };
 
-  fetchActivity = (project: string, p: number, ps: number, additional?: RawQuery) => {
+  fetchActivity = (project: string, p: number, ps: number, additional?: T.RawQuery) => {
     const parameters = { project, p, ps, ...getBranchLikeQuery(this.props.branchLike) };
     return api
       .getProjectActivity({ ...additional, ...parameters })
@@ -236,6 +235,12 @@ export default class ProjectActivityAppContainer extends React.PureComponent<Pro
     return component.breadcrumbs[current].key;
   };
 
+  filterMetrics({ qualifier }: T.Component, metrics: T.Metric[]) {
+    return ['VW', 'SVW'].includes(qualifier)
+      ? metrics
+      : metrics.filter(metric => metric.key !== 'security_review_rating');
+  }
+
   firstLoadData(query: Query, component: T.Component) {
     const graphMetrics = getHistoryMetrics(query.graph, query.customMetrics);
     const topLevelComponent = this.getTopLevelComponent(component);
@@ -244,15 +249,15 @@ export default class ProjectActivityAppContainer extends React.PureComponent<Pro
       getAllMetrics(),
       this.fetchMeasuresHistory(graphMetrics)
     ]).then(
-      response => {
+      ([{ analyses, paging }, metrics, measuresHistory]) => {
         if (this.mounted) {
           this.setState({
-            analyses: response[0].analyses,
+            analyses,
             graphLoading: false,
             initialized: true,
-            measuresHistory: response[2],
-            metrics: response[1],
-            paging: response[0].paging
+            measuresHistory,
+            metrics: this.filterMetrics(component, metrics),
+            paging
           });
 
           this.fetchAllActivities(topLevelComponent);

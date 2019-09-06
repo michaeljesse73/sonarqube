@@ -17,11 +17,11 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { shallow } from 'enzyme';
-import TokensFormItem from '../TokensFormItem';
+import * as React from 'react';
+import { click, waitAndUpdate } from 'sonar-ui-common/helpers/testUtils';
 import { revokeToken } from '../../../../api/user-tokens';
-import { click, waitAndUpdate } from '../../../../helpers/testUtils';
+import TokensFormItem from '../TokensFormItem';
 
 jest.mock('../../../../components/intl/DateFormatter');
 jest.mock('../../../../components/intl/DateFromNow');
@@ -43,11 +43,12 @@ beforeEach(() => {
 
 it('should render correctly', () => {
   expect(shallowRender()).toMatchSnapshot();
+  expect(shallowRender({ deleteConfirmation: 'modal' })).toMatchSnapshot();
 });
 
-it('should revoke the token', async () => {
+it('should revoke the token using inline confirmation', async () => {
   const onRevokeToken = jest.fn();
-  const wrapper = shallowRender({ onRevokeToken });
+  const wrapper = shallowRender({ deleteConfirmation: 'inline', onRevokeToken });
   expect(wrapper.find('Button')).toMatchSnapshot();
   click(wrapper.find('Button'));
   expect(wrapper.find('Button')).toMatchSnapshot();
@@ -58,8 +59,23 @@ it('should revoke the token', async () => {
   expect(onRevokeToken).toHaveBeenCalledWith(userToken);
 });
 
+it('should revoke the token using modal confirmation', async () => {
+  const onRevokeToken = jest.fn();
+  const wrapper = shallowRender({ deleteConfirmation: 'modal', onRevokeToken });
+  wrapper.find('ConfirmButton').prop<Function>('onConfirm')();
+  expect(revokeToken).toHaveBeenCalledWith({ login: 'luke', name: 'foo' });
+  await waitAndUpdate(wrapper);
+  expect(onRevokeToken).toHaveBeenCalledWith(userToken);
+});
+
 function shallowRender(props: Partial<TokensFormItem['props']> = {}) {
   return shallow(
-    <TokensFormItem login="luke" onRevokeToken={jest.fn()} token={userToken} {...props} />
+    <TokensFormItem
+      deleteConfirmation="inline"
+      login="luke"
+      onRevokeToken={jest.fn()}
+      token={userToken}
+      {...props}
+    />
   );
 }

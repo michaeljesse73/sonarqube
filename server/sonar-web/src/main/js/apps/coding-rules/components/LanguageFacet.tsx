@@ -17,14 +17,14 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
+import { uniqBy } from 'lodash';
 import * as React from 'react';
 import { connect } from 'react-redux';
-import { uniqBy } from 'lodash';
-import { BasicProps } from './Facet';
-import { getLanguages, Store } from '../../../store/rootReducer';
+import { translate } from 'sonar-ui-common/helpers/l10n';
+import { highlightTerm } from 'sonar-ui-common/helpers/search';
 import ListStyleFacet from '../../../components/facet/ListStyleFacet';
-import { translate } from '../../../helpers/l10n';
-import { highlightTerm } from '../../../helpers/search';
+import { getLanguages, Store } from '../../../store/rootReducer';
+import { BasicProps } from './Facet';
 
 interface InstalledLanguage {
   key: string;

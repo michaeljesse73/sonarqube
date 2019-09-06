@@ -19,12 +19,12 @@
  */
 import * as React from 'react';
 import { Link } from 'react-router';
+import Tooltip from 'sonar-ui-common/components/controls/Tooltip';
+import ClockIcon from 'sonar-ui-common/components/icons/ClockIcon';
+import FavoriteIcon from 'sonar-ui-common/components/icons/FavoriteIcon';
+import QualifierIcon from 'sonar-ui-common/components/icons/QualifierIcon';
+import { getCodeUrl, getProjectUrl } from '../../../helpers/urls';
 import { ComponentResult } from './utils';
-import FavoriteIcon from '../../../components/icons-components/FavoriteIcon';
-import QualifierIcon from '../../../components/icons-components/QualifierIcon';
-import ClockIcon from '../../../components/icons-components/ClockIcon';
-import Tooltip from '../../../components/controls/Tooltip';
-import { getProjectUrl, getCodeUrl } from '../../../helpers/urls';
 
 interface Props {
   appState: Pick<T.AppState, 'organizationsEnabled'>;
@@ -137,6 +137,7 @@ export default class SearchResult extends React.PureComponent<Props, State> {
               {component.match ? (
                 <span
                   className="navbar-search-item-match"
+                  // Safe: comes from the backend
                   dangerouslySetInnerHTML={{ __html: component.match }}
                 />
               ) : (

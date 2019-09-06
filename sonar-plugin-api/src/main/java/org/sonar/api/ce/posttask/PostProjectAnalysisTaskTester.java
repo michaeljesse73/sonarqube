@@ -30,9 +30,10 @@ import java.util.Optional;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
+import static org.sonar.api.utils.Preconditions.checkArgument;
+import static org.sonar.api.utils.Preconditions.checkState;
 
 /**
  * This class can be used to test {@link PostProjectAnalysisTask} implementations, see example below:
@@ -42,21 +43,17 @@ import static java.util.Objects.requireNonNull;
  * import static org.sonar.api.ce.posttask.PostProjectAnalysisTaskTester.newConditionBuilder;
  * import static org.sonar.api.ce.posttask.PostProjectAnalysisTaskTester.newProjectBuilder;
  * import static org.sonar.api.ce.posttask.PostProjectAnalysisTaskTester.newQualityGateBuilder;
- *
  * public class CaptorPostProjectAnalysisTaskTest {
  *   private class CaptorPostProjectAnalysisTask implements PostProjectAnalysisTask {
  *     private ProjectAnalysis projectAnalysis;
- *
  *    {@literal @}Override
  *     public void finished(ProjectAnalysis analysis) {
  *       this.projectAnalysis = analysis;
  *     }
  *   }
- *
  *  {@literal @}Test
  *   public void execute_is_passed_a_non_null_ProjectAnalysis_object() {
  *     CaptorPostProjectAnalysisTask postProjectAnalysisTask = new CaptorPostProjectAnalysisTask();
- *
  *     PostProjectAnalysisTaskTester.of(postProjectAnalysisTask)
  *       .withCeTask(
  *           newCeTaskBuilder()
@@ -84,7 +81,6 @@ import static java.util.Objects.requireNonNull;
  *               .build(QualityGate.EvaluationStatus.OK, "value"))
  *           .build())
  *       .execute();
- *
  *     assertThat(postProjectAnalysisTask.projectAnalysis).isNotNull();
  *   }
  * }
@@ -116,6 +112,8 @@ public class PostProjectAnalysisTaskTester {
   private Branch branch;
   private ScannerContext scannerContext;
   private String analysisUuid;
+  @CheckForNull
+  private Map<String, Object> stats;
 
   private PostProjectAnalysisTaskTester(PostProjectAnalysisTask underTest) {
     this.underTest = requireNonNull(underTest, "PostProjectAnalysisTask instance cannot be null");
@@ -229,10 +227,36 @@ public class PostProjectAnalysisTaskTester {
       .setDate(date)
       .build();
 
-    this.underTest.
-      finished(projectAnalysis);
+    stats = new HashMap<>();
+    PostProjectAnalysisTask.LogStatistics logStatistics = new PostProjectAnalysisTask.LogStatistics() {
+      @Override
+      public PostProjectAnalysisTask.LogStatistics add(String key, Object value) {
+        requireNonNull(key, "Statistic has null key");
+        requireNonNull(value, () -> format("Statistic with key [%s] has null value", key));
+        checkArgument(!key.equalsIgnoreCase("time"), "Statistic with key [time] is not accepted");
+        checkArgument(!stats.containsKey(key), "Statistic with key [%s] is already present", key);
+        stats.put(key, value);
+        return this;
+      }
+    };
+
+    this.underTest.finished(new PostProjectAnalysisTask.Context() {
+      @Override
+      public PostProjectAnalysisTask.ProjectAnalysis getProjectAnalysis() {
+        return projectAnalysis;
+      }
+      @Override
+      public PostProjectAnalysisTask.LogStatistics getLogStatistics() {
+        return logStatistics;
+      }
+    });
 
     return projectAnalysis;
+  }
+
+  public Map<String, Object> getLogStatistics() {
+    checkState(stats != null, "execute must be called first");
+    return stats;
   }
 
   public static final class OrganizationBuilder {
@@ -815,6 +839,8 @@ public class PostProjectAnalysisTaskTester {
   public static final class AnalysisBuilder {
     private String analysisUuid;
     private Date date;
+    @Nullable
+    private String revision;
 
     private AnalysisBuilder() {
       // prevents instantiation outside PostProjectAnalysisTaskTester
@@ -830,6 +856,11 @@ public class PostProjectAnalysisTaskTester {
       return this;
     }
 
+    public AnalysisBuilder setRevision(@Nullable String s) {
+      this.revision = s;
+      return this;
+    }
+
     public Analysis build() {
       return new Analysis() {
 
@@ -841,6 +872,11 @@ public class PostProjectAnalysisTaskTester {
         @Override
         public Date getDate() {
           return date;
+        }
+
+        @Override
+        public Optional<String> getRevision() {
+          return Optional.ofNullable(revision);
         }
       };
     }

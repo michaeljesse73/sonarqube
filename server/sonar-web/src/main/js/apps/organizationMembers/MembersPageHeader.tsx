@@ -20,13 +20,13 @@
 import * as React from 'react';
 import { FormattedMessage } from 'react-intl';
 import { Link } from 'react-router';
+import { Alert } from 'sonar-ui-common/components/ui/Alert';
+import DeferredSpinner from 'sonar-ui-common/components/ui/DeferredSpinner';
+import { translate, translateWithParameters } from 'sonar-ui-common/helpers/l10n';
+import DocTooltip from '../../components/docs/DocTooltip';
+import { isGithub, sanitizeAlmId } from '../../helpers/almIntegrations';
 import AddMemberForm from './AddMemberForm';
 import SyncMemberForm from './SyncMemberForm';
-import DeferredSpinner from '../../components/common/DeferredSpinner';
-import DocTooltip from '../../components/docs/DocTooltip';
-import { sanitizeAlmId, isGithub } from '../../helpers/almIntegrations';
-import { translate, translateWithParameters } from '../../helpers/l10n';
-import { Alert } from '../../components/ui/Alert';
 
 export interface Props {
   handleAddMember: (member: T.OrganizationMember) => void;
@@ -43,14 +43,19 @@ export default function MembersPageHeader(props: Props) {
   const almKey = organization.alm && sanitizeAlmId(organization.alm.key);
   const hasMemberSync = organization.alm && organization.alm.membersSync;
   const showSyncNotif = isAdmin && organization.alm && !hasMemberSync;
+  const isSyncEligible =
+    almKey && isGithub(almKey) && organization.alm && !organization.alm.personal;
 
   return (
     <header className="page-header">
-      <h1 className="page-title">{translate('organization.members.page')}</h1>
-      <DeferredSpinner loading={props.loading} />
+      <h1 className="page-title">
+        {translate('organization.members.page')}
+        <DeferredSpinner className="little-spacer-left" loading={props.loading} />
+      </h1>
+
       {isAdmin && (
         <div className="page-actions text-right">
-          {almKey && isGithub(almKey) && !showSyncNotif && (
+          {isSyncEligible && !showSyncNotif && (
             <SyncMemberForm
               buttonText={translate('organization.members.config_synchro')}
               hasOtherMembers={members && members.length > 1}
@@ -85,7 +90,7 @@ export default function MembersPageHeader(props: Props) {
             )
           }}
         />
-        {almKey && isGithub(almKey) && showSyncNotif && (
+        {almKey && isSyncEligible && showSyncNotif && (
           <Alert className="spacer-top" display="inline" variant="info">
             {translateWithParameters(
               'organization.members.auto_sync_members_from_org_x',

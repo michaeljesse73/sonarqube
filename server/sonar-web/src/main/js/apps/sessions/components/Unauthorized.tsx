@@ -18,20 +18,12 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import { translate } from '../../../helpers/l10n';
-import { getBaseUrl } from '../../../helpers/urls';
+import { getCookie } from 'sonar-ui-common/helpers/cookies';
+import { translate } from 'sonar-ui-common/helpers/l10n';
+import { getBaseUrl } from 'sonar-ui-common/helpers/urls';
 
-interface Props {
-  location: {
-    query: {
-      message: string;
-    };
-  };
-}
-
-export default function Unauthorized(props: Props) {
-  const { message } = props.location.query;
-
+export default function Unauthorized() {
+  const message = decodeURIComponent(getCookie('AUTHENTICATION-ERROR') || '');
   return (
     <div className="page-wrapper-simple" id="bd">
       <div className="page-simple" id="nonav">

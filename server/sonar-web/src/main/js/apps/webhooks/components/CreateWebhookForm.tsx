@@ -18,20 +18,20 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import { FormikProps } from 'formik';
+import InputValidationField from 'sonar-ui-common/components/controls/InputValidationField';
+import ValidationModal from 'sonar-ui-common/components/controls/ValidationModal';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import { isWebUri } from 'valid-url';
-import ValidationModal from '../../../components/controls/ValidationModal';
-import InputValidationField from '../../../components/controls/InputValidationField';
-import { translate } from '../../../helpers/l10n';
 
 interface Props {
   onClose: () => void;
-  onDone: (data: { name: string; url: string }) => Promise<void>;
+  onDone: (data: Values) => Promise<void>;
   webhook?: T.Webhook;
 }
 
 interface Values {
   name: string;
+  secret: string;
   url: string;
 }
 
@@ -43,8 +43,8 @@ export default class CreateWebhookForm extends React.PureComponent<Props> {
   };
 
   handleValidate = (data: Values) => {
-    const { name, url } = data;
-    const errors: { name?: string; url?: string } = {};
+    const { name, secret, url } = data;
+    const errors: { name?: string; secret?: string; url?: string } = {};
     if (!name.trim()) {
       errors.name = translate('webhooks.name.required');
     }
@@ -54,6 +54,9 @@ export default class CreateWebhookForm extends React.PureComponent<Props> {
       errors.url = translate('webhooks.url.bad_protocol');
     } else if (!isWebUri(url)) {
       errors.url = translate('webhooks.url.bad_format');
+    }
+    if (secret && secret.length > 200) {
+      errors.secret = translate('webhooks.secret.bad_format');
     }
     return errors;
   };
@@ -68,23 +71,16 @@ export default class CreateWebhookForm extends React.PureComponent<Props> {
         confirmButtonText={confirmButtonText}
         header={modalHeader}
         initialValues={{
-          name: webhook ? webhook.name : '',
-          url: webhook ? webhook.url : ''
+          name: (webhook && webhook.name) || '',
+          secret: (webhook && webhook.secret) || '',
+          url: (webhook && webhook.url) || ''
         }}
         isInitialValid={isUpdate}
         onClose={this.props.onClose}
         onSubmit={this.props.onDone}
         size="small"
         validate={this.handleValidate}>
-        {({
-          dirty,
-          errors,
-          handleBlur,
-          handleChange,
-          isSubmitting,
-          touched,
-          values
-        }: FormikProps<Values>) => (
+        {({ dirty, errors, handleBlur, handleChange, isSubmitting, touched, values }) => (
           <>
             <InputValidationField
               autoFocus={true}
@@ -123,6 +119,20 @@ export default class CreateWebhookForm extends React.PureComponent<Props> {
               touched={touched.url}
               type="text"
               value={values.url}
+            />
+            <InputValidationField
+              description={translate('webhooks.secret.description')}
+              dirty={dirty}
+              disabled={isSubmitting}
+              error={errors.secret}
+              id="webhook-secret"
+              label={<label htmlFor="webhook-secret">{translate('webhooks.secret')}</label>}
+              name="secret"
+              onBlur={handleBlur}
+              onChange={handleChange}
+              touched={touched.secret}
+              type="password"
+              value={values.secret}
             />
           </>
         )}

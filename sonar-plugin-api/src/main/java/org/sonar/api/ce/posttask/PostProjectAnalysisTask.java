@@ -31,11 +31,9 @@ import org.sonar.api.ce.ComputeEngineSide;
  *
  * <p>
  * If more then one implementation of {@link PostProjectAnalysisTask} is found, they will be executed in no specific order.
- * 
  *
  * <p>
  * Class {@link PostProjectAnalysisTaskTester} is provided to write unit tests of implementations of this interface.
- * 
  *
  * @since 5.5
  * @see PostProjectAnalysisTaskTester
@@ -43,10 +41,47 @@ import org.sonar.api.ce.ComputeEngineSide;
 @ExtensionPoint
 @ComputeEngineSide
 public interface PostProjectAnalysisTask {
+
+  /**
+   * A short description or name for the task.
+   * <p>
+   * This will be used (but not limited to) in logs reporting the execution of the task.
+   */
+  String getDescription();
+
   /**
    * This method is called whenever the processing of a Project analysis has finished, whether successfully or not.
+   *
+   * @deprecated implement {@link #finished(Context)} instead
    */
-  void finished(ProjectAnalysis analysis);
+  @Deprecated
+  default void finished(ProjectAnalysis analysis) {
+    throw new IllegalStateException("Provide an implementation of method finished(Context)");
+  }
+
+  default void finished(Context context) {
+    finished(context.getProjectAnalysis());
+  }
+
+  interface Context {
+    ProjectAnalysis getProjectAnalysis();
+
+    LogStatistics getLogStatistics();
+  }
+
+  /**
+   * Each key-value paar will be added to the log describing the end of the
+   */
+  interface LogStatistics {
+    /**
+     * @return this
+     * @throws NullPointerException if key or value is null
+     * @throws IllegalArgumentException if key has already been set
+     * @throws IllegalArgumentException if key is "status", to avoid conflict with field with same name added by the executor
+     * @throws IllegalArgumentException if key is "time", to avoid conflict with the profiler field with same name
+     */
+    LogStatistics add(String key, Object value);
+  }
 
   /**
    * @since 5.5
@@ -124,8 +159,12 @@ public interface PostProjectAnalysisTask {
     ScannerContext getScannerContext();
 
     /**
-     * Revision Id that has been analysed
+     * Revision Id that has been analysed. May return null.
+     * @since 7.6
+     * @deprecated in 7.8, replaced by {@code Analysis#getRevision()}
+     * @see #getAnalysis()
      */
+    @Deprecated
     String getScmRevisionId();
   }
 }

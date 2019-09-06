@@ -17,18 +17,18 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
+import { groupBy, sortBy } from 'lodash';
 import * as React from 'react';
 import { Link } from 'react-router';
-import { groupBy, sortBy } from 'lodash';
-import { DropdownOverlay } from '../../controls/Dropdown';
-import QualifierIcon from '../../icons-components/QualifierIcon';
-import { PopupPlacement } from '../../ui/popups';
-import { WorkspaceContextShape } from '../../workspace/context';
-import { isShortLivingBranch, isPullRequest } from '../../../helpers/branches';
-import { translate } from '../../../helpers/l10n';
-import { collapsedDirFromPath, fileFromPath } from '../../../helpers/path';
+import { DropdownOverlay } from 'sonar-ui-common/components/controls/Dropdown';
+import QualifierIcon from 'sonar-ui-common/components/icons/QualifierIcon';
+import { Alert } from 'sonar-ui-common/components/ui/Alert';
+import { PopupPlacement } from 'sonar-ui-common/components/ui/popups';
+import { translate } from 'sonar-ui-common/helpers/l10n';
+import { collapsedDirFromPath, fileFromPath } from 'sonar-ui-common/helpers/path';
+import { isPullRequest, isShortLivingBranch } from '../../../helpers/branches';
 import { getProjectUrl } from '../../../helpers/urls';
-import { Alert } from '../../ui/Alert';
+import { WorkspaceContextShape } from '../../workspace/context';
 
 interface Props {
   blocks: T.DuplicationBlock[];

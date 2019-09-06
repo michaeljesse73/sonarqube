@@ -19,14 +19,14 @@
  */
 import * as React from 'react';
 import { withRouter, WithRouterProps } from 'react-router';
-import Changelog from './Changelog';
-import ChangelogSearch from './ChangelogSearch';
-import ChangelogEmpty from './ChangelogEmpty';
+import { parseDate, toShortNotSoISOString } from 'sonar-ui-common/helpers/dates';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import { getProfileChangelog } from '../../../api/quality-profiles';
-import { translate } from '../../../helpers/l10n';
-import { getProfileChangelogPath } from '../utils';
 import { Profile, ProfileChangelogEvent } from '../types';
-import { parseDate, toShortNotSoISOString } from '../../../helpers/dates';
+import { getProfileChangelogPath } from '../utils';
+import Changelog from './Changelog';
+import ChangelogEmpty from './ChangelogEmpty';
+import ChangelogSearch from './ChangelogSearch';
 
 interface Props extends WithRouterProps {
   organization: string | null;

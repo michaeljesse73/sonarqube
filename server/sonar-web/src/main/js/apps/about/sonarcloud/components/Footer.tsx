@@ -19,7 +19,7 @@
  */
 import * as React from 'react';
 import { Link } from 'react-router';
-import { getBaseUrl } from '../../../../helpers/urls';
+import { getBaseUrl } from 'sonar-ui-common/helpers/urls';
 import './Footer.css';
 
 export default function Footer() {
@@ -30,6 +30,11 @@ export default function Footer() {
           <div className="sc-footer-nav-column">
             <h4 className="sc-footer-nav-column-title">Need Help</h4>
             <ul>
+              <li className="spacer-top">
+                <Link className="sc-footer-link" to="/documentation">
+                  Documentation
+                </Link>
+              </li>
               <li className="spacer-top">
                 <a
                   className="sc-footer-link"

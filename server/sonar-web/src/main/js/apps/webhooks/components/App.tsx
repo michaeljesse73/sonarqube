@@ -19,12 +19,12 @@
  */
 import * as React from 'react';
 import { Helmet } from 'react-helmet';
+import { translate } from 'sonar-ui-common/helpers/l10n';
+import { createWebhook, deleteWebhook, searchWebhooks, updateWebhook } from '../../../api/webhooks';
+import Suggestions from '../../../app/components/embed-docs-modal/Suggestions';
 import PageActions from './PageActions';
 import PageHeader from './PageHeader';
 import WebhooksList from './WebhooksList';
-import { createWebhook, deleteWebhook, searchWebhooks, updateWebhook } from '../../../api/webhooks';
-import Suggestions from '../../../app/components/embed-docs-modal/Suggestions';
-import { translate } from '../../../helpers/l10n';
 
 interface Props {
   component?: T.LightComponent;
@@ -72,11 +72,15 @@ export default class App extends React.PureComponent<Props, State> {
     };
   };
 
-  handleCreate = (data: { name: string; url: string }) => {
-    return createWebhook({
-      ...data,
+  handleCreate = (data: { name: string; secret?: string; url: string }) => {
+    const createData = {
+      name: data.name,
+      url: data.url,
+      ...(data.secret && { secret: data.secret }),
       ...this.getScopeParams()
-    }).then(({ webhook }) => {
+    };
+
+    return createWebhook(createData).then(({ webhook }) => {
       if (this.mounted) {
         this.setState(({ webhooks }) => ({ webhooks: [...webhooks, webhook] }));
       }
@@ -93,12 +97,21 @@ export default class App extends React.PureComponent<Props, State> {
     });
   };
 
-  handleUpdate = (data: { webhook: string; name: string; url: string }) => {
-    return updateWebhook(data).then(() => {
+  handleUpdate = (data: { webhook: string; name: string; secret?: string; url: string }) => {
+    const udpateData = {
+      webhook: data.webhook,
+      name: data.name,
+      url: data.url,
+      ...(data.secret && { secret: data.secret })
+    };
+
+    return updateWebhook(udpateData).then(() => {
       if (this.mounted) {
         this.setState(({ webhooks }) => ({
           webhooks: webhooks.map(webhook =>
-            webhook.key === data.webhook ? { ...webhook, name: data.name, url: data.url } : webhook
+            webhook.key === data.webhook
+              ? { ...webhook, name: data.name, secret: data.secret, url: data.url }
+              : webhook
           )
         }));
       }

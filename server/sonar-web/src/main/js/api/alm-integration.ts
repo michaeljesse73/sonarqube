@@ -17,8 +17,15 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import { getJSON, postJSON, post, requestTryAndRepeat } from '../helpers/request';
+import {
+  getCorsJSON,
+  getJSON,
+  post,
+  postJSON,
+  requestTryAndRepeatUntil
+} from 'sonar-ui-common/helpers/request';
 import throwGlobalError from '../app/utils/throwGlobalError';
+import { AlmLanguagesStats } from '../apps/tutorials/analyzeProject/utils';
 
 export function bindAlmOrganization(data: { installationId: string; organization: string }) {
   return post('/api/alm_integration/bind_organization', data).catch(throwGlobalError);
@@ -36,7 +43,12 @@ export interface GetAlmOrganizationResponse {
 export function getAlmOrganization(data: {
   installationId: string;
 }): Promise<GetAlmOrganizationResponse> {
-  return requestTryAndRepeat(() => getJSON('/api/alm_integration/show_organization', data), 25, 20)
+  return requestTryAndRepeatUntil(
+    () => getJSON('/api/alm_integration/show_organization', data),
+    { max: 25, slowThreshold: 20 },
+    () => true,
+    [404]
+  )
     .catch(throwGlobalError)
     .then(({ almOrganization, boundOrganization }) => ({
       almOrganization: {
@@ -69,4 +81,10 @@ export function provisionProject(data: {
     ...data,
     installationKeys: data.installationKeys.join(',')
   }).catch(throwGlobalError);
+}
+
+export function getGithubLanguages(url: string): Promise<AlmLanguagesStats> {
+  // We don't want to throwGlobalError
+  const apiUrl = url.replace('https://github.com/', 'https://api.github.com/repos/');
+  return getCorsJSON(`${apiUrl}/languages`);
 }

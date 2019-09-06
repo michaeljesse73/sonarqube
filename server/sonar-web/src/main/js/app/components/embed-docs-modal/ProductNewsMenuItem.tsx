@@ -19,12 +19,12 @@
  */
 import * as React from 'react';
 import { connect } from 'react-redux';
-import { fetchPrismicRefs, fetchPrismicNews, PrismicNews } from '../../../api/news';
-import { getGlobalSettingValue, Store } from '../../../store/rootReducer';
+import ChevronRightIcon from 'sonar-ui-common/components/icons/ChevronRightIcon';
+import { translate } from 'sonar-ui-common/helpers/l10n';
+import { fetchPrismicNews, fetchPrismicRefs, PrismicNews } from '../../../api/news';
 import DateFormatter from '../../../components/intl/DateFormatter';
-import ChevronRightIcon from '../../../components/icons-components/ChevronRightcon';
 import PlaceholderBar from '../../../components/ui/PlaceholderBar';
-import { translate } from '../../../helpers/l10n';
+import { getGlobalSettingValue, Store } from '../../../store/rootReducer';
 
 interface OwnProps {
   tag?: string;

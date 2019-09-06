@@ -17,22 +17,24 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { shallow } from 'enzyme';
+import * as React from 'react';
+import { click } from 'sonar-ui-common/helpers/testUtils';
 import IssueTransition from '../IssueTransition';
-import { click } from '../../../../helpers/testUtils';
 
-const issue = {
+const issue: IssueTransition['props']['issue'] = {
+  fromHotspot: false,
   key: 'foo1234',
   transitions: ['confirm', 'resolve', 'falsepositive', 'wontfix'],
-  status: 'OPEN'
+  status: 'OPEN',
+  type: 'BUG'
 };
 
 it('should render without the action when there is no transitions', () => {
   expect(
     shallowRender({
       hasTransitions: false,
-      issue: { key: 'foo1234', transitions: [], status: 'CLOSED' }
+      issue: { fromHotspot: false, key: 'foo1234', transitions: [], status: 'CLOSED', type: 'BUG' }
     })
   ).toMatchSnapshot();
 });
@@ -45,10 +47,12 @@ it('should render with a resolution', () => {
   expect(
     shallowRender({
       issue: {
+        fromHotspot: false,
         key: 'foo1234',
         transitions: ['reopen'],
         status: 'RESOLVED',
-        resolution: 'FIXED'
+        resolution: 'FIXED',
+        type: 'BUG'
       }
     })
   ).toMatchSnapshot();

@@ -19,11 +19,14 @@
  */
 package org.sonar.server.platform.db.migration.sql;
 
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.List;
+import org.sonar.db.Database;
+import org.sonar.db.DatabaseUtils;
 import org.sonar.db.dialect.Dialect;
 import org.sonar.db.dialect.H2;
 import org.sonar.db.dialect.MsSql;
-import org.sonar.db.dialect.MySql;
 import org.sonar.db.dialect.Oracle;
 import org.sonar.db.dialect.PostgreSql;
 
@@ -60,7 +63,6 @@ public class DropIndexBuilder {
   private String createSqlStatement() {
     switch (dialect.getId()) {
       case MsSql.ID:
-      case MySql.ID:
         return "DROP INDEX " + indexName + " ON " + tableName;
       case Oracle.ID:
         return "DROP INDEX " + indexName;
@@ -72,4 +74,11 @@ public class DropIndexBuilder {
     }
   }
 
+  public boolean indexExists(Database database) throws SQLException {
+    validateTableName(tableName);
+    validateIndexName(indexName);
+    try (Connection connection = database.getDataSource().getConnection()) {
+      return DatabaseUtils.indexExists(tableName, indexName, connection);
+    }
+  }
 }

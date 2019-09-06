@@ -21,7 +21,6 @@ package org.sonar.core.component;
 
 import javax.annotation.Nullable;
 import org.apache.commons.lang.StringUtils;
-import org.sonar.api.batch.fs.internal.DefaultInputFile;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
@@ -30,11 +29,10 @@ public final class ComponentKeys {
   public static final int MAX_COMPONENT_KEY_LENGTH = 400;
 
   /*
-   * Allowed characters are alphanumeric, '-', '_', '.' and ':', with at least one non-digit
+   * Must not be blank or empty
    */
-  private static final String VALID_PROJECT_KEY_REGEXP = "[\\p{Alnum}\\-_.:]*[\\p{Alpha}\\-_.:]+[\\p{Alnum}\\-_.:]*";
+  private static final String VALID_PROJECT_KEY_REGEXP = "[^\\p{javaWhitespace}]+";
 
-  private static final String VALID_PROJECT_KEY_ISSUES_MODE_REGEXP = "[\\p{Alnum}\\-_.:/]*[\\p{Alpha}\\-_.:/]+[\\p{Alnum}\\-_.:/]*";
   /*
    * Allowed characters are alphanumeric, '-', '_', '.' and '/'
    */
@@ -44,10 +42,6 @@ public final class ComponentKeys {
 
   private ComponentKeys() {
     // only static stuff
-  }
-
-  public static String createEffectiveKey(String projectKey, DefaultInputFile inputPath) {
-    return createEffectiveKey(projectKey, inputPath.getProjectRelativePath());
   }
 
   public static String createEffectiveKey(String projectKey, @Nullable String path) {
@@ -60,18 +54,7 @@ public final class ComponentKeys {
   }
 
   /**
-   * <p>Test if given parameter is valid for a project. Valid format is:</p>
-   * <ul>
-   * <li>Allowed characters:
-   * <ul>
-   * <li>Uppercase ASCII letters A-Z</li>
-   * <li>Lowercase ASCII letters a-z</li>
-   * <li>ASCII digits 0-9</li>
-   * <li>Punctuation signs dash '-', underscore '_', period '.' and colon ':'</li>
-   * </ul>
-   * </li>
-   * <li>At least one non-digit</li>
-   * </ul>
+   * Test if given parameter is valid for a project. A key is valid if it doesn't contain whitespaces.
    *
    * @return <code>true</code> if <code>keyCandidate</code> can be used for a project
    */
@@ -85,34 +68,7 @@ public final class ComponentKeys {
    * @throws IllegalArgumentException if the format is incorrect
    */
   public static void checkProjectKey(String keyCandidate) {
-    checkArgument(isValidProjectKey(keyCandidate), "Malformed key for '%s'. Allowed characters are alphanumeric, '-', '_', '.' and ':', with at least one non-digit.",
-      keyCandidate);
-  }
-
-  /**
-   * Same as {@link #isValidProjectKey(String)}, but allows additionally '/'.
-   */
-  public static boolean isValidProjectKeyIssuesMode(String keyCandidate) {
-    return keyCandidate.matches(VALID_PROJECT_KEY_ISSUES_MODE_REGEXP);
-  }
-
-  /**
-   * <p>Test if given parameter is valid for a branch. Valid format is:</p>
-   * <ul>
-   * <li>Allowed characters:
-   * <ul>
-   * <li>Uppercase ASCII letters A-Z</li>
-   * <li>Lowercase ASCII letters a-z</li>
-   * <li>ASCII digits 0-9</li>
-   * <li>Punctuation signs dash '-', underscore '_', period '.', and '/'</li>
-   * </ul>
-   * </li>
-   * </ul>
-   *
-   * @return <code>true</code> if <code>branchCandidate</code> can be used for a project
-   */
-  public static boolean isValidLegacyBranch(String branchCandidate) {
-    return branchCandidate.matches(VALID_BRANCH_REGEXP);
+    checkArgument(isValidProjectKey(keyCandidate), "Malformed key for '%s'. %s", keyCandidate, "Project key cannot be empty nor contain whitespaces.");
   }
 
   /**

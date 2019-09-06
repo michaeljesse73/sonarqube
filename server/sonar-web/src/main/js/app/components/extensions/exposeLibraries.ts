@@ -17,62 +17,106 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
+import { FormattedMessage } from 'react-intl';
 import * as ReactRedux from 'react-redux';
 import * as ReactRouter from 'react-router';
-import { FormattedMessage } from 'react-intl';
-import throwGlobalError from '../../utils/throwGlobalError';
-import addGlobalSuccessMessage from '../../utils/addGlobalSuccessMessage';
-import Suggestions from '../embed-docs-modal/Suggestions';
-import * as measures from '../../../helpers/measures';
-import * as request from '../../../helpers/request';
-import DateFromNow from '../../../components/intl/DateFromNow';
-import DateFormatter from '../../../components/intl/DateFormatter';
-import DateTimeFormatter from '../../../components/intl/DateTimeFormatter';
+import ActionsDropdown, {
+  ActionsDropdownItem
+} from 'sonar-ui-common/components/controls/ActionsDropdown';
+import {
+  Button,
+  EditButton,
+  ResetButtonLink,
+  SubmitButton
+} from 'sonar-ui-common/components/controls/buttons';
+import Checkbox from 'sonar-ui-common/components/controls/Checkbox';
+import ConfirmButton from 'sonar-ui-common/components/controls/ConfirmButton';
+import Dropdown from 'sonar-ui-common/components/controls/Dropdown';
+import HelpTooltip from 'sonar-ui-common/components/controls/HelpTooltip';
+import ListFooter from 'sonar-ui-common/components/controls/ListFooter';
+import Modal from 'sonar-ui-common/components/controls/Modal';
+import RadioToggle from 'sonar-ui-common/components/controls/RadioToggle';
+import ReloadButton from 'sonar-ui-common/components/controls/ReloadButton';
+import SearchBox from 'sonar-ui-common/components/controls/SearchBox';
+import SearchSelect from 'sonar-ui-common/components/controls/SearchSelect';
+import Select from 'sonar-ui-common/components/controls/Select';
+import SelectList from 'sonar-ui-common/components/controls/SelectList';
+import SimpleModal from 'sonar-ui-common/components/controls/SimpleModal';
+import Tooltip from 'sonar-ui-common/components/controls/Tooltip';
+import AlertErrorIcon from 'sonar-ui-common/components/icons/AlertErrorIcon';
+import AlertSuccessIcon from 'sonar-ui-common/components/icons/AlertSuccessIcon';
+import AlertWarnIcon from 'sonar-ui-common/components/icons/AlertWarnIcon';
+import CheckIcon from 'sonar-ui-common/components/icons/CheckIcon';
+import ClearIcon from 'sonar-ui-common/components/icons/ClearIcon';
+import DetachIcon from 'sonar-ui-common/components/icons/DetachIcon';
+import DropdownIcon from 'sonar-ui-common/components/icons/DropdownIcon';
+import HelpIcon from 'sonar-ui-common/components/icons/HelpIcon';
+import LockIcon from 'sonar-ui-common/components/icons/LockIcon';
+import LongLivingBranchIcon from 'sonar-ui-common/components/icons/LongLivingBranchIcon';
+import PlusCircleIcon from 'sonar-ui-common/components/icons/PlusCircleIcon';
+import PullRequestIcon from 'sonar-ui-common/components/icons/PullRequestIcon';
+import QualifierIcon from 'sonar-ui-common/components/icons/QualifierIcon';
+import SecurityHotspotIcon from 'sonar-ui-common/components/icons/SecurityHotspotIcon';
+import VulnerabilityIcon from 'sonar-ui-common/components/icons/VulnerabilityIcon';
+import { Alert } from 'sonar-ui-common/components/ui/Alert';
+import DeferredSpinner from 'sonar-ui-common/components/ui/DeferredSpinner';
+import DuplicationsRating from 'sonar-ui-common/components/ui/DuplicationsRating';
+import Level from 'sonar-ui-common/components/ui/Level';
+import Rating from 'sonar-ui-common/components/ui/Rating';
+import { formatMeasure } from 'sonar-ui-common/helpers/measures';
+import NotFound from '../../../app/components/NotFound';
 import Favorite from '../../../components/controls/Favorite';
 import HomePageSelect from '../../../components/controls/HomePageSelect';
-import ListFooter from '../../../components/controls/ListFooter';
-import Modal from '../../../components/controls/Modal';
-import HelpTooltip from '../../../components/controls/HelpTooltip';
-import SearchBox from '../../../components/controls/SearchBox';
-import Select from '../../../components/controls/Select';
-import Tooltip from '../../../components/controls/Tooltip';
-import SelectList from '../../../components/SelectList/SelectList';
-import CoverageRating from '../../../components/ui/CoverageRating';
-import DuplicationsRating from '../../../components/ui/DuplicationsRating';
-import Level from '../../../components/ui/Level';
-import { EditButton, Button, SubmitButton, ResetButtonLink } from '../../../components/ui/buttons';
-import Checkbox from '../../../components/controls/Checkbox';
-import DeferredSpinner from '../../../components/common/DeferredSpinner';
-import Dropdown from '../../../components/controls/Dropdown';
-import ReloadButton from '../../../components/controls/ReloadButton';
-import AlertErrorIcon from '../../../components/icons-components/AlertErrorIcon';
-import AlertSuccessIcon from '../../../components/icons-components/AlertSuccessIcon';
-import AlertWarnIcon from '../../../components/icons-components/AlertWarnIcon';
-import CheckIcon from '../../../components/icons-components/CheckIcon';
-import ClearIcon from '../../../components/icons-components/ClearIcon';
-import DropdownIcon from '../../../components/icons-components/DropdownIcon';
-import HelpIcon from '../../../components/icons-components/HelpIcon';
-import LockIcon from '../../../components/icons-components/LockIcon';
-import QualifierIcon from '../../../components/icons-components/QualifierIcon';
-import Rating from '../../../components/ui/Rating';
 import BranchIcon from '../../../components/icons-components/BranchIcon';
-import LongLivingBranchIcon from '../../../components/icons-components/LongLivingBranchIcon';
-import PullRequestIcon from '../../../components/icons-components/PullRequestIcon';
-import ActionsDropdown, { ActionsDropdownItem } from '../../../components/controls/ActionsDropdown';
-import ConfirmButton from '../../../components/controls/ConfirmButton';
-import SimpleModal from '../../../components/controls/SimpleModal';
-import SearchSelect from '../../../components/controls/SearchSelect';
-import RadioToggle from '../../../components/controls/RadioToggle';
+import DateFormatter from '../../../components/intl/DateFormatter';
+import DateFromNow from '../../../components/intl/DateFromNow';
+import DateTimeFormatter from '../../../components/intl/DateTimeFormatter';
+import CoverageRating from '../../../components/ui/CoverageRating';
+import {
+  getBranchLikeQuery,
+  isBranch,
+  isLongLivingBranch,
+  isPullRequest
+} from '../../../helpers/branches';
+import * as measures from '../../../helpers/measures';
+import {
+  getStandards,
+  renderCWECategory,
+  renderOwaspTop10Category,
+  renderSansTop25Category,
+  renderSonarSourceSecurityCategory
+} from '../../../helpers/security-standard';
+import { getComponentIssuesUrl, getRulesUrl } from '../../../helpers/urls';
+import addGlobalSuccessMessage from '../../utils/addGlobalSuccessMessage';
+import throwGlobalError from '../../utils/throwGlobalError';
 import A11ySkipTarget from '../a11y/A11ySkipTarget';
-import { Alert } from '../../../components/ui/Alert';
+import Suggestions from '../embed-docs-modal/Suggestions';
+import request from './legacy/request-legacy';
 
 const exposeLibraries = () => {
   const global = window as any;
 
   global.ReactRedux = ReactRedux;
   global.ReactRouter = ReactRouter;
-  global.SonarMeasures = measures;
-  global.SonarRequest = { ...request, throwGlobalError, addGlobalSuccessMessage };
+  global.SonarHelpers = {
+    getBranchLikeQuery,
+    isBranch,
+    isLongLivingBranch,
+    isPullRequest,
+    getStandards,
+    renderCWECategory,
+    renderOwaspTop10Category,
+    renderSansTop25Category,
+    renderSonarSourceSecurityCategory,
+    getComponentIssuesUrl,
+    getRulesUrl
+  };
+  global.SonarMeasures = { ...measures, formatMeasure };
+  global.SonarRequest = {
+    ...request,
+    throwGlobalError,
+    addGlobalSuccessMessage
+  };
   global.SonarComponents = {
     A11ySkipTarget,
     ActionsDropdown,
@@ -92,6 +136,7 @@ const exposeLibraries = () => {
     DateFromNow,
     DateTimeFormatter,
     DeferredSpinner,
+    DetachIcon,
     Dropdown,
     DropdownIcon,
     DuplicationsRating,
@@ -106,6 +151,8 @@ const exposeLibraries = () => {
     LockIcon,
     LongLivingBranchIcon,
     Modal,
+    NotFound,
+    PlusCircleIcon,
     PullRequestIcon,
     QualifierIcon,
     RadioToggle,
@@ -114,12 +161,14 @@ const exposeLibraries = () => {
     ResetButtonLink,
     SearchBox,
     SearchSelect,
+    SecurityHotspotIcon,
     Select,
     SelectList,
     SimpleModal,
     SubmitButton,
     Suggestions,
-    Tooltip
+    Tooltip,
+    VulnerabilityIcon
   };
 };
 

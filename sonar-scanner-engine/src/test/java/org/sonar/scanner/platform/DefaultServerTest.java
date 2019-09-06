@@ -19,6 +19,7 @@
  */
 package org.sonar.scanner.platform;
 
+import org.sonar.api.SonarEdition;
 import org.junit.Test;
 import org.sonar.api.CoreProperties;
 import org.sonar.api.SonarQubeSide;
@@ -26,7 +27,7 @@ import org.sonar.api.config.Settings;
 import org.sonar.api.config.internal.MapSettings;
 import org.sonar.api.internal.SonarRuntimeImpl;
 import org.sonar.api.utils.Version;
-import org.sonar.scanner.bootstrap.ScannerWsClient;
+import org.sonar.scanner.bootstrap.DefaultScannerWsClient;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -39,10 +40,11 @@ public class DefaultServerTest {
     Settings settings = new MapSettings();
     settings.setProperty(CoreProperties.SERVER_ID, "123");
     settings.setProperty(CoreProperties.SERVER_STARTTIME, "2010-05-18T17:59:00+0000");
-    ScannerWsClient client = mock(ScannerWsClient.class);
+    DefaultScannerWsClient client = mock(DefaultScannerWsClient.class);
     when(client.baseUrl()).thenReturn("http://foo.com");
 
-    DefaultServer metadata = new DefaultServer(((MapSettings) settings).asConfig(), client, SonarRuntimeImpl.forSonarQube(Version.parse("2.2"), SonarQubeSide.SCANNER));
+    DefaultServer metadata = new DefaultServer(((MapSettings) settings).asConfig(), client,
+      SonarRuntimeImpl.forSonarQube(Version.parse("2.2"), SonarQubeSide.SCANNER, SonarEdition.COMMUNITY));
 
     assertThat(metadata.getId()).isEqualTo("123");
     assertThat(metadata.getVersion()).isEqualTo("2.2");
@@ -59,7 +61,7 @@ public class DefaultServerTest {
   @Test
   public void publicRootUrl() {
     Settings settings = new MapSettings();
-    ScannerWsClient client = mock(ScannerWsClient.class);
+    DefaultScannerWsClient client = mock(DefaultScannerWsClient.class);
     when(client.baseUrl()).thenReturn("http://foo.com/");
     DefaultServer metadata = new DefaultServer(((MapSettings) settings).asConfig(), client, null);
 
@@ -74,7 +76,7 @@ public class DefaultServerTest {
   public void invalid_startup_date_throws_exception() {
     Settings settings = new MapSettings();
     settings.setProperty(CoreProperties.SERVER_STARTTIME, "invalid");
-    ScannerWsClient client = mock(ScannerWsClient.class);
+    DefaultScannerWsClient client = mock(DefaultScannerWsClient.class);
     DefaultServer metadata = new DefaultServer(((MapSettings) settings).asConfig(), client, null);
     metadata.getStartedAt();
   }

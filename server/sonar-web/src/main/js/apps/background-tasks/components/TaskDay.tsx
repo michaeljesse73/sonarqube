@@ -17,9 +17,10 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
+import * as isSameDay from 'date-fns/is_same_day';
 import * as React from 'react';
+import { parseDate } from 'sonar-ui-common/helpers/dates';
 import DateFormatter from '../../../components/intl/DateFormatter';
-import { isSameDay, parseDate } from '../../../helpers/dates';
 
 interface Props {
   submittedAt: string;

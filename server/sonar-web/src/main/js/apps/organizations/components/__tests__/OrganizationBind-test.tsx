@@ -17,25 +17,26 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { shallow } from 'enzyme';
-import OrganizationBind from '../OrganizationBind';
-import {
-  BIND_ORGANIZATION_REDIRECT_TO_ORG_TIMESTAMP,
-  BIND_ORGANIZATION_KEY
-} from '../../../create/organization/utils';
+import * as React from 'react';
+import { save } from 'sonar-ui-common/helpers/storage';
 import { getAlmAppInfo } from '../../../../api/alm-integration';
-import { save } from '../../../../helpers/storage';
 import {
   mockAlmApplication,
   mockLoggedInUser,
   mockOrganization
 } from '../../../../helpers/testMocks';
+import {
+  BIND_ORGANIZATION_KEY,
+  BIND_ORGANIZATION_REDIRECT_TO_ORG_TIMESTAMP
+} from '../../../create/organization/utils';
+import OrganizationBind from '../OrganizationBind';
 
 jest.mock('../../../../api/alm-integration', () => ({
   getAlmAppInfo: jest.fn(() => Promise.resolve({ application: mockAlmApplication() }))
 }));
-jest.mock('../../../../helpers/storage', () => ({
+
+jest.mock('sonar-ui-common/helpers/storage', () => ({
   save: jest.fn()
 }));
 

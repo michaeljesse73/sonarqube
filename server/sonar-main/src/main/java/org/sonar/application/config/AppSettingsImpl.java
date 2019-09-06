@@ -24,7 +24,7 @@ import org.sonar.process.Props;
 
 public class AppSettingsImpl implements AppSettings {
 
-  private Props props;
+  private volatile Props props;
 
   AppSettingsImpl(Props props) {
     this.props = props;

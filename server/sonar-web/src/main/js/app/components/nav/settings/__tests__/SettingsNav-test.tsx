@@ -17,46 +17,51 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { shallow } from 'enzyme';
+import * as React from 'react';
 import SettingsNav from '../SettingsNav';
 
 it('should work with extensions', () => {
-  const extensions = [{ key: 'foo', name: 'Foo' }];
-  const wrapper = shallow(
-    <SettingsNav
-      extensions={extensions}
-      fetchPendingPlugins={() => {}}
-      location={{}}
-      organizationsEnabled={false}
-      pendingPlugins={{ installing: [], removing: [], updating: [] }}
-    />
-  );
+  const wrapper = shallowRender();
   expect(wrapper).toMatchSnapshot();
   expect(wrapper.find('Dropdown')).toMatchSnapshot();
 });
 
 it('should display a pending plugin notif', () => {
-  const extensions = [{ key: 'foo', name: 'Foo' }];
-  const wrapper = shallow(
-    <SettingsNav
-      extensions={extensions}
-      fetchPendingPlugins={() => {}}
-      location={{}}
-      organizationsEnabled={false}
-      pendingPlugins={{
-        installing: [
-          {
-            key: 'foo',
-            name: 'Foo',
-            version: '1.0',
-            implementationBuild: '1'
-          }
-        ],
-        removing: [],
-        updating: []
-      }}
-    />
-  );
+  const wrapper = shallowRender({
+    organizationsEnabled: false,
+    pendingPlugins: {
+      installing: [
+        {
+          key: 'foo',
+          name: 'Foo',
+          version: '1.0',
+          implementationBuild: '1'
+        }
+      ],
+      removing: [],
+      updating: []
+    }
+  });
   expect(wrapper.find('ContextNavBar').prop('notif')).toMatchSnapshot();
 });
+
+it('should display restart notif', () => {
+  const wrapper = shallowRender({ systemStatus: 'RESTARTING' });
+  expect(wrapper.find('ContextNavBar').prop('notif')).toMatchSnapshot();
+});
+
+function shallowRender(props: Partial<SettingsNav['props']> = {}) {
+  return shallow(
+    <SettingsNav
+      extensions={[{ key: 'foo', name: 'Foo' }]}
+      fetchPendingPlugins={jest.fn()}
+      fetchSystemStatus={jest.fn()}
+      location={{}}
+      organizationsEnabled={false}
+      pendingPlugins={{ installing: [], removing: [], updating: [] }}
+      systemStatus="UP"
+      {...props}
+    />
+  );
+}

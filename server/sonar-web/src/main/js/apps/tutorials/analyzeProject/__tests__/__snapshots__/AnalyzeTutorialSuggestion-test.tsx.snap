@@ -1,35 +1,32 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`renders bitbucket suggestions correctly 1`] = `
+exports[`renders bitbucket tutorial correctly 1`] = `
 <Alert
   className="big-spacer-bottom"
   variant="info"
 >
-  <p>
-    onboarding.project_analysis.commands_for_analysis
-  </p>
-  <p>
-    onboarding.project_analysis.suggestions.bitbucket
-  </p>
   <FormattedMessage
-    defaultMessage="onboarding.project_analysis.simply_link"
-    id="onboarding.project_analysis.simply_link"
+    defaultMessage="onboarding.project_analysis.suggestions.bitbucket"
+    id="onboarding.project_analysis.suggestions.bitbucket"
     values={
       Object {
         "link": <a
-          href="/documentation/integrations/bitbucketcloud/#analyzing-with-pipelines"
+          href="/documentation/integrations/bitbucketcloud/"
           rel="noopener noreferrer"
           target="_blank"
         >
-          onboarding.project_analysis.guide_to_integrate_piplines
+          onboarding.project_analysis.guide_to_integrate_bitbucket_cloud
         </a>,
       }
     }
   />
+  <p>
+    onboarding.project_analysis.suggestions.bitbucket_extra
+  </p>
 </Alert>
 `;
 
-exports[`renders github suggestions correctly 1`] = `
+exports[`renders github tutorial correctly 1`] = `
 <Alert
   className="big-spacer-bottom"
   variant="info"
@@ -59,7 +56,7 @@ exports[`renders github suggestions correctly 1`] = `
 </Alert>
 `;
 
-exports[`renders vsts suggestions correctly 1`] = `
+exports[`renders microsoft tutorial correctly 1`] = `
 <Alert
   className="big-spacer-bottom"
   variant="info"

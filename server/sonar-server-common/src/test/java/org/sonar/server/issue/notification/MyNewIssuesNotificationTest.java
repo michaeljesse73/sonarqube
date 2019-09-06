@@ -21,9 +21,9 @@ package org.sonar.server.issue.notification;
 
 import org.junit.Test;
 import org.sonar.api.utils.Durations;
-import org.sonar.db.DbClient;
 import org.sonar.db.user.UserDto;
 import org.sonar.db.user.UserTesting;
+import org.sonar.server.issue.notification.NewIssuesNotification.DetailsSupplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -31,7 +31,7 @@ import static org.sonar.server.issue.notification.AbstractNewIssuesEmailTemplate
 
 public class MyNewIssuesNotificationTest {
 
-  MyNewIssuesNotification underTest = new MyNewIssuesNotification(mock(DbClient.class), mock(Durations.class));
+  private MyNewIssuesNotification underTest = new MyNewIssuesNotification(mock(Durations.class), mock(DetailsSupplier.class));
 
   @Test
   public void set_assignee() {
@@ -39,11 +39,14 @@ public class MyNewIssuesNotificationTest {
 
     underTest.setAssignee(user);
 
-    assertThat(underTest.getFieldValue(FIELD_ASSIGNEE)).isEqualTo(user.getLogin());
+    assertThat(underTest.getFieldValue(FIELD_ASSIGNEE))
+      .isEqualTo(underTest.getAssignee())
+      .isEqualTo(user.getLogin());
   }
 
   @Test
   public void set_with_a_specific_type() {
     assertThat(underTest.getType()).isEqualTo(MyNewIssuesNotification.MY_NEW_ISSUES_NOTIF_TYPE);
   }
+
 }

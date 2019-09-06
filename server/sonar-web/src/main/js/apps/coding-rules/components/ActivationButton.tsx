@@ -18,9 +18,9 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import ActivationFormModal from './ActivationFormModal';
+import { Button } from 'sonar-ui-common/components/controls/buttons';
 import { Profile as BaseProfile } from '../../../api/quality-profiles';
-import { Button } from '../../../components/ui/buttons';
+import ActivationFormModal from './ActivationFormModal';
 
 interface Props {
   activation?: T.RuleActivation;

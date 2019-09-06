@@ -18,12 +18,13 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
+import { translate } from 'sonar-ui-common/helpers/l10n';
+import { whenLoggedIn } from '../../../components/hoc/whenLoggedIn';
+import { isSonarCloud } from '../../../helpers/system';
+import UserDeleteAccount from './UserDeleteAccount';
 import UserExternalIdentity from './UserExternalIdentity';
 import UserGroups from './UserGroups';
 import UserScmAccounts from './UserScmAccounts';
-import { translate } from '../../../helpers/l10n';
-import { isSonarCloud } from '../../../helpers/system';
-import { whenLoggedIn } from '../../../components/hoc/whenLoggedIn';
 
 export interface Props {
   currentUser: T.LoggedInUser;
@@ -59,6 +60,14 @@ export function Profile({ currentUser }: Props) {
         <hr />
 
         <UserScmAccounts scmAccounts={currentUser.scmAccounts} user={currentUser} />
+
+        {isSonarCloud() && (
+          <>
+            <hr />
+
+            <UserDeleteAccount user={currentUser} />
+          </>
+        )}
       </div>
     </div>
   );

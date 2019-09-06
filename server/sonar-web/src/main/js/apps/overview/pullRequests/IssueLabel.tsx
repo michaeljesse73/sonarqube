@@ -17,26 +17,35 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
+import * as classNames from 'classnames';
 import * as React from 'react';
 import { Link } from 'react-router';
-import * as classNames from 'classnames';
-import { getMetricName, ISSUETYPE_MAP, IssueType } from '../utils';
+import { formatMeasure } from 'sonar-ui-common/helpers/measures';
+import DocTooltip from '../../../components/docs/DocTooltip';
 import { getLeakValue } from '../../../components/measure/utils';
 import { getBranchLikeQuery } from '../../../helpers/branches';
+import { findMeasure } from '../../../helpers/measures';
 import { getComponentIssuesUrl } from '../../../helpers/urls';
-import { formatMeasure, findMeasure } from '../../../helpers/measures';
+import { getMetricName, IssueType, ISSUETYPE_MAP } from '../utils';
 
-interface Props {
+export interface Props {
   branchLike?: T.ShortLivingBranch | T.PullRequest;
   className?: string;
   component: T.Component;
+  docTooltip?: Promise<{ default: string }>;
   measures: T.Measure[];
   type: IssueType;
 }
 
-export default function IssueLabel({ branchLike, className, component, measures, type }: Props) {
+export default function IssueLabel({
+  branchLike,
+  className,
+  component,
+  docTooltip,
+  measures,
+  type
+}: Props) {
   const { metric, iconClass } = ISSUETYPE_MAP[type];
-
   const measure = findMeasure(measures, metric);
 
   let value;
@@ -61,6 +70,7 @@ export default function IssueLabel({ branchLike, className, component, measures,
       )}
       {React.createElement(iconClass, { className: 'big-spacer-left little-spacer-right' })}
       {getMetricName(metric)}
+      {docTooltip && <DocTooltip className="little-spacer-left" doc={docTooltip} />}
     </>
   );
 }

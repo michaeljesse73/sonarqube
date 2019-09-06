@@ -17,19 +17,16 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { find, without } from 'lodash';
-import Modal from '../../../components/controls/Modal';
-import SelectList, { Filter } from '../../../components/SelectList/SelectList';
-import { ResetButtonLink } from '../../../components/ui/buttons';
-import { translate } from '../../../helpers/l10n';
-import {
-  GroupUser,
-  removeUserFromGroup,
-  addUserToGroup,
-  getUsersInGroup
-} from '../../../api/user_groups';
-import DeferredSpinner from '../../../components/common/DeferredSpinner';
+import * as React from 'react';
+import { ResetButtonLink } from 'sonar-ui-common/components/controls/buttons';
+import Modal from 'sonar-ui-common/components/controls/Modal';
+import SelectList, {
+  SelectListFilter,
+  SelectListSearchParams
+} from 'sonar-ui-common/components/controls/SelectList';
+import { translate } from 'sonar-ui-common/helpers/l10n';
+import { addUserToGroup, getUsersInGroup, removeUserFromGroup } from '../../../api/user_groups';
 
 interface Props {
   group: T.Group;
@@ -38,76 +35,92 @@ interface Props {
 }
 
 interface State {
-  loading: boolean;
-  users: GroupUser[];
+  lastSearchParams?: SelectListSearchParams;
+  needToReload: boolean;
+  users: T.UserSelected[];
+  usersTotalCount?: number;
   selectedUsers: string[];
 }
 
-export default class EditMembers extends React.PureComponent<Props, State> {
+export default class EditMembersModal extends React.PureComponent<Props, State> {
   mounted = false;
-  state: State = { loading: true, users: [], selectedUsers: [] };
+
+  constructor(props: Props) {
+    super(props);
+
+    this.state = {
+      needToReload: false,
+      users: [],
+      selectedUsers: []
+    };
+  }
 
   componentDidMount() {
     this.mounted = true;
-    this.handleSearch('', Filter.Selected);
   }
 
   componentWillUnmount() {
     this.mounted = false;
   }
 
-  handleSearch = (query: string, selected: Filter) => {
-    return getUsersInGroup({
+  fetchUsers = (searchParams: SelectListSearchParams) =>
+    getUsersInGroup({
       name: this.props.group.name,
       organization: this.props.organization,
-      ps: 100,
-      q: query !== '' ? query : undefined,
-      selected
-    }).then(
-      data => {
-        if (this.mounted) {
-          this.setState({
-            loading: false,
-            users: data.users,
-            selectedUsers: data.users.filter(user => user.selected).map(user => user.login)
-          });
-        }
-      },
-      () => {
-        if (this.mounted) {
-          this.setState({ loading: false });
-        }
-      }
-    );
-  };
+      p: searchParams.page,
+      ps: searchParams.pageSize,
+      q: searchParams.query !== '' ? searchParams.query : undefined,
+      selected: searchParams.filter
+    }).then(data => {
+      if (this.mounted) {
+        this.setState(prevState => {
+          const more = searchParams.page != null && searchParams.page > 1;
 
-  handleSelect = (login: string) => {
-    return addUserToGroup({
+          const users = more ? [...prevState.users, ...data.users] : data.users;
+          const newSelectedUsers = data.users.filter(user => user.selected).map(user => user.login);
+          const selectedUsers = more
+            ? [...prevState.selectedUsers, ...newSelectedUsers]
+            : newSelectedUsers;
+
+          return {
+            needToReload: false,
+            lastSearchParams: searchParams,
+            loading: false,
+            users,
+            usersTotalCount: data.total,
+            selectedUsers
+          };
+        });
+      }
+    });
+
+  handleSelect = (login: string) =>
+    addUserToGroup({
       name: this.props.group.name,
       login,
       organization: this.props.organization
     }).then(() => {
       if (this.mounted) {
         this.setState((state: State) => ({
+          needToReload: true,
           selectedUsers: [...state.selectedUsers, login]
         }));
       }
     });
-  };
 
-  handleUnselect = (login: string) => {
-    return removeUserFromGroup({
+  handleUnselect = (login: string) =>
+    removeUserFromGroup({
       name: this.props.group.name,
       login,
       organization: this.props.organization
     }).then(() => {
       if (this.mounted) {
         this.setState((state: State) => ({
+          needToReload: true,
           selectedUsers: without(state.selectedUsers, login)
         }));
       }
     });
-  };
 
   renderElement = (login: string): React.ReactNode => {
     const user = find(this.state.users, { login });
@@ -134,17 +147,22 @@ export default class EditMembers extends React.PureComponent<Props, State> {
           <h2>{modalHeader}</h2>
         </header>
 
-        <div className="modal-body">
-          <DeferredSpinner loading={this.state.loading}>
-            <SelectList
-              elements={this.state.users.map(user => user.login)}
-              onSearch={this.handleSearch}
-              onSelect={this.handleSelect}
-              onUnselect={this.handleUnselect}
-              renderElement={this.renderElement}
-              selectedElements={this.state.selectedUsers}
-            />
-          </DeferredSpinner>
+        <div className="modal-body modal-container">
+          <SelectList
+            elements={this.state.users.map(user => user.login)}
+            elementsTotalCount={this.state.usersTotalCount}
+            needToReload={
+              this.state.needToReload &&
+              this.state.lastSearchParams &&
+              this.state.lastSearchParams.filter !== SelectListFilter.All
+            }
+            onSearch={this.fetchUsers}
+            onSelect={this.handleSelect}
+            onUnselect={this.handleUnselect}
+            renderElement={this.renderElement}
+            selectedElements={this.state.selectedUsers}
+            withPaging={true}
+          />
         </div>
 
         <footer className="modal-foot">

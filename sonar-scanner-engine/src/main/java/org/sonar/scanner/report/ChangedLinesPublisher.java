@@ -28,6 +28,7 @@ import java.util.stream.StreamSupport;
 import org.sonar.api.batch.fs.internal.DefaultInputFile;
 import org.sonar.api.batch.fs.internal.DefaultInputProject;
 import org.sonar.api.batch.scm.ScmProvider;
+import org.sonar.api.impl.utils.ScannerUtils;
 import org.sonar.api.utils.log.Logger;
 import org.sonar.api.utils.log.Loggers;
 import org.sonar.api.utils.log.Profiler;
@@ -36,7 +37,6 @@ import org.sonar.scanner.protocol.output.ScannerReportWriter;
 import org.sonar.scanner.scan.branch.BranchConfiguration;
 import org.sonar.scanner.scan.filesystem.InputComponentStore;
 import org.sonar.scanner.scm.ScmConfiguration;
-import org.sonar.scanner.util.ScannerUtils;
 
 public class ChangedLinesPublisher implements ReportPublisherStep {
   private static final Logger LOG = Loggers.get(ChangedLinesPublisher.class);
@@ -57,8 +57,8 @@ public class ChangedLinesPublisher implements ReportPublisherStep {
 
   @Override
   public void publish(ScannerReportWriter writer) {
-    String targetScmBranch = branchConfiguration.targetScmBranch();
-    if (scmConfiguration.isDisabled() || !branchConfiguration.isShortOrPullRequest() || targetScmBranch == null) {
+    String targetBranchName = branchConfiguration.targetBranchName();
+    if (scmConfiguration.isDisabled() || !branchConfiguration.isShortOrPullRequest() || targetBranchName == null) {
       return;
     }
 
@@ -68,7 +68,7 @@ public class ChangedLinesPublisher implements ReportPublisherStep {
     }
 
     Profiler profiler = Profiler.create(LOG).startInfo(LOG_MSG);
-    int count = writeChangedLines(provider, writer, targetScmBranch);
+    int count = writeChangedLines(provider, writer, targetBranchName);
     LOG.debug("SCM reported changed lines for {} {} in the branch", count, ScannerUtils.pluralize("file", count));
     profiler.stopInfo();
   }
@@ -88,7 +88,13 @@ public class ChangedLinesPublisher implements ReportPublisherStep {
     }
 
     for (Map.Entry<Path, DefaultInputFile> e : changedFiles.entrySet()) {
+      DefaultInputFile inputFile = e.getValue();
       Set<Integer> changedLines = pathSetMap.getOrDefault(e.getKey(), Collections.emptySet());
+
+      // detect unchanged last empty line
+      if (changedLines.size() + 1 == inputFile.lines() && inputFile.lineLength(inputFile.lines()) == 0) {
+        changedLines.add(inputFile.lines());
+      }
 
       if (changedLines.isEmpty()) {
         LOG.warn("File '{}' was detected as changed but without having changed lines", e.getKey().toAbsolutePath());

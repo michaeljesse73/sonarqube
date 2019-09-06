@@ -28,7 +28,7 @@ import java.util.Map;
 import java.util.function.BinaryOperator;
 import java.util.function.Supplier;
 import org.sonar.api.utils.MessageException;
-import org.sonar.scanner.bootstrap.ScannerWsClient;
+import org.sonar.scanner.bootstrap.DefaultScannerWsClient;
 import org.sonar.scanner.scan.ScanProperties;
 import org.sonarqube.ws.Qualityprofiles.SearchWsResponse;
 import org.sonarqube.ws.Qualityprofiles.SearchWsResponse.QualityProfile;
@@ -37,39 +37,42 @@ import org.sonarqube.ws.client.HttpException;
 
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toMap;
-import static org.sonar.scanner.util.ScannerUtils.encodeForUrl;
+import static org.sonar.api.impl.utils.ScannerUtils.encodeForUrl;
 
 public class DefaultQualityProfileLoader implements QualityProfileLoader {
   private static final String WS_URL = "/api/qualityprofiles/search.protobuf";
 
-  private final ScannerWsClient wsClient;
+  private final DefaultScannerWsClient wsClient;
   private final ScanProperties properties;
 
-  public DefaultQualityProfileLoader(ScanProperties properties, ScannerWsClient wsClient) {
+  public DefaultQualityProfileLoader(ScanProperties properties, DefaultScannerWsClient wsClient) {
     this.properties = properties;
     this.wsClient = wsClient;
   }
 
-  @Override
-  public List<QualityProfile> loadDefault() {
+  private List<QualityProfile> loadDefault() {
     StringBuilder url = new StringBuilder(WS_URL + "?defaults=true");
-    return handleErrors(url, () -> "Failed to load the default quality profiles");
+    return handleErrors(url, () -> "Failed to load the default quality profiles", false);
   }
 
   @Override
   public List<QualityProfile> load(String projectKey) {
     StringBuilder url = new StringBuilder(WS_URL + "?projectKey=").append(encodeForUrl(projectKey));
-    return handleErrors(url, () -> String.format("Failed to load the quality profiles of project '%s'", projectKey));
+    return handleErrors(url, () -> String.format("Failed to load the quality profiles of project '%s'", projectKey), true);
   }
 
-  private List<QualityProfile> handleErrors(StringBuilder url, Supplier<String> errorMsg) {
+  private List<QualityProfile> handleErrors(StringBuilder url, Supplier<String> errorMsg, boolean tryLoadDefault) {
     try {
       return doLoad(url);
     } catch (HttpException e) {
       if (e.code() == 404) {
-        throw MessageException.of(errorMsg.get() + ": " + ScannerWsClient.createErrorMessage(e));
+        if (tryLoadDefault) {
+          return loadDefault();
+        } else {
+          throw MessageException.of(errorMsg.get() + ": " + DefaultScannerWsClient.createErrorMessage(e));
+        }
       }
-      throw new IllegalStateException(errorMsg.get() + ": " + ScannerWsClient.createErrorMessage(e));
+      throw new IllegalStateException(errorMsg.get() + ": " + DefaultScannerWsClient.createErrorMessage(e));
     } catch (MessageException e) {
       throw e;
     } catch (Exception e) {

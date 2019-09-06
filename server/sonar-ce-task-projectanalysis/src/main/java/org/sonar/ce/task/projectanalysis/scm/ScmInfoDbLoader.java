@@ -25,7 +25,7 @@ import org.sonar.api.utils.log.Loggers;
 import org.sonar.ce.task.projectanalysis.analysis.AnalysisMetadataHolder;
 import org.sonar.ce.task.projectanalysis.analysis.Branch;
 import org.sonar.ce.task.projectanalysis.component.Component;
-import org.sonar.ce.task.projectanalysis.component.MergeBranchComponentUuids;
+import org.sonar.ce.task.projectanalysis.component.MergeAndTargetBranchComponentUuids;
 import org.sonar.db.DbClient;
 import org.sonar.db.DbSession;
 import org.sonar.db.source.FileSourceDto;
@@ -35,9 +35,9 @@ public class ScmInfoDbLoader {
 
   private final AnalysisMetadataHolder analysisMetadataHolder;
   private final DbClient dbClient;
-  private final MergeBranchComponentUuids mergeBranchComponentUuid;
+  private final MergeAndTargetBranchComponentUuids mergeBranchComponentUuid;
 
-  public ScmInfoDbLoader(AnalysisMetadataHolder analysisMetadataHolder, DbClient dbClient, MergeBranchComponentUuids mergeBranchComponentUuid) {
+  public ScmInfoDbLoader(AnalysisMetadataHolder analysisMetadataHolder, DbClient dbClient, MergeAndTargetBranchComponentUuids mergeBranchComponentUuid) {
     this.analysisMetadataHolder = analysisMetadataHolder;
     this.dbClient = dbClient;
     this.mergeBranchComponentUuid = mergeBranchComponentUuid;
@@ -55,19 +55,23 @@ public class ScmInfoDbLoader {
       if (dto == null) {
         return Optional.empty();
       }
-      return DbScmInfo.create(dto.getSourceData().getLinesList(), dto.getSrcHash());
+      return DbScmInfo.create(dto.getSourceData().getLinesList(), dto.getLineCount(), dto.getSrcHash());
     }
   }
 
   private Optional<String> getFileUUid(Component file) {
-    if (!analysisMetadataHolder.isFirstAnalysis()) {
+    if (!analysisMetadataHolder.isFirstAnalysis() && !analysisMetadataHolder.isSLBorPR()) {
       return Optional.of(file.getUuid());
     }
 
-    // at this point, it's the first analysis but had copyFromPrevious flag true
+    // at this point, it's the first analysis of a LLB with copyFromPrevious flag true or any analysis of a PR/SLB
     Branch branch = analysisMetadataHolder.getBranch();
-    if (branch.getMergeBranchUuid().isPresent()) {
-      return Optional.ofNullable(mergeBranchComponentUuid.getUuid(file.getDbKey()));
+    if (!branch.isMain()) {
+      String uuid = mergeBranchComponentUuid.getTargetBranchComponentUuid(file.getDbKey());
+      if (uuid == null) {
+        uuid = mergeBranchComponentUuid.getMergeBranchComponentUuid(file.getDbKey());
+      }
+      return Optional.ofNullable(uuid);
     }
 
     return Optional.empty();

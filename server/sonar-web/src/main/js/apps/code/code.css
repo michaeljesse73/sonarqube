@@ -56,26 +56,22 @@
 }
 
 .code-components-cell {
-  min-width: 80px;
-  padding-left: 30px !important;
+  padding-left: calc(2 * var(--gridSize)) !important;
   box-sizing: border-box;
 }
 
-.code-truncated {
-  display: inline-block;
-  vertical-align: text-top;
-  max-width: 50vw;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.code-components-rating-cell {
+  width: 110px;
 }
 
 .code-name-cell {
   max-width: 0;
 }
 
-.code-name-cell .code-truncated {
-  max-width: 100%;
+@media (max-width: 1200px) {
+  .code-name-cell .badge {
+    display: none;
+  }
 }
 
 .code-search {
@@ -84,6 +80,11 @@
 
 .code-components-header {
   position: sticky;
-  top: 95px;
+  top: 105px;
   background-color: rgba(255, 255, 255, 0.9);
+  z-index: 1;
+}
+
+table > thead > tr.code-components-header > th {
+  vertical-align: middle;
 }

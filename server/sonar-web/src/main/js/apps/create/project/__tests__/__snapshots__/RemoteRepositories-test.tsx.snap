@@ -7,6 +7,11 @@ exports[`should display the list of repositories 1`] = `
   <div
     className="flex-1 huge-spacer-right"
   >
+    <div
+      className="spacer-bottom create-project-actions"
+    >
+      <div />
+    </div>
     <DeferredSpinner
       loading={true}
       timeout={100}
@@ -34,6 +39,7 @@ exports[`should display the list of repositories 1`] = `
             "alm": Object {
               "key": "github",
               "membersSync": false,
+              "personal": false,
               "url": "https://github.com/foo",
             },
             "key": "foo",
@@ -55,6 +61,20 @@ exports[`should display the list of repositories 2`] = `
   <div
     className="flex-1 huge-spacer-right"
   >
+    <div
+      className="spacer-bottom create-project-actions"
+    >
+      <div>
+        <Checkbox
+          checked={false}
+          disabled={false}
+          onCheck={[Function]}
+          thirdState={false}
+        >
+          onboarding.create_project.select_all_repositories
+        </Checkbox>
+      </div>
+    </div>
     <DeferredSpinner
       loading={false}
       timeout={100}
@@ -77,8 +97,6 @@ exports[`should display the list of repositories 2`] = `
             Object {
               "installationKey": "github/cool",
               "label": "Cool Project",
-              "linkedProjectKey": "proj_cool",
-              "linkedProjectName": "Proj Cool",
             }
           }
           selected={false}
@@ -123,6 +141,7 @@ exports[`should display the list of repositories 2`] = `
             "alm": Object {
               "key": "github",
               "membersSync": false,
+              "personal": false,
               "url": "https://github.com/foo",
             },
             "key": "foo",
@@ -149,6 +168,7 @@ exports[`should display the organization upgrade box 1`] = `
       "alm": Object {
         "key": "github",
         "membersSync": false,
+        "personal": false,
         "url": "https://github.com/foo",
       },
       "key": "foo",
@@ -157,4 +177,13 @@ exports[`should display the organization upgrade box 1`] = `
     }
   }
 />
+`;
+
+exports[`should select all repositories 1`] = `
+Object {
+  "key-1": Object {
+    "installationKey": "key-1",
+    "label": "Project 1",
+  },
+}
 `;

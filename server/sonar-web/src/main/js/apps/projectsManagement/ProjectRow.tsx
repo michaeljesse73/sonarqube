@@ -19,15 +19,15 @@
  */
 import * as React from 'react';
 import { Link } from 'react-router';
-import ProjectRowActions from './ProjectRowActions';
-import PrivacyBadgeContainer from '../../components/common/PrivacyBadgeContainer';
-import Checkbox from '../../components/controls/Checkbox';
-import QualifierIcon from '../../components/icons-components/QualifierIcon';
-import DateTooltipFormatter from '../../components/intl/DateTooltipFormatter';
+import Checkbox from 'sonar-ui-common/components/controls/Checkbox';
+import QualifierIcon from 'sonar-ui-common/components/icons/QualifierIcon';
 import { Project } from '../../api/components';
+import PrivacyBadgeContainer from '../../components/common/PrivacyBadgeContainer';
+import DateTooltipFormatter from '../../components/intl/DateTooltipFormatter';
+import ProjectRowActions from './ProjectRowActions';
 
 interface Props {
-  currentUser: { login: string };
+  currentUser: Pick<T.LoggedInUser, 'login'>;
   onProjectCheck: (project: Project, checked: boolean) => void;
   organization: string | undefined;
   project: Project;
@@ -43,7 +43,7 @@ export default class ProjectRow extends React.PureComponent<Props> {
     const { organization, project, selected } = this.props;
 
     return (
-      <tr>
+      <tr data-project-key={project.key}>
         <td className="thin">
           <Checkbox checked={selected} onCheck={this.handleProjectCheck} />
         </td>
@@ -65,7 +65,7 @@ export default class ProjectRow extends React.PureComponent<Props> {
           />
         </td>
 
-        <td className="nowrap">
+        <td className="nowrap hide-overflow" style={{ maxWidth: 400 }}>
           <span className="note">{project.key}</span>
         </td>
 

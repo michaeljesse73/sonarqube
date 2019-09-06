@@ -18,17 +18,17 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
+import { DropdownOverlay } from 'sonar-ui-common/components/controls/Dropdown';
+import IssueTypeIcon from 'sonar-ui-common/components/icons/IssueTypeIcon';
+import QualifierIcon from 'sonar-ui-common/components/icons/QualifierIcon';
+import TagsIcon from 'sonar-ui-common/components/icons/TagsIcon';
+import { translate, translateWithParameters } from 'sonar-ui-common/helpers/l10n';
+import { fileFromPath, limitComponentName } from 'sonar-ui-common/helpers/path';
 import SelectList from '../../common/SelectList';
 import SelectListItem from '../../common/SelectListItem';
-import { DropdownOverlay } from '../../controls/Dropdown';
 import SeverityHelper from '../../shared/SeverityHelper';
 import StatusHelper from '../../shared/StatusHelper';
-import QualifierIcon from '../../icons-components/QualifierIcon';
-import TagsIcon from '../../icons-components/TagsIcon';
-import IssueTypeIcon from '../../ui/IssueTypeIcon';
 import Avatar from '../../ui/Avatar';
-import { translate } from '../../../helpers/l10n';
-import { fileFromPath, limitComponentName } from '../../../helpers/path';
 
 interface Props {
   issue: T.Issue;
@@ -55,6 +55,8 @@ export default class SimilarIssuesPopup extends React.PureComponent<Props> {
       issue.subProject ? 'module' : undefined,
       'file'
     ].filter(item => item) as string[];
+
+    const assignee = issue.assigneeName || issue.assignee;
 
     return (
       <DropdownOverlay noPadding={true}>
@@ -87,16 +89,18 @@ export default class SimilarIssuesPopup extends React.PureComponent<Props> {
           </SelectListItem>
 
           <SelectListItem item="assignee">
-            {issue.assignee != null ? (
+            {assignee ? (
               <span>
                 {translate('assigned_to')}
                 <Avatar
                   className="little-spacer-left little-spacer-right"
                   hash={issue.assigneeAvatar}
-                  name={issue.assigneeName || issue.assignee}
+                  name={assignee}
                   size={16}
                 />
-                {issue.assigneeName || issue.assignee}
+                {issue.assigneeActive === false
+                  ? translateWithParameters('user.x_deleted', assignee)
+                  : assignee}
               </span>
             ) : (
               translate('unassigned')

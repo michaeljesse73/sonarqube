@@ -19,7 +19,6 @@
  */
 package org.sonar.scanner.scan;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -31,6 +30,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.stream.Stream;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
@@ -39,6 +39,7 @@ import org.apache.commons.lang.StringUtils;
 import org.sonar.api.CoreProperties;
 import org.sonar.api.batch.bootstrap.ProjectDefinition;
 import org.sonar.api.batch.bootstrap.ProjectReactor;
+import org.sonar.api.impl.utils.ScannerUtils;
 import org.sonar.api.notifications.AnalysisWarnings;
 import org.sonar.api.utils.MessageException;
 import org.sonar.api.utils.log.Logger;
@@ -48,7 +49,6 @@ import org.sonar.core.config.IssueExclusionProperties;
 import org.sonar.scanner.bootstrap.ProcessedScannerProperties;
 import org.sonar.scanner.issue.ignore.pattern.IssueExclusionPatternInitializer;
 import org.sonar.scanner.issue.ignore.pattern.IssueInclusionPatternInitializer;
-import org.sonar.scanner.util.ScannerUtils;
 
 import static java.util.Arrays.asList;
 import static java.util.stream.Collectors.toList;
@@ -182,7 +182,7 @@ public class ProjectReactorBuilder {
       workDir = initRootProjectWorkDir(baseDir, moduleProperties);
     } else {
       workDir = initModuleWorkDir(baseDir, moduleProperties);
-      checkUnsupportedIssueExclusions(moduleProperties);
+      checkUnsupportedIssueExclusions(moduleProperties, parent.properties());
     }
 
     return ProjectDefinition.create().setProperties(moduleProperties)
@@ -191,9 +191,9 @@ public class ProjectReactorBuilder {
       .setBuildDir(initModuleBuildDir(baseDir, moduleProperties));
   }
 
-  private void checkUnsupportedIssueExclusions(Map<String, String> moduleProperties) {
+  private void checkUnsupportedIssueExclusions(Map<String, String> moduleProperties, Map<String, String> parentProps) {
     UNSUPPORTED_PROPS_FOR_MODULES.stream().forEach(p -> {
-      if (moduleProperties.containsKey(p)) {
+      if (moduleProperties.containsKey(p) && !Objects.equals(moduleProperties.get(p), parentProps.get(p))) {
         warnOnceUnsupportedIssueExclusions(
           "Specifying issue exclusions at module level is not supported anymore. Configure the property '" + p + "' and any other issue exclusions at project level.");
       }
@@ -208,7 +208,6 @@ public class ProjectReactorBuilder {
     }
   }
 
-  @VisibleForTesting
   protected File initRootProjectWorkDir(File baseDir, Map<String, String> rootProperties) {
     String workDir = rootProperties.get(CoreProperties.WORKING_DIRECTORY);
     if (StringUtils.isBlank(workDir)) {
@@ -222,7 +221,6 @@ public class ProjectReactorBuilder {
     return new File(baseDir, customWorkDir.getPath());
   }
 
-  @VisibleForTesting
   protected File initModuleWorkDir(File moduleBaseDir, Map<String, String> moduleProperties) {
     String workDir = moduleProperties.get(CoreProperties.WORKING_DIRECTORY);
     if (StringUtils.isBlank(workDir)) {
@@ -288,7 +286,6 @@ public class ProjectReactorBuilder {
     return createModuleDefinition(moduleProps, parentProject);
   }
 
-  @VisibleForTesting
   protected static void setModuleKeyAndNameIfNotDefined(Map<String, String> childProps, String moduleId, String parentKey) {
     if (!childProps.containsKey(MODULE_KEY_PROPERTY)) {
       if (!childProps.containsKey(CoreProperties.PROJECT_KEY_PROPERTY)) {
@@ -305,7 +302,6 @@ public class ProjectReactorBuilder {
     childProps.put(CoreProperties.PROJECT_KEY_PROPERTY, childProps.get(MODULE_KEY_PROPERTY));
   }
 
-  @VisibleForTesting
   protected static void checkUniquenessOfChildKey(ProjectDefinition childProject, ProjectDefinition parentProject) {
     for (ProjectDefinition definition : parentProject.getSubProjects()) {
       if (definition.getKey().equals(childProject.getKey())) {
@@ -321,7 +317,6 @@ public class ProjectReactorBuilder {
     childProps.put(PROPERTY_PROJECT_BASEDIR, baseDir.getAbsolutePath());
   }
 
-  @VisibleForTesting
   protected static void checkMandatoryProperties(Map<String, String> props, String[] mandatoryProps) {
     StringBuilder missing = new StringBuilder();
     for (String mandatoryProperty : mandatoryProps) {
@@ -348,7 +343,6 @@ public class ProjectReactorBuilder {
     }
   }
 
-  @VisibleForTesting
   protected static void cleanAndCheckProjectDefinitions(ProjectDefinition project) {
     if (project.getSubProjects().isEmpty()) {
       cleanAndCheckModuleProperties(project);
@@ -379,7 +373,6 @@ public class ProjectReactorBuilder {
     }
   }
 
-  @VisibleForTesting
   protected static void cleanAndCheckModuleProperties(ProjectDefinition project) {
     Map<String, String> properties = project.properties();
 
@@ -388,7 +381,6 @@ public class ProjectReactorBuilder {
     checkExistenceOfPaths(project.getKey(), project.getBaseDir(), sourcePaths, PROPERTY_SOURCES);
   }
 
-  @VisibleForTesting
   protected static void mergeParentProperties(Map<String, String> childProps, Map<String, String> parentProps) {
     for (Map.Entry<String, String> entry : parentProps.entrySet()) {
       String key = entry.getKey();
@@ -399,7 +391,6 @@ public class ProjectReactorBuilder {
     }
   }
 
-  @VisibleForTesting
   protected static void checkExistenceOfPaths(String moduleRef, File baseDir, String[] paths, String propName) {
     for (String path : paths) {
       File sourceFolder = resolvePath(baseDir, path);

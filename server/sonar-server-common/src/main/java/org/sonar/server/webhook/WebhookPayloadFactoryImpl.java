@@ -58,7 +58,7 @@ public class WebhookPayloadFactoryImpl implements WebhookPayloadFactory {
       writer.beginObject();
       writeServer(writer);
       writeTask(writer, analysis.getCeTask());
-      writeDates(writer, analysis, system2);
+      writeAnalysis(writer, analysis, system2);
       writeProject(analysis, writer, analysis.getProject());
       analysis.getBranch().ifPresent(b -> writeBranch(writer, analysis.getProject(), b));
       analysis.getQualityGate().ifPresent(qualityGate -> writeQualityGate(writer, qualityGate));
@@ -72,8 +72,11 @@ public class WebhookPayloadFactoryImpl implements WebhookPayloadFactory {
     writer.prop("serverUrl", server.getPublicRootUrl());
   }
 
-  private static void writeDates(JsonWriter writer, ProjectAnalysis analysis, System2 system2) {
-    analysis.getAnalysis().ifPresent(a -> writer.propDateTime("analysedAt", a.getDate()));
+  private static void writeAnalysis(JsonWriter writer, ProjectAnalysis analysis, System2 system2) {
+    analysis.getAnalysis().ifPresent(a -> {
+      writer.propDateTime("analysedAt", new Date(a.getDate()));
+      a.getRevision().ifPresent(rev -> writer.prop("revision", rev));
+    });
     writer.propDateTime("changedAt", new Date(analysis.getUpdatedAt().orElse(system2.now())));
   }
 
@@ -119,20 +122,17 @@ public class WebhookPayloadFactoryImpl implements WebhookPayloadFactory {
   }
 
   private String branchUrlOf(Project project, Branch branch) {
-    if (branch.getType() == Branch.Type.LONG) {
+    Branch.Type branchType = branch.getType();
+    if (branchType == Branch.Type.LONG || branchType == Branch.Type.SHORT) {
       if (branch.isMain()) {
         return projectUrlOf(project);
       }
-      return format("%s/dashboard?branch=%s&id=%s",
-        server.getPublicRootUrl(), encode(branch.getName().orElse("")), encode(project.getKey()));
+      return format("%s/dashboard?id=%s&branch=%s",
+        server.getPublicRootUrl(), encode(project.getKey()), encode(branch.getName().orElse("")));
     }
-    if (branch.getType() == Branch.Type.SHORT) {
-      return format("%s/project/issues?branch=%s&id=%s&resolved=false",
-        server.getPublicRootUrl(), encode(branch.getName().orElse("")), encode(project.getKey()));
-    }
-    if (branch.getType() == Branch.Type.PULL_REQUEST) {
-      return format("%s/project/issues?pullRequest=%s&id=%s&resolved=false",
-        server.getPublicRootUrl(), encode(branch.getName().orElse("")), encode(project.getKey()));
+    if (branchType == Branch.Type.PULL_REQUEST) {
+      return format("%s/dashboard?id=%s&pullRequest=%s",
+        server.getPublicRootUrl(), encode(project.getKey()), encode(branch.getName().orElse("")));
     }
     return projectUrlOf(project);
   }

@@ -2,9 +2,15 @@
 
 exports[`should render flow locations in different file 1`] = `
 <CrossFileLocationsNavigator
+  isTaintAnalysis={false}
   issue={
     Object {
+      "actions": Array [],
       "component": "foo",
+      "componentLongName": "main.js",
+      "componentQualifier": "FIL",
+      "componentUuid": "foo1234",
+      "creationDate": "2017-03-01T09:36:01+0100",
       "flows": Array [
         Array [
           Object {
@@ -31,8 +37,28 @@ exports[`should render flow locations in different file 1`] = `
           },
         ],
       ],
+      "fromHotspot": false,
       "key": "",
+      "line": 25,
+      "message": "Reduce the number of conditional operators (4) used in the expression",
+      "organization": "myorg",
+      "project": "myproject",
+      "projectKey": "foo",
+      "projectName": "Foo",
+      "projectOrganization": "org",
+      "rule": "javascript:S1067",
+      "ruleName": "foo",
       "secondaryLocations": Array [],
+      "severity": "MAJOR",
+      "status": "OPEN",
+      "textRange": Object {
+        "endLine": 26,
+        "endOffset": 15,
+        "startLine": 25,
+        "startOffset": 0,
+      },
+      "transitions": Array [],
+      "type": "BUG",
     }
   }
   locations={
@@ -72,19 +98,23 @@ exports[`should render flow locations in the same file 1`] = `
 >
   <ConciseIssueLocationsNavigatorLocation
     index={0}
+    isTaintAnalysis={false}
     key="0"
     message="Do not use foo"
     onClick={[MockFunction]}
     scroll={[MockFunction]}
     selected={false}
+    totalCount={2}
   />
   <ConciseIssueLocationsNavigatorLocation
     index={1}
+    isTaintAnalysis={false}
     key="1"
     message="Do not use foo"
     onClick={[MockFunction]}
     scroll={[MockFunction]}
     selected={false}
+    totalCount={2}
   />
 </div>
 `;
@@ -95,19 +125,23 @@ exports[`should render secondary locations in the same file 1`] = `
 >
   <ConciseIssueLocationsNavigatorLocation
     index={0}
+    isTaintAnalysis={false}
     key="0"
     message="Do not use foo"
     onClick={[MockFunction]}
     scroll={[MockFunction]}
     selected={false}
+    totalCount={2}
   />
   <ConciseIssueLocationsNavigatorLocation
     index={1}
+    isTaintAnalysis={false}
     key="1"
     message="Do not use foo"
     onClick={[MockFunction]}
     scroll={[MockFunction]}
     selected={false}
+    totalCount={2}
   />
 </div>
 `;
@@ -118,19 +152,137 @@ exports[`should render selected flow locations in the same file 1`] = `
 >
   <ConciseIssueLocationsNavigatorLocation
     index={0}
+    isTaintAnalysis={false}
     key="0"
     message="Do not use foo"
     onClick={[MockFunction]}
     scroll={[MockFunction]}
     selected={false}
+    totalCount={2}
   />
   <ConciseIssueLocationsNavigatorLocation
     index={1}
+    isTaintAnalysis={false}
     key="1"
     message="Do not use foo"
     onClick={[MockFunction]}
     scroll={[MockFunction]}
     selected={false}
+    totalCount={2}
   />
 </div>
+`;
+
+exports[`should render taint analysis issues correctly 1`] = `
+<CrossFileLocationsNavigator
+  isTaintAnalysis={true}
+  issue={
+    Object {
+      "actions": Array [],
+      "component": "foo",
+      "componentLongName": "main.js",
+      "componentQualifier": "FIL",
+      "componentUuid": "foo1234",
+      "creationDate": "2017-03-01T09:36:01+0100",
+      "flows": Array [
+        Array [
+          Object {
+            "component": "foo",
+            "componentName": "src/foo.js",
+            "msg": "Do not use foo",
+            "textRange": Object {
+              "endLine": 7,
+              "endOffset": 8,
+              "startLine": 7,
+              "startOffset": 5,
+            },
+          },
+          Object {
+            "component": "foo",
+            "componentName": "src/foo.js",
+            "msg": "Do not use foo",
+            "textRange": Object {
+              "endLine": 8,
+              "endOffset": 5,
+              "startLine": 8,
+              "startOffset": 0,
+            },
+          },
+          Object {
+            "component": "bar",
+            "componentName": "src/bar.js",
+            "msg": "Do not use bar",
+            "textRange": Object {
+              "endLine": 16,
+              "endOffset": 6,
+              "startLine": 15,
+              "startOffset": 4,
+            },
+          },
+        ],
+      ],
+      "fromHotspot": false,
+      "key": "",
+      "line": 25,
+      "message": "Reduce the number of conditional operators (4) used in the expression",
+      "organization": "myorg",
+      "project": "myproject",
+      "projectKey": "foo",
+      "projectName": "Foo",
+      "projectOrganization": "org",
+      "rule": "javascript:S1067",
+      "ruleName": "foo",
+      "secondaryLocations": Array [],
+      "severity": "MAJOR",
+      "status": "OPEN",
+      "textRange": Object {
+        "endLine": 26,
+        "endOffset": 15,
+        "startLine": 25,
+        "startOffset": 0,
+      },
+      "transitions": Array [],
+      "type": "VULNERABILITY",
+    }
+  }
+  locations={
+    Array [
+      Object {
+        "component": "foo",
+        "componentName": "src/foo.js",
+        "msg": "Do not use foo",
+        "textRange": Object {
+          "endLine": 7,
+          "endOffset": 8,
+          "startLine": 7,
+          "startOffset": 5,
+        },
+      },
+      Object {
+        "component": "foo",
+        "componentName": "src/foo.js",
+        "msg": "Do not use foo",
+        "textRange": Object {
+          "endLine": 8,
+          "endOffset": 5,
+          "startLine": 8,
+          "startOffset": 0,
+        },
+      },
+      Object {
+        "component": "bar",
+        "componentName": "src/bar.js",
+        "msg": "Do not use bar",
+        "textRange": Object {
+          "endLine": 16,
+          "endOffset": 6,
+          "startLine": 15,
+          "startOffset": 4,
+        },
+      },
+    ]
+  }
+  onLocationSelect={[MockFunction]}
+  scroll={[MockFunction]}
+/>
 `;

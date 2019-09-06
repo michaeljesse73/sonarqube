@@ -17,15 +17,15 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { debounce, identity } from 'lodash';
-import { User, Group } from './ProfilePermissions';
-import Select from '../../../components/controls/Select';
+import * as React from 'react';
+import Select from 'sonar-ui-common/components/controls/Select';
+import GroupIcon from 'sonar-ui-common/components/icons/GroupIcon';
+import { translate, translateWithParameters } from 'sonar-ui-common/helpers/l10n';
 import Avatar from '../../../components/ui/Avatar';
-import { translate, translateWithParameters } from '../../../helpers/l10n';
-import GroupIcon from '../../../components/icons-components/GroupIcon';
+import { Group } from './ProfilePermissions';
 
-type Option = User | Group;
+type Option = T.UserSelected | Group;
 type OptionWithValue = Option & { value: string };
 
 interface Props {
@@ -112,8 +112,8 @@ export default class ProfilePermissionsFormSelect extends React.PureComponent<Pr
   }
 }
 
-function isUser(option: Option): option is User {
-  return (option as User).login !== undefined;
+function isUser(option: Option): option is T.UserSelected {
+  return (option as T.UserSelected).login !== undefined;
 }
 
 function getStringValue(option: Option) {

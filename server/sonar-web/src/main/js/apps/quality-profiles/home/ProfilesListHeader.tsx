@@ -18,11 +18,10 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import { Option } from 'react-select';
-import { translate } from '../../../helpers/l10n';
-import { getProfilesPath, getProfilesForLanguagePath } from '../utils';
-import Select from '../../../components/controls/Select';
-import { withRouter, Router } from '../../../components/hoc/withRouter';
+import Select from 'sonar-ui-common/components/controls/Select';
+import { translate } from 'sonar-ui-common/helpers/l10n';
+import { Router, withRouter } from '../../../components/hoc/withRouter';
+import { getProfilesForLanguagePath, getProfilesPath } from '../utils';
 
 interface Props {
   currentFilter?: string;
@@ -48,7 +47,7 @@ export class ProfilesListHeader extends React.PureComponent<Props> {
       return null;
     }
 
-    const options: Option[] = languages.map(language => ({
+    const options = languages.map(language => ({
       label: language.name,
       value: language.key
     }));

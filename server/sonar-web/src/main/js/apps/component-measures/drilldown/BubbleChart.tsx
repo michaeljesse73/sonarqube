@@ -18,20 +18,21 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import EmptyResult from './EmptyResult';
-import OriginalBubbleChart from '../../../components/charts/BubbleChart';
-import ColorRatingsLegend from '../../../components/charts/ColorRatingsLegend';
-import HelpTooltip from '../../../components/controls/HelpTooltip';
-import { formatMeasure, isDiffMetric } from '../../../helpers/measures';
+import OriginalBubbleChart from 'sonar-ui-common/components/charts/BubbleChart';
+import HelpTooltip from 'sonar-ui-common/components/controls/HelpTooltip';
 import {
   getLocalizedMetricDomain,
   getLocalizedMetricName,
   translate,
   translateWithParameters
-} from '../../../helpers/l10n';
-import { getBubbleMetrics, getBubbleYDomain, isProjectOverview } from '../utils';
+} from 'sonar-ui-common/helpers/l10n';
+import { formatMeasure } from 'sonar-ui-common/helpers/measures';
+import { isDefined } from 'sonar-ui-common/helpers/types';
+import ColorRatingsLegend from '../../../components/charts/ColorRatingsLegend';
 import { RATING_COLORS } from '../../../helpers/constants';
-import { isDefined } from '../../../helpers/types';
+import { isDiffMetric } from '../../../helpers/measures';
+import { getBubbleMetrics, getBubbleYDomain, isProjectOverview } from '../utils';
+import EmptyResult from './EmptyResult';
 
 const HEIGHT = 500;
 

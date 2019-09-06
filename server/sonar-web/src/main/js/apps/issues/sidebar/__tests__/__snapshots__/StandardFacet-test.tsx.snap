@@ -20,14 +20,11 @@ exports[`should render empty sub-facet 1`] = `
   property="sansTop25"
 >
   <FacetHeader
+    fetching={false}
     name="issues.facet.sansTop25"
     onClick={[Function]}
     open={true}
     values={Array []}
-  />
-  <DeferredSpinner
-    loading={false}
-    timeout={100}
   />
   <div
     className="search-navigator-facet-empty little-spacer-top"
@@ -52,6 +49,7 @@ exports[`should render sub-facets 1`] = `
     open={true}
     values={
       Array [
+        "SONAR SQL Injection",
         "OWASP A3",
         "SANS Risky Resource Management",
         "CWE-42 - cwe-42 title",
@@ -60,9 +58,44 @@ exports[`should render sub-facets 1`] = `
   />
   <FacetBox
     className="is-inner"
+    property="sonarsourceSecurity"
+  >
+    <FacetHeader
+      fetching={false}
+      name="issues.facet.sonarsourceSecurity"
+      onClick={[Function]}
+      open={true}
+      values={
+        Array [
+          "SQL Injection",
+        ]
+      }
+    />
+    <FacetItemsList>
+      <FacetItem
+        active={true}
+        disabled={false}
+        halfWidth={false}
+        key="sql-injection"
+        loading={false}
+        name="SQL Injection"
+        onClick={[Function]}
+        stat="12"
+        tooltip="SQL Injection"
+        value="sql-injection"
+      />
+    </FacetItemsList>
+    <MultipleSelectionHint
+      options={1}
+      values={1}
+    />
+  </FacetBox>
+  <FacetBox
+    className="is-inner"
     property="owaspTop10"
   >
     <FacetHeader
+      fetching={false}
       name="issues.facet.owaspTop10"
       onClick={[Function]}
       open={true}
@@ -71,10 +104,6 @@ exports[`should render sub-facets 1`] = `
           "A3",
         ]
       }
-    />
-    <DeferredSpinner
-      loading={false}
-      timeout={100}
     />
     <FacetItemsList>
       <FacetItem
@@ -112,6 +141,7 @@ exports[`should render sub-facets 1`] = `
     property="sansTop25"
   >
     <FacetHeader
+      fetching={false}
       name="issues.facet.sansTop25"
       onClick={[Function]}
       open={true}
@@ -120,10 +150,6 @@ exports[`should render sub-facets 1`] = `
           "Risky Resource Management",
         ]
       }
-    />
-    <DeferredSpinner
-      loading={false}
-      timeout={100}
     />
     <FacetItemsList>
       <FacetItem

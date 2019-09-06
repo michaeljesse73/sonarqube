@@ -18,29 +18,29 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import { User, Group } from './ProfilePermissions';
-import ProfilePermissionsFormSelect from './ProfilePermissionsFormSelect';
+import { ResetButtonLink, SubmitButton } from 'sonar-ui-common/components/controls/buttons';
+import Modal from 'sonar-ui-common/components/controls/Modal';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import {
-  searchUsers,
-  searchGroups,
-  addUser,
   addGroup,
+  addUser,
+  searchGroups,
+  searchUsers,
   SearchUsersGroupsParameters
 } from '../../../api/quality-profiles';
-import Modal from '../../../components/controls/Modal';
-import { SubmitButton, ResetButtonLink } from '../../../components/ui/buttons';
-import { translate } from '../../../helpers/l10n';
+import { Group } from './ProfilePermissions';
+import ProfilePermissionsFormSelect from './ProfilePermissionsFormSelect';
 
 interface Props {
   onClose: () => void;
   onGroupAdd: (group: Group) => void;
-  onUserAdd: (user: User) => void;
+  onUserAdd: (user: T.UserSelected) => void;
   organization?: string;
   profile: { language: string; name: string };
 }
 
 interface State {
-  selected?: User | Group;
+  selected?: T.UserSelected | Group;
   submitting: boolean;
 }
 
@@ -62,7 +62,7 @@ export default class ProfilePermissionsForm extends React.PureComponent<Props, S
     }
   };
 
-  handleUserAdd = (user: User) =>
+  handleUserAdd = (user: T.UserSelected) =>
     addUser({
       language: this.props.profile.language,
       login: user.login,
@@ -83,8 +83,8 @@ export default class ProfilePermissionsForm extends React.PureComponent<Props, S
     const { selected } = this.state;
     if (selected) {
       this.setState({ submitting: true });
-      if ((selected as User).login !== undefined) {
-        this.handleUserAdd(selected as User);
+      if ((selected as T.UserSelected).login !== undefined) {
+        this.handleUserAdd(selected as T.UserSelected);
       } else {
         this.handleGroupAdd(selected as Group);
       }
@@ -105,7 +105,7 @@ export default class ProfilePermissionsForm extends React.PureComponent<Props, S
     );
   };
 
-  handleValueChange = (selected: User | Group) => {
+  handleValueChange = (selected: T.UserSelected | Group) => {
     this.setState({ selected });
   };
 

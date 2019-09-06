@@ -19,14 +19,14 @@
  */
 import * as React from 'react';
 import { FormattedMessage } from 'react-intl';
-import { grantPermissionToUser } from '../../api/permissions';
-import Modal from '../../components/controls/Modal';
-import { SubmitButton, ResetButtonLink } from '../../components/ui/buttons';
-import { translate } from '../../helpers/l10n';
+import { ResetButtonLink, SubmitButton } from 'sonar-ui-common/components/controls/buttons';
+import Modal from 'sonar-ui-common/components/controls/Modal';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import { Project } from '../../api/components';
+import { grantPermissionToUser } from '../../api/permissions';
 
 interface Props {
-  currentUser: { login: string };
+  currentUser: Pick<T.LoggedInUser, 'login'>;
   onClose: () => void;
   onRestoreAccess: () => void;
   project: Project;

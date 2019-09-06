@@ -18,10 +18,10 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import MetaLink from './MetaLink';
-import { orderLinks } from '../../projectLinks/utils';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import { getProjectLinks } from '../../../api/projectLinks';
-import { translate } from '../../../helpers/l10n';
+import { orderLinks } from '../../projectLinks/utils';
+import MetaLink from './MetaLink';
 
 interface Props {
   component: T.LightComponent;

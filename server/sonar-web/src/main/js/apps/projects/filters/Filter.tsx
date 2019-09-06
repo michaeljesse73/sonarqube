@@ -17,19 +17,18 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import * as classNames from 'classnames';
-import { formatMeasure } from '../../../helpers/measures';
-import { translate } from '../../../helpers/l10n';
+import * as React from 'react';
+import { translate } from 'sonar-ui-common/helpers/l10n';
+import { formatMeasure } from 'sonar-ui-common/helpers/measures';
 import { Facet } from '../types';
-import { RawQuery } from '../../../helpers/query';
 
 export type Option = string | number;
 
 interface Props {
   property: string;
   className?: string;
-  onQueryChange: (change: RawQuery) => void;
+  onQueryChange: (change: T.RawQuery) => void;
   options: Option[];
   query: T.Dict<any>;
   renderOption: (option: Option, isSelected: boolean) => React.ReactNode;
@@ -74,7 +73,7 @@ export default class Filter extends React.PureComponent<Props> {
     let urlOption;
 
     if (option) {
-      if (Array.isArray(value) && event.ctrlKey) {
+      if (Array.isArray(value) && (event.ctrlKey || event.metaKey)) {
         if (this.isSelected(option)) {
           urlOption = value.length > 1 ? value.filter(val => val !== option).join(',') : null;
         } else {

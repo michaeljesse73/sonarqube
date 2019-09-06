@@ -26,6 +26,7 @@ import org.junit.rules.TestRule;
 import org.junit.rules.Timeout;
 import org.sonar.process.sharedmemoryfile.ProcessCommands;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -38,32 +39,35 @@ public class StopWatcherTest {
 
   @Test
   public void stop_if_receive_command() throws Exception {
+
     ProcessCommands commands = mock(ProcessCommands.class);
-    when(commands.askedForStop()).thenReturn(false, true);
+    when(commands.askedForHardStop()).thenReturn(false, true);
     Stoppable stoppable = mock(Stoppable.class);
 
-    StopWatcher underTest = new StopWatcher(commands, stoppable, 1L);
+    StopWatcher underTest = new StopWatcher("TheThreadName", stoppable::hardStopAsync, commands::askedForHardStop, 1L);
     underTest.start();
 
     while (underTest.isAlive()) {
       Thread.sleep(1L);
     }
-    verify(stoppable).stopAsync();
+    verify(stoppable).hardStopAsync();
+    assertThat(underTest.getName()).isEqualTo("TheThreadName");
   }
 
   @Test
   public void stop_watching_on_interruption() throws Exception {
     ProcessCommands commands = mock(ProcessCommands.class);
-    when(commands.askedForStop()).thenReturn(false);
+    when(commands.askedForHardStop()).thenReturn(false);
     Stoppable stoppable = mock(Stoppable.class);
 
-    StopWatcher underTest = new StopWatcher(commands, stoppable, 1L);
+    StopWatcher underTest = new StopWatcher("TheThreadName", stoppable::hardStopAsync, commands::askedForHardStop, 1L);
     underTest.start();
     underTest.interrupt();
 
     while (underTest.isAlive()) {
       Thread.sleep(1L);
     }
-    verify(stoppable, never()).stopAsync();
+    verify(stoppable, never()).hardStopAsync();
+    assertThat(underTest.getName()).isEqualTo("TheThreadName");
   }
 }

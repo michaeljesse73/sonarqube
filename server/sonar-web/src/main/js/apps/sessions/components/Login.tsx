@@ -18,10 +18,11 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
+import { translate } from 'sonar-ui-common/helpers/l10n';
+import GlobalMessagesContainer from '../../../app/components/GlobalMessagesContainer';
+import './Login.css';
 import LoginForm from './LoginForm';
 import OAuthProviders from './OAuthProviders';
-import { translate } from '../../../helpers/l10n';
-import './Login.css';
 
 interface Props {
   identityProviders: T.IdentityProvider[];
@@ -33,6 +34,8 @@ export default function Login({ identityProviders, onSubmit, returnTo }: Props) 
   return (
     <div className="login-page" id="login_form">
       <h1 className="login-title text-center">{translate('login.login_to_sonarqube')}</h1>
+
+      <GlobalMessagesContainer />
 
       {identityProviders.length > 0 && (
         <OAuthProviders identityProviders={identityProviders} returnTo={returnTo} />

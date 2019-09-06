@@ -18,13 +18,13 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import { Link } from 'react-router';
 import { FormattedMessage } from 'react-intl';
-import ComponentNavLicenseNotif from './ComponentNavLicenseNotif';
+import { Link } from 'react-router';
+import { Alert } from 'sonar-ui-common/components/ui/Alert';
+import { hasMessage, translate } from 'sonar-ui-common/helpers/l10n';
 import { STATUSES } from '../../../../apps/background-tasks/constants';
 import { getComponentBackgroundTaskUrl } from '../../../../helpers/urls';
-import { hasMessage, translate } from '../../../../helpers/l10n';
-import { Alert } from '../../../../components/ui/Alert';
+import ComponentNavLicenseNotif from './ComponentNavLicenseNotif';
 
 interface Props {
   component: T.Component;

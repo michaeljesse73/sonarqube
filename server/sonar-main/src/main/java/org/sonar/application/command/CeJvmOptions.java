@@ -24,15 +24,21 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 public class CeJvmOptions extends JvmOptions<CeJvmOptions> {
-  public CeJvmOptions(File tmpDir) {
-    super(mandatoryOptions(tmpDir));
+
+  public CeJvmOptions(File tmpDir, JavaVersion javaVersion) {
+    super(mandatoryOptions(tmpDir, javaVersion));
   }
 
-  private static Map<String, String> mandatoryOptions(File tmpDir) {
+  private static Map<String, String> mandatoryOptions(File tmpDir, JavaVersion javaVersion) {
     Map<String, String> res = new LinkedHashMap<>(3);
     res.put("-Djava.awt.headless=", "true");
     res.put("-Dfile.encoding=", "UTF-8");
     res.put("-Djava.io.tmpdir=", tmpDir.getAbsolutePath());
+
+    if (javaVersion.isAtLeastJava11()) {
+      // avoid illegal reflective access operations done by MyBatis
+      res.put("--add-opens=java.base/java.util=ALL-UNNAMED", "");
+    }
     return res;
   }
 }

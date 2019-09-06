@@ -25,12 +25,15 @@ import java.util.Optional;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 import org.sonar.ce.task.util.InitializedProperty;
+import org.sonar.core.platform.EditionProvider;
+import org.sonar.core.platform.PlatformEditionProvider;
 import org.sonar.db.component.BranchType;
 import org.sonar.server.project.Project;
 import org.sonar.server.qualityprofile.QualityProfile;
 
 import static com.google.common.base.Preconditions.checkState;
 import static java.util.Objects.requireNonNull;
+import static org.apache.commons.lang.StringUtils.defaultIfBlank;
 
 public class AnalysisMetadataHolderImpl implements MutableAnalysisMetadataHolder {
   private static final String BRANCH_NOT_SET = "Branch has not been set";
@@ -46,7 +49,13 @@ public class AnalysisMetadataHolderImpl implements MutableAnalysisMetadataHolder
   private final InitializedProperty<Integer> rootComponentRef = new InitializedProperty<>();
   private final InitializedProperty<Map<String, QualityProfile>> qProfilesPerLanguage = new InitializedProperty<>();
   private final InitializedProperty<Map<String, ScannerPlugin>> pluginsByKey = new InitializedProperty<>();
-  private final InitializedProperty<String> scmRevisionId = new InitializedProperty<>();
+  private final InitializedProperty<String> scmRevision = new InitializedProperty<>();
+
+  private final PlatformEditionProvider editionProvider;
+
+  public AnalysisMetadataHolderImpl(PlatformEditionProvider editionProvider) {
+    this.editionProvider = editionProvider;
+  }
 
   @Override
   public MutableAnalysisMetadataHolder setOrganizationsEnabled(boolean isOrganizationsEnabled) {
@@ -142,6 +151,10 @@ public class AnalysisMetadataHolderImpl implements MutableAnalysisMetadataHolder
   @Override
   public MutableAnalysisMetadataHolder setBranch(Branch branch) {
     checkState(!this.branch.isInitialized(), "Branch has already been set");
+    boolean isCommunityEdition = editionProvider.get().filter(t -> t == EditionProvider.Edition.COMMUNITY).isPresent();
+    checkState(
+      !isCommunityEdition || branch.isMain(),
+      "Branches and Pull Requests are not supported in Community Edition");
     this.branch.setProperty(branch);
     return this;
   }
@@ -219,18 +232,18 @@ public class AnalysisMetadataHolderImpl implements MutableAnalysisMetadataHolder
   }
 
   @Override
-  public MutableAnalysisMetadataHolder setScmRevisionId(String scmRevisionId) {
-    checkState(!this.scmRevisionId.isInitialized(), "ScmRevisionId has already been set");
-    this.scmRevisionId.setProperty(scmRevisionId);
+  public MutableAnalysisMetadataHolder setScmRevision(@Nullable String s) {
+    checkState(!this.scmRevision.isInitialized(), "ScmRevision has already been set");
+    this.scmRevision.setProperty(defaultIfBlank(s, null));
     return this;
   }
 
   @Override
-  public Optional<String> getScmRevisionId() {
-    if (!scmRevisionId.isInitialized()) {
+  public Optional<String> getScmRevision() {
+    if (!scmRevision.isInitialized()) {
       return Optional.empty();
     }
-    return Optional.of(scmRevisionId.getProperty());
+    return Optional.ofNullable(scmRevision.getProperty());
   }
 
   @Override

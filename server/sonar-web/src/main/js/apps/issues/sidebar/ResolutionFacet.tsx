@@ -17,16 +17,15 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { orderBy, without } from 'lodash';
-import { formatFacetStat, Query } from '../utils';
+import * as React from 'react';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import FacetBox from '../../../components/facet/FacetBox';
 import FacetHeader from '../../../components/facet/FacetHeader';
 import FacetItem from '../../../components/facet/FacetItem';
 import FacetItemsList from '../../../components/facet/FacetItemsList';
-import { translate } from '../../../helpers/l10n';
-import DeferredSpinner from '../../../components/common/DeferredSpinner';
 import MultipleSelectionHint from '../../../components/facet/MultipleSelectionHint';
+import { formatFacetStat, Query } from '../utils';
 
 interface Props {
   fetching: boolean;
@@ -38,7 +37,7 @@ interface Props {
   stats: T.Dict<number> | undefined;
 }
 
-const RESOLUTIONS = ['', 'FIXED', 'FALSE-POSITIVE', 'WONTFIX', 'REMOVED'];
+const RESOLUTIONS = ['', 'FALSE-POSITIVE', 'FIXED', 'REMOVED', 'WONTFIX'];
 
 export default class ResolutionFacet extends React.PureComponent<Props> {
   property = 'resolutions';
@@ -116,6 +115,7 @@ export default class ResolutionFacet extends React.PureComponent<Props> {
       <FacetBox property={this.property}>
         <FacetHeader
           clearLabel="reset_verb"
+          fetching={this.props.fetching}
           name={translate('issues.facet', this.property)}
           onClear={this.handleClear}
           onClick={this.handleHeaderClick}
@@ -123,7 +123,6 @@ export default class ResolutionFacet extends React.PureComponent<Props> {
           values={values}
         />
 
-        <DeferredSpinner loading={this.props.fetching} />
         {this.props.open && (
           <>
             <FacetItemsList>{RESOLUTIONS.map(this.renderItem)}</FacetItemsList>

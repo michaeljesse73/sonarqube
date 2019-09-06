@@ -17,25 +17,19 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { sortBy, uniqBy } from 'lodash';
-import ProfilePermissionsUser from './ProfilePermissionsUser';
-import ProfilePermissionsGroup from './ProfilePermissionsGroup';
-import ProfilePermissionsForm from './ProfilePermissionsForm';
+import * as React from 'react';
+import { Button } from 'sonar-ui-common/components/controls/buttons';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import {
-  searchUsers,
   searchGroups,
+  searchUsers,
   SearchUsersGroupsParameters
 } from '../../../api/quality-profiles';
-import { Button } from '../../../components/ui/buttons';
-import { translate } from '../../../helpers/l10n';
 import { Profile } from '../types';
-
-export interface User {
-  avatar?: string;
-  login: string;
-  name: string;
-}
+import ProfilePermissionsForm from './ProfilePermissionsForm';
+import ProfilePermissionsGroup from './ProfilePermissionsGroup';
+import ProfilePermissionsUser from './ProfilePermissionsUser';
 
 export interface Group {
   name: string;
@@ -50,7 +44,7 @@ interface State {
   addUserForm: boolean;
   groups?: Group[];
   loading: boolean;
-  users?: User[];
+  users?: T.UserSelected[];
 }
 
 export default class ProfilePermissions extends React.PureComponent<Props, State> {
@@ -112,7 +106,7 @@ export default class ProfilePermissions extends React.PureComponent<Props, State
     }
   };
 
-  handleUserAdd = (addedUser: User) => {
+  handleUserAdd = (addedUser: T.UserSelected) => {
     if (this.mounted) {
       this.setState((state: State) => ({
         addUserForm: false,
@@ -121,7 +115,7 @@ export default class ProfilePermissions extends React.PureComponent<Props, State
     }
   };
 
-  handleUserDelete = (removedUser: User) => {
+  handleUserDelete = (removedUser: T.UserSelected) => {
     if (this.mounted) {
       this.setState((state: State) => ({
         users: state.users && state.users.filter(user => user !== removedUser)

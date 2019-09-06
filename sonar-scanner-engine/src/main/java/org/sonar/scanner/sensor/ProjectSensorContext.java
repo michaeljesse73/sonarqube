@@ -69,7 +69,7 @@ public class ProjectSensorContext implements SensorContext {
   private final Configuration config;
 
   public ProjectSensorContext(DefaultInputProject project, Configuration config, Settings mutableSettings, FileSystem fs, ActiveRules activeRules,
-                              SensorStorage sensorStorage, SonarRuntime sonarRuntime) {
+    SensorStorage sensorStorage, SonarRuntime sonarRuntime) {
     this.project = project;
     this.config = config;
     this.mutableSettings = mutableSettings;

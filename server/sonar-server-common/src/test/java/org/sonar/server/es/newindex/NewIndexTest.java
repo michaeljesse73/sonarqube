@@ -52,7 +52,6 @@ public class NewIndexTest {
   private MapSettings settings = new MapSettings();
   private SettingsConfiguration defaultSettingsConfiguration = newBuilder(settings.asConfig()).build();
 
-
   @Test
   @UseDataProvider("indexWithAndWithoutRelations")
   public void getRelations_returns_empty_if_no_relation_added(Index index) {

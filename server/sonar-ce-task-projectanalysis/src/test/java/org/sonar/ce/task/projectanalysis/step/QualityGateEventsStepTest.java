@@ -19,8 +19,8 @@
  */
 package org.sonar.ce.task.projectanalysis.step;
 
+import java.util.Collection;
 import java.util.Optional;
-import java.util.Random;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -44,6 +44,7 @@ import org.sonar.ce.task.step.TestComputationStepContext;
 import org.sonar.db.component.BranchType;
 import org.sonar.server.notification.NotificationService;
 import org.sonar.server.project.Project;
+import org.sonar.server.qualitygate.notification.QGChangeNotification;
 
 import static java.util.Collections.emptyList;
 import static org.apache.commons.lang.RandomStringUtils.randomAlphabetic;
@@ -66,6 +67,7 @@ public class QualityGateEventsStepTest {
     .setKey("key 1")
     .setProjectVersion(PROJECT_VERSION)
     .setBuildString("V1.9")
+    .setScmRevisionId("456def")
     .addChildren(ReportComponent.builder(Component.Type.DIRECTORY, 2).build())
     .build();
   private static final String INVALID_ALERT_STATUS = "trololo";
@@ -177,8 +179,13 @@ public class QualityGateEventsStepTest {
     assertThat(event.getDescription()).isEqualTo(ALERT_TEXT);
     assertThat(event.getData()).isNull();
 
+    ArgumentCaptor<Collection> collectionCaptor = ArgumentCaptor.forClass(Collection.class);
+    verify(notificationService).deliverEmails(collectionCaptor.capture());
     verify(notificationService).deliver(notificationArgumentCaptor.capture());
     Notification notification = notificationArgumentCaptor.getValue();
+    assertThat(collectionCaptor.getValue()).hasSize(1);
+    assertThat(collectionCaptor.getValue().iterator().next()).isSameAs(notification);
+    assertThat(notification).isInstanceOf(QGChangeNotification.class);
     assertThat(notification.getType()).isEqualTo("alerts");
     assertThat(notification.getFieldValue("projectKey")).isEqualTo(PROJECT_COMPONENT.getKey());
     assertThat(notification.getFieldValue("projectName")).isEqualTo(PROJECT_COMPONENT.getName());
@@ -237,34 +244,6 @@ public class QualityGateEventsStepTest {
     assertThat(notification.getFieldValue("branch")).isNull();
     assertThat(notification.getFieldValue("alertLevel")).isEqualTo(newQualityGateStatus.getStatus().name());
     assertThat(notification.getFieldValue("alertName")).isEqualTo(expectedLabel);
-
-    reset(measureRepository, eventRepository, notificationService);
-  }
-
-  @Test
-  public void verify_branch_name_is_set_in_notification_when_not_main() {
-    String branchName = "feature1";
-    analysisMetadataHolder.setBranch(new DefaultBranchImpl(branchName) {
-      @Override
-      public boolean isMain() {
-        return false;
-      }
-    });
-
-    when(measureRepository.getRawMeasure(PROJECT_COMPONENT, alertStatusMetric))
-      .thenReturn(of(Measure.newMeasureBuilder().setQualityGateStatus(OK_QUALITY_GATE_STATUS).createNoValue()));
-    when(measureRepository.getBaseMeasure(PROJECT_COMPONENT, alertStatusMetric)).thenReturn(
-      of(Measure.newMeasureBuilder().setQualityGateStatus(new QualityGateStatus(ERROR)).createNoValue()));
-
-    underTest.execute(new TestComputationStepContext());
-
-    verify(notificationService).deliver(notificationArgumentCaptor.capture());
-    Notification notification = notificationArgumentCaptor.getValue();
-    assertThat(notification.getType()).isEqualTo("alerts");
-    assertThat(notification.getFieldValue("projectKey")).isEqualTo(PROJECT_COMPONENT.getKey());
-    assertThat(notification.getFieldValue("projectName")).isEqualTo(PROJECT_COMPONENT.getName());
-    assertThat(notification.getFieldValue("projectVersion")).isEqualTo(PROJECT_COMPONENT.getProjectAttributes().getProjectVersion());
-    assertThat(notification.getFieldValue("branch")).isEqualTo(branchName);
 
     reset(measureRepository, eventRepository, notificationService);
   }

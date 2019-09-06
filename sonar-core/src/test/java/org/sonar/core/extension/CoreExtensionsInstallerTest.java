@@ -227,7 +227,8 @@ public class CoreExtensionsInstallerTest {
 
   @Test
   @UseDataProvider("allMethodsToAddExtension")
-  public void install_adds_providers_to_container_and_install_extensions_they_provide_when_annotated_with_expected_annotation(BiConsumer<CoreExtension.Context, Collection<Object>> extensionAdder) {
+  public void install_adds_providers_to_container_and_install_extensions_they_provide_when_annotated_with_expected_annotation(
+    BiConsumer<CoreExtension.Context, Collection<Object>> extensionAdder) {
     List<Object> extensions = ImmutableList.of(WestSideProvider.class, PartiallyWestSideProvider.class, EastSideProvider.class);
     CoreExtension coreExtension = newCoreExtension(context -> extensionAdder.accept(context, extensions));
     when(coreExtensionRepository.loadedCoreExtensions()).thenReturn(Stream.of(coreExtension));

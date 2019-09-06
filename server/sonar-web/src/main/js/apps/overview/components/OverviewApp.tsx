@@ -17,37 +17,40 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { uniq } from 'lodash';
+import * as React from 'react';
 import { connect } from 'react-redux';
-import ApplicationQualityGate from '../qualityGate/ApplicationQualityGate';
-import BugsAndVulnerabilities from '../main/BugsAndVulnerabilities';
-import CodeSmells from '../main/CodeSmells';
-import Coverage from '../main/Coverage';
-import Duplications from '../main/Duplications';
-import MetaContainer from '../meta/MetaContainer';
-import QualityGate from '../qualityGate/QualityGate';
-import A11ySkipTarget from '../../../app/components/a11y/A11ySkipTarget';
+import { parseDate } from 'sonar-ui-common/helpers/dates';
+import { translate, translateWithParameters } from 'sonar-ui-common/helpers/l10n';
 import { getMeasuresAndMeta } from '../../../api/measures';
 import { getAllTimeMachineData } from '../../../api/time-machine';
-import { parseDate } from '../../../helpers/dates';
+import A11ySkipTarget from '../../../app/components/a11y/A11ySkipTarget';
+import {
+  getBranchLikeDisplayName,
+  getBranchLikeQuery,
+  isLongLivingBranch,
+  isMainBranch,
+  isSameBranchLike
+} from '../../../helpers/branches';
 import { enhanceMeasuresWithMetrics } from '../../../helpers/measures';
 import { getLeakPeriod } from '../../../helpers/periods';
-import { METRICS, HISTORY_METRICS_LIST } from '../utils';
+import { fetchMetrics } from '../../../store/rootActions';
+import { getMetrics, Store } from '../../../store/rootReducer';
 import {
   DEFAULT_GRAPH,
   getDisplayedHistoryMetrics,
   getProjectActivityGraph
 } from '../../projectActivity/utils';
-import {
-  isSameBranchLike,
-  getBranchLikeQuery,
-  isLongLivingBranch
-} from '../../../helpers/branches';
-import { fetchMetrics } from '../../../store/rootActions';
-import { getMetrics, Store } from '../../../store/rootReducer';
-import { translate } from '../../../helpers/l10n';
+import Bugs from '../main/Bugs';
+import CodeSmells from '../main/CodeSmells';
+import Coverage from '../main/Coverage';
+import Duplications from '../main/Duplications';
+import VulnerabilitiesAndHotspots from '../main/VulnerabilitiesAndHotspots';
+import MetaContainer from '../meta/MetaContainer';
+import ApplicationQualityGate from '../qualityGate/ApplicationQualityGate';
+import QualityGate from '../qualityGate/QualityGate';
 import '../styles.css';
+import { HISTORY_METRICS_LIST, METRICS } from '../utils';
 
 interface Props {
   branchLike?: T.BranchLike;
@@ -159,18 +162,61 @@ export class OverviewApp extends React.PureComponent<Props, State> {
   };
 
   renderEmpty = () => {
-    const { component } = this.props;
+    const { branchLike, component } = this.props;
     const isApp = component.qualifier === 'APP';
+
+    /* eslint-disable no-lonely-if */
+    // - Is App
+    //     - No measures, OR measures, but no projects => empty
+    //     - Else => no lines of code
+    // - Else
+    //   - No measures => empty
+    //       - Main branch?
+    //       - LLB?
+    //       - No branch info?
+    //   - Measures, but no ncloc (checked in isEmpty()) => no lines of code
+    //       - Main branch?
+    //       - LLB?
+    //       - No branch info?
+    let title;
+    if (isApp) {
+      if (
+        this.state.measures === undefined ||
+        this.state.measures.find(measure => measure.metric.key === 'projects') === undefined
+      ) {
+        title = translate('portfolio.app.empty');
+      } else {
+        title = translate('portfolio.app.no_lines_of_code');
+      }
+    } else {
+      if (this.state.measures === undefined || this.state.measures.length === 0) {
+        if (isMainBranch(branchLike)) {
+          title = translate('overview.project.main_branch_empty');
+        } else if (branchLike !== undefined) {
+          title = translateWithParameters(
+            'overview.project.branch_X_empty',
+            getBranchLikeDisplayName(branchLike)
+          );
+        } else {
+          title = translate('overview.project.empty');
+        }
+      } else {
+        if (isMainBranch(branchLike)) {
+          title = translate('overview.project.main_branch_no_lines_of_code');
+        } else if (branchLike !== undefined) {
+          title = translateWithParameters(
+            'overview.project.branch_X_no_lines_of_code',
+            getBranchLikeDisplayName(branchLike)
+          );
+        } else {
+          title = translate('overview.project.no_lines_of_code');
+        }
+      }
+    }
+    /* eslint-enable no-lonely-if */
     return (
       <div className="overview-main page-main">
-        <h3>
-          {!this.state.measures ||
-          !this.state.measures.find(measure => measure.metric.key === 'projects')
-            ? translate(isApp ? 'portfolio.app.empty' : 'overview.project.empty')
-            : translate(
-                isApp ? 'portfolio.app.no_lines_of_code' : 'overview.project.no_lines_of_code'
-              )}
-        </h3>
+        <h3>{title}</h3>
       </div>
     );
   };
@@ -178,7 +224,7 @@ export class OverviewApp extends React.PureComponent<Props, State> {
   renderLoading = () => {
     return (
       <div className="text-center">
-        <i className="spinner spinner-margin" />
+        <i className="spinner spacer" />
       </div>
     );
   };
@@ -213,7 +259,8 @@ export class OverviewApp extends React.PureComponent<Props, State> {
         )}
 
         <div className="overview-domains-list">
-          <BugsAndVulnerabilities {...domainProps} />
+          <Bugs {...domainProps} />
+          <VulnerabilitiesAndHotspots {...domainProps} />
           <CodeSmells {...domainProps} />
           <Coverage {...domainProps} />
           <Duplications {...domainProps} />

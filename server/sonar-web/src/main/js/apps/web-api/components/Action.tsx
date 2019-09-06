@@ -17,17 +17,17 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
+import * as classNames from 'classnames';
 import * as React from 'react';
 import { Link } from 'react-router';
-import * as classNames from 'classnames';
-import Params from './Params';
-import ResponseExample from './ResponseExample';
+import LinkIcon from 'sonar-ui-common/components/icons/LinkIcon';
+import { translate, translateWithParameters } from 'sonar-ui-common/helpers/l10n';
+import { getActionKey, serializeQuery } from '../utils';
 import ActionChangelog from './ActionChangelog';
 import DeprecatedBadge from './DeprecatedBadge';
 import InternalBadge from './InternalBadge';
-import { getActionKey, serializeQuery } from '../utils';
-import LinkIcon from '../../../components/icons-components/LinkIcon';
-import { translate, translateWithParameters } from '../../../helpers/l10n';
+import Params from './Params';
+import ResponseExample from './ResponseExample';
 
 interface Props {
   action: T.WebApi.Action;
@@ -171,6 +171,7 @@ export default class Action extends React.PureComponent<Props, State> {
         <div className="boxed-group-inner">
           <div
             className="web-api-action-description markdown"
+            // Safe: comes from the backend
             dangerouslySetInnerHTML={{ __html: action.description }}
           />
 

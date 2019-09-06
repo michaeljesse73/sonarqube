@@ -58,7 +58,7 @@ public class ChildSettingsTest {
     parent.setProperty(randomAlphanumeric(16), new Date(RANDOM.nextInt()));
     parent.setProperty(randomAlphanumeric(17), new Date(RANDOM.nextInt()), true);
     parent.setProperty(randomAlphanumeric(18), new Date(RANDOM.nextInt()), false);
-    parent.setProperty(multipleValuesKey, new String[] { randomAlphanumeric(10), randomAlphanumeric(20) });
+    parent.setProperty(multipleValuesKey, new String[] {randomAlphanumeric(10), randomAlphanumeric(20)});
 
     assertThat(underTest.getProperties()).isEqualTo(parent.getProperties());
   }
@@ -70,7 +70,6 @@ public class ChildSettingsTest {
 
     underTest.set(null, "");
   }
-
 
   @Test
   public void set_will_throw_NPE_if_value_is_null() {

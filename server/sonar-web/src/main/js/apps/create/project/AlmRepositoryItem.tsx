@@ -17,18 +17,19 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import * as classNames from 'classnames';
 import { identity } from 'lodash';
+import * as React from 'react';
 import { FormattedMessage } from 'react-intl';
 import { Link } from 'react-router';
-import * as theme from '../../../app/theme';
-import Checkbox from '../../../components/controls/Checkbox';
-import CheckIcon from '../../../components/icons-components/CheckIcon';
-import Tooltip from '../../../components/controls/Tooltip';
-import { getBaseUrl, getProjectUrl } from '../../../helpers/urls';
-import { translate } from '../../../helpers/l10n';
-import LockIcon from '../../../components/icons-components/LockIcon';
+import Checkbox from 'sonar-ui-common/components/controls/Checkbox';
+import Tooltip from 'sonar-ui-common/components/controls/Tooltip';
+import CheckIcon from 'sonar-ui-common/components/icons/CheckIcon';
+import LockIcon from 'sonar-ui-common/components/icons/LockIcon';
+import { translate } from 'sonar-ui-common/helpers/l10n';
+import { getBaseUrl } from 'sonar-ui-common/helpers/urls';
+import { colors } from '../../../app/theme';
+import { getProjectUrl } from '../../../helpers/urls';
 
 interface Props {
   disabled: boolean;
@@ -77,7 +78,7 @@ export default class AlmRepositoryItem extends React.PureComponent<Props> {
             role="listitem">
             <div className="flex-1 display-flex-center">
               {disabled ? (
-                <LockIcon fill={theme.disableGrayText} />
+                <LockIcon fill={colors.disableGrayText} />
               ) : (
                 <Checkbox
                   checked={selected || alreadyImported}
@@ -94,13 +95,13 @@ export default class AlmRepositoryItem extends React.PureComponent<Props> {
               />
               <span className="spacer-left">{this.props.repository.label}</span>
               {repository.private && (
-                <div className="outline-badge spacer-left">{translate('visibility.private')}</div>
+                <div className="badge spacer-left">{translate('visibility.private')}</div>
               )}
             </div>
 
             {repository.linkedProjectKey && (
               <span>
-                <CheckIcon className="little-spacer-right" fill={theme.green} />
+                <CheckIcon className="little-spacer-right" fill={colors.green} />
                 <FormattedMessage
                   defaultMessage={translate('onboarding.create_project.repository_imported')}
                   id="onboarding.create_project.repository_imported"

@@ -17,10 +17,9 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { shallow } from 'enzyme';
+import * as React from 'react';
 import HealthCard from '../HealthCard';
-import { HealthType } from '../../../../../api/system';
 
 it('should render correctly', () => {
   expect(getWrapper()).toMatchSnapshot();
@@ -48,7 +47,7 @@ function getWrapper(props = {}) {
   return shallow(
     <HealthCard
       biggerHealth={false}
-      health={HealthType.RED}
+      health="RED"
       healthCauses={['foo']}
       name="Foobar"
       onClick={() => {}}

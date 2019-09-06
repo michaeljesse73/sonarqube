@@ -17,8 +17,8 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { shallow } from 'enzyme';
+import * as React from 'react';
 import DomainFacet from '../DomainFacet';
 
 it('should display facet item list', () => {
@@ -106,7 +106,7 @@ function shallowRender(props: Partial<DomainFacet['props']> = {}) {
       onChange={() => {}}
       onToggle={() => {}}
       open={true}
-      selected={'foo'}
+      selected="foo"
       showFullMeasures={true}
       {...props}
     />

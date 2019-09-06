@@ -19,8 +19,8 @@
  */
 import * as React from 'react';
 import { connect } from 'react-redux';
-import Level from '../ui/Level';
-import { Store, getBranchStatusByBranchLike } from '../../store/rootReducer';
+import Level from 'sonar-ui-common/components/ui/Level';
+import { getBranchStatusByBranchLike, Store } from '../../store/rootReducer';
 
 interface Props {
   branchLike: T.BranchLike;
@@ -37,7 +37,7 @@ export function BranchStatus({ status }: Props) {
 }
 
 const mapStateToProps = (state: Store, { branchLike, component }: Props) => {
-  const status = getBranchStatusByBranchLike(state, component, branchLike);
+  const { status } = getBranchStatusByBranchLike(state, component, branchLike);
   return { status };
 };
 

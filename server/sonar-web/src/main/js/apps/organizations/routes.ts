@@ -17,12 +17,12 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import { RouterState, RedirectFunction } from 'react-router';
+import { RedirectFunction, RouterState } from 'react-router';
+import { lazyLoad } from 'sonar-ui-common/components/lazyLoad';
 import codingRulesRoutes from '../coding-rules/routes';
 import qualityGatesRoutes from '../quality-gates/routes';
 import qualityProfilesRoutes from '../quality-profiles/routes';
 import webhooksRoutes from '../webhooks/routes';
-import { lazyLoad } from '../../components/lazyLoad';
 
 const OrganizationContainer = lazyLoad(() => import('./components/OrganizationContainer'));
 
@@ -72,13 +72,8 @@ const routes = [
         childRoutes: qualityGatesRoutes
       },
       {
-        component: lazyLoad(() =>
-          import('./components/OrganizationAccessContainer').then(lib => ({
-            default: lib.OrganizationAdminAccess
-          }))
-        ),
+        component: lazyLoad(() => import('./components/OrganizationAccessContainer')),
         childRoutes: [
-          { path: 'delete', component: lazyLoad(() => import('./components/OrganizationDelete')) },
           { path: 'edit', component: lazyLoad(() => import('./components/OrganizationEdit')) },
           { path: 'groups', component: lazyLoad(() => import('../groups/components/App')) },
           {

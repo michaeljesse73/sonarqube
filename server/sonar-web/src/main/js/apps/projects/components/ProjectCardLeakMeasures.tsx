@@ -18,12 +18,12 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
+import BugIcon from 'sonar-ui-common/components/icons/BugIcon';
+import CodeSmellIcon from 'sonar-ui-common/components/icons/CodeSmellIcon';
+import VulnerabilityIcon from 'sonar-ui-common/components/icons/VulnerabilityIcon';
+import Rating from 'sonar-ui-common/components/ui/Rating';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import Measure from '../../../components/measure/Measure';
-import BugIcon from '../../../components/icons-components/BugIcon';
-import CodeSmellIcon from '../../../components/icons-components/CodeSmellIcon';
-import Rating from '../../../components/ui/Rating';
-import VulnerabilityIcon from '../../../components/icons-components/VulnerabilityIcon';
-import { translate } from '../../../helpers/l10n';
 
 interface Props {
   measures: T.Dict<string>;
@@ -44,7 +44,7 @@ export default function ProjectCardLeakMeasures({ measures }: Props) {
             <Rating value={measures['new_reliability_rating']} />
           </div>
           <div className="project-card-measure-label-with-icon">
-            <BugIcon className="little-spacer-right vertical-bottom" />
+            <BugIcon className="little-spacer-right text-bottom" />
             {translate('metric.bugs.name')}
           </div>
         </div>
@@ -62,7 +62,7 @@ export default function ProjectCardLeakMeasures({ measures }: Props) {
             <Rating value={measures['new_security_rating']} />
           </div>
           <div className="project-card-measure-label-with-icon">
-            <VulnerabilityIcon className="little-spacer-right vertical-bottom" />
+            <VulnerabilityIcon className="little-spacer-right text-bottom" />
             {translate('metric.vulnerabilities.name')}
           </div>
         </div>
@@ -80,24 +80,26 @@ export default function ProjectCardLeakMeasures({ measures }: Props) {
             <Rating value={measures['new_maintainability_rating']} />
           </div>
           <div className="project-card-measure-label-with-icon">
-            <CodeSmellIcon className="little-spacer-right vertical-bottom" />
+            <CodeSmellIcon className="little-spacer-right text-bottom" />
             {translate('metric.code_smells.name')}
           </div>
         </div>
       </div>
 
-      <div className="project-card-measure" data-key="new_coverage">
-        <div className="project-card-measure-inner">
-          <div className="project-card-measure-number">
-            <Measure
-              metricKey="new_coverage"
-              metricType="PERCENT"
-              value={measures['new_coverage']}
-            />
+      {measures['new_coverage'] != null && (
+        <div className="project-card-measure" data-key="new_coverage">
+          <div className="project-card-measure-inner">
+            <div className="project-card-measure-number">
+              <Measure
+                metricKey="new_coverage"
+                metricType="PERCENT"
+                value={measures['new_coverage']}
+              />
+            </div>
+            <div className="project-card-measure-label">{translate('metric.coverage.name')}</div>
           </div>
-          <div className="project-card-measure-label">{translate('metric.coverage.name')}</div>
         </div>
-      </div>
+      )}
 
       <div className="project-card-measure" data-key="new_duplicated_lines_density">
         <div className="project-card-measure-inner">

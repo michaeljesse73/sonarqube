@@ -17,24 +17,23 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { sortBy } from 'lodash';
-import HealthCard from './info-items/HealthCard';
-import { translate } from '../../../helpers/l10n';
-import { ClusterSysInfo } from '../../../api/system';
+import * as React from 'react';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import {
   getAppNodes,
+  getClusterMainCardSection,
   getHealth,
   getHealthCauses,
-  getClusterMainCardSection,
   getNodeName,
   getSearchNodes,
   ignoreInfoFields
 } from '../utils';
+import HealthCard from './info-items/HealthCard';
 
 interface Props {
   expandedCards: string[];
-  sysInfoData: ClusterSysInfo;
+  sysInfoData: T.SysInfoCluster;
   toggleCard: (toggledCard: string) => void;
 }
 
@@ -54,7 +53,7 @@ export default function ClusterSysInfos({ expandedCards, sysInfoData, toggleCard
       <li className="note system-info-health-title">
         {translate('system.application_nodes_title')}
       </li>
-      {sortBy(getAppNodes(sysInfoData), getNodeName).map(node => (
+      {sortBy(getAppNodes(sysInfoData), getNodeName).map((node: T.SysInfoAppNode) => (
         <HealthCard
           health={getHealth(node)}
           healthCauses={getHealthCauses(node)}
@@ -66,10 +65,8 @@ export default function ClusterSysInfos({ expandedCards, sysInfoData, toggleCard
         />
       ))}
       <li className="note system-info-health-title">{translate('system.search_nodes_title')}</li>
-      {sortBy(getSearchNodes(sysInfoData), getNodeName).map(node => (
+      {sortBy(getSearchNodes(sysInfoData), getNodeName).map((node: T.SysInfoSearchNode) => (
         <HealthCard
-          health={getHealth(node)}
-          healthCauses={getHealthCauses(node)}
           key={getNodeName(node)}
           name={getNodeName(node)}
           onClick={toggleCard}

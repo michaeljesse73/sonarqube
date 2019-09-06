@@ -17,26 +17,20 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import * as classNames from 'classnames';
+import * as React from 'react';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import DocTooltip from '../../../components/docs/DocTooltip';
-import { translate } from '../../../helpers/l10n';
 
 interface Props {
   className?: string;
 }
 
 export default function BuiltInQualityGateBadge({ className }: Props) {
-  const badge = (
-    <div className={classNames('outline-badge', className)}>
-      {translate('quality_gates.built_in')}
-    </div>
-  );
-
   return (
     <DocTooltip
       doc={import(/* webpackMode: "eager" */ 'Docs/tooltips/quality-gates/built-in-quality-gate.md')}>
-      {badge}
+      <div className={classNames('badge', className)}>{translate('quality_gates.built_in')}</div>
     </DocTooltip>
   );
 }

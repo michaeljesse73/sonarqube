@@ -18,11 +18,10 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import EllipsisIcon from '../../icons-components/EllipsisIcon';
-import Tooltip from '../../controls/Tooltip';
-import { ButtonLink } from '../../ui/buttons';
+import { Button } from 'sonar-ui-common/components/controls/buttons';
+import Tooltip from 'sonar-ui-common/components/controls/Tooltip';
+import { translate, translateWithParameters } from 'sonar-ui-common/helpers/l10n';
 import { WorkspaceContextShape } from '../../workspace/context';
-import { translate, translateWithParameters } from '../../../helpers/l10n';
 
 interface Props {
   engine?: string;
@@ -44,24 +43,22 @@ export default class IssueMessage extends React.PureComponent<Props> {
   render() {
     return (
       <div className="issue-message">
-        {this.props.message}
-        <ButtonLink
+        <span className="little-spacer-right">{this.props.message}</span>
+        <Button
           aria-label={translate('issue.rule_details')}
-          className="issue-rule little-spacer-left"
+          className="button button-grey button-tiny spacer-right text-top"
           onClick={this.handleClick}>
-          <EllipsisIcon />
-        </ButtonLink>
+          {translate('issue.see_rule')}
+        </Button>
         {this.props.engine && (
           <Tooltip
             overlay={translateWithParameters('issue.from_external_rule_engine', this.props.engine)}>
-            <div className="outline-badge badge-tiny-height spacer-left vertical-text-top">
-              {this.props.engine}
-            </div>
+            <div className="badge spacer-right text-top">{this.props.engine}</div>
           </Tooltip>
         )}
         {this.props.manualVulnerability && (
           <Tooltip overlay={translate('issue.manual_vulnerability.description')}>
-            <div className="outline-badge badge-tiny-height spacer-left vertical-text-top">
+            <div className="badge spacer-right text-top">
               {translate('issue.manual_vulnerability')}
             </div>
           </Tooltip>

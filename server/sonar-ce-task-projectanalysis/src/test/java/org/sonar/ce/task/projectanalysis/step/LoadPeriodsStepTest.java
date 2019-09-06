@@ -25,7 +25,6 @@ import com.tngtech.java.junit.dataprovider.UseDataProvider;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
-import java.util.Optional;
 import java.util.Random;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
@@ -64,6 +63,7 @@ import static org.apache.commons.lang.RandomStringUtils.randomAlphabetic;
 import static org.apache.commons.lang.RandomStringUtils.randomAlphanumeric;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -140,7 +140,7 @@ public class LoadPeriodsStepTest extends BaseStepTest {
     when(system2Mock.now()).thenReturn(november30th2008.getTime());
     when(analysisMetadataHolder.isFirstAnalysis()).thenReturn(false);
     setupRoot(project);
-    setupBranchWithNoManualBaseline(analysisMetadataHolder, project);
+    setupBranchWithNoManualBaseline(project);
     String textDate = "2008-11-22";
 
     settings.setProperty("sonar.leak.period", textDate);
@@ -162,7 +162,7 @@ public class LoadPeriodsStepTest extends BaseStepTest {
     when(analysisMetadataHolder.getAnalysisDate()).thenReturn(november30th2008.getTime());
     when(analysisMetadataHolder.isFirstAnalysis()).thenReturn(false);
     setupRoot(project);
-    setupBranchWithNoManualBaseline(analysisMetadataHolder, project);
+    setupBranchWithNoManualBaseline(project);
 
     settings.setProperty("sonar.leak.period", "100");
     underTest.execute(new TestComputationStepContext());
@@ -183,7 +183,7 @@ public class LoadPeriodsStepTest extends BaseStepTest {
     when(system2Mock.now()).thenReturn(november30th2008.getTime());
     when(analysisMetadataHolder.isFirstAnalysis()).thenReturn(false);
     setupRoot(project);
-    setupBranchWithNoManualBaseline(analysisMetadataHolder, project);
+    setupBranchWithNoManualBaseline(project);
 
     String textDate = "2008-11-22";
     settings.setProperty("sonar.leak.period", textDate);
@@ -210,7 +210,7 @@ public class LoadPeriodsStepTest extends BaseStepTest {
     dbTester.commit();
     when(system2Mock.now()).thenReturn(november30th2008.getTime());
     when(analysisMetadataHolder.isFirstAnalysis()).thenReturn(false);
-    when(analysisMetadataHolder.getBranch()).thenReturn(branchOf(branch));
+    setBranchOf(branch);
     setupRoot(branch);
 
     String textDate = "2008-11-22";
@@ -244,8 +244,7 @@ public class LoadPeriodsStepTest extends BaseStepTest {
     when(system2Mock.now()).thenReturn(november30th2008.getTime());
     when(analysisMetadataHolder.getAnalysisDate()).thenReturn(november30th2008.getTime());
     when(analysisMetadataHolder.isFirstAnalysis()).thenReturn(false);
-    Branch branch = mockBranch(BranchType.LONG);
-    when(analysisMetadataHolder.getBranch()).thenReturn(branch);
+    setMetadataBranch(BranchType.LONG);
     setupRoot(project);
 
     settings.setProperty("sonar.leak.period", leakPeriodSettingValue);
@@ -258,7 +257,7 @@ public class LoadPeriodsStepTest extends BaseStepTest {
     OrganizationDto organization = dbTester.organizations().insert();
     ComponentDto project = dbTester.components().insertMainBranch(organization);
     dbTester.components().setManualBaseline(project, new SnapshotDto().setUuid("nonexistent"));
-    when(analysisMetadataHolder.getBranch()).thenReturn(branchOf(project));
+    setBranchOf(project);
     setupRoot(project);
 
     expectedException.expect(IllegalStateException.class);
@@ -276,7 +275,7 @@ public class LoadPeriodsStepTest extends BaseStepTest {
     ComponentDto otherProject = dbTester.components().insertMainBranch(organization);
     SnapshotDto otherProjectAnalysis = dbTester.components().insertSnapshot(otherProject);
     dbTester.components().setManualBaseline(project, otherProjectAnalysis);
-    when(analysisMetadataHolder.getBranch()).thenReturn(branchOf(project));
+    setBranchOf(project);
     setupRoot(project);
 
     expectedException.expect(IllegalStateException.class);
@@ -300,7 +299,7 @@ public class LoadPeriodsStepTest extends BaseStepTest {
     when(analysisMetadataHolder.getAnalysisDate()).thenReturn(november30th2008.getTime());
     when(analysisMetadataHolder.isFirstAnalysis()).thenReturn(false);
     dbTester.components().setManualBaseline(project, manualBaselineAnalysis);
-    when(analysisMetadataHolder.getBranch()).thenReturn(branchOf(project));
+    setBranchOf(project);
     setupRoot(project);
 
     settings.setProperty("sonar.leak.period", leakPeriodSettingValue);
@@ -325,7 +324,7 @@ public class LoadPeriodsStepTest extends BaseStepTest {
     when(analysisMetadataHolder.getAnalysisDate()).thenReturn(november30th2008.getTime());
     when(analysisMetadataHolder.isFirstAnalysis()).thenReturn(false);
     dbTester.components().setManualBaseline(branch, manualBaselineAnalysis);
-    when(analysisMetadataHolder.getBranch()).thenReturn(branchOf(branch));
+    setBranchOf(branch);
     setupRoot(branch);
 
     settings.setProperty("sonar.leak.period", leakPeriodSettingValue);
@@ -356,7 +355,7 @@ public class LoadPeriodsStepTest extends BaseStepTest {
     ComponentDto project = dbTester.components().insertMainBranch(organization);
     SnapshotDto manualBaselineAnalysis = dbTester.components().insertSnapshot(project);
     dbTester.components().setManualBaseline(project, manualBaselineAnalysis);
-    when(analysisMetadataHolder.getBranch()).thenReturn(branchOf(project));
+    setBranchOf(project);
     setupRoot(project);
 
     settings.setProperty("sonar.leak.period", "ignored");
@@ -372,7 +371,7 @@ public class LoadPeriodsStepTest extends BaseStepTest {
     ComponentDto project = dbTester.components().insertMainBranch(organization);
     SnapshotDto manualBaselineAnalysis = dbTester.components().insertSnapshot(project, t -> t.setProjectVersion(version).setProjectVersion(version));
     dbTester.components().setManualBaseline(project, manualBaselineAnalysis);
-    when(analysisMetadataHolder.getBranch()).thenReturn(branchOf(project));
+    setBranchOf(project);
     setupRoot(project);
 
     settings.setProperty("sonar.leak.period", "ignored");
@@ -388,7 +387,7 @@ public class LoadPeriodsStepTest extends BaseStepTest {
     ComponentDto project = dbTester.components().insertMainBranch(organization);
     SnapshotDto manualBaselineAnalysis = dbTester.components().insertSnapshot(project, t -> t.setProjectVersion(projectVersion));
     dbTester.components().setManualBaseline(project, manualBaselineAnalysis);
-    when(analysisMetadataHolder.getBranch()).thenReturn(branchOf(project));
+    setBranchOf(project);
     setupRoot(project);
 
     settings.setProperty("sonar.leak.period", "ignored");
@@ -406,7 +405,7 @@ public class LoadPeriodsStepTest extends BaseStepTest {
     SnapshotDto manualBaselineAnalysis = dbTester.components().insertSnapshot(project, t -> t.setProjectVersion(projectVersion));
     dbTester.events().insertEvent(EventTesting.newEvent(manualBaselineAnalysis).setCategory(CATEGORY_VERSION).setName(eventVersion));
     dbTester.components().setManualBaseline(project, manualBaselineAnalysis);
-    when(analysisMetadataHolder.getBranch()).thenReturn(branchOf(project));
+    setBranchOf(project);
     setupRoot(project);
 
     settings.setProperty("sonar.leak.period", "ignored");
@@ -423,55 +422,18 @@ public class LoadPeriodsStepTest extends BaseStepTest {
     };
   }
 
-  private Branch branchOf(ComponentDto project) {
+  private Branch setBranchOf(ComponentDto project) {
     BranchDto branchDto = dbTester.getDbClient().branchDao().selectByUuid(dbTester.getSession(), project.uuid()).get();
-    return new Branch() {
-      @Override
-      public BranchType getType() {
-        return branchDto.getBranchType();
-      }
-
-      @Override
-      public boolean isMain() {
-        throw new UnsupportedOperationException("isMain not implemented");
-      }
-
-      @Override
-      public boolean isLegacyFeature() {
-        throw new UnsupportedOperationException("isLegacyFeature not implemented");
-      }
-
-      @Override
-      public String getName() {
-        throw new UnsupportedOperationException("getName not implemented");
-      }
-
-      @Override
-      public Optional<String> getMergeBranchUuid() {
-        throw new UnsupportedOperationException("getMergeBranchUuid not implemented");
-      }
-
-      @Override
-      public boolean supportsCrossProjectCpd() {
-        throw new UnsupportedOperationException("supportsCrossProjectCpd not implemented");
-      }
-
-      @Override
-      public String getPullRequestKey() {
-        throw new UnsupportedOperationException("getPullRequestKey not implemented");
-      }
-
-      @Override
-      public String generateKey(String projectKey, @Nullable String fileOrDirPath) {
-        throw new UnsupportedOperationException("generateKey not implemented");
-      }
-    };
+    return setMetadataBranch(branchDto.getBranchType());
   }
 
-  private Branch mockBranch(BranchType branchType) {
-    Branch mock = mock(Branch.class);
-    when(mock.getType()).thenReturn(branchType);
-    return mock;
+  private Branch setMetadataBranch(BranchType branchType) {
+    Branch branch = mock(Branch.class, invoc -> {
+      throw new UnsupportedOperationException();
+    });
+    doReturn(branchType).when(branch).getType();
+    when(analysisMetadataHolder.getBranch()).thenReturn(branch);
+    return branch;
   }
 
   @Test
@@ -486,7 +448,7 @@ public class LoadPeriodsStepTest extends BaseStepTest {
     when(system2Mock.now()).thenReturn(november30th2008.getTime());
     when(analysisMetadataHolder.isFirstAnalysis()).thenReturn(false);
     setupRoot(project);
-    setupBranchWithNoManualBaseline(analysisMetadataHolder, project);
+    setupBranchWithNoManualBaseline(project);
 
     String date = "2008-11-13";
     settings.setProperty("sonar.leak.period", date);
@@ -505,7 +467,7 @@ public class LoadPeriodsStepTest extends BaseStepTest {
     when(system2Mock.now()).thenReturn(november30th2008.getTime());
     when(analysisMetadataHolder.isFirstAnalysis()).thenReturn(false);
     setupRoot(project);
-    setupBranchWithNoManualBaseline(analysisMetadataHolder, project);
+    setupBranchWithNoManualBaseline(project);
     String propertyValue = "2008-12-01";
     settings.setProperty("sonar.leak.period", propertyValue);
 
@@ -521,7 +483,7 @@ public class LoadPeriodsStepTest extends BaseStepTest {
     when(system2Mock.now()).thenReturn(november30th2008.getTime());
     when(analysisMetadataHolder.isFirstAnalysis()).thenReturn(false);
     setupRoot(project);
-    setupBranchWithNoManualBaseline(analysisMetadataHolder, project);
+    setupBranchWithNoManualBaseline(project);
     String propertyValue = "2008-11-31";
     settings.setProperty("sonar.leak.period", propertyValue);
 
@@ -537,7 +499,7 @@ public class LoadPeriodsStepTest extends BaseStepTest {
     when(system2Mock.now()).thenReturn(november30th2008.getTime());
     when(analysisMetadataHolder.isFirstAnalysis()).thenReturn(false);
     setupRoot(project);
-    setupBranchWithNoManualBaseline(analysisMetadataHolder, project);
+    setupBranchWithNoManualBaseline(project);
     String propertyValue = "2008-11-30";
     settings.setProperty("sonar.leak.period", propertyValue);
 
@@ -554,7 +516,7 @@ public class LoadPeriodsStepTest extends BaseStepTest {
     when(system2Mock.now()).thenReturn(november30th2008.getTime());
     when(analysisMetadataHolder.isFirstAnalysis()).thenReturn(false);
     setupRoot(project);
-    setupBranchWithNoManualBaseline(analysisMetadataHolder, project);
+    setupBranchWithNoManualBaseline(project);
     String propertyValue = String.valueOf(zeroOrLess);
     settings.setProperty("sonar.leak.period", propertyValue);
 
@@ -577,7 +539,7 @@ public class LoadPeriodsStepTest extends BaseStepTest {
     when(system2Mock.now()).thenReturn(november30th2008.getTime());
     when(analysisMetadataHolder.isFirstAnalysis()).thenReturn(false);
     setupRoot(project);
-    setupBranchWithNoManualBaseline(analysisMetadataHolder, project);
+    setupBranchWithNoManualBaseline(project);
     settings.setProperty("sonar.leak.period", "previous_version");
 
     expectedException.expect(IllegalStateException.class);
@@ -602,7 +564,7 @@ public class LoadPeriodsStepTest extends BaseStepTest {
     when(system2Mock.now()).thenReturn(november30th2008.getTime());
     when(analysisMetadataHolder.isFirstAnalysis()).thenReturn(false);
     setupRoot(project);
-    setupBranchWithNoManualBaseline(analysisMetadataHolder, project);
+    setupBranchWithNoManualBaseline(project);
     settings.setProperty("sonar.leak.period", propertyValue);
 
     try {
@@ -676,7 +638,7 @@ public class LoadPeriodsStepTest extends BaseStepTest {
     when(analysisMetadataHolder.getAnalysisDate()).thenReturn(november30th2008.getTime());
     when(analysisMetadataHolder.isFirstAnalysis()).thenReturn(false);
     setupRoot(project);
-    setupBranchWithNoManualBaseline(analysisMetadataHolder, project);
+    setupBranchWithNoManualBaseline(project);
 
     settings.setProperty("sonar.leak.period", "10");
     underTest.execute(new TestComputationStepContext());
@@ -705,7 +667,7 @@ public class LoadPeriodsStepTest extends BaseStepTest {
     when(system2Mock.now()).thenReturn(november30th2008.getTime());
     when(analysisMetadataHolder.isFirstAnalysis()).thenReturn(false);
     setupRoot(project, "1.1");
-    setupBranchWithNoManualBaseline(analysisMetadataHolder, project);
+    setupBranchWithNoManualBaseline(project);
 
     settings.setProperty("sonar.leak.period", "previous_version");
     underTest.execute(new TestComputationStepContext());
@@ -729,7 +691,7 @@ public class LoadPeriodsStepTest extends BaseStepTest {
     when(system2Mock.now()).thenReturn(november30th2008.getTime());
     when(analysisMetadataHolder.isFirstAnalysis()).thenReturn(false);
     setupRoot(project, "1.1");
-    setupBranchWithNoManualBaseline(analysisMetadataHolder, project);
+    setupBranchWithNoManualBaseline(project);
 
     settings.setProperty("sonar.leak.period", "previous_version");
     underTest.execute(new TestComputationStepContext());
@@ -748,7 +710,7 @@ public class LoadPeriodsStepTest extends BaseStepTest {
     when(system2Mock.now()).thenReturn(november30th2008.getTime());
     when(analysisMetadataHolder.isFirstAnalysis()).thenReturn(false);
     setupRoot(project, "1.1");
-    setupBranchWithNoManualBaseline(analysisMetadataHolder, project);
+    setupBranchWithNoManualBaseline(project);
 
     settings.setProperty("sonar.leak.period", "previous_version");
     underTest.execute(new TestComputationStepContext());
@@ -767,7 +729,7 @@ public class LoadPeriodsStepTest extends BaseStepTest {
     when(system2Mock.now()).thenReturn(november30th2008.getTime());
     when(analysisMetadataHolder.isFirstAnalysis()).thenReturn(false);
     setupRoot(project, "1.1");
-    setupBranchWithNoManualBaseline(analysisMetadataHolder, project);
+    setupBranchWithNoManualBaseline(project);
 
     settings.setProperty("sonar.leak.period", "previous_version");
     underTest.execute(new TestComputationStepContext());
@@ -791,7 +753,7 @@ public class LoadPeriodsStepTest extends BaseStepTest {
     when(system2Mock.now()).thenReturn(november30th2008.getTime());
     when(analysisMetadataHolder.isFirstAnalysis()).thenReturn(false);
     setupRoot(project, "1.1");
-    setupBranchWithNoManualBaseline(analysisMetadataHolder, project);
+    setupBranchWithNoManualBaseline(project);
 
     settings.setProperty("sonar.leak.period", "1.0");
     underTest.execute(new TestComputationStepContext());
@@ -813,7 +775,7 @@ public class LoadPeriodsStepTest extends BaseStepTest {
     when(system2Mock.now()).thenReturn(november30th2008.getTime());
     when(analysisMetadataHolder.isFirstAnalysis()).thenReturn(false);
     setupRoot(project, "0.9");
-    setupBranchWithNoManualBaseline(analysisMetadataHolder, project);
+    setupBranchWithNoManualBaseline(project);
 
     settings.setProperty("sonar.leak.period", "0.9");
     underTest.execute(new TestComputationStepContext());
@@ -859,9 +821,9 @@ public class LoadPeriodsStepTest extends BaseStepTest {
     when(configurationRepository.getConfiguration()).thenReturn(settings.asConfig());
   }
 
-  private void setupBranchWithNoManualBaseline(AnalysisMetadataHolder analysisMetadataHolder, ComponentDto projectOrLongBranch) {
+  private void setupBranchWithNoManualBaseline(ComponentDto projectOrLongBranch) {
     dbTester.components().unsetManualBaseline(projectOrLongBranch);
-    when(analysisMetadataHolder.getBranch()).thenReturn(branchOf(projectOrLongBranch));
+    setBranchOf(projectOrLongBranch);
   }
 
   private static void verifyInvalidValueMessage(MessageException e, String propertyValue) {

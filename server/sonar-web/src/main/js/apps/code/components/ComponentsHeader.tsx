@@ -17,12 +17,13 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import * as classNames from 'classnames';
-import { translate } from '../../../helpers/l10n';
+import * as React from 'react';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 
 interface Props {
   baseComponent?: T.ComponentMeasure;
+  canBePinned?: boolean;
   metrics: string[];
   rootComponent: T.ComponentMeasure;
 }
@@ -34,14 +35,20 @@ const SHORT_NAME_METRICS = [
   'new_duplicated_lines_density'
 ];
 
-export default function ComponentsHeader({ baseComponent, metrics, rootComponent }: Props) {
+export default function ComponentsHeader({
+  baseComponent,
+  canBePinned = true,
+  metrics,
+  rootComponent
+}: Props) {
   const isPortfolio = ['VW', 'SVW'].includes(rootComponent.qualifier);
   let columns: string[] = [];
   if (isPortfolio) {
     columns = [
       translate('metric_domain.Releasability'),
       translate('metric_domain.Reliability'),
-      translate('metric_domain.Security'),
+      translate('portfolio.metric_domain.vulnerabilities'),
+      translate('portfolio.metric_domain.security_hotspots'),
       translate('metric_domain.Maintainability'),
       translate('metric', 'ncloc', 'name')
     ];
@@ -54,13 +61,16 @@ export default function ComponentsHeader({ baseComponent, metrics, rootComponent
   return (
     <thead>
       <tr className="code-components-header">
-        <th className="thin nowrap" colSpan={2} />
+        <th className="thin nowrap" colSpan={canBePinned ? 2 : 1} />
         <th />
         {baseComponent &&
           columns.map((column, index) => (
             <th
-              className={classNames('thin', 'nowrap', 'text-right', {
-                'code-components-cell': index > 0
+              className={classNames('thin', {
+                'code-components-cell': !isPortfolio && index > 0,
+                nowrap: !isPortfolio,
+                'text-center': isPortfolio && index < columns.length - 1,
+                'text-right': !isPortfolio || index === columns.length - 1
               })}
               key={column}>
               {column}

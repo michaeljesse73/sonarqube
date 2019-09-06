@@ -17,13 +17,13 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { shallow } from 'enzyme';
-import { WebApiApp } from '../WebApiApp';
+import * as React from 'react';
+import { addSideBarClass, removeSideBarClass } from 'sonar-ui-common/helpers/pages';
+import { waitAndUpdate } from 'sonar-ui-common/helpers/testUtils';
 import { fetchWebApi } from '../../../../api/web-api';
-import { addSideBarClass, removeSideBarClass } from '../../../../helpers/pages';
 import { mockLocation, mockRouter } from '../../../../helpers/testMocks';
-import { waitAndUpdate } from '../../../../helpers/testUtils';
+import { WebApiApp } from '../WebApiApp';
 
 jest.mock('../../../../api/web-api', () => ({
   fetchWebApi: jest.fn().mockResolvedValue([
@@ -37,7 +37,7 @@ jest.mock('../../../../api/web-api', () => ({
   ])
 }));
 
-jest.mock('../../../../helpers/pages', () => ({
+jest.mock('sonar-ui-common/helpers/pages', () => ({
   addSideBarClass: jest.fn(),
   removeSideBarClass: jest.fn()
 }));

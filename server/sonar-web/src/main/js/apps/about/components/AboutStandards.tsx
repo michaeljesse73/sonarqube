@@ -19,10 +19,10 @@
  */
 import * as React from 'react';
 import { Link } from 'react-router';
-import ReadMore from './ReadMore';
-import TagsIcon from '../../../components/icons-components/TagsIcon';
-import { translate } from '../../../helpers/l10n';
+import TagsIcon from 'sonar-ui-common/components/icons/TagsIcon';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import { getRulesUrl } from '../../../helpers/urls';
+import ReadMore from './ReadMore';
 
 const link = 'https://redirect.sonarsource.com/doc/rules.html';
 

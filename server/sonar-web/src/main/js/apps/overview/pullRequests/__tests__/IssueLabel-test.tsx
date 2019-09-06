@@ -17,10 +17,10 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { shallow } from 'enzyme';
-import IssueLabel from '../IssueLabel';
-import { mockComponent, mockPullRequest, mockMeasure } from '../../../../helpers/testMocks';
+import * as React from 'react';
+import { mockComponent, mockMeasure, mockPullRequest } from '../../../../helpers/testMocks';
+import IssueLabel, { Props } from '../IssueLabel';
 
 it('should render correctly for bugs', () => {
   expect(
@@ -48,11 +48,21 @@ it('should render correctly for vulnerabilities', () => {
   ).toMatchSnapshot();
 });
 
+it('should render correctly for hotspots', () => {
+  expect(
+    shallowRender({
+      docTooltip: Promise.resolve({ default: 'tooltip text' }),
+      measures: [mockMeasure({ metric: 'new_security_hotspots' })],
+      type: 'SECURITY_HOTSPOT'
+    })
+  ).toMatchSnapshot();
+});
+
 it('should render correctly if no values are present', () => {
   expect(shallowRender()).toMatchSnapshot();
 });
 
-function shallowRender(props = {}) {
+function shallowRender(props: Partial<Props> = {}) {
   return shallow(
     <IssueLabel
       branchLike={mockPullRequest()}

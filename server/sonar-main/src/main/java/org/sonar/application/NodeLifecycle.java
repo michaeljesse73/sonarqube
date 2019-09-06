@@ -28,14 +28,18 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static java.util.Collections.emptySet;
+import static org.sonar.application.NodeLifecycle.State.FINALIZE_STOPPING;
+import static org.sonar.application.NodeLifecycle.State.HARD_STOPPING;
 import static org.sonar.application.NodeLifecycle.State.INIT;
 import static org.sonar.application.NodeLifecycle.State.OPERATIONAL;
+import static org.sonar.application.NodeLifecycle.State.RESTARTING;
 import static org.sonar.application.NodeLifecycle.State.STARTING;
 import static org.sonar.application.NodeLifecycle.State.STOPPED;
 import static org.sonar.application.NodeLifecycle.State.STOPPING;
 
 /**
- * Lifecycle of the cluster node, consolidating the states
+ * ManagedProcessLifecycle of the cluster node, consolidating the states
  * of child processes.
  */
 class NodeLifecycle {
@@ -51,8 +55,17 @@ class NodeLifecycle {
     // all the processes are started and operational
     OPERATIONAL,
 
-    // at least one process is still stopping
+    // at least one process is still stopping as part of a node restart
+    RESTARTING,
+
+    // at least one process is still stopping as part of a node graceful stop
     STOPPING,
+
+    // at least one process is still stopping as part of a node hard stop
+    HARD_STOPPING,
+
+    // a hard stop or regular stop *not part of a restart* is being finalized (clean up and log)
+    FINALIZE_STOPPING,
 
     // all processes are stopped
     STOPPED
@@ -65,16 +78,19 @@ class NodeLifecycle {
   private static Map<State, Set<State>> buildTransitions() {
     Map<State, Set<State>> res = new EnumMap<>(State.class);
     res.put(INIT, toSet(STARTING));
-    res.put(STARTING, toSet(OPERATIONAL, STOPPING, STOPPED));
-    res.put(OPERATIONAL, toSet(STOPPING, STOPPED));
-    res.put(STOPPING, toSet(STOPPED));
-    res.put(STOPPED, toSet(STARTING));
-    return res;
+    res.put(STARTING, toSet(OPERATIONAL, RESTARTING, STOPPING, HARD_STOPPING));
+    res.put(OPERATIONAL, toSet(RESTARTING, STOPPING, HARD_STOPPING));
+    res.put(STOPPING, toSet(FINALIZE_STOPPING, HARD_STOPPING));
+    res.put(RESTARTING, toSet(STARTING, HARD_STOPPING));
+    res.put(HARD_STOPPING, toSet(FINALIZE_STOPPING));
+    res.put(FINALIZE_STOPPING, toSet(STOPPED));
+    res.put(STOPPED, emptySet());
+    return Collections.unmodifiableMap(res);
   }
 
   private static Set<State> toSet(State... states) {
     if (states.length == 0) {
-      return Collections.emptySet();
+      return emptySet();
     }
     if (states.length == 1) {
       return Collections.singleton(states[0]);
@@ -93,7 +109,7 @@ class NodeLifecycle {
       this.state = to;
       res = true;
     }
-    LOG.trace("tryToMoveTo from {} to {} => {}", currentState, to, res);
+    LOG.debug("{} tryToMoveTo from {} to {} => {}", Thread.currentThread().getName(), currentState, to, res);
     return res;
   }
 }

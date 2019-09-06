@@ -3,21 +3,22 @@ title: Analysis Parameters
 url: /analysis/analysis-parameters/
 ---
 
-Parameters to configure project analysis can be set in multiple places. Here is the hierarchy of parameters:
+Project analysis settings can be configured in multiple places. Here is the hierarchy:
 
 <!-- sonarqube -->
-* Global analysis parameters, defined in the UI, apply to all the projects (From the top bar, go to **[Administration > Configuration > General Settings](/#sonarqube-admin#/admin/settings)**)
+* Global properties, defined in the UI, apply to all projects (From the top bar, go to **[Administration > Configuration > General Settings](/#sonarqube-admin#/admin/settings)**)
 <!-- /sonarqube -->
-* Project analysis parameters, defined in the UI, override global parameters (At a project level, go to **Administration > General Settings**)
+* Project properties, defined in the UI, override global property values (At a project level, go to **Administration > General Settings**)
 * Project analysis parameters, defined in a project analysis configuration file or an analyzer configuration file, override the ones defined in the UI
-* Analysis / Command line parameters, defined when launching an analysis, override project analysis parameters
+* Analysis / Command line parameters, defined when launching an analysis (with `-D` on the command line), override project analysis parameters
 
 Note that only parameters set through the UI are stored in the database.
-For example, if you override the `sonar.exclusions` parameter via command line for a specific project, it will not be stored in the database. Analyses in SonarLint with connected mode, for example, would still be executed with the exclusions defined in the UI and therefore stored in the DB.
+For example, if you override the `sonar.exclusions` parameter via command line for a specific project, it will not be stored in the database. Subsequent analyses, or analyses in SonarLint with connected mode, would still be executed with the exclusions defined in the UI and therefore stored in the DB.
 
-Note also that the list of parameters below is not exhaustive. Most of the property keys shown in the interface, at both global and project levels, can also be set as analysis parameters. However, exclusions/inclusions are far easier to manage in the UI. 
+Most of the property keys shown in the interface at both global and project levels can also be set as analysis parameters, but the parameters listed below can _only_ be set at analysis time. 
 
-For language-specific parameters related to test coverage and execution, see [Test Coverage & Execution](/analysis/coverage/). For language-specific parameters related to external issue reports, see [External Issues)(/analysis/external-issues).
+For language-specific parameters related to test coverage and execution, see [Test Coverage & Execution](/analysis/coverage/).  
+For language-specific parameters related to external issue reports, see [External Issues](/analysis/external-issues/).
 
 ## Mandatory Parameters
 
@@ -71,6 +72,7 @@ Key | Description | Default
 `sonar.scm.provider` | This property can be used to explicitly tell {instance} which SCM plugin should be used to grab SCM data on the project (in case auto-detection does not work). The value of this property is always lowercase and depends on the plugin (ex. "tfvc" for the TFVC plugin). Check the documentation page of each plugin for more. |  
 `sonar.scm.forceReloadAll` | By default, blame information is only retrieved for changed files. Set this property to `true` to load blame information for all files. This can be useful is you feel that some SCM data is outdated but {instance} does not get the latest information from the SCM engine. | 
 `sonar.scm.exclusions.disabled`| For supported engines, files ignored by the SCM, i.e. files listed in `.gitignore`, will automatically be ignored by analysis too. Set this property to `true` to disable that feature.|
+`sonar.scm.revision`| Overrides the revision, for instance the Git sha1, displayed in analysis results. By default value is provided by the CI environment or guessed by the checked-out sources.| 
 `sonar.buildString`| The string passed with this property will be stored with the analysis and available in the results of `api/project_analyses/search`, thus allowing you to later identify a specific analysis and obtain its ID for use with `api/project_analyses/set_baseline`. | |
 `sonar.analysis.[yourKey]`| This property stub allows you to insert custom key/value pairs into the analysis context, which will also be passed forward to [webhooks](/project-administration/webhooks/). | |
 
@@ -78,7 +80,7 @@ Key | Description | Default
 ### Duplications
 Key | Description | Default
 ---|----|---
-`sonar.cpd.${language}.minimumtokens` | A piece of code is considered duplicated as soon as there are at least 100 duplicated tokens in a row (overide with `sonar.cpd.${language}.minimumTokens`) spread across at least 10 lines of code (override with `sonar.cpd.${language}.minimumLines`). For Java projects, a piece of code is considered duplicated when there is a series of at least 10 statements in a row, regardless of the number of tokens and lines. This threshold cannot be overridden.  | 100
+`sonar.cpd.${language}.minimumtokens` | A piece of code is considered duplicated as soon as there are at least 100 duplicated tokens in a row (override with `sonar.cpd.${language}.minimumTokens`) spread across at least 10 lines of code (override with `sonar.cpd.${language}.minimumLines`). For Java projects, a piece of code is considered duplicated when there is a series of at least 10 statements in a row, regardless of the number of tokens and lines. This threshold cannot be overridden.  | 100
 `sonar.cpd.${language}.minimumLines` | (see above) | 10
 
 
@@ -97,7 +99,6 @@ Key | Description | Default
 | ![](/images/cross.svg) These parameters are listed for completeness, but are deprecated and should not be used in new analyses.
 
 Key | Description
----|----|---
-`sonar.branch` **![](/images/cross.svg)Deprecated since SQ 6.7** | _The Developer Edition provides fuller-featured branch functionality._ Manage SCM branches. Two branches of the same project are considered to be different projects in SonarQube. As a consequence issues found in a project A in a branch B1 are not linked to issues found for this project A in a branch B2. There is no way to automatically resolve issues from B2 when they are resolved in B1 as again A-B1 & A-B2 are considered separated projects. 
+---|----|--- 
 `sonar.links.scm_dev` **![](/images/cross.svg)Deprecated since SQ 7.1** | Developer connection. | `<scm><developerConnection>` for Maven projects
 <!-- /sonarqube -->

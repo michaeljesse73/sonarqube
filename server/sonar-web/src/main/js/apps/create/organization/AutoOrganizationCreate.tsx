@@ -19,18 +19,18 @@
  */
 import * as React from 'react';
 import { FormattedMessage } from 'react-intl';
+import { ClearButton } from 'sonar-ui-common/components/controls/buttons';
+import RadioToggle from 'sonar-ui-common/components/controls/RadioToggle';
+import { Alert } from 'sonar-ui-common/components/ui/Alert';
+import { translate, translateWithParameters } from 'sonar-ui-common/helpers/l10n';
+import { getBaseUrl } from 'sonar-ui-common/helpers/urls';
+import { bindAlmOrganization } from '../../../api/alm-integration';
+import { getAlmMembersUrl, isGithub, sanitizeAlmId } from '../../../helpers/almIntegrations';
 import AutoOrganizationBind from './AutoOrganizationBind';
 import OrganizationDetailsForm from './OrganizationDetailsForm';
 import OrganizationDetailsStep from './OrganizationDetailsStep';
 import PlanStep from './PlanStep';
 import { Step } from './utils';
-import { Alert } from '../../../components/ui/Alert';
-import { DeleteButton } from '../../../components/ui/buttons';
-import RadioToggle from '../../../components/controls/RadioToggle';
-import { bindAlmOrganization } from '../../../api/alm-integration';
-import { sanitizeAlmId, getAlmMembersUrl, isGithub } from '../../../helpers/almIntegrations';
-import { translate, translateWithParameters } from '../../../helpers/l10n';
-import { getBaseUrl } from '../../../helpers/urls';
 
 enum Filters {
   Bind = 'bind',
@@ -86,6 +86,7 @@ export default class AutoOrganizationCreate extends React.PureComponent<Props, S
       alm: {
         key: almApplication.key,
         membersSync: true,
+        personal: almOrganization.personal,
         url: almOrganization.almUrl
       },
       installationId: this.props.almInstallId
@@ -136,10 +137,7 @@ export default class AutoOrganizationCreate extends React.PureComponent<Props, S
                   name: <strong>{almOrganization.name}</strong>
                 }}
               />
-              <DeleteButton
-                className="little-spacer-left"
-                onClick={this.props.handleCancelImport}
-              />
+              <ClearButton className="little-spacer-left" onClick={this.props.handleCancelImport} />
             </p>
 
             {hasUnboundOrgs && (

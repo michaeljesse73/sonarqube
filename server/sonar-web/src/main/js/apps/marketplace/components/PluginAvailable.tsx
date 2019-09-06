@@ -18,14 +18,14 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
+import { translateWithParameters } from 'sonar-ui-common/helpers/l10n';
+import { PluginAvailable as IPluginAvailable } from '../../../api/plugins';
 import PluginChangeLogButton from './PluginChangeLogButton';
 import PluginDescription from './PluginDescription';
 import PluginLicense from './PluginLicense';
 import PluginOrganization from './PluginOrganization';
 import PluginStatus from './PluginStatus';
 import PluginUrls from './PluginUrls';
-import { PluginAvailable as IPluginAvailable } from '../../../api/plugins';
-import { translateWithParameters } from '../../../helpers/l10n';
 
 interface Props {
   plugin: IPluginAvailable;

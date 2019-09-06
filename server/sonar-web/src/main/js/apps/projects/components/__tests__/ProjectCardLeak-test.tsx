@@ -17,10 +17,11 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { shallow } from 'enzyme';
-import ProjectCardLeak from '../ProjectCardLeak';
+import * as React from 'react';
+import { mockCurrentUser, mockLoggedInUser } from '../../../../helpers/testMocks';
 import { Project } from '../../types';
+import ProjectCardLeak from '../ProjectCardLeak';
 
 jest.mock(
   'date-fns/difference_in_milliseconds',
@@ -45,8 +46,11 @@ const PROJECT: Project = {
   visibility: 'public'
 };
 
+const USER_LOGGED_OUT = mockCurrentUser();
+const USER_LOGGED_IN = mockLoggedInUser();
+
 it('should display analysis date and leak start date', () => {
-  const card = shallow(<ProjectCardLeak height={100} organization={undefined} project={PROJECT} />);
+  const card = shallowRender(PROJECT);
   expect(card.find('.project-card-dates').exists()).toBeTruthy();
   expect(card.find('.project-card-dates').find('.project-card-leak-date')).toHaveLength(1);
   expect(card.find('.project-card-dates').find('DateTimeFormatter')).toHaveLength(1);
@@ -54,14 +58,14 @@ it('should display analysis date and leak start date', () => {
 
 it('should not display analysis date or leak start date', () => {
   const project = { ...PROJECT, analysisDate: undefined };
-  const card = shallow(<ProjectCardLeak height={100} organization={undefined} project={project} />);
+  const card = shallowRender(project);
   expect(card.find('.project-card-dates').exists()).toBeFalsy();
 });
 
 it('should display tags', () => {
   const project = { ...PROJECT, tags: ['foo', 'bar'] };
   expect(
-    shallow(<ProjectCardLeak height={100} organization={undefined} project={project} />)
+    shallowRender(project)
       .find('TagsList')
       .exists()
   ).toBeTruthy();
@@ -70,26 +74,32 @@ it('should display tags', () => {
 it('should display private badge', () => {
   const project: Project = { ...PROJECT, visibility: 'private' };
   expect(
-    shallow(<ProjectCardLeak height={100} organization={undefined} project={project} />)
+    shallowRender(project)
       .find('Connect(PrivacyBadge)')
       .exists()
   ).toBeTruthy();
 });
 
 it('should display the leak measures and quality gate', () => {
-  expect(
-    shallow(<ProjectCardLeak height={100} organization={undefined} project={PROJECT} />)
-  ).toMatchSnapshot();
+  expect(shallowRender(PROJECT)).toMatchSnapshot();
 });
 
 it('should display not analyzed yet', () => {
-  expect(
-    shallow(
-      <ProjectCardLeak
-        height={100}
-        organization={undefined}
-        project={{ ...PROJECT, analysisDate: undefined }}
-      />
-    )
-  ).toMatchSnapshot();
+  expect(shallowRender({ ...PROJECT, analysisDate: undefined })).toMatchSnapshot();
 });
+
+it('should display configure analysis button for logged in user', () => {
+  expect(shallowRender({ ...PROJECT, analysisDate: undefined }, USER_LOGGED_IN)).toMatchSnapshot();
+});
+
+function shallowRender(project: Project, user: T.CurrentUser = USER_LOGGED_OUT) {
+  return shallow(
+    <ProjectCardLeak
+      currentUser={user}
+      handleFavorite={jest.fn()}
+      height={100}
+      organization={undefined}
+      project={project}
+    />
+  );
+}

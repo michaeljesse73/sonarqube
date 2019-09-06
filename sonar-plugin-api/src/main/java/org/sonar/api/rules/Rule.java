@@ -19,7 +19,6 @@
  */
 package org.sonar.api.rules;
 
-import com.google.common.base.Joiner;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.LinkedHashSet;
@@ -33,7 +32,6 @@ import org.apache.commons.lang.builder.HashCodeBuilder;
 import org.apache.commons.lang.builder.ToStringBuilder;
 import org.apache.commons.lang.builder.ToStringStyle;
 import org.sonar.api.rule.RuleKey;
-import org.sonar.api.utils.SonarException;
 import org.sonar.check.Cardinality;
 
 import static java.util.Arrays.asList;
@@ -325,7 +323,7 @@ public class Rule {
    */
   public Rule setStatus(String status) {
     if (!STATUS_LIST.contains(status)) {
-      throw new SonarException("The status of a rule can only contain : " + Joiner.on(", ").join(STATUS_LIST));
+      throw new IllegalStateException("The status of a rule can only contain : " + String.join(", ", STATUS_LIST));
     }
     this.status = status;
     return this;
@@ -408,8 +406,8 @@ public class Rule {
   /**
    * For internal use only.
    *
-   * @deprecated since 4.4, use {@link #getCharacteristicKey()}
    * @since 4.3
+   * @deprecated since 4.4, use {@link #getCharacteristicKey()}
    */
   @CheckForNull
   @Deprecated
@@ -420,8 +418,8 @@ public class Rule {
   /**
    * For internal use only.
    *
-   * @deprecated since 4.4, use {@link #setCharacteristicKey(String)}
    * @since 4.3
+   * @deprecated since 4.4, use {@link #setCharacteristicKey(String)}
    */
   @Deprecated
   public Rule setCharacteristicId(@Nullable Integer characteristicId) {
@@ -431,8 +429,8 @@ public class Rule {
   /**
    * For internal use only.
    *
-   * @deprecated since 4.4, use {@link #getDefaultCharacteristicKey()}
    * @since 4.3
+   * @deprecated since 4.4, use {@link #getDefaultCharacteristicKey()}
    */
   @CheckForNull
   @Deprecated
@@ -443,8 +441,8 @@ public class Rule {
   /**
    * For internal use only.
    *
-   * @deprecated since 4.4, use {@link #setDefaultCharacteristicKey(String)}
    * @since 4.3
+   * @deprecated since 4.4, use {@link #setDefaultCharacteristicKey(String)}
    */
   @Deprecated
   public Rule setDefaultCharacteristicId(@Nullable Integer defaultCharacteristicId) {

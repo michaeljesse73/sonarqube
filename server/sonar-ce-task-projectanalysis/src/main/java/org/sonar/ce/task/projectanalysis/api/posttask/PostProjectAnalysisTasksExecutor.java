@@ -45,8 +45,10 @@ import org.sonar.ce.task.projectanalysis.qualitygate.QualityGateHolder;
 import org.sonar.ce.task.projectanalysis.qualitygate.QualityGateStatus;
 import org.sonar.ce.task.projectanalysis.qualitygate.QualityGateStatusHolder;
 import org.sonar.ce.task.step.ComputationStepExecutor;
+import org.sonar.core.util.logs.Profiler;
 import org.sonar.core.util.stream.MoreCollectors;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static java.util.Optional.empty;
@@ -76,17 +78,17 @@ public class PostProjectAnalysisTasksExecutor implements ComputationStepExecutor
    * Constructor used by Pico when there is no {@link PostProjectAnalysisTask} in the container.
    */
   public PostProjectAnalysisTasksExecutor(org.sonar.ce.task.CeTask ceTask,
-                                          AnalysisMetadataHolder analysisMetadataHolder,
-                                          QualityGateHolder qualityGateHolder, QualityGateStatusHolder qualityGateStatusHolder,
-                                          BatchReportReader reportReader, System2 system2) {
+    AnalysisMetadataHolder analysisMetadataHolder,
+    QualityGateHolder qualityGateHolder, QualityGateStatusHolder qualityGateStatusHolder,
+    BatchReportReader reportReader, System2 system2) {
     this(ceTask, analysisMetadataHolder, qualityGateHolder, qualityGateStatusHolder, reportReader, system2, null);
   }
 
   public PostProjectAnalysisTasksExecutor(org.sonar.ce.task.CeTask ceTask,
-                                          AnalysisMetadataHolder analysisMetadataHolder,
-                                          QualityGateHolder qualityGateHolder, QualityGateStatusHolder qualityGateStatusHolder,
-                                          BatchReportReader reportReader, System2 system2,
-                                          @Nullable PostProjectAnalysisTask[] postProjectAnalysisTasks) {
+    AnalysisMetadataHolder analysisMetadataHolder,
+    QualityGateHolder qualityGateHolder, QualityGateStatusHolder qualityGateStatusHolder,
+    BatchReportReader reportReader, System2 system2,
+    @Nullable PostProjectAnalysisTask[] postProjectAnalysisTasks) {
     this.analysisMetadataHolder = analysisMetadataHolder;
     this.qualityGateHolder = qualityGateHolder;
     this.qualityGateStatusHolder = qualityGateStatusHolder;
@@ -109,10 +111,56 @@ public class PostProjectAnalysisTasksExecutor implements ComputationStepExecutor
   }
 
   private static void executeTask(ProjectAnalysisImpl projectAnalysis, PostProjectAnalysisTask postProjectAnalysisTask) {
+    String status = "FAILED";
+    Profiler task = Profiler.create(LOG).logTimeLast(true);
     try {
-      postProjectAnalysisTask.finished(projectAnalysis);
+      task.start();
+      postProjectAnalysisTask.finished(new ContextImpl(projectAnalysis, task));
+      status = "SUCCESS";
     } catch (Exception e) {
       LOG.error("Execution of task " + postProjectAnalysisTask.getClass() + " failed", e);
+    } finally {
+      task.addContext("status", status);
+      task.stopInfo("{}", postProjectAnalysisTask.getDescription());
+    }
+  }
+
+  private static class ContextImpl implements PostProjectAnalysisTask.Context {
+    private final ProjectAnalysisImpl projectAnalysis;
+    private final Profiler task;
+
+    private ContextImpl(ProjectAnalysisImpl projectAnalysis, Profiler task) {
+      this.projectAnalysis = projectAnalysis;
+      this.task = task;
+    }
+
+    @Override
+    public PostProjectAnalysisTask.ProjectAnalysis getProjectAnalysis() {
+      return projectAnalysis;
+    }
+
+    @Override
+    public PostProjectAnalysisTask.LogStatistics getLogStatistics() {
+      return new LogStatisticsImpl(task);
+    }
+  }
+
+  private static class LogStatisticsImpl implements PostProjectAnalysisTask.LogStatistics {
+    private final Profiler profiler;
+
+    private LogStatisticsImpl(Profiler profiler) {
+      this.profiler = profiler;
+    }
+
+    @Override
+    public PostProjectAnalysisTask.LogStatistics add(String key, Object value) {
+      requireNonNull(key, "Statistic has null key");
+      requireNonNull(value, () -> format("Statistic with key [%s] has null value", key));
+      checkArgument(!key.equalsIgnoreCase("time") && !key.equalsIgnoreCase("status"),
+        "Statistic with key [%s] is not accepted", key);
+      checkArgument(!profiler.hasContext(key), "Statistic with key [%s] is already present", key);
+      profiler.addContext(key, value);
+      return this;
     }
   }
 
@@ -126,8 +174,7 @@ public class PostProjectAnalysisTasksExecutor implements ComputationStepExecutor
       ScannerContextImpl.from(reportReader.readContextProperties()),
       status == SUCCESS ? createQualityGate() : null,
       createBranch(),
-      reportReader.readMetadata().getScmRevisionId()
-    );
+      reportReader.readMetadata().getScmRevisionId());
   }
 
   @CheckForNull
@@ -143,10 +190,9 @@ public class PostProjectAnalysisTasksExecutor implements ComputationStepExecutor
     Long analysisDate = getAnalysisDate();
 
     if (analysisDate != null) {
-      return of(new AnalysisImpl(analysisMetadataHolder.getUuid(), analysisDate));
-    } else {
-      return empty();
+      return of(new AnalysisImpl(analysisMetadataHolder.getUuid(), analysisDate, analysisMetadataHolder.getScmRevision()));
     }
+    return empty();
   }
 
   private static Project createProject(org.sonar.ce.task.CeTask ceTask) {
@@ -184,11 +230,8 @@ public class PostProjectAnalysisTasksExecutor implements ComputationStepExecutor
   @CheckForNull
   private BranchImpl createBranch() {
     org.sonar.ce.task.projectanalysis.analysis.Branch analysisBranch = analysisMetadataHolder.getBranch();
-    if (!analysisBranch.isLegacyFeature()) {
-      String branchKey = analysisBranch.getType() == PULL_REQUEST ? analysisBranch.getPullRequestKey() : analysisBranch.getName();
-      return new BranchImpl(analysisBranch.isMain(), branchKey, Branch.Type.valueOf(analysisBranch.getType().name()));
-    }
-    return null;
+    String branchKey = analysisBranch.getType() == PULL_REQUEST ? analysisBranch.getPullRequestKey() : analysisBranch.getName();
+    return new BranchImpl(analysisBranch.isMain(), branchKey, Branch.Type.valueOf(analysisBranch.getType().name()));
   }
 
   private static QualityGate.Status convert(QualityGateStatus status) {
@@ -307,10 +350,12 @@ public class PostProjectAnalysisTasksExecutor implements ComputationStepExecutor
 
     private final String analysisUuid;
     private final long date;
+    private final Optional<String> revision;
 
-    private AnalysisImpl(String analysisUuid, long date) {
+    private AnalysisImpl(String analysisUuid, long date, Optional<String> revision) {
       this.analysisUuid = analysisUuid;
       this.date = date;
+      this.revision = revision;
     }
 
     @Override
@@ -321,6 +366,11 @@ public class PostProjectAnalysisTasksExecutor implements ComputationStepExecutor
     @Override
     public Date getDate() {
       return new Date(date);
+    }
+
+    @Override
+    public Optional<String> getRevision() {
+      return revision;
     }
   }
 

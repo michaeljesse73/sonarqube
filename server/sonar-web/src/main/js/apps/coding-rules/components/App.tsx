@@ -17,59 +17,66 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
+import * as key from 'keymaster';
+import { keyBy } from 'lodash';
 import * as React from 'react';
 import { Helmet } from 'react-helmet';
 import { connect } from 'react-redux';
 import { withRouter, WithRouterProps } from 'react-router';
-import * as key from 'keymaster';
-import { keyBy } from 'lodash';
-import BulkChange from './BulkChange';
-import FacetsList from './FacetsList';
-import PageActions from './PageActions';
-import RuleDetails from './RuleDetails';
-import RuleListItem from './RuleListItem';
-import Suggestions from '../../../app/components/embed-docs-modal/Suggestions';
-import {
-  Facets,
-  Query,
-  parseQuery,
-  serializeQuery,
-  areQueriesEqual,
-  shouldRequestFacet,
-  FacetKey,
-  OpenFacets,
-  getServerFacet,
-  getAppFacet,
-  Actives,
-  Activation,
-  getOpen
-} from '../query';
-import A11ySkipTarget from '../../../app/components/a11y/A11ySkipTarget';
-import ScreenPositionHelper from '../../../components/common/ScreenPositionHelper';
-import ListFooter from '../../../components/controls/ListFooter';
-import FiltersHeader from '../../../components/common/FiltersHeader';
-import SearchBox from '../../../components/controls/SearchBox';
-import { searchRules, getRulesApp } from '../../../api/rules';
-import { searchQualityProfiles, Profile } from '../../../api/quality-profiles';
-import {
-  getCurrentUser,
-  getLanguages,
-  getMyOrganizations,
-  Store,
-  getAppState
-} from '../../../store/rootReducer';
-import { translate } from '../../../helpers/l10n';
-import { hasPrivateAccess } from '../../../helpers/organizations';
+import ListFooter from 'sonar-ui-common/components/controls/ListFooter';
+import SearchBox from 'sonar-ui-common/components/controls/SearchBox';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import {
   addSideBarClass,
   addWhitePageClass,
   removeSideBarClass,
   removeWhitePageClass
-} from '../../../helpers/pages';
-import { RawQuery } from '../../../helpers/query';
-import { scrollToElement } from '../../../helpers/scrolling';
+} from 'sonar-ui-common/helpers/pages';
+import { scrollToElement } from 'sonar-ui-common/helpers/scrolling';
+import { Profile, searchQualityProfiles } from '../../../api/quality-profiles';
+import { getRulesApp, searchRules } from '../../../api/rules';
+import A11ySkipTarget from '../../../app/components/a11y/A11ySkipTarget';
+import Suggestions from '../../../app/components/embed-docs-modal/Suggestions';
+import FiltersHeader from '../../../components/common/FiltersHeader';
+import ScreenPositionHelper from '../../../components/common/ScreenPositionHelper';
 import '../../../components/search-navigator.css';
+import { hasPrivateAccess } from '../../../helpers/organizations';
+import { isSonarCloud } from '../../../helpers/system';
+import { isLoggedIn } from '../../../helpers/users';
+import {
+  getAppState,
+  getCurrentUser,
+  getLanguages,
+  getMyOrganizations,
+  Store
+} from '../../../store/rootReducer';
+import {
+  shouldOpenSonarSourceSecurityFacet,
+  shouldOpenStandardsChildFacet,
+  shouldOpenStandardsFacet,
+  STANDARDS
+} from '../../issues/utils';
+import {
+  Activation,
+  Actives,
+  areQueriesEqual,
+  FacetKey,
+  Facets,
+  getAppFacet,
+  getOpen,
+  getServerFacet,
+  OpenFacets,
+  parseQuery,
+  Query,
+  serializeQuery,
+  shouldRequestFacet
+} from '../query';
 import '../styles.css';
+import BulkChange from './BulkChange';
+import FacetsList from './FacetsList';
+import PageActions from './PageActions';
+import RuleDetails from './RuleDetails';
+import RuleListItem from './RuleListItem';
 
 const PAGE_SIZE = 100;
 const LIMIT_BEFORE_LOAD_MORE = 5;
@@ -107,10 +114,18 @@ export class App extends React.PureComponent<Props, State> {
 
   constructor(props: Props) {
     super(props);
+    const query = parseQuery(props.location.query);
     this.state = {
       loading: true,
-      openFacets: { languages: true, types: true },
-      query: parseQuery(props.location.query),
+      openFacets: {
+        languages: true,
+        owaspTop10: shouldOpenStandardsChildFacet({}, query, 'owaspTop10'),
+        sansTop25: shouldOpenStandardsChildFacet({}, query, 'sansTop25'),
+        sonarsourceSecurity: shouldOpenSonarSourceSecurityFacet({}, query),
+        standards: shouldOpenStandardsFacet({}, query),
+        types: true
+      },
+      query,
       referencedProfiles: {},
       referencedRepositories: {},
       rules: []
@@ -184,11 +199,13 @@ export class App extends React.PureComponent<Props, State> {
     return open && rules.find(rule => rule.key === open);
   };
 
-  getFacetsToFetch = () =>
-    Object.keys(this.state.openFacets)
-      .filter((facet: FacetKey) => this.state.openFacets[facet])
+  getFacetsToFetch = () => {
+    const { openFacets } = this.state;
+    return Object.keys(openFacets)
+      .filter((facet: FacetKey) => openFacets[facet])
       .filter((facet: FacetKey) => shouldRequestFacet(facet))
       .map((facet: FacetKey) => getServerFacet(facet));
+  };
 
   getFieldsToFetch = () => {
     const fields = [
@@ -239,7 +256,7 @@ export class App extends React.PureComponent<Props, State> {
     );
   };
 
-  makeFetchRequest = (query?: RawQuery) =>
+  makeFetchRequest = (query?: T.RawQuery) =>
     searchRules({ ...this.getSearchParameters(), ...query }).then(
       ({ actives: rawActives, facets: rawFacets, p, ps, rules, total }) => {
         const actives = rawActives && parseActives(rawActives);
@@ -249,7 +266,7 @@ export class App extends React.PureComponent<Props, State> {
       }
     );
 
-  fetchFirstRules = (query?: RawQuery) => {
+  fetchFirstRules = (query?: T.RawQuery) => {
     this.setState({ loading: true });
     this.makeFetchRequest(query).then(({ actives, facets, paging, rules }) => {
       if (this.mounted) {
@@ -282,7 +299,6 @@ export class App extends React.PureComponent<Props, State> {
   };
 
   fetchFacet = (facet: FacetKey) => {
-    this.setState({ loading: true });
     this.makeFetchRequest({ ps: 1, facets: getServerFacet(facet) }).then(({ facets }) => {
       if (this.mounted) {
         this.setState(state => ({ facets: { ...state.facets, ...facets }, loading: false }));
@@ -412,19 +428,46 @@ export class App extends React.PureComponent<Props, State> {
     this.closeRule();
   };
 
-  handleFilterChange = (changes: Partial<Query>) =>
+  handleFilterChange = (changes: Partial<Query>) => {
     this.props.router.push({
       pathname: this.props.location.pathname,
       query: serializeQuery({ ...this.state.query, ...changes })
     });
 
-  handleFacetToggle = (facet: keyof Query) => {
-    this.setState(state => ({
-      openFacets: { ...state.openFacets, [facet]: !state.openFacets[facet] }
+    this.setState(({ openFacets }) => ({
+      openFacets: {
+        ...openFacets,
+        sonarsourceSecurity: shouldOpenSonarSourceSecurityFacet(openFacets, changes),
+        standards: shouldOpenStandardsFacet(openFacets, changes)
+      }
     }));
-    if (shouldRequestFacet(facet) && (!this.state.facets || !this.state.facets[facet])) {
-      this.fetchFacet(facet);
-    }
+  };
+
+  handleFacetToggle = (property: string) => {
+    this.setState(state => {
+      const willOpenProperty = !state.openFacets[property];
+      const newState = {
+        loading: state.loading,
+        openFacets: { ...state.openFacets, [property]: willOpenProperty }
+      };
+
+      // Try to open sonarsource security "subfacet" by default if the standard facet is open
+      if (willOpenProperty && property === STANDARDS) {
+        newState.openFacets.sonarsourceSecurity = shouldOpenSonarSourceSecurityFacet(
+          newState.openFacets,
+          state.query
+        );
+        // Force loading of sonarsource security facet data
+        property = newState.openFacets.sonarsourceSecurity ? 'sonarsourceSecurity' : property;
+      }
+
+      if (shouldRequestFacet(property) && (!state.facets || !state.facets[property])) {
+        newState.loading = true;
+        this.fetchFacet(property);
+      }
+
+      return newState;
+    });
   };
 
   handleReload = () => this.fetchFirstRules();
@@ -481,6 +524,28 @@ export class App extends React.PureComponent<Props, State> {
 
   isFiltered = () => Object.keys(serializeQuery(this.state.query)).length > 0;
 
+  renderBulkButton = () => {
+    const { currentUser, languages } = this.props;
+    const { canWrite, paging, query, referencedProfiles } = this.state;
+    const organization = this.props.organization && this.props.organization.key;
+
+    if (!isLoggedIn(currentUser) || (isSonarCloud() && !organization) || !canWrite) {
+      return null;
+    }
+
+    return (
+      paging && (
+        <BulkChange
+          languages={languages}
+          organization={organization}
+          query={query}
+          referencedProfiles={referencedProfiles}
+          total={paging.total}
+        />
+      )
+    );
+  };
+
   render() {
     const { paging, rules } = this.state;
     const selectedIndex = this.getSelectedIndex();
@@ -490,6 +555,7 @@ export class App extends React.PureComponent<Props, State> {
       this.props.organization,
       this.props.userOrganizations
     );
+
     return (
       <>
         <Suggestions suggestions="coding_rules" />
@@ -545,15 +611,7 @@ export class App extends React.PureComponent<Props, State> {
                       {translate('coding_rules.return_to_list')}
                     </a>
                   ) : (
-                    this.state.paging && (
-                      <BulkChange
-                        languages={this.props.languages}
-                        organization={organization}
-                        query={this.state.query}
-                        referencedProfiles={this.state.referencedProfiles}
-                        total={this.state.paging.total}
-                      />
-                    )
+                    this.renderBulkButton()
                   )}
                   <PageActions
                     loading={this.state.loading}
@@ -586,6 +644,8 @@ export class App extends React.PureComponent<Props, State> {
                   {rules.map(rule => (
                     <RuleListItem
                       activation={this.getRuleActivation(rule.key)}
+                      canWrite={this.state.canWrite}
+                      isLoggedIn={isLoggedIn(this.props.currentUser)}
                       key={rule.key}
                       onActivate={this.handleRuleActivate}
                       onDeactivate={this.handleRuleDeactivate}

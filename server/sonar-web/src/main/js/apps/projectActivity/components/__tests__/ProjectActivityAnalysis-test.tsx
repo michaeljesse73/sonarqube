@@ -17,13 +17,13 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { shallow } from 'enzyme';
+import * as React from 'react';
+import { waitAndUpdate } from 'sonar-ui-common/helpers/testUtils';
+import { mockAnalysisEvent, mockParsedAnalysis } from '../../../../helpers/testMocks';
 import ProjectActivityAnalysis from '../ProjectActivityAnalysis';
-import { mockParsedAnalysis, mockAnalysisEvent } from '../../../../helpers/testMocks';
-import { waitAndUpdate } from '../../../../helpers/testUtils';
 
-jest.mock('../../../../helpers/dates', () => ({
+jest.mock('sonar-ui-common/helpers/dates', () => ({
   parseDate: () => ({
     valueOf: () => 1546333200000,
     toISOString: () => '2019-01-01T09:00:00.000Z'

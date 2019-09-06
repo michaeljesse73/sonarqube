@@ -85,6 +85,7 @@ public class IssuesWsParameters {
   public static final String PARAM_TYPES = "types";
   public static final String PARAM_OWASP_TOP_10 = "owaspTop10";
   public static final String PARAM_SANS_TOP_25 = "sansTop25";
+  public static final String PARAM_SONARSOURCE_SECURITY = "sonarsourceSecurity";
   public static final String PARAM_CWE = "cwe";
   public static final String PARAM_ASSIGNED = "assigned";
   public static final String PARAM_HIDE_COMMENTS = "hideComments";
@@ -98,6 +99,10 @@ public class IssuesWsParameters {
   public static final String PARAM_ASC = "asc";
   public static final String PARAM_ADDITIONAL_FIELDS = "additionalFields";
 
+  /**
+   * @deprecated since 7.9
+   */
+  @Deprecated
   public static final String FACET_MODE = "facetMode";
   public static final String FACET_MODE_COUNT = "count";
   public static final String FACET_MODE_EFFORT = "effort";

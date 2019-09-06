@@ -17,25 +17,24 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { shallow } from 'enzyme';
-import CategoryBlockLink from '../CategoryBlockLink';
+import * as React from 'react';
 import { MarkdownRemark } from '../../@types/graphql-types';
+import CategoryBlockLink from '../CategoryBlockLink';
 
 it('should render correctly', () => {
   expect(shallowRender({})).toMatchSnapshot();
 });
 
 it('should render correctly when closed', () => {
-  expect(shallowRender({ open: false })).toMatchSnapshot();
+  expect(shallowRender({ openByDefault: false })).toMatchSnapshot();
 });
 
 function shallowRender(props: Partial<CategoryBlockLink['props']> = {}) {
   return shallow(
     <CategoryBlockLink
       location={{} as Location}
-      onToggle={jest.fn()}
-      open={true}
+      openByDefault={true}
       title="My category"
       {...props}>
       {[{ id: '1' }, { id: '2' }] as MarkdownRemark[]}

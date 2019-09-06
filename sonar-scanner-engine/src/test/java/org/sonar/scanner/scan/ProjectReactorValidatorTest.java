@@ -31,7 +31,6 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.sonar.api.CoreProperties;
-import org.sonar.api.batch.AnalysisMode;
 import org.sonar.api.batch.bootstrap.ProjectDefinition;
 import org.sonar.api.batch.bootstrap.ProjectReactor;
 import org.sonar.api.utils.MessageException;
@@ -51,10 +50,9 @@ public class ProjectReactorValidatorTest {
   @Rule
   public ExpectedException thrown = ExpectedException.none();
 
-  private AnalysisMode mode = mock(AnalysisMode.class);
   private GlobalConfiguration settings = mock(GlobalConfiguration.class);
   private ProjectInfo projectInfo = mock(ProjectInfo.class);
-  private ProjectReactorValidator underTest = new ProjectReactorValidator(mode, settings);
+  private ProjectReactorValidator underTest = new ProjectReactorValidator(settings);
 
   @Before
   public void prepare() {
@@ -88,80 +86,11 @@ public class ProjectReactorValidatorTest {
   }
 
   @Test
-  public void allow_slash_issues_mode() {
-    when(mode.isIssues()).thenReturn(true);
-    underTest.validate(createProjectReactor("project/key"));
-
-    when(mode.isIssues()).thenReturn(false);
-    thrown.expect(MessageException.class);
-    thrown.expectMessage("is not a valid project or module key");
-    underTest.validate(createProjectReactor("project/key"));
-  }
-
-  @Test
   public void fail_with_invalid_key() {
-    ProjectReactor reactor = createProjectReactor("foo$bar");
+    ProjectReactor reactor = createProjectReactor("  ");
 
     thrown.expect(MessageException.class);
-    thrown.expectMessage("\"foo$bar\" is not a valid project or module key");
-    underTest.validate(reactor);
-  }
-
-  @Test
-  public void fail_with_backslash_in_key() {
-    ProjectReactor reactor = createProjectReactor("foo\\bar");
-
-    thrown.expect(MessageException.class);
-    thrown.expectMessage("\"foo\\bar\" is not a valid project or module key");
-    underTest.validate(reactor);
-  }
-
-  @Test
-  @UseDataProvider("validBranches")
-  public void not_fail_with_valid_branch(String validBranch) {
-    ProjectReactor reactor = createProjectReactor("foo", validBranch);
-
-    underTest.validate(reactor);
-  }
-
-  @DataProvider
-  public static Object[][] validBranches() {
-    return new Object[][] {
-      {"branch"},
-      {"Branch2"},
-      {"bra.nch"},
-      {"bra-nch"},
-      {"1"},
-      {"bra_nch"}
-    };
-  }
-
-  @Test
-  @UseDataProvider("invalidBranches")
-  public void fail_with_invalid_branch(String invalidBranch) {
-    ProjectReactor reactor = createProjectReactor("foo", invalidBranch);
-
-    thrown.expect(MessageException.class);
-    thrown.expectMessage("\"" + invalidBranch + "\" is not a valid branch name");
-
-    underTest.validate(reactor);
-  }
-
-  @DataProvider
-  public static Object[][] invalidBranches() {
-    return new Object[][] {
-      {"bran#ch"},
-      {"bran:ch"}
-    };
-  }
-
-  @Test
-  public void fail_with_only_digits() {
-    ProjectReactor reactor = createProjectReactor("12345");
-
-    thrown.expect(MessageException.class);
-    thrown.expectMessage("\"12345\" is not a valid project or module key");
-
+    thrown.expectMessage("\"  \" is not a valid project or module key");
     underTest.validate(reactor);
   }
 
@@ -173,7 +102,7 @@ public class ProjectReactorValidatorTest {
     when(settings.get(eq(ScannerProperties.BRANCH_NAME))).thenReturn(Optional.of("feature1"));
 
     thrown.expect(MessageException.class);
-    thrown.expectMessage("the branch plugin is required but not installed");
+    thrown.expectMessage("To use the property \"sonar.branch.name\" and analyze branches, Developer Edition or above is required");
 
     underTest.validate(reactor);
   }
@@ -186,7 +115,7 @@ public class ProjectReactorValidatorTest {
     when(settings.get(eq(ScannerProperties.BRANCH_TARGET))).thenReturn(Optional.of("feature1"));
 
     thrown.expect(MessageException.class);
-    thrown.expectMessage("the branch plugin is required but not installed");
+    thrown.expectMessage("To use the property \"sonar.branch.target\" and analyze branches, Developer Edition or above is required");
 
     underTest.validate(reactor);
   }
@@ -199,7 +128,7 @@ public class ProjectReactorValidatorTest {
     when(settings.get(eq(ScannerProperties.PULL_REQUEST_KEY))).thenReturn(Optional.of("#1984"));
 
     thrown.expect(MessageException.class);
-    thrown.expectMessage("the branch plugin is required but not installed");
+    thrown.expectMessage("To use the property \"sonar.pullrequest.key\" and analyze pull requests, Developer Edition or above is required");
 
     underTest.validate(reactor);
   }
@@ -212,7 +141,7 @@ public class ProjectReactorValidatorTest {
     when(settings.get(eq(ScannerProperties.PULL_REQUEST_BRANCH))).thenReturn(Optional.of("feature1"));
 
     thrown.expect(MessageException.class);
-    thrown.expectMessage("the branch plugin is required but not installed");
+    thrown.expectMessage("To use the property \"sonar.pullrequest.branch\" and analyze pull requests, Developer Edition or above is required");
 
     underTest.validate(reactor);
   }
@@ -225,7 +154,7 @@ public class ProjectReactorValidatorTest {
     when(settings.get(eq(ScannerProperties.PULL_REQUEST_BASE))).thenReturn(Optional.of("feature1"));
 
     thrown.expect(MessageException.class);
-    thrown.expectMessage("the branch plugin is required but not installed");
+    thrown.expectMessage("To use the property \"sonar.pullrequest.base\" and analyze pull requests, Developer Edition or above is required");
 
     underTest.validate(reactor);
   }
@@ -264,11 +193,6 @@ public class ProjectReactorValidatorTest {
       {"2017-10-16"},
       {randomAscii(100)}
     };
-  }
-
-  private ProjectReactor createProjectReactor(String projectKey, String branch) {
-    return createProjectReactor(projectKey, def -> def
-      .setProperty(CoreProperties.PROJECT_BRANCH_PROPERTY, branch));
   }
 
   private ProjectReactor createProjectReactor(String projectKey, Consumer<ProjectDefinition>... consumers) {

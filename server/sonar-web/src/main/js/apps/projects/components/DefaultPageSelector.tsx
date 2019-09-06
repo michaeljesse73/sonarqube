@@ -18,13 +18,13 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import AllProjectsContainer from './AllProjectsContainer';
-import { PROJECTS_DEFAULT_FILTER, PROJECTS_FAVORITE, PROJECTS_ALL } from '../utils';
-import { get } from '../../../helpers/storage';
+import { get } from 'sonar-ui-common/helpers/storage';
 import { searchProjects } from '../../../api/components';
+import { Location, Router, withRouter } from '../../../components/hoc/withRouter';
 import { isSonarCloud } from '../../../helpers/system';
 import { isLoggedIn } from '../../../helpers/users';
-import { withRouter, Location, Router } from '../../../components/hoc/withRouter';
+import { PROJECTS_ALL, PROJECTS_DEFAULT_FILTER, PROJECTS_FAVORITE } from '../utils';
+import AllProjectsContainer from './AllProjectsContainer';
 
 interface Props {
   currentUser: T.CurrentUser;

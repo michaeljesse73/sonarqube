@@ -17,8 +17,8 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { shallow } from 'enzyme';
+import * as React from 'react';
 import ProjectCardOverallMeasures from '../ProjectCardOverallMeasures';
 
 it('should render correctly with all data', () => {
@@ -51,23 +51,7 @@ it('should not render coverage', () => {
     vulnerabilities: '0'
   };
   const wrapper = shallow(<ProjectCardOverallMeasures measures={measures} />);
-  expect(wrapper.find('[data-key="coverage"]')).toMatchSnapshot();
-});
-
-it('should not render duplications', () => {
-  const measures = {
-    alert_status: 'ERROR',
-    bugs: '17',
-    code_smells: '132',
-    coverage: '88.3',
-    ncloc: '2053',
-    reliability_rating: '1.0',
-    security_rating: '1.0',
-    sqale_rating: '1.0',
-    vulnerabilities: '0'
-  };
-  const wrapper = shallow(<ProjectCardOverallMeasures measures={measures} />);
-  expect(wrapper.find('[data-key="duplicated_lines_density"]')).toMatchSnapshot();
+  expect(wrapper.find('[data-key="coverage"]').exists()).toBe(false);
 });
 
 it('should render empty', () => {

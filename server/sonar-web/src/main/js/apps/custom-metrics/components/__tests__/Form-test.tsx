@@ -17,10 +17,10 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { shallow } from 'enzyme';
+import * as React from 'react';
+import { change, click, submit } from 'sonar-ui-common/helpers/testUtils';
 import Form from '../Form';
-import { change, submit, click } from '../../../../helpers/testUtils';
 
 it('should render form', async () => {
   const onClose = jest.fn();

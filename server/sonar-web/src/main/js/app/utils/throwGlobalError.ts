@@ -17,19 +17,29 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import getStore from './getStore';
-import { parseError } from '../../helpers/request';
+import { parseError } from 'sonar-ui-common/helpers/request';
 import { addGlobalErrorMessage } from '../../store/globalMessages';
+import getStore from './getStore';
 
-export default function throwGlobalError(error: { response: Response }): Promise<Response> {
+export default function throwGlobalError(param: Response | any): Promise<Response | any> {
   const store = getStore();
 
-  // eslint-disable-next-line promise/no-promise-in-callback
-  parseError(error)
-    .then(message => {
-      store.dispatch(addGlobalErrorMessage(message));
-    })
-    .catch(() => {});
+  if (param.response instanceof Response) {
+    /* eslint-disable-next-line no-console */
+    console.warn('DEPRECATED: response should not be wrapped, pass it directly.');
+    param = param.response;
+  }
 
-  return Promise.reject(error.response);
+  if (param instanceof Response) {
+    return parseError(param)
+      .then(
+        message => {
+          store.dispatch(addGlobalErrorMessage(message));
+        },
+        () => {}
+      )
+      .then(() => Promise.reject(param));
+  }
+
+  return Promise.reject(param);
 }

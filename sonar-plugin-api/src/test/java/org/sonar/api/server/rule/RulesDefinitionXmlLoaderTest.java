@@ -30,9 +30,10 @@ import org.sonar.api.rule.RuleStatus;
 import org.sonar.api.rule.Severity;
 import org.sonar.api.rules.RuleType;
 import org.sonar.api.server.debt.DebtRemediationFunction;
+import org.sonar.api.impl.server.RulesDefinitionContext;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.sonar.test.ExceptionCauseMatcher.hasType;
+import static org.sonar.api.utils.ExceptionCauseMatcher.hasType;
 
 public class RulesDefinitionXmlLoaderTest {
 
@@ -294,7 +295,7 @@ public class RulesDefinitionXmlLoaderTest {
   }
 
   private RulesDefinition.Repository load(InputStream input, String encoding) {
-    RulesDefinition.Context context = new RulesDefinition.Context();
+    RulesDefinition.Context context = new RulesDefinitionContext();
     RulesDefinition.NewRepository newRepository = context.createRepository("squid", "java");
     underTest.load(newRepository, input, encoding);
     newRepository.done();
@@ -302,7 +303,7 @@ public class RulesDefinitionXmlLoaderTest {
   }
 
   private RulesDefinition.Repository load(String xml) {
-    RulesDefinition.Context context = new RulesDefinition.Context();
+    RulesDefinition.Context context = new RulesDefinitionContext();
     RulesDefinition.NewRepository newRepository = context.createRepository("squid", "java");
     underTest.load(newRepository, new StringReader(xml));
     newRepository.done();

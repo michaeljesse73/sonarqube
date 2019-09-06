@@ -17,13 +17,14 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import { getJSON, post, postJSON } from '../helpers/request';
+import { getJSON, post, postJSON } from 'sonar-ui-common/helpers/request';
 import throwGlobalError from '../app/utils/throwGlobalError';
 
 export function createWebhook(data: {
   name: string;
   organization: string | undefined;
   project?: string;
+  secret?: string;
   url: string;
 }): Promise<{ webhook: T.Webhook }> {
   return postJSON('/api/webhooks/create', data).catch(throwGlobalError);
@@ -43,6 +44,7 @@ export function searchWebhooks(data: {
 export function updateWebhook(data: {
   webhook: string;
   name: string;
+  secret?: string;
   url: string;
 }): Promise<void | Response> {
   return post('/api/webhooks/update', data).catch(throwGlobalError);

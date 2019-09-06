@@ -20,6 +20,7 @@
 package org.sonar.ce.task.projectanalysis.duplication;
 
 import com.google.common.collect.ImmutableList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
@@ -37,7 +38,6 @@ import org.sonar.ce.task.projectanalysis.measure.Measure;
 import org.sonar.ce.task.projectanalysis.measure.MeasureRepository;
 import org.sonar.ce.task.projectanalysis.metric.MetricRepository;
 
-import static com.google.common.collect.FluentIterable.from;
 import static com.google.common.collect.Iterables.isEmpty;
 import static java.util.Objects.requireNonNull;
 import static org.sonar.api.measures.CoreMetrics.DUPLICATED_BLOCKS_KEY;
@@ -88,10 +88,6 @@ public class DuplicationMeasures {
     protected int dupLineCount = 0;
     protected int lineCount = 0;
 
-    protected DuplicationCounter() {
-      this(null);
-    }
-
     private DuplicationCounter(@Nullable DuplicationRepository duplicationRepository) {
       this.duplicationRepository = duplicationRepository;
     }
@@ -107,7 +103,7 @@ public class DuplicationMeasures {
     @Override
     public void initialize(CounterInitializationContext context) {
       Component leaf = context.getLeaf();
-      if (leaf.getType() == Component.Type.FILE) {
+      if (leaf.getType() == Component.Type.FILE && !leaf.getFileAttributes().isUnitTest()) {
         initializeForFile(leaf);
       } else if (leaf.getType() == Component.Type.PROJECT_VIEW) {
         initializeForProjectView(context);
@@ -129,7 +125,12 @@ public class DuplicationMeasures {
       for (Duplication duplication : duplications) {
         blocks++;
         addLines(duplication.getOriginal(), duplicatedLineNumbers);
-        for (InnerDuplicate innerDuplicate : from(duplication.getDuplicates()).filter(InnerDuplicate.class)) {
+        InnerDuplicate[] innerDuplicates = Arrays.stream(duplication.getDuplicates())
+          .filter(x -> x instanceof InnerDuplicate)
+          .map(d -> (InnerDuplicate) d)
+          .toArray(InnerDuplicate[]::new);
+
+        for (InnerDuplicate innerDuplicate : innerDuplicates) {
           blocks++;
           addLines(innerDuplicate.getTextBlock(), duplicatedLineNumbers);
         }

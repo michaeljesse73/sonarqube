@@ -29,8 +29,8 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.sonar.api.impl.utils.AlwaysIncreasingSystem2;
 import org.sonar.api.utils.System2;
-import org.sonar.api.utils.internal.AlwaysIncreasingSystem2;
 import org.sonar.ce.container.ComputeEngineStatus;
 import org.sonar.ce.monitoring.CEQueueStatus;
 import org.sonar.ce.monitoring.CEQueueStatusImpl;
@@ -80,7 +80,7 @@ public class InternalCeQueueImplTest {
   private DbSession session = db.getSession();
 
   private UuidFactory uuidFactory = UuidFactoryImpl.INSTANCE;
-  private CEQueueStatus queueStatus = new CEQueueStatusImpl(db.getDbClient());
+  private CEQueueStatus queueStatus = new CEQueueStatusImpl(db.getDbClient(), mock(System2.class));
   private DefaultOrganizationProvider defaultOrganizationProvider = mock(DefaultOrganizationProvider.class);
   private ComputeEngineStatus computeEngineStatus = mock(ComputeEngineStatus.class);
   private InternalCeQueue underTest = new InternalCeQueueImpl(system2, db.getDbClient(), uuidFactory, queueStatus, defaultOrganizationProvider, computeEngineStatus);

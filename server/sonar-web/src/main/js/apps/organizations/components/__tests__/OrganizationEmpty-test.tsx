@@ -17,15 +17,15 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { shallow } from 'enzyme';
-import { OrganizationEmpty } from '../OrganizationEmpty';
-import { click } from '../../../../helpers/testUtils';
+import * as React from 'react';
+import { click } from 'sonar-ui-common/helpers/testUtils';
 import {
-  mockRouter,
   mockOrganization,
-  mockOrganizationWithAlm
+  mockOrganizationWithAlm,
+  mockRouter
 } from '../../../../helpers/testMocks';
+import { OrganizationEmpty } from '../OrganizationEmpty';
 
 const organization: T.Organization = mockOrganization();
 

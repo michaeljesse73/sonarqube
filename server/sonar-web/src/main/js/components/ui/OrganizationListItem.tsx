@@ -18,9 +18,9 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import OrganizationLink from './OrganizationLink';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import OrganizationAvatar from '../common/OrganizationAvatar';
-import { translate } from '../../helpers/l10n';
+import OrganizationLink from './OrganizationLink';
 
 interface Props {
   organization: T.Organization;
@@ -35,7 +35,7 @@ export default function OrganizationListItem({ organization }: Props) {
           <OrganizationAvatar organization={organization} small={true} />
           <span className="spacer-left">{organization.name}</span>
         </div>
-        {actions.admin && <span className="outline-badge spacer-left">{translate('admin')}</span>}
+        {actions.admin && <span className="badge spacer-left">{translate('admin')}</span>}
       </OrganizationLink>
     </li>
   );

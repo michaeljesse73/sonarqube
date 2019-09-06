@@ -18,16 +18,16 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
+import { Button, ResetButtonLink } from 'sonar-ui-common/components/controls/buttons';
+import Modal from 'sonar-ui-common/components/controls/Modal';
+import { translate } from 'sonar-ui-common/helpers/l10n';
+import CodeSnippet from '../../../components/common/CodeSnippet';
+import { getBranchLikeQuery } from '../../../helpers/branches';
+import { isSonarCloud } from '../../../helpers/system';
 import BadgeButton from './BadgeButton';
 import BadgeParams from './BadgeParams';
-import { BadgeType, BadgeOptions, getBadgeUrl, getBadgeSnippet } from './utils';
-import CodeSnippet from '../../../components/common/CodeSnippet';
-import Modal from '../../../components/controls/Modal';
-import { getBranchLikeQuery } from '../../../helpers/branches';
-import { translate } from '../../../helpers/l10n';
-import { Button, ResetButtonLink } from '../../../components/ui/buttons';
-import { isSonarCloud } from '../../../helpers/system';
 import './styles.css';
+import { BadgeOptions, BadgeType, getBadgeSnippet, getBadgeUrl } from './utils';
 
 interface Props {
   branchLike?: T.BranchLike;

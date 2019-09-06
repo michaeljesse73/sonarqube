@@ -18,31 +18,25 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import HelpTooltip from '../../components/controls/HelpTooltip';
-import SearchBox from '../../components/controls/SearchBox';
+import HelpTooltip from 'sonar-ui-common/components/controls/HelpTooltip';
+import SearchBox from 'sonar-ui-common/components/controls/SearchBox';
+import { translate, translateWithParameters } from 'sonar-ui-common/helpers/l10n';
+import { formatMeasure } from 'sonar-ui-common/helpers/measures';
 import { getAlmMembersUrl, sanitizeAlmId } from '../../helpers/almIntegrations';
-import { translate, translateWithParameters } from '../../helpers/l10n';
-import { formatMeasure } from '../../helpers/measures';
 
 export interface Props {
-  currentUser: T.LoggedInUser;
   handleSearch: (query?: string) => void;
   organization: T.Organization;
   total?: number;
 }
 
-export default function MembersListHeader({
-  currentUser,
-  handleSearch,
-  organization,
-  total
-}: Props) {
+export default function MembersListHeader({ handleSearch, organization, total }: Props) {
   return (
     <div className="panel panel-vertical bordered-bottom spacer-bottom">
       <SearchBox
         minLength={2}
         onChange={handleSearch}
-        placeholder={translate('search.search_for_users')}
+        placeholder={translate('search.search_for_members')}
       />
       {total !== undefined && (
         <span className="pull-right little-spacer-top">
@@ -58,22 +52,18 @@ export default function MembersListHeader({
                       sanitizeAlmId(organization.alm.key)
                     )}
                   </p>
-                  {currentUser.personalOrganization !== organization.key && (
-                    <>
-                      <hr />
-                      <p>
-                        <a
-                          href={getAlmMembersUrl(organization.alm.key, organization.alm.url)}
-                          rel="noopener noreferrer"
-                          target="_blank">
-                          {translateWithParameters(
-                            'organization.members.see_all_members_on_x',
-                            translate(sanitizeAlmId(organization.alm.key))
-                          )}
-                        </a>
-                      </p>
-                    </>
-                  )}
+                  <hr />
+                  <p>
+                    <a
+                      href={getAlmMembersUrl(organization.alm.key, organization.alm.url)}
+                      rel="noopener noreferrer"
+                      target="_blank">
+                      {translateWithParameters(
+                        'organization.members.see_all_members_on_x',
+                        translate(sanitizeAlmId(organization.alm.key))
+                      )}
+                    </a>
+                  </p>
                 </div>
               }
             />

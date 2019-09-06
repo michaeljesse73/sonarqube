@@ -17,12 +17,16 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { shallow } from 'enzyme';
+import * as React from 'react';
+import { waitAndUpdate } from 'sonar-ui-common/helpers/testUtils';
+import { isSonarCloud } from '../../../../../helpers/system';
 import UserHolder from '../UserHolder';
-import { waitAndUpdate } from '../../../../../helpers/testUtils';
+
+jest.mock('../../../../../helpers/system', () => ({ isSonarCloud: jest.fn() }));
 
 const user = {
+  email: 'john.doe@sonarsource.com',
   login: 'john doe',
   name: 'John Doe',
   permissions: ['bar']
@@ -42,7 +46,7 @@ const userHolder = (
       },
       { key: 'baz', name: 'Baz', description: '' }
     ]}
-    selectedPermission={'bar'}
+    selectedPermission="bar"
     user={user}
   />
 );
@@ -65,4 +69,18 @@ it('should disabled PermissionCell checkboxes when waiting for promise to return
 
   await waitAndUpdate(wrapper);
   expect(wrapper.state().loading).toEqual([]);
+});
+
+it('should show user details for SonarQube', () => {
+  (isSonarCloud as jest.Mock).mockReturnValue(false);
+
+  const wrapper = shallow<UserHolder>(userHolder);
+  expect(wrapper.find('.display-inline-block.text-middle')).toMatchSnapshot();
+});
+
+it('should show user details for SonarCloud', () => {
+  (isSonarCloud as jest.Mock).mockReturnValue(true);
+
+  const wrapper = shallow<UserHolder>(userHolder);
+  expect(wrapper.find('.display-inline-block.text-middle')).toMatchSnapshot();
 });

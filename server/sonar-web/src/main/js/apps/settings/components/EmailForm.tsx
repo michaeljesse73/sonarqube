@@ -18,13 +18,13 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import DeferredSpinner from '../../../components/common/DeferredSpinner';
-import { Alert } from '../../../components/ui/Alert';
-import { SubmitButton } from '../../../components/ui/buttons';
-import { withCurrentUser } from '../../../components/hoc/withCurrentUser';
+import { SubmitButton } from 'sonar-ui-common/components/controls/buttons';
+import { Alert } from 'sonar-ui-common/components/ui/Alert';
+import DeferredSpinner from 'sonar-ui-common/components/ui/DeferredSpinner';
+import { translate, translateWithParameters } from 'sonar-ui-common/helpers/l10n';
+import { parseError } from 'sonar-ui-common/helpers/request';
 import { sendTestEmail } from '../../../api/settings';
-import { translate, translateWithParameters } from '../../../helpers/l10n';
-import { parseError } from '../../../helpers/request';
+import { withCurrentUser } from '../../../components/hoc/withCurrentUser';
 
 interface Props {
   currentUser: T.LoggedInUser;
@@ -61,8 +61,8 @@ export class EmailForm extends React.PureComponent<Props, State> {
     this.mounted = false;
   }
 
-  handleError = (error: { response: Response }) => {
-    return parseError(error).then(message => {
+  handleError = (response: Response) => {
+    return parseError(response).then(message => {
       if (this.mounted) {
         this.setState({ error: message, loading: false });
       }

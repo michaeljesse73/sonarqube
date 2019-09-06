@@ -138,10 +138,10 @@ public class DefaultHttpDownloaderTest {
       @Override
       public boolean matches(Object ex) {
         return
-        // Java 8
-        ex instanceof NoRouteToHostException || ex instanceof SocketException
-        // Java 7 or before
-          || ex instanceof SocketTimeoutException;
+          // Java 8
+          ex instanceof NoRouteToHostException || ex instanceof SocketException
+            // Java 7 or before
+            || ex instanceof SocketTimeoutException;
       }
 
       @Override

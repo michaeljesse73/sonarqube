@@ -17,15 +17,15 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-/* eslint-disable import/first, import/order */
+/* eslint-disable import/first */
 jest.mock('../../../../api/ce', () => ({
   setWorkerCount: () => Promise.resolve()
 }));
 
-import * as React from 'react';
 import { shallow } from 'enzyme';
+import * as React from 'react';
+import { submit } from 'sonar-ui-common/helpers/testUtils';
 import WorkersForm from '../WorkersForm';
-import { submit } from '../../../../helpers/testUtils';
 
 it('changes select', () => {
   const wrapper = shallow(<WorkersForm onClose={jest.fn()} workerCount={1} />);

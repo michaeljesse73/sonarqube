@@ -29,26 +29,32 @@ module.exports = {
     `gatsby-plugin-layout`,
     'gatsby-plugin-react-helmet',
     {
+      resolve: `gatsby-plugin-polyfill-io`,
+      options: {
+        features: [`Promise`, `fetch`, `Object.assign`, `Symbol`, `Array.from`]
+      }
+    },
+    {
       resolve: `sonarsource-source-filesystem`,
-      options: { name: 'src', path: `${__dirname}/src/` }
+      options: { name: 'src', path: `${__dirname}/src/pages/` }
     },
     {
       resolve: 'gatsby-plugin-typography',
       options: { pathToConfigModule: `src/utils/typography` }
     },
     {
-      resolve: 'gatsby-transformer-remark',
+      resolve: `gatsby-transformer-remark`,
       options: {
         plugins: [
           {
-            resolve: 'gatsby-remark-custom-blocks',
+            resolve: `gatsby-remark-custom-blocks`,
             options: {
               blocks: {
-                danger: 'alert alert-danger',
-                warning: 'alert alert-warning',
-                info: 'alert alert-info',
-                success: 'alert alert-success',
-                collapse: 'collapse'
+                danger: { classes: 'alert alert-danger' },
+                warning: { classes: 'alert alert-warning' },
+                info: { classes: 'alert alert-info' },
+                success: { classes: 'alert alert-success' },
+                collapse: { classes: 'collapse' }
               }
             }
           }

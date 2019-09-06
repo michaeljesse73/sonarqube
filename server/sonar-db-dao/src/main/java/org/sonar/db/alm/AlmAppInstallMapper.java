@@ -19,6 +19,7 @@
  */
 package org.sonar.db.alm;
 
+import java.util.Collection;
 import java.util.List;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
@@ -36,7 +37,7 @@ public interface AlmAppInstallMapper {
   AlmAppInstallDto selectByUuid(@Param("uuid") String uuid);
 
   @CheckForNull
-  AlmAppInstallDto selectByOrganizationUuid(@Param("alm") String alm, @Param("organizationUuid") String organizationUuid);
+  AlmAppInstallDto selectByOrganizationUuid(@Param("organizationUuid") String organizationUuid);
 
   List<AlmAppInstallDto> selectUnboundByUserExternalId(@Param("userExternalId") String userExternalId);
 
@@ -47,4 +48,6 @@ public interface AlmAppInstallMapper {
     @Nullable @Param("isOwnerUser") Boolean isOwnerUser, @Param("installId") String installId, @Nullable @Param("userExternalId") String userExternalId, @Param("now") long now);
 
   void delete(@Param("alm") String alm, @Param("organizationAlmId") String organizationAlmId);
+
+  List<AlmAppInstallDto> selectByOrganizationUuids(@Param("organizationUuids") Collection<String> organizationUuids);
 }

@@ -20,13 +20,13 @@
 import * as React from 'react';
 import { connect } from 'react-redux';
 import { Link } from 'react-router';
-import OrganizationNavigationExtensions from './OrganizationNavigationExtensions';
-import OrganizationNavigationAdministration from './OrganizationNavigationAdministration';
-import NavBarTabs from '../../../components/nav/NavBarTabs';
-import { translate } from '../../../helpers/l10n';
-import { getQualityGatesUrl } from '../../../helpers/urls';
+import NavBarTabs from 'sonar-ui-common/components/ui/NavBarTabs';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import { hasPrivateAccess, isCurrentUserMemberOf } from '../../../helpers/organizations';
+import { getQualityGatesUrl } from '../../../helpers/urls';
 import { getCurrentUser, getMyOrganizations, Store } from '../../../store/rootReducer';
+import OrganizationNavigationAdministration from './OrganizationNavigationAdministration';
+import OrganizationNavigationExtensions from './OrganizationNavigationExtensions';
 
 interface StateToProps {
   currentUser: T.CurrentUser;

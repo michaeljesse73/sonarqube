@@ -18,9 +18,9 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import InstanceMessage from '../../../components/common/InstanceMessage';
-import TokenForm from '../../users/components/TokensForm';
-import { translate } from '../../../helpers/l10n';
+import TokensForm from '../../users/components/TokensForm';
 
 interface Props {
   login: string;
@@ -35,7 +35,7 @@ export default function Tokens({ login }: Props) {
           <InstanceMessage message={translate('my_account.tokens_description')} />
         </div>
 
-        <TokenForm login={login} />
+        <TokensForm deleteConfirmation="modal" login={login} />
       </div>
     </div>
   );

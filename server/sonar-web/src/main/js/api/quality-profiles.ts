@@ -18,16 +18,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import { map } from 'lodash';
-import { csvEscape } from '../helpers/csv';
-import {
-  request,
-  checkStatus,
-  parseJSON,
-  getJSON,
-  post,
-  postJSON,
-  RequestData
-} from '../helpers/request';
+import { csvEscape } from 'sonar-ui-common/helpers/csv';
+import { getJSON, post, postJSON, RequestData } from 'sonar-ui-common/helpers/request';
 import throwGlobalError from '../app/utils/throwGlobalError';
 
 export interface ProfileActions {
@@ -89,23 +81,11 @@ export function getQualityProfile(data: {
 }
 
 export function createQualityProfile(data: RequestData): Promise<any> {
-  return request('/api/qualityprofiles/create')
-    .setMethod('post')
-    .setData(data)
-    .submit()
-    .then(checkStatus)
-    .then(parseJSON)
-    .catch(throwGlobalError);
+  return postJSON('/api/qualityprofiles/create', data).catch(throwGlobalError);
 }
 
 export function restoreQualityProfile(data: RequestData): Promise<any> {
-  return request('/api/qualityprofiles/restore')
-    .setMethod('post')
-    .setData(data)
-    .submit()
-    .then(checkStatus)
-    .then(parseJSON)
-    .catch(throwGlobalError);
+  return postJSON('/api/qualityprofiles/restore', data).catch(throwGlobalError);
 }
 
 export interface ProfileProject {
@@ -121,11 +101,17 @@ export function getProfileProjects(
   return getJSON('/api/qualityprofiles/projects', data).catch(throwGlobalError);
 }
 
-export function getProfileInheritance(profileKey: string): Promise<any> {
+export function getProfileInheritance(
+  profileKey: string
+): Promise<{
+  ancestors: T.ProfileInheritanceDetails[];
+  children: T.ProfileInheritanceDetails[];
+  profile: T.ProfileInheritanceDetails;
+}> {
   return getJSON('/api/qualityprofiles/inheritance', { profileKey }).catch(throwGlobalError);
 }
 
-export function setDefaultProfile(profileKey: string): Promise<void> {
+export function setDefaultProfile(profileKey: string) {
   return post('/api/qualityprofiles/set_default', { profileKey });
 }
 
@@ -142,9 +128,10 @@ export function deleteProfile(profileKey: string) {
 }
 
 export function changeProfileParent(profileKey: string, parentKey: string) {
-  return post('/api/qualityprofiles/change_parent', { profileKey, parentKey }).catch(
-    throwGlobalError
-  );
+  return post('/api/qualityprofiles/change_parent', {
+    profileKey,
+    parentKey
+  }).catch(throwGlobalError);
 }
 
 export function getImporters(): Promise<
@@ -194,13 +181,8 @@ export interface SearchUsersGroupsParameters {
   selected?: 'all' | 'selected' | 'deselected';
 }
 
-export interface SearchUsersResponse {
-  users: Array<{
-    avatar?: string;
-    login: string;
-    name: string;
-    selected?: boolean;
-  }>;
+interface SearchUsersResponse {
+  users: T.UserSelected[];
   paging: T.Paging;
 }
 

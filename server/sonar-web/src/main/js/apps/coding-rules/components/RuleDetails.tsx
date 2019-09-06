@@ -18,6 +18,14 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
+import { Button } from 'sonar-ui-common/components/controls/buttons';
+import ConfirmButton from 'sonar-ui-common/components/controls/ConfirmButton';
+import DeferredSpinner from 'sonar-ui-common/components/ui/DeferredSpinner';
+import { translate, translateWithParameters } from 'sonar-ui-common/helpers/l10n';
+import { Profile } from '../../../api/quality-profiles';
+import { deleteRule, getRuleDetails, updateRule } from '../../../api/rules';
+import DocTooltip from '../../../components/docs/DocTooltip';
+import { Activation, Query } from '../query';
 import CustomRuleButton from './CustomRuleButton';
 import RuleDetailsCustomRules from './RuleDetailsCustomRules';
 import RuleDetailsDescription from './RuleDetailsDescription';
@@ -25,14 +33,6 @@ import RuleDetailsIssues from './RuleDetailsIssues';
 import RuleDetailsMeta from './RuleDetailsMeta';
 import RuleDetailsParameters from './RuleDetailsParameters';
 import RuleDetailsProfiles from './RuleDetailsProfiles';
-import { Query, Activation } from '../query';
-import { Profile } from '../../../api/quality-profiles';
-import { getRuleDetails, deleteRule, updateRule } from '../../../api/rules';
-import DeferredSpinner from '../../../components/common/DeferredSpinner';
-import ConfirmButton from '../../../components/controls/ConfirmButton';
-import DocTooltip from '../../../components/docs/DocTooltip';
-import { Button } from '../../../components/ui/buttons';
-import { translate, translateWithParameters } from '../../../helpers/l10n';
 
 interface Props {
   allowCustomRules?: boolean;
@@ -133,10 +133,12 @@ export default class RuleDetails extends React.PureComponent<Props, State> {
   handleDeactivate = () =>
     this.fetchRuleDetails().then(() => {
       const { ruleKey, selectedProfile } = this.props;
-      if (selectedProfile && this.state.actives) {
-        if (!this.state.actives.find(active => active.qProfile === selectedProfile.key)) {
-          this.props.onDeactivate(selectedProfile.key, ruleKey);
-        }
+      if (
+        selectedProfile &&
+        this.state.actives &&
+        !this.state.actives.find(active => active.qProfile === selectedProfile.key)
+      ) {
+        this.props.onDeactivate(selectedProfile.key, ruleKey);
       }
     });
 

@@ -4,7 +4,6 @@
     "title": "Requirements",
     "children": [
       "/requirements/requirements/",
-      "/requirements/benchmark/",
       "/requirements/hardware-recommendations/"
     ]
   },
@@ -27,23 +26,67 @@
     "title": "Analyzing Source Code",
     "children": [
       "/analysis/overview/",
+      {
+        "title": "Scanners",
+        "children": [
+          "/analysis/scan/sonarscanner-for-gradle/",
+          "/analysis/scan/sonarscanner-for-msbuild/",
+          "/analysis/scan/sonarscanner-for-maven/",
+          "/analysis/scan/sonarscanner-for-azure-devops/",
+          "/analysis/scan/sonarscanner-for-jenkins/",
+          "/analysis/scan/sonarscanner-for-ant/",
+          "/analysis/scan/sonarscanner/"
+        ]
+      },
       "/analysis/analysis-parameters/",
+      {
+        "title": "Languages",
+        "children": [
+          "/analysis/languages/overview/",
+          "/analysis/languages/abap/",
+          "/analysis/languages/apex/",
+          "/analysis/languages/csharp/",
+          "/analysis/languages/cfamily/",
+          "/analysis/languages/cobol/",
+          "/analysis/languages/css/",
+          "/analysis/languages/flex/",
+          "/analysis/languages/go/",
+          "/analysis/languages/html/",
+          "/analysis/languages/java/",
+          "/analysis/languages/javascript/",
+          "/analysis/languages/kotlin/",
+          "/analysis/languages/php/",
+          "/analysis/languages/pli/",
+          "/analysis/languages/plsql/",
+          "/analysis/languages/python/",
+          "/analysis/languages/rpg/",
+          "/analysis/languages/ruby/",
+          "/analysis/languages/scala/",
+          "/analysis/languages/swift/",
+          "/analysis/languages/typescript/",
+          "/analysis/languages/tsql/",
+          "/analysis/languages/vbnet/",
+          "/analysis/languages/vb6/",
+          "/analysis/languages/xml/"
+        ]
+      },
       "/analysis/coverage/",
       "/analysis/external-issues/",
       "/analysis/background-tasks/",
       "/analysis/generic-issue/",
       "/analysis/generic-test/",
       "/analysis/pull-request/",
-      "/analysis/scm-integration/"
-    ]
-  },
-  {
-    "title": "Branches",
-    "children": [
-      "/branches/overview/",
-      "/branches/short-lived-branches/",
-      "/branches/long-lived-branches/",
-      "/branches/branches-faq/"
+      {
+        "title": "Branches",
+        "children": [
+          "/branches/overview/",
+          "/branches/short-lived-branches/",
+          "/branches/long-lived-branches/",
+          "/branches/branches-faq/"
+        ]
+      },
+      "/analysis/scm-integration/",
+      "/analysis/security_configuration/"
     ]
   },
   {
@@ -54,6 +97,7 @@
       "/user-guide/applications/",
       "/user-guide/portfolios/",
       "/user-guide/issues/",
+      "/user-guide/security-hotspots/",
       "/user-guide/rules/",
       "/user-guide/security-rules/",
       "/user-guide/built-in-rule-tags/",
@@ -90,9 +134,11 @@
       "/instance-administration/github-application/",
       "/instance-administration/look-and-feel/",
       "/instance-administration/marketplace/",
+      "/instance-administration/plugin-version-matrix/",
       "/instance-administration/housekeeping/",
       "/instance-administration/notifications/",
       "/instance-administration/system-info/",
+      "/instance-administration/license-manager/",
       "/instance-administration/monitoring/",
       "/instance-administration/project-move/",
       "/instance-administration/custom-measures/",
@@ -100,18 +146,25 @@
       "/instance-administration/db-copy/"
     ]
   },
-  "/previous-versions/",
-  "/faq/",
   {
-    "title": "Scanners",
-    "url": "https://docs.sonarqube.org/display/SCAN"
+    "title": "Extension Guide",
+    "children": [
+      "/extend/web-api/",
+      "/extend/adding-coding-rules/",
+      {
+        "title": "Developing a plugin",
+        "children": [
+          "/extend/developing-plugin/",
+          "/extend/new-languages/",
+          "/extend/executable-lines/",
+          "/extend/extend-web-app/",
+          "/extend/adding-scm/"
+        ]
+      },
+      "/extend/i18n/",
+      "/extend/deploying-to-marketplace/",
+      "/extend/contributing/"
+    ]
   },
-  {
-    "title": "Plugins",
-    "url": "https://docs.sonarqube.org/display/PLUG"
-  },
-  {
-    "title": "Extension",
-    "url": "https://docs.sonarqube.org/display/DEV"
-  }
+  "/faq/"
 ]

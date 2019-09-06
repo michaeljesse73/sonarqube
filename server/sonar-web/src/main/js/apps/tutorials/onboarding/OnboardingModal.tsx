@@ -18,27 +18,24 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import OrganizationsShortList from './OrganizationsShortList';
-import Modal from '../../../components/controls/Modal';
-import OnboardingProjectIcon from '../../../components/icons-components/OnboardingProjectIcon';
-import OnboardingTeamIcon from '../../../components/icons-components/OnboardingTeamIcon';
+import { Button, ResetButtonLink } from 'sonar-ui-common/components/controls/buttons';
+import Modal from 'sonar-ui-common/components/controls/Modal';
+import OnboardingProjectIcon from 'sonar-ui-common/components/icons/OnboardingProjectIcon';
+import OnboardingTeamIcon from 'sonar-ui-common/components/icons/OnboardingTeamIcon';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import { whenLoggedIn } from '../../../components/hoc/whenLoggedIn';
 import { withUserOrganizations } from '../../../components/hoc/withUserOrganizations';
-import { Button, ResetButtonLink } from '../../../components/ui/buttons';
-import { translate } from '../../../helpers/l10n';
 import '../styles.css';
+import OrganizationsShortList from './OrganizationsShortList';
 
 export interface Props {
-  currentUser: T.LoggedInUser;
-  onClose: () => void;
-  onOpenProjectOnboarding: () => void;
+  onClose: VoidFunction;
+  onOpenProjectOnboarding: VoidFunction;
   userOrganizations: T.Organization[];
 }
 
 export function OnboardingModal(props: Props) {
-  const { currentUser, onClose, onOpenProjectOnboarding, userOrganizations } = props;
-
-  const organizations = userOrganizations.filter(o => o.key !== currentUser.personalOrganization);
+  const { onClose, onOpenProjectOnboarding, userOrganizations } = props;
 
   const header = translate('onboarding.header');
   return (
@@ -46,7 +43,7 @@ export function OnboardingModal(props: Props) {
       contentLabel={header}
       onRequestClose={onClose}
       shouldCloseOnOverlayClick={false}
-      size={organizations.length > 0 ? 'medium' : 'small'}>
+      size={userOrganizations.length > 0 ? 'medium' : 'small'}>
       <div className="modal-head">
         <h2>{translate('onboarding.header')}</h2>
         <p className="spacer-top">{translate('onboarding.header.description')}</p>
@@ -59,7 +56,7 @@ export function OnboardingModal(props: Props) {
             {translate('onboarding.project.create')}
           </Button>
         </div>
-        {organizations.length > 0 && (
+        {userOrganizations.length > 0 && (
           <>
             <div className="vertical-pipe-separator">
               <div className="vertical-separator" />
@@ -69,7 +66,7 @@ export function OnboardingModal(props: Props) {
               <h3 className="big-spacer-bottom">
                 {translate('onboarding.browse_your_organizations')}
               </h3>
-              <OrganizationsShortList onClick={onClose} organizations={organizations} />
+              <OrganizationsShortList onClick={onClose} organizations={userOrganizations} />
             </div>
           </>
         )}

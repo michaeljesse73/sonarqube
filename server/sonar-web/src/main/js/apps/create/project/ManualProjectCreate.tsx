@@ -17,19 +17,19 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import * as classNames from 'classnames';
-import OrganizationInput from './OrganizationInput';
+import * as React from 'react';
+import { SubmitButton } from 'sonar-ui-common/components/controls/buttons';
+import HelpTooltip from 'sonar-ui-common/components/controls/HelpTooltip';
+import DeferredSpinner from 'sonar-ui-common/components/ui/DeferredSpinner';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import { createProject } from '../../../api/components';
-import DeferredSpinner from '../../../components/common/DeferredSpinner';
-import { SubmitButton } from '../../../components/ui/buttons';
-import ProjectKeyInput from '../components/ProjectKeyInput';
 import VisibilitySelector from '../../../components/common/VisibilitySelector';
-import UpgradeOrganizationBox from '../components/UpgradeOrganizationBox';
-import HelpTooltip from '../../../components/controls/HelpTooltip';
-import { translate } from '../../../helpers/l10n';
 import { isSonarCloud } from '../../../helpers/system';
+import ProjectKeyInput from '../components/ProjectKeyInput';
+import UpgradeOrganizationBox from '../components/UpgradeOrganizationBox';
 import './ManualProjectCreate.css';
+import OrganizationInput from './OrganizationInput';
 
 interface Props {
   currentUser: T.LoggedInUser;
@@ -40,9 +40,9 @@ interface Props {
 }
 
 interface State {
-  projectName?: string;
+  projectName: string;
   projectNameChanged: boolean;
-  projectKey?: string;
+  projectKey: string;
   selectedOrganization?: T.Organization;
   selectedVisibility?: T.Visibility;
   submitting: boolean;
@@ -56,6 +56,8 @@ export default class ManualProjectCreate extends React.PureComponent<Props, Stat
   constructor(props: Props) {
     super(props);
     this.state = {
+      projectKey: '',
+      projectName: '',
       projectNameChanged: false,
       selectedOrganization: this.getInitialSelectedOrganization(props),
       submitting: false
@@ -104,7 +106,7 @@ export default class ManualProjectCreate extends React.PureComponent<Props, Stat
       this.setState({ submitting: true });
       createProject({
         project: state.projectKey,
-        name: state.projectName || state.projectKey,
+        name: (state.projectName || state.projectKey).trim(),
         organization: state.selectedOrganization && state.selectedOrganization.key,
         visibility: this.state.selectedVisibility
       }).then(
@@ -150,11 +152,11 @@ export default class ManualProjectCreate extends React.PureComponent<Props, Stat
   };
 
   handleProjectNameChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const projectName = event.currentTarget.value.trim();
+    const projectName = event.currentTarget.value;
     this.setState({ projectName, projectNameChanged: true });
   };
 
-  handleProjectKeyChange = (projectKey?: string) => {
+  handleProjectKeyChange = (projectKey: string) => {
     this.setState(state => ({
       projectKey,
       projectName: state.projectNameChanged ? state.projectName : projectKey || ''
@@ -182,8 +184,8 @@ export default class ManualProjectCreate extends React.PureComponent<Props, Stat
             )}
             <ProjectKeyInput
               className="form-field"
-              initialValue={this.state.projectKey}
               onChange={this.handleProjectKeyChange}
+              value={this.state.projectKey}
             />
             <div className="form-field">
               <label htmlFor="project-name">
@@ -198,7 +200,7 @@ export default class ManualProjectCreate extends React.PureComponent<Props, Stat
               </label>
               <div className="little-spacer-top spacer-bottom">
                 <input
-                  className={'input-super-large'}
+                  className="input-super-large"
                   id="project-name"
                   maxLength={255}
                   minLength={1}

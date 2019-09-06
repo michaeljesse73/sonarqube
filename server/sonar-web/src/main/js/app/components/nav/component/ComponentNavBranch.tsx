@@ -20,24 +20,24 @@
 import * as React from 'react';
 import { FormattedMessage } from 'react-intl';
 import { Link } from 'react-router';
-import ComponentNavBranchesMenu from './ComponentNavBranchesMenu';
+import HelpTooltip from 'sonar-ui-common/components/controls/HelpTooltip';
+import Toggler from 'sonar-ui-common/components/controls/Toggler';
+import DropdownIcon from 'sonar-ui-common/components/icons/DropdownIcon';
+import PlusCircleIcon from 'sonar-ui-common/components/icons/PlusCircleIcon';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import DocTooltip from '../../../../components/docs/DocTooltip';
-import * as theme from '../../../theme';
+import { withAppState } from '../../../../components/hoc/withAppState';
 import BranchIcon from '../../../../components/icons-components/BranchIcon';
 import {
-  isShortLivingBranch,
-  isSameBranchLike,
   getBranchLikeDisplayName,
-  isPullRequest
+  isPullRequest,
+  isSameBranchLike,
+  isShortLivingBranch
 } from '../../../../helpers/branches';
-import { translate } from '../../../../helpers/l10n';
-import PlusCircleIcon from '../../../../components/icons-components/PlusCircleIcon';
-import HelpTooltip from '../../../../components/controls/HelpTooltip';
-import Toggler from '../../../../components/controls/Toggler';
-import DropdownIcon from '../../../../components/icons-components/DropdownIcon';
 import { isSonarCloud } from '../../../../helpers/system';
 import { getPortfolioAdminUrl } from '../../../../helpers/urls';
-import { withAppState } from '../../../../components/hoc/withAppState';
+import { colors } from '../../../theme';
+import ComponentNavBranchesMenu from './ComponentNavBranchesMenu';
 
 interface Props {
   appState: Pick<T.AppState, 'branchesEnabled'>;
@@ -109,7 +109,7 @@ export class ComponentNavBranch extends React.PureComponent<Props, State> {
             defaultMessage={translate('branches.pull_request.for_merge_into_x_from_y')}
             id="branches.pull_request.for_merge_into_x_from_y"
             values={{
-              base: <strong>{currentBranchLike.base}</strong>,
+              target: <strong>{currentBranchLike.target}</strong>,
               branch: <strong>{currentBranchLike.branch}</strong>
             }}
           />
@@ -151,12 +151,12 @@ export class ComponentNavBranch extends React.PureComponent<Props, State> {
           <BranchIcon
             branchLike={currentBranchLike}
             className="little-spacer-right"
-            fill={theme.gray80}
+            fill={colors.gray80}
           />
           <span className="note">{displayName}</span>
           {configuration && configuration.showSettings && (
             <HelpTooltip className="spacer-left" overlay={this.renderOverlay()}>
-              <PlusCircleIcon className="vertical-middle" fill={theme.blue} size={12} />
+              <PlusCircleIcon className="text-middle" fill={colors.blue} size={12} />
             </HelpTooltip>
           )}
         </div>
@@ -168,13 +168,13 @@ export class ComponentNavBranch extends React.PureComponent<Props, State> {
             <BranchIcon
               branchLike={currentBranchLike}
               className="little-spacer-right"
-              fill={theme.gray80}
+              fill={colors.gray80}
             />
             <span className="note">{displayName}</span>
             <DocTooltip
               className="spacer-left"
               doc={import(/* webpackMode: "eager" */ 'Docs/tooltips/branches/no-branch-support.md')}>
-              <PlusCircleIcon fill={theme.gray71} size={12} />
+              <PlusCircleIcon fill={colors.gray71} size={12} />
             </DocTooltip>
           </div>
         );
@@ -188,7 +188,7 @@ export class ComponentNavBranch extends React.PureComponent<Props, State> {
             <DocTooltip
               className="spacer-left"
               doc={import(/* webpackMode: "eager" */ 'Docs/tooltips/branches/single-branch.md')}>
-              <PlusCircleIcon fill={theme.blue} size={12} />
+              <PlusCircleIcon fill={colors.blue} size={12} />
             </DocTooltip>
           </div>
         );

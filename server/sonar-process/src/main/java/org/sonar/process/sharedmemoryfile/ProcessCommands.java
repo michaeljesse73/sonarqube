@@ -31,7 +31,7 @@ import java.io.File;
  * @see DefaultProcessCommands#main(File, int)
  * @see DefaultProcessCommands#secondary(File, int)
  */
-public interface ProcessCommands extends AutoCloseable {
+public interface ProcessCommands {
 
   int MAX_PROCESSES = 5;
 
@@ -60,11 +60,18 @@ public interface ProcessCommands extends AutoCloseable {
   String getHttpUrl();
 
   /**
-   * To be executed by monitor process to ask for child process termination
+   * To be executed by monitor process to ask for graceful child process termination
    */
   void askForStop();
 
   boolean askedForStop();
+
+  /**
+   * To be executed by monitor process to ask for quick child process termination
+   */
+  void askForHardStop();
+
+  boolean askedForHardStop();
 
   /**
    * To be executed by child process to ask for restart of all child processes

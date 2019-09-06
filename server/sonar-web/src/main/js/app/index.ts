@@ -17,13 +17,14 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import installExtensionsHandler from './utils/installExtensionsHandler';
-import { installGlobal, DEFAULT_LANGUAGE, requestMessages } from '../helpers/l10n';
-import { request, parseJSON } from '../helpers/request';
+import { DEFAULT_LANGUAGE, installGlobal, requestMessages } from 'sonar-ui-common/helpers/l10n';
+import { parseJSON, request } from 'sonar-ui-common/helpers/request';
+import { installExtensionsHandler, installWebAnalyticsHandler } from '../helpers/extensionsHandler';
 import { getSystemStatus } from '../helpers/system';
 import './styles/sonar.css';
 
 installGlobal();
+installWebAnalyticsHandler();
 
 if (isMainApp()) {
   installExtensionsHandler();
@@ -42,9 +43,16 @@ if (isMainApp()) {
   );
 } else {
   // login, maintenance or setup pages
-  Promise.all([loadMessages(), loadApp()]).then(
-    ([lang, startReactApp]) => {
-      startReactApp(lang, undefined, undefined);
+
+  const appStatePromise: Promise<T.AppState> = new Promise(resolve =>
+    loadAppState()
+      .then(data => resolve(data))
+      .catch(() => resolve(undefined))
+  );
+
+  Promise.all([loadMessages(), appStatePromise, loadApp()]).then(
+    ([lang, appState, startReactApp]) => {
+      startReactApp(lang, undefined, appState);
     },
     error => {
       logError(error);

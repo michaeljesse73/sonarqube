@@ -31,7 +31,7 @@ exports[`should display choice between import or creation 1`] = `
             }
           }
         />
-        <DeleteButton
+        <ClearButton
           className="little-spacer-left"
           onClick={[MockFunction]}
         />
@@ -130,7 +130,7 @@ exports[`should render prefilled and create org 1`] = `
             }
           }
         />
-        <DeleteButton
+        <ClearButton
           className="little-spacer-left"
           onClick={[MockFunction]}
         />

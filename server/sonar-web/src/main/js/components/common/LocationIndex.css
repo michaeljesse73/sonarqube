@@ -34,17 +34,26 @@
 }
 
 .location-index.selected {
-  background-color: #bc5e5e;
+  background-color: #8f3030;
 }
 
 .location-index.muted {
-  background-color: #ccc;
+  background-color: var(--gray80);
 }
 
-.location-index.is-leading {
+.location-index.is-leading:first-child {
+  margin-left: 0;
+}
+
+.location-index.is-leading:not(:first-child) {
   position: absolute;
-  margin: 1px 0 0 -4px !important;
+  margin-left: -4px;
   transform: translateX(-100%);
+}
+
+.location-index.is-leading + .is-leading {
+  position: relative;
+  transform: none;
 }
 
 .location-index[tabindex] {

@@ -17,33 +17,32 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
+import { omitBy } from 'lodash';
 import * as React from 'react';
 import Helmet from 'react-helmet';
-import { omitBy } from 'lodash';
-import PageHeader from './PageHeader';
-import ProjectsList from './ProjectsList';
-import PageSidebar from './PageSidebar';
-import handleRequiredAuthentication from '../../../app/utils/handleRequiredAuthentication';
+import ListFooter from 'sonar-ui-common/components/controls/ListFooter';
+import DeferredSpinner from 'sonar-ui-common/components/ui/DeferredSpinner';
+import handleRequiredAuthentication from 'sonar-ui-common/helpers/handleRequiredAuthentication';
+import { translate } from 'sonar-ui-common/helpers/l10n';
+import { addSideBarClass, removeSideBarClass } from 'sonar-ui-common/helpers/pages';
+import { get, save } from 'sonar-ui-common/helpers/storage';
 import A11ySkipTarget from '../../../app/components/a11y/A11ySkipTarget';
-import DeferredSpinner from '../../../components/common/DeferredSpinner';
-import ListFooter from '../../../components/controls/ListFooter';
-import OrganizationEmpty from '../../organizations/components/OrganizationEmpty';
-import ScreenPositionHelper from '../../../components/common/ScreenPositionHelper';
 import Suggestions from '../../../app/components/embed-docs-modal/Suggestions';
-import Visualizations from '../visualizations/Visualizations';
-import { Project, Facets } from '../types';
-import { fetchProjects, parseSorting, SORTING_SWITCH } from '../utils';
-import { parseUrlQuery, Query, hasFilterParams, hasVisualizationParams } from '../query';
-import { translate } from '../../../helpers/l10n';
-import { addSideBarClass, removeSideBarClass } from '../../../helpers/pages';
-import { RawQuery } from '../../../helpers/query';
-import { get, save } from '../../../helpers/storage';
+import { OnboardingContext } from '../../../app/components/OnboardingContext';
+import ScreenPositionHelper from '../../../components/common/ScreenPositionHelper';
+import { Location, Router, withRouter } from '../../../components/hoc/withRouter';
+import '../../../components/search-navigator.css';
 import { isSonarCloud } from '../../../helpers/system';
 import { isLoggedIn } from '../../../helpers/users';
-import { OnboardingContext } from '../../../app/components/OnboardingContext';
-import { withRouter, Location, Router } from '../../../components/hoc/withRouter';
-import '../../../components/search-navigator.css';
+import OrganizationEmpty from '../../organizations/components/OrganizationEmpty';
+import { hasFilterParams, hasVisualizationParams, parseUrlQuery, Query } from '../query';
 import '../styles.css';
+import { Facets, Project } from '../types';
+import { fetchProjects, parseSorting, SORTING_SWITCH } from '../utils';
+import Visualizations from '../visualizations/Visualizations';
+import PageHeader from './PageHeader';
+import PageSidebar from './PageSidebar';
+import ProjectsList from './ProjectsList';
 
 interface Props {
   currentUser: T.CurrentUser;
@@ -172,6 +171,18 @@ export class AllProjects extends React.PureComponent<Props, State> {
     this.props.router.push({ pathname: this.props.location.pathname });
   };
 
+  handleFavorite = (key: string, isFavorite: boolean) => {
+    this.setState(({ projects }) => {
+      if (!projects) {
+        return null;
+      }
+
+      return {
+        projects: projects.map(p => (p.key === key ? { ...p, isFavorite } : p))
+      };
+    });
+  };
+
   handlePerspectiveChange = ({ view, visualization }: { view: string; visualization?: string }) => {
     const { storageOptionsSuffix } = this.props;
     const query: {
@@ -225,7 +236,7 @@ export class AllProjects extends React.PureComponent<Props, State> {
     }
   };
 
-  updateLocationQuery = (newQuery: RawQuery) => {
+  updateLocationQuery = (newQuery: T.RawQuery) => {
     const query = omitBy({ ...this.props.location.query, ...newQuery }, x => !x);
     this.props.router.push({ pathname: this.props.location.pathname, query });
   };
@@ -297,42 +308,44 @@ export class AllProjects extends React.PureComponent<Props, State> {
   );
 
   renderMain = () => {
-    return (
-      <DeferredSpinner loading={this.state.loading}>
-        {this.getView() === 'visualizations' ? (
-          <div className="layout-page-main-inner">
-            {this.state.projects && (
-              <Visualizations
-                displayOrganizations={!this.props.organization && isSonarCloud()}
-                projects={this.state.projects}
-                sort={this.state.query.sort}
-                total={this.state.total}
-                visualization={this.getVisualization()}
-              />
-            )}
-          </div>
-        ) : (
-          <div className="layout-page-main-inner">
-            {this.state.projects && (
-              <ProjectsList
-                cardType={this.getView()}
-                currentUser={this.props.currentUser}
-                isFavorite={this.props.isFavorite}
-                isFiltered={hasFilterParams(this.state.query)}
-                organization={this.props.organization}
-                projects={this.state.projects}
-                query={this.state.query}
-              />
-            )}
-            <ListFooter
-              count={this.state.projects !== undefined ? this.state.projects.length : 0}
-              loadMore={this.fetchMoreProjects}
-              ready={!this.state.loading}
-              total={this.state.total !== undefined ? this.state.total : 0}
-            />
-          </div>
+    if (this.state.loading && this.state.projects === undefined) {
+      return <DeferredSpinner />;
+    }
+
+    return this.getView() === 'visualizations' ? (
+      <div className="layout-page-main-inner">
+        {this.state.projects && (
+          <Visualizations
+            displayOrganizations={!this.props.organization && isSonarCloud()}
+            projects={this.state.projects}
+            sort={this.state.query.sort}
+            total={this.state.total}
+            visualization={this.getVisualization()}
+          />
         )}
-      </DeferredSpinner>
+      </div>
+    ) : (
+      <div className="layout-page-main-inner">
+        {this.state.projects && (
+          <ProjectsList
+            cardType={this.getView()}
+            currentUser={this.props.currentUser}
+            handleFavorite={this.handleFavorite}
+            isFavorite={this.props.isFavorite}
+            isFiltered={hasFilterParams(this.state.query)}
+            organization={this.props.organization}
+            projects={this.state.projects}
+            query={this.state.query}
+          />
+        )}
+        <ListFooter
+          count={this.state.projects !== undefined ? this.state.projects.length : 0}
+          loading={this.state.loading}
+          loadMore={this.fetchMoreProjects}
+          ready={!this.state.loading}
+          total={this.state.total !== undefined ? this.state.total : 0}
+        />
+      </div>
     );
   };
 

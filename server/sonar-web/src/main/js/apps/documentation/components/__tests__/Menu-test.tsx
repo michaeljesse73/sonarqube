@@ -17,8 +17,8 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { shallow } from 'enzyme';
+import * as React from 'react';
 import Menu from '../Menu';
 
 function createPage(title: string, relativeName: string, text = '') {
@@ -44,13 +44,15 @@ const pages = [
 ];
 
 it('should render hierarchical menu', () => {
-  expect(
-    shallow(
-      <Menu
-        navigation={[{ title: 'Block', children: ['/lorem/index', '/lorem/origin'] }, 'foobar']}
-        pages={pages}
-        splat="lorem/origin"
-      />
-    )
-  ).toMatchSnapshot();
+  const wrapper = shallow(
+    <Menu
+      navigation={[{ title: 'Block', children: ['/lorem/index', '/lorem/origin'] }, 'foobar']}
+      pages={pages}
+      splat="lorem/origin"
+    />
+  );
+
+  expect(wrapper).toMatchSnapshot();
+  wrapper.setProps({ splat: 'baz/bar' });
+  expect(wrapper).toMatchSnapshot();
 });

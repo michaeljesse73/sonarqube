@@ -17,14 +17,16 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
+import { sanitize } from 'dompurify';
 import * as React from 'react';
+import { DeleteButton, EditButton } from 'sonar-ui-common/components/controls/buttons';
+import Toggler from 'sonar-ui-common/components/controls/Toggler';
+import { PopupPlacement } from 'sonar-ui-common/components/ui/popups';
+import { translateWithParameters } from 'sonar-ui-common/helpers/l10n';
+import DateFromNow from '../../intl/DateFromNow';
 import Avatar from '../../ui/Avatar';
-import Toggler from '../../controls/Toggler';
-import { EditButton, DeleteButton } from '../../ui/buttons';
 import CommentDeletePopup from '../popups/CommentDeletePopup';
 import CommentPopup from '../popups/CommentPopup';
-import DateFromNow from '../../intl/DateFromNow';
-import { PopupPlacement } from '../../ui/popups';
 
 interface Props {
   comment: T.IssueComment;
@@ -76,20 +78,25 @@ export default class IssueCommentLine extends React.PureComponent<Props, State> 
 
   render() {
     const { comment } = this.props;
+    const author = comment.authorName || comment.author;
+    const displayName =
+      comment.authorActive === false && author
+        ? translateWithParameters('user.x_deleted', author)
+        : author;
     return (
       <div className="issue-comment">
-        <div className="issue-comment-author" title={comment.authorName}>
+        <div className="issue-comment-author" title={displayName}>
           <Avatar
             className="little-spacer-right"
             hash={comment.authorAvatar}
-            name={comment.authorName || comment.author}
+            name={author}
             size={16}
           />
-          {comment.authorName || comment.author}
+          {displayName}
         </div>
         <div
           className="issue-comment-text markdown"
-          dangerouslySetInnerHTML={{ __html: comment.htmlText }}
+          dangerouslySetInnerHTML={{ __html: sanitize(comment.htmlText) }}
         />
         <div className="issue-comment-age">
           <DateFromNow date={comment.createdAt} />

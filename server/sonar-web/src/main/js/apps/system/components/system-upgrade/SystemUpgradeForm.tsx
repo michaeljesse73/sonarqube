@@ -18,14 +18,13 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
+import { ResetButtonLink } from 'sonar-ui-common/components/controls/buttons';
+import Modal from 'sonar-ui-common/components/controls/Modal';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import SystemUpgradeItem from './SystemUpgradeItem';
-import { SystemUpgrade } from '../../../../api/system';
-import Modal from '../../../../components/controls/Modal';
-import { translate } from '../../../../helpers/l10n';
-import { ResetButtonLink } from '../../../../components/ui/buttons';
 
 interface Props {
-  systemUpgrades: SystemUpgrade[][];
+  systemUpgrades: T.SystemUpgrade[][];
   onClose: () => void;
 }
 

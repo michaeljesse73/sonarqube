@@ -17,10 +17,10 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { shallow } from 'enzyme';
+import * as React from 'react';
+import { parseDate } from 'sonar-ui-common/helpers/dates';
 import ProjectActivityPageHeader from '../ProjectActivityPageHeader';
-import { parseDate } from '../../../../helpers/dates';
 
 it('should render correctly the list of series', () => {
   expect(

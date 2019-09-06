@@ -7,7 +7,7 @@ We know that your code is very important to you and your business. We also know 
 
 ## Hosting
 
-SonarCloud is hosted on Amazon AWS in Frankfurt and Ireland. 
+SonarCloud runs primarily off the AWS Frankfurt region. It also uses marginally services located in the AWS Ireland region when they are not available in Frankfurt.
 
 ## System security
 
@@ -16,9 +16,9 @@ SonarCloud uses its own Virtual Private Cloud (AWS VPC). Accesses to the infrast
 
 ## Data security
 
-At the infrastructure level, access to data is controlled by virtue of being hosted in a network zone which only the Technology Operations have access to. 
+At the infrastructure level, access to data is controlled by virtue of being hosted in network zones which only the Technology Operations have access to. 
 
-To insure data availability, a replica of the SonarCloud database is maintained real time in a different availability zone. In addition, the database is fully backed up everyday with a 7 days retention. 
+To insure data availability, the SonarCloud database is replicated in quasi real time between 2 availability zones both within the Frankfurt region. In addition, the database is fully backed up every day with a 7 days retention. 
 
 At the software level, SonarCloud ensures private source code is accessible to organization members only, in addition to SonarSource Technology Operations team for support purposes only.
 
@@ -28,30 +28,19 @@ At the software level, SonarCloud ensures private source code is accessible to o
 
 SonarCloud UI and APIs regularly pass penetration testing conducted by a an external company, specialized in cyber and application security, certified in accordance to ISO-27001 and which is also member of the OWASP.
 
+In case you find a vulnerability, please follow our [Responsible Vulnerability Disclosure process](https://community.sonarsource.com/t/responsible-vulnerability-disclosure/9317) to report it to our Security team.
+
 ## Communications
 
-All communications are done over TLS 1.2:
+All communications are done over TLS and support TLS 1.2:
 * Navigating in the Web application
 * Using WS APIs
 * Running analysis (by the scanners) from CI services and pushing analysis reports to SonarCloud
 
-## SonarCloud Webhook IPs
+## SonarCloud Webhooks 
 
-SonarCloud performs webhook calls from the following list of IPs:
-```
-3.120.158.225
-3.121.87.141 
-52.59.209.17
-52.59.246.1
-54.93.180.144
-18.184.94.137
-18.184.195.184 
-18.185.94.218 
-18.194.44.125
-18.194.206.183
-18.194.244.158
-18.195.64.198
-```
+You can use secrets to secure webhooks and ensure they are coming from SonarCloud (see the "Securing your webhooks" section of the [Webhooks](/project-administration/webhooks/#securing-your-webhooks) page for more information). 
+
 
 ## Authentication
 

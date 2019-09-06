@@ -18,11 +18,11 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import ShortLivingBranchIcon from './ShortLivingBranchIcon';
-import LongLivingBranchIcon from './LongLivingBranchIcon';
-import PullRequestIcon from './PullRequestIcon';
-import { IconProps } from './Icon';
-import { isShortLivingBranch, isPullRequest } from '../../helpers/branches';
+import { IconProps } from 'sonar-ui-common/components/icons/Icon';
+import LongLivingBranchIcon from 'sonar-ui-common/components/icons/LongLivingBranchIcon';
+import PullRequestIcon from 'sonar-ui-common/components/icons/PullRequestIcon';
+import ShortLivingBranchIcon from 'sonar-ui-common/components/icons/ShortLivingBranchIcon';
+import { isPullRequest, isShortLivingBranch } from '../../helpers/branches';
 
 interface Props extends IconProps {
   branchLike: T.BranchLike;

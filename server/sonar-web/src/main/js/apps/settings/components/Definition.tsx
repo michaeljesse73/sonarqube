@@ -17,28 +17,29 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
+import classNames from 'classnames';
 import * as React from 'react';
 import { connect } from 'react-redux';
-import classNames from 'classnames';
-import Input from './inputs/Input';
-import DefinitionActions from './DefinitionActions';
-import {
-  getPropertyName,
-  getPropertyDescription,
-  getSettingValue,
-  isDefaultOrInherited
-} from '../utils';
-import AlertErrorIcon from '../../../components/icons-components/AlertErrorIcon';
-import AlertSuccessIcon from '../../../components/icons-components/AlertSuccessIcon';
-import { translateWithParameters, translate } from '../../../helpers/l10n';
-import { resetValue, saveValue, checkValue } from '../store/actions';
-import { cancelChange, changeValue, passValidation } from '../store/settingsPage';
+import AlertErrorIcon from 'sonar-ui-common/components/icons/AlertErrorIcon';
+import AlertSuccessIcon from 'sonar-ui-common/components/icons/AlertSuccessIcon';
+import { translate, translateWithParameters } from 'sonar-ui-common/helpers/l10n';
 import {
   getSettingsAppChangedValue,
   getSettingsAppValidationMessage,
   isSettingsAppLoading,
   Store
 } from '../../../store/rootReducer';
+import { checkValue, resetValue, saveValue } from '../store/actions';
+import { cancelChange, changeValue, passValidation } from '../store/settingsPage';
+import {
+  getPropertyDescription,
+  getPropertyName,
+  getSettingValue,
+  isDefaultOrInherited,
+  sanitizeTranslation
+} from '../utils';
+import DefinitionActions from './DefinitionActions';
+import Input from './inputs/Input';
 
 interface Props {
   cancelChange: (key: string) => void;
@@ -142,7 +143,7 @@ export class Definition extends React.PureComponent<Props, State> {
           {description && (
             <div
               className="markdown small spacer-top"
-              dangerouslySetInnerHTML={{ __html: description }}
+              dangerouslySetInnerHTML={{ __html: sanitizeTranslation(description) }}
             />
           )}
 

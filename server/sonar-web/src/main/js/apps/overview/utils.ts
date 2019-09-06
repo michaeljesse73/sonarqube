@@ -17,12 +17,13 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import { translate } from '../../helpers/l10n';
-import CodeSmellIcon from '../../components/icons-components/CodeSmellIcon';
-import VulnerabilityIcon from '../../components/icons-components/VulnerabilityIcon';
-import BugIcon from '../../components/icons-components/BugIcon';
+import BugIcon from 'sonar-ui-common/components/icons/BugIcon';
+import CodeSmellIcon from 'sonar-ui-common/components/icons/CodeSmellIcon';
+import SecurityHotspotIcon from 'sonar-ui-common/components/icons/SecurityHotspotIcon';
+import VulnerabilityIcon from 'sonar-ui-common/components/icons/VulnerabilityIcon';
+import DuplicationsRating from 'sonar-ui-common/components/ui/DuplicationsRating';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import CoverageRating from '../../components/ui/CoverageRating';
-import DuplicationsRating from '../../components/ui/DuplicationsRating';
 
 export const METRICS = [
   // quality gate
@@ -40,6 +41,8 @@ export const METRICS = [
   'new_vulnerabilities',
   'security_rating',
   'new_security_rating',
+  'security_hotspots',
+  'new_security_hotspots',
 
   // code smells
   'code_smells',
@@ -80,10 +83,13 @@ export const PR_METRICS = [
   'new_bugs',
   'new_reliability_rating',
   'new_vulnerabilities',
+  'new_security_hotspots',
   'new_security_rating'
 ];
 
 export const HISTORY_METRICS_LIST = [
+  'bugs',
+  'vulnerabilities',
   'sqale_index',
   'duplicated_lines_density',
   'ncloc',
@@ -111,7 +117,7 @@ export const MEASUREMENTS_MAP = {
   }
 };
 
-export type IssueType = 'CODE_SMELL' | 'VULNERABILITY' | 'BUG';
+export type IssueType = 'CODE_SMELL' | 'VULNERABILITY' | 'BUG' | 'SECURITY_HOTSPOT';
 
 export const ISSUETYPE_MAP = {
   CODE_SMELL: {
@@ -131,6 +137,12 @@ export const ISSUETYPE_MAP = {
     rating: 'new_reliability_rating',
     ratingName: 'Reliability',
     iconClass: BugIcon
+  },
+  SECURITY_HOTSPOT: {
+    metric: 'new_security_hotspots',
+    rating: '',
+    ratingName: '',
+    iconClass: SecurityHotspotIcon
   }
 };
 

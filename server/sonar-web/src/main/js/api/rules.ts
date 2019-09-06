@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import { post, getJSON, postJSON } from '../helpers/request';
+import { getJSON, post, postJSON } from 'sonar-ui-common/helpers/request';
 import throwGlobalError from '../app/utils/throwGlobalError';
 
 export interface GetRulesAppResponse {
@@ -82,13 +82,13 @@ export function createRule(data: {
 }): Promise<T.RuleDetails> {
   return postJSON('/api/rules/create', data).then(
     r => r.rule,
-    error => {
+    response => {
       // do not show global error if the status code is 409
       // this case should be handled inside a component
-      if (error && error.response && error.response.status === 409) {
-        return Promise.reject(error.response);
+      if (response && response.status === 409) {
+        return Promise.reject(response);
       } else {
-        return throwGlobalError(error);
+        return throwGlobalError(response);
       }
     }
   );

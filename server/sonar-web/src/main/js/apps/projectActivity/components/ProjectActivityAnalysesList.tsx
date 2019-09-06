@@ -17,21 +17,21 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import * as classNames from 'classnames';
 import { throttle } from 'lodash';
-import ProjectActivityAnalysis from './ProjectActivityAnalysis';
+import * as React from 'react';
+import Tooltip from 'sonar-ui-common/components/controls/Tooltip';
+import { toShortNotSoISOString } from 'sonar-ui-common/helpers/dates';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import DateFormatter from '../../../components/intl/DateFormatter';
-import Tooltip from '../../../components/controls/Tooltip';
-import { translate } from '../../../helpers/l10n';
-import { toShortNotSoISOString } from '../../../helpers/dates';
 import {
   activityQueryChanged,
   getAnalysesByVersionByDay,
-  selectedDateQueryChanged,
+  ParsedAnalysis,
   Query,
-  ParsedAnalysis
+  selectedDateQueryChanged
 } from '../utils';
+import ProjectActivityAnalysis from './ProjectActivityAnalysis';
 
 interface Props {
   addCustomEvent: (analysis: string, name: string, category?: string) => Promise<void>;
@@ -197,7 +197,7 @@ export default class ProjectActivityAnalysesList extends React.PureComponent<Pro
                   <Tooltip
                     mouseEnterDelay={0.5}
                     overlay={`${translate('version')} ${version.version}`}>
-                    <span className="badge">{version.version}</span>
+                    <span className="analysis-version">{version.version}</span>
                   </Tooltip>
                 </div>
               )}

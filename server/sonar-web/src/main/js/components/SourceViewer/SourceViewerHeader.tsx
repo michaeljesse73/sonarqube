@@ -20,30 +20,28 @@
 import { stringify } from 'querystring';
 import * as React from 'react';
 import { Link } from 'react-router';
-import MeasuresOverlay from './components/MeasuresOverlay';
-import QualifierIcon from '../icons-components/QualifierIcon';
-import Dropdown from '../controls/Dropdown';
-import Favorite from '../controls/Favorite';
-import ListIcon from '../icons-components/ListIcon';
-import { ButtonIcon } from '../ui/buttons';
-import { PopupPlacement } from '../ui/popups';
-import { WorkspaceContextShape } from '../workspace/context';
-import {
-  getPathUrlAsString,
-  getBranchLikeUrl,
-  getComponentIssuesUrl,
-  getBaseUrl,
-  getCodeUrl
-} from '../../helpers/urls';
-import { collapsedDirFromPath, fileFromPath } from '../../helpers/path';
-import { translate } from '../../helpers/l10n';
+import { ButtonIcon } from 'sonar-ui-common/components/controls/buttons';
+import { ClipboardIconButton } from 'sonar-ui-common/components/controls/clipboard';
+import Dropdown from 'sonar-ui-common/components/controls/Dropdown';
+import ListIcon from 'sonar-ui-common/components/icons/ListIcon';
+import QualifierIcon from 'sonar-ui-common/components/icons/QualifierIcon';
+import { PopupPlacement } from 'sonar-ui-common/components/ui/popups';
+import { translate } from 'sonar-ui-common/helpers/l10n';
+import { formatMeasure } from 'sonar-ui-common/helpers/measures';
+import { collapsedDirFromPath, fileFromPath } from 'sonar-ui-common/helpers/path';
+import { omitNil } from 'sonar-ui-common/helpers/request';
+import { getBaseUrl, getPathUrlAsString } from 'sonar-ui-common/helpers/urls';
 import { getBranchLikeQuery, isMainBranch } from '../../helpers/branches';
-import { formatMeasure } from '../../helpers/measures';
-import { omitNil } from '../../helpers/request';
+import { getBranchLikeUrl, getCodeUrl, getComponentIssuesUrl } from '../../helpers/urls';
+import Favorite from '../controls/Favorite';
+import { WorkspaceContextShape } from '../workspace/context';
+import MeasuresOverlay from './components/MeasuresOverlay';
 
 interface Props {
   branchLike: T.BranchLike | undefined;
+  issues?: T.Issue[];
   openComponent: WorkspaceContextShape['openComponent'];
+  showMeasures?: boolean;
   sourceViewerFile: T.SourceViewerFile;
 }
 
@@ -69,7 +67,43 @@ export default class SourceViewerHeader extends React.PureComponent<Props, State
     this.props.openComponent({ branchLike: this.props.branchLike, key });
   };
 
+  renderIssueMeasures = () => {
+    const { branchLike, issues, sourceViewerFile } = this.props;
+    return (
+      issues &&
+      issues.length > 0 && (
+        <>
+          <div className="source-viewer-header-measure-separator" />
+
+          {['BUG', 'VULNERABILITY', 'CODE_SMELL', 'SECURITY_HOTSPOT'].map((type: T.IssueType) => {
+            const params = {
+              ...getBranchLikeQuery(branchLike),
+              fileUuids: sourceViewerFile.uuid,
+              resolved: 'false',
+              types: type
+            };
+
+            const total = issues.filter(issue => issue.type === type).length;
+            return (
+              <div className="source-viewer-header-measure" key={type}>
+                <span className="source-viewer-header-measure-label">
+                  {translate('issue.type', type)}
+                </span>
+                <span className="source-viewer-header-measure-value">
+                  <Link to={getComponentIssuesUrl(sourceViewerFile.project, params)}>
+                    {formatMeasure(total, 'INT')}
+                  </Link>
+                </span>
+              </div>
+            );
+          })}
+        </>
+      )
+    );
+  };
+
   render() {
+    const { showMeasures } = this.props;
     const {
       key,
       measures,
@@ -78,10 +112,9 @@ export default class SourceViewerHeader extends React.PureComponent<Props, State
       projectName,
       q,
       subProject,
-      subProjectName,
-      uuid
+      subProjectName
     } = this.props.sourceViewerFile;
-    const isUnitTest = q === 'UTS';
+    const unitTestsOrLines = q === 'UTS' ? 'tests' : 'lines';
     const workspace = false;
     const rawSourcesLink =
       getBaseUrl() +
@@ -90,8 +123,8 @@ export default class SourceViewerHeader extends React.PureComponent<Props, State
 
     // TODO favorite
     return (
-      <div className="source-viewer-header">
-        <div className="source-viewer-header-component">
+      <div className="source-viewer-header display-flex-center">
+        <div className="source-viewer-header-component flex-1">
           <div className="component-name">
             <div className="component-name-parent">
               <a
@@ -101,7 +134,7 @@ export default class SourceViewerHeader extends React.PureComponent<Props, State
               </a>
             </div>
 
-            {subProject != null && (
+            {subProject !== undefined && (
               <div className="component-name-parent">
                 <QualifierIcon qualifier="BRC" /> <span>{subProjectName}</span>
               </div>
@@ -110,10 +143,13 @@ export default class SourceViewerHeader extends React.PureComponent<Props, State
             <div className="component-name-path">
               <QualifierIcon qualifier={q} /> <span>{collapsedDirFromPath(path)}</span>
               <span className="component-name-file">{fileFromPath(path)}</span>
+              <span className="nudged-up spacer-left">
+                <ClipboardIconButton className="button-link link-no-underline" copyValue={path} />
+              </span>
               {this.props.sourceViewerFile.canMarkAsFavorite &&
                 (!this.props.branchLike || isMainBranch(this.props.branchLike)) && (
                   <Favorite
-                    className="component-name-favorite"
+                    className="component-name-favorite spacer-left"
                     component={key}
                     favorite={this.props.sourceViewerFile.fav || false}
                     qualifier={this.props.sourceViewerFile.q}
@@ -123,8 +159,55 @@ export default class SourceViewerHeader extends React.PureComponent<Props, State
           </div>
         </div>
 
+        {this.state.measuresOverlay && (
+          <MeasuresOverlay
+            branchLike={this.props.branchLike}
+            onClose={this.handleMeasuresOverlayClose}
+            sourceViewerFile={this.props.sourceViewerFile}
+          />
+        )}
+
+        {showMeasures && (
+          <div className="display-flex-center">
+            {measures[unitTestsOrLines] && (
+              <div className="source-viewer-header-measure">
+                <span className="source-viewer-header-measure-label">
+                  {translate(`metric.${unitTestsOrLines}.name`)}
+                </span>
+                <span className="source-viewer-header-measure-value">
+                  {formatMeasure(measures[unitTestsOrLines], 'SHORT_INT')}
+                </span>
+              </div>
+            )}
+
+            {measures.coverage !== undefined && (
+              <div className="source-viewer-header-measure">
+                <span className="source-viewer-header-measure-label">
+                  {translate('metric.coverage.name')}
+                </span>
+                <span className="source-viewer-header-measure-value">
+                  {formatMeasure(measures.coverage, 'PERCENT')}
+                </span>
+              </div>
+            )}
+
+            {measures.duplicationDensity !== undefined && (
+              <div className="source-viewer-header-measure">
+                <span className="source-viewer-header-measure-label">
+                  {translate('duplications')}
+                </span>
+                <span className="source-viewer-header-measure-value">
+                  {formatMeasure(measures.duplicationDensity, 'PERCENT')}
+                </span>
+              </div>
+            )}
+
+            {this.renderIssueMeasures()}
+          </div>
+        )}
+
         <Dropdown
-          className="source-viewer-header-actions"
+          className="source-viewer-header-actions flex-0"
           overlay={
             <ul className="menu">
               <li>
@@ -164,76 +247,6 @@ export default class SourceViewerHeader extends React.PureComponent<Props, State
             <ListIcon />
           </ButtonIcon>
         </Dropdown>
-
-        {this.state.measuresOverlay && (
-          <MeasuresOverlay
-            branchLike={this.props.branchLike}
-            onClose={this.handleMeasuresOverlayClose}
-            sourceViewerFile={this.props.sourceViewerFile}
-          />
-        )}
-
-        <div className="source-viewer-header-measures">
-          {isUnitTest && (
-            <div className="source-viewer-header-measure">
-              <span className="source-viewer-header-measure-value">
-                {formatMeasure(measures.tests, 'SHORT_INT')}
-              </span>
-              <span className="source-viewer-header-measure-label">
-                {translate('metric.tests.name')}
-              </span>
-            </div>
-          )}
-
-          {!isUnitTest && (
-            <div className="source-viewer-header-measure">
-              <span className="source-viewer-header-measure-value">
-                {formatMeasure(measures.lines, 'SHORT_INT')}
-              </span>
-              <span className="source-viewer-header-measure-label">
-                {translate('metric.lines.name')}
-              </span>
-            </div>
-          )}
-
-          <div className="source-viewer-header-measure">
-            <span className="source-viewer-header-measure-value">
-              <Link
-                to={getComponentIssuesUrl(project, {
-                  resolved: 'false',
-                  fileUuids: uuid,
-                  ...getBranchLikeQuery(this.props.branchLike)
-                })}>
-                {measures.issues != null ? formatMeasure(measures.issues, 'SHORT_INT') : 0}
-              </Link>
-            </span>
-            <span className="source-viewer-header-measure-label">
-              {translate('metric.violations.name')}
-            </span>
-          </div>
-
-          {measures.coverage != null && (
-            <div className="source-viewer-header-measure">
-              <span className="source-viewer-header-measure-value">
-                {formatMeasure(measures.coverage, 'PERCENT')}
-              </span>
-              <span className="source-viewer-header-measure-label">
-                {translate('metric.coverage.name')}
-              </span>
-            </div>
-          )}
-
-          {measures.duplicationDensity != null && (
-            <div className="source-viewer-header-measure">
-              <span className="source-viewer-header-measure-value">
-                {formatMeasure(measures.duplicationDensity, 'PERCENT')}
-              </span>
-              <span className="source-viewer-header-measure-label">
-                {translate('duplications')}
-              </span>
-            </div>
-          )}
-        </div>
       </div>
     );
   }

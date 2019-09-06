@@ -17,13 +17,13 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import tooltipDCE from 'Docs/tooltips/editions/datacenter.md';
 import tooltipDE from 'Docs/tooltips/editions/developer.md';
 import tooltipEE from 'Docs/tooltips/editions/enterprise.md';
+import * as React from 'react';
+import { lazyLoad } from 'sonar-ui-common/components/lazyLoad';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import { Edition, getEditionUrl } from '../utils';
-import { translate } from '../../../helpers/l10n';
-import { lazyLoad } from '../../../components/lazyLoad';
 
 const DocMarkdownBlock = lazyLoad(() => import('../../../components/docs/DocMarkdownBlock'));
 

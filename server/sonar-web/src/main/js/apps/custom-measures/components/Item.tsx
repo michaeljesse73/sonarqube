@@ -18,16 +18,17 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import DeleteForm from './DeleteForm';
-import Form from './Form';
-import MeasureDate from './MeasureDate';
 import ActionsDropdown, {
   ActionsDropdownDivider,
   ActionsDropdownItem
-} from '../../../components/controls/ActionsDropdown';
-import Tooltip from '../../../components/controls/Tooltip';
-import { translate } from '../../../helpers/l10n';
-import { formatMeasure } from '../../../helpers/measures';
+} from 'sonar-ui-common/components/controls/ActionsDropdown';
+import Tooltip from 'sonar-ui-common/components/controls/Tooltip';
+import { translate, translateWithParameters } from 'sonar-ui-common/helpers/l10n';
+import { formatMeasure } from 'sonar-ui-common/helpers/measures';
+import { isUserActive } from '../../../helpers/users';
+import DeleteForm from './DeleteForm';
+import Form from './Form';
+import MeasureDate from './MeasureDate';
 
 interface Props {
   measure: T.CustomMeasure;
@@ -114,7 +115,11 @@ export default class Item extends React.PureComponent<Props, State> {
 
         <td>
           <MeasureDate measure={measure} /> {translate('by_')}{' '}
-          <span className="js-custom-measure-user">{measure.user.name}</span>
+          <span className="js-custom-measure-user">
+            {isUserActive(measure.user)
+              ? measure.user.name || measure.user.login
+              : translateWithParameters('user.x_deleted', measure.user.login)}
+          </span>
         </td>
 
         <td className="thin nowrap">

@@ -17,15 +17,19 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-/* eslint-disable import/first, import/order */
-import * as React from 'react';
 import { shallow } from 'enzyme';
+import * as React from 'react';
+import SelectList, { SelectListFilter } from 'sonar-ui-common/components/controls/SelectList';
+import { waitAndUpdate } from 'sonar-ui-common/helpers/testUtils';
+import { addUserToGroup, getUsersInGroup, removeUserFromGroup } from '../../../../api/user_groups';
 import EditMembersModal from '../EditMembersModal';
-import { waitAndUpdate } from '../../../../helpers/testUtils';
+
+const organization = 'orga';
+const group = { id: 1, name: 'foo', membersCount: 1 };
 
 jest.mock('../../../../api/user_groups', () => ({
   getUsersInGroup: jest.fn().mockResolvedValue({
-    paging: { pageIndex: 0, pageSize: 10, total: 0 },
+    paging: { pageIndex: 1, pageSize: 10, total: 1 },
     users: [
       {
         login: 'foo',
@@ -33,20 +37,81 @@ jest.mock('../../../../api/user_groups', () => ({
         selected: true
       }
     ]
-  })
+  }),
+  addUserToGroup: jest.fn().mockResolvedValue({}),
+  removeUserFromGroup: jest.fn().mockResolvedValue({})
 }));
 
-const getUsersInGroup = require('../../../../api/user_groups').getUsersInGroup as jest.Mock<any>;
+beforeEach(() => {
+  jest.clearAllMocks();
+});
 
-const group = { id: 1, name: 'foo', membersCount: 1 };
+it('should render modal properly', async () => {
+  const wrapper = shallowRender();
+  wrapper
+    .find(SelectList)
+    .props()
+    .onSearch({
+      query: '',
+      filter: SelectListFilter.Selected,
+      page: 1,
+      pageSize: 100
+    });
+  await waitAndUpdate(wrapper);
+  expect(wrapper.state().needToReload).toBe(false);
 
-it('should render modal', async () => {
-  getUsersInGroup.mockClear();
-
-  const wrapper = shallow(<EditMembersModal group={group} onClose={() => {}} organization="bar" />);
+  expect(wrapper.instance().mounted).toBe(true);
   expect(wrapper).toMatchSnapshot();
+  expect(wrapper.instance().renderElement('test1')).toMatchSnapshot();
+  expect(wrapper.instance().renderElement('test_foo')).toMatchSnapshot();
+
+  expect(getUsersInGroup).toHaveBeenCalledWith(
+    expect.objectContaining({
+      name: group.name,
+      organization,
+      p: 1,
+      ps: 100,
+      q: undefined,
+      selected: SelectListFilter.Selected
+    })
+  );
+
+  wrapper.instance().componentWillUnmount();
+  expect(wrapper.instance().mounted).toBe(false);
+});
+
+it('should handle selection properly', async () => {
+  const wrapper = shallowRender();
+  wrapper.instance().handleSelect('toto');
+  await waitAndUpdate(wrapper);
+
+  expect(addUserToGroup).toHaveBeenCalledWith(
+    expect.objectContaining({
+      name: group.name,
+      organization,
+      login: 'toto'
+    })
+  );
+  expect(wrapper.state().needToReload).toBe(true);
+});
+
+it('should handle deselection properly', async () => {
+  const wrapper = shallowRender();
+  wrapper.instance().handleUnselect('tata');
 
   await waitAndUpdate(wrapper);
-  expect(getUsersInGroup).toHaveBeenCalledTimes(1);
-  expect(wrapper).toMatchSnapshot();
+  expect(removeUserFromGroup).toHaveBeenCalledWith(
+    expect.objectContaining({
+      name: group.name,
+      organization,
+      login: 'tata'
+    })
+  );
+  expect(wrapper.state().needToReload).toBe(true);
 });
+
+function shallowRender(props: Partial<EditMembersModal['props']> = {}) {
+  return shallow<EditMembersModal>(
+    <EditMembersModal group={group} onClose={jest.fn()} organization={organization} {...props} />
+  );
+}

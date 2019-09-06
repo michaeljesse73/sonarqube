@@ -17,10 +17,10 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { shallow } from 'enzyme';
+import * as React from 'react';
+import { waitAndUpdate } from 'sonar-ui-common/helpers/testUtils';
 import EmailAlreadyExists from '../EmailAlreadyExists';
-import { waitAndUpdate } from '../../../../helpers/testUtils';
 
 jest.mock('../../../../api/users', () => ({
   getIdentityProviders: () =>
@@ -42,15 +42,16 @@ jest.mock('../../../../api/users', () => ({
     })
 }));
 
+jest.mock('sonar-ui-common/helpers/cookies', () => ({
+  getCookie: jest
+    .fn()
+    .mockReturnValue(
+      '%7B%22email%22%3A%22mail%40example.com%22%2C%22login%22%3A%22foo%22%2C%22provider%22%3A%22github%22%2C%22existingLogin%22%3A%22bar%22%2C%22existingProvider%22%3A%22bitbucket%22%7D'
+    )
+}));
+
 it('render', async () => {
-  const query = {
-    email: 'mail@example.com',
-    login: 'foo',
-    provider: 'github',
-    existingLogin: 'bar',
-    existingProvider: 'bitbucket'
-  };
-  const wrapper = shallow(<EmailAlreadyExists location={{ query }} />);
+  const wrapper = shallow(<EmailAlreadyExists />);
   (wrapper.instance() as EmailAlreadyExists).mounted = true;
   (wrapper.instance() as EmailAlreadyExists).fetchIdentityProviders();
   await waitAndUpdate(wrapper);

@@ -18,12 +18,12 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import DrilldownLink from '../../../components/shared/DrilldownLink';
-import Rating from '../../../components/ui/Rating';
-import Tooltip from '../../../components/controls/Tooltip';
-import { getRatingName, ISSUETYPE_MAP, IssueType } from '../utils';
+import Tooltip from 'sonar-ui-common/components/controls/Tooltip';
+import Rating from 'sonar-ui-common/components/ui/Rating';
 import { getLeakValue, getRatingTooltip } from '../../../components/measure/utils';
+import DrilldownLink from '../../../components/shared/DrilldownLink';
 import { findMeasure } from '../../../helpers/measures';
+import { getRatingName, IssueType, ISSUETYPE_MAP } from '../utils';
 
 interface Props {
   branchLike?: T.ShortLivingBranch | T.PullRequest;
@@ -36,7 +36,7 @@ export default function IssueRating({ branchLike, component, measures, type }: P
   const { rating } = ISSUETYPE_MAP[type];
   const measure = findMeasure(measures, rating);
 
-  if (measure === undefined) {
+  if (!rating || !measure) {
     return null;
   }
 

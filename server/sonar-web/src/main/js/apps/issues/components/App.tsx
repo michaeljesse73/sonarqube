@@ -17,23 +17,46 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
-import { FormattedMessage } from 'react-intl';
 import * as key from 'keymaster';
+import { debounce, keyBy, omit, without } from 'lodash';
+import * as React from 'react';
 import Helmet from 'react-helmet';
-import { keyBy, omit, without } from 'lodash';
-import BulkChangeModal, { MAX_PAGE_SIZE } from './BulkChangeModal';
-import ComponentBreadcrumbs from './ComponentBreadcrumbs';
-import IssuesList from './IssuesList';
-import IssuesSourceViewer from './IssuesSourceViewer';
-import MyIssuesFilter from './MyIssuesFilter';
-import NoIssues from './NoIssues';
-import NoMyIssues from './NoMyIssues';
-import PageActions from './PageActions';
+import { FormattedMessage } from 'react-intl';
+import { connect } from 'react-redux';
+import { Button } from 'sonar-ui-common/components/controls/buttons';
+import Checkbox from 'sonar-ui-common/components/controls/Checkbox';
+import ListFooter from 'sonar-ui-common/components/controls/ListFooter';
+import { Alert } from 'sonar-ui-common/components/ui/Alert';
+import DeferredSpinner from 'sonar-ui-common/components/ui/DeferredSpinner';
+import handleRequiredAuthentication from 'sonar-ui-common/helpers/handleRequiredAuthentication';
+import { translate, translateWithParameters } from 'sonar-ui-common/helpers/l10n';
+import {
+  addSideBarClass,
+  addWhitePageClass,
+  removeSideBarClass,
+  removeWhitePageClass
+} from 'sonar-ui-common/helpers/pages';
+import A11ySkipTarget from '../../../app/components/a11y/A11ySkipTarget';
+import Suggestions from '../../../app/components/embed-docs-modal/Suggestions';
+import EmptySearch from '../../../components/common/EmptySearch';
+import FiltersHeader from '../../../components/common/FiltersHeader';
+import ScreenPositionHelper from '../../../components/common/ScreenPositionHelper';
+import { Location, Router, withRouter } from '../../../components/hoc/withRouter';
+import '../../../components/search-navigator.css';
+import {
+  fillBranchLike,
+  getBranchLikeQuery,
+  isPullRequest,
+  isSameBranchLike,
+  isShortLivingBranch
+} from '../../../helpers/branches';
+import { isSonarCloud } from '../../../helpers/system';
+import { fetchBranchStatus } from '../../../store/rootActions';
+import * as actions from '../actions';
 import ConciseIssuesList from '../conciseIssuesList/ConciseIssuesList';
 import ConciseIssuesListHeader from '../conciseIssuesList/ConciseIssuesListHeader';
 import Sidebar from '../sidebar/Sidebar';
-import * as actions from '../actions';
+import '../styles.css';
 import {
   areMyIssuesSelected,
   areQueriesEqual,
@@ -46,43 +69,23 @@ import {
   RawFacet,
   ReferencedComponent,
   ReferencedLanguage,
-  ReferencedUser,
-  saveMyIssues,
-  serializeQuery,
-  STANDARDS,
   ReferencedRule,
-  scrollToIssue
+  saveMyIssues,
+  scrollToIssue,
+  serializeQuery,
+  shouldOpenSeverityFacet,
+  shouldOpenSonarSourceSecurityFacet,
+  shouldOpenStandardsChildFacet,
+  shouldOpenStandardsFacet,
+  STANDARDS
 } from '../utils';
-import A11ySkipTarget from '../../../app/components/a11y/A11ySkipTarget';
-import { Alert } from '../../../components/ui/Alert';
-import { Button } from '../../../components/ui/buttons';
-import Checkbox from '../../../components/controls/Checkbox';
-import DeferredSpinner from '../../../components/common/DeferredSpinner';
-import EmptySearch from '../../../components/common/EmptySearch';
-import FiltersHeader from '../../../components/common/FiltersHeader';
-import handleRequiredAuthentication from '../../../app/utils/handleRequiredAuthentication';
-import ListFooter from '../../../components/controls/ListFooter';
-import ScreenPositionHelper from '../../../components/common/ScreenPositionHelper';
-import Suggestions from '../../../app/components/embed-docs-modal/Suggestions';
-import {
-  isShortLivingBranch,
-  isSameBranchLike,
-  getBranchLikeQuery,
-  isPullRequest,
-  fillBranchLike
-} from '../../../helpers/branches';
-import { translate, translateWithParameters } from '../../../helpers/l10n';
-import { RawQuery } from '../../../helpers/query';
-import {
-  addSideBarClass,
-  addWhitePageClass,
-  removeSideBarClass,
-  removeWhitePageClass
-} from '../../../helpers/pages';
-import { isSonarCloud } from '../../../helpers/system';
-import { withRouter, Location, Router } from '../../../components/hoc/withRouter';
-import '../../../components/search-navigator.css';
-import '../styles.css';
+import BulkChangeModal, { MAX_PAGE_SIZE } from './BulkChangeModal';
+import IssuesList from './IssuesList';
+import IssuesSourceViewer from './IssuesSourceViewer';
+import MyIssuesFilter from './MyIssuesFilter';
+import NoIssues from './NoIssues';
+import NoMyIssues from './NoMyIssues';
+import PageActions from './PageActions';
 
 interface FetchIssuesPromise {
   components: ReferencedComponent[];
@@ -92,14 +95,15 @@ interface FetchIssuesPromise {
   languages: ReferencedLanguage[];
   paging: T.Paging;
   rules: ReferencedRule[];
-  users: ReferencedUser[];
+  users: T.UserBase[];
 }
 
 interface Props {
   branchLike?: T.BranchLike;
   component?: T.Component;
   currentUser: T.CurrentUser;
-  fetchIssues: (query: RawQuery, requestOrganizations?: boolean) => Promise<FetchIssuesPromise>;
+  fetchBranchStatus: (branchLike: T.BranchLike, projectKey: string) => Promise<void>;
+  fetchIssues: (query: T.RawQuery, requestOrganizations?: boolean) => Promise<FetchIssuesPromise>;
   hideAuthorFacet?: boolean;
   location: Pick<Location, 'pathname' | 'query'>;
   multiOrganizations?: boolean;
@@ -131,7 +135,7 @@ export interface State {
   referencedComponentsByKey: T.Dict<ReferencedComponent>;
   referencedLanguages: T.Dict<ReferencedLanguage>;
   referencedRules: T.Dict<ReferencedRule>;
-  referencedUsers: T.Dict<ReferencedUser>;
+  referencedUsers: T.Dict<T.UserBase>;
   selected?: string;
   selectedFlowIndex?: number;
   selectedLocationIndex?: number;
@@ -144,6 +148,7 @@ export class App extends React.PureComponent<Props, State> {
 
   constructor(props: Props) {
     super(props);
+    const query = parseQuery(props.location.query);
     this.state = {
       bulkChangeModal: false,
       checked: [],
@@ -154,8 +159,15 @@ export class App extends React.PureComponent<Props, State> {
       loadingMore: false,
       locationsNavigator: false,
       myIssues: props.myIssues || areMyIssuesSelected(props.location.query),
-      openFacets: { severities: true, types: true },
-      query: parseQuery(props.location.query),
+      openFacets: {
+        owaspTop10: shouldOpenStandardsChildFacet({}, query, 'owaspTop10'),
+        sansTop25: shouldOpenStandardsChildFacet({}, query, 'sansTop25'),
+        severities: shouldOpenSeverityFacet({}, query),
+        sonarsourceSecurity: shouldOpenSonarSourceSecurityFacet({}, query),
+        standards: shouldOpenStandardsFacet({}, query),
+        types: true
+      },
+      query,
       referencedComponentsById: {},
       referencedComponentsByKey: {},
       referencedLanguages: {},
@@ -163,6 +175,7 @@ export class App extends React.PureComponent<Props, State> {
       referencedUsers: {},
       selected: getOpen(props.location.query)
     };
+    this.refreshBranchStatus = debounce(this.refreshBranchStatus, 1000);
   }
 
   componentDidMount() {
@@ -399,7 +412,7 @@ export class App extends React.PureComponent<Props, State> {
   };
 
   fetchIssues = (
-    additional: RawQuery,
+    additional: T.RawQuery,
     requestFacets = false,
     requestOrganizations = true
   ): Promise<FetchIssuesPromise> => {
@@ -587,7 +600,6 @@ export class App extends React.PureComponent<Props, State> {
 
   fetchFacet = (facet: string) => {
     const requestOrganizations = facet === 'projects';
-    this.setState(state => ({ loadingFacets: { ...state.loadingFacets, [facet]: true } }));
     return this.fetchIssues({ ps: 1, facets: mapFacet(facet) }, false, requestOrganizations).then(
       ({ facets, ...other }) => {
         if (this.mounted) {
@@ -644,7 +656,6 @@ export class App extends React.PureComponent<Props, State> {
   };
 
   handleFilterChange = (changes: Partial<Query>) => {
-    this.setState({ loading: true });
     this.props.router.push({
       pathname: this.props.location.pathname,
       query: {
@@ -654,6 +665,14 @@ export class App extends React.PureComponent<Props, State> {
         myIssues: this.state.myIssues ? 'true' : undefined
       }
     });
+    this.setState(({ openFacets }) => ({
+      openFacets: {
+        ...openFacets,
+        severities: shouldOpenSeverityFacet(openFacets, changes),
+        sonarsourceSecurity: shouldOpenSonarSourceSecurityFacet(openFacets, changes),
+        standards: shouldOpenStandardsFacet(openFacets, changes)
+      }
+    }));
   };
 
   handleMyIssuesChange = (myIssues: boolean) => {
@@ -706,12 +725,31 @@ export class App extends React.PureComponent<Props, State> {
   };
 
   handleFacetToggle = (property: string) => {
-    this.setState(state => ({
-      openFacets: { ...state.openFacets, [property]: !state.openFacets[property] }
-    }));
-    if (property !== STANDARDS && !this.state.facets[property]) {
-      this.fetchFacet(property);
-    }
+    this.setState(state => {
+      const willOpenProperty = !state.openFacets[property];
+      const newState = {
+        loadingFacets: state.loadingFacets,
+        openFacets: { ...state.openFacets, [property]: willOpenProperty }
+      };
+
+      // Try to open sonarsource security "subfacet" by default if the standard facet is open
+      if (willOpenProperty && property === STANDARDS) {
+        newState.openFacets.sonarsourceSecurity = shouldOpenSonarSourceSecurityFacet(
+          newState.openFacets,
+          state.query
+        );
+        // Force loading of sonarsource security facet data
+        property = newState.openFacets.sonarsourceSecurity ? 'sonarsourceSecurity' : property;
+      }
+
+      // No need to load facets data for standard facet
+      if (property !== STANDARDS && !state.facets[property]) {
+        newState.loadingFacets[property] = true;
+        this.fetchFacet(property);
+      }
+
+      return newState;
+    });
   };
 
   handleReset = () => {
@@ -749,6 +787,7 @@ export class App extends React.PureComponent<Props, State> {
   };
 
   handleIssueChange = (issue: T.Issue) => {
+    this.refreshBranchStatus();
     this.setState(state => ({
       issues: state.issues.map(candidate => (candidate.key === issue.key ? issue : candidate))
     }));
@@ -766,12 +805,14 @@ export class App extends React.PureComponent<Props, State> {
 
   handleBulkChangeDone = () => {
     this.setState({ checkAll: false });
+    this.refreshBranchStatus();
     this.fetchFirstIssues();
     this.handleCloseBulkChange();
   };
 
   handleReload = () => {
     this.fetchFirstIssues();
+    this.refreshBranchStatus();
     if (isShortLivingBranch(this.props.branchLike) || isPullRequest(this.props.branchLike)) {
       this.props.onBranchesChange();
     }
@@ -788,7 +829,7 @@ export class App extends React.PureComponent<Props, State> {
     );
   };
 
-  selectLocation = (index?: number) => {
+  selectLocation = (index: number) => {
     this.setState(actions.selectLocation(index));
   };
 
@@ -823,6 +864,13 @@ export class App extends React.PureComponent<Props, State> {
     this.setState(actions.selectPreviousFlow);
   };
 
+  refreshBranchStatus = () => {
+    const { branchLike, component } = this.props;
+    if (branchLike && component && (isPullRequest(branchLike) || isShortLivingBranch(branchLike))) {
+      this.props.fetchBranchStatus(branchLike, component.key);
+    }
+  };
+
   renderBulkChange(openIssue: T.Issue | undefined) {
     const { component, currentUser } = this.props;
     const { checkAll, bulkChangeModal, checked, issues, paging } = this.state;
@@ -839,11 +887,12 @@ export class App extends React.PureComponent<Props, State> {
       <div className="pull-left">
         <Checkbox
           checked={isChecked}
-          className="spacer-right vertical-middle"
+          className="spacer-right text-middle"
           disabled={issues.length === 0}
           id="issues-selection"
           onCheck={this.handleCheckAll}
           thirdState={thirdState}
+          title={translate('issues.select_all_issues')}
         />
         <Button
           disabled={checked.length === 0}
@@ -1022,36 +1071,49 @@ export class App extends React.PureComponent<Props, State> {
     );
   }
 
-  renderShortcutsForLocations() {
-    const { openIssue } = this.state;
-    if (!openIssue || (!openIssue.secondaryLocations.length && !openIssue.flows.length)) {
-      return null;
-    }
-    const hasSeveralFlows = openIssue.flows.length > 1;
-    return (
-      <div className="pull-right note">
-        <span className="shortcut-button little-spacer-right">alt</span>
-        <span className="little-spacer-right">{'+'}</span>
-        <span className="shortcut-button little-spacer-right">↑</span>
-        <span className="shortcut-button little-spacer-right">↓</span>
-        {hasSeveralFlows && (
-          <span>
-            <span className="shortcut-button little-spacer-right">←</span>
-            <span className="shortcut-button little-spacer-right">→</span>
-          </span>
-        )}
-        {translate('issues.to_navigate_issue_locations')}
+  renderHeader({
+    openIssue,
+    paging,
+    selectedIndex
+  }: {
+    openIssue: T.Issue | undefined;
+    paging: T.Paging | undefined;
+    selectedIndex: number | undefined;
+  }) {
+    return openIssue ? (
+      <A11ySkipTarget anchor="issues_main" />
+    ) : (
+      <div className="layout-page-header-panel layout-page-main-header issues-main-header">
+        <div className="layout-page-header-panel-inner layout-page-main-header-inner">
+          <div className="layout-page-main-inner">
+            <A11ySkipTarget anchor="issues_main" />
+
+            {this.renderBulkChange(openIssue)}
+            <PageActions
+              canSetHome={Boolean(
+                !this.props.organization &&
+                  !this.props.component &&
+                  (!isSonarCloud() || this.props.myIssues)
+              )}
+              effortTotal={this.state.effortTotal}
+              onReload={this.handleReload}
+              paging={paging}
+              selectedIndex={selectedIndex}
+            />
+          </div>
+        </div>
       </div>
     );
   }
 
   renderPage() {
-    const { checkAll, loading, openIssue, paging } = this.state;
+    const { checkAll, issues, loading, openIssue, paging } = this.state;
     return (
       <div className="layout-page-main-inner">
         {openIssue ? (
           <IssuesSourceViewer
             branchLike={fillBranchLike(openIssue.branch, openIssue.pullRequest)}
+            issues={issues}
             loadIssues={this.fetchIssuesForComponent}
             locationsNavigator={this.state.locationsNavigator}
             onIssueChange={this.handleIssueChange}
@@ -1080,7 +1142,6 @@ export class App extends React.PureComponent<Props, State> {
   }
 
   render() {
-    const { component } = this.props;
     const { openIssue, paging } = this.state;
     const selectedIndex = this.getSelectedIndex();
     return (
@@ -1091,39 +1152,7 @@ export class App extends React.PureComponent<Props, State> {
         {this.renderSide(openIssue)}
 
         <div className="layout-page-main">
-          <div className="layout-page-header-panel layout-page-main-header issues-main-header">
-            <div className="layout-page-header-panel-inner layout-page-main-header-inner">
-              <div className="layout-page-main-inner">
-                <A11ySkipTarget anchor="issues_main" />
-
-                {this.renderBulkChange(openIssue)}
-                {openIssue ? (
-                  <div className="pull-left width-60">
-                    <ComponentBreadcrumbs
-                      component={component}
-                      issue={openIssue}
-                      organization={this.props.organization}
-                      selectedFlowIndex={this.state.selectedFlowIndex}
-                      selectedLocationIndex={this.state.selectedLocationIndex}
-                    />
-                  </div>
-                ) : (
-                  <PageActions
-                    canSetHome={Boolean(
-                      !this.props.organization &&
-                        !this.props.component &&
-                        (!isSonarCloud() || this.props.myIssues)
-                    )}
-                    effortTotal={this.state.effortTotal}
-                    onReload={this.handleReload}
-                    paging={paging}
-                    selectedIndex={selectedIndex}
-                  />
-                )}
-                {this.renderShortcutsForLocations()}
-              </div>
-            </div>
-          </div>
+          {this.renderHeader({ openIssue, paging, selectedIndex })}
 
           {this.renderPage()}
         </div>
@@ -1132,4 +1161,11 @@ export class App extends React.PureComponent<Props, State> {
   }
 }
 
-export default withRouter(App);
+const mapDispatchToProps = { fetchBranchStatus: fetchBranchStatus as any };
+
+export default withRouter(
+  connect(
+    null,
+    mapDispatchToProps
+  )(App)
+);

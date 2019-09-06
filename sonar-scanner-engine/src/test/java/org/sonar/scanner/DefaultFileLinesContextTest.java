@@ -25,10 +25,10 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.mockito.ArgumentCaptor;
-import org.sonar.api.batch.fs.internal.DefaultInputFile;
-import org.sonar.api.batch.fs.internal.TestInputFileBuilder;
 import org.sonar.api.batch.measure.MetricFinder;
 import org.sonar.api.batch.sensor.internal.SensorStorage;
+import org.sonar.api.batch.fs.internal.DefaultInputFile;
+import org.sonar.api.batch.fs.internal.TestInputFileBuilder;
 import org.sonar.api.batch.sensor.measure.internal.DefaultMeasure;
 import org.sonar.api.measures.CoreMetrics;
 
@@ -56,7 +56,7 @@ public class DefaultFileLinesContextTest {
   private DefaultInputFile file;
 
   @Before
-  public void setUp() throws Exception {
+  public void setUp() {
     MetricFinder metricFinder = mock(MetricFinder.class);
     org.sonar.api.batch.measure.Metric<String> hitsMetric = mock(org.sonar.api.batch.measure.Metric.class);
     when(hitsMetric.valueType()).thenReturn(String.class);
@@ -83,7 +83,7 @@ public class DefaultFileLinesContextTest {
     fileLineMeasures.setIntValue(HITS_METRIC_KEY, 3, 0);
     fileLineMeasures.save();
 
-    assertThat(fileLineMeasures.toString()).isEqualTo("DefaultFileLinesContext{map={hits={1=2, 3=0}}}");
+    assertThat(fileLineMeasures.toString()).isEqualTo("DefaultFileLinesContext{{hits={1=2, 3=0}}}");
 
     ArgumentCaptor<DefaultMeasure> captor = ArgumentCaptor.forClass(DefaultMeasure.class);
     verify(sensorStorage).store(captor.capture());
@@ -150,6 +150,5 @@ public class DefaultFileLinesContextTest {
     fileLineMeasures.save();
     fileLineMeasures.setIntValue(HITS_METRIC_KEY, 1, 2);
   }
-
 
 }

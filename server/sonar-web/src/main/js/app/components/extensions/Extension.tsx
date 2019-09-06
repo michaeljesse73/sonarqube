@@ -19,35 +19,30 @@
  */
 import * as React from 'react';
 import Helmet from 'react-helmet';
-import { withRouter, WithRouterProps } from 'react-router';
-import { injectIntl, InjectedIntlProps } from 'react-intl';
+import { InjectedIntlProps, injectIntl } from 'react-intl';
 import { connect } from 'react-redux';
-import { getExtensionStart } from './utils';
-import { translate } from '../../../helpers/l10n';
-import getStore from '../../utils/getStore';
+import { translate } from 'sonar-ui-common/helpers/l10n';
+import { Location, Router, withRouter } from '../../../components/hoc/withRouter';
+import { getExtensionStart } from '../../../helpers/extensions';
 import { addGlobalErrorMessage } from '../../../store/globalMessages';
-import { Store, getCurrentUser } from '../../../store/rootReducer';
+import { getCurrentUser, Store } from '../../../store/rootReducer';
+import * as theme from '../../theme';
+import getStore from '../../utils/getStore';
 
-interface OwnProps {
-  extension: { key: string; name: string };
-  options?: {};
-}
-
-interface StateProps {
+interface Props extends InjectedIntlProps {
   currentUser: T.CurrentUser;
-}
-
-interface DispatchProps {
+  extension: T.Extension;
+  location: Location;
   onFail: (message: string) => void;
+  options?: T.Dict<any>;
+  router: Router;
 }
-
-type Props = OwnProps & WithRouterProps & InjectedIntlProps & StateProps & DispatchProps;
 
 interface State {
   extensionElement?: React.ReactElement<any>;
 }
 
-class Extension extends React.PureComponent<Props, State> {
+export class Extension extends React.PureComponent<Props, State> {
   container?: HTMLElement | null;
   stop?: Function;
   state: State = {};
@@ -78,6 +73,7 @@ class Extension extends React.PureComponent<Props, State> {
       intl: this.props.intl,
       location: this.props.location,
       router: this.props.router,
+      theme,
       ...this.props.options
     });
 
@@ -93,14 +89,15 @@ class Extension extends React.PureComponent<Props, State> {
   };
 
   startExtension() {
-    const { extension } = this.props;
-    getExtensionStart(extension.key).then(this.handleStart, this.handleFailure);
+    getExtensionStart(this.props.extension.key).then(this.handleStart, this.handleFailure);
   }
 
   stopExtension() {
     if (this.stop) {
       this.stop();
       this.stop = undefined;
+    } else {
+      this.setState({ extensionElement: undefined });
     }
   }
 
@@ -118,13 +115,10 @@ class Extension extends React.PureComponent<Props, State> {
   }
 }
 
-function mapStateToProps(state: Store): StateProps {
-  return { currentUser: getCurrentUser(state) };
-}
+const mapStateToProps = (state: Store) => ({ currentUser: getCurrentUser(state) });
+const mapDispatchToProps = { onFail: addGlobalErrorMessage };
 
-const mapDispatchToProps: DispatchProps = { onFail: addGlobalErrorMessage };
-
-export default injectIntl<OwnProps & InjectedIntlProps>(
+export default injectIntl(
   withRouter(
     connect(
       mapStateToProps,

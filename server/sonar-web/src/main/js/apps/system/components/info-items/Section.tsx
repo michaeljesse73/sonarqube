@@ -17,14 +17,13 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { map } from 'lodash';
+import * as React from 'react';
 import SysInfoItem from './SysInfoItem';
-import { SysValueObject } from '../../../../api/system';
 
 interface Props {
   name?: string;
-  items: SysValueObject;
+  items: T.SysInfoValueObject;
 }
 
 export default function Section({ name, items }: Props) {

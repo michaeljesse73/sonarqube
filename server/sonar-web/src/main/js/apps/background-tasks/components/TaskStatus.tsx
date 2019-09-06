@@ -18,9 +18,9 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
+import PendingIcon from 'sonar-ui-common/components/icons/PendingIcon';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import { STATUSES } from '../constants';
-import PendingIcon from '../../../components/icons-components/PendingIcon';
-import { translate } from '../../../helpers/l10n';
 
 interface Props {
   status: string;
@@ -43,13 +43,11 @@ export default function TaskStatus({ status }: Props) {
       break;
     case STATUSES.FAILED:
       inner = (
-        <span className="badge badge-danger">{translate('background_task.status.FAILED')}</span>
+        <span className="badge badge-error">{translate('background_task.status.FAILED')}</span>
       );
       break;
     case STATUSES.CANCELED:
-      inner = (
-        <span className="badge badge-muted">{translate('background_task.status.CANCELED')}</span>
-      );
+      inner = <span className="badge">{translate('background_task.status.CANCELED')}</span>;
       break;
     default:
       inner = '';

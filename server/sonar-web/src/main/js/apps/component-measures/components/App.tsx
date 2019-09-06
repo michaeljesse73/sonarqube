@@ -17,57 +17,60 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import * as key from 'keymaster';
-import { withRouter, WithRouterProps } from 'react-router';
+import { debounce, keyBy } from 'lodash';
+import * as React from 'react';
 import Helmet from 'react-helmet';
-import { keyBy } from 'lodash';
-import MeasureContent from './MeasureContent';
-import MeasuresEmpty from './MeasuresEmpty';
-import MeasureOverviewContainer from './MeasureOverviewContainer';
-import Sidebar from '../sidebar/Sidebar';
-import ScreenPositionHelper from '../../../components/common/ScreenPositionHelper';
-import {
-  isProjectOverview,
-  hasBubbleChart,
-  parseQuery,
-  serializeQuery,
-  Query,
-  hasFullMeasures,
-  getMeasuresPageMetricKeys,
-  groupByDomains,
-  sortMeasures,
-  hasTreemap,
-  hasTree
-} from '../utils';
-import {
-  isSameBranchLike,
-  getBranchLikeQuery,
-  isShortLivingBranch,
-  isPullRequest
-} from '../../../helpers/branches';
-import Suggestions from '../../../app/components/embed-docs-modal/Suggestions';
+import { connect } from 'react-redux';
+import { withRouter, WithRouterProps } from 'react-router';
 import {
   getLocalizedMetricDomain,
-  translateWithParameters,
-  translate
-} from '../../../helpers/l10n';
+  translate,
+  translateWithParameters
+} from 'sonar-ui-common/helpers/l10n';
 import {
   addSideBarClass,
   addWhitePageClass,
   removeSideBarClass,
   removeWhitePageClass
-} from '../../../helpers/pages';
-import '../../../components/search-navigator.css';
-import '../style.css';
-import { getAllMetrics } from '../../../api/metrics';
+} from 'sonar-ui-common/helpers/pages';
 import { getMeasuresAndMeta } from '../../../api/measures';
+import { getAllMetrics } from '../../../api/metrics';
+import Suggestions from '../../../app/components/embed-docs-modal/Suggestions';
+import ScreenPositionHelper from '../../../components/common/ScreenPositionHelper';
 import { enhanceMeasure } from '../../../components/measure/utils';
+import '../../../components/search-navigator.css';
+import {
+  getBranchLikeQuery,
+  isPullRequest,
+  isSameBranchLike,
+  isShortLivingBranch
+} from '../../../helpers/branches';
 import { getLeakPeriod } from '../../../helpers/periods';
+import { fetchBranchStatus } from '../../../store/rootActions';
+import Sidebar from '../sidebar/Sidebar';
+import '../style.css';
+import {
+  getMeasuresPageMetricKeys,
+  groupByDomains,
+  hasBubbleChart,
+  hasFullMeasures,
+  hasTree,
+  hasTreemap,
+  isProjectOverview,
+  parseQuery,
+  Query,
+  serializeQuery,
+  sortMeasures
+} from '../utils';
+import MeasureContent from './MeasureContent';
+import MeasureOverviewContainer from './MeasureOverviewContainer';
+import MeasuresEmpty from './MeasuresEmpty';
 
 interface Props extends WithRouterProps {
   branchLike?: T.BranchLike;
   component: T.ComponentMeasure;
+  fetchBranchStatus: (branchLike: T.BranchLike, projectKey: string) => Promise<void>;
 }
 
 interface State {
@@ -79,11 +82,17 @@ interface State {
 
 export class App extends React.PureComponent<Props, State> {
   mounted = false;
-  state: State = {
-    loading: true,
-    measures: [],
-    metrics: {}
-  };
+  state: State;
+
+  constructor(props: Props) {
+    super(props);
+    this.state = {
+      loading: true,
+      measures: [],
+      metrics: {}
+    };
+    this.refreshBranchStatus = debounce(this.refreshBranchStatus, 1000);
+  }
 
   componentDidMount() {
     this.mounted = true;
@@ -134,7 +143,7 @@ export class App extends React.PureComponent<Props, State> {
     const banQualityGate = ({ measures = [], qualifier }: T.ComponentMeasure) => {
       const bannedMetrics: string[] = [];
       if (!['VW', 'SVW'].includes(qualifier)) {
-        bannedMetrics.push('alert_status');
+        bannedMetrics.push('alert_status', 'security_review_rating');
       }
       if (qualifier === 'APP') {
         bannedMetrics.push('releasability_rating', 'releasability_effort');
@@ -203,6 +212,10 @@ export class App extends React.PureComponent<Props, State> {
     return metric;
   };
 
+  handleIssueChange = (_: T.Issue) => {
+    this.refreshBranchStatus();
+  };
+
   updateQuery = (newQuery: Partial<Query>) => {
     const query: Query = { ...parseQuery(this.props.location.query), ...newQuery };
 
@@ -225,6 +238,13 @@ export class App extends React.PureComponent<Props, State> {
     });
   };
 
+  refreshBranchStatus = () => {
+    const { branchLike, component } = this.props;
+    if (branchLike && component && (isPullRequest(branchLike) || isShortLivingBranch(branchLike))) {
+      this.props.fetchBranchStatus(branchLike, component.key);
+    }
+  };
+
   renderContent = (displayOverview: boolean, query: Query, metric?: T.Metric) => {
     const { branchLike, component } = this.props;
     const { leakPeriod } = this.state;
@@ -236,6 +256,7 @@ export class App extends React.PureComponent<Props, State> {
           domain={query.metric}
           leakPeriod={leakPeriod}
           metrics={this.state.metrics}
+          onIssueChange={this.handleIssueChange}
           rootComponent={component}
           router={this.props.router}
           selected={query.selected}
@@ -267,6 +288,7 @@ export class App extends React.PureComponent<Props, State> {
         branchLike={branchLike}
         leakPeriod={leakPeriod}
         metrics={this.state.metrics}
+        onIssueChange={this.handleIssueChange}
         requestedMetric={metric}
         rootComponent={component}
         router={this.props.router}
@@ -279,7 +301,7 @@ export class App extends React.PureComponent<Props, State> {
 
   render() {
     if (this.state.loading) {
-      return <i className="spinner spinner-margin" />;
+      return <i className="spinner spacer" />;
     }
 
     const { branchLike } = this.props;
@@ -322,4 +344,11 @@ export class App extends React.PureComponent<Props, State> {
   }
 }
 
-export default withRouter(App);
+const mapDispatchToProps = { fetchBranchStatus: fetchBranchStatus as any };
+
+export default withRouter(
+  connect(
+    null,
+    mapDispatchToProps
+  )(App)
+);

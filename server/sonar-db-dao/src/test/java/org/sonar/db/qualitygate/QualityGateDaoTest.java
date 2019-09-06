@@ -27,6 +27,7 @@ import org.sonar.api.utils.System2;
 import org.sonar.core.util.Uuids;
 import org.sonar.db.DbSession;
 import org.sonar.db.DbTester;
+import org.sonar.db.component.ComponentDto;
 import org.sonar.db.organization.OrganizationDto;
 
 import static java.lang.String.format;
@@ -111,6 +112,13 @@ public class QualityGateDaoTest {
   }
 
   @Test
+  public void testSelectByUuid() {
+    insertQualityGates();
+    assertThat(underTest.selectByUuid(dbSession, underTest.selectByName(dbSession, "Very strict").getUuid()).getName()).isEqualTo("Very strict");
+    assertThat(underTest.selectByUuid(dbSession, "not-existing-uuid")).isNull();
+  }
+
+  @Test
   public void select_by_organization_and_uuid() {
     OrganizationDto organization = db.organizations().insert();
     QGateWithOrgDto qualityGate = db.qualityGates().insertQualityGate(organization);
@@ -159,6 +167,24 @@ public class QualityGateDaoTest {
 
     assertThat(underTest.selectDefault(dbSession, organization).getUuid()).isEqualTo(qualityGate.getUuid());
     assertThat(underTest.selectDefault(dbSession, otherOrganization).getUuid()).isEqualTo(otherQualityGate.getUuid());
+  }
+
+  @Test
+  public void select_by_project_uuid() {
+    OrganizationDto organization = db.organizations().insert();
+
+    ComponentDto project = db.components().insertPrivateProject(organization);
+
+    QGateWithOrgDto qualityGate1 = db.qualityGates().insertQualityGate(organization);
+    QGateWithOrgDto qualityGate2 = db.qualityGates().insertQualityGate(organization);
+
+    OrganizationDto otherOrganization = db.organizations().insert();
+    QGateWithOrgDto qualityGate3 = db.qualityGates().insertQualityGate(otherOrganization);
+
+    db.qualityGates().associateProjectToQualityGate(project, qualityGate1);
+
+    assertThat(underTest.selectByProjectUuid(dbSession, project.uuid()).getUuid()).isEqualTo(qualityGate1.getUuid());
+    assertThat(underTest.selectByProjectUuid(dbSession, "not-existing-uuid")).isNull();
   }
 
   @Test

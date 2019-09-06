@@ -19,8 +19,6 @@
  */
 package org.sonar.scanner.report;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Throwables;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -36,7 +34,6 @@ import javax.annotation.Nullable;
 import okhttp3.HttpUrl;
 import org.apache.commons.io.FileUtils;
 import org.picocontainer.Startable;
-import org.sonar.api.batch.fs.internal.InputModuleHierarchy;
 import org.sonar.api.platform.Server;
 import org.sonar.api.utils.MessageException;
 import org.sonar.api.utils.TempFolder;
@@ -44,7 +41,8 @@ import org.sonar.api.utils.ZipUtils;
 import org.sonar.api.utils.log.Logger;
 import org.sonar.api.utils.log.Loggers;
 import org.sonar.scanner.bootstrap.GlobalAnalysisMode;
-import org.sonar.scanner.bootstrap.ScannerWsClient;
+import org.sonar.scanner.bootstrap.DefaultScannerWsClient;
+import org.sonar.scanner.fs.InputModuleHierarchy;
 import org.sonar.scanner.protocol.output.ScannerReportReader;
 import org.sonar.scanner.protocol.output.ScannerReportWriter;
 import org.sonar.scanner.scan.ScanProperties;
@@ -72,7 +70,7 @@ public class ReportPublisher implements Startable {
   private static final String ID = "id";
   private static final String RESOLVED = "resolved";
 
-  private final ScannerWsClient wsClient;
+  private final DefaultScannerWsClient wsClient;
   private final AnalysisContextReportPublisher contextPublisher;
   private final InputModuleHierarchy moduleHierarchy;
   private final GlobalAnalysisMode analysisMode;
@@ -86,7 +84,7 @@ public class ReportPublisher implements Startable {
   private ScannerReportWriter writer;
   private ScannerReportReader reader;
 
-  public ReportPublisher(ScanProperties properties, ScannerWsClient wsClient, Server server, AnalysisContextReportPublisher contextPublisher,
+  public ReportPublisher(ScanProperties properties, DefaultScannerWsClient wsClient, Server server, AnalysisContextReportPublisher contextPublisher,
     InputModuleHierarchy moduleHierarchy, GlobalAnalysisMode analysisMode, TempFolder temp, ReportPublisherStep[] publishers, BranchConfiguration branchConfiguration) {
     this.wsClient = wsClient;
     this.server = server;
@@ -168,7 +166,6 @@ public class ReportPublisher implements Startable {
   /**
    * Uploads the report file to server and returns the generated task id
    */
-  @VisibleForTesting
   String upload(File report) {
     LOG.debug("Upload report");
     long startTime = System.currentTimeMillis();
@@ -178,7 +175,6 @@ public class ReportPublisher implements Startable {
       .setParam("organization", properties.organizationKey().orElse(null))
       .setParam("projectKey", moduleHierarchy.root().key())
       .setParam("projectName", moduleHierarchy.root().getOriginalName())
-      .setParam("projectBranch", moduleHierarchy.root().getBranch())
       .setPart("report", filePart);
 
     String branchName = branchConfiguration.branchName();
@@ -195,34 +191,33 @@ public class ReportPublisher implements Startable {
     try {
       response = wsClient.call(post).failIfNotSuccessful();
     } catch (HttpException e) {
-      throw MessageException.of(String.format("Failed to upload report - %s", ScannerWsClient.createErrorMessage(e)));
+      throw MessageException.of(String.format("Failed to upload report - %s", DefaultScannerWsClient.createErrorMessage(e)));
     }
 
     try (InputStream protobuf = response.contentStream()) {
       return Ce.SubmitResponse.parser().parseFrom(protobuf).getTaskId();
     } catch (Exception e) {
-      throw Throwables.propagate(e);
+      throw new RuntimeException(e);
     } finally {
       long stopTime = System.currentTimeMillis();
       LOG.info("Analysis report uploaded in " + (stopTime - startTime) + "ms");
     }
   }
 
-  @VisibleForTesting
   void logSuccess(@Nullable String taskId) {
     if (taskId == null) {
       LOG.info("ANALYSIS SUCCESSFUL");
     } else {
 
       Map<String, String> metadata = new LinkedHashMap<>();
-      String effectiveKey = moduleHierarchy.root().getKeyWithBranch();
+
       properties.organizationKey().ifPresent(org -> metadata.put("organization", org));
-      metadata.put("projectKey", effectiveKey);
+      metadata.put("projectKey", moduleHierarchy.root().key());
       metadata.put("serverUrl", server.getPublicRootUrl());
       metadata.put("serverVersion", server.getVersion());
       properties.branch().ifPresent(branch -> metadata.put("branch", branch));
 
-      URL dashboardUrl = buildDashboardUrl(server.getPublicRootUrl(), effectiveKey);
+      URL dashboardUrl = buildDashboardUrl(server.getPublicRootUrl(), moduleHierarchy.root().key());
       metadata.put("dashboardUrl", dashboardUrl.toExternalForm());
 
       URL taskUrl = HttpUrl.parse(server.getPublicRootUrl()).newBuilder()

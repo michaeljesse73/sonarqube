@@ -19,7 +19,7 @@
  */
 import * as React from 'react';
 import { Link } from 'react-router';
-import ChevronRightIcon from '../../../../components/icons-components/ChevronRightcon';
+import ChevronRightIcon from 'sonar-ui-common/components/icons/ChevronRightIcon';
 
 export default function StartUsing() {
   return (

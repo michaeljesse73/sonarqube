@@ -17,16 +17,38 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { shallow } from 'enzyme';
-import SetTransitionPopup from '../SetTransitionPopup';
+import * as React from 'react';
+import { hasMessage } from 'sonar-ui-common/helpers/l10n';
+import SetTransitionPopup, { Props } from '../SetTransitionPopup';
 
-it('should render tags popup correctly', () => {
-  const element = shallow(
+jest.mock('sonar-ui-common/helpers/l10n', () => ({
+  ...jest.requireActual('sonar-ui-common/helpers/l10n'),
+  hasMessage: jest.fn().mockReturnValue(false)
+}));
+
+it('should render transition popup correctly', () => {
+  expect(shallowRender()).toMatchSnapshot();
+});
+
+it('should render transition popup correctly for vulnerability', () => {
+  (hasMessage as jest.Mock).mockReturnValueOnce('true');
+  expect(
+    shallowRender({
+      fromHotspot: true,
+      transitions: ['resolveasreviewed', 'confirm']
+    })
+  ).toMatchSnapshot();
+});
+
+function shallowRender(props: Partial<Props> = {}) {
+  return shallow(
     <SetTransitionPopup
+      fromHotspot={false}
       onSelect={jest.fn()}
       transitions={['confirm', 'resolve', 'falsepositive', 'wontfix']}
+      type="VULNERABILITY"
+      {...props}
     />
   );
-  expect(element).toMatchSnapshot();
-});
+}

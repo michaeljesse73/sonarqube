@@ -17,11 +17,12 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
-import { times } from 'lodash';
+import { mount, shallow } from 'enzyme';
 import { Location } from 'history';
-import { shallow, mount } from 'enzyme';
-import { CreateOrganization } from '../CreateOrganization';
+import { times } from 'lodash';
+import * as React from 'react';
+import { get, remove } from 'sonar-ui-common/helpers/storage';
+import { waitAndUpdate } from 'sonar-ui-common/helpers/testUtils';
 import {
   bindAlmOrganization,
   getAlmAppInfo,
@@ -30,16 +31,15 @@ import {
 } from '../../../../api/alm-integration';
 import { getSubscriptionPlans } from '../../../../api/billing';
 import { getOrganizations } from '../../../../api/organizations';
-import { get, remove } from '../../../../helpers/storage';
 import {
-  mockRouter,
+  mockAlmOrganization,
+  mockLocation,
+  mockLoggedInUser,
   mockOrganizationWithAdminActions,
   mockOrganizationWithAlm,
-  mockAlmOrganization,
-  mockLoggedInUser,
-  mockLocation
+  mockRouter
 } from '../../../../helpers/testMocks';
-import { waitAndUpdate } from '../../../../helpers/testUtils';
+import { CreateOrganization } from '../CreateOrganization';
 
 jest.mock('../../../../api/billing', () => ({
   getSubscriptionPlans: jest
@@ -63,7 +63,6 @@ jest.mock('../../../../api/alm-integration', () => ({
       description: 'Continuous Code Quality',
       key: 'sonarsource',
       name: 'SonarSource',
-      personal: false,
       privateRepos: 0,
       publicRepos: 3,
       url: 'https://www.sonarsource.com'
@@ -77,18 +76,17 @@ jest.mock('../../../../api/organizations', () => ({
   getOrganizations: jest.fn().mockResolvedValue({ organizations: [] })
 }));
 
-jest.mock('../../../../helpers/storage', () => ({
+jest.mock('sonar-ui-common/helpers/storage', () => ({
   get: jest.fn().mockReturnValue(undefined),
   remove: jest.fn()
 }));
 
 const user = mockLoggedInUser();
-const fooAlmOrganization = mockAlmOrganization({ personal: true });
+const fooAlmOrganization = mockAlmOrganization();
 const fooBarAlmOrganization = mockAlmOrganization({
   avatar: 'https://avatars3.githubusercontent.com/u/37629810?v=4',
   key: 'Foo&Bar',
-  name: 'Foo & Bar',
-  personal: true
+  name: 'Foo & Bar'
 });
 
 const boundOrganization = { key: 'foobar', name: 'Foo & Bar' };
@@ -132,22 +130,9 @@ it('should render with auto tab selected and manual disabled', async () => {
   expect(getOrganizations).toHaveBeenCalled();
 });
 
-it('should render with auto personal organization bind page', async () => {
-  (getAlmOrganization as jest.Mock<any>).mockResolvedValueOnce({
-    almOrganization: fooAlmOrganization
-  });
-  const wrapper = shallowRender({
-    currentUser: { ...user, externalProvider: 'github', personalOrganization: 'foo' },
-    location: { query: { installation_id: 'foo' } } as Location
-  });
-  expect(wrapper).toMatchSnapshot();
-  await waitAndUpdate(wrapper);
-  expect(wrapper).toMatchSnapshot();
-});
-
 it('should render with organization bind page', async () => {
   (getAlmOrganization as jest.Mock<any>).mockResolvedValueOnce({
-    almOrganization: { ...fooAlmOrganization, personal: false }
+    almOrganization: fooAlmOrganization
   });
   const wrapper = shallowRender({
     currentUser: { ...user, externalProvider: 'github' },
@@ -235,7 +220,7 @@ it('should redirect to projects creation page after creation', async () => {
     state: { organization: 'foo', tab: 'manual' }
   });
 
-  wrapper.setState({ almOrganization: { ...fooAlmOrganization, personal: false } });
+  wrapper.setState({ almOrganization: fooAlmOrganization });
   (get as jest.Mock<any>).mockReturnValueOnce(Date.now().toString());
   wrapper.instance().handleOrgCreated('foo');
   expect(push).toHaveBeenCalledWith({
@@ -246,7 +231,7 @@ it('should redirect to projects creation page after creation', async () => {
 
 it('should display AutoOrganizationCreate with already bound organization', async () => {
   (getAlmOrganization as jest.Mock<any>).mockResolvedValueOnce({
-    almOrganization: { ...fooBarAlmOrganization, personal: false },
+    almOrganization: fooBarAlmOrganization,
     boundOrganization
   });
   (get as jest.Mock<any>)
@@ -344,7 +329,6 @@ function createComponent(props: Partial<CreateOrganization['props']> = {}) {
       router={mockRouter()}
       routes={[]}
       skipOnboarding={jest.fn()}
-      updateOrganization={jest.fn()}
       userOrganizations={[
         mockOrganizationWithAdminActions(),
         mockOrganizationWithAdminActions(mockOrganizationWithAlm({ key: 'bar', name: 'Bar' })),

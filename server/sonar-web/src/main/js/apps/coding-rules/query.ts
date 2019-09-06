@@ -18,32 +18,35 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import {
-  RawQuery,
-  parseAsString,
-  parseAsArray,
-  serializeString,
-  serializeStringArray,
   cleanQuery,
-  queriesEqual,
+  parseAsArray,
   parseAsDate,
-  serializeDateShort,
   parseAsOptionalBoolean,
+  parseAsOptionalString,
+  parseAsString,
+  queriesEqual,
+  serializeDateShort,
   serializeOptionalBoolean,
-  parseAsOptionalString
-} from '../../helpers/query';
+  serializeString,
+  serializeStringArray
+} from 'sonar-ui-common/helpers/query';
 
 export interface Query {
   activation: boolean | undefined;
   activationSeverities: string[];
   availableSince: Date | undefined;
   compareToProfile: string | undefined;
+  cwe: string[];
   inheritance: T.RuleInheritance | undefined;
   languages: string[];
+  owaspTop10: string[];
   profile: string | undefined;
   repositories: string[];
   ruleKey: string | undefined;
+  sansTop25: string[];
   searchQuery: string | undefined;
   severities: string[];
+  sonarsourceSecurity: string[];
   statuses: string[];
   tags: string[];
   template: boolean | undefined;
@@ -58,7 +61,7 @@ export interface Facet {
 
 export type Facets = { [F in FacetKey]?: Facet };
 
-export type OpenFacets = { [F in FacetKey]?: boolean };
+export type OpenFacets = T.Dict<boolean>;
 
 export interface Activation {
   inherit: T.RuleInheritance;
@@ -71,19 +74,23 @@ export interface Actives {
   };
 }
 
-export function parseQuery(query: RawQuery): Query {
+export function parseQuery(query: T.RawQuery): Query {
   return {
     activation: parseAsOptionalBoolean(query.activation),
     activationSeverities: parseAsArray(query.active_severities, parseAsString),
     availableSince: parseAsDate(query.available_since),
     compareToProfile: parseAsOptionalString(query.compareToProfile),
+    cwe: parseAsArray(query.cwe, parseAsString),
     inheritance: parseAsInheritance(query.inheritance),
     languages: parseAsArray(query.languages, parseAsString),
+    owaspTop10: parseAsArray(query.owaspTop10, parseAsString),
     profile: parseAsOptionalString(query.qprofile),
     repositories: parseAsArray(query.repositories, parseAsString),
     ruleKey: parseAsOptionalString(query.rule_key),
+    sansTop25: parseAsArray(query.sansTop25, parseAsString),
     searchQuery: parseAsOptionalString(query.q),
     severities: parseAsArray(query.severities, parseAsString),
+    sonarsourceSecurity: parseAsArray(query.sonarsourceSecurity, parseAsString),
     statuses: parseAsArray(query.statuses, parseAsString),
     tags: parseAsArray(query.tags, parseAsString),
     template: parseAsOptionalBoolean(query.is_template),
@@ -91,36 +98,45 @@ export function parseQuery(query: RawQuery): Query {
   };
 }
 
-export function serializeQuery(query: Query): RawQuery {
+export function serializeQuery(query: Query): T.RawQuery {
   return cleanQuery({
     activation: serializeOptionalBoolean(query.activation),
     active_severities: serializeStringArray(query.activationSeverities),
     available_since: serializeDateShort(query.availableSince),
     compareToProfile: serializeString(query.compareToProfile),
+    cwe: serializeStringArray(query.cwe),
     inheritance: serializeInheritance(query.inheritance),
     is_template: serializeOptionalBoolean(query.template),
     languages: serializeStringArray(query.languages),
+    owaspTop10: serializeStringArray(query.owaspTop10),
     q: serializeString(query.searchQuery),
     qprofile: serializeString(query.profile),
     repositories: serializeStringArray(query.repositories),
     rule_key: serializeString(query.ruleKey),
+    sansTop25: serializeStringArray(query.sansTop25),
     severities: serializeStringArray(query.severities),
+    sonarsourceSecurity: serializeStringArray(query.sonarsourceSecurity),
     statuses: serializeStringArray(query.statuses),
     tags: serializeStringArray(query.tags),
     types: serializeStringArray(query.types)
   });
 }
 
-export function areQueriesEqual(a: RawQuery, b: RawQuery) {
+export function areQueriesEqual(a: T.RawQuery, b: T.RawQuery) {
   return queriesEqual(parseQuery(a), parseQuery(b));
 }
 
-export function shouldRequestFacet(facet: FacetKey) {
+export function shouldRequestFacet(facet: string): facet is FacetKey {
   const facetsToRequest = [
     'activationSeverities',
+    'cwe',
     'languages',
+    'owaspTop10',
     'repositories',
+    'sansTop25',
     'severities',
+    'sonarsourceSecurity',
+    'standard',
     'statuses',
     'tags',
     'types'
@@ -136,7 +152,7 @@ export function getAppFacet(serverFacet: string): FacetKey {
   return serverFacet === 'active_severities' ? 'activationSeverities' : (serverFacet as FacetKey);
 }
 
-export function getOpen(query: RawQuery) {
+export function getOpen(query: T.RawQuery) {
   return query.open;
 }
 

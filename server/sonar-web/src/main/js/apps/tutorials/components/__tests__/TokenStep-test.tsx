@@ -17,10 +17,10 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { shallow } from 'enzyme';
+import * as React from 'react';
+import { change, click, submit, waitAndUpdate } from 'sonar-ui-common/helpers/testUtils';
 import TokenStep from '../TokenStep';
-import { change, click, submit, waitAndUpdate } from '../../../../helpers/testUtils';
 
 jest.mock('../../../../api/user-tokens', () => ({
   getTokens: () => Promise.resolve([{ name: 'foo' }]),
@@ -28,9 +28,7 @@ jest.mock('../../../../api/user-tokens', () => ({
   revokeToken: () => Promise.resolve()
 }));
 
-jest.mock('../../../../components/icons-components/ClearIcon');
-
-const currentUser = { login: 'user' };
+const currentUser: Pick<T.LoggedInUser, 'login'> = { login: 'user' };
 
 it('generates token', async () => {
   const wrapper = shallow(

@@ -18,11 +18,11 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
+import { translate, translateWithParameters } from 'sonar-ui-common/helpers/l10n';
 import DateFormatter from '../../../components/intl/DateFormatter';
 import ProfileLink from '../components/ProfileLink';
-import { translate, translateWithParameters } from '../../../helpers/l10n';
-import { isStagnant } from '../utils';
 import { Profile } from '../types';
+import { isStagnant } from '../utils';
 
 interface Props {
   organization: string | null;

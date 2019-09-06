@@ -24,6 +24,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
+import java.util.regex.Pattern;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.FileUtils;
 import org.assertj.core.util.Files;
@@ -31,6 +32,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
+import org.sonar.api.SonarEdition;
 import org.sonar.api.utils.log.LogTester;
 import org.sonar.scanner.mediumtest.ScannerMediumTester;
 import org.sonar.scanner.mediumtest.ScannerMediumTester.AnalysisBuilder;
@@ -64,6 +66,7 @@ public class ScmMediumTest {
 
   @Rule
   public ScannerMediumTester tester = new ScannerMediumTester()
+    .setEdition(SonarEdition.SONARCLOUD)
     .registerPlugin("xoo", new XooPlugin())
     .addDefaultQProfile("xoo", "Sonar Way")
     .addRules(new XooRulesDefinition())
@@ -152,7 +155,7 @@ public class ScmMediumTest {
 
     File baseDir = prepareProject();
     File xooFileWithoutBlame = new File(baseDir, "src/sample_no_blame.xoo");
-    FileUtils.write(xooFileWithoutBlame, "Sample xoo\ncontent\n3\n4\n5");
+    FileUtils.write(xooFileWithoutBlame, "Sample xoo\ncontent\n3\n4\n5", StandardCharsets.UTF_8);
 
     tester.newAnalysis()
       .properties(ImmutableMap.<String, String>builder()
@@ -173,8 +176,10 @@ public class ScmMediumTest {
     ScannerReport.Changesets fileWithoutBlameScm = getChangesets(baseDir, "src/sample_no_blame.xoo");
     assertThat(fileWithoutBlameScm).isNull();
 
-    assertThat(logTester.logs()).containsSubsequence("2 files to be analyzed", "1/2 files analyzed", MISSING_BLAME_INFORMATION_FOR_THE_FOLLOWING_FILES,
+    assertThat(logTester.logs()).containsSubsequence("SCM Publisher 2 source files to be analyzed", MISSING_BLAME_INFORMATION_FOR_THE_FOLLOWING_FILES,
       "  * src/sample_no_blame.xoo");
+
+    assertThat(logTester.logs().stream().anyMatch(s -> Pattern.matches("SCM Publisher 1/2 source file have been analyzed \\(done\\) \\| time=[0-9]+ms", s))).isTrue();
   }
 
   // SONAR-6397
@@ -183,29 +188,31 @@ public class ScmMediumTest {
 
     File baseDir = prepareProject();
     File changedContentScmOnServer = new File(baseDir, CHANGED_CONTENT_SCM_ON_SERVER_XOO);
-    FileUtils.write(changedContentScmOnServer, SAMPLE_XOO_CONTENT + "\nchanged");
+    FileUtils.write(changedContentScmOnServer, SAMPLE_XOO_CONTENT + "\nchanged", StandardCharsets.UTF_8);
     File xooScmFile = new File(baseDir, CHANGED_CONTENT_SCM_ON_SERVER_XOO + ".scm");
     FileUtils.write(xooScmFile,
       // revision,author,dateTime
       "1,foo,2013-01-04\n" +
         "1,bar,2013-01-04\n" +
-        "2,biz,2014-01-04\n");
+        "2,biz,2014-01-04\n",
+      StandardCharsets.UTF_8);
 
     File sameContentScmOnServer = new File(baseDir, SAME_CONTENT_SCM_ON_SERVER_XOO);
-    FileUtils.write(sameContentScmOnServer, SAMPLE_XOO_CONTENT);
+    FileUtils.write(sameContentScmOnServer, SAMPLE_XOO_CONTENT, StandardCharsets.UTF_8);
     // No need to write .scm file since this file should not be blamed
 
     File noBlameScmOnServer = new File(baseDir, NO_BLAME_SCM_ON_SERVER_XOO);
-    FileUtils.write(noBlameScmOnServer, SAMPLE_XOO_CONTENT + "\nchanged");
+    FileUtils.write(noBlameScmOnServer, SAMPLE_XOO_CONTENT + "\nchanged", StandardCharsets.UTF_8);
     // No .scm file to emulate a failure during blame
 
     File sameContentNoScmOnServer = new File(baseDir, SAME_CONTENT_NO_SCM_ON_SERVER_XOO);
-    FileUtils.write(sameContentNoScmOnServer, SAMPLE_XOO_CONTENT);
+    FileUtils.write(sameContentNoScmOnServer, SAMPLE_XOO_CONTENT, StandardCharsets.UTF_8);
     xooScmFile = new File(baseDir, SAME_CONTENT_NO_SCM_ON_SERVER_XOO + ".scm");
     FileUtils.write(xooScmFile,
       // revision,author,dateTime
       "1,foo,2013-01-04\n" +
-        "1,bar,2013-01-04\n");
+        "1,bar,2013-01-04\n",
+      StandardCharsets.UTF_8);
 
     tester.newAnalysis()
       .properties(ImmutableMap.<String, String>builder()
@@ -232,7 +239,8 @@ public class ScmMediumTest {
 
     // 5 .xoo files + 3 .scm files, but only 4 marked for publishing. 1 file is SAME so not included in the total
     assertThat(logTester.logs()).containsSubsequence("8 files indexed");
-    assertThat(logTester.logs()).containsSubsequence("4 files to be analyzed", "3/4 files analyzed");
+    assertThat(logTester.logs()).containsSubsequence("SCM Publisher 4 source files to be analyzed");
+    assertThat(logTester.logs().stream().anyMatch(s -> Pattern.matches("SCM Publisher 3/4 source files have been analyzed \\(done\\) \\| time=[0-9]+ms", s))).isTrue();
     assertThat(logTester.logs()).containsSubsequence(MISSING_BLAME_INFORMATION_FOR_THE_FOLLOWING_FILES, "  * src/no_blame_scm_on_server.xoo");
   }
 
@@ -241,21 +249,18 @@ public class ScmMediumTest {
 
     File baseDir = prepareProject();
     File xooFileNoScm = new File(baseDir, SAME_CONTENT_SCM_ON_SERVER_XOO);
-    FileUtils.write(xooFileNoScm, SAMPLE_XOO_CONTENT);
+    FileUtils.write(xooFileNoScm, SAMPLE_XOO_CONTENT, StandardCharsets.UTF_8);
     File xooScmFile = new File(baseDir, SAME_CONTENT_SCM_ON_SERVER_XOO + ".scm");
     FileUtils.write(xooScmFile,
       // revision,author,dateTime
       "1,foo,2013-01-04\n" +
-        "1,bar,2013-01-04\n");
+        "1,bar,2013-01-04\n",
+      StandardCharsets.UTF_8);
 
     AnalysisBuilder analysisBuilder = tester.newAnalysis()
       .properties(ImmutableMap.<String, String>builder()
-        .put("sonar.task", "scan")
         .put("sonar.projectBaseDir", baseDir.getAbsolutePath())
         .put("sonar.projectKey", "com.foo.project")
-        .put("sonar.projectName", "Foo Project")
-        .put("sonar.projectVersion", "1.0-SNAPSHOT")
-        .put("sonar.projectDescription", "Description of Foo Project")
         .put("sonar.sources", "src")
         .put("sonar.scm.provider", "xoo")
         // Force reload
@@ -278,12 +283,8 @@ public class ScmMediumTest {
 
     tester.newAnalysis()
       .properties(ImmutableMap.<String, String>builder()
-        .put("sonar.task", "scan")
         .put("sonar.projectBaseDir", baseDir.getAbsolutePath())
         .put("sonar.projectKey", "com.foo.project")
-        .put("sonar.projectName", "Foo Project")
-        .put("sonar.projectVersion", "1.0-SNAPSHOT")
-        .put("sonar.projectDescription", "Description of Foo Project")
         .put("sonar.sources", "src")
         .put("sonar.links.scm_dev", "scm:xoo:foobar")
         .build())
@@ -301,12 +302,8 @@ public class ScmMediumTest {
 
     tester.newAnalysis()
       .properties(ImmutableMap.<String, String>builder()
-        .put("sonar.task", "scan")
         .put("sonar.projectBaseDir", baseDir.getAbsolutePath())
         .put("sonar.projectKey", "com.foo.project")
-        .put("sonar.projectName", "Foo Project")
-        .put("sonar.projectVersion", "1.0-SNAPSHOT")
-        .put("sonar.projectDescription", "Description of Foo Project")
         .put("sonar.sources", "src")
         .build())
       .execute();
@@ -326,7 +323,7 @@ public class ScmMediumTest {
     srcDir.mkdir();
 
     File xooFile1 = new File(srcDir, "sample.xoo");
-    FileUtils.write(xooFile1, "Sample xoo\ncontent\n3\n4\n5");
+    FileUtils.write(xooFile1, "Sample xoo\ncontent\n3\n4\n5", StandardCharsets.UTF_8);
     File xooScmFile1 = new File(srcDir, "sample.xoo.scm");
     FileUtils.write(xooScmFile1,
       // revision,author,dateTime
@@ -347,12 +344,8 @@ public class ScmMediumTest {
 
     tester.newAnalysis()
       .properties(ImmutableMap.<String, String>builder()
-        .put("sonar.task", "scan")
         .put("sonar.projectBaseDir", baseDir.getAbsolutePath())
         .put("sonar.projectKey", "com.foo.project")
-        .put("sonar.projectName", "Foo Project")
-        .put("sonar.projectVersion", "1.0-SNAPSHOT")
-        .put("sonar.projectDescription", "Description of Foo Project")
         .put("sonar.sources", "src")
         .put("sonar.scm.disabled", "true")
         .put("sonar.scm.provider", "xoo")

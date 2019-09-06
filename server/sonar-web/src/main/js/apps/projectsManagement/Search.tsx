@@ -17,19 +17,19 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { sortBy } from 'lodash';
+import * as React from 'react';
+import { Button } from 'sonar-ui-common/components/controls/buttons';
+import Checkbox from 'sonar-ui-common/components/controls/Checkbox';
+import HelpTooltip from 'sonar-ui-common/components/controls/HelpTooltip';
+import SearchBox from 'sonar-ui-common/components/controls/SearchBox';
+import Select from 'sonar-ui-common/components/controls/Select';
+import QualifierIcon from 'sonar-ui-common/components/icons/QualifierIcon';
+import { translate } from 'sonar-ui-common/helpers/l10n';
+import { Project } from '../../api/components';
+import DateInput from '../../components/controls/DateInput';
 import BulkApplyTemplateModal from './BulkApplyTemplateModal';
 import DeleteModal from './DeleteModal';
-import Checkbox from '../../components/controls/Checkbox';
-import QualifierIcon from '../../components/icons-components/QualifierIcon';
-import HelpTooltip from '../../components/controls/HelpTooltip';
-import DateInput from '../../components/controls/DateInput';
-import Select from '../../components/controls/Select';
-import SearchBox from '../../components/controls/SearchBox';
-import { Button } from '../../components/ui/buttons';
-import { Project } from '../../api/components';
-import { translate } from '../../helpers/l10n';
 
 export interface Props {
   analyzedBefore: Date | undefined;
@@ -231,15 +231,20 @@ export default class Search extends React.PureComponent<Props, State> {
               <td className="thin nowrap text-middle">
                 <Button
                   className="js-bulk-apply-permission-template"
-                  disabled={this.props.total === 0}
+                  disabled={this.props.selection.length === 0}
                   onClick={this.handleBulkApplyTemplateClick}>
                   {translate('permission_templates.bulk_apply_permission_template')}
                 </Button>
                 {this.props.qualifiers === 'TRK' && (
                   <Button
                     className="js-delete spacer-left button-red"
-                    disabled={this.props.total === 0}
-                    onClick={this.handleDeleteClick}>
+                    disabled={this.props.selection.length === 0}
+                    onClick={this.handleDeleteClick}
+                    title={
+                      this.props.selection.length === 0
+                        ? translate('permission_templates.select_to_delete')
+                        : translate('permission_templates.delete_selected')
+                    }>
                     {translate('delete')}
                   </Button>
                 )}

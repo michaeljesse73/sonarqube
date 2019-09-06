@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import { getJSON, post, RequestData } from '../helpers/request';
+import { getJSON, post, RequestData } from 'sonar-ui-common/helpers/request';
 import throwGlobalError from '../app/utils/throwGlobalError';
 
 export function getAnalysisStatus(data: {
@@ -43,7 +43,7 @@ export function getActivity(data: RequestData): Promise<{ tasks: T.Task[] }> {
 
 export function getStatus(
   componentId?: string
-): Promise<{ failing: number; inProgress: number; pending: number }> {
+): Promise<{ failing: number; inProgress: number; pending: number; pendingTime?: number }> {
   const data = {};
   if (componentId) {
     Object.assign(data, { componentId });

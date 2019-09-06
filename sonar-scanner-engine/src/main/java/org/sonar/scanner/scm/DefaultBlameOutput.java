@@ -19,7 +19,6 @@
  */
 package org.sonar.scanner.scm;
 
-import com.google.common.base.Preconditions;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -40,6 +39,8 @@ import org.sonar.scanner.protocol.output.ScannerReport.Changesets.Builder;
 import org.sonar.scanner.protocol.output.ScannerReportWriter;
 import org.sonar.scanner.util.ProgressReport;
 
+import static org.sonar.api.utils.Preconditions.checkArgument;
+
 class DefaultBlameOutput implements BlameOutput {
 
   private static final Logger LOG = Loggers.get(DefaultBlameOutput.class);
@@ -56,14 +57,14 @@ class DefaultBlameOutput implements BlameOutput {
     count = 0;
     total = filesToBlame.size();
     progressReport = new ProgressReport("Report about progress of SCM blame", TimeUnit.SECONDS.toMillis(10));
-    progressReport.start(total + " files to be analyzed");
+    progressReport.start("SCM Publisher " + total + " " + pluralize(total) + " to be analyzed");
   }
 
   @Override
   public synchronized void blameResult(InputFile file, List<BlameLine> lines) {
-    Preconditions.checkNotNull(file);
-    Preconditions.checkNotNull(lines);
-    Preconditions.checkArgument(allFilesToBlame.contains(file), "It was not expected to blame file %s", file);
+    checkNotNull(file);
+    checkNotNull(lines);
+    checkArgument(allFilesToBlame.contains(file), "It was not expected to blame file %s", file);
 
     if (lines.size() != file.lines()) {
       LOG.debug("Ignoring blame result since provider returned {} blame lines but file {} has {} lines", lines.size(), file, file.lines());
@@ -90,12 +91,12 @@ class DefaultBlameOutput implements BlameOutput {
     writer.writeComponentChangesets(scmBuilder.build());
     allFilesToBlame.remove(file);
     count++;
-    progressReport.message(count + "/" + total + " files analyzed");
+    progressReport.message(count + "/" + total + " " + pluralize(count) + " have been analyzed");
   }
 
   private static void validateLine(BlameLine line, int lineId, InputFile file) {
-    Preconditions.checkArgument(StringUtils.isNotBlank(line.revision()), "Blame revision is blank for file %s at line %s", file, lineId);
-    Preconditions.checkArgument(line.date() != null, "Blame date is null for file %s at line %s", file, lineId);
+    checkArgument(StringUtils.isNotBlank(line.revision()), "Blame revision is blank for file %s at line %s", file, lineId);
+    checkArgument(line.date() != null, "Blame date is null for file %s at line %s", file, lineId);
   }
 
   private static void addChangeset(Builder scmBuilder, BlameLine line) {
@@ -116,8 +117,14 @@ class DefaultBlameOutput implements BlameOutput {
     return inputString.toLowerCase(Locale.US);
   }
 
+  private static void checkNotNull(@Nullable Object obj) {
+    if (obj == null) {
+      throw new NullPointerException();
+    }
+  }
+
   public void finish(boolean success) {
-    progressReport.stop(count + "/" + total + " files analyzed");
+    progressReport.stopAndLogTotalTime("SCM Publisher " + count + "/" + total + " " + pluralize(count) + " have been analyzed");
     if (success && !allFilesToBlame.isEmpty()) {
       LOG.warn("Missing blame information for the following files:");
       for (InputFile f : allFilesToBlame) {
@@ -125,5 +132,9 @@ class DefaultBlameOutput implements BlameOutput {
       }
       LOG.warn("This may lead to missing/broken features in SonarQube");
     }
+  }
+
+  private static String pluralize(long filesCount) {
+    return filesCount == 1 ? "source file" : "source files";
   }
 }

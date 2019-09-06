@@ -17,14 +17,25 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import * as classNames from 'classnames';
 import { intersection, uniqBy } from 'lodash';
-import SourceViewerHeader from './SourceViewerHeader';
-import SourceViewerCode from './SourceViewerCode';
-import { SourceViewerContext } from './SourceViewerContext';
+import * as React from 'react';
+import { Alert } from 'sonar-ui-common/components/ui/Alert';
+import { translate } from 'sonar-ui-common/helpers/l10n';
+import {
+  getComponentData,
+  getComponentForSourceViewer,
+  getDuplications,
+  getSources
+} from '../../api/components';
+import { getBranchLikeQuery, isSameBranchLike } from '../../helpers/branches';
+import { WorkspaceContext } from '../workspace/context';
 import DuplicationPopup from './components/DuplicationPopup';
-import defaultLoadIssues from './helpers/loadIssues';
+import {
+  filterDuplicationBlocksByLine,
+  getDuplicationBlocksForIndex,
+  isDuplicationBlockInRemovedComponent
+} from './helpers/duplications';
 import getCoverageStatus from './helpers/getCoverageStatus';
 import {
   duplicationsByLine,
@@ -32,16 +43,11 @@ import {
   locationsByLine,
   symbolsByLine
 } from './helpers/indexing';
-import {
-  getComponentData,
-  getComponentForSourceViewer,
-  getDuplications,
-  getSources
-} from '../../api/components';
-import { isSameBranchLike, getBranchLikeQuery } from '../../helpers/branches';
-import { translate } from '../../helpers/l10n';
-import { Alert } from '../ui/Alert';
-import { WorkspaceContext } from '../workspace/context';
+import defaultLoadIssues from './helpers/loadIssues';
+import SourceViewerCode from './SourceViewerCode';
+import { SourceViewerContext } from './SourceViewerContext';
+import SourceViewerHeader from './SourceViewerHeader';
+import SourceViewerHeaderSlim from './SourceViewerHeaderSlim';
 import './styles.css';
 
 // TODO react-virtualized
@@ -51,8 +57,6 @@ export interface Props {
   branchLike: T.BranchLike | undefined;
   component: string;
   displayAllIssues?: boolean;
-  displayIssueLocationsCount?: boolean;
-  displayIssueLocationsLink?: boolean;
   displayLocationMarkers?: boolean;
   highlightedLine?: number;
   // `undefined` elements mean they are located in a different file,
@@ -82,6 +86,8 @@ export interface Props {
   onIssueUnselect?: () => void;
   scroll?: (element: HTMLElement) => void;
   selectedIssue?: string;
+  showMeasures?: boolean;
+  slimHeader?: boolean;
 }
 
 interface State {
@@ -96,7 +102,7 @@ interface State {
   issuePopup?: { issue: string; name: string };
   issues?: T.Issue[];
   issuesByLine: { [line: number]: T.Issue[] };
-  linePopup?: { index?: number; line: number; name: string };
+  linePopup?: T.LinePopup;
   loading: boolean;
   loadingSourcesAfter: boolean;
   loadingSourcesBefore: boolean;
@@ -117,8 +123,6 @@ export default class SourceViewerBase extends React.PureComponent<Props, State> 
 
   static defaultProps = {
     displayAllIssues: false,
-    displayIssueLocationsCount: true,
-    displayIssueLocationsLink: true,
     displayLocationMarkers: true,
     loadComponent: defaultLoadComponent,
     loadIssues: defaultLoadIssues,
@@ -259,7 +263,7 @@ export default class SourceViewerBase extends React.PureComponent<Props, State> 
       );
     };
 
-    const onFailLoadComponent = ({ response }: { response: Response }) => {
+    const onFailLoadComponent = (response: Response) => {
       // TODO handle other statuses
       if (this.mounted) {
         if (response.status === 403) {
@@ -350,7 +354,7 @@ export default class SourceViewerBase extends React.PureComponent<Props, State> 
 
   loadSources = (): Promise<T.SourceLine[]> => {
     return new Promise((resolve, reject) => {
-      const onFailLoadSources = ({ response }: { response: Response }) => {
+      const onFailLoadSources = (response: Response) => {
         // TODO handle other statuses
         if (this.mounted) {
           if ([403, 404].includes(response.status)) {
@@ -496,17 +500,7 @@ export default class SourceViewerBase extends React.PureComponent<Props, State> 
     );
   };
 
-  handleLinePopupToggle = ({
-    index,
-    line,
-    name,
-    open
-  }: {
-    index?: number;
-    line: number;
-    name: string;
-    open?: boolean;
-  }) => {
+  handleLinePopupToggle = ({ index, line, name, open }: T.LinePopup) => {
     this.setState((state: State) => {
       const samePopup =
         state.linePopup !== undefined &&
@@ -588,34 +582,20 @@ export default class SourceViewerBase extends React.PureComponent<Props, State> 
   renderDuplicationPopup = (index: number, line: number) => {
     const { component, duplicatedFiles, duplications } = this.state;
 
-    if (!component || !duplicatedFiles) return <></>;
+    if (!component || !duplicatedFiles) {
+      return null;
+    }
 
-    const duplication = duplications && duplications[index];
-    let blocks = (duplication && duplication.blocks) || [];
-    /* eslint-disable no-underscore-dangle */
-    const inRemovedComponent = blocks.some(b => b._ref === undefined);
-    let foundOne = false;
-    blocks = blocks.filter(b => {
-      const outOfBounds = b.from > line || b.from + b.size < line;
-      const currentFile = b._ref === '1';
-      const shouldDisplayForCurrentFile = outOfBounds || foundOne;
-      const shouldDisplay = !currentFile || shouldDisplayForCurrentFile;
-      const isOk = b._ref !== undefined && shouldDisplay;
-      if (b._ref === '1' && !outOfBounds) {
-        foundOne = true;
-      }
-      return isOk;
-    });
-    /* eslint-enable no-underscore-dangle */
+    const blocks = getDuplicationBlocksForIndex(duplications, index);
 
     return (
       <WorkspaceContext.Consumer>
         {({ openComponent }) => (
           <DuplicationPopup
-            blocks={blocks}
+            blocks={filterDuplicationBlocksByLine(blocks, line)}
             branchLike={this.props.branchLike}
             duplicatedFiles={duplicatedFiles}
-            inRemovedComponent={inRemovedComponent}
+            inRemovedComponent={isDuplicationBlockInRemovedComponent(blocks)}
             onClose={this.closeLinePopup}
             openComponent={openComponent}
             sourceViewerFile={component}
@@ -632,8 +612,6 @@ export default class SourceViewerBase extends React.PureComponent<Props, State> 
         branchLike={this.props.branchLike}
         componentKey={this.props.component}
         displayAllIssues={this.props.displayAllIssues}
-        displayIssueLocationsCount={this.props.displayIssueLocationsCount}
-        displayIssueLocationsLink={this.props.displayIssueLocationsLink}
         displayLocationMarkers={this.props.displayLocationMarkers}
         duplications={this.state.duplications}
         duplicationsByLine={this.state.duplicationsByLine}
@@ -672,6 +650,24 @@ export default class SourceViewerBase extends React.PureComponent<Props, State> 
     );
   }
 
+  renderHeader(branchLike: T.BranchLike | undefined, sourceViewerFile: T.SourceViewerFile) {
+    return this.props.slimHeader ? (
+      <SourceViewerHeaderSlim branchLike={branchLike} sourceViewerFile={sourceViewerFile} />
+    ) : (
+      <WorkspaceContext.Consumer>
+        {({ openComponent }) => (
+          <SourceViewerHeader
+            branchLike={this.props.branchLike}
+            issues={this.state.issues}
+            openComponent={openComponent}
+            showMeasures={this.props.showMeasures}
+            sourceViewerFile={sourceViewerFile}
+          />
+        )}
+      </WorkspaceContext.Consumer>
+    );
+  }
+
   render() {
     const { component, loading, sources, notAccessible, sourceRemoved } = this.state;
 
@@ -706,15 +702,7 @@ export default class SourceViewerBase extends React.PureComponent<Props, State> 
     return (
       <SourceViewerContext.Provider value={{ branchLike: this.props.branchLike, file: component }}>
         <div className={className} ref={node => (this.node = node)}>
-          <WorkspaceContext.Consumer>
-            {({ openComponent }) => (
-              <SourceViewerHeader
-                branchLike={this.props.branchLike}
-                openComponent={openComponent}
-                sourceViewerFile={component}
-              />
-            )}
-          </WorkspaceContext.Consumer>
+          {this.renderHeader(this.props.branchLike, component)}
           {sourceRemoved && (
             <Alert className="spacer-top" variant="warning">
               {translate('code_viewer.no_source_code_displayed_due_to_source_removed')}
@@ -731,9 +719,9 @@ function defaultLoadComponent(component: string, branchLike: T.BranchLike | unde
   return Promise.all([
     getComponentForSourceViewer({ component, ...getBranchLikeQuery(branchLike) }),
     getComponentData({ component, ...getBranchLikeQuery(branchLike) })
-  ]).then(([component, data]) => ({
-    ...component,
-    leakPeriodDate: data.leakPeriodDate
+  ]).then(([sourceViewerComponent, { component }]) => ({
+    ...sourceViewerComponent,
+    leakPeriodDate: component.leakPeriodDate
   }));
 }
 

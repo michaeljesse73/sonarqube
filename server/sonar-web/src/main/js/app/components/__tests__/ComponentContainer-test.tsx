@@ -17,43 +17,40 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { shallow } from 'enzyme';
-import { ComponentContainer } from '../ComponentContainer';
+import * as React from 'react';
+import { waitAndUpdate } from 'sonar-ui-common/helpers/testUtils';
 import { getBranches, getPullRequests } from '../../../api/branches';
 import { getTasksForComponent } from '../../../api/ce';
 import { getComponentData } from '../../../api/components';
 import { getComponentNavigation } from '../../../api/nav';
 import { STATUSES } from '../../../apps/background-tasks/constants';
-import { waitAndUpdate } from '../../../helpers/testUtils';
 import { isSonarCloud } from '../../../helpers/system';
-import { mockLocation, mockRouter, mockComponent } from '../../../helpers/testMocks';
+import {
+  mockComponent,
+  mockLocation,
+  mockLongLivingBranch,
+  mockMainBranch,
+  mockPullRequest,
+  mockRouter,
+  mockShortLivingBranch
+} from '../../../helpers/testMocks';
+import { ComponentContainer } from '../ComponentContainer';
 
-jest.mock('../../../api/branches', () => ({
-  getBranches: jest.fn().mockResolvedValue([
-    {
-      isMain: true,
-      name: 'master',
-      type: 'LONG',
-      status: { qualityGateStatus: 'OK' }
-    }
-  ]),
-  getPullRequests: jest.fn().mockResolvedValue([
-    {
-      base: 'feature',
-      branch: 'feature',
-      key: 'pr-89',
-      title: 'PR Feature',
-      status: { qualityGateStatus: 'ERROR' }
-    },
-    {
-      base: 'feature',
-      branch: 'feature',
-      key: 'pr-90',
-      title: 'PR Feature 2'
-    }
-  ])
-}));
+jest.mock('../../../api/branches', () => {
+  const { mockMainBranch, mockPullRequest } = require.requireActual('../../../helpers/testMocks');
+  return {
+    getBranches: jest
+      .fn()
+      .mockResolvedValue([mockMainBranch({ status: { qualityGateStatus: 'OK' } })]),
+    getPullRequests: jest
+      .fn()
+      .mockResolvedValue([
+        mockPullRequest({ key: 'pr-89', status: { qualityGateStatus: 'ERROR' } }),
+        mockPullRequest({ key: 'pr-90', title: 'PR Feature 2' })
+      ])
+  };
+});
 
 jest.mock('../../../api/ce', () => ({
   getAnalysisStatus: jest.fn().mockResolvedValue({ component: { warnings: [] } }),
@@ -61,7 +58,7 @@ jest.mock('../../../api/ce', () => ({
 }));
 
 jest.mock('../../../api/components', () => ({
-  getComponentData: jest.fn().mockResolvedValue({ analysisDate: '2018-07-30' })
+  getComponentData: jest.fn().mockResolvedValue({ component: { analysisDate: '2018-07-30' } })
 }));
 
 jest.mock('../../../api/nav', () => ({
@@ -133,7 +130,9 @@ it('updates branches on change', async () => {
 
 it('loads organization', async () => {
   (isSonarCloud as jest.Mock).mockReturnValue(true);
-  (getComponentData as jest.Mock<any>).mockResolvedValueOnce({ organization: 'org' });
+  (getComponentData as jest.Mock<any>).mockResolvedValueOnce({
+    component: { organization: 'org' }
+  });
 
   const fetchOrganization = jest.fn();
   shallowRender({ fetchOrganization });
@@ -142,7 +141,9 @@ it('loads organization', async () => {
 });
 
 it('fetches status', async () => {
-  (getComponentData as jest.Mock<any>).mockResolvedValueOnce({ organization: 'org' });
+  (getComponentData as jest.Mock<any>).mockResolvedValueOnce({
+    component: { organization: 'org' }
+  });
 
   shallowRender();
   await new Promise(setImmediate);
@@ -152,30 +153,16 @@ it('fetches status', async () => {
 it('filters correctly the pending tasks for a main branch', () => {
   const wrapper = shallowRender();
   const component = wrapper.instance();
-  const mainBranch: T.MainBranch = { isMain: true, name: 'master' };
-  const shortBranch: T.ShortLivingBranch = {
-    isMain: false,
-    mergeBranch: 'master',
-    name: 'feature',
-    type: 'SHORT'
-  };
-  const longBranch: T.LongLivingBranch = {
-    isMain: false,
-    name: 'branch-7.2',
-    type: 'LONG'
-  };
-  const pullRequest: T.PullRequest = {
-    base: 'feature',
-    branch: 'feature',
-    key: 'pr-89',
-    title: 'PR Feature'
-  };
+  const mainBranch = mockMainBranch();
+  const shortBranch = mockShortLivingBranch();
+  const longBranch = mockLongLivingBranch();
+  const pullRequest = mockPullRequest();
 
   expect(component.isSameBranch({}, undefined)).toBeTruthy();
   expect(component.isSameBranch({}, mainBranch)).toBeTruthy();
   expect(component.isSameBranch({}, shortBranch)).toBeFalsy();
   expect(
-    component.isSameBranch({ branch: 'feature', branchType: 'SHORT' }, shortBranch)
+    component.isSameBranch({ branch: shortBranch.name, branchType: 'SHORT' }, shortBranch)
   ).toBeTruthy();
   expect(
     component.isSameBranch({ branch: 'feature', branchType: 'SHORT' }, longBranch)
@@ -184,18 +171,21 @@ it('filters correctly the pending tasks for a main branch', () => {
     component.isSameBranch({ branch: 'feature', branchType: 'SHORT' }, longBranch)
   ).toBeFalsy();
   expect(
-    component.isSameBranch({ branch: 'branch-7.1', branchType: 'LONG' }, longBranch)
+    component.isSameBranch({ branch: 'branch-6.6', branchType: 'LONG' }, longBranch)
   ).toBeFalsy();
   expect(
-    component.isSameBranch({ branch: 'branch-7.2', branchType: 'LONG' }, pullRequest)
+    component.isSameBranch({ branch: longBranch.name, branchType: 'LONG' }, longBranch)
+  ).toBeTruthy();
+  expect(
+    component.isSameBranch({ branch: 'branch-6.7', branchType: 'LONG' }, pullRequest)
   ).toBeFalsy();
-  expect(component.isSameBranch({ pullRequest: 'pr-89' }, pullRequest)).toBeTruthy();
+  expect(component.isSameBranch({ pullRequest: pullRequest.key }, pullRequest)).toBeTruthy();
 
-  const currentTask = { pullRequest: 'pr-89', status: STATUSES.IN_PROGRESS } as T.Task;
+  const currentTask = { pullRequest: pullRequest.key, status: STATUSES.IN_PROGRESS } as T.Task;
   const failedTask = { ...currentTask, status: STATUSES.FAILED };
   const pendingTasks = [
     currentTask,
-    { branch: 'feature', branchType: 'SHORT' } as T.Task,
+    { branch: shortBranch.name, branchType: 'SHORT' } as T.Task,
     {} as T.Task
   ];
   expect(component.getCurrentTask(currentTask, undefined)).toBe(undefined);

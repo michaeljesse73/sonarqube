@@ -2,7 +2,7 @@
 
 exports[`#ComponentNavMeta renders meta for long-living branch 1`] = `
 <div
-  className="navbar-context-meta"
+  className="navbar-context-meta flex-0"
 >
   <div
     className="spacer-left text-ellipsis"
@@ -30,7 +30,7 @@ exports[`#ComponentNavMeta renders meta for long-living branch 1`] = `
       className="spacer-left"
       currentPage={
         Object {
-          "branch": "master",
+          "branch": "branch-6.7",
           "component": "my-project",
           "type": "PROJECT",
         }
@@ -42,7 +42,7 @@ exports[`#ComponentNavMeta renders meta for long-living branch 1`] = `
 
 exports[`#ComponentNavMeta renders meta for pull request 1`] = `
 <div
-  className="navbar-context-meta"
+  className="navbar-context-meta flex-0"
 >
   <div
     className="spacer-left text-ellipsis"
@@ -73,6 +73,7 @@ exports[`#ComponentNavMeta renders meta for pull request 1`] = `
           "base": "master",
           "branch": "feature/foo/bar",
           "key": "1001",
+          "target": "master",
           "title": "Foo Bar feature",
           "url": "https://example.com/pull/1234",
         }
@@ -85,7 +86,7 @@ exports[`#ComponentNavMeta renders meta for pull request 1`] = `
 
 exports[`#ComponentNavMeta renders status of short-living branch 1`] = `
 <div
-  className="navbar-context-meta"
+  className="navbar-context-meta flex-0"
 >
   <div
     className="spacer-left text-ellipsis"
@@ -103,7 +104,7 @@ exports[`#ComponentNavMeta renders status of short-living branch 1`] = `
           "analysisDate": "2018-01-01",
           "isMain": false,
           "mergeBranch": "master",
-          "name": "release-1.0",
+          "name": "feature/foo",
           "type": "SHORT",
         }
       }

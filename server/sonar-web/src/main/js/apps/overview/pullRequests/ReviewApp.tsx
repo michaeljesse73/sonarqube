@@ -17,44 +17,52 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import * as classNames from 'classnames';
+import * as React from 'react';
 import { connect } from 'react-redux';
+import HelpTooltip from 'sonar-ui-common/components/controls/HelpTooltip';
+import { Alert } from 'sonar-ui-common/components/ui/Alert';
+import { translate } from 'sonar-ui-common/helpers/l10n';
+import { getMeasures } from '../../../api/measures';
+import DocTooltip from '../../../components/docs/DocTooltip';
+import { getBranchLikeQuery } from '../../../helpers/branches';
+import { fetchBranchStatus } from '../../../store/rootActions';
+import { getBranchStatusByBranchLike, Store } from '../../../store/rootReducer';
+import QualityGateConditions from '../qualityGate/QualityGateConditions';
+import '../styles.css';
+import { IssueType, MeasurementType, PR_METRICS } from '../utils';
 import AfterMergeEstimate from './AfterMergeEstimate';
-import LargeQualityGateBadge from './LargeQualityGateBadge';
 import IssueLabel from './IssueLabel';
 import IssueRating from './IssueRating';
+import LargeQualityGateBadge from './LargeQualityGateBadge';
 import MeasurementLabel from './MeasurementLabel';
-import DeferredSpinner from '../../../components/common/DeferredSpinner';
-import DocTooltip from '../../../components/docs/DocTooltip';
-import QualityGateConditions from '../qualityGate/QualityGateConditions';
-import { getMeasures } from '../../../api/measures';
-import { getQualityGateProjectStatus } from '../../../api/quality-gates';
-import { PR_METRICS, IssueType, MeasurementType } from '../utils';
-import { getBranchLikeQuery, isSameBranchLike } from '../../../helpers/branches';
-import { extractStatusConditionsFromProjectStatus } from '../../../helpers/qualityGates';
-import { registerBranchStatus } from '../../../store/rootActions';
-import { translate } from '../../../helpers/l10n';
-import '../styles.css';
 
-interface Props {
+interface OwnProps {
   branchLike: T.PullRequest | T.ShortLivingBranch;
   component: T.Component;
-  registerBranchStatus: (branchLike: T.BranchLike, component: string, status: T.Status) => void;
 }
 
-interface State {
-  conditions: T.QualityGateStatusCondition[];
-  loading: boolean;
-  measures: T.Measure[];
+interface StateProps {
+  conditions?: T.QualityGateStatusCondition[];
+  ignoredConditions?: boolean;
   status?: T.Status;
 }
 
-export class ReviewApp extends React.Component<Props, State> {
+interface DispatchProps {
+  fetchBranchStatus: (branchLike: T.BranchLike, projectKey: string) => Promise<void>;
+}
+
+type Props = OwnProps & StateProps & DispatchProps;
+
+interface State {
+  loading: boolean;
+  measures: T.Measure[];
+}
+
+export class ReviewApp extends React.PureComponent<Props, State> {
   mounted = false;
 
   state: State = {
-    conditions: [],
     loading: false,
     measures: []
   };
@@ -62,15 +70,6 @@ export class ReviewApp extends React.Component<Props, State> {
   componentDidMount() {
     this.mounted = true;
     this.fetchBranchData();
-  }
-
-  componentDidUpdate(prevProps: Props) {
-    if (
-      this.props.component.key !== prevProps.component.key ||
-      !isSameBranchLike(this.props.branchLike, prevProps.branchLike)
-    ) {
-      this.fetchBranchData();
-    }
   }
 
   componentWillUnmount() {
@@ -82,27 +81,20 @@ export class ReviewApp extends React.Component<Props, State> {
 
     this.setState({ loading: true });
 
-    const data = { projectKey: component.key, ...getBranchLikeQuery(branchLike) };
-
     Promise.all([
       getMeasures({
         component: component.key,
         metricKeys: PR_METRICS.join(),
         ...getBranchLikeQuery(branchLike)
       }),
-      getQualityGateProjectStatus(data)
+      this.props.fetchBranchStatus(branchLike, component.key)
     ]).then(
-      ([measures, projectStatus]) => {
-        if (this.mounted && measures && projectStatus) {
-          const { status } = projectStatus;
+      ([measures]) => {
+        if (this.mounted && measures) {
           this.setState({
-            conditions: extractStatusConditionsFromProjectStatus(projectStatus),
             loading: false,
-            measures,
-            status
+            measures
           });
-
-          this.props.registerBranchStatus(branchLike, component.key, status);
         }
       },
       () => {
@@ -114,19 +106,37 @@ export class ReviewApp extends React.Component<Props, State> {
   };
 
   render() {
-    const { branchLike, component } = this.props;
-    const { conditions = [], loading, measures, status } = this.state;
+    const { branchLike, component, conditions, ignoredConditions, status } = this.props;
+    const { loading, measures } = this.state;
+
+    if (loading || !conditions) {
+      return (
+        <div className="page page-limited">
+          <i className="spinner" />
+        </div>
+      );
+    }
+
     const erroredConditions = conditions.filter(condition => condition.level === 'ERROR');
 
     return (
       <div className="page page-limited">
-        {loading ? (
-          <DeferredSpinner />
-        ) : (
-          <div
-            className={classNames('pr-overview', {
-              'has-conditions': erroredConditions.length > 0
-            })}>
+        <div
+          className={classNames('pr-overview', {
+            'has-conditions': erroredConditions.length > 0
+          })}>
+          {ignoredConditions && (
+            <Alert className="big-spacer-bottom" display="inline" variant="info">
+              <span className="text-middle">
+                {translate('overview.quality_gate.ignored_conditions')}
+              </span>
+              <HelpTooltip
+                className="spacer-left"
+                overlay={translate('overview.quality_gate.ignored_conditions.tooltip')}
+              />
+            </Alert>
+          )}
+          <div className="display-flex-row">
             <div className="pr-overview-quality-gate big-spacer-right">
               <h3 className="spacer-bottom small">
                 {translate('overview.quality_gate')}
@@ -164,6 +174,18 @@ export class ReviewApp extends React.Component<Props, State> {
                       type={type}
                     />
                   </div>
+                  {type === 'VULNERABILITY' && (
+                    <div className="pr-overview-measurements-value flex-1 small display-flex-center">
+                      <IssueLabel
+                        branchLike={branchLike}
+                        className="overview-domain-measure-value"
+                        component={component}
+                        docTooltip={import(/* webpackMode: "eager" */ 'Docs/tooltips/metrics/security-hotspots.md')}
+                        measures={measures}
+                        type="SECURITY_HOTSPOT"
+                      />
+                    </div>
+                  )}
                   <div className="pr-overview-measurements-rating display-flex-center">
                     <IssueRating
                       branchLike={branchLike}
@@ -186,22 +208,34 @@ export class ReviewApp extends React.Component<Props, State> {
                       type={type}
                     />
                   </div>
-                  <div className="pr-overview-measurements-estimate display-flex-center">
-                    <AfterMergeEstimate measures={measures} type={type} />
-                  </div>
+
+                  <AfterMergeEstimate
+                    className="pr-overview-measurements-estimate"
+                    measures={measures}
+                    type={type}
+                  />
                 </div>
               ))}
             </div>
           </div>
-        )}
+        </div>
       </div>
     );
   }
 }
 
-const mapDispatchToProps = { registerBranchStatus };
+const mapStateToProps = (state: Store, { branchLike, component }: OwnProps) => {
+  const { conditions, ignoredConditions, status } = getBranchStatusByBranchLike(
+    state,
+    component.key,
+    branchLike
+  );
+  return { conditions, ignoredConditions, status };
+};
+
+const mapDispatchToProps = { fetchBranchStatus: fetchBranchStatus as any };
 
 export default connect(
-  null,
+  mapStateToProps,
   mapDispatchToProps
 )(ReviewApp);

@@ -17,23 +17,22 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
+import { formatMeasure } from 'sonar-ui-common/helpers/measures';
+import {
+  cleanQuery,
+  parseAsArray,
+  parseAsBoolean,
+  parseAsDate,
+  parseAsString,
+  queriesEqual,
+  serializeDateShort,
+  serializeString,
+  serializeStringArray
+} from 'sonar-ui-common/helpers/query';
+import { scrollToElement } from 'sonar-ui-common/helpers/scrolling';
+import { get, save } from 'sonar-ui-common/helpers/storage';
 import { searchMembers } from '../../api/organizations';
 import { searchUsers } from '../../api/users';
-import { formatMeasure } from '../../helpers/measures';
-import { get, save } from '../../helpers/storage';
-import {
-  queriesEqual,
-  cleanQuery,
-  parseAsBoolean,
-  parseAsArray,
-  parseAsString,
-  serializeString,
-  serializeStringArray,
-  parseAsDate,
-  serializeDateShort,
-  RawQuery
-} from '../../helpers/query';
-import { scrollToElement } from '../../helpers/scrolling';
 
 export interface Query {
   assigned: boolean;
@@ -57,6 +56,7 @@ export interface Query {
   sansTop25: string[];
   severities: string[];
   sinceLeakPeriod: boolean;
+  sonarsourceSecurity: string[];
   sort: string;
   statuses: string[];
   tags: string[];
@@ -64,12 +64,18 @@ export interface Query {
 }
 
 export const STANDARDS = 'standards';
+export const STANDARD_TYPES: T.StandardType[] = [
+  'owaspTop10',
+  'sansTop25',
+  'cwe',
+  'sonarsourceSecurity'
+];
 
 // allow sorting by CREATION_DATE only
 const parseAsSort = (sort: string) => (sort === 'CREATION_DATE' ? 'CREATION_DATE' : '');
 const ISSUES_DEFAULT = 'sonarqube.issues.default';
 
-export function parseQuery(query: RawQuery): Query {
+export function parseQuery(query: T.RawQuery): Query {
   return {
     assigned: parseAsBoolean(query.assigned),
     assignees: parseAsArray(query.assignees, parseAsString),
@@ -92,6 +98,7 @@ export function parseQuery(query: RawQuery): Query {
     sansTop25: parseAsArray(query.sansTop25, parseAsString),
     severities: parseAsArray(query.severities, parseAsString),
     sinceLeakPeriod: parseAsBoolean(query.sinceLeakPeriod, false),
+    sonarsourceSecurity: parseAsArray(query.sonarsourceSecurity, parseAsString),
     sort: parseAsSort(query.s),
     statuses: parseAsArray(query.statuses, parseAsString),
     tags: parseAsArray(query.tags, parseAsString),
@@ -99,13 +106,13 @@ export function parseQuery(query: RawQuery): Query {
   };
 }
 
-export function getOpen(query: RawQuery): string {
+export function getOpen(query: T.RawQuery): string {
   return query.open;
 }
 
-export const areMyIssuesSelected = (query: RawQuery) => query.myIssues === 'true';
+export const areMyIssuesSelected = (query: T.RawQuery) => query.myIssues === 'true';
 
-export function serializeQuery(query: Query): RawQuery {
+export function serializeQuery(query: Query): T.RawQuery {
   const filter = {
     assigned: query.assigned ? undefined : 'false',
     assignees: serializeStringArray(query.assignees),
@@ -129,6 +136,7 @@ export function serializeQuery(query: Query): RawQuery {
     sansTop25: serializeStringArray(query.sansTop25),
     severities: serializeStringArray(query.severities),
     sinceLeakPeriod: query.sinceLeakPeriod ? 'true' : undefined,
+    sonarsourceSecurity: serializeStringArray(query.sonarsourceSecurity),
     statuses: serializeStringArray(query.statuses),
     tags: serializeStringArray(query.tags),
     types: serializeStringArray(query.types)
@@ -136,7 +144,7 @@ export function serializeQuery(query: Query): RawQuery {
   return cleanQuery(filter);
 }
 
-export const areQueriesEqual = (a: RawQuery, b: RawQuery) =>
+export const areQueriesEqual = (a: T.RawQuery, b: T.RawQuery) =>
   queriesEqual(parseQuery(a), parseQuery(b));
 
 export interface RawFacet {
@@ -191,11 +199,6 @@ export interface ReferencedComponent {
   uuid: string;
 }
 
-export interface ReferencedUser {
-  avatar: string;
-  name: string;
-}
-
 export interface ReferencedLanguage {
   name: string;
 }
@@ -205,17 +208,11 @@ export interface ReferencedRule {
   name: string;
 }
 
-export interface SearchedAssignee {
-  avatar?: string;
-  login: string;
-  name: string;
-}
-
 export const searchAssignees = (
   query: string,
   organization: string | undefined,
   page = 1
-): Promise<{ paging: T.Paging; results: SearchedAssignee[] }> => {
+): Promise<{ paging: T.Paging; results: T.UserBase[] }> => {
   return organization
     ? searchMembers({ organization, p: page, ps: 50, q: query }).then(({ paging, users }) => ({
         paging,
@@ -274,4 +271,59 @@ export function scrollToIssue(issue: string, smooth = true) {
   if (element) {
     scrollToElement(element, { topOffset: 250, bottomOffset: 100, smooth });
   }
+}
+
+export function shouldOpenSeverityFacet(openFacets: T.Dict<boolean>, query: Partial<Query>) {
+  return (
+    openFacets.severities ||
+    !(query.types && query.types.length === 1 && query.types[0] === 'SECURITY_HOTSPOT')
+  );
+}
+
+export function shouldOpenStandardsFacet(
+  openFacets: T.Dict<boolean>,
+  query: Partial<Query>
+): boolean {
+  return (
+    openFacets[STANDARDS] ||
+    isFilteredBySecurityIssueTypes(query) ||
+    isOneStandardChildFacetOpen(openFacets, query)
+  );
+}
+
+export function shouldOpenStandardsChildFacet(
+  openFacets: T.Dict<boolean>,
+  query: Partial<Query>,
+  standardType: T.StandardType
+): boolean {
+  const filter = query[standardType];
+  return (
+    openFacets[STANDARDS] !== false &&
+    (openFacets[standardType] ||
+      (standardType !== 'cwe' && filter !== undefined && filter.length > 0))
+  );
+}
+
+export function shouldOpenSonarSourceSecurityFacet(
+  openFacets: T.Dict<boolean>,
+  query: Partial<Query>
+): boolean {
+  // Open it by default if the parent is open, and no other standard is open.
+  return (
+    shouldOpenStandardsChildFacet(openFacets, query, 'sonarsourceSecurity') ||
+    (shouldOpenStandardsFacet(openFacets, query) && !isOneStandardChildFacetOpen(openFacets, query))
+  );
+}
+
+function isFilteredBySecurityIssueTypes(query: Partial<Query>): boolean {
+  return (
+    query.types !== undefined &&
+    (query.types.includes('SECURITY_HOTSPOT') || query.types.includes('VULNERABILITY'))
+  );
+}
+
+function isOneStandardChildFacetOpen(openFacets: T.Dict<boolean>, query: Partial<Query>): boolean {
+  return STANDARD_TYPES.some(standardType =>
+    shouldOpenStandardsChildFacet(openFacets, query, standardType)
+  );
 }

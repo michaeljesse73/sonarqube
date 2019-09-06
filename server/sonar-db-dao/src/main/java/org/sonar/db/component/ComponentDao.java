@@ -226,10 +226,6 @@ public class ComponentDao implements Dao {
     return executeLargeInputs(allKeys, subKeys -> mapper(session).selectByKeysAndBranch(subKeys, pullRequestId));
   }
 
-  public List<ComponentDto> selectComponentsHavingSameKeyOrderedById(DbSession session, String key) {
-    return mapper(session).selectComponentsHavingSameKeyOrderedById(key);
-  }
-
   /**
    * List of ancestors, ordered from root to parent. The list is empty
    * if the component is a tree root. Disabled components are excluded by design
@@ -317,14 +313,6 @@ public class ComponentDao implements Dao {
     return mapper(dbSession).selectProjectsByOrganization(organizationUuid);
   }
 
-  public List<ComponentDto> selectGhostProjects(DbSession session, String organizationUuid, @Nullable String query, int offset, int limit) {
-    return mapper(session).selectGhostProjects(organizationUuid, buildUpperLikeSql(query), new RowBounds(offset, limit));
-  }
-
-  public long countGhostProjects(DbSession session, String organizationUuid, @Nullable String query) {
-    return mapper(session).countGhostProjects(organizationUuid, buildUpperLikeSql(query));
-  }
-
   /**
    * Selects all components that are relevant for indexing. The result is not returned (since it is usually too big), but handed over to the <code>handler</code>
    *
@@ -359,13 +347,12 @@ public class ComponentDao implements Dao {
     return mapper(dbSession).selectEnabledComponentsWithModuleUuidFromProjectKey(projectKey);
   }
 
-  public List<ComponentDto> selectProjectsByNameQuery(DbSession dbSession, @Nullable String nameQuery, boolean includeModules) {
-    String nameQueryForSql = nameQuery == null ? null : buildLikeValue(nameQuery, BEFORE_AND_AFTER).toUpperCase(Locale.ENGLISH);
-    return mapper(dbSession).selectProjectsByNameQuery(nameQueryForSql, includeModules);
-  }
-
-  public List<KeyWithUuidDto> selectComponentKeysHavingIssuesToMerge(DbSession dbSession, String mergeBranchUuid) {
-    return mapper(dbSession).selectComponentKeysHavingIssuesToMerge(mergeBranchUuid);
+  /**
+   * Returns components with open issues from branches that use a certain long living branch as reference (merge branch).
+   * Excludes components from the current branch.
+   */
+  public List<KeyWithUuidDto> selectAllSiblingComponentKeysHavingOpenIssues(DbSession dbSession, String referenceBranchUuid, String currentBranchUuid) {
+    return mapper(dbSession).selectAllSiblingComponentKeysHavingOpenIssues(referenceBranchUuid, currentBranchUuid);
   }
 
   /**

@@ -25,14 +25,13 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.Locale;
+import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 import org.sonar.api.config.EmailSettings;
-import org.sonar.api.i18n.I18n;
 import org.sonar.api.notifications.Notification;
 import org.sonar.api.rules.RuleType;
 import org.sonar.api.utils.DateUtils;
-import org.sonar.plugins.emailnotifications.api.EmailMessage;
-import org.sonar.plugins.emailnotifications.api.EmailTemplate;
+import org.sonar.core.i18n.I18n;
 import org.sonar.server.issue.notification.NewIssuesStatistics.Metric;
 
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -40,7 +39,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 /**
  * Base class to create emails for new issues
  */
-public abstract class AbstractNewIssuesEmailTemplate extends EmailTemplate {
+public abstract class AbstractNewIssuesEmailTemplate implements EmailTemplate {
 
   protected static final char NEW_LINE = '\n';
   protected static final String TAB = "    ";
@@ -73,6 +72,7 @@ public abstract class AbstractNewIssuesEmailTemplate extends EmailTemplate {
   }
 
   @Override
+  @CheckForNull
   public EmailMessage format(Notification notification) {
     if (shouldNotFormat(notification)) {
       return null;
@@ -104,7 +104,7 @@ public abstract class AbstractNewIssuesEmailTemplate extends EmailTemplate {
     return new EmailMessage()
       .setMessageId(notification.getType() + "/" + notification.getFieldValue(FIELD_PROJECT_KEY))
       .setSubject(subject(notification, computeFullProjectName(projectName, branchName)))
-      .setMessage(message.toString());
+      .setPlainTextMessage(message.toString());
   }
 
   private static String computeFullProjectName(String projectName, @Nullable String branchName) {

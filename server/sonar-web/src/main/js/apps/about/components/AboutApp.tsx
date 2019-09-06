@@ -17,34 +17,34 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
+import { Location } from 'history';
+import { keyBy } from 'lodash';
 import * as React from 'react';
 import { connect } from 'react-redux';
-import { keyBy } from 'lodash';
 import { Link } from 'react-router';
-import { Location } from 'history';
-import AboutProjects from './AboutProjects';
-import AboutLanguages from './AboutLanguages';
-import AboutCleanCode from './AboutCleanCode';
-import AboutQualityModel from './AboutQualityModel';
-import AboutQualityGates from './AboutQualityGates';
-import AboutLeakPeriod from './AboutLeakPeriod';
-import AboutStandards from './AboutStandards';
-import AboutScanners from './AboutScanners';
-import EntryIssueTypes from './EntryIssueTypes';
-import A11ySkipTarget from '../../../app/components/a11y/A11ySkipTarget';
-import GlobalContainer from '../../../app/components/GlobalContainer';
+import { translate } from 'sonar-ui-common/helpers/l10n';
+import { addWhitePageClass, removeWhitePageClass } from 'sonar-ui-common/helpers/pages';
 import { searchProjects } from '../../../api/components';
 import { getFacet } from '../../../api/issues';
-import { fetchAboutPageSettings } from '../actions';
+import A11ySkipTarget from '../../../app/components/a11y/A11ySkipTarget';
+import GlobalContainer from '../../../app/components/GlobalContainer';
 import {
   getAppState,
   getCurrentUser,
   getGlobalSettingValue,
   Store
 } from '../../../store/rootReducer';
-import { translate } from '../../../helpers/l10n';
-import { addWhitePageClass, removeWhitePageClass } from '../../../helpers/pages';
+import { fetchAboutPageSettings } from '../actions';
 import '../styles.css';
+import AboutCleanCode from './AboutCleanCode';
+import AboutLanguages from './AboutLanguages';
+import AboutLeakPeriod from './AboutLeakPeriod';
+import AboutProjects from './AboutProjects';
+import AboutQualityGates from './AboutQualityGates';
+import AboutQualityModel from './AboutQualityModel';
+import AboutScanners from './AboutScanners';
+import AboutStandards from './AboutStandards';
+import EntryIssueTypes from './EntryIssueTypes';
 
 interface Props {
   appState: Pick<T.AppState, 'defaultOrganization' | 'organizationsEnabled'>;
@@ -115,10 +115,12 @@ export class AboutApp extends React.PureComponent<Props, State> {
     let bugs;
     let vulnerabilities;
     let codeSmells;
+    let securityHotspots;
     if (!loading && issueTypes) {
       bugs = issueTypes['BUG'] && issueTypes['BUG'].count;
       vulnerabilities = issueTypes['VULNERABILITY'] && issueTypes['VULNERABILITY'].count;
       codeSmells = issueTypes['CODE_SMELL'] && issueTypes['CODE_SMELL'].count;
+      securityHotspots = issueTypes['SECURITY_HOTSPOT'] && issueTypes['SECURITY_HOTSPOT'].count;
     }
 
     return (
@@ -149,13 +151,18 @@ export class AboutApp extends React.PureComponent<Props, State> {
                 bugs={bugs}
                 codeSmells={codeSmells}
                 loading={loading}
+                securityHotspots={securityHotspots}
                 vulnerabilities={vulnerabilities}
               />
             </div>
           </div>
 
           {customText && (
-            <div className="about-page-section" dangerouslySetInnerHTML={{ __html: customText }} />
+            <div
+              className="about-page-section"
+              // Safe: Defined by instance admin
+              dangerouslySetInnerHTML={{ __html: customText }}
+            />
           )}
 
           <AboutLanguages />

@@ -28,7 +28,6 @@ import java.util.Set;
 import org.sonar.ce.task.projectanalysis.analysis.AnalysisMetadataHolder;
 import org.sonar.ce.task.projectanalysis.batch.BatchReportReader;
 import org.sonar.ce.task.projectanalysis.component.Component;
-import org.sonar.ce.task.projectanalysis.period.Period;
 import org.sonar.ce.task.projectanalysis.period.PeriodHolder;
 import org.sonar.ce.task.projectanalysis.scm.Changeset;
 import org.sonar.ce.task.projectanalysis.scm.ScmInfo;
@@ -67,7 +66,7 @@ public class NewLinesRepository {
    * if a line is new or not.
    */
   private Optional<Set<Integer>> computeNewLinesFromScm(Component component) {
-    if (!periodHolder.hasPeriod()) {
+    if (!periodHolder.hasPeriod() && !analysisMetadataHolder.isSLBorPR()) {
       return Optional.empty();
     }
 
@@ -77,22 +76,25 @@ public class NewLinesRepository {
     }
 
     ScmInfo scmInfo = scmInfoOpt.get();
-    Map<Integer, Changeset> allChangesets = scmInfo.getAllChangesets();
+    Changeset[] allChangesets = scmInfo.getAllChangesets();
     Set<Integer> lines = new HashSet<>();
 
-    for (Map.Entry<Integer, Changeset> e : allChangesets.entrySet()) {
-      if (isLineInPeriod(e.getValue().getDate(), periodHolder.getPeriod())) {
-        lines.add(e.getKey());
+    // in SLB/PRs, we consider changes introduced in this analysis as new, hence subtracting 1.
+    long referenceDate = analysisMetadataHolder.isSLBorPR() ? analysisMetadataHolder.getAnalysisDate() - 1 : periodHolder.getPeriod().getSnapshotDate();
+    for (int i=0; i<allChangesets.length; i++) {
+      if (isLineInPeriod(allChangesets[i].getDate(), referenceDate)) {
+        lines.add(i+1);
       }
     }
+
     return Optional.of(lines);
   }
 
   /**
    * A line belongs to a Period if its date is older than the SNAPSHOT's date of the period.
    */
-  private static boolean isLineInPeriod(long lineDate, Period period) {
-    return lineDate > period.getSnapshotDate();
+  private static boolean isLineInPeriod(long lineDate, long referenceDate) {
+    return lineDate > referenceDate;
   }
 
   private Optional<Set<Integer>> getChangedLinesFromReport(Component file) {

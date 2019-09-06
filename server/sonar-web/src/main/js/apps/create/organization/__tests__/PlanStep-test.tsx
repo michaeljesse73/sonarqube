@@ -17,17 +17,16 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { shallow } from 'enzyme';
-import PlanStep from '../PlanStep';
-import { Plan } from '../PlanSelect';
+import * as React from 'react';
+import { submit, waitAndUpdate } from 'sonar-ui-common/helpers/testUtils';
 import { mockAlmOrganization } from '../../../../helpers/testMocks';
-import { waitAndUpdate, submit } from '../../../../helpers/testUtils';
+import { Plan } from '../PlanSelect';
+import PlanStep from '../PlanStep';
 
-jest.mock('../../../../app/components/extensions/utils', () => ({
+jest.mock('../../../../helpers/extensions', () => ({
   getExtensionStart: jest.fn().mockResolvedValue(undefined)
 }));
-
 const subscriptionPlans = [{ maxNcloc: 1000, price: 100 }];
 
 it('should render and use free plan', async () => {
@@ -81,7 +80,7 @@ it('should upgrade', async () => {
 it('should preselect paid plan', async () => {
   const wrapper = shallow(
     <PlanStep
-      almOrganization={mockAlmOrganization({ personal: true, privateRepos: 5, publicRepos: 0 })}
+      almOrganization={mockAlmOrganization({ privateRepos: 5, publicRepos: 0 })}
       createOrganization={jest.fn()}
       onDone={jest.fn()}
       onUpgradeFail={jest.fn()}

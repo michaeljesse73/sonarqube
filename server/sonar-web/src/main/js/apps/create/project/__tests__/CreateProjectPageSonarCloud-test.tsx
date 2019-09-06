@@ -17,16 +17,16 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { shallow } from 'enzyme';
-import { CreateProjectPageSonarCloud } from '../CreateProjectPageSonarCloud';
+import * as React from 'react';
+import { waitAndUpdate } from 'sonar-ui-common/helpers/testUtils';
 import { getAlmAppInfo } from '../../../../api/alm-integration';
 import {
-  mockRouter,
   mockOrganizationWithAdminActions,
-  mockOrganizationWithAlm
+  mockOrganizationWithAlm,
+  mockRouter
 } from '../../../../helpers/testMocks';
-import { waitAndUpdate } from '../../../../helpers/testUtils';
+import { CreateProjectPageSonarCloud } from '../CreateProjectPageSonarCloud';
 
 jest.mock('../../../../api/alm-integration', () => ({
   getAlmAppInfo: jest.fn().mockResolvedValue({
@@ -60,7 +60,7 @@ it('should render correctly', async () => {
   expect(wrapper).toMatchSnapshot();
 });
 
-it('should render with Manual creation only', () => {
+it('should render with Custom creation only', () => {
   expect(getWrapper({ currentUser: { ...user, externalProvider: 'microsoft' } })).toMatchSnapshot();
 });
 

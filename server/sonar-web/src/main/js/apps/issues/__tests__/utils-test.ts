@@ -17,10 +17,16 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import { scrollToElement } from '../../../helpers/scrolling';
-import { scrollToIssue } from '../utils';
+import { scrollToElement } from 'sonar-ui-common/helpers/scrolling';
+import {
+  scrollToIssue,
+  shouldOpenSeverityFacet,
+  shouldOpenSonarSourceSecurityFacet,
+  shouldOpenStandardsChildFacet,
+  shouldOpenStandardsFacet
+} from '../utils';
 
-jest.mock('../../../helpers/scrolling', () => ({
+jest.mock('sonar-ui-common/helpers/scrolling', () => ({
   scrollToElement: jest.fn()
 }));
 
@@ -52,6 +58,110 @@ describe('scrollToIssue', () => {
         smooth: true,
         topOffset: 250
       }
+    );
+  });
+});
+
+describe('shouldOpenSeverityFacet', () => {
+  it('should open severity facet', () => {
+    expect(shouldOpenSeverityFacet({ severities: true }, { types: [] })).toBe(true);
+    expect(shouldOpenSeverityFacet({}, { types: [] })).toBe(true);
+    expect(shouldOpenSeverityFacet({}, { types: ['VULNERABILITY'] })).toBe(true);
+    expect(shouldOpenSeverityFacet({ severities: false }, { types: ['VULNERABILITY'] })).toBe(true);
+    expect(shouldOpenSeverityFacet({ severities: false }, { types: [] })).toBe(true);
+    expect(shouldOpenSeverityFacet({}, { types: ['BUGS', 'SECURITY_HOTSPOT'] })).toBe(true);
+    expect(shouldOpenSeverityFacet({ severities: true }, { types: ['SECURITY_HOTSPOT'] })).toBe(
+      true
+    );
+  });
+
+  it('should NOT open severity facet', () => {
+    expect(shouldOpenSeverityFacet({}, { types: ['SECURITY_HOTSPOT'] })).toBe(false);
+  });
+});
+
+describe('shouldOpenStandardsFacet', () => {
+  it('should open standard facet', () => {
+    expect(shouldOpenStandardsFacet({ standards: true }, { types: [] })).toBe(true);
+    expect(shouldOpenStandardsFacet({ owaspTop10: true }, { types: [] })).toBe(true);
+    expect(shouldOpenStandardsFacet({}, { types: ['VULNERABILITY'] })).toBe(true);
+    expect(shouldOpenStandardsFacet({}, { types: ['SECURITY_HOTSPOT'] })).toBe(true);
+    expect(shouldOpenStandardsFacet({}, { types: ['VULNERABILITY', 'SECURITY_HOTSPOT'] })).toBe(
+      true
+    );
+    expect(shouldOpenStandardsFacet({}, { types: ['BUGS', 'SECURITY_HOTSPOT'] })).toBe(true);
+    expect(shouldOpenStandardsFacet({ standards: false }, { types: ['VULNERABILITY'] })).toBe(true);
+  });
+
+  it('should NOT open standard facet', () => {
+    expect(shouldOpenStandardsFacet({ standards: false }, { types: ['BUGS'] })).toBe(false);
+    expect(shouldOpenStandardsFacet({}, { types: [] })).toBe(false);
+    expect(shouldOpenStandardsFacet({}, {})).toBe(false);
+    expect(shouldOpenStandardsFacet({}, { types: ['BUGS'] })).toBe(false);
+    expect(shouldOpenStandardsFacet({}, { types: ['BUGS'] })).toBe(false);
+  });
+});
+
+describe('shouldOpenStandardsChildFacet', () => {
+  it('should open standard child facet', () => {
+    expect(shouldOpenStandardsChildFacet({ owaspTop10: true }, {}, 'owaspTop10')).toBe(true);
+    expect(shouldOpenStandardsChildFacet({ sansTop25: true }, {}, 'sansTop25')).toBe(true);
+    expect(
+      shouldOpenStandardsChildFacet({ sansTop25: true }, { owaspTop10: ['A1'] }, 'owaspTop10')
+    ).toBe(true);
+    expect(
+      shouldOpenStandardsChildFacet({ owaspTop10: false }, { owaspTop10: ['A1'] }, 'owaspTop10')
+    ).toBe(true);
+    expect(
+      shouldOpenStandardsChildFacet({}, { sansTop25: ['insecure-interactions'] }, 'sansTop25')
+    ).toBe(true);
+    expect(
+      shouldOpenStandardsChildFacet(
+        {},
+        { sansTop25: ['insecure-interactions'], sonarsourceSecurity: ['sql-injection'] },
+        'sonarsourceSecurity'
+      )
+    ).toBe(true);
+  });
+
+  it('should NOT open standard child facet', () => {
+    expect(shouldOpenStandardsChildFacet({ standards: true }, {}, 'owaspTop10')).toBe(false);
+    expect(shouldOpenStandardsChildFacet({ sansTop25: true }, {}, 'owaspTop10')).toBe(false);
+    expect(shouldOpenStandardsChildFacet({}, { types: ['VULNERABILITY'] }, 'sansTop25')).toBe(
+      false
+    );
+    expect(
+      shouldOpenStandardsChildFacet({}, { types: ['SECURITY_HOTSPOT'] }, 'sonarsourceSecurity')
+    ).toBe(false);
+    expect(
+      shouldOpenStandardsChildFacet(
+        {},
+        { sansTop25: ['insecure-interactions'], sonarsourceSecurity: ['sql-injection'] },
+        'owaspTop10'
+      )
+    ).toBe(false);
+  });
+});
+
+describe('shouldOpenSonarSourceSecurityFacet', () => {
+  it('should open sonarsourceSecurity facet', () => {
+    expect(shouldOpenSonarSourceSecurityFacet({}, { sonarsourceSecurity: ['xss'] })).toBe(true);
+    expect(shouldOpenSonarSourceSecurityFacet({ sonarsourceSecurity: true }, {})).toBe(true);
+    expect(shouldOpenSonarSourceSecurityFacet({ standards: true }, {})).toBe(true);
+    expect(shouldOpenSonarSourceSecurityFacet({}, { types: ['VULNERABILITY'] })).toBe(true);
+    expect(
+      shouldOpenSonarSourceSecurityFacet(
+        { sonarsourceSecurity: false },
+        { sonarsourceSecurity: ['xss'] }
+      )
+    ).toBe(true);
+  });
+
+  it('should NOT open sonarsourceSecurity facet', () => {
+    expect(shouldOpenSonarSourceSecurityFacet({ standards: false }, {})).toBe(false);
+    expect(shouldOpenSonarSourceSecurityFacet({ owaspTop10: true }, {})).toBe(false);
+    expect(shouldOpenSonarSourceSecurityFacet({ standards: true, sansTop25: true }, {})).toBe(
+      false
     );
   });
 });

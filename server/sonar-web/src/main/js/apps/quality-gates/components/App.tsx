@@ -18,25 +18,25 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import { WithRouterProps } from 'react-router';
 import Helmet from 'react-helmet';
-import Details from './Details';
-import List from './List';
-import ListHeader from './ListHeader';
-import DeferredSpinner from '../../../components/common/DeferredSpinner';
-import ScreenPositionHelper from '../../../components/common/ScreenPositionHelper';
-import Suggestions from '../../../app/components/embed-docs-modal/Suggestions';
-import { fetchQualityGates } from '../../../api/quality-gates';
-import { translate } from '../../../helpers/l10n';
+import { WithRouterProps } from 'react-router';
+import DeferredSpinner from 'sonar-ui-common/components/ui/DeferredSpinner';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import {
   addSideBarClass,
   addWhitePageClass,
   removeSideBarClass,
   removeWhitePageClass
-} from '../../../helpers/pages';
-import { getQualityGateUrl } from '../../../helpers/urls';
+} from 'sonar-ui-common/helpers/pages';
+import { fetchQualityGates } from '../../../api/quality-gates';
+import Suggestions from '../../../app/components/embed-docs-modal/Suggestions';
+import ScreenPositionHelper from '../../../components/common/ScreenPositionHelper';
 import '../../../components/search-navigator.css';
+import { getQualityGateUrl } from '../../../helpers/urls';
 import '../styles.css';
+import Details from './Details';
+import List from './List';
+import ListHeader from './ListHeader';
 
 interface Props extends WithRouterProps {
   organization?: Pick<T.Organization, 'key'>;

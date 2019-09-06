@@ -54,6 +54,11 @@ public class QualityGateDao implements Dao {
   }
 
   @CheckForNull
+  public QualityGateDto selectByUuid(DbSession session, String uuid) {
+    return mapper(session).selectByUuid(uuid);
+  }
+
+  @CheckForNull
   public QGateWithOrgDto selectByOrganizationAndUuid(DbSession dbSession, OrganizationDto organization, String qualityGateUuid) {
     return mapper(dbSession).selectByUuidAndOrganization(qualityGateUuid, organization.getUuid());
   }
@@ -100,5 +105,9 @@ public class QualityGateDao implements Dao {
 
   private static QualityGateMapper mapper(DbSession session) {
     return session.getMapper(QualityGateMapper.class);
+  }
+
+  public QualityGateDto selectByProjectUuid(DbSession dbSession, String uuid) {
+    return mapper(dbSession).selectByProjectUuid(uuid);
   }
 }

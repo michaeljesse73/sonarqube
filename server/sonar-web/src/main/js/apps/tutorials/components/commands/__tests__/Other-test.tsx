@@ -17,8 +17,8 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { shallow } from 'enzyme';
+import * as React from 'react';
 import Other from '../Other';
 
 it('renders correctly', () => {
@@ -31,14 +31,6 @@ it('renders correctly', () => {
   ).toMatchSnapshot();
 
   expect(
-    shallow(
-      <Other
-        host="host"
-        organization="organization"
-        os="linux"
-        projectKey="projectKey"
-        token="token"
-      />
-    )
+    shallow(<Other host="host" os="linux" projectKey="projectKey" token="token" />)
   ).toMatchSnapshot();
 });

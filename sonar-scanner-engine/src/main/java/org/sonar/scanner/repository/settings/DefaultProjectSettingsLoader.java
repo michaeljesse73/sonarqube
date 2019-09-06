@@ -21,18 +21,18 @@ package org.sonar.scanner.repository.settings;
 
 import java.util.Map;
 import org.sonar.scanner.bootstrap.ProcessedScannerProperties;
-import org.sonar.scanner.bootstrap.ScannerWsClient;
+import org.sonar.scanner.bootstrap.DefaultScannerWsClient;
 
 public class DefaultProjectSettingsLoader extends AbstractSettingsLoader implements ProjectSettingsLoader {
   private final ProcessedScannerProperties scannerProperties;
 
-  public DefaultProjectSettingsLoader(final ScannerWsClient wsClient, final ProcessedScannerProperties scannerProperties) {
+  public DefaultProjectSettingsLoader(final DefaultScannerWsClient wsClient, final ProcessedScannerProperties scannerProperties) {
     super(wsClient);
     this.scannerProperties = scannerProperties;
   }
 
   @Override
   public Map<String, String> loadProjectSettings() {
-    return load(scannerProperties.getKeyWithBranch());
+    return load(scannerProperties.getProjectKey());
   }
 }

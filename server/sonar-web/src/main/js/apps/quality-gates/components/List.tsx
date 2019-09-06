@@ -19,9 +19,9 @@
  */
 import * as React from 'react';
 import { Link } from 'react-router';
-import BuiltInQualityGateBadge from './BuiltInQualityGateBadge';
-import { translate } from '../../../helpers/l10n';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import { getQualityGateUrl } from '../../../helpers/urls';
+import BuiltInQualityGateBadge from './BuiltInQualityGateBadge';
 
 interface Props {
   organization?: string;

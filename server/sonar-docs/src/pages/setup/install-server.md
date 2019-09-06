@@ -26,14 +26,25 @@ Example of query to update `is_read_committed_snapshot_on`:
 ```
 ALTER DATABASE YourSonarQubeDatabase SET READ_COMMITTED_SNAPSHOT ON WITH ROLLBACK IMMEDIATE;
 ```
+#### Integrated Security
 
-If you want to use integrated security, you have to download the Microsoft SQL JDBC Driver 6.2 package from [https://www.microsoft.com/en-us/download/details.aspx?id=55539](https://www.microsoft.com/en-us/download/details.aspx?id=55539) and copy `sqljdbc_auth.dll` to any folder in your path. You should use the 64-bit version of the dll to match the architecture of your server machine. If you are running the SonarQube as a windows service and want to use Integrated security, please make sure the Windows account under which the service is running has permission to connect your SQL Server. The account should have `db_owner` database role membership. Otherwise, if you are running the SonarQube server from a command prompt and want to use Integrated security, the user under which the command prompt is running should have `db_owner` database role membership. Also ensure that `sonar.jdbc.username` or `sonar.jdbc.password properties` are commented out, otherwise SonarQube will use SQL Authentication.
+To use integrated security: 
+
+1. Download the [Microsoft SQL JDBC Driver 7.2.2 package](https://www.microsoft.com/en-us/download/details.aspx?id=57782) and copy the 64-bit version of `sqljdbc_auth.dll` to any folder in your path. 
+
+2. **If you're running SonarQube as a Windows service,** make sure the Windows account under which the service is running has permission to connect your SQL server. The account should have `db_owner` database role membership. 
+
+	**If you're running the SonarQube server from a command prompt,** the user under which the command prompt is running should have `db_owner` database role membership. 
+
+3. Ensure that `sonar.jdbc.username` or `sonar.jdbc.password` properties are commented out or SonarQube will use SQL authentication.
 
 ```
 sonar.jdbc.url=jdbc:sqlserver://localhost;databaseName=sonar;integratedSecurity=true
 ```
 
-If you want to use SQL Authentication, use the following connection string. Also ensure that `sonar.jdbc.username` and `sonar.jdbc.password` are set appropriately.
+#### SQL Authentication
+
+To use SQL Authentication, use the following connection string. Also ensure that `sonar.jdbc.username` and `sonar.jdbc.password` are set appropriately:
 
 ```
 sonar.jdbc.url=jdbc:sqlserver://localhost;databaseName=sonar
@@ -58,15 +69,6 @@ If you want to use a custom schema and not the default "public" one, the Postgre
 ```
 ALTER USER mySonarUser SET search_path to mySonarQubeSchema
 ```
-
-### MySQL (not recommended)
-
-[[warning]]
-| MySQL is not supported for [Data Center Edition](https://www.sonarsource.com/plans-and-pricing/data-center/).
-
-There are two well-known engines that can be used in MySQL: MyISAM and InnoDB. MyISAM is the oldest of the two engines and is being progressively replaced by InnoDB. InnoDB is clearly faster and scales better with SonarQube as the number of projects under quality control increases. If you were an early adopter of SonarQube, you probably have a series of tables that are still using MyISAM. To improve performance, you should change the engine for all tables to InnoDB.
-
-Once all SonarQube tables are using the InnoDB engine, the first thing to do is allocate a maximum amount of RAM to your MySQL instance with the `innodb_buffer_pool_size` parameter and give at least 15Mb to the `query_cache_size` parameter. Read this article about [InnoDB Performance Optimization Basics](https://www.percona.com/blog/2007/11/01/innodb-performance-optimization-basics/) for more information.
 
 ## Installing the Web Server
 
@@ -158,10 +160,6 @@ To grant more memory to a server-side process, uncomment and edit the relevant j
 - `sonar.web.javaOpts` (minimum values: `-server -Xmx768m`)
 - `sonar.ce.javaOpts`
 - `sonar.search.javaOpts`
-
-### Cannot connect to MySQL database
-
-By default, remote access to MySQL database server is disabled for security reasons. If you want to remotely access the database server, you need to follow this [quick guide](https://www.cyberciti.biz/tips/how-do-i-enable-remote-access-to-mysql-database-server.html).
 
 ### Failed to start on Windows Vista
 

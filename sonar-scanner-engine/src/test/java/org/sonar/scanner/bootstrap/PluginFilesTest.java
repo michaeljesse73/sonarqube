@@ -74,7 +74,7 @@ public class PluginFilesTest {
   public void setUp() throws Exception {
     HttpConnector connector = HttpConnector.newBuilder().url(server.url("/").toString()).build();
     GlobalAnalysisMode analysisMode = new GlobalAnalysisMode(new RawScannerProperties(Collections.emptyMap()));
-    ScannerWsClient wsClient = new ScannerWsClient(WsClientFactories.getDefault().newClient(connector), false, analysisMode);
+    DefaultScannerWsClient wsClient = new DefaultScannerWsClient(WsClientFactories.getDefault().newClient(connector), false, analysisMode);
 
     userHome = temp.newFolder();
     MapSettings settings = new MapSettings();

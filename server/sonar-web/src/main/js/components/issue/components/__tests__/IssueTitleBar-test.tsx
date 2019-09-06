@@ -17,13 +17,12 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { shallow } from 'enzyme';
-import IssueTitleBar from '../IssueTitleBar';
+import * as React from 'react';
 import { mockIssue } from '../../../../helpers/testMocks';
+import IssueTitleBar from '../IssueTitleBar';
 
 const issue: T.Issue = mockIssue();
-const issueWithLocations: T.Issue = mockIssue(true);
 
 it('should render the titlebar correctly', () => {
   const branch: T.ShortLivingBranch = {
@@ -43,17 +42,6 @@ it('should render the titlebar with the filter', () => {
     <IssueTitleBar issue={issue} onFilter={jest.fn()} togglePopup={jest.fn()} />
   );
   expect(element).toMatchSnapshot();
-});
-
-it('should count all code locations', () => {
-  const element = shallow(
-    <IssueTitleBar
-      displayLocationsCount={true}
-      issue={issueWithLocations}
-      togglePopup={jest.fn()}
-    />
-  );
-  expect(element.find('LocationIndex')).toMatchSnapshot();
 });
 
 it('should have a correct permalink for security hotspots', () => {

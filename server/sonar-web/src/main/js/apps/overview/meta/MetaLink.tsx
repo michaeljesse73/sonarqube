@@ -18,11 +18,10 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import { getLinkName } from '../../projectLinks/utils';
-import ProjectLinkIcon from '../../../components/icons-components/ProjectLinkIcon';
+import { ClearButton } from 'sonar-ui-common/components/controls/buttons';
+import ProjectLinkIcon from 'sonar-ui-common/components/icons/ProjectLinkIcon';
 import isValidUri from '../../../app/utils/isValidUri';
-import ClearIcon from '../../../components/icons-components/ClearIcon';
-import './MetaLink.css';
+import { getLinkName } from '../../projectLinks/utils';
 
 interface Props {
   iconOnly?: boolean;
@@ -34,13 +33,19 @@ interface State {
 }
 
 export default class MetaLink extends React.PureComponent<Props, State> {
-  state = {
-    expanded: false
-  };
+  state = { expanded: false };
 
   handleClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
     event.preventDefault();
-    this.setState(s => ({ expanded: !s.expanded }));
+    this.setState(({ expanded }) => ({ expanded: !expanded }));
+  };
+
+  handleCollapse = () => {
+    this.setState({ expanded: false });
+  };
+
+  handleSelect = (event: React.MouseEvent<HTMLInputElement>) => {
+    event.currentTarget.select();
   };
 
   render() {
@@ -59,17 +64,15 @@ export default class MetaLink extends React.PureComponent<Props, State> {
           {!iconOnly && linkTitle}
         </a>
         {this.state.expanded && (
-          <div className="little-spacer-top copy-paste-link">
+          <div className="little-spacer-top display-flex-center">
             <input
-              className="overview-key"
-              onClick={(event: React.MouseEvent<HTMLInputElement>) => event.currentTarget.select()}
+              className="overview-key width-80"
+              onClick={this.handleSelect}
               readOnly={true}
               type="text"
               value={link.url}
             />
-            <a className="close" href="#" onClick={this.handleClick}>
-              <ClearIcon />
-            </a>
+            <ClearButton className="little-spacer-left" onClick={this.handleCollapse} />
           </div>
         )}
       </li>

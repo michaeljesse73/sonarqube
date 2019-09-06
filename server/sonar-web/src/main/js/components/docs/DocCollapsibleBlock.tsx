@@ -18,7 +18,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import OpenCloseIcon from '../icons-components/OpenCloseIcon';
+import OpenCloseIcon from 'sonar-ui-common/components/icons/OpenCloseIcon';
 
 interface State {
   open: boolean;
@@ -41,7 +41,7 @@ export default class DocCollapsibleBlock extends React.PureComponent<{}, State> 
         className="link-no-underline"
         href="#"
         onClick={this.handleClick}>
-        <OpenCloseIcon className="vertical-middle little-spacer-right" open={this.state.open} />
+        <OpenCloseIcon className="text-middle little-spacer-right" open={this.state.open} />
         {children.props ? children.props.children : children}
       </a>
     );

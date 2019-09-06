@@ -18,13 +18,12 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import {
+  getAlmMembersUrl,
+  getUserAlmKey,
   isBitbucket,
   isGithub,
-  isPersonal,
   isVSTS,
-  sanitizeAlmId,
-  getAlmMembersUrl,
-  getUserAlmKey
+  sanitizeAlmId
 } from '../almIntegrations';
 import { mockCurrentUser, mockLoggedInUser } from '../testMocks';
 
@@ -51,19 +50,6 @@ it('#isGithub', () => {
 it('#isVSTS', () => {
   expect(isVSTS('microsoft')).toBeTruthy();
   expect(isVSTS('github')).toBeFalsy();
-});
-
-it('#isPersonal', () => {
-  const almOrg = {
-    almUrl: '',
-    key: 'foo',
-    name: 'Foo',
-    personal: true,
-    privateRepos: 0,
-    publicRepos: 3
-  };
-  expect(isPersonal(almOrg)).toBeTruthy();
-  expect(isPersonal({ ...almOrg, personal: false })).toBeFalsy();
 });
 
 it('#sanitizeAlmId', () => {

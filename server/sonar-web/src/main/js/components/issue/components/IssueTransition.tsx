@@ -18,18 +18,18 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import DropdownIcon from '../../icons-components/DropdownIcon';
-import SetTransitionPopup from '../popups/SetTransitionPopup';
-import StatusHelper from '../../shared/StatusHelper';
-import Toggler from '../../controls/Toggler';
-import { ButtonLink } from '../../ui/buttons';
+import { ButtonLink } from 'sonar-ui-common/components/controls/buttons';
+import Toggler from 'sonar-ui-common/components/controls/Toggler';
+import DropdownIcon from 'sonar-ui-common/components/icons/DropdownIcon';
 import { setIssueTransition } from '../../../api/issues';
+import StatusHelper from '../../shared/StatusHelper';
 import { updateIssue } from '../actions';
+import SetTransitionPopup from '../popups/SetTransitionPopup';
 
 interface Props {
   hasTransitions: boolean;
   isOpen: boolean;
-  issue: Pick<T.Issue, 'key' | 'resolution' | 'status' | 'transitions'>;
+  issue: Pick<T.Issue, 'fromHotspot' | 'key' | 'resolution' | 'status' | 'transitions' | 'type'>;
   onChange: (issue: T.Issue) => void;
   togglePopup: (popup: string, show?: boolean) => void;
 }
@@ -61,7 +61,12 @@ export default class IssueTransition extends React.PureComponent<Props> {
             onRequestClose={this.handleClose}
             open={this.props.isOpen && this.props.hasTransitions}
             overlay={
-              <SetTransitionPopup onSelect={this.setTransition} transitions={issue.transitions} />
+              <SetTransitionPopup
+                fromHotspot={issue.fromHotspot}
+                onSelect={this.setTransition}
+                transitions={issue.transitions}
+                type={issue.type}
+              />
             }>
             <ButtonLink
               className="issue-action issue-action-with-options js-issue-transition"

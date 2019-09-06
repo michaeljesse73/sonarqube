@@ -25,21 +25,24 @@ import java.util.Date;
 import java.util.Optional;
 import org.sonar.api.issue.Issue;
 import org.sonar.api.rules.RuleType;
+import org.sonar.ce.task.projectanalysis.analysis.AnalysisMetadataHolder;
 import org.sonar.core.issue.DefaultIssue;
 import org.sonar.core.issue.DefaultIssueComment;
 import org.sonar.core.issue.FieldDiffs;
 import org.sonar.core.issue.IssueChangeContext;
 import org.sonar.core.util.Uuids;
-import org.sonar.ce.task.projectanalysis.analysis.AnalysisMetadataHolder;
+import org.sonar.db.component.KeyType;
 import org.sonar.server.issue.IssueFieldsSetter;
 import org.sonar.server.issue.workflow.IssueWorkflow;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * Sets the appropriate fields when an issue is :
  * <ul>
- *   <li>newly created</li>
- *   <li>merged the related base issue</li>
- *   <li>relocated (only manual issues)</li>
+ * <li>newly created</li>
+ * <li>merged the related base issue</li>
+ * <li>relocated (only manual issues)</li>
  * </ul>
  */
 public class IssueLifecycle {
@@ -69,20 +72,29 @@ public class IssueLifecycle {
 
   public void initNewOpenIssue(DefaultIssue issue) {
     Preconditions.checkArgument(issue.isFromExternalRuleEngine() != (issue.type() == null), "At this stage issue type should be set for and only for external issues");
+    Rule rule = ruleRepository.getByKey(issue.ruleKey());
     issue.setKey(Uuids.create());
     issue.setCreationDate(changeContext.date());
     issue.setUpdateDate(changeContext.date());
-    issue.setStatus(Issue.STATUS_OPEN);
     issue.setEffort(debtCalculator.calculate(issue));
-    setType(issue);
+    issue.setIsFromHotspot(rule.getType() == RuleType.SECURITY_HOTSPOT);
+    setType(issue, rule);
+    setStatus(issue, rule);
   }
 
-  private void setType(DefaultIssue issue) {
-    if (!issue.isFromExternalRuleEngine()) {
-      Rule rule = ruleRepository.getByKey(issue.ruleKey());
-      issue.setType(rule.getType());
+  private void setType(DefaultIssue issue, Rule rule) {
+    if (issue.isFromExternalRuleEngine()) {
+      return;
     }
-    issue.setIsFromHotspot(issue.type() == RuleType.SECURITY_HOTSPOT);
+    issue.setType(requireNonNull(rule.getType(), "No rule type"));
+  }
+
+  private void setStatus(DefaultIssue issue, Rule rule) {
+    if (issue.isFromExternalRuleEngine() || rule.getType() != RuleType.SECURITY_HOTSPOT) {
+      issue.setStatus(Issue.STATUS_OPEN);
+    } else {
+      issue.setStatus(Issue.STATUS_TO_REVIEW);
+    }
   }
 
   public void copyExistingOpenIssueFromLongLivingBranch(DefaultIssue raw, DefaultIssue base, String fromLongBranchName) {
@@ -92,9 +104,11 @@ public class IssueLifecycle {
     raw.setFieldChange(changeContext, IssueFieldsSetter.FROM_LONG_BRANCH, fromLongBranchName, analysisMetadataHolder.getBranch().getName());
   }
 
-  public void mergeConfirmedOrResolvedFromShortLivingBranch(DefaultIssue raw, DefaultIssue base, String fromShortBranchName) {
+  public void mergeConfirmedOrResolvedFromShortLivingBranchOrPr(DefaultIssue raw, DefaultIssue base, KeyType branchType, String fromShortBranchNameOrPR) {
     copyAttributesOfIssueFromOtherBranch(raw, base);
-    raw.setFieldChange(changeContext, IssueFieldsSetter.FROM_SHORT_BRANCH, fromShortBranchName, analysisMetadataHolder.getBranch().getName());
+    String from = (branchType == KeyType.PULL_REQUEST ? "#" : "") + fromShortBranchNameOrPR;
+    String to = analysisMetadataHolder.isPullRequest() ? ("#" + analysisMetadataHolder.getPullRequestKey()) : analysisMetadataHolder.getBranch().getName();
+    raw.setFieldChange(changeContext, IssueFieldsSetter.FROM_SHORT_BRANCH, from, to);
   }
 
   private void copyAttributesOfIssueFromOtherBranch(DefaultIssue to, DefaultIssue from) {
@@ -145,13 +159,15 @@ public class IssueLifecycle {
 
   public void mergeExistingOpenIssue(DefaultIssue raw, DefaultIssue base) {
     Preconditions.checkArgument(raw.isFromExternalRuleEngine() != (raw.type() == null), "At this stage issue type should be set for and only for external issues");
+    Rule rule = ruleRepository.getByKey(raw.ruleKey());
     raw.setKey(base.key());
     raw.setNew(false);
     if (base.isChanged()) {
       // In case issue was moved from module or folder to the root project
       raw.setChanged(true);
     }
-    setType(raw);
+    raw.setIsFromHotspot(rule.getType() == RuleType.SECURITY_HOTSPOT);
+    setType(raw, rule);
     copyFields(raw, base);
     base.changes().forEach(raw::addChange);
     if (raw.isFromHotspot() != base.isFromHotspot()) {
@@ -161,7 +177,7 @@ public class IssueLifecycle {
     if (raw.isFromHotspot() && !base.isFromHotspot()) {
       // First analysis after rule type was changed to security_hotspot. Issue will be reset to an open hotspot
       updater.setType(raw, RuleType.SECURITY_HOTSPOT, changeContext);
-      updater.setStatus(raw, Issue.STATUS_REOPENED, changeContext);
+      updater.setStatus(raw, Issue.STATUS_TO_REVIEW, changeContext);
       updater.setResolution(raw, null, changeContext);
     }
 

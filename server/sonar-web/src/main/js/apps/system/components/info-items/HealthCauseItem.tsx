@@ -17,14 +17,13 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import * as classNames from 'classnames';
-import { HealthType } from '../../../../api/system';
-import { Alert } from '../../../../components/ui/Alert';
+import * as React from 'react';
+import { Alert } from 'sonar-ui-common/components/ui/Alert';
 
 interface Props {
   className?: string;
-  health: HealthType;
+  health: T.HealthType;
   healthCause: string;
 }
 
@@ -33,7 +32,7 @@ export default function HealthCauseItem({ className, health, healthCause }: Prop
     <Alert
       className={classNames('boxed-group-accordion-alert', className)}
       display="inline"
-      variant={health === HealthType.RED ? 'error' : 'warning'}>
+      variant={health === 'RED' ? 'error' : 'warning'}>
       {healthCause}
     </Alert>
   );

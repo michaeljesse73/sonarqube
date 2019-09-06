@@ -17,29 +17,28 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import * as classNames from 'classnames';
-import PerspectiveSelect from './PerspectiveSelect';
-import ProjectsSortingSelect from './ProjectsSortingSelect';
-import SearchFilterContainer from '../filters/SearchFilterContainer';
-import Tooltip from '../../../components/controls/Tooltip';
+import * as React from 'react';
+import Tooltip from 'sonar-ui-common/components/controls/Tooltip';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import HomePageSelect from '../../../components/controls/HomePageSelect';
-import { translate } from '../../../helpers/l10n';
-import { RawQuery } from '../../../helpers/query';
-import { Project } from '../types';
 import { isSonarCloud } from '../../../helpers/system';
 import { isLoggedIn } from '../../../helpers/users';
+import SearchFilterContainer from '../filters/SearchFilterContainer';
+import { Project } from '../types';
+import PerspectiveSelect from './PerspectiveSelect';
+import ProjectsSortingSelect from './ProjectsSortingSelect';
 
 interface Props {
   currentUser: T.CurrentUser;
   isFavorite: boolean;
   loading: boolean;
   onPerspectiveChange: (x: { view: string; visualization?: string }) => void;
-  onQueryChange: (change: RawQuery) => void;
+  onQueryChange: (change: T.RawQuery) => void;
   onSortChange: (sort: string, desc: boolean) => void;
   organization?: { key: string };
   projects?: Project[];
-  query: RawQuery;
+  query: T.RawQuery;
   selectedSort: string;
   total?: number;
   view: string;

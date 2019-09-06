@@ -18,112 +18,37 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import Tooltip from '../../../components/controls/Tooltip';
-import { DeleteButton } from '../../../components/ui/buttons';
-import { translate } from '../../../helpers/l10n';
-import ConfirmButton from '../../../components/controls/ConfirmButton';
+import StatPendingCount from './StatPendingCount';
+import StatPendingTime from './StatPendingTime';
+import StatStillFailing from './StatStillFailing';
 
-interface Props {
-  component?: unknown;
+export interface Props {
+  component?: Pick<T.Component, 'key'>;
   failingCount?: number;
-  isSystemAdmin?: boolean;
-  pendingCount?: number;
-  onShowFailing: () => void;
   onCancelAllPending: () => void;
+  onShowFailing: () => void;
+  pendingCount?: number;
+  pendingTime?: number;
 }
 
-export default class Stats extends React.PureComponent<Props> {
-  handleShowFailing = (event: React.MouseEvent<HTMLAnchorElement>) => {
-    event.preventDefault();
-    event.currentTarget.blur();
-    this.props.onShowFailing();
-  };
-
-  renderPending() {
-    if (this.props.pendingCount === undefined) {
-      return null;
-    }
-    if (this.props.pendingCount > 0) {
-      return (
-        <span>
-          <span className="js-pending-count emphasised-measure">{this.props.pendingCount}</span>
-          <span className="display-inline-flex-center little-spacer-left">
-            {translate('background_tasks.pending')}
-            {this.props.isSystemAdmin && (
-              <ConfirmButton
-                cancelButtonText={translate('close')}
-                confirmButtonText={translate('background_tasks.cancel_all_tasks.submit')}
-                data-test="cancel-pending"
-                isDestructive={true}
-                modalBody={translate('background_tasks.cancel_all_tasks.text')}
-                modalHeader={translate('background_tasks.cancel_all_tasks')}
-                onConfirm={this.props.onCancelAllPending}>
-                {({ onClick }) => (
-                  <Tooltip overlay={translate('background_tasks.cancel_all_tasks')}>
-                    <DeleteButton
-                      className="js-cancel-pending little-spacer-left"
-                      onClick={onClick}
-                    />
-                  </Tooltip>
-                )}
-              </ConfirmButton>
-            )}
-          </span>
-        </span>
-      );
-    } else {
-      return (
-        <span>
-          <span className="js-pending-count emphasised-measure">{this.props.pendingCount}</span>
-          &nbsp;
-          {translate('background_tasks.pending')}
-        </span>
-      );
-    }
-  }
-
-  renderFailures() {
-    if (this.props.failingCount === undefined) {
-      return null;
-    }
-
-    if (this.props.component) {
-      return null;
-    }
-
-    if (this.props.failingCount > 0) {
-      return (
-        <span>
-          <Tooltip overlay={translate('background_tasks.failing_count')}>
-            <a
-              className="js-failures-count emphasised-measure"
-              href="#"
-              onClick={this.handleShowFailing}>
-              {this.props.failingCount}
-            </a>
-          </Tooltip>
-          &nbsp;
-          {translate('background_tasks.failures')}
-        </span>
-      );
-    } else {
-      return (
-        <span>
-          <Tooltip overlay={translate('background_tasks.failing_count')}>
-            <span className="js-failures-count emphasised-measure">{this.props.failingCount}</span>
-          </Tooltip>
-          <span className="little-spacer-left">{translate('background_tasks.failures')}</span>
-        </span>
-      );
-    }
-  }
-
-  render() {
-    return (
-      <section className="big-spacer-top big-spacer-bottom">
-        <span>{this.renderPending()}</span>
-        <span className="huge-spacer-left">{this.renderFailures()}</span>
-      </section>
-    );
-  }
+export default function Stats({ component, pendingCount, pendingTime, ...props }: Props) {
+  return (
+    <section className="big-spacer-top big-spacer-bottom">
+      <StatPendingCount onCancelAllPending={props.onCancelAllPending} pendingCount={pendingCount} />
+      {!component && (
+        <StatPendingTime
+          className="huge-spacer-left"
+          pendingCount={pendingCount}
+          pendingTime={pendingTime}
+        />
+      )}
+      {!component && (
+        <StatStillFailing
+          className="huge-spacer-left"
+          failingCount={props.failingCount}
+          onShowFailing={props.onShowFailing}
+        />
+      )}
+    </section>
+  );
 }

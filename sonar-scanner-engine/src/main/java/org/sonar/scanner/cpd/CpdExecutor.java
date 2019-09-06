@@ -19,7 +19,6 @@
  */
 package org.sonar.scanner.cpd;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
@@ -77,7 +76,7 @@ public class CpdExecutor {
   }
 
   public CpdExecutor(CpdSettings settings, SonarCpdBlockIndex index, ReportPublisher publisher, InputComponentStore inputComponentCache,
-    ExecutorService executorService) {
+                     ExecutorService executorService) {
     this.settings = settings;
     this.index = index;
     this.publisher = publisher;
@@ -90,7 +89,6 @@ public class CpdExecutor {
     execute(TIMEOUT);
   }
 
-  @VisibleForTesting
   void execute(long timeout) {
     List<FileBlocks> components = new ArrayList<>(index.noResources());
     Iterator<ResourceBlocks> it = index.iterator();
@@ -106,17 +104,17 @@ public class CpdExecutor {
 
     int filesWithoutBlocks = index.noIndexedFiles() - index.noResources();
     if (filesWithoutBlocks > 0) {
-      LOG.info("{} {} had no CPD blocks", filesWithoutBlocks, pluralize(filesWithoutBlocks));
+      LOG.info("CPD Executor {} {} had no CPD blocks", filesWithoutBlocks, pluralize(filesWithoutBlocks));
     }
 
     total = components.size();
-    progressReport.start(String.format("Calculating CPD for %d %s", total, pluralize(total)));
+    progressReport.start(String.format("CPD Executor Calculating CPD for %d %s", total, pluralize(total)));
     try {
       for (FileBlocks fileBlocks : components) {
         runCpdAnalysis(executorService, fileBlocks.getInputFile(), fileBlocks.getBlocks(), timeout);
         count++;
       }
-      progressReport.stop("CPD calculation finished");
+      progressReport.stopAndLogTotalTime("CPD Executor CPD calculation finished");
     } catch (Exception e) {
       progressReport.stop("");
       throw e;
@@ -129,7 +127,6 @@ public class CpdExecutor {
     return files == 1 ? "file" : "files";
   }
 
-  @VisibleForTesting
   void runCpdAnalysis(ExecutorService executorService, DefaultInputFile inputFile, Collection<Block> fileBlocks, long timeout) {
     LOG.debug("Detection of duplications for {}", inputFile.absolutePath());
     progressReport.message(String.format("%d/%d - current file: %s", count, total, inputFile.absolutePath()));
@@ -160,7 +157,7 @@ public class CpdExecutor {
     saveDuplications(inputFile, filtered);
   }
 
-  @VisibleForTesting final void saveDuplications(final DefaultInputComponent component, List<CloneGroup> duplications) {
+  final void saveDuplications(final DefaultInputComponent component, List<CloneGroup> duplications) {
     if (duplications.size() > MAX_CLONE_GROUP_PER_FILE) {
       LOG.warn("Too many duplication groups on file {}. Keep only the first {} groups.", component, MAX_CLONE_GROUP_PER_FILE);
     }

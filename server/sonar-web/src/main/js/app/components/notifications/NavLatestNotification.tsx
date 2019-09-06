@@ -17,13 +17,13 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
+import * as differenceInSeconds from 'date-fns/difference_in_seconds';
 import * as React from 'react';
-import ClearIcon from '../../../components/icons-components/ClearIcon';
-import NotificationIcon from '../../../components/icons-components/NotificationIcon';
-import { sonarcloudBlack500 } from '../../theme';
+import ClearIcon from 'sonar-ui-common/components/icons/ClearIcon';
+import NotificationIcon from 'sonar-ui-common/components/icons/NotificationIcon';
+import { parseDate } from 'sonar-ui-common/helpers/dates';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import { PrismicFeatureNews } from '../../../api/news';
-import { differenceInSeconds, parseDate } from '../../../helpers/dates';
-import { translate } from '../../../helpers/l10n';
 import './notifications.css';
 
 interface Props {
@@ -71,13 +71,13 @@ export default class NavLatestNotification extends React.PureComponent<Props> {
           <>
             <li className="navbar-latest-notification" onClick={this.props.onClick}>
               <div className="navbar-latest-notification-wrapper">
-                <span className="badge badge-new">{translate('new')}</span>
+                <span className="badge badge-info">{translate('new')}</span>
                 <span className="label">{lastNews.notification}</span>
               </div>
             </li>
             <li className="navbar-latest-notification-dismiss">
               <a className="navbar-icon" href="#" onClick={this.handleDismiss}>
-                <ClearIcon fill={sonarcloudBlack500} size={10} />
+                <ClearIcon size={12} thin={true} />
               </a>
             </li>
           </>

@@ -18,6 +18,7 @@ exports[`renders 1`] = `
               "query": Object {
                 "id": "foo",
                 "metric": "security_rating",
+                "view": "list",
               },
             }
           }
@@ -29,7 +30,7 @@ exports[`renders 1`] = `
               metricType="SHORT_INT"
               value="3"
             />
-            projects_
+            project_plural
           </span>
         </Link>,
         "rating": <Rating

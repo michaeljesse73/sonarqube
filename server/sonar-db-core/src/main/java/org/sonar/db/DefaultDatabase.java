@@ -63,8 +63,7 @@ public class DefaultDatabase implements Database {
   private static final String DBCP_JDBC_MAX_WAIT = "maxWaitMillis";
   private static final Map<String, String> SONAR_JDBC_TO_DBCP_PROPERTY_MAPPINGS = ImmutableMap.of(
     SONAR_JDBC_MAX_ACTIVE, DBCP_JDBC_MAX_ACTIVE,
-    SONAR_JDBC_MAX_WAIT, DBCP_JDBC_MAX_WAIT
-  );
+    SONAR_JDBC_MAX_WAIT, DBCP_JDBC_MAX_WAIT);
 
   private final LogbackHelper logbackHelper;
   private final Settings settings;
@@ -79,8 +78,8 @@ public class DefaultDatabase implements Database {
 
   @Override
   public void start() {
+    initSettings();
     try {
-      initSettings();
       initDataSource();
       checkConnection();
 
@@ -96,7 +95,8 @@ public class DefaultDatabase implements Database {
     completeDefaultProperty(properties, JDBC_URL.getKey(), DEFAULT_URL);
     doCompleteProperties(properties);
 
-    dialect = DialectUtils.find(properties.getProperty(SONAR_JDBC_DIALECT), properties.getProperty(JDBC_URL.getKey()));
+    String jdbcUrl = properties.getProperty(JDBC_URL.getKey());
+    dialect = DialectUtils.find(properties.getProperty(SONAR_JDBC_DIALECT), jdbcUrl);
     properties.setProperty(SONAR_JDBC_DRIVER, dialect.getDefaultDriverClassName());
   }
 

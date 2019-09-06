@@ -37,17 +37,22 @@ import org.sonar.api.batch.fs.internal.DefaultInputFile;
 import org.sonar.api.batch.fs.internal.DefaultInputModule;
 import org.sonar.api.batch.measure.Metric;
 import org.sonar.api.batch.measure.MetricFinder;
+import org.sonar.api.batch.sensor.code.NewSignificantCode;
 import org.sonar.api.batch.sensor.code.internal.DefaultSignificantCode;
+import org.sonar.api.batch.sensor.coverage.NewCoverage;
 import org.sonar.api.batch.sensor.coverage.internal.DefaultCoverage;
+import org.sonar.api.batch.sensor.cpd.NewCpdTokens;
 import org.sonar.api.batch.sensor.cpd.internal.DefaultCpdTokens;
 import org.sonar.api.batch.sensor.error.AnalysisError;
+import org.sonar.api.batch.sensor.highlighting.NewHighlighting;
 import org.sonar.api.batch.sensor.highlighting.internal.DefaultHighlighting;
 import org.sonar.api.batch.sensor.internal.SensorStorage;
+import org.sonar.api.batch.sensor.issue.ExternalIssue;
 import org.sonar.api.batch.sensor.issue.Issue;
-import org.sonar.api.batch.sensor.issue.internal.DefaultExternalIssue;
 import org.sonar.api.batch.sensor.measure.Measure;
 import org.sonar.api.batch.sensor.measure.internal.DefaultMeasure;
-import org.sonar.api.batch.sensor.rule.internal.DefaultAdHocRule;
+import org.sonar.api.batch.sensor.rule.AdHocRule;
+import org.sonar.api.batch.sensor.symbol.NewSymbolTable;
 import org.sonar.api.batch.sensor.symbol.internal.DefaultSymbolTable;
 import org.sonar.api.config.Configuration;
 import org.sonar.api.measures.CoreMetrics;
@@ -231,7 +236,7 @@ public class DefaultSensorStorage implements SensorStorage {
    * Thread safe assuming that each issues for each file are only written once.
    */
   @Override
-  public void store(DefaultExternalIssue externalIssue) {
+  public void store(ExternalIssue externalIssue) {
     if (externalIssue.primaryLocation().inputComponent() instanceof DefaultInputFile) {
       DefaultInputFile defaultInputFile = (DefaultInputFile) externalIssue.primaryLocation().inputComponent();
       defaultInputFile.setPublished(true);
@@ -240,7 +245,7 @@ public class DefaultSensorStorage implements SensorStorage {
   }
 
   @Override
-  public void store(DefaultAdHocRule adHocRule) {
+  public void store(AdHocRule adHocRule) {
     ScannerReportWriter writer = reportPublisher.getWriter();
     final ScannerReport.AdHocRule.Builder builder = ScannerReport.AdHocRule.newBuilder();
     builder.setEngineId(adHocRule.engineId());
@@ -256,7 +261,8 @@ public class DefaultSensorStorage implements SensorStorage {
   }
 
   @Override
-  public void store(DefaultHighlighting highlighting) {
+  public void store(NewHighlighting newHighlighting) {
+    DefaultHighlighting highlighting = (DefaultHighlighting) newHighlighting;
     ScannerReportWriter writer = reportPublisher.getWriter();
     DefaultInputFile inputFile = (DefaultInputFile) highlighting.inputFile();
     if (shouldSkipStorage(inputFile)) {
@@ -284,7 +290,8 @@ public class DefaultSensorStorage implements SensorStorage {
   }
 
   @Override
-  public void store(DefaultSymbolTable symbolTable) {
+  public void store(NewSymbolTable newSymbolTable) {
+    DefaultSymbolTable symbolTable = (DefaultSymbolTable) newSymbolTable;
     ScannerReportWriter writer = reportPublisher.getWriter();
     DefaultInputFile inputFile = (DefaultInputFile) symbolTable.inputFile();
     if (shouldSkipStorage(inputFile)) {
@@ -320,7 +327,8 @@ public class DefaultSensorStorage implements SensorStorage {
   }
 
   @Override
-  public void store(DefaultCoverage defaultCoverage) {
+  public void store(NewCoverage coverage) {
+    DefaultCoverage defaultCoverage = (DefaultCoverage) coverage;
     DefaultInputFile inputFile = (DefaultInputFile) defaultCoverage.inputFile();
     inputFile.setPublished(true);
 
@@ -363,16 +371,9 @@ public class DefaultSensorStorage implements SensorStorage {
     }
   }
 
-  private static void validatePositiveLine(Map<Integer, Integer> m, String filePath) {
-    for (int l : m.keySet()) {
-      if (l <= 0) {
-        throw new IllegalStateException(String.format("Measure with line %d for file '%s' must be > 0", l, filePath));
-      }
-    }
-  }
-
   @Override
-  public void store(DefaultCpdTokens defaultCpdTokens) {
+  public void store(NewCpdTokens cpdTokens) {
+    DefaultCpdTokens defaultCpdTokens = (DefaultCpdTokens) cpdTokens;
     DefaultInputFile inputFile = (DefaultInputFile) defaultCpdTokens.inputFile();
     inputFile.setPublished(true);
     PmdBlockChunker blockChunker = new PmdBlockChunker(getCpdBlockSize(inputFile.language()));
@@ -411,7 +412,8 @@ public class DefaultSensorStorage implements SensorStorage {
   }
 
   @Override
-  public void store(DefaultSignificantCode significantCode) {
+  public void store(NewSignificantCode newSignificantCode) {
+    DefaultSignificantCode significantCode = (DefaultSignificantCode) newSignificantCode;
     ScannerReportWriter writer = reportPublisher.getWriter();
     DefaultInputFile inputFile = (DefaultInputFile) significantCode.inputFile();
     if (shouldSkipStorage(inputFile)) {

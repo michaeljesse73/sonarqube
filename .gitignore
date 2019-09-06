@@ -13,6 +13,7 @@ target/
 *.iml
 *.ipr
 .idea/
+.attach_pid*
 out/
 
 # ---- VS Code
@@ -38,7 +39,6 @@ yarn-error.log*
 
 # ---- Mac OS X
 .DS_Store
-Icon?
 # Thumbnails
 ._*
 # Files that might appear on external disk
@@ -50,6 +50,9 @@ Icon?
 Thumbs.db 
 # Folder config file
 Desktop.ini
+
+# ---- Linux
+.directory
 
 # ---- frontend
 node/
@@ -64,5 +67,4 @@ scripts/patches/*.*
 scripts/patches/*license*.txt
 !scripts/patches/debug_ce.sh
 !scripts/patches/debug_web.sh
-!scripts/patches/mysql.sh
 !scripts/patches/postgres.sh

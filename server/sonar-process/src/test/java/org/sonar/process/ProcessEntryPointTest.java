@@ -19,28 +19,32 @@
  */
 package org.sonar.process;
 
+import java.io.File;
 import java.io.IOException;
+import java.util.Properties;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.commons.io.FileUtils;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.DisableOnDebug;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestRule;
 import org.junit.rules.Timeout;
+import org.mockito.ArgumentCaptor;
 import org.sonar.process.Lifecycle.State;
 import org.sonar.process.sharedmemoryfile.ProcessCommands;
 import org.sonar.process.test.StandardProcess;
 
-import java.io.File;
-import java.util.Properties;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.sonar.process.ProcessEntryPoint.PROPERTY_GRACEFUL_STOP_TIMEOUT_MS;
 import static org.sonar.process.ProcessEntryPoint.PROPERTY_PROCESS_INDEX;
 import static org.sonar.process.ProcessEntryPoint.PROPERTY_PROCESS_KEY;
 import static org.sonar.process.ProcessEntryPoint.PROPERTY_SHARED_PATH;
-import static org.sonar.process.ProcessEntryPoint.PROPERTY_TERMINATION_TIMEOUT_MS;
 
 public class ProcessEntryPointTest {
 
@@ -52,7 +56,13 @@ public class ProcessEntryPointTest {
   @Rule
   public TemporaryFolder temp = new TemporaryFolder();
 
-  ProcessCommands commands = mock(ProcessCommands.class);
+  private ProcessCommands commands = new OperationalFlagOnlyProcessCommands();
+  private Runtime runtime;
+
+  @Before
+  public void setUp() {
+    runtime = mock(Runtime.class);
+  }
 
   @Test
   public void load_properties_from_file() throws Exception {
@@ -67,17 +77,15 @@ public class ProcessEntryPointTest {
   @Test
   public void test_initial_state() throws Exception {
     Props props = createProps();
-    ProcessEntryPoint entryPoint = new ProcessEntryPoint(props, exit, commands);
+    ProcessEntryPoint entryPoint = new ProcessEntryPoint(props, exit, commands, runtime);
 
     assertThat(entryPoint.getProps()).isSameAs(props);
-    assertThat(entryPoint.isStarted()).isFalse();
-    assertThat(entryPoint.getState()).isEqualTo(State.INIT);
   }
 
   @Test
   public void fail_to_launch_multiple_times() throws IOException {
     Props props = createProps();
-    ProcessEntryPoint entryPoint = new ProcessEntryPoint(props, exit, commands);
+    ProcessEntryPoint entryPoint = new ProcessEntryPoint(props, exit, commands, runtime);
 
     entryPoint.launch(new NoopProcess());
     try {
@@ -91,33 +99,45 @@ public class ProcessEntryPointTest {
   @Test
   public void launch_then_request_graceful_stop() throws Exception {
     Props props = createProps();
-    final ProcessEntryPoint entryPoint = new ProcessEntryPoint(props, exit, commands);
+    final ProcessEntryPoint entryPoint = new ProcessEntryPoint(props, exit, commands, runtime);
     final StandardProcess process = new StandardProcess();
 
-    Thread runner = new Thread() {
-      @Override
-      public void run() {
-        // starts and waits until terminated
-        entryPoint.launch(process);
-      }
-    };
-    runner.start();
+    new Thread(() -> entryPoint.launch(process)).start();
 
-    while (process.getState() != State.STARTED) {
-      Thread.sleep(10L);
-    }
+    waitForOperational(process, commands);
 
     // requests for graceful stop -> waits until down
     // Should terminate before the timeout of 30s
     entryPoint.stop();
 
     assertThat(process.getState()).isEqualTo(State.STOPPED);
+    assertThat(process.wasStopped()).isEqualTo(true);
+    assertThat(process.wasHardStopped()).isEqualTo(false);
+  }
+
+  @Test
+  public void launch_then_request_hard_stop() throws Exception {
+    Props props = createProps();
+    final ProcessEntryPoint entryPoint = new ProcessEntryPoint(props, exit, commands, runtime);
+    final StandardProcess process = new StandardProcess();
+
+    // starts and waits until terminated
+    Thread runner = new Thread(() -> entryPoint.launch(process));
+    runner.start();
+
+    waitForOperational(process, commands);
+
+    // requests for stop hardly waiting
+    entryPoint.hardStop();
+
+    assertThat(process.getState()).isEqualTo(State.STOPPED);
+    assertThat(process.wasHardStopped()).isEqualTo(true);
   }
 
   @Test
   public void terminate_if_unexpected_shutdown() throws Exception {
     Props props = createProps();
-    final ProcessEntryPoint entryPoint = new ProcessEntryPoint(props, exit, commands);
+    final ProcessEntryPoint entryPoint = new ProcessEntryPoint(props, exit, commands, runtime);
     final StandardProcess process = new StandardProcess();
 
     Thread runner = new Thread() {
@@ -128,15 +148,13 @@ public class ProcessEntryPointTest {
       }
     };
     runner.start();
-    while (process.getState() != State.STARTED) {
-      Thread.sleep(10L);
-    }
+
+    waitForOperational(process, commands);
 
     // emulate signal to shutdown process
-    entryPoint.getShutdownHook().start();
-
-    // hack to prevent JUnit JVM to fail when executing the shutdown hook a second time
-    Runtime.getRuntime().removeShutdownHook(entryPoint.getShutdownHook());
+    ArgumentCaptor<Thread> shutdownHookCaptor = ArgumentCaptor.forClass(Thread.class);
+    verify(runtime).addShutdownHook(shutdownHookCaptor.capture());
+    shutdownHookCaptor.getValue().start();
 
     while (process.getState() != State.STOPPED) {
       Thread.sleep(10L);
@@ -147,11 +165,17 @@ public class ProcessEntryPointTest {
   @Test
   public void terminate_if_startup_error() throws IOException {
     Props props = createProps();
-    final ProcessEntryPoint entryPoint = new ProcessEntryPoint(props, exit, commands);
-    final Monitored process = new StartupErrorProcess();
+    final ProcessEntryPoint entryPoint = new ProcessEntryPoint(props, exit, commands, runtime);
+    final Monitored process = mock(Monitored.class);
+    doThrow(IllegalStateException.class).when(process).start();
 
     entryPoint.launch(process);
-    assertThat(entryPoint.getState()).isEqualTo(State.STOPPED);
+  }
+
+  private static void waitForOperational(StandardProcess process, ProcessCommands commands) throws InterruptedException {
+    while (!(process.getState() == State.STARTED && commands.isOperational())) {
+      Thread.sleep(10L);
+    }
   }
 
   private Props createProps() throws IOException {
@@ -159,7 +183,7 @@ public class ProcessEntryPointTest {
     props.set(PROPERTY_SHARED_PATH, temp.newFolder().getAbsolutePath());
     props.set(PROPERTY_PROCESS_INDEX, "1");
     props.set(PROPERTY_PROCESS_KEY, "test");
-    props.set(PROPERTY_TERMINATION_TIMEOUT_MS, "30000");
+    props.set(PROPERTY_GRACEFUL_STOP_TIMEOUT_MS, "30000");
     return props;
   }
 
@@ -184,27 +208,93 @@ public class ProcessEntryPointTest {
     public void stop() {
 
     }
+
+    @Override
+    public void hardStop() {
+
+    }
   }
 
-  private static class StartupErrorProcess implements Monitored {
+  private static class OperationalFlagOnlyProcessCommands implements ProcessCommands {
+    private final AtomicBoolean operational = new AtomicBoolean(false);
 
     @Override
-    public void start() {
-      throw new IllegalStateException("ERROR");
+    public boolean isUp() {
+      return false;
     }
 
     @Override
-    public Status getStatus() {
-      return Status.DOWN;
-    }
-
-    @Override
-    public void awaitStop() {
+    public void setUp() {
 
     }
 
     @Override
-    public void stop() {
+    public boolean isOperational() {
+      return operational.get();
+    }
+
+    @Override
+    public void setOperational() {
+      operational.set(true);
+    }
+
+    @Override
+    public void ping() {
+
+    }
+
+    @Override
+    public long getLastPing() {
+      return 0;
+    }
+
+    @Override
+    public void setHttpUrl(String s) {
+
+    }
+
+    @Override
+    public String getHttpUrl() {
+      return null;
+    }
+
+    @Override
+    public void askForStop() {
+
+    }
+
+    @Override
+    public boolean askedForStop() {
+      return false;
+    }
+
+    @Override
+    public void askForHardStop() {
+
+    }
+
+    @Override
+    public boolean askedForHardStop() {
+      return false;
+    }
+
+    @Override
+    public void askForRestart() {
+
+    }
+
+    @Override
+    public boolean askedForRestart() {
+      return false;
+    }
+
+    @Override
+    public void acknowledgeAskForRestart() {
+
+    }
+
+    @Override
+    public void endWatch() {
 
     }
   }

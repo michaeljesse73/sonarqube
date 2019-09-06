@@ -18,14 +18,14 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import * as React from 'react';
-import WorkersForm from './WorkersForm';
-import NoWorkersSupportPopup from './NoWorkersSupportPopup';
-import AlertWarnIcon from '../../../components/icons-components/AlertWarnIcon';
-import HelpTooltip from '../../../components/controls/HelpTooltip';
-import Tooltip from '../../../components/controls/Tooltip';
+import { EditButton } from 'sonar-ui-common/components/controls/buttons';
+import HelpTooltip from 'sonar-ui-common/components/controls/HelpTooltip';
+import Tooltip from 'sonar-ui-common/components/controls/Tooltip';
+import AlertWarnIcon from 'sonar-ui-common/components/icons/AlertWarnIcon';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import { getWorkers } from '../../../api/ce';
-import { translate } from '../../../helpers/l10n';
-import { EditButton } from '../../../components/ui/buttons';
+import NoWorkersSupportPopup from './NoWorkersSupportPopup';
+import WorkersForm from './WorkersForm';
 
 interface State {
   canSetWorkerCount: boolean;

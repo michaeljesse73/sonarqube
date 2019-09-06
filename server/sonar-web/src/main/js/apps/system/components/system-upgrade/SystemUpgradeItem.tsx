@@ -19,14 +19,13 @@
  */
 import * as React from 'react';
 import { FormattedMessage } from 'react-intl';
-import SystemUpgradeIntermediate from './SystemUpgradeIntermediate';
+import { translate, translateWithParameters } from 'sonar-ui-common/helpers/l10n';
 import DateFormatter from '../../../../components/intl/DateFormatter';
-import { SystemUpgrade } from '../../../../api/system';
-import { translate, translateWithParameters } from '../../../../helpers/l10n';
+import SystemUpgradeIntermediate from './SystemUpgradeIntermediate';
 
 interface Props {
   type?: string;
-  systemUpgrades: SystemUpgrade[];
+  systemUpgrades: T.SystemUpgrade[];
 }
 
 export default function SystemUpgradeItem({ type, systemUpgrades }: Props) {

@@ -17,13 +17,13 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { shallow } from 'enzyme';
-import HomePageSelect from '../HomePageSelect';
+import * as React from 'react';
+import { click } from 'sonar-ui-common/helpers/testUtils';
 import { setHomePage } from '../../../api/users';
-import { click } from '../../../helpers/testUtils';
 import rootReducer, { getCurrentUser, Store } from '../../../store/rootReducer';
 import configureStore from '../../../store/utils/configureStore';
+import HomePageSelect from '../HomePageSelect';
 
 jest.mock('../../../api/users', () => ({
   setHomePage: jest.fn(() => Promise.resolve())
@@ -50,7 +50,7 @@ it('should set new home page', async () => {
     users: { currentUser: { isLoggedIn: true } }
   } as Store);
   const wrapper = getWrapper(homepage, store);
-  click(wrapper.find('a'));
+  click(wrapper.find('ButtonLink'));
   await new Promise(setImmediate);
   const currentUser = getCurrentUser(store.getState() as Store) as T.LoggedInUser;
   expect(currentUser.homepage).toEqual(homepage);

@@ -20,6 +20,7 @@
 package org.sonar.db.purge;
 
 import java.util.List;
+import java.util.Set;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 import org.apache.ibatis.annotations.Param;
@@ -32,6 +33,12 @@ public interface PurgeMapper {
    * Returns the list of modules/subviews and the application/view/project for the specified project_uuid.
    */
   List<IdUuidPair> selectRootAndModulesOrSubviewsByProjectUuid(@Param("rootUuid") String rootUuid);
+
+  Set<String> selectDisabledComponentsWithFileSource(@Param("projectUuid") String projectUuid);
+
+  Set<String> selectDisabledComponentsWithUnresolvedIssues(@Param("projectUuid") String projectUuid);
+
+  Set<String> selectDisabledComponentsWithLiveMeasures(@Param("projectUuid") String projectUuid);
 
   void deleteAnalyses(@Param("analysisUuids") List<String> analysisUuids);
 
@@ -94,6 +101,8 @@ public interface PurgeMapper {
   @CheckForNull
   String selectManualBaseline(@Param("projectUuid") String projectUuid);
 
+  List<IdUuidPair> selectDisabledComponentsWithoutIssues(@Param("projectUuid") String projectUuid);
+
   void deleteIssuesFromKeys(@Param("keys") List<String> keys);
 
   void deleteIssueChangesFromIssueKeys(@Param("issueKeys") List<String> issueKeys);
@@ -102,15 +111,23 @@ public interface PurgeMapper {
 
   void deleteFileSourcesByFileUuid(@Param("fileUuids") List<String> fileUuids);
 
-  void deleteCeTaskCharacteristicsOfCeActivityByRootUuid(@Param("rootUuid") String rootUuid);
+  void deleteCeTaskCharacteristicsOfCeActivityByRootUuidOrBefore(@Nullable @Param("rootUuid") String rootUuid,
+    @Nullable @Param("createdAtBefore") Long createdAtBefore);
 
-  void deleteCeTaskInputOfCeActivityByRootUuid(@Param("rootUuid") String rootUuid);
+  void deleteCeTaskInputOfCeActivityByRootUuidOrBefore(@Nullable @Param("rootUuid") String rootUuid,
+    @Nullable @Param("createdAtBefore") Long createdAtBefore);
 
-  void deleteCeScannerContextOfCeActivityByRootUuid(@Param("rootUuid") String rootUuid);
+  void deleteCeScannerContextOfCeActivityByRootUuidOrBefore(@Nullable @Param("rootUuid") String rootUuid,
+    @Nullable @Param("createdAtBefore") Long createdAtBefore);
 
-  void deleteCeTaskMessageOfCeActivityByRootUuid(@Param("rootUuid") String rootUuid);
+  void deleteCeTaskMessageOfCeActivityByRootUuidOrBefore(@Nullable @Param("rootUuid") String rootUuid,
+    @Nullable @Param("createdAtBefore") Long createdAtBefore);
 
-  void deleteCeActivityByRootUuid(@Param("rootUuid") String rootUuid);
+  /**
+   * Delete rows in CE_ACTIVITY of tasks of the specified component and/or created before specified date.
+   */
+  void deleteCeActivityByRootUuidOrBefore(@Nullable @Param("rootUuid") String rootUuid,
+    @Nullable @Param("createdAtBefore") Long createdAtBefore);
 
   void deleteCeScannerContextOfCeQueueByRootUuid(@Param("rootUuid") String rootUuid);
 

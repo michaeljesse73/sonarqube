@@ -17,11 +17,11 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import { shallow } from 'enzyme';
-import ProjectActivityApp from '../ProjectActivityApp';
+import * as React from 'react';
+import { parseDate } from 'sonar-ui-common/helpers/dates';
 import { DEFAULT_GRAPH } from '../../utils';
-import { parseDate } from '../../../../helpers/dates';
+import ProjectActivityApp from '../ProjectActivityApp';
 
 const ANALYSES = [
   {

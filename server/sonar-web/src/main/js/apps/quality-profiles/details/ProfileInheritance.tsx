@@ -17,14 +17,14 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import * as React from 'react';
 import * as classNames from 'classnames';
-import ProfileInheritanceBox from './ProfileInheritanceBox';
-import ChangeParentForm from './ChangeParentForm';
-import { Profile } from '../types';
+import * as React from 'react';
+import { Button } from 'sonar-ui-common/components/controls/buttons';
+import { translate } from 'sonar-ui-common/helpers/l10n';
 import { getProfileInheritance } from '../../../api/quality-profiles';
-import { Button } from '../../../components/ui/buttons';
-import { translate } from '../../../helpers/l10n';
+import { Profile } from '../types';
+import ChangeParentForm from './ChangeParentForm';
+import ProfileInheritanceBox from './ProfileInheritanceBox';
 
 interface Props {
   organization: string | null;
@@ -33,21 +33,12 @@ interface Props {
   updateProfiles: () => Promise<void>;
 }
 
-interface ProfileInheritanceDetails {
-  activeRuleCount: number;
-  isBuiltIn: boolean;
-  key: string;
-  language: string;
-  name: string;
-  overridingRuleCount?: number;
-}
-
 interface State {
-  ancestors?: Array<ProfileInheritanceDetails>;
-  children?: Array<ProfileInheritanceDetails>;
+  ancestors?: T.ProfileInheritanceDetails[];
+  children?: T.ProfileInheritanceDetails[];
   formOpen: boolean;
   loading: boolean;
-  profile?: ProfileInheritanceDetails;
+  profile?: T.ProfileInheritanceDetails;
 }
 
 export default class ProfileInheritance extends React.PureComponent<Props, State> {
@@ -78,9 +69,11 @@ export default class ProfileInheritance extends React.PureComponent<Props, State
       r => {
         if (this.mounted) {
           const { ancestors, children } = r;
+          ancestors.reverse();
+
           this.setState({
             children,
-            ancestors: ancestors.reverse(),
+            ancestors,
             profile: r.profile,
             loading: false
           });
@@ -122,10 +115,6 @@ export default class ProfileInheritance extends React.PureComponent<Props, State
       this.state.children != null &&
       (ancestors.length > 0 || this.state.children.length > 0);
 
-    const currentClassName = classNames('js-inheritance-current', {
-      selected: highlightCurrent
-    });
-
     const extendsBuiltIn = ancestors != null && ancestors.some(profile => profile.isBuiltIn);
 
     return (
@@ -151,18 +140,20 @@ export default class ProfileInheritance extends React.PureComponent<Props, State
                 {ancestors != null &&
                   ancestors.map((ancestor, index) => (
                     <ProfileInheritanceBox
-                      className="js-inheritance-ancestor"
                       depth={index}
                       key={ancestor.key}
                       language={profile.language}
                       organization={this.props.organization}
                       profile={ancestor}
+                      type="ancestor"
                     />
                   ))}
 
                 {this.state.profile != null && (
                   <ProfileInheritanceBox
-                    className={currentClassName}
+                    className={classNames({
+                      selected: highlightCurrent
+                    })}
                     depth={ancestors ? ancestors.length : 0}
                     displayLink={false}
                     extendsBuiltIn={extendsBuiltIn}
@@ -175,12 +166,12 @@ export default class ProfileInheritance extends React.PureComponent<Props, State
                 {this.state.children != null &&
                   this.state.children.map(child => (
                     <ProfileInheritanceBox
-                      className="js-inheritance-child"
                       depth={ancestors ? ancestors.length + 1 : 0}
                       key={child.key}
                       language={profile.language}
                       organization={this.props.organization}
                       profile={child}
+                      type="child"
                     />
                   ))}
               </tbody>

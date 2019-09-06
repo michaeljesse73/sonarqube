@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-/* eslint-disable import/first, import/order */
+/* eslint-disable import/first */
 jest.mock('../../../../api/measures', () => ({
   getMeasures: jest.fn(() => Promise.resolve([]))
 }));
@@ -26,23 +26,8 @@ jest.mock('../../../../api/components', () => ({
   getChildren: jest.fn(() => Promise.resolve({ components: [], paging: { total: 0 } }))
 }));
 
-// mock Activity to not deal with localstorage
-jest.mock('../Activity', () => ({
-  // eslint-disable-next-line
-  default: function Activity() {
-    return null;
-  }
-}));
-
-jest.mock('../Report', () => ({
-  // eslint-disable-next-line
-  default: function Report() {
-    return null;
-  }
-}));
-
+import { mount, shallow } from 'enzyme';
 import * as React from 'react';
-import { shallow, mount } from 'enzyme';
 import { App } from '../App';
 
 const getMeasures = require('../../../../api/measures').getMeasures as jest.Mock<any>;
@@ -80,7 +65,7 @@ it('fetches measures and children components', () => {
   expect(getMeasures).toBeCalledWith({
     component: 'foo',
     metricKeys:
-      'projects,ncloc,ncloc_language_distribution,releasability_rating,releasability_effort,sqale_rating,maintainability_rating_effort,reliability_rating,reliability_rating_effort,security_rating,security_rating_effort,last_change_on_releasability_rating,last_change_on_maintainability_rating,last_change_on_security_rating,last_change_on_reliability_rating'
+      'projects,ncloc,ncloc_language_distribution,releasability_rating,releasability_effort,sqale_rating,maintainability_rating_effort,reliability_rating,reliability_rating_effort,security_rating,security_rating_effort,security_review_rating,security_review_rating_effort,last_change_on_releasability_rating,last_change_on_maintainability_rating,last_change_on_security_rating,last_change_on_security_review_rating,last_change_on_reliability_rating'
   });
   expect(getChildren).toBeCalledWith(
     'foo',
@@ -88,6 +73,7 @@ it('fetches measures and children components', () => {
       'ncloc',
       'releasability_rating',
       'security_rating',
+      'security_review_rating',
       'reliability_rating',
       'sqale_rating',
       'alert_status'

@@ -17,11 +17,11 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-/* eslint-disable import/order */
-import * as React from 'react';
+
 import { mount, shallow } from 'enzyme';
+import * as React from 'react';
+import { click, waitAndUpdate } from 'sonar-ui-common/helpers/testUtils';
 import ProfilePermissions from '../ProfilePermissions';
-import { click, waitAndUpdate } from '../../../../helpers/testUtils';
 
 jest.mock('../../../../api/quality-profiles', () => ({
   searchUsers: jest.fn(() => Promise.resolve([])),

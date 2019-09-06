@@ -24,11 +24,12 @@ import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.SetMultimap;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 import org.sonar.api.ce.ComputeEngineSide;
 import org.sonar.api.notifications.Notification;
@@ -36,7 +37,10 @@ import org.sonar.api.notifications.NotificationChannel;
 import org.sonar.api.server.ServerSide;
 import org.sonar.api.utils.log.Logger;
 import org.sonar.api.utils.log.Loggers;
+import org.sonar.core.util.stream.MoreCollectors;
 import org.sonar.db.DbClient;
+
+import static com.google.common.base.Preconditions.checkArgument;
 
 @ServerSide
 @ComputeEngineSide
@@ -45,21 +49,69 @@ public class NotificationService {
   private static final Logger LOG = Loggers.get(NotificationService.class);
 
   private final List<NotificationDispatcher> dispatchers;
+  private final List<NotificationHandler<? extends Notification>> handlers;
   private final DbClient dbClient;
 
-  public NotificationService(DbClient dbClient, NotificationDispatcher[] dispatchers) {
+  public NotificationService(DbClient dbClient, NotificationDispatcher[] dispatchers, NotificationHandler<? extends Notification>[] handlers) {
     this.dbClient = dbClient;
     this.dispatchers = ImmutableList.copyOf(dispatchers);
+    this.handlers = ImmutableList.copyOf(handlers);
   }
 
   /**
-   * Default constructor when no dispatchers.
+   * Used by Pico when there are no handler nor dispatcher.
    */
   public NotificationService(DbClient dbClient) {
-    this(dbClient, new NotificationDispatcher[0]);
+    this(dbClient, new NotificationDispatcher[0], new NotificationHandler[0]);
+  }
+
+  /**
+   * Used by Pico when there are no dispatcher.
+   */
+  public NotificationService(DbClient dbClient, NotificationHandler[] handlers) {
+    this(dbClient, new NotificationDispatcher[0], handlers);
+  }
+
+  /**
+   * Used by Pico when there are no handler.
+   */
+  public NotificationService(DbClient dbClient, NotificationDispatcher[] dispatchers) {
+    this(dbClient, dispatchers, new NotificationHandler[0]);
+  }
+
+  public <T extends Notification> int deliverEmails(Collection<T> notifications) {
+    if (handlers.isEmpty()) {
+      return 0;
+    }
+
+    Class<T> aClass = typeClassOf(notifications);
+    if (aClass == null) {
+      return 0;
+    }
+
+    checkArgument(aClass != Notification.class, "Type of notification objects must be a subtype of " + Notification.class.getSimpleName());
+    return handlers.stream()
+      .filter(t -> t.getNotificationClass() == aClass)
+      .map(t -> (NotificationHandler<T>) t)
+      .mapToInt(handler -> handler.deliver(notifications))
+      .sum();
+  }
+
+  @SuppressWarnings("unchecked")
+  @CheckForNull
+  private static <T extends Notification> Class<T> typeClassOf(Collection<T> collection) {
+    if (collection.isEmpty()) {
+      return null;
+    }
+
+    return (Class<T>) collection.iterator().next().getClass();
   }
 
   public int deliver(Notification notification) {
+    if (dispatchers.isEmpty()) {
+      return 0;
+    }
+
     SetMultimap<String, NotificationChannel> recipients = HashMultimap.create();
     for (NotificationDispatcher dispatcher : dispatchers) {
       NotificationDispatcher.Context context = new ContextImpl(recipients);
@@ -102,13 +154,14 @@ public class NotificationService {
    * Returns true if at least one user is subscribed to at least one notification with given types.
    * Subscription can be global or on the specific project.
    */
-  public boolean hasProjectSubscribersForTypes(String projectUuid, Set<String> notificationTypes) {
-    Collection<String> dispatcherKeys = new ArrayList<>();
-    for (NotificationDispatcher dispatcher : dispatchers) {
-      if (notificationTypes.contains(dispatcher.getType())) {
-        dispatcherKeys.add(dispatcher.getKey());
-      }
-    }
+  public boolean hasProjectSubscribersForTypes(String projectUuid, Set<Class<? extends Notification>> notificationTypes) {
+    Set<String> dispatcherKeys = handlers.stream()
+      .filter(handler -> notificationTypes.stream().anyMatch(notificationType -> handler.getNotificationClass() == notificationType))
+      .map(NotificationHandler::getMetadata)
+      .filter(Optional::isPresent)
+      .map(Optional::get)
+      .map(NotificationDispatcherMetadata::getDispatcherKey)
+      .collect(MoreCollectors.toSet(notificationTypes.size()));
 
     return dbClient.propertiesDao().hasProjectNotificationSubscribersForDispatchers(projectUuid, dispatcherKeys);
   }
